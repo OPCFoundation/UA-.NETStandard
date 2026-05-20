@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -84,7 +85,8 @@ internal sealed partial class WhereClauseDialog : Window
         clear.Click += (_, _) =>
         {
             m_editor.Initialize(null, session);
-            m_status.Foreground = Brushes.Gray;
+            m_status.Foreground = (Application.Current?.FindResource("TextDim") as IBrush)
+                ?? Brushes.Transparent;
             m_status.Text = "Cleared.";
         };
         validate.Click += (_, _) => RunValidation();
@@ -112,21 +114,24 @@ internal sealed partial class WhereClauseDialog : Window
         }
         catch (Exception ex)
         {
-            m_status.Foreground = Brushes.OrangeRed;
+            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
             m_status.Text = $"Build failed: {ex.Message}";
             return;
         }
 
         if (built.Elements.Count == 0)
         {
-            m_status.Foreground = Brushes.Gray;
+            m_status.Foreground = (Application.Current?.FindResource("TextDim") as IBrush)
+                ?? Brushes.Transparent;
             m_status.Text = "Filter is empty — the server will accept all events.";
             return;
         }
 
         if (m_session is null)
         {
-            m_status.Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+            m_status.Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                ?? Brushes.Transparent;
             m_status.Text = "No active session — structure looks well-formed but cannot be validated against the server's TypeTree. Connect to validate.";
             return;
         }
@@ -137,7 +142,8 @@ internal sealed partial class WhereClauseDialog : Window
             ContentFilter.Result vr = built.Validate(ctx);
             if (ServiceResult.IsGood(vr.Status))
             {
-                m_status.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+                m_status.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                    ?? Brushes.Transparent;
                 m_status.Text = "✓ Validates against the session's TypeTree.";
                 return;
             }
@@ -168,12 +174,14 @@ internal sealed partial class WhereClauseDialog : Window
                     }
                 }
             }
-            m_status.Foreground = Brushes.OrangeRed;
+            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
             m_status.Text = buf.ToString();
         }
         catch (Exception ex)
         {
-            m_status.Foreground = Brushes.OrangeRed;
+            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
             m_status.Text = $"Validate failed: {ex.Message}";
         }
     }

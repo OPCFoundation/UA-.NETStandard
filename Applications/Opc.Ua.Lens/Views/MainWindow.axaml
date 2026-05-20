@@ -36,41 +36,41 @@
         Icon="avares://UaLens/Assets/app-icon.png"
         Width="1400" Height="900"
         MinWidth="980" MinHeight="640"
-        Background="#0F172A" Foreground="#E2E8F0"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
         FontFamily="Inter, Segoe UI, sans-serif">
   <Window.Styles>
     <Style Selector="Border.panel">
-      <Setter Property="BorderBrush" Value="#1E293B" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Padding" Value="10" />
-      <Setter Property="Background" Value="#0B1220" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
     </Style>
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="13" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
     <Style Selector="TextBlock.status">
-      <Setter Property="Foreground" Value="#22C55E" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentGreen}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="12" />
     </Style>
     <Style Selector="TextBlock.statusDim">
-      <Setter Property="Foreground" Value="#64748B" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="12,6" />
       <Setter Property="MinWidth" Value="100" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#0EA5E9" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="12,6" />
       <Setter Property="MinWidth" Value="120" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -86,17 +86,17 @@
   <DockPanel LastChildFill="True">
 
     <!-- ========= MENU BAR + connection indicator ========= -->
-    <DockPanel DockPanel.Dock="Top" Background="#0B1220">
+    <DockPanel DockPanel.Dock="Top" Background="{DynamicResource PanelBg}">
       <Border DockPanel.Dock="Right" Margin="0,0,8,0"
               ToolTip.Tip="Connection state (green=connected, amber=keep-alive lost, gray=disconnected)">
         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Ellipse x:Name="ConnectionDot" Width="10" Height="10" Fill="#64748B" />
+          <Ellipse x:Name="ConnectionDot" Width="10" Height="10" Fill="{DynamicResource TextDim}" />
           <TextBlock x:Name="ConnectionDotLabel" VerticalAlignment="Center"
                      FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
-                     Foreground="#94A3B8" Text="disconnected" />
+                     Foreground="{DynamicResource TextSecondary}" Text="disconnected" />
         </StackPanel>
       </Border>
-      <Menu Background="#0B1220">
+      <Menu Background="{DynamicResource PanelBg}">
       <MenuItem Header="_File">
         <MenuItem x:Name="MenuExport"      Header="_Export NodeSet2..."  InputGesture="Ctrl+E" />
         <MenuItem x:Name="MenuExportTab"   Header="Export _Plugin Data..." InputGesture="Ctrl+Shift+E" />
@@ -181,6 +181,19 @@
       </MenuItem>
       <MenuItem x:Name="DynamicKindMenuAnchor" Header="(kind menus injected here)" IsVisible="False" />
       <MenuItem Header="_View">
+        <MenuItem x:Name="MenuThemeDarkNavy"
+                  Header="Dark _Navy"
+                  ToggleType="Radio"
+                  GroupName="Theme" />
+        <MenuItem x:Name="MenuThemeDarkStandard"
+                  Header="Dark _Standard"
+                  ToggleType="Radio"
+                  GroupName="Theme" />
+        <MenuItem x:Name="MenuThemeLight"
+                  Header="_Light"
+                  ToggleType="Radio"
+                  GroupName="Theme" />
+        <Separator />
         <MenuItem x:Name="MenuToggleDiag"         Header="_Diagnostics" ToggleType="CheckBox" InputGesture="F2" />
         <MenuItem x:Name="MenuToggleLog"          Header="_Log"         ToggleType="CheckBox" InputGesture="Ctrl+L" />
         <Separator />
@@ -204,7 +217,7 @@
       <Grid RowDefinitions="Auto,*">
         <TextBlock Grid.Row="0" Classes="h" Text="≡ Log" />
         <ListBox Grid.Row="1" x:Name="LogList" ItemsSource="{CompiledBinding LogLines}"
-                 Background="#0B1220" Foreground="#CBD5E1"
+                 Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextSecondaryAlt}"
                  FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" BorderThickness="0">
           <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
@@ -218,11 +231,11 @@
 
     <!-- ========= RESOURCE STATUS PANE (CPU + Mem) ========= -->
     <Border DockPanel.Dock="Bottom" Margin="10,4,10,10" Padding="8,2"
-            BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <DockPanel>
-        <TextBlock VerticalAlignment="Center" Foreground="#64748B" FontSize="11">📊 process</TextBlock>
+        <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" FontSize="11">📊 process</TextBlock>
         <TextBlock HorizontalAlignment="Right" DockPanel.Dock="Right"
-                   Foreground="#94A3B8"
+                   Foreground="{DynamicResource TextSecondary}"
                    FontFamily="Cascadia Mono, Consolas, monospace"
                    FontSize="11"
                    Text="{CompiledBinding ResourceStatus}" />
@@ -231,12 +244,12 @@
 
     <!-- ========= TAB STATUS BAR (subscription counters) ========= -->
     <Border DockPanel.Dock="Bottom" Margin="10,4,10,0" Padding="8,2"
-            BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <DockPanel>
-        <TextBlock VerticalAlignment="Center" Foreground="#64748B" FontSize="11">📡 subscription</TextBlock>
+        <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" FontSize="11">📡 subscription</TextBlock>
         <TextBlock HorizontalAlignment="Right" DockPanel.Dock="Right"
                    x:Name="TabStatusLabel"
-                   Foreground="#94A3B8"
+                   Foreground="{DynamicResource TextSecondary}"
                    FontFamily="Cascadia Mono, Consolas, monospace"
                    FontSize="11"
                    Text="—" />
@@ -284,7 +297,7 @@
                         Height="4"
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Center"
-                        Background="#1E293B"
+                        Background="{DynamicResource SeparatorBrush}"
                         IsVisible="{CompiledBinding ShowAttributes}" />
           <ContentControl Grid.Row="3"
                           x:Name="AttrsPanel"
@@ -295,7 +308,7 @@
                         Height="4"
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Center"
-                        Background="#1E293B"
+                        Background="{DynamicResource SeparatorBrush}"
                         IsVisible="{CompiledBinding ShowReferences}" />
           <ContentControl Grid.Row="5"
                           x:Name="RefsPanel"
@@ -311,7 +324,7 @@
                     Margin="2,0,2,0"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Stretch"
-                    Background="#1E293B" />
+                    Background="{DynamicResource SeparatorBrush}" />
 
       <!-- RIGHT: tab strip + body.  The old inline connection panel was
            replaced by `Session → Create...` (ConnectDialog). -->
@@ -361,7 +374,7 @@
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
-            <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#121A2C" Margin="0,4,0,0">
+            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource SurfaceBg}" Margin="0,4,0,0">
               <!-- Wrap the disabled-body Grid + the disconnected-overlay
                    placeholder so the placeholder is NOT a child of the
                    ``IsEnabled=IsConnected`` Grid; otherwise its Connect
@@ -377,8 +390,8 @@
                        subscription-specific buttons live INSIDE the tab.
                        WrapPanel so the children flow onto the next line
                        when the window narrows (no horizontal scroll). -->
-                  <Border Grid.Row="0" Background="#0B1220" Padding="8,6"
-                          BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+                  <Border Grid.Row="0" Background="{DynamicResource PanelBg}" Padding="8,6"
+                          BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,0,0,1">
                     <WrapPanel Classes="toolbar" Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32">
                         <CheckBox x:Name="ResourceOverlayCheck"
                                   VerticalAlignment="Center"
@@ -389,7 +402,7 @@
                                   Margin="4,0"
                                   Content="Monitored Items"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, Mode=TwoWay, FallbackValue=False}" />
-                        <Border Width="1" Background="#1E293B" Margin="4,6" />
+                        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
                         <CheckBox x:Name="ShowLegendCheck"
                                   VerticalAlignment="Center"
                                   Margin="4,0"
@@ -409,7 +422,7 @@
                                   ToolTip.Tip="Show / hide the chart Y axis (left)"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowYAxis, Mode=TwoWay, FallbackValue=False}" />
                         <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center">
-                          <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
+                          <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="{DynamicResource TextSecondary}" Text="View:" />
                           <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
                                     VerticalAlignment="Center" VerticalContentAlignment="Center"
                                     MinHeight="28">
@@ -427,7 +440,7 @@
                           <TextBlock x:Name="TimeScaleLabel" VerticalAlignment="Center"
                                      HorizontalAlignment="Center" Width="40"
                                      TextAlignment="Center"
-                                     Foreground="#94A3B8"
+                                     Foreground="{DynamicResource TextSecondary}"
                                      FontFamily="Cascadia Mono, Consolas, monospace" Text="1.0×" />
                           <Button x:Name="TimeScaleUpBtn"   Classes="tonal" Content="+" Width="30"
                                   VerticalAlignment="Center" />
@@ -460,7 +473,7 @@
                                   Width="4"
                                   ResizeDirection="Columns"
                                   ResizeBehavior="PreviousAndNext"
-                                  Background="#1E293B"
+                                  Background="{DynamicResource SeparatorBrush}"
                                   IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}" />
                     <!-- B1: per-monitored-item status sub-pane.  Toggled
                          via the toolbar's "📋 Items" checkbox.  Right-click
@@ -470,12 +483,12 @@
                     <Border Grid.Column="2"
                             IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}"
                             MinWidth="240"
-                            Background="#0B1220"
-                            BorderBrush="#1E293B" BorderThickness="1,0,0,0">
+                            Background="{DynamicResource PanelBg}"
+                            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1,0,0,0">
                       <Grid RowDefinitions="Auto,Auto,*" Grid.IsSharedSizeScope="True">
                         <TextBlock Grid.Row="0"
                                    Margin="10,8,10,6"
-                                   Foreground="#94A3B8" FontSize="12"
+                                   Foreground="{DynamicResource TextSecondary}" FontSize="12"
                                    Text="Monitored items" />
                         <!-- Column header row with GridSplitter cells
                              between each column.  SharedSizeGroup mirrors
@@ -502,25 +515,25 @@
                             <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep8" />
                             <ColumnDefinition Width="*"    MinWidth="60"  SharedSizeGroup="MiCol9" />
                           </Grid.ColumnDefinitions>
-                          <TextBlock Grid.Column="0"  Text="Id"        FontSize="11" Foreground="#64748B" />
-                          <GridSplitter Grid.Column="1"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="2"  Text="Browse"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="3"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="4"  Text="NodeId"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="5"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="6"  Text="Attr"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="7"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="8"  Text="Mode"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="9"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="10" Text="Sampling"  FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="11" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="12" Text="Q"         FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="13" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="14" Text="Samples"   FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="15" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="16" Text="Status"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="17" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
-                          <TextBlock Grid.Column="18" Text="Value"     FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="0"  Text="Id"        FontSize="11" Foreground="{DynamicResource TextDim}" />
+                          <GridSplitter Grid.Column="1"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="2"  Text="Browse"    FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="3"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="4"  Text="NodeId"    FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="5"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="6"  Text="Attr"      FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="7"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="8"  Text="Mode"      FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="9"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="10" Text="Sampling"  FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="11" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="12" Text="Q"         FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="13" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="14" Text="Samples"   FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="15" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="16" Text="Status"    FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="17" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+                          <TextBlock Grid.Column="18" Text="Value"     FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
                         </Grid>
                         <ListBox Grid.Row="2"
                                  x:Name="ItemStatusList"
@@ -565,21 +578,21 @@
                                     </MenuItem>
                                   </ContextMenu>
                                 </Grid.ContextMenu>
-                                <TextBlock Grid.Column="0"  Text="{CompiledBinding Id}"            FontSize="11" Foreground="#CBD5E1"
+                                <TextBlock Grid.Column="0"  Text="{CompiledBinding Id}"            FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="2"  Text="{CompiledBinding BrowseName}"    FontSize="11" Foreground="#E2E8F0" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="4"  Text="{CompiledBinding NodeId}"        FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="2"  Text="{CompiledBinding BrowseName}"    FontSize="11" Foreground="{DynamicResource TextPrimary}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="4"  Text="{CompiledBinding NodeId}"        FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="6"  Text="{CompiledBinding AttributeName}" FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" />
-                                <TextBlock Grid.Column="8"  Text="{CompiledBinding Mode}"          FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0" />
-                                <TextBlock Grid.Column="10" Text="{CompiledBinding Sampling}"      FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="6"  Text="{CompiledBinding AttributeName}" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0" />
+                                <TextBlock Grid.Column="8"  Text="{CompiledBinding Mode}"          FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}" Margin="6,0,0,0" />
+                                <TextBlock Grid.Column="10" Text="{CompiledBinding Sampling}"      FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="12" Text="{CompiledBinding Queue}"         FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="12" Text="{CompiledBinding Queue}"         FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="14" Text="{CompiledBinding Samples}"       FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="14" Text="{CompiledBinding Samples}"       FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="16" Text="{CompiledBinding LastStatus}"    FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="18" Text="{CompiledBinding LastValue}"     FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="16" Text="{CompiledBinding LastStatus}"    FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="18" Text="{CompiledBinding LastValue}"     FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
                               </Grid>
                             </DataTemplate>
@@ -601,13 +614,13 @@
                           HorizontalAlignment="Center" VerticalAlignment="Center"
                           Orientation="Vertical" Spacing="12">
                 <TextBlock HorizontalAlignment="Center"
-                           Foreground="#94A3B8" FontSize="14"
+                           Foreground="{DynamicResource TextSecondary}" FontSize="14"
                            Text="Connect to a server to activate this tab." />
                 <Button x:Name="DisconnectedConnectButton"
                         HorizontalAlignment="Center"
                         Padding="14,6"
-                        Background="#1E293B" Foreground="#E2E8F0"
-                        BorderBrush="#334155" BorderThickness="1"
+                        Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}"
+                        BorderBrush="{DynamicResource ToolbarBg}" BorderThickness="1"
                         Content="Connect…" />
               </StackPanel>
               </Grid>

@@ -31,13 +31,13 @@
              xmlns:vm="using:UaLens.ViewModels"
              x:Class="UaLens.Views.ReferencesView"
              x:DataType="vm:ReferencesViewModel">
-  <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+  <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
     <Grid RowDefinitions="Auto,*">
       <TextBlock Grid.Row="0"
                  Margin="8,6,8,4"
                  FontWeight="SemiBold"
                  FontSize="12"
-                 Foreground="#94A3B8"
+                 Foreground="{DynamicResource TextSecondary}"
                  TextTrimming="CharacterEllipsis"
                  Text="{CompiledBinding Header, StringFormat='References — {0}'}" />
       <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
@@ -47,28 +47,28 @@
               <Grid ColumnDefinitions="20,140,*,80" Margin="8,1,8,1">
                 <TextBlock Grid.Column="0"
                            Text="{CompiledBinding Direction}"
-                           Foreground="#22C55E"
+                           Foreground="{DynamicResource AccentGreen}"
                            FontFamily="Cascadia Mono, Consolas, monospace"
                            FontSize="11" />
                 <TextBlock Grid.Column="1"
                            Text="{CompiledBinding ReferenceType}"
-                           Foreground="#A78BFA"
+                           Foreground="{DynamicResource AccentPurple}"
                            FontFamily="Cascadia Mono, Consolas, monospace"
                            FontSize="11"
                            TextTrimming="CharacterEllipsis" />
                 <StackPanel Grid.Column="2" Orientation="Vertical">
                   <TextBlock Text="{CompiledBinding TargetBrowseName}"
-                             Foreground="#E2E8F0"
+                             Foreground="{DynamicResource TextPrimary}"
                              FontFamily="Cascadia Mono, Consolas, monospace"
                              FontSize="11" />
                   <TextBlock Text="{CompiledBinding TargetNodeId}"
-                             Foreground="#64748B"
+                             Foreground="{DynamicResource TextDim}"
                              FontFamily="Cascadia Mono, Consolas, monospace"
                              FontSize="10" />
                 </StackPanel>
                 <TextBlock Grid.Column="3"
                            Text="{CompiledBinding TargetNodeClass}"
-                           Foreground="#94A3B8"
+                           Foreground="{DynamicResource TextSecondary}"
                            FontFamily="Cascadia Mono, Consolas, monospace"
                            FontSize="11"
                            TextAlignment="Right" />

@@ -33,7 +33,7 @@
         Title="Call method"
         Width="700" Height="520"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,*,Auto" ColumnDefinitions="*">
     <TextBlock Grid.Row="0" Margin="0,0,0,12" TextWrapping="Wrap"
                Text="Fill in the method's input arguments. Parser uses each argument's DataType + ValueRank." />
@@ -41,7 +41,7 @@
     <TextBlock Grid.Row="1" x:Name="MethodLabel"
                FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,4" />
     <TextBlock Grid.Row="2" x:Name="ParentLabel"
-               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,8" Foreground="#94A3B8" />
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,8" Foreground="{DynamicResource TextSecondary}" />
 
     <TextBlock Grid.Row="3" Text="Input arguments" FontWeight="SemiBold" Margin="0,4,0,4" />
     <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Auto">
@@ -50,7 +50,7 @@
           <DataTemplate DataType="v:MethodArgRow">
             <Grid ColumnDefinitions="200,*,Auto,Auto" Margin="0,2,0,2">
               <TextBlock Grid.Column="0" Text="{CompiledBinding Header}"
-                         Foreground="#94A3B8"
+                         Foreground="{DynamicResource TextSecondary}"
                          FontFamily="Cascadia Mono, Consolas, monospace"
                          VerticalAlignment="Center" />
               <TextBox Grid.Column="1" Text="{CompiledBinding ValueText, Mode=TwoWay}"
@@ -80,14 +80,14 @@
           <DataTemplate DataType="v:MethodOutputRow">
             <Grid ColumnDefinitions="40,160,*" Margin="0,1,0,1">
               <TextBlock Grid.Column="0" Text="{CompiledBinding Index}"
-                         Foreground="#94A3B8"
+                         Foreground="{DynamicResource TextSecondary}"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
               <TextBlock Grid.Column="1" Text="{CompiledBinding DataType}"
-                         Foreground="#A78BFA"
+                         Foreground="{DynamicResource AccentPurple}"
                          FontFamily="Cascadia Mono, Consolas, monospace"
                          TextTrimming="CharacterEllipsis" />
               <TextBlock Grid.Column="2" Text="{CompiledBinding Value}"
-                         Foreground="#E2E8F0"
+                         Foreground="{DynamicResource TextPrimary}"
                          FontFamily="Cascadia Mono, Consolas, monospace"
                          TextWrapping="Wrap" />
             </Grid>

@@ -36,35 +36,35 @@
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="Margin" Value="0,0,0,2" />
     </Style>
     <Style Selector="TextBlock.stat">
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="12" />
     </Style>
     <Style Selector="TextBlock.statDim">
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="86" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#0EA5E9" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="86" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.danger">
-      <Setter Property="Background" Value="#EF4444" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="86" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -76,17 +76,17 @@
       <Setter Property="Padding" Value="6,3" />
     </Style>
     <Style Selector="Border.runRow.highlight">
-      <Setter Property="Background" Value="#0E2A47" />
-      <Setter Property="BorderBrush" Value="#0EA5E9" />
+      <Setter Property="Background" Value="{DynamicResource HighlightBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}" />
       <Setter Property="BorderThickness" Value="2,0,0,1" />
     </Style>
   </UserControl.Styles>
 
-  <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="10">
+  <Border Background="{DynamicResource AppBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="10">
     <Grid RowDefinitions="Auto,Auto,*,*,Auto,Auto">
 
       <!-- Row 0: action toolbar (WrapPanel — wraps on narrow windows) -->
-      <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
+      <Border Grid.Row="0" Padding="10" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
               BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,Auto">
           <WrapPanel Classes="toolbar" Grid.Row="0" Orientation="Horizontal" ItemHeight="32">
@@ -149,13 +149,13 @@
                  Text="THROUGHPUT — rolling 60 s window (ops/sec)" />
 
       <!-- Row 2: throughput chart -->
-      <Border Grid.Row="2" Background="#0B1220" BorderBrush="#1E293B"
+      <Border Grid.Row="2" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
               BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
         <ScottPlot:AvaPlot x:Name="ThroughputPlot" />
       </Border>
 
       <!-- Row 3: latency histogram -->
-      <Border Grid.Row="3" Background="#0B1220" BorderBrush="#1E293B"
+      <Border Grid.Row="3" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
               BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0" Classes="h" Margin="8,6,0,0"
@@ -166,7 +166,7 @@
 
       <!-- Row 4: stats footer -->
       <Border Grid.Row="4" Padding="8,6" Margin="0,8,0,0"
-              Background="#0B1220" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
         <Grid ColumnDefinitions="*,*,*,*,*,*,*">
           <StackPanel Grid.Column="0" Orientation="Vertical">
             <TextBlock Classes="statDim" Text="TOTAL OPS" />
@@ -201,7 +201,7 @@
 
       <!-- Row 5: run history list + compare-last-3 toggle -->
       <Border Grid.Row="5" Padding="8,6" Margin="0,8,0,0"
-              Background="#0B1220" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,Auto,Auto">
           <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
             <TextBlock Grid.Column="0" Classes="h" VerticalAlignment="Center"
@@ -215,8 +215,8 @@
           <ListBox Grid.Row="2" x:Name="HistoryList"
                    ItemsSource="{CompiledBinding RunHistory}"
                    MaxHeight="160"
-                   Background="#0F172A"
-                   BorderBrush="#1E293B"
+                   Background="{DynamicResource AppBg}"
+                   BorderBrush="{DynamicResource PanelBorder}"
                    BorderThickness="1">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:BenchmarkRunRow">

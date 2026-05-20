@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -249,7 +250,8 @@ internal sealed partial class MethodCallDialog : Window
     private async Task OnCall()
     {
         var statusLbl = this.RequiredControl<TextBlock>("ResultStatus");
-        statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
+        statusLbl.Foreground = (Application.Current?.FindResource("TextPrimary") as IBrush)
+            ?? Brushes.Transparent;
         Outputs.Clear();
 
         if (m_objectId.IsNull)
@@ -275,7 +277,8 @@ internal sealed partial class MethodCallDialog : Window
                 out Variant v, out string? perr))
             {
                 statusLbl.Text = $"Argument '{a.Name}' parse error: {perr}";
-                statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                statusLbl.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
                 return;
             }
             parsed.Add(v);
@@ -316,8 +319,10 @@ internal sealed partial class MethodCallDialog : Window
             }
             statusLbl.Text = sb.ToString();
             statusLbl.Foreground = StatusCode.IsGood(cmr.StatusCode)
-                ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E))
-                : new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                ? (Application.Current?.FindResource("AccentGreen") as IBrush)
+                    ?? Brushes.Transparent
+                : (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
             // Per-output rows so the user sees them in a table.
             for (int i = 0; i < cmr.OutputArguments.Count; i++)
             {
@@ -333,7 +338,8 @@ internal sealed partial class MethodCallDialog : Window
         catch (Exception ex)
         {
             statusLbl.Text = $"Call exception: {ex.Message}";
-            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            statusLbl.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 
@@ -353,12 +359,14 @@ internal sealed partial class MethodCallDialog : Window
             row.ValueText = FormatVariant(v);
             row.CachedVariant = v;
             statusLbl.Text = $"Loaded {row.Header} from {name} ({fmt}).";
-            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+            statusLbl.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                ?? Brushes.Transparent;
         }
         catch (Exception ex)
         {
             statusLbl.Text = $"Import failed: {ex.Message}";
-            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            statusLbl.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 
@@ -377,7 +385,8 @@ internal sealed partial class MethodCallDialog : Window
             row.CachedVariant = edited.Value;
             row.ValueText = FormatVariant(edited.Value);
             statusLbl.Text = $"Edited {row.Header} (complex value).";
-            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
+            statusLbl.Foreground = (Application.Current?.FindResource("TextPrimary") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 

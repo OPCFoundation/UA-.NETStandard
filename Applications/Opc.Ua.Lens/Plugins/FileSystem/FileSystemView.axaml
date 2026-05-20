@@ -31,36 +31,31 @@
              xmlns:vm="using:UaLens.Plugins.FileSystem"
              x:Class="UaLens.Plugins.FileSystem.FileSystemView"
              x:DataType="vm:FileSystemPlugin"
-             Background="#121A2C" Foreground="#E2E8F0">
-  <UserControl.Resources>
-    <SolidColorBrush x:Key="PanelBg"     Color="#0B1220" />
-    <SolidColorBrush x:Key="PanelBorder" Color="#1E293B" />
-    <SolidColorBrush x:Key="LabelDim"    Color="#94A3B8" />
-  </UserControl.Resources>
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
 
   <UserControl.Styles>
     <Style Selector="Border.panel">
-      <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Background" Value="{StaticResource PanelBg}" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="92" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#0EA5E9" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="92" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.danger">
-      <Setter Property="Background" Value="#EF4444" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="92" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -68,7 +63,7 @@
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
     </Style>
     <Style Selector="TextBlock.row">
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
@@ -87,19 +82,19 @@
                 Command="{CompiledBinding PickRootCommand}" />
         <Button Classes="tonal"   Content="Settings…" Margin="0,0,4,0"
                 Command="{CompiledBinding EditFilterCommand}" />
-        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
         <Button Classes="tonal"   Content="Add File…" Margin="0,0,4,0"
                 Command="{CompiledBinding AddFileCommand}" />
         <Button Classes="tonal"   Content="Export File…" Margin="0,0,4,0"
                 Command="{CompiledBinding ExportFileCommand}" />
-        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
         <Button Classes="tonal"   Content="New Folder…" Margin="0,0,4,0"
                 Command="{CompiledBinding NewFolderCommand}" />
         <Button Classes="tonal"   Content="Rename…" Margin="0,0,4,0"
                 Command="{CompiledBinding RenameCommand}" />
         <Button Classes="danger"  Content="Delete" Margin="0,0,4,0"
                 Command="{CompiledBinding DeleteCommand}" />
-        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
         <Button Classes="tonal"   Content="↻ Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshCommand}" />
       </WrapPanel>
@@ -111,14 +106,14 @@
 
         <!-- Left: tree -->
         <Grid Grid.Column="0" RowDefinitions="Auto,*">
-          <Border Grid.Row="0" Background="#1E293B">
+          <Border Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
             <TextBlock Margin="8,4" Classes="h" Text="ROOTS" />
           </Border>
           <TreeView Grid.Row="1"
                     x:Name="Tree"
                     ItemsSource="{CompiledBinding Roots}"
                     SelectedItem="{CompiledBinding SelectedNode, Mode=TwoWay}"
-                    Background="#0B1220" Foreground="#E2E8F0"
+                    Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
                     BorderThickness="0">
             <TreeView.Styles>
               <Style Selector="TreeViewItem" x:DataType="vm:FsNode">
@@ -148,16 +143,13 @@
         <GridSplitter Grid.Column="1" Width="5"
                       ResizeDirection="Columns"
                       ResizeBehavior="PreviousAndNext"
-                      Background="#1E293B" />
+                      Background="{DynamicResource SeparatorBrush}" />
 
         <!-- Right: details list with shared-size columns so the header
              splitter drags resize both the header and per-row grids. -->
         <Grid Grid.Column="2" RowDefinitions="Auto,*"
               Grid.IsSharedSizeScope="True">
-          <Grid Grid.Row="0" Background="#1E293B">
-            <Grid.Resources>
-              <SolidColorBrush x:Key="FsSplitBrush" Color="#0F172A" />
-            </Grid.Resources>
+          <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"   SharedSizeGroup="FsCol0" />
               <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep0" />
@@ -166,17 +158,17 @@
               <ColumnDefinition Width="180" SharedSizeGroup="FsCol2" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="NAME" />
-            <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource FsSplitBrush}"
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SIZE"     TextAlignment="Right" />
-            <GridSplitter Grid.Column="3" Width="4" Background="{StaticResource FsSplitBrush}"
+            <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="MODIFIED" />
           </Grid>
           <ListBox Grid.Row="1"
                    x:Name="DetailsList"
                    ItemsSource="{CompiledBinding SelectedChildren}"
-                   Background="#0B1220" Foreground="#E2E8F0"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
                    BorderThickness="0">
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:FsNode">

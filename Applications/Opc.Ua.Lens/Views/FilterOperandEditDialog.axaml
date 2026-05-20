@@ -32,14 +32,14 @@
         Title="Edit filter operand"
         Width="640" Height="540"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*">
 
     <TextBlock Grid.Row="0"
                Text="OPC UA filter operand"
                FontWeight="SemiBold" FontSize="14"
-               Foreground="#06B6D4" Margin="0,0,0,4" />
-    <Border    Grid.Row="1" Height="1" Background="#1E293B" Margin="0,0,0,12" />
+               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+    <Border    Grid.Row="1" Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,12" />
 
     <Grid Grid.Row="2" ColumnDefinitions="160,*" Margin="0,0,0,12">
       <TextBlock Grid.Column="0" Text="Operand kind" VerticalAlignment="Center" />
@@ -47,15 +47,15 @@
     </Grid>
 
     <!-- One panel per kind; only one is visible at a time. -->
-    <Border Grid.Row="3" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-            Padding="12" Background="#0B1220">
+    <Border Grid.Row="3" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+            Padding="12" Background="{DynamicResource PanelBg}">
       <Grid>
         <!-- Literal -->
         <Grid x:Name="LiteralPanel" IsVisible="False"
               RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="160,*">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                      Text="Literal value (Variant)"
-                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="DataType" VerticalAlignment="Center" />
           <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="LiteralDataType" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Value (invariant)"
@@ -66,7 +66,7 @@
                      MinHeight="60" TextWrapping="Wrap" />
           <TextBlock Grid.Row="3" Grid.ColumnSpan="2"
                      Text="Use a comma-separated list for 1-D arrays.  Strings are taken verbatim."
-                     Foreground="#94A3B8" FontSize="11" Margin="0,8,0,0"
+                     Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,0"
                      TextWrapping="Wrap" />
           <CheckBox  Grid.Row="4" Grid.ColumnSpan="2" x:Name="LiteralIsArray"
                      Content="Array (one-dimensional)" Margin="0,8,0,0" />
@@ -77,14 +77,14 @@
               RowDefinitions="Auto,Auto,Auto,*" ColumnDefinitions="160,*">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                      Text="Reference to another ContentFilterElement"
-                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Element index (0-based)"
                      VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="ElementIndex"
                          Minimum="0" Maximum="1000" Value="0" />
           <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
                      Text="Must reference a later element in the ContentFilter array (validated by the server)."
-                     Foreground="#94A3B8" FontSize="11" Margin="0,8,0,0"
+                     Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,0"
                      TextWrapping="Wrap" />
         </Grid>
 
@@ -94,7 +94,7 @@
               ColumnDefinitions="160,*,Auto">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
                      Text="AttributeOperand (refers to an attribute of any node)"
-                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="NodeId" VerticalAlignment="Center" />
           <TextBox   Grid.Row="1" Grid.Column="1" x:Name="AttrNodeId"
                      FontFamily="Cascadia Mono, Consolas, monospace" />
@@ -132,7 +132,7 @@
               ColumnDefinitions="160,*,Auto">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
                      Text="SimpleAttributeOperand (event-source field)"
-                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="TypeDefinition NodeId"
                      VerticalAlignment="Center" />
           <TextBox   Grid.Row="1" Grid.Column="1" x:Name="SimpleTypeId"
@@ -165,7 +165,7 @@
 
     <TextBlock Grid.Row="4" x:Name="StatusLabel"
                Margin="0,8,0,0" TextWrapping="Wrap"
-               Foreground="#94A3B8" FontSize="11" />
+               Foreground="{DynamicResource TextSecondary}" FontSize="11" />
 
     <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
       <Button x:Name="OkButton"     Content="OK"     IsDefault="True" Width="90" />

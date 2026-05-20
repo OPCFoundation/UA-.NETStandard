@@ -32,7 +32,7 @@
         Title="Pick benchmark target"
         Width="640" Height="480"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="120,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,12"
@@ -57,7 +57,7 @@
 
     <Border Grid.Row="4" Grid.ColumnSpan="2"
             Margin="0,12,0,0"
-            BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <ScrollViewer x:Name="SignatureScroll" Padding="8">
         <StackPanel x:Name="SignaturePanel" Orientation="Vertical" />
       </ScrollViewer>
@@ -66,7 +66,7 @@
     <TextBlock Grid.Row="5" Grid.ColumnSpan="2"
                x:Name="StatusLabel"
                Margin="0,8,0,0"
-               Foreground="#94A3B8"
+               Foreground="{DynamicResource TextSecondary}"
                FontSize="11"
                Text="Pick a Variable (Write) or a Method (Call) in the main address-space tree before opening this dialog." />
 

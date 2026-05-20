@@ -31,7 +31,7 @@
              xmlns:v="using:UaLens.Views"
              xmlns:d="using:UaLens.Diagnostics"
              x:Class="UaLens.Views.DiagnosticsView">
-  <Border BorderBrush="#1E293B" BorderThickness="1,0,0,0" Background="#0B1220" Width="380">
+  <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1,0,0,0" Background="{DynamicResource PanelBg}" Width="380">
     <Grid Margin="10" RowDefinitions="Auto,*">
       <DockPanel Grid.Row="0" Margin="0,0,0,8">
         <Button x:Name="HideButton" DockPanel.Dock="Right" Content="×" Width="24" Height="24"
@@ -46,7 +46,7 @@
             <TextBlock Grid.Row="0" x:Name="StatusLabel"
                        FontFamily="Cascadia Mono, Consolas, monospace"
                        FontSize="11"
-                       Foreground="#94A3B8" Margin="0,4,0,8"
+                       Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,8"
                        Text="(connect to a server first)" />
             <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
               <ItemsControl x:Name="RowsList">
@@ -54,10 +54,10 @@
                   <DataTemplate DataType="v:DiagRow">
                     <Grid ColumnDefinitions="220,*" Margin="0,1,0,1">
                       <TextBlock Grid.Column="0" Text="{CompiledBinding Name}"
-                                 Foreground="#94A3B8" FontSize="11"
+                                 Foreground="{DynamicResource TextSecondary}" FontSize="11"
                                  FontFamily="Cascadia Mono, Consolas, monospace" />
                       <TextBlock Grid.Column="1" Text="{CompiledBinding Value}"
-                                 Foreground="#E2E8F0" FontSize="11"
+                                 Foreground="{DynamicResource TextPrimary}" FontSize="11"
                                  FontFamily="Cascadia Mono, Consolas, monospace"
                                  TextWrapping="Wrap" />
                     </Grid>
@@ -70,23 +70,23 @@
         <TabItem Header="Publishes">
           <Grid RowDefinitions="Auto,*">
             <Grid Grid.Row="0" ColumnDefinitions="60,46,46,84,52,*" Margin="6,4,6,4">
-              <TextBlock Grid.Column="0" Text="Time"         Foreground="#64748B" FontSize="11"
+              <TextBlock Grid.Column="0" Text="Time"         Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
-              <TextBlock Grid.Column="1" Text="Sub"          Foreground="#64748B" FontSize="11"
+              <TextBlock Grid.Column="1" Text="Sub"          Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
-              <TextBlock Grid.Column="2" Text="Seq#"         Foreground="#64748B" FontSize="11"
+              <TextBlock Grid.Column="2" Text="Seq#"         Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
-              <TextBlock Grid.Column="3" Text="Publish"      Foreground="#64748B" FontSize="11"
+              <TextBlock Grid.Column="3" Text="Publish"      Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
-              <TextBlock Grid.Column="4" Text="Notifs"       Foreground="#64748B" FontSize="11"
+              <TextBlock Grid.Column="4" Text="Notifs"       Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace"
                          TextAlignment="Right" />
-              <TextBlock Grid.Column="5" Text="Type"         Foreground="#64748B" FontSize="11"
+              <TextBlock Grid.Column="5" Text="Type"         Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace"
                          Margin="6,0,0,0" />
             </Grid>
             <ListBox Grid.Row="1" x:Name="PublishList"
-                     Background="#0B1220" Foreground="#CBD5E1"
+                     Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextSecondaryAlt}"
                      FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
                      BorderThickness="0">
               <ListBox.ItemContainerTheme>

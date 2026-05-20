@@ -1,0 +1,31 @@
+<!-- Dark Navy theme — the original UaLens palette (Tailwind Slate). -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Background tiers (darkest → lightest) -->
+  <SolidColorBrush x:Key="PanelBg"             Color="#0B1220" />
+  <SolidColorBrush x:Key="AppBg"               Color="#0F172A" />
+  <SolidColorBrush x:Key="SurfaceBg"           Color="#121A2C" />
+  <SolidColorBrush x:Key="ToolbarBg"           Color="#334155" />
+  <SolidColorBrush x:Key="HighlightBg"         Color="#0E2A47" />
+
+  <!-- Borders / separators -->
+  <SolidColorBrush x:Key="PanelBorder"         Color="#1E293B" />
+  <SolidColorBrush x:Key="SeparatorBrush"      Color="#1E293B" />
+
+  <!-- Text tiers (dimmest → brightest) -->
+  <SolidColorBrush x:Key="TextDim"             Color="#64748B" />
+  <SolidColorBrush x:Key="TextSecondary"       Color="#94A3B8" />
+  <SolidColorBrush x:Key="TextSecondaryAlt"    Color="#CBD5E1" />
+  <SolidColorBrush x:Key="TextPrimary"         Color="#E2E8F0" />
+
+  <!-- Accent colors -->
+  <SolidColorBrush x:Key="AccentBlue"          Color="#0EA5E9" />
+  <SolidColorBrush x:Key="AccentCyan"          Color="#06B6D4" />
+  <SolidColorBrush x:Key="AccentGreen"         Color="#22C55E" />
+  <SolidColorBrush x:Key="AccentYellow"        Color="#F59E0B" />
+  <SolidColorBrush x:Key="AccentYellowLight"   Color="#FBBF24" />
+  <SolidColorBrush x:Key="AccentRed"           Color="#EF4444" />
+  <SolidColorBrush x:Key="AccentRedLight"      Color="#F87171" />
+  <SolidColorBrush x:Key="AccentPurple"        Color="#A78BFA" />
+  <SolidColorBrush x:Key="AccentYellowBorder"  Color="#3F3320" />
+</ResourceDictionary>

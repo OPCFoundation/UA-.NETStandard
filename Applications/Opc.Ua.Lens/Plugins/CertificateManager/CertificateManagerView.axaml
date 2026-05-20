@@ -31,29 +31,24 @@
              xmlns:vm="using:UaLens.Plugins.CertificateManager"
              x:Class="UaLens.Plugins.CertificateManager.CertificateManagerView"
              x:DataType="vm:CertificateManagerPlugin"
-             Background="#121A2C" Foreground="#E2E8F0">
-  <UserControl.Resources>
-    <SolidColorBrush x:Key="PanelBg"     Color="#0B1220" />
-    <SolidColorBrush x:Key="PanelBorder" Color="#1E293B" />
-    <SolidColorBrush x:Key="LabelDim"    Color="#94A3B8" />
-  </UserControl.Resources>
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
 
   <UserControl.Styles>
     <Style Selector="Border.panel">
-      <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Background" Value="{StaticResource PanelBg}" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="92" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#0EA5E9" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="92" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -61,7 +56,7 @@
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
     </Style>
     <Style Selector="TextBlock.row">
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
@@ -80,7 +75,7 @@
                 Command="{CompiledBinding AddStoreCommand}" />
         <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshCommand}" />
-        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
         <Button Classes="tonal" Content="📄 Show details…" Margin="0,0,4,0"
                 Command="{CompiledBinding ViewDetailsCommand}"
                 ToolTip.Tip="Show details of the selected certificate (Enter)" />
@@ -90,7 +85,7 @@
         <Button Classes="tonal" Content="⬆ Export…" Margin="0,0,4,0"
                 Command="{CompiledBinding ExportCommand}"
                 ToolTip.Tip="Export the selected certificate to disk" />
-        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
         <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="0,0,4,0"
                 Command="{CompiledBinding OpenTrustDialogCommand}" />
       </WrapPanel>
@@ -105,14 +100,14 @@
 
         <!-- Left: stores tree -->
         <Grid Grid.Column="0" RowDefinitions="Auto,*">
-          <Border Grid.Row="0" Background="#1E293B">
+          <Border Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
             <TextBlock Margin="8,4" Classes="h" Text="STORES" />
           </Border>
           <TreeView Grid.Row="1"
                     x:Name="StoresTree"
                     ItemsSource="{CompiledBinding Stores}"
                     SelectedItem="{CompiledBinding SelectedStore, Mode=TwoWay}"
-                    Background="#0B1220" Foreground="#E2E8F0"
+                    Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
                     BorderThickness="0">
             <TreeView.ItemTemplate>
               <TreeDataTemplate DataType="vm:CertStoreNode">
@@ -136,17 +131,14 @@
         <GridSplitter Grid.Column="1" Width="5"
                       ResizeDirection="Columns"
                       ResizeBehavior="PreviousAndNext"
-                      Background="#1E293B" />
+                      Background="{DynamicResource SeparatorBrush}" />
 
         <!-- Right: certificates list with shared-size column groups so the
              header row and the per-cert data rows stay aligned and the
              user can drag the inter-column splitters in the header. -->
         <Grid Grid.Column="2" RowDefinitions="Auto,*"
               Grid.IsSharedSizeScope="True">
-          <Grid Grid.Row="0" Background="#1E293B">
-            <Grid.Resources>
-              <SolidColorBrush x:Key="SplitBrush" Color="#0F172A" />
-            </Grid.Resources>
+          <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="200" SharedSizeGroup="CmCol0" />
               <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep0" />
@@ -161,19 +153,19 @@
               <ColumnDefinition Width="90"  SharedSizeGroup="CmCol5" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="THUMBPRINT" />
-            <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource SplitBrush}"
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SUBJECT" />
-            <GridSplitter Grid.Column="3" Width="4" Background="{StaticResource SplitBrush}"
+            <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="ISSUER" />
-            <GridSplitter Grid.Column="5" Width="4" Background="{StaticResource SplitBrush}"
+            <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="6" Margin="8,4" Classes="h" Text="NOT BEFORE" />
-            <GridSplitter Grid.Column="7" Width="4" Background="{StaticResource SplitBrush}"
+            <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="8" Margin="8,4" Classes="h" Text="NOT AFTER" />
-            <GridSplitter Grid.Column="9" Width="4" Background="{StaticResource SplitBrush}"
+            <GridSplitter Grid.Column="9" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="10" Margin="8,4" Classes="h" Text="STATUS" />
           </Grid>
@@ -181,7 +173,7 @@
                    x:Name="CertList"
                    ItemsSource="{CompiledBinding Certificates}"
                    SelectedItem="{CompiledBinding SelectedCertificate, Mode=TwoWay}"
-                   Background="#0B1220" Foreground="#E2E8F0"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
                    BorderThickness="0"
                    DoubleTapped="OnCertRowDoubleTapped">
             <ListBox.ContextMenu>

@@ -92,7 +92,8 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
             Text = $"{m_reg.Glyph}  {m_reg.DisplayName}",
             FontSize = 28,
             FontWeight = FontWeight.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)),
+            Foreground = (Application.Current?.FindResource("TextPrimary") as IBrush)
+                ?? Brushes.Transparent,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 12)
         };
@@ -100,7 +101,8 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
         {
             Text = m_reg.Description,
             FontSize = 14,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+            Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
+                ?? Brushes.Transparent,
             TextWrapping = TextWrapping.Wrap,
             MaxWidth = 520,
             TextAlignment = TextAlignment.Center,
@@ -110,7 +112,8 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
         var badge = new Border
         {
             Background = new SolidColorBrush(Color.FromArgb(0x40, 0xF5, 0x9E, 0x0B)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+            BorderBrush = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                ?? Brushes.Transparent,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(14, 6),
@@ -120,7 +123,8 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
                 Text = "🚧  Coming soon",
                 FontSize = 13,
                 FontWeight = FontWeight.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B))
+                Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                    ?? Brushes.Transparent
             }
         };
         var stack = new StackPanel
@@ -132,8 +136,10 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
         };
         return new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x2C)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)),
+            Background = (Application.Current?.FindResource("SurfaceBg") as IBrush)
+                ?? Brushes.Transparent,
+            BorderBrush = (Application.Current?.FindResource("PanelBorder") as IBrush)
+                ?? Brushes.Transparent,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(32),

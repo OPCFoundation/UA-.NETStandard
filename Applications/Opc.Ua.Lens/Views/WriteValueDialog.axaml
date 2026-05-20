@@ -33,7 +33,7 @@
         Title="Write value"
         Width="640" Height="560"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,12"

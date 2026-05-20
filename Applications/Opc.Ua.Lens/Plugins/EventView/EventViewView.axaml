@@ -31,19 +31,13 @@
              xmlns:vm="using:UaLens.Plugins.EventView"
              x:Class="UaLens.Plugins.EventView.EventViewView"
              x:DataType="vm:EventViewPlugin"
-             Background="#121A2C" Foreground="#E2E8F0">
-  <UserControl.Resources>
-    <SolidColorBrush x:Key="PanelBg"      Color="#0B1220" />
-    <SolidColorBrush x:Key="PanelBorder"  Color="#1E293B" />
-    <SolidColorBrush x:Key="LabelDim"     Color="#94A3B8" />
-    <SolidColorBrush x:Key="ColumnDim"    Color="#64748B" />
-  </UserControl.Resources>
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
 
   <UserControl.Styles>
     <Style Selector="TextBlock.colHeader">
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="TextBlock.colCell">
@@ -53,16 +47,16 @@
       <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="10,4" />
       <Setter Property="FontSize" Value="12" />
     </Style>
     <Style Selector="Border.panel">
-      <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Background" Value="{StaticResource PanelBg}" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
     </Style>
   </UserControl.Styles>
 
@@ -75,7 +69,7 @@
                    Text="{CompiledBinding SubscriptionStatus}"
                    VerticalAlignment="Center"
                    Margin="8,0,0,0"
-                   Foreground="#94A3B8"
+                   Foreground="{DynamicResource TextSecondary}"
                    FontFamily="Cascadia Mono, Consolas, monospace"
                    FontSize="11"
                    ToolTip.Tip="Subscription state · publishing interval · monitored items (created/total) · publishing flag" />
@@ -85,7 +79,7 @@
                   Command="{CompiledBinding EditFilterCommand}" />
           <ToggleButton Content="⏸ Pause" Margin="0,0,4,0"
                         IsChecked="{CompiledBinding IsPaused, Mode=TwoWay}"
-                        Background="#1E293B" Foreground="#E2E8F0"
+                        Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}"
                         Padding="10,4" />
           <Button Classes="tonal" Margin="0,0,4,0"
                   Content="🗑 Clear"
@@ -106,7 +100,7 @@
       <Border Grid.Column="0" Classes="panel" Padding="8" Margin="0,0,0,0">
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock Grid.Row="0"
-                     Foreground="{StaticResource LabelDim}"
+                     Foreground="{DynamicResource TextSecondary}"
                      FontWeight="SemiBold" FontSize="12"
                      Margin="0,0,0,4"
                      Text="Event sources" />
@@ -132,14 +126,14 @@
                           Content="×"
                           Width="22" Padding="0"
                           Background="Transparent" BorderThickness="0"
-                          Foreground="#94A3B8"
+                          Foreground="{DynamicResource TextSecondary}"
                           Tag="{CompiledBinding}"
                           Click="OnRemoveSourceClick" />
                   <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
                              Text="{CompiledBinding State}"
                              FontFamily="Cascadia Mono, Consolas, monospace"
                              FontSize="10"
-                             Foreground="#64748B"
+                             Foreground="{DynamicResource TextDim}"
                              TextTrimming="CharacterEllipsis"
                              Margin="0,1,0,0" />
                 </Grid>
@@ -156,14 +150,14 @@
       </Border>
 
       <GridSplitter Grid.Column="1" Width="5"
-                    Background="#1E293B"
+                    Background="{DynamicResource SeparatorBrush}"
                     ResizeDirection="Columns"
                     ResizeBehavior="PreviousAndNext" />
 
       <!-- CENTER: event log with shared-size + draggable columns -->
       <Border Grid.Column="2" Classes="panel" Padding="0" Margin="0,0,0,0">
         <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
-          <Grid Grid.Row="0" Background="#121A2C" Margin="0" Height="22">
+          <Grid Grid.Row="0" Background="{DynamicResource SurfaceBg}" Margin="0" Height="22">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="100"  SharedSizeGroup="EvCol0" />
               <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep0" />
@@ -176,16 +170,16 @@
               <ColumnDefinition Width="*"    SharedSizeGroup="EvCol4" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Classes="colHeader" Text="Time"       Margin="6,4,0,0" />
-            <GridSplitter Grid.Column="1" Width="4" Background="#0F172A"
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="2" Classes="colHeader" Text="Severity"   Margin="0,4,0,0" />
-            <GridSplitter Grid.Column="3" Width="4" Background="#0F172A"
+            <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="4" Classes="colHeader" Text="Source"     Margin="0,4,0,0" />
-            <GridSplitter Grid.Column="5" Width="4" Background="#0F172A"
+            <GridSplitter Grid.Column="5" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="6" Classes="colHeader" Text="EventType"  Margin="0,4,0,0" />
-            <GridSplitter Grid.Column="7" Width="4" Background="#0F172A"
+            <GridSplitter Grid.Column="7" Width="4" Background="{DynamicResource AppBg}"
                           ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
             <TextBlock Grid.Column="8" Classes="colHeader" Text="Message"    Margin="0,4,0,0" />
           </Grid>
@@ -237,7 +231,7 @@
       </Border>
 
       <GridSplitter Grid.Column="3" Width="5"
-                    Background="#1E293B"
+                    Background="{DynamicResource SeparatorBrush}"
                     ResizeDirection="Columns"
                     ResizeBehavior="PreviousAndNext" />
 
@@ -245,7 +239,7 @@
       <Border Grid.Column="4" Classes="panel" Padding="8" Margin="0,0,0,0">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0"
-                     Foreground="{StaticResource LabelDim}"
+                     Foreground="{DynamicResource TextSecondary}"
                      FontWeight="SemiBold" FontSize="12"
                      Margin="0,0,0,4"
                      Text="Event details" />
@@ -259,14 +253,14 @@
                              Text="{CompiledBinding Path}"
                              FontFamily="Cascadia Mono, Consolas, monospace"
                              FontSize="11"
-                             Foreground="#94A3B8"
+                             Foreground="{DynamicResource TextSecondary}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis" />
                   <TextBlock Grid.Column="1"
                              Text="{CompiledBinding Display}"
                              FontFamily="Cascadia Mono, Consolas, monospace"
                              FontSize="11"
-                             Foreground="#E2E8F0"
+                             Foreground="{DynamicResource TextPrimary}"
                              VerticalAlignment="Center"
                              TextWrapping="Wrap" />
                 </Grid>

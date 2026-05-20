@@ -35,6 +35,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
@@ -671,9 +672,12 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
 
     private static Window BuildDetailsWindow(X509Certificate2 cert)
     {
-        var bg = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A));
-        var fg = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
-        var dim = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8));
+        var bg = (Application.Current?.FindResource("AppBg") as IBrush)
+            ?? Brushes.Transparent;
+        var fg = (Application.Current?.FindResource("TextPrimary") as IBrush)
+            ?? Brushes.Transparent;
+        var dim = (Application.Current?.FindResource("TextSecondary") as IBrush)
+            ?? Brushes.Transparent;
 
         DateTime now = DateTime.UtcNow;
         string appUri;
@@ -728,7 +732,8 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
             FontSize = 11,
             Foreground = fg,
-            Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x12, 0x20)),
+            Background = (Application.Current?.FindResource("PanelBg") as IBrush)
+                ?? Brushes.Transparent,
             Margin = new Avalonia.Thickness(0, 12, 0, 0),
             MinHeight = 160
         };

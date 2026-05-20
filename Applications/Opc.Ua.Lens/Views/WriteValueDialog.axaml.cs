@@ -32,6 +32,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -173,7 +174,8 @@ internal sealed partial class WriteValueDialog : Window
                 bytes, fmt, m_session.MessageContext);
             valueText.Text = FormatVariant(dv.WrappedValue);
             result.Text = $"Loaded value from {name} ({fmt}).";
-            result.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+            result.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                ?? Brushes.Transparent;
         }
         catch (OperationCanceledException)
         {
@@ -182,7 +184,8 @@ internal sealed partial class WriteValueDialog : Window
         catch (Exception ex)
         {
             result.Text = $"Import failed: {ex.Message}";
-            result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 
@@ -194,7 +197,8 @@ internal sealed partial class WriteValueDialog : Window
         if (m_dataType.IsNull)
         {
             result.Text = "Cannot write — DataType not loaded.";
-            result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
             return;
         }
 
@@ -204,7 +208,8 @@ internal sealed partial class WriteValueDialog : Window
             if (!complexEditor.TryCommit(out parsed, out string? cerr))
             {
                 result.Text = $"Editor: {cerr}";
-                result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
                 return;
             }
         }
@@ -212,14 +217,16 @@ internal sealed partial class WriteValueDialog : Window
             valueText.Text ?? string.Empty, out parsed, out string? perr))
         {
             result.Text = $"Parse error: {perr}";
-            result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
             return;
         }
 
         if (!TryBuildDataValue(parsed, out DataValue dataValue, out string? dverr))
         {
             result.Text = dverr;
-            result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
             return;
         }
 
@@ -239,7 +246,8 @@ internal sealed partial class WriteValueDialog : Window
             if (StatusCode.IsGood(sc))
             {
                 result.Text = $"Write OK: {sc}";
-                result.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+                result.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                    ?? Brushes.Transparent;
                 // Close after a short delay so the user sees the success.
                 await Task.Delay(450).ConfigureAwait(true);
                 Close();
@@ -247,13 +255,15 @@ internal sealed partial class WriteValueDialog : Window
             else
             {
                 result.Text = $"Write failed: {sc}";
-                result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
             }
         }
         catch (Exception ex)
         {
             result.Text = $"Write exception: {ex.Message}";
-            result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -66,7 +67,8 @@ internal sealed partial class PrimitiveValuePromptDialog : Window
                 out Variant parsed, out string? err))
             {
                 status.Text = $"Parse error: {err}";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
                 return;
             }
             Close(parsed);

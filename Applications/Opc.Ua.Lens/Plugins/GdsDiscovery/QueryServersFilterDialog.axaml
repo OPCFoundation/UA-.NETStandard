@@ -32,25 +32,25 @@
         Title="QueryServers filter"
         Width="500" Height="320"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
         ColumnDefinitions="*">
     <TextBlock Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap"
                Text="Filters applied to QueryServersAsync against the GDS. Empty fields are wildcards." />
 
-    <TextBlock Grid.Row="1" Foreground="#94A3B8" FontSize="11" Margin="0,8,0,2"
+    <TextBlock Grid.Row="1" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,2"
                Text="Application name" />
     <TextBox  Grid.Row="2" x:Name="AppNameBox" />
 
-    <TextBlock Grid.Row="3" Foreground="#94A3B8" FontSize="11" Margin="0,8,0,2"
+    <TextBlock Grid.Row="3" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,2"
                Text="Application URI" />
     <TextBox  Grid.Row="4" x:Name="AppUriBox" />
 
-    <TextBlock Grid.Row="5" Foreground="#94A3B8" FontSize="11" Margin="0,8,0,2"
+    <TextBlock Grid.Row="5" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,2"
                Text="Product URI" />
     <TextBox  Grid.Row="6" x:Name="ProductUriBox" />
 
-    <TextBlock Grid.Row="7" Foreground="#94A3B8" FontSize="11" Margin="0,8,0,2"
+    <TextBlock Grid.Row="7" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,2"
                Text="Server capabilities (comma-separated, e.g. 'DA, HA, LiveData')" />
     <TextBox  Grid.Row="8" x:Name="CapabilitiesBox" />
 

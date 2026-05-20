@@ -33,19 +33,19 @@
         Title="Find node by browse path"
         Width="640" Height="500"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
 
     <TextBlock Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap"
                Text="Resolves one or more relative-path strings against a starting node via TranslateBrowsePathsToNodeIds. One path per line; format: &quot;/Objects/Server/ServerStatus.CurrentTime&quot; or with namespace prefix &quot;2:Boiler/2:Pressure&quot;." />
 
-    <TextBlock Grid.Row="1" Foreground="#94A3B8" FontSize="11" Margin="0,4,0,2"
+    <TextBlock Grid.Row="1" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,4,0,2"
                Text="Starting NodeId (blank = Objects folder)" />
     <TextBox  Grid.Row="2" x:Name="StartNodeBox"
               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
               Watermark="i=85" />
 
-    <TextBlock Grid.Row="3" Foreground="#94A3B8" FontSize="11" Margin="0,8,0,2"
+    <TextBlock Grid.Row="3" Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,8,0,2"
                Text="Relative paths (one per line)" />
     <TextBox  Grid.Row="4" x:Name="PathsBox"
               AcceptsReturn="True" TextWrapping="NoWrap"
@@ -55,7 +55,7 @@
     <StackPanel Grid.Row="5" Orientation="Horizontal"
                 HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="6">
       <Button x:Name="ResolveButton" Content="Resolve" IsDefault="True"
-              Width="120" Background="#0EA5E9" Foreground="#0F172A" FontWeight="SemiBold" />
+              Width="120" Background="{DynamicResource AccentBlue}" Foreground="{DynamicResource AppBg}" FontWeight="SemiBold" />
       <Button x:Name="CloseButton"   Content="Close"   IsCancel="True"  Width="100" />
     </StackPanel>
   </Grid>

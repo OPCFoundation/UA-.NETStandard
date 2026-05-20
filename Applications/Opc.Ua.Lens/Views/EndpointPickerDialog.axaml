@@ -33,17 +33,17 @@
         Title="Select endpoint"
         Width="780" Height="540"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*">
     <TextBlock Grid.Row="0"
                Margin="0,0,0,8"
                TextWrapping="Wrap"
                Text="Pick an endpoint or expand it and pick a user-token policy.  Selecting the endpoint root connects with the Anonymous token; expanding lets you choose UserName credentials." />
 
-    <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <TreeView x:Name="Tree"
                 Background="Transparent"
-                Foreground="#E2E8F0"
+                Foreground="{DynamicResource TextPrimary}"
                 BorderThickness="0">
         <TreeView.Styles>
           <Style Selector="TreeViewItem" x:DataType="v:PickerNode">
@@ -63,7 +63,7 @@
     <TextBlock Grid.Row="2"
                x:Name="StatusLabel"
                Margin="0,8,0,0"
-               Foreground="#94A3B8"
+               Foreground="{DynamicResource TextSecondary}"
                FontSize="11"
                Text="Loading endpoints…" />
 

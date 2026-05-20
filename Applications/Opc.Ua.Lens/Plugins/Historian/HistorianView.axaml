@@ -37,46 +37,46 @@
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="Margin" Value="0,0,0,2" />
     </Style>
     <Style Selector="TextBlock.stat">
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="12" />
     </Style>
     <Style Selector="TextBlock.statDim">
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="86" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#0EA5E9" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="86" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.danger">
-      <Setter Property="Background" Value="#EF4444" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="86" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
   </UserControl.Styles>
 
-  <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="10">
+  <Border Background="{DynamicResource AppBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="10">
     <Grid RowDefinitions="Auto,Auto,Auto,*,*">
 
       <!-- Row 0: target picker -->
-      <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
+      <Border Grid.Row="0" Padding="10" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
               BorderThickness="1" CornerRadius="4">
         <Grid ColumnDefinitions="*,Auto,Auto,Auto">
           <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="4">
@@ -99,7 +99,7 @@
       </Border>
 
       <!-- Row 1: read-mode tabs -->
-      <TabControl Grid.Row="1" Margin="0,8,0,0" Background="#0B1220"
+      <TabControl Grid.Row="1" Margin="0,8,0,0" Background="{DynamicResource PanelBg}"
                   SelectedIndex="{CompiledBinding SelectedReadModeIndex, Mode=TwoWay}">
         <TabItem Header="Raw / Modified">
           <WrapPanel Margin="10" Orientation="Horizontal">
@@ -138,8 +138,8 @@
             <TextBlock Grid.Row="0" Classes="statDim"
                        Text="Add UTC timestamps. Pick one, click ✓ to confirm, ✗ to remove." />
             <Border Grid.Row="1" Margin="0,4,0,0"
-                    BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-                    Background="#0F172A" MaxHeight="120">
+                    BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+                    Background="{DynamicResource AppBg}" MaxHeight="120">
               <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                             VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{CompiledBinding AtTimes}">
@@ -153,8 +153,8 @@
                       <Panel Margin="4">
                         <!-- Editor: picker + confirm icon -->
                         <Border IsVisible="{CompiledBinding IsEditor}"
-                                Padding="4" CornerRadius="4" Background="#0B1220"
-                                BorderBrush="#1E293B" BorderThickness="1">
+                                Padding="4" CornerRadius="4" Background="{DynamicResource PanelBg}"
+                                BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1">
                           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <v:UtcDateTimePicker Value="{CompiledBinding Timestamp, Mode=TwoWay}" />
                             <Button Classes="tonal" Content="✓"
@@ -165,8 +165,8 @@
                         </Border>
                         <!-- Label: confirmed timestamp + remove icon -->
                         <Border IsVisible="{CompiledBinding IsLabel}"
-                                Padding="6,4" CornerRadius="4" Background="#0B1220"
-                                BorderBrush="#1E293B" BorderThickness="1">
+                                Padding="6,4" CornerRadius="4" Background="{DynamicResource PanelBg}"
+                                BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1">
                           <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <TextBlock Text="{CompiledBinding Timestamp, StringFormat='{}{0:yyyy-MM-ddTHH:mm:ssZ}'}"
                                        FontFamily="Cascadia Mono, Consolas, monospace"
@@ -212,10 +212,10 @@
       </WrapPanel>
 
       <!-- Row 3: results table -->
-      <Border Grid.Row="3" Margin="0,8,0,4" Background="#0B1220"
-              BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
+      <Border Grid.Row="3" Margin="0,8,0,4" Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
-          <Grid Grid.Row="0" Background="#1E293B">
+          <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="220" MinWidth="80" SharedSizeGroup="TsCol" />
               <ColumnDefinition Width="Auto" SharedSizeGroup="SplitA" />
@@ -226,27 +226,27 @@
               <ColumnDefinition Width="*" MinWidth="80" SharedSizeGroup="AnnCol" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Timestamp (UTC)" Margin="8,4"
-                       Foreground="#94A3B8" FontWeight="SemiBold" />
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
             <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
                           ResizeBehavior="PreviousAndNext"
-                          Background="#1E293B" />
+                          Background="{DynamicResource SeparatorBrush}" />
             <TextBlock Grid.Column="2" Text="Value"           Margin="8,4"
-                       Foreground="#94A3B8" FontWeight="SemiBold" />
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
             <GridSplitter Grid.Column="3" Width="4" ResizeDirection="Columns"
                           ResizeBehavior="PreviousAndNext"
-                          Background="#1E293B" />
+                          Background="{DynamicResource SeparatorBrush}" />
             <TextBlock Grid.Column="4" Text="Status"          Margin="8,4"
-                       Foreground="#94A3B8" FontWeight="SemiBold" />
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
             <GridSplitter Grid.Column="5" Width="4" ResizeDirection="Columns"
                           ResizeBehavior="PreviousAndNext"
-                          Background="#1E293B" />
+                          Background="{DynamicResource SeparatorBrush}" />
             <TextBlock Grid.Column="6" Text="Annotation"      Margin="8,4"
-                       Foreground="#94A3B8" FontWeight="SemiBold" />
+                       Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" />
           </Grid>
           <ListBox Grid.Row="1"
                    ItemsSource="{CompiledBinding Rows}"
                    SelectedItem="{CompiledBinding SelectedRow, Mode=TwoWay}"
-                   Background="#0B1220" Foreground="#E2E8F0">
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}">
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:HistoryRow">
                 <Grid PointerPressed="OnRowPointerPressed">
@@ -284,7 +284,7 @@
 
       <!-- Row 4: line chart -->
       <Border Grid.Row="4" Margin="0,4,0,0"
-              Background="#0B1220" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0" Classes="h" Margin="8,6,0,0"
                      Text="VALUE — line chart (numeric rows only)" />

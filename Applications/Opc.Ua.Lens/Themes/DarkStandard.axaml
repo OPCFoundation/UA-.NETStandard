@@ -1,0 +1,31 @@
+<!-- Dark Standard theme — neutral grays (no navy tint). -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Background tiers (darkest → lightest) -->
+  <SolidColorBrush x:Key="PanelBg"             Color="#141414" />
+  <SolidColorBrush x:Key="AppBg"               Color="#1C1C1C" />
+  <SolidColorBrush x:Key="SurfaceBg"           Color="#242424" />
+  <SolidColorBrush x:Key="ToolbarBg"           Color="#3A3A3A" />
+  <SolidColorBrush x:Key="HighlightBg"         Color="#2D2D2D" />
+
+  <!-- Borders / separators -->
+  <SolidColorBrush x:Key="PanelBorder"         Color="#3A3A3A" />
+  <SolidColorBrush x:Key="SeparatorBrush"      Color="#3A3A3A" />
+
+  <!-- Text tiers (dimmest → brightest) -->
+  <SolidColorBrush x:Key="TextDim"             Color="#737373" />
+  <SolidColorBrush x:Key="TextSecondary"       Color="#A3A3A3" />
+  <SolidColorBrush x:Key="TextSecondaryAlt"    Color="#D4D4D4" />
+  <SolidColorBrush x:Key="TextPrimary"         Color="#F5F5F5" />
+
+  <!-- Accent colors (same vibrancy, slightly shifted for gray BG) -->
+  <SolidColorBrush x:Key="AccentBlue"          Color="#3B82F6" />
+  <SolidColorBrush x:Key="AccentCyan"          Color="#22D3EE" />
+  <SolidColorBrush x:Key="AccentGreen"         Color="#22C55E" />
+  <SolidColorBrush x:Key="AccentYellow"        Color="#EAB308" />
+  <SolidColorBrush x:Key="AccentYellowLight"   Color="#FACC15" />
+  <SolidColorBrush x:Key="AccentRed"           Color="#EF4444" />
+  <SolidColorBrush x:Key="AccentRedLight"      Color="#F87171" />
+  <SolidColorBrush x:Key="AccentPurple"        Color="#A78BFA" />
+  <SolidColorBrush x:Key="AccentYellowBorder"  Color="#3D3D1C" />
+</ResourceDictionary>

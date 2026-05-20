@@ -30,6 +30,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="UaLens.App"
              RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceInclude x:Key="ThemeDictionary" Source="avares://UaLens/Themes/DarkNavy.axaml" />
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme />
 

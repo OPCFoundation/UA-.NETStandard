@@ -31,11 +31,11 @@
              x:Class="UaLens.Views.ComplexValueEditor">
   <Grid RowDefinitions="Auto,Auto,*">
     <TextBlock Grid.Row="0" x:Name="HeaderLabel"
-               FontWeight="SemiBold" Foreground="#06B6D4"
+               FontWeight="SemiBold" Foreground="{DynamicResource AccentCyan}"
                Margin="0,0,0,4" />
     <TextBlock Grid.Row="1" x:Name="HintLabel"
-               Foreground="#94A3B8" Margin="0,0,0,6" TextWrapping="Wrap" />
-    <Border Grid.Row="2" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
+               Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,6" TextWrapping="Wrap" />
+    <Border Grid.Row="2" BorderBrush="{DynamicResource ToolbarBg}" BorderThickness="1" CornerRadius="4">
       <ScrollViewer x:Name="BodyScroll" VerticalScrollBarVisibility="Auto" Padding="6">
         <StackPanel x:Name="BodyPanel" Spacing="4" />
       </ScrollViewer>

@@ -29,17 +29,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="UaLens.Views.ContentFilterEditor"
-             Background="#0F172A" Foreground="#E2E8F0">
+             Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid RowDefinitions="*,Auto" Margin="0">
 
     <Grid Grid.Row="0" ColumnDefinitions="240,*" Margin="0">
 
       <!-- Left pane: element list -->
-      <Border Grid.Column="0" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-              Padding="6" Background="#0B1220" Margin="0,0,8,0">
+      <Border Grid.Column="0" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+              Padding="6" Background="{DynamicResource PanelBg}" Margin="0,0,8,0">
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock Grid.Row="0" Text="Elements"
-                     FontWeight="SemiBold" Foreground="#06B6D4" Margin="2,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentCyan}" Margin="2,0,0,6" />
           <ListBox Grid.Row="1" x:Name="ElementsList"
                    Background="Transparent"
                    DisplayMemberBinding="{Binding Summary}" />
@@ -54,11 +54,11 @@
       </Border>
 
       <!-- Right pane: element editor -->
-      <Border Grid.Column="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-              Padding="10" Background="#0B1220">
+      <Border Grid.Column="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+              Padding="10" Background="{DynamicResource PanelBg}">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
           <TextBlock Grid.Row="0" Text="Element editor"
-                     FontWeight="SemiBold" Foreground="#06B6D4" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,6" />
 
           <Grid Grid.Row="1" ColumnDefinitions="120,*" Margin="0,0,0,8">
             <TextBlock Grid.Column="0" Text="Operator" VerticalAlignment="Center" />
@@ -66,7 +66,7 @@
           </Grid>
 
           <TextBlock Grid.Row="2" Text="Operands"
-                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,4,0,4" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,4,0,4" />
 
           <ListBox Grid.Row="3" x:Name="OperandsList"
                    Background="Transparent" Height="160" />
@@ -79,18 +79,18 @@
           </StackPanel>
 
           <TextBlock Grid.Row="5" x:Name="EditorStatus"
-                     Foreground="#94A3B8" FontSize="11"
+                     Foreground="{DynamicResource TextSecondary}" FontSize="11"
                      TextWrapping="Wrap" Margin="0,6,0,0" />
         </Grid>
       </Border>
     </Grid>
 
     <!-- Preview -->
-    <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-            Padding="8" Margin="0,8,0,0" Background="#0B1220">
+    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+            Padding="8" Margin="0,8,0,0" Background="{DynamicResource PanelBg}">
       <StackPanel Spacing="2">
         <TextBlock Text="ContentFilter preview"
-                   FontWeight="SemiBold" Foreground="#F59E0B" />
+                   FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" />
         <TextBlock x:Name="PreviewText"
                    FontFamily="Cascadia Mono, Consolas, monospace"
                    FontSize="11" TextWrapping="Wrap"

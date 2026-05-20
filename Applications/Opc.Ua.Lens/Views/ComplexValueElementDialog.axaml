@@ -33,7 +33,7 @@
         Title="Edit structured value"
         Width="640" Height="520"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="*,Auto,Auto">
     <v:ComplexValueEditor x:Name="Editor" />
 

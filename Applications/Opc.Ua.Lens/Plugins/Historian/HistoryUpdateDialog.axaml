@@ -37,27 +37,27 @@
         SizeToContent="Height"
         MinHeight="240"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Window.Styles>
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
     </Style>
     <Style Selector="TextBlock.statDim">
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
     <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="#1E293B" />
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="100" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#0EA5E9" />
-      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
       <Setter Property="Padding" Value="10,5" />
       <Setter Property="MinWidth" Value="100" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -123,8 +123,8 @@
         <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
                     IsVisible="{CompiledBinding IsDeleteAtTimeOp}">
           <TextBlock Classes="statDim" Text="Timestamps:" />
-          <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-                  Background="#0B1220" Padding="4" MinHeight="80">
+          <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+                  Background="{DynamicResource PanelBg}" Padding="4" MinHeight="80">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
               <ItemsControl ItemsSource="{CompiledBinding UpdateAtTimes}">
@@ -137,8 +137,8 @@
                   <DataTemplate DataType="vm:AtTimeRow">
                     <Panel Margin="4">
                       <Border IsVisible="{CompiledBinding IsEditor}"
-                              Padding="4" CornerRadius="4" Background="#0F172A"
-                              BorderBrush="#1E293B" BorderThickness="1">
+                              Padding="4" CornerRadius="4" Background="{DynamicResource AppBg}"
+                              BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                           <v:UtcDateTimePicker Value="{CompiledBinding Timestamp, Mode=TwoWay}" />
                           <Button Classes="tonal" Content="✓"
@@ -148,8 +148,8 @@
                         </StackPanel>
                       </Border>
                       <Border IsVisible="{CompiledBinding IsLabel}"
-                              Padding="6,4" CornerRadius="4" Background="#0F172A"
-                              BorderBrush="#1E293B" BorderThickness="1">
+                              Padding="6,4" CornerRadius="4" Background="{DynamicResource AppBg}"
+                              BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                           <TextBlock Text="{CompiledBinding Timestamp, StringFormat='{}{0:yyyy-MM-ddTHH:mm:ssZ}'}"
                                      FontFamily="Cascadia Mono, Consolas, monospace"

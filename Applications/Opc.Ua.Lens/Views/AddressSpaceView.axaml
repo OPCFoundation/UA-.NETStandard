@@ -32,14 +32,14 @@
              xmlns:v="using:UaLens.Views"
              x:Class="UaLens.Views.AddressSpaceView"
              x:DataType="vm:BrowserViewModel">
-  <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="0">
+  <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="0">
     <Grid RowDefinitions="Auto,Auto,*">
       <DockPanel Grid.Row="0" Margin="4,4,4,2" LastChildFill="True"
                  IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}">
         <TextBlock DockPanel.Dock="Left"
                    VerticalAlignment="Center"
                    Margin="0,0,4,0"
-                   Foreground="#94A3B8"
+                   Foreground="{DynamicResource TextSecondary}"
                    Text="View:" />
         <ComboBox x:Name="ViewKindCombo"
                   HorizontalAlignment="Stretch"
@@ -54,8 +54,8 @@
                IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}" />
       <TreeView Grid.Row="2" x:Name="Tree"
                 ItemsSource="{CompiledBinding Roots}"
-                Background="#0F172A"
-                Foreground="#E2E8F0"
+                Background="{DynamicResource AppBg}"
+                Foreground="{DynamicResource TextPrimary}"
                 BorderThickness="0">
         <TreeView.ContextMenu>
           <ContextMenu x:Name="NodeMenu">

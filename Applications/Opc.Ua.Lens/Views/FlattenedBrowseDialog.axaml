@@ -32,15 +32,15 @@
         x:Class="UaLens.Views.FlattenedBrowseDialog"
         Width="780" Height="560"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto,Auto">
     <TextBlock Grid.Row="0"
                x:Name="HeaderLabel"
                Margin="0,0,0,8"
                TextWrapping="Wrap" />
-    <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <ListBox x:Name="ResultsList"
-               Background="Transparent" Foreground="#E2E8F0"
+               Background="Transparent" Foreground="{DynamicResource TextPrimary}"
                BorderThickness="0">
         <ListBox.ItemTemplate>
           <DataTemplate DataType="v:FlattenedNode">
@@ -55,7 +55,7 @@
     <TextBlock Grid.Row="2"
                x:Name="StatusLabel"
                Margin="0,8,0,4"
-               Foreground="#94A3B8"
+               Foreground="{DynamicResource TextSecondary}"
                FontSize="11" />
     <ProgressBar Grid.Row="3" x:Name="Progress" Height="6"
                  IsIndeterminate="True" Minimum="0" Maximum="100" />

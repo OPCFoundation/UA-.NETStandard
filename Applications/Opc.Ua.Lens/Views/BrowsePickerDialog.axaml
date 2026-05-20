@@ -32,17 +32,17 @@
         x:Class="UaLens.Views.BrowsePickerDialog"
         Width="640" Height="540"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*">
     <TextBlock Grid.Row="0"
                x:Name="HeaderLabel"
                Margin="0,0,0,8"
                TextWrapping="Wrap" />
 
-    <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <TreeView x:Name="Tree"
                 Background="Transparent"
-                Foreground="#E2E8F0"
+                Foreground="{DynamicResource TextPrimary}"
                 BorderThickness="0">
         <TreeView.Styles>
           <Style Selector="TreeViewItem" x:DataType="v:BrowsePickerNode">
@@ -58,7 +58,7 @@
               </TextBlock.Text>
               <TextBlock.Styles>
                 <Style Selector="TextBlock">
-                  <Setter Property="Foreground" Value="#E2E8F0" />
+                  <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
                 </Style>
               </TextBlock.Styles>
             </TextBlock>
@@ -70,7 +70,7 @@
     <TextBlock Grid.Row="2"
                x:Name="StatusLabel"
                Margin="0,8,0,0"
-               Foreground="#94A3B8"
+               Foreground="{DynamicResource TextSecondary}"
                FontSize="11" />
 
     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">

@@ -32,7 +32,7 @@
         Title="Add monitored item"
         Width="560" Height="460"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,12"
@@ -57,7 +57,7 @@
                x:Name="FilterHeader"
                Text="Data change filter (optional)"
                FontWeight="SemiBold" FontSize="13"
-               Foreground="#06B6D4" Margin="0,16,0,4" />
+               Foreground="{DynamicResource AccentCyan}" Margin="0,16,0,4" />
 
     <TextBlock Grid.Row="5" Grid.Column="0" x:Name="TriggerLabel"
                Text="Trigger" VerticalAlignment="Center" Margin="0,4,0,0" />

@@ -30,8 +30,10 @@
 using System;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Opc.Ua;
 using UaLens.Connection;
 
@@ -58,7 +60,8 @@ internal sealed partial class CertificateTrustDialog : Window
         var notAfter = this.RequiredControl<TextBlock>("NotAfterLabel");
         notBefore.Text = cert.NotBefore.ToString("u", CultureInfo.InvariantCulture);
         notAfter.Text = cert.NotAfter.ToString("u", CultureInfo.InvariantCulture);
-        var warnBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0xF8, 0x71, 0x71));
+        var warnBrush = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            ?? Brushes.Transparent;
         if (cert.NotBefore.ToUniversalTime() > nowUtc)
         {
             notBefore.Text += "  ⚠ NOT YET VALID";

@@ -35,15 +35,15 @@
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="12" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
     </Style>
     <Style Selector="TextBlock.k">
-      <Setter Property="Foreground" Value="#64748B" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
     <Style Selector="TextBlock.v">
-      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
@@ -53,8 +53,8 @@
     <ItemsControl ItemsSource="{CompiledBinding CertGroups}">
       <ItemsControl.ItemTemplate>
         <DataTemplate DataType="vm:GdsCertGroupVm">
-          <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-                  Background="#0B1220" Padding="8" Margin="4,4,4,8">
+          <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+                  Background="{DynamicResource PanelBg}" Padding="8" Margin="4,4,4,8">
             <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Classes="h"
                          Text="{CompiledBinding DisplayName}" />
@@ -62,7 +62,7 @@
               <TextBlock Grid.Row="1" Classes="k" Margin="0,6,0,2"
                          Text="Trusted certificates" />
               <ListBox   Grid.Row="2" ItemsSource="{CompiledBinding Trusted}"
-                         Background="#0F172A" Foreground="#E2E8F0"
+                         Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
                          BorderThickness="0" Height="100">
                 <ListBox.ItemTemplate>
                   <DataTemplate DataType="vm:GdsAppCertItem">
@@ -81,7 +81,7 @@
               <TextBlock Grid.Row="3" Classes="k" Margin="0,6,0,2"
                          Text="Issuer certificates" />
               <ListBox   Grid.Row="4" ItemsSource="{CompiledBinding Issuers}"
-                         Background="#0F172A" Foreground="#E2E8F0"
+                         Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
                          BorderThickness="0" Height="80">
                 <ListBox.ItemTemplate>
                   <DataTemplate DataType="vm:GdsAppCertItem">

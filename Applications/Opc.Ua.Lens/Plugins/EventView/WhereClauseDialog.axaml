@@ -33,13 +33,13 @@
         Title="Edit where clause"
         Width="960" Height="640"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto">
 
     <TextBlock Grid.Row="0"
                Margin="0,0,0,8"
                TextWrapping="Wrap"
-               Foreground="#94A3B8"
+               Foreground="{DynamicResource TextSecondary}"
                FontSize="12"
                Text="Build a ContentFilter expression that the server applies before delivering events. Each row is a ContentFilterElement (operator + operands). Hit Validate to check the structure against the live session before applying." />
 
@@ -50,7 +50,7 @@
                FontFamily="Cascadia Mono, Consolas, monospace"
                FontSize="11"
                TextWrapping="Wrap"
-               Foreground="#94A3B8" />
+               Foreground="{DynamicResource TextSecondary}" />
 
     <StackPanel Grid.Row="3" Orientation="Horizontal"
                 HorizontalAlignment="Right" Margin="0,12,0,0">

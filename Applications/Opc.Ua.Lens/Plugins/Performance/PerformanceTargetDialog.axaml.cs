@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
@@ -134,12 +135,14 @@ internal sealed partial class PerformanceTargetDialog : Window
             sel.Text = "(no node selected)";
             details.Text = "—";
             status.Text = "Select a node in the main address-space tree, then re-open this dialog.";
-            status.Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+            status.Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                ?? Brushes.Transparent;
             return;
         }
 
         sel.Text = $"{m_selected.Text}  ·  {m_selected.NodeId}";
-        status.Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8));
+        status.Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
+            ?? Brushes.Transparent;
 
         if (m_mode == BenchmarkMode.Write)
         {
@@ -147,7 +150,8 @@ internal sealed partial class PerformanceTargetDialog : Window
             {
                 details.Text = "Write mode requires a Variable selection.";
                 status.Text = "Pick a Variable in the address-space tree, then re-open this dialog.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
                 return;
             }
             await LoadVariableAsync(m_selected, details, status).ConfigureAwait(true);
@@ -158,7 +162,8 @@ internal sealed partial class PerformanceTargetDialog : Window
             {
                 details.Text = "Call mode requires a Method selection.";
                 status.Text = "Pick a Method in the address-space tree, then re-open this dialog.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
                 return;
             }
             await LoadMethodAsync(m_selected, details, status, panel).ConfigureAwait(true);
@@ -203,19 +208,22 @@ internal sealed partial class PerformanceTargetDialog : Window
             if (!writable)
             {
                 status.Text = "Variable is not writable (AccessLevel does not have CurrentWrite). The benchmark will report write errors.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+                status.Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                    ?? Brushes.Transparent;
             }
             else
             {
                 status.Text = "Ready. Click OK to use this variable as the Write target.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+                status.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                    ?? Brushes.Transparent;
             }
         }
         catch (Exception ex)
         {
             details.Text = "(read failed)";
             status.Text = $"Read failed: {ex.Message}";
-            status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 
@@ -298,7 +306,8 @@ internal sealed partial class PerformanceTargetDialog : Window
                 panel.Children.Add(new TextBlock
                 {
                     Text = "(method has no input arguments)",
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+                    Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
+                        ?? Brushes.Transparent,
                     FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
                     FontSize = 12
                 });
@@ -308,7 +317,8 @@ internal sealed partial class PerformanceTargetDialog : Window
                 var header = new TextBlock
                 {
                     Text = "InputArguments (synthesised per op):",
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+                    Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
+                        ?? Brushes.Transparent,
                     FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
                     FontSize = 12,
                     Margin = new Avalonia.Thickness(0, 0, 0, 6)
@@ -324,7 +334,8 @@ internal sealed partial class PerformanceTargetDialog : Window
                     panel.Children.Add(new TextBlock
                     {
                         Text = text,
-                        Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)),
+                        Foreground = (Application.Current?.FindResource("TextPrimary") as IBrush)
+                            ?? Brushes.Transparent,
                         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
                         FontSize = 12,
                         HorizontalAlignment = HorizontalAlignment.Left
@@ -335,19 +346,22 @@ internal sealed partial class PerformanceTargetDialog : Window
             if (m_resolvedObjectId.IsNull)
             {
                 status.Text = "Cannot resolve parent ObjectId — pick a method whose parent has been expanded in the tree.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
             }
             else
             {
                 status.Text = "Ready. Click OK to use this method as the Call target.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+                status.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                    ?? Brushes.Transparent;
             }
         }
         catch (Exception ex)
         {
             details.Text = "(resolve failed)";
             status.Text = $"Resolve failed: {ex.Message}";
-            status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 

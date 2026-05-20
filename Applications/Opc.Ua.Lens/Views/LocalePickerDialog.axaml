@@ -32,7 +32,7 @@
         Title="Preferred locales"
         Width="460" Height="380"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,Auto">
 
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8" TextWrapping="Wrap"
@@ -46,7 +46,7 @@
 
     <ListBox Grid.Row="2" Grid.Column="0" x:Name="LocaleList"
              Margin="0,8,8,0"
-             Background="#0B1220" Foreground="#E2E8F0" />
+             Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}" />
 
     <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Vertical"
                 Margin="0,8,0,0" Spacing="6" VerticalAlignment="Top">
@@ -59,7 +59,7 @@
                 HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="6">
       <Button x:Name="ApplyButton" Content="Apply"
               IsDefault="True" Width="120"
-              Background="#0EA5E9" Foreground="#0F172A" FontWeight="SemiBold" />
+              Background="{DynamicResource AccentBlue}" Foreground="{DynamicResource AppBg}" FontWeight="SemiBold" />
       <Button x:Name="CancelButton" Content="Close" IsCancel="True" Width="100" />
     </StackPanel>
   </Grid>

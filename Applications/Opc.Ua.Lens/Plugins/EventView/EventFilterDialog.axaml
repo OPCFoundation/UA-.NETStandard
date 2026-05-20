@@ -32,14 +32,14 @@
         Title="Event filter"
         Width="780" Height="720"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*">
 
     <TextBlock Grid.Row="0"
                Text="OPC UA event filter"
                FontWeight="SemiBold" FontSize="14"
-               Foreground="#06B6D4" Margin="0,0,0,4" />
-    <Border    Grid.Row="1" Height="1" Background="#1E293B" Margin="0,0,0,12" />
+               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+    <Border    Grid.Row="1" Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,12" />
 
     <Grid Grid.Row="2" ColumnDefinitions="220,*" Margin="0,0,0,12">
       <TextBlock Grid.Column="0" Text="Severity threshold (≥)" VerticalAlignment="Center" />
@@ -67,15 +67,15 @@
 
     <TextBlock Grid.Row="4" Text="SelectClause fields"
                FontWeight="SemiBold" FontSize="13"
-               Foreground="#F59E0B" Margin="0,4,0,4" />
+               Foreground="{DynamicResource AccentYellow}" Margin="0,4,0,4" />
     <TextBlock Grid.Row="5"
                TextWrapping="Wrap"
-               Foreground="#94A3B8" FontSize="11"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11"
                Margin="0,0,0,8"
                Text="Tick the fields exposed by the chosen event type. Use 'Pick type…' above to browse subtypes of BaseEventType." />
 
-    <Border Grid.Row="6" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-            Padding="8" Background="#0B1220">
+    <Border Grid.Row="6" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+            Padding="8" Background="{DynamicResource PanelBg}">
       <ScrollViewer>
         <StackPanel x:Name="FieldsPanel" Spacing="2" />
       </ScrollViewer>
@@ -85,13 +85,13 @@
          operand list has room to render and selection works
          predictably. The summary preview here mirrors the filter's
          ContentFilter.ToString() output. -->
-    <Border Grid.Row="7" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-            Padding="10" Background="#0B1220" Margin="0,12,0,0">
+    <Border Grid.Row="7" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4"
+            Padding="10" Background="{DynamicResource PanelBg}" Margin="0,12,0,0">
       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
         <TextBlock Grid.Row="0" Grid.Column="0"
                    Text="Where clause (ContentFilter)"
                    FontWeight="SemiBold"
-                   Foreground="#F59E0B" />
+                   Foreground="{DynamicResource AccentYellow}" />
         <Button Grid.Row="0" Grid.Column="1" x:Name="EditWhereClauseButton"
                 Content="Edit where clause…" Width="180" />
         <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="WhereClauseSummary"
@@ -99,7 +99,7 @@
                    FontFamily="Cascadia Mono, Consolas, monospace"
                    FontSize="11"
                    TextWrapping="Wrap"
-                   Foreground="#94A3B8" />
+                   Foreground="{DynamicResource TextSecondary}" />
       </Grid>
     </Border>
 

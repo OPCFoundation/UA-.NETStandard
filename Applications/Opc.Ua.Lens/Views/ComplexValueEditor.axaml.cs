@@ -261,7 +261,8 @@ internal sealed partial class ComplexValueEditor : UserControl
             body.Children.Add(new TextBlock
             {
                 Text = "Selected field",
-                Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8))
+                Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
+                    ?? Brushes.Transparent
             });
             body.Children.Add(unionSelector);
         }
@@ -277,7 +278,8 @@ internal sealed partial class ComplexValueEditor : UserControl
             var label = new TextBlock
             {
                 Text = $"{f.Name} : {DescribeField(f)}",
-                Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+                Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
+                    ?? Brushes.Transparent,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace")

@@ -33,7 +33,7 @@
         Title="Export NodeSet2 — select namespaces"
         Width="640" Height="480"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
     <TextBlock Grid.Row="0"
                Margin="0,0,0,8"
@@ -45,7 +45,7 @@
       <Button x:Name="SelectNoneBtn" Content="Select none" />
     </StackPanel>
 
-    <Border Grid.Row="2" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+    <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <ScrollViewer>
         <ItemsControl x:Name="NamespaceList">
           <ItemsControl.ItemTemplate>

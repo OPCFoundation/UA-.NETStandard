@@ -33,7 +33,7 @@
         Title="Pick time range"
         Width="540" Height="240"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto">
     <TextBlock Grid.Row="0" Margin="0,0,0,12" TextWrapping="Wrap"
                Text="Pick Start and End (UTC).  End defaults to now." />

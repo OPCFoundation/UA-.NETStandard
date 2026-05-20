@@ -32,7 +32,7 @@
         Title="FileSystem settings"
         Width="400" Height="240"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
     <TextBlock Grid.Row="0" Margin="0,0,0,10"
                TextWrapping="Wrap"
@@ -49,7 +49,7 @@
               Margin="0,2" />
 
     <TextBlock Grid.Row="4" Margin="0,12,0,0"
-               Foreground="#94A3B8" FontSize="11" TextWrapping="Wrap"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap"
                Text="Tip: picking a FileType opens the file's containing directory as the root with only that file visible." />
 
     <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">

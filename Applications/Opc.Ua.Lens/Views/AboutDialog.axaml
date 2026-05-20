@@ -32,7 +32,7 @@
         Title="About UaLens"
         Width="480" Height="420"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
         FontFamily="Inter, Segoe UI, sans-serif">
   <Grid Margin="16" RowDefinitions="Auto,*,Auto">
 
@@ -45,14 +45,14 @@
       <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="2">
         <TextBlock Text="UaLens"
                    FontSize="22" FontWeight="SemiBold"
-                   Foreground="#E2E8F0" />
+                   Foreground="{DynamicResource TextPrimary}" />
         <TextBlock Text="Multi-tab Avalonia desktop client for OPC UA"
-                   FontSize="12" Foreground="#94A3B8" />
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}" />
         <TextBlock x:Name="VersionLabel"
-                   FontSize="12" Foreground="#94A3B8"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"
                    Margin="0,6,0,0" />
         <TextBlock Text="Copyright © 2025 OPC Foundation, Inc."
-                   FontSize="12" Foreground="#94A3B8" />
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}" />
       </StackPanel>
     </Grid>
 
@@ -64,19 +64,19 @@
              TextWrapping="Wrap"
              FontFamily="Cascadia Mono, Consolas, monospace"
              FontSize="11"
-             Background="#0B1220" Foreground="#CBD5E1"
-             BorderBrush="#1E293B" BorderThickness="1" />
+             Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextSecondaryAlt}"
+             BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" />
 
     <!-- Bottom-right action buttons -->
     <StackPanel Grid.Row="2" Orientation="Horizontal"
                 HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
       <Button x:Name="WebsiteButton" Content="Visit website"
               Padding="12,6" MinWidth="120"
-              Background="#1E293B" Foreground="#E2E8F0" />
+              Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}" />
       <Button x:Name="CloseButton" Content="Close"
               IsCancel="True" IsDefault="True"
               Padding="12,6" MinWidth="100"
-              Background="#0EA5E9" Foreground="#0F172A" FontWeight="SemiBold" />
+              Background="{DynamicResource AccentBlue}" Foreground="{DynamicResource AppBg}" FontWeight="SemiBold" />
     </StackPanel>
   </Grid>
 </Window>

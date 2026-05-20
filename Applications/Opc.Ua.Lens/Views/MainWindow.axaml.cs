@@ -291,6 +291,28 @@ internal sealed partial class MainWindow : Window, IDisposable
             }
         };
 
+        // --- View menu: Theme ---
+        var menuDarkNavy = this.FindControl<MenuItem>("MenuThemeDarkNavy");
+        var menuDarkStd = this.FindControl<MenuItem>("MenuThemeDarkStandard");
+        var menuLight = this.FindControl<MenuItem>("MenuThemeLight");
+        if (menuDarkNavy is not null)
+        {
+            menuDarkNavy.IsChecked = UaLens.Themes.ThemeManager.Current == UaLens.Themes.ThemePreset.DarkNavy;
+            menuDarkNavy.Click += (_, _) => UaLens.Themes.ThemeManager.SetTheme(UaLens.Themes.ThemePreset.DarkNavy);
+        }
+
+        if (menuDarkStd is not null)
+        {
+            menuDarkStd.IsChecked = UaLens.Themes.ThemeManager.Current == UaLens.Themes.ThemePreset.DarkStandard;
+            menuDarkStd.Click += (_, _) => UaLens.Themes.ThemeManager.SetTheme(UaLens.Themes.ThemePreset.DarkStandard);
+        }
+
+        if (menuLight is not null)
+        {
+            menuLight.IsChecked = UaLens.Themes.ThemeManager.Current == UaLens.Themes.ThemePreset.Light;
+            menuLight.Click += (_, _) => UaLens.Themes.ThemeManager.SetTheme(UaLens.Themes.ThemePreset.Light);
+        }
+
         // --- Help menu ---
         menuAbout.Click += (_, _) => ShowHelp();
         menuAboutDialog.Click += async (_, _) =>
@@ -1008,13 +1030,14 @@ internal sealed partial class MainWindow : Window, IDisposable
         }
 
         bool kaLost = kaSdkLost && !activity;
-        (string color, string text) = (connected, kaLost) switch
+        (string key, string text) = (connected, kaLost) switch
         {
-            (false, _) => ("#64748B", "disconnected"),
-            (true, true) => ("#FBBF24", "keep-alive lost"),
-            (true, false) => ("#22C55E", "connected"),
+            (false, _) => ("TextDim", "disconnected"),
+            (true, true) => ("AccentYellowLight", "keep-alive lost"),
+            (true, false) => ("AccentGreen", "connected"),
         };
-        dot.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(color));
+        dot.Fill = (Application.Current?.FindResource(key) as Avalonia.Media.IBrush)
+            ?? Avalonia.Media.Brushes.Transparent;
         label.Text = text;
     }
 
@@ -2456,8 +2479,10 @@ internal sealed partial class MainWindow : Window, IDisposable
             Width = 640,
             Height = 640,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Avalonia.Media.Brushes.Black,
-            Foreground = Avalonia.Media.Brushes.White
+            Background = (Application.Current?.FindResource("AppBg") as Avalonia.Media.IBrush)
+                ?? Avalonia.Media.Brushes.Transparent,
+            Foreground = (Application.Current?.FindResource("TextPrimary") as Avalonia.Media.IBrush)
+                ?? Avalonia.Media.Brushes.Transparent
         };
         help.Content = new ScrollViewer
         {

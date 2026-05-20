@@ -32,15 +32,15 @@
         Title="Subscription parameters"
         Width="560" Height="540"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="260,*">
 
     <!-- ========= Standard protocol settings ========= -->
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Text="OPC UA subscription parameters"
                FontWeight="SemiBold" FontSize="14"
-               Foreground="#06B6D4" Margin="0,0,0,4" />
-    <Border  Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="#1E293B" Margin="0,0,0,8" />
+               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+    <Border  Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8" />
 
     <TextBlock Grid.Row="2" Grid.Column="0" Text="Publishing interval (ms)" VerticalAlignment="Center" />
     <TextBox   Grid.Row="2" Grid.Column="1" x:Name="PubMs" />
@@ -63,13 +63,13 @@
     <TextBlock Grid.Row="8" Grid.ColumnSpan="2"
                Text="Engine pipeline depth"
                FontWeight="SemiBold" FontSize="14"
-               Foreground="#F59E0B" Margin="0,18,0,4" />
-    <Border    Grid.Row="9" Grid.ColumnSpan="2" Height="1" Background="#3F3320" Margin="0,0,0,4" />
+               Foreground="{DynamicResource AccentYellow}" Margin="0,18,0,4" />
+    <Border    Grid.Row="9" Grid.ColumnSpan="2" Height="1" Background="{DynamicResource AccentYellowBorder}" Margin="0,0,0,4" />
 
     <TextBlock Grid.Row="10" Grid.ColumnSpan="2"
                x:Name="EngineHint"
                TextWrapping="Wrap"
-               Foreground="#94A3B8" FontSize="11"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11"
                Margin="0,0,0,8"
                Text="Drives the publish-request pipeline depth.  In the V2 (channel) engine this is also the size of the publish-worker pool." />
 

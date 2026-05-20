@@ -32,7 +32,7 @@
         Title="Connect to OPC UA server"
         Width="460" Height="260"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="*,Auto">
 
     <!-- Body: one TabControl with a single URL tab today.  Future MDNS,
@@ -43,7 +43,7 @@
       <TabItem Header="URL">
         <!-- The Content here must implement IConnectionSourceTab. -->
         <Grid Margin="8,12,8,8" RowDefinitions="Auto,Auto" x:Name="UrlTabRoot">
-          <TextBlock Grid.Row="0" Margin="0,0,0,6" Foreground="#94A3B8" FontSize="11"
+          <TextBlock Grid.Row="0" Margin="0,0,0,6" Foreground="{DynamicResource TextSecondary}" FontSize="11"
                      Text="Endpoint URL" />
           <TextBox Grid.Row="1" x:Name="EndpointUrlBox"
                    FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
@@ -59,7 +59,7 @@
     <StackPanel Grid.Row="1" Orientation="Horizontal"
                 HorizontalAlignment="Right" Margin="0,12,0,0" Spacing="6">
       <Button x:Name="ConnectButton" Content="Connect" IsDefault="True"
-              Width="120" Background="#0EA5E9" Foreground="#0F172A" FontWeight="SemiBold" />
+              Width="120" Background="{DynamicResource AccentBlue}" Foreground="{DynamicResource AppBg}" FontWeight="SemiBold" />
       <Button x:Name="CancelButton"  Content="Cancel"  IsCancel="True" Width="100" />
     </StackPanel>
   </Grid>

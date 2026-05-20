@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -321,7 +322,8 @@ internal sealed partial class FilterOperandEditDialog : Window
         catch (Exception ex)
         {
             m_status.Text = $"Error: {ex.Message}";
-            m_status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                ?? Brushes.Transparent;
         }
     }
 

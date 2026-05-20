@@ -33,21 +33,21 @@
         Title="Node state"
         Width="720" Height="600"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
 
     <TextBlock Grid.Row="0" Margin="0,0,0,4" TextWrapping="Wrap"
                Text="Recursive dump of the node's attributes, references (grouped by reference type), and (for Variables) the current Value." />
 
     <TextBlock Grid.Row="1" x:Name="HeaderBlock"
-               Foreground="#94A3B8" FontSize="11" Margin="0,0,0,6"
+               Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,0,0,6"
                FontFamily="Cascadia Mono, Consolas, monospace"
                Text="" TextWrapping="Wrap" />
 
     <TreeView Grid.Row="2" x:Name="StateTree"
-              Background="#0F172A"
-              Foreground="#E2E8F0"
-              BorderBrush="#1E293B"
+              Background="{DynamicResource AppBg}"
+              Foreground="{DynamicResource TextPrimary}"
+              BorderBrush="{DynamicResource PanelBorder}"
               BorderThickness="1">
       <TreeView.ItemTemplate>
         <TreeDataTemplate DataType="v:NodeStateItem" ItemsSource="{CompiledBinding Children}">

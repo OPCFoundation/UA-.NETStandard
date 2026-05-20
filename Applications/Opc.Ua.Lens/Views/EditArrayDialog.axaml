@@ -32,12 +32,12 @@
         Title="Edit array"
         Width="560" Height="480"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A" Foreground="#E2E8F0">
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
   <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto,Auto">
     <TextBlock Grid.Row="0" x:Name="HeaderLabel"
                FontWeight="SemiBold" FontSize="13" Margin="0,0,0,4" />
     <TextBlock Grid.Row="1" x:Name="HintLabel"
-               Foreground="#94A3B8" Margin="0,0,0,8" TextWrapping="Wrap" />
+               Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap" />
 
     <ListBox Grid.Row="2" x:Name="ItemsList"
              FontFamily="Cascadia Mono, Consolas, monospace"

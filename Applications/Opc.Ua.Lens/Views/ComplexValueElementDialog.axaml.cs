@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -64,7 +65,8 @@ internal sealed partial class ComplexValueElementDialog : Window
             {
                 TextBlock status = this.RequiredControl<TextBlock>("StatusLabel");
                 status.Text = err ?? "Could not commit value.";
-                status.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                    ?? Brushes.Transparent;
             }
         };
         this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close(null);

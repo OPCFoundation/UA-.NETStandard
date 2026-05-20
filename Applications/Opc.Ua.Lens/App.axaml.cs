@@ -39,6 +39,7 @@ internal sealed partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        Themes.ThemeManager.Initialize();
     }
 
     public override void OnFrameworkInitializationCompleted()
