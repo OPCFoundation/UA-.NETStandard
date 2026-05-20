@@ -1329,9 +1329,9 @@ namespace Opc.Ua
                 m_writer.WriteNullValue();
                 return;
             }
-            value.TryGetValue(out IEncodeable encodeable);
+            value.TryGetValue(out IEncodeable? encodeable);
 
-             ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
+            ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
             StartObject();
