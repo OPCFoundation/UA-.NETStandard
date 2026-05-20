@@ -238,7 +238,7 @@ namespace Opc.Ua.Server
                     ServiceResult error = node.Read(
                         context,
                         monitoredItem.AttributeId,
-                        initialValue);
+                        ref initialValue);
 
                     if (ServiceResult.IsBad(error))
                     {

@@ -1787,12 +1787,12 @@ namespace Opc.Ua
         /// (preserving today's locking semantics for code that has not
         /// opted into async hooks).
         /// </summary>
-        public override async ValueTask<ServiceResult> ReadAttributeAsync(
+        public override async ValueTask<(ServiceResult Result, DataValue Value)> ReadAttributeAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValue value,
+            DataValue seed,
             CancellationToken cancellationToken = default)
         {
             NodeValueEventHandlerAsync? onReadValueAsync = OnReadValueAsync;
@@ -1802,15 +1802,15 @@ namespace Opc.Ua
                 (onReadValueAsync == null && onSimpleReadValueAsync == null))
             {
                 return await base.ReadAttributeAsync(
-                    context, attributeId, indexRange, dataEncoding, value, cancellationToken)
+                    context, attributeId, indexRange, dataEncoding, seed, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            if (value == null)
+            if (seed == null)
             {
-                return ServiceResult.Create(
+                return (ServiceResult.Create(
                     StatusCodes.BadStructureMissing,
-                    "DataValue missing");
+                    "DataValue missing"), default!);
             }
 
             ServiceResult result;
@@ -1924,22 +1924,21 @@ namespace Opc.Ua
                 sourceTimestamp = DateTimeUtc.MinValue;
             }
 
-            // commit to the supplied DataValue, mirroring NodeState.ReadAttribute(DataValue).
-            value.SourceTimestamp = sourceTimestamp;
-            value.SourcePicoseconds = 0;
+            // commit to a new DataValue, mirroring NodeState.ReadAttribute(ref DataValue).
+            StatusCode finalStatus = (result != null && result != ServiceResult.Good)
+                ? result.StatusCode
+                : (StatusCode)StatusCodes.Good;
+            Variant finalValue = StatusCode.IsBad(finalStatus) ? Variant.Null : valueToRead;
 
-            if (result != null && result != ServiceResult.Good)
-            {
-                value.StatusCode = result.StatusCode;
-            }
-            else
-            {
-                value.StatusCode = StatusCodes.Good;
-            }
+            DataValue value = new DataValue(
+                finalValue,
+                finalStatus,
+                sourceTimestamp,
+                seed.ServerTimestamp)
+                .WithSourcePicoseconds(0)
+                .WithServerPicoseconds(seed.ServerPicoseconds);
 
-            value.WrappedValue = StatusCode.IsBad(value.StatusCode) ? Variant.Null : valueToRead;
-
-            return result!;
+            return (result!, value);
         }
 
         /// <summary>

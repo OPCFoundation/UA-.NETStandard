@@ -1301,8 +1301,13 @@ namespace Opc.Ua.Types.Tests.State
         public void ReadAttributeReturnsBadForNullDataValue()
         {
             BaseObjectState node = CreateObjectNode();
+            // With DataValue still a class, passing a null reference via
+            // ref requires a local; assigning null mimics the legacy
+            // contract that ReadAttribute(... DataValue value) returned
+            // BadStructureMissing when value was null.
+            DataValue nullValue = null!;
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.NodeId, default, default, null);
+                m_context, Attributes.NodeId, default, default, ref nullValue);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
 
@@ -1312,7 +1317,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.NodeId, default, default, dataValue);
+                m_context, Attributes.NodeId, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dataValue.WrappedValue.GetNodeId(), Is.EqualTo(node.NodeId));
         }
@@ -1323,7 +1328,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.NodeClass, default, default, dataValue);
+                m_context, Attributes.NodeClass, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -1333,7 +1338,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.BrowseName, default, default, dataValue);
+                m_context, Attributes.BrowseName, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dataValue.WrappedValue.GetQualifiedName(), Is.EqualTo(node.BrowseName));
         }
@@ -1344,7 +1349,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.DisplayName, default, default, dataValue);
+                m_context, Attributes.DisplayName, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -1355,7 +1360,7 @@ namespace Opc.Ua.Types.Tests.State
             node.Description = LocalizedText.From("My desc");
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.Description, default, default, dataValue);
+                m_context, Attributes.Description, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -1366,7 +1371,7 @@ namespace Opc.Ua.Types.Tests.State
             node.WriteMask = AttributeWriteMask.DisplayName;
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.WriteMask, default, default, dataValue);
+                m_context, Attributes.WriteMask, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dataValue.WrappedValue.GetUInt32(), Is.EqualTo((uint)AttributeWriteMask.DisplayName));
         }
@@ -1378,7 +1383,7 @@ namespace Opc.Ua.Types.Tests.State
             node.UserWriteMask = AttributeWriteMask.Description;
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.UserWriteMask, default, default, dataValue);
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dataValue.WrappedValue.GetUInt32(), Is.EqualTo((uint)AttributeWriteMask.Description));
         }
@@ -1397,7 +1402,7 @@ namespace Opc.Ua.Types.Tests.State
             ];
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.RolePermissions, default, default, dataValue);
+                m_context, Attributes.RolePermissions, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -1408,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.State
             node.AccessRestrictions = AccessRestrictionType.SigningRequired;
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.AccessRestrictions, default, default, dataValue);
+                m_context, Attributes.AccessRestrictions, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -1418,7 +1423,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, 99999, default, default, dataValue);
+                m_context, 99999, default, default, ref dataValue);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
 
@@ -1428,7 +1433,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.Value, default, default, dataValue);
+                m_context, Attributes.Value, default, default, ref dataValue);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
 
@@ -1473,7 +1478,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.NodeId, default, default, dataValue);
+                m_context, Attributes.NodeId, default, default, ref dataValue);
             Assert.That(dataValue.WrappedValue.GetNodeId(), Is.EqualTo(overrideId));
         }
 
@@ -1490,7 +1495,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.BrowseName, default, default, dataValue);
+                m_context, Attributes.BrowseName, default, default, ref dataValue);
             Assert.That(dataValue.WrappedValue.GetQualifiedName(), Is.EqualTo(overrideName));
         }
 
@@ -1507,7 +1512,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.DisplayName, default, default, dataValue);
+                m_context, Attributes.DisplayName, default, default, ref dataValue);
             Assert.That(dataValue.WrappedValue.GetLocalizedText(), Is.EqualTo(overrideText));
         }
 
@@ -1524,7 +1529,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.Description, default, default, dataValue);
+                m_context, Attributes.Description, default, default, ref dataValue);
             Assert.That(dataValue.WrappedValue.GetLocalizedText(), Is.EqualTo(overrideDesc));
         }
 
@@ -1540,7 +1545,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.WriteMask, default, default, dataValue);
+                m_context, Attributes.WriteMask, default, default, ref dataValue);
             Assert.That(
                 dataValue.WrappedValue.GetUInt32(),
                 Is.EqualTo((uint)AttributeWriteMask.BrowseName));
@@ -1559,7 +1564,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.UserWriteMask, default, default, dataValue);
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
             Assert.That(
                 dataValue.WrappedValue.GetUInt32(),
                 Is.EqualTo((uint)AttributeWriteMask.WriteMask));
@@ -1577,7 +1582,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             node.ReadAttribute(
-                m_context, Attributes.NodeClass, default, default, dataValue);
+                m_context, Attributes.NodeClass, default, default, ref dataValue);
         }
 
         [Test]
@@ -1593,7 +1598,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.AccessRestrictions, default, default, dataValue);
+                m_context, Attributes.AccessRestrictions, default, default, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -2335,7 +2340,7 @@ namespace Opc.Ua.Types.Tests.State
             var dataValue = new DataValue();
 
             ServiceResult result = node.ReadChildAttribute(
-                m_context, relativePath, 0, Attributes.NodeId, dataValue);
+                m_context, relativePath, 0, Attributes.NodeId, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dataValue.WrappedValue.GetNodeId(), Is.EqualTo(node.NodeId));
         }
@@ -2348,7 +2353,7 @@ namespace Opc.Ua.Types.Tests.State
             var dataValue = new DataValue();
 
             ServiceResult result = node.ReadChildAttribute(
-                m_context, relativePath, 0, Attributes.NodeId, dataValue);
+                m_context, relativePath, 0, Attributes.NodeId, ref dataValue);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
@@ -2363,7 +2368,7 @@ namespace Opc.Ua.Types.Tests.State
             var dataValue = new DataValue();
 
             ServiceResult result = root.ReadChildAttribute(
-                m_context, relativePath, 0, Attributes.NodeId, dataValue);
+                m_context, relativePath, 0, Attributes.NodeId, ref dataValue);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dataValue.WrappedValue.GetNodeId(), Is.EqualTo(child.NodeId));
         }

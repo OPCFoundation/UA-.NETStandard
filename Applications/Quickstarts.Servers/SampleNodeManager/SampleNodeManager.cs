@@ -1323,7 +1323,8 @@ namespace Opc.Ua.Sample
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
+                    values[ii] = value;
                 }
 
                 // check for nothing to do.
@@ -1351,7 +1352,7 @@ namespace Opc.Ua.Sample
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
                 }
             }
         }
@@ -2473,7 +2474,7 @@ namespace Opc.Ua.Sample
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, ignoreFilters);
 
@@ -2642,7 +2643,7 @@ namespace Opc.Ua.Sample
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -2653,7 +2654,7 @@ namespace Opc.Ua.Sample
                     return error;
                 }
 
-                initialValue.StatusCode = error.StatusCode;
+                initialValue = initialValue.WithStatus(error.StatusCode);
                 _ = ServiceResult.Good;
             }
 

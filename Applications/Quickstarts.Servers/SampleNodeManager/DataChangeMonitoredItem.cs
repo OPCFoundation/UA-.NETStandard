@@ -366,7 +366,7 @@ namespace Opc.Ua.Sample
             var value = new DataValue();
 
             ServiceResult error = m_source.Node
-                .ReadAttribute(context, AttributeId, default, default, value);
+                .ReadAttribute(context, AttributeId, default, default, ref value);
 
             if (ServiceResult.IsBad(error))
             {

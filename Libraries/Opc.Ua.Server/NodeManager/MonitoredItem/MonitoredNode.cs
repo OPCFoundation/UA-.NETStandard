@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                value);
+                ref value);
 
             if (ServiceResult.IsBad(error))
             {

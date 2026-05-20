@@ -1708,7 +1708,7 @@ namespace Opc.Ua.Server
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
 
                     // Set timestamps after ReadAttribute to ensure consistency
                     // For Value attributes, match ServerTimestamp to SourceTimestamp
@@ -1892,7 +1892,8 @@ namespace Opc.Ua.Server
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
+                    values[handle.Index] = value;
                 }
             }
         }
@@ -2022,7 +2023,7 @@ namespace Opc.Ua.Server
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
                             default,
-                            oldValue);
+                            ref oldValue);
                     }
 
                     // write the attribute value.
@@ -2195,7 +2196,7 @@ namespace Opc.Ua.Server
                             Attributes.Value,
                             monitoredItem.IndexRange,
                             default,
-                            value);
+                            ref value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
 
@@ -4102,7 +4103,7 @@ namespace Opc.Ua.Server
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, true);
 

@@ -1830,7 +1830,7 @@ namespace Opc.Ua.Server
                 }
 
                 // read the attribute value.
-                errors[ii] = await handle.Node.ReadAttributeAsync(
+                (errors[ii], value) = await handle.Node.ReadAttributeAsync(
                     systemContext,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
@@ -2025,13 +2025,14 @@ namespace Opc.Ua.Server
                 // hook is set, so behaviour is preserved bit-for-bit. When a
                 // BaseVariableState async hook is set the lock is dropped on
                 // the await, allowing true async I/O.
-                errors[handle.Index] = await source.ReadAttributeAsync(
+                (errors[handle.Index], value) = await source.ReadAttributeAsync(
                     context,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
                     value,
                     cancellationToken).ConfigureAwait(false);
+                values[handle.Index] = value;
             }
         }
 
@@ -2156,7 +2157,7 @@ namespace Opc.Ua.Server
                         //current server supports auditing
                         // read the old value for the purpose of auditing
                         var oldDataValue = new DataValue();
-                        await handle.Node.ReadAttributeAsync(
+                        (_, oldDataValue) = await handle.Node.ReadAttributeAsync(
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
@@ -2349,7 +2350,7 @@ namespace Opc.Ua.Server
                                 Attributes.Value,
                                 monitoredItem.IndexRange,
                                 default,
-                                value);
+                                ref value);
                         }
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
@@ -4243,7 +4244,7 @@ namespace Opc.Ua.Server
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, true);
 

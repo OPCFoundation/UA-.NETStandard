@@ -311,7 +311,7 @@ namespace MemoryBuffer
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -525,7 +525,7 @@ namespace MemoryBuffer
                     datachangeItem.AttributeId,
                     default,
                     default,
-                    initialValue);
+                    ref initialValue);
 
                 datachangeItem.QueueValue(initialValue, error);
             }

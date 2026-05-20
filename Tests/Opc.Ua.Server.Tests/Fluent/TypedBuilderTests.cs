@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var dv = new DataValue();
             ServiceResult result = v.ReadAttribute(
-                CreateContext(), Attributes.Value, NumericRange.Null, QualifiedName.Null, dv);
+                CreateContext(), Attributes.Value, NumericRange.Null, QualifiedName.Null, ref dv);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.GetInt32(), Is.EqualTo(42));
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             SystemContext ctx = CreateContext();
             var dv = new DataValue();
-            v.ReadAttribute(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv);
+            v.ReadAttribute(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, ref dv);
 
             Assert.That(seenContext, Is.SameAs(ctx));
             Assert.That(dv.WrappedValue.GetInt32(), Is.EqualTo(7));
@@ -260,7 +260,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(v.OnSimpleReadValue, Is.Null);
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
+            ServiceResult result;
+            (result, dv) = await v.ReadAttributeAsync(
                 CreateContext(), Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
@@ -284,7 +285,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
+            ServiceResult result;
+            (result, dv) = await v.ReadAttributeAsync(
                 CreateContext(),
                 Attributes.Value,
                 NumericRange.Null,
@@ -451,7 +453,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var dv = new DataValue();
             ServiceResult result = v.ReadAttribute(
-                CreateContext(), Attributes.Value, NumericRange.Null, QualifiedName.Null, dv);
+                CreateContext(), Attributes.Value, NumericRange.Null, QualifiedName.Null, ref dv);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.IsNull, Is.True);
