@@ -158,11 +158,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             string assetName,
             CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(assetName))
+            ServiceResult nameCheck = WotAssetNameValidator.Validate(assetName);
+            if (ServiceResult.IsBad(nameCheck))
             {
-                return (
-                    ServiceResult.Create(StatusCodes.BadInvalidArgument, "Asset name is required."),
-                    NodeId.Null);
+                return (nameCheck, NodeId.Null);
             }
 
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
@@ -489,25 +488,19 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 variable.Value = Variant.Null;
                 variable.StatusCode = StatusCodes.BadConfigurationError;
-                variable.OnSimpleReadValue = static (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    value = Variant.Null;
-                    return StatusCodes.BadConfigurationError;
-                };
+                variable.OnSimpleReadValueAsync = static (ISystemContext _, NodeState _, CancellationToken _) =>
+                    new ValueTask<AttributeSimpleReadResult>(
+                        new AttributeSimpleReadResult(StatusCodes.BadConfigurationError, Variant.Null));
             }
             else
             {
                 variable.Value = ToVariant(TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank));
-                variable.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    (ServiceResult status, Variant read) = SimpleReadFromProvider(entry, tag);
-                    value = read;
-                    return status;
-                };
+                variable.OnSimpleReadValueAsync = (ISystemContext _, NodeState _, CancellationToken ct) =>
+                    ReadFromProviderAsync(entry, tag, ct);
                 if (!property.ReadOnly)
                 {
-                    variable.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                        SimpleWriteToProvider(entry, tag, value);
+                    variable.OnSimpleWriteValueAsync = (ISystemContext _, NodeState _, Variant value, CancellationToken ct) =>
+                        WriteToProviderAsync(entry, tag, value, ct);
                 }
             }
 
@@ -587,43 +580,53 @@ namespace Opc.Ua.WotCon.Server.Assets
             entry.Actions[nodeId] = (method, tag);
         }
 
-        private (ServiceResult Status, Variant Value) SimpleReadFromProvider(AssetEntry entry, WotPropertyTag tag)
+        private async ValueTask<AttributeSimpleReadResult> ReadFromProviderAsync(
+            AssetEntry entry,
+            WotPropertyTag tag,
+            CancellationToken ct)
         {
             IWotAssetProvider? provider = entry.Provider;
             if (provider == null)
             {
-                return (StatusCodes.BadNotConnected, Variant.Null);
+                return new AttributeSimpleReadResult(StatusCodes.BadNotConnected, Variant.Null);
             }
             try
             {
-                return provider.ReadAsync(tag, CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
+                (ServiceResult status, Variant value) = await provider.ReadAsync(tag, ct).ConfigureAwait(false);
+                return new AttributeSimpleReadResult(status, value);
             }
             catch (Exception ex)
             {
                 m_logger.LogWarning(ex,
                     "Read failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
-                return (ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message), Variant.Null);
+                return new AttributeSimpleReadResult(
+                    ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message),
+                    Variant.Null);
             }
         }
 
-        private ServiceResult SimpleWriteToProvider(AssetEntry entry, WotPropertyTag tag, Variant value)
+        private async ValueTask<AttributeWriteResult> WriteToProviderAsync(
+            AssetEntry entry,
+            WotPropertyTag tag,
+            Variant value,
+            CancellationToken ct)
         {
             IWotAssetProvider? provider = entry.Provider;
             if (provider == null)
             {
-                return StatusCodes.BadNotConnected;
+                return new AttributeWriteResult(StatusCodes.BadNotConnected);
             }
             try
             {
-                return provider.WriteAsync(tag, value, CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
+                ServiceResult result = await provider.WriteAsync(tag, value, ct).ConfigureAwait(false);
+                return new AttributeWriteResult(result);
             }
             catch (Exception ex)
             {
                 m_logger.LogWarning(ex,
                     "Write failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
-                return ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message);
+                return new AttributeWriteResult(
+                    ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message));
             }
         }
 
@@ -683,7 +686,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             try
             {
                 Directory.CreateDirectory(folder);
-                string path = Path.Combine(folder, name + ".jsonld");
+                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
+                {
+                    m_logger.LogWarning(
+                        "Refusing to persist TD for asset {AssetName}: name did not resolve to a safe path under {Folder}.",
+                        name, folder);
+                    return;
+                }
                 byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
                     td,
                     ThingDescriptionJsonContext.Default.ThingDescription);
@@ -704,7 +713,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             try
             {
-                string path = Path.Combine(folder, name + ".jsonld");
+                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
+                {
+                    m_logger.LogWarning(
+                        "Refusing to delete TD for asset {AssetName}: name did not resolve to a safe path under {Folder}.",
+                        name, folder);
+                    return;
+                }
                 if (File.Exists(path))
                 {
                     File.Delete(path);
@@ -727,8 +742,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             foreach (string file in Directory.EnumerateFiles(folder, "*.jsonld"))
             {
                 ct.ThrowIfCancellationRequested();
-                ThingDescription? td;
                 string name = Path.GetFileNameWithoutExtension(file);
+                if (ServiceResult.IsBad(WotAssetNameValidator.Validate(name)))
+                {
+                    m_logger.LogWarning(
+                        "Skipping persisted TD {File}: name does not pass asset-name validation.",
+                        file);
+                    continue;
+                }
+                ThingDescription? td;
                 try
                 {
                     using FileStream stream = File.OpenRead(file);

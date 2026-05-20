@@ -115,6 +115,52 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
+        [TestCase("../escape")]
+        [TestCase("..\\escape")]
+        [TestCase("a/b")]
+        [TestCase("a\\b")]
+        [TestCase("/etc/passwd")]
+        [TestCase("C:asset")]
+        [TestCase("~/.ssh")]
+        [TestCase(".hidden")]
+        [TestCase(" leading")]
+        [TestCase("trailing.")]
+        [TestCase("trailing ")]
+        [TestCase("with\0null")]
+        [TestCase("CON")]
+        [TestCase("lpt1")]
+        public async Task CreateAssetWithUnsafeNameReturnsBadInvalidArgumentAndDoesNotPersist(string name)
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            await harness.StartAsync();
+
+            (ServiceResult status, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync(name, CancellationToken.None);
+
+            Assert.That(status.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument),
+                $"name '{name}' must be rejected with BadInvalidArgument");
+            Assert.That(assetId.IsNull, Is.True);
+            // Defence-in-depth: no .jsonld file should have been written anywhere
+            // under the configured persistence folder.
+            Assert.That(Directory.GetFiles(_tempFolder, "*.jsonld",
+                SearchOption.AllDirectories), Is.Empty);
+        }
+
+        [Test]
+        public async Task CreateAssetWithTooLongNameReturnsBadInvalidArgument()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            await harness.StartAsync();
+            string longName = new('a', WotAssetNameValidator.MaxNameLength + 1);
+
+            (ServiceResult status, _) = await harness.Registry
+                .CreateAssetAsync(longName, CancellationToken.None);
+
+            Assert.That(status.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
         [Test]
         public async Task CreateAssetWithUniqueNameReturnsGoodAndNonNullNodeId()
         {
@@ -325,13 +371,15 @@ namespace Opc.Ua.WotCon.Tests
             // Push a provider-side value the simulated provider remembers.
             ((SimulatedWotAssetProvider)entry.Provider!).SetValue("Voltage", new Variant(12.3));
 
-            Assert.That(variable.OnSimpleReadValue, Is.Not.Null);
-            Variant readBack = default;
-            ServiceResult status = variable.OnSimpleReadValue!(
-                harness.Manager.SystemContext, variable, ref readBack);
+            Assert.That(variable.OnSimpleReadValueAsync, Is.Not.Null);
+            Assert.That(variable.OnSimpleReadValue, Is.Null,
+                "Async hooks should replace the sync OnSimpleReadValue.");
 
-            Assert.That(ServiceResult.IsGood(status), Is.True);
-            Assert.That(readBack.AsBoxedObject(), Is.EqualTo(12.3));
+            AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
+                harness.Manager.SystemContext, variable, CancellationToken.None);
+
+            Assert.That(ServiceResult.IsGood(result.Result), Is.True);
+            Assert.That(result.Value.AsBoxedObject(), Is.EqualTo(12.3));
         }
 
         [Test]
@@ -358,14 +406,15 @@ namespace Opc.Ua.WotCon.Tests
                 persistOnSuccess: false,
                 CancellationToken.None);
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
-            Assert.That(variable.OnSimpleWriteValue, Is.Not.Null,
-                "OnSimpleWriteValue must be wired for non-read-only properties.");
+            Assert.That(variable.OnSimpleWriteValueAsync, Is.Not.Null,
+                "OnSimpleWriteValueAsync must be wired for non-read-only properties.");
+            Assert.That(variable.OnSimpleWriteValue, Is.Null,
+                "Async hooks should replace the sync OnSimpleWriteValue.");
 
-            Variant write = new(42.5);
-            ServiceResult status = variable.OnSimpleWriteValue!(
-                harness.Manager.SystemContext, variable, ref write);
+            AttributeWriteResult result = await variable.OnSimpleWriteValueAsync!(
+                harness.Manager.SystemContext, variable, new Variant(42.5), CancellationToken.None);
 
-            Assert.That(ServiceResult.IsGood(status), Is.True);
+            Assert.That(ServiceResult.IsGood(result.Result), Is.True);
             var simulated = (SimulatedWotAssetProvider)entry.Provider!;
             Assert.That(simulated.Values["Voltage"].AsBoxedObject(), Is.EqualTo(42.5));
         }
@@ -395,8 +444,44 @@ namespace Opc.Ua.WotCon.Tests
                 CancellationToken.None);
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            Assert.That(variable.OnSimpleWriteValueAsync, Is.Null);
             Assert.That(variable.OnSimpleWriteValue, Is.Null);
             Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+        }
+
+        [Test]
+        public async Task RebuildUnmappablePropertyExposesBadConfigurationErrorViaAsyncReadHook()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        // "object" cannot map per Spec Table 14 — async hook reports the error.
+                        ["Metadata"] = new WotProperty { Type = "object" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            Assert.That(variable.OnSimpleReadValueAsync, Is.Not.Null);
+            Assert.That(variable.OnSimpleReadValue, Is.Null);
+            AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
+                harness.Manager.SystemContext, variable, CancellationToken.None);
+            Assert.That((uint)result.Result.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(result.Value.IsNull, Is.True);
         }
 
         [Test]
