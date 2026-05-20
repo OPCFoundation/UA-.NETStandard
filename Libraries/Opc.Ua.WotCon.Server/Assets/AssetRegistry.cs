@@ -145,10 +145,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             return false;
         }
 
-        // ----------------------------------------------------------------
-        // Lifecycle
-        // ----------------------------------------------------------------
-
         /// <summary>
         /// Creates a new WoT asset object below the management object.
         /// Returns <see cref="StatusCodes.BadBrowseNameDuplicated"/> if
@@ -332,10 +328,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        // ----------------------------------------------------------------
-        // Materialisation
-        // ----------------------------------------------------------------
-
         /// <summary>
         /// Rebuilds the variable + method children of an asset from a TD,
         /// reconnecting (or replacing) its provider as appropriate.
@@ -500,7 +492,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             else
             {
-                variable.Value = ToVariant(TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank));
+                variable.Value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
                 variable.OnSimpleReadValueAsync = (ISystemContext _, NodeState _, CancellationToken ct) =>
                     ReadFromProviderAsync(entry, tag, ct);
                 if (!property.ReadOnly)
@@ -682,12 +674,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private static Variant ToVariant(object? value) => WotVariantHelper.ToVariant(value);
-
-        // ----------------------------------------------------------------
-        // TD persistence
-        // ----------------------------------------------------------------
-
         private void PersistTdToDisk(string name, ThingDescription td)
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
@@ -816,6 +802,6 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
         private readonly Dictionary<string, AssetEntry> m_byName = new(StringComparer.Ordinal);
-        private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = new();
+        private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = [];
     }
 }

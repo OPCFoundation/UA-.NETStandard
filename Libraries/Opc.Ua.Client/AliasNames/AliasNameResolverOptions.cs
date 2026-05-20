@@ -51,15 +51,6 @@ namespace Opc.Ua.Client.AliasNames
         Manual = 0,
 
         /// <summary>
-        /// Deprecated alias for
-        /// <see cref="AutoOnLastChangePolling"/>; retained for source
-        /// compatibility with code that targeted the v1 resolver.
-        /// </summary>
-        [Obsolete("Use AutoOnLastChangePolling for explicit semantics.")]
-#pragma warning disable CA1069 // Enums values should not be duplicated - intentional source-compat alias
-        AutoOnLastChange = 1,
-
-        /// <summary>
         /// On the first call, the resolver polls the category's
         /// <c>LastChange</c> property (Part 17 §6.3.1) every
         /// <see cref="AliasNameResolverOptions.PublishingIntervalMs"/>
@@ -68,7 +59,6 @@ namespace Opc.Ua.Client.AliasNames
         /// servers that do not support subscriptions.
         /// </summary>
         AutoOnLastChangePolling = 1,
-#pragma warning restore CA1069 // Enums values should not be duplicated
 
         /// <summary>
         /// On the first call, the resolver creates an OPC UA

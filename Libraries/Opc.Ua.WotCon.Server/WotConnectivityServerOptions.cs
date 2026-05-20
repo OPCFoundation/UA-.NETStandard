@@ -109,7 +109,7 @@ namespace Opc.Ua.WotCon.Server
         public NodeId DataType { get; init; } = DataTypeIds.String;
 
         /// <summary>The initial value (must be assignable to a <c>Variant</c>).</summary>
-        public object? InitialValue { get; init; }
+        public Variant? InitialValue { get; init; }
 
         /// <summary>Optional description.</summary>
         public string? Description { get; init; }

@@ -234,10 +234,6 @@ namespace Opc.Ua.WotCon.Server
             base.Dispose(disposing);
         }
 
-        // ----------------------------------------------------------------
-        // Monitored item plumbing
-        // ----------------------------------------------------------------
-
         /// <inheritdoc/>
         protected override void OnMonitoredItemCreated(
             ServerSystemContext context,
@@ -384,12 +380,6 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
-        private static Variant ToVariant(object? value) => WotVariantHelper.ToVariant(value);
-
-        // ----------------------------------------------------------------
-        // Management object wiring
-        // ----------------------------------------------------------------
-
         private WoTAssetConnectionManagementState Promote(ISystemContext context, BaseObjectState passive)
         {
             var active = new WoTAssetConnectionManagementState(passive.Parent);
@@ -457,9 +447,8 @@ namespace Opc.Ua.WotCon.Server
                 child.ValueRank = ValueRanks.Scalar;
                 child.AccessLevel = kv.Value.Writable ? AccessLevels.CurrentReadOrWrite : AccessLevels.CurrentRead;
                 child.UserAccessLevel = child.AccessLevel;
-                object? initial = kv.Value.InitialValue
-                    ?? TypeInfo.GetDefaultValue(kv.Value.DataType, ValueRanks.Scalar);
-                child.Value = ToVariant(initial);
+                child.Value = kv.Value.InitialValue
+                    ?? TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
                 if (!string.IsNullOrEmpty(kv.Value.Description))
                 {
                     child.Description = new LocalizedText(kv.Value.Description);
@@ -545,10 +534,6 @@ namespace Opc.Ua.WotCon.Server
                 Status = text
             };
         }
-
-        // ----------------------------------------------------------------
-        // Helpers
-        // ----------------------------------------------------------------
 
         private void AssignChildNodeIds(NodeState node, string parentPath)
         {
