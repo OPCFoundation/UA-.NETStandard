@@ -660,6 +660,24 @@ namespace Opc.Ua.Gds.Server
                     }
 
                     return keyCredNode;
+
+                case ObjectTypes.AuthorizationServiceType:
+                    if (passiveNode is not AuthorizationServiceState authServiceNode)
+                    {
+                        authServiceNode = new AuthorizationServiceState(passiveNode.Parent);
+                        authServiceNode.Create(context, passiveNode);
+                        passiveNode.Parent?.ReplaceChild(context, authServiceNode);
+                    }
+
+                    authServiceNode.GetServiceDescription!.OnCall =
+                        OnGetServiceDescription;
+                    if (authServiceNode.RequestAccessToken != null)
+                    {
+                        authServiceNode.RequestAccessToken.OnCall =
+                            OnRequestAccessToken;
+                    }
+
+                    return authServiceNode;
             }
 
             return predefinedNode;
@@ -2243,6 +2261,48 @@ namespace Opc.Ua.Gds.Server
                     throw ServiceResultException.Unexpected(
                         $"Unexpected CertificateRequestState {state}");
             }
+        }
+
+        private ServiceResult OnGetServiceDescription(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ref string serviceUri,
+            ref ByteString serviceCertificate,
+            ref ArrayOf<UserTokenPolicy> userTokenPolicies)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context);
+
+            // Read the ServiceUri and ServiceCertificate from the parent
+            // AuthorizationServiceState instance; these are populated from
+            // the predefined nodeset.
+            if (method.Parent is AuthorizationServiceState parentService)
+            {
+                serviceUri = parentService.ServiceUri?.Value ?? string.Empty;
+                serviceCertificate = parentService.ServiceCertificate?.Value ?? default;
+                userTokenPolicies = parentService.UserTokenPolicies?.Value ?? default;
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnRequestAccessToken(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            UserIdentityToken identityToken,
+            string resourceId,
+            ref string accessToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            // Stub: a production implementation would validate the
+            // identityToken against a token service and return a JWT or
+            // opaque access token. This reference implementation returns
+            // Bad_NotSupported.
+            throw new ServiceResultException(
+                StatusCodes.BadNotSupported,
+                "RequestAccessToken is not implemented by this GDS. Use an external Authorization Service.");
         }
 
         private ServiceResult OnKeyCredentialStartRequest(
