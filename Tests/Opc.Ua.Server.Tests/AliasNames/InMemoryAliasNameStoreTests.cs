@@ -56,9 +56,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
         private static InMemoryAliasNameStore CreateStore(
             bool withSubCategory = false,
             AliasNameCapabilities capabilities =
-                AliasNameCapabilities.AddAliasesToCategory
-                | AliasNameCapabilities.DeleteAliasesFromCategory
-                | AliasNameCapabilities.LastChange)
+                AliasNameCapabilities.AddAliasesToCategory |
+                AliasNameCapabilities.DeleteAliasesFromCategory |
+                AliasNameCapabilities.LastChange)
         {
             var subs = withSubCategory
                 ? new[]

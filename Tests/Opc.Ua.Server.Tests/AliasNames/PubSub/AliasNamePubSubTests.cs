@@ -165,8 +165,8 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
                 [new AliasNameCategoryDescriptor(
                     new NodeId("Cat", 1),
                     new QualifiedName("Cat", 1),
-                    AliasNameCapabilities.AddAliasesToCategory
-                        | AliasNameCapabilities.LastChange)]);
+                    AliasNameCapabilities.AddAliasesToCategory |
+                    AliasNameCapabilities.LastChange)]);
             registry.Register(store);
 
             var ns = new NamespaceTable();

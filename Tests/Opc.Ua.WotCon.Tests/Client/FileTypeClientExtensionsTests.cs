@@ -243,7 +243,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             byte capturedMode = 0;
             byte[] writtenSoFar = Array.Empty<byte>();
             bool closed = false;
-            mock.OnOpen(mode => { capturedMode = mode; return 99; });
+            mock.OnOpen(mode => {
+            capturedMode = mode;
+            return 99; });
             mock.OnWrite((handle, data) =>
             {
                 Assert.That(handle, Is.EqualTo(99u));
@@ -252,7 +254,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 Array.Copy(data, 0, joined, writtenSoFar.Length, data.Length);
                 writtenSoFar = joined;
             });
-            mock.OnClose(handle => { Assert.That(handle, Is.EqualTo(99u)); closed = true; });
+            mock.OnClose(handle => {
+            Assert.That(handle, Is.EqualTo(99u));
+            closed = true; });
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var source = new MemoryStream(payload);
@@ -275,7 +279,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             int position = 0;
             byte capturedMode = 0;
             bool closed = false;
-            mock.OnOpen(mode => { capturedMode = mode; return 88; });
+            mock.OnOpen(mode => {
+            capturedMode = mode;
+            return 88; });
             mock.OnRead((handle, len) =>
             {
                 Assert.That(handle, Is.EqualTo(88u));
@@ -289,7 +295,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 position += take;
                 return slice;
             });
-            mock.OnClose(handle => { Assert.That(handle, Is.EqualTo(88u)); closed = true; });
+            mock.OnClose(handle => {
+            Assert.That(handle, Is.EqualTo(88u));
+            closed = true; });
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var destination = new MemoryStream();
@@ -398,7 +406,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             bool opened = false;
             bool closed = false;
             int writes = 0;
-            mock.OnOpen(_ => { opened = true; return 1; });
+            mock.OnOpen(_ => {
+            opened = true;
+            return 1; });
             mock.OnWrite((_, _) => { writes++; });
             mock.OnClose(_ => { closed = true; });
 
@@ -463,6 +473,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             public override bool CanSeek => false;
             public override bool CanWrite => false;
             public override long Length => throw new NotSupportedException();
+
             public override long Position
             {
                 get => m_position;
@@ -470,6 +481,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
 
             public override void Flush() { }
+
             public override int Read(byte[] buffer, int offset, int count)
             {
                 int avail = Math.Min(count, m_data.Length - m_position);
@@ -481,9 +493,12 @@ namespace Opc.Ua.WotCon.Tests.Client
                 m_position += avail;
                 return avail;
             }
+
             public override long Seek(long offset, SeekOrigin origin)
                 => throw new NotSupportedException();
+
             public override void SetLength(long value) => throw new NotSupportedException();
+
             public override void Write(byte[] buffer, int offset, int count)
                 => throw new NotSupportedException();
 
@@ -497,6 +512,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             public override bool CanSeek => false;
             public override bool CanWrite => true;
             public override long Length => 0;
+
             public override long Position
             {
                 get => 0;
@@ -504,10 +520,13 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
 
             public override void Flush() { }
+
             public override int Read(byte[] buffer, int offset, int count)
                 => throw new NotSupportedException();
+
             public override long Seek(long offset, SeekOrigin origin)
                 => throw new NotSupportedException();
+
             public override void SetLength(long value) => throw new NotSupportedException();
             public override void Write(byte[] buffer, int offset, int count) { }
         }
@@ -523,6 +542,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             public override bool CanSeek => false;
             public override bool CanWrite => false;
             public override long Length => m_data.Length;
+
             public override long Position
             {
                 get => 0;
@@ -531,9 +551,12 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             public override void Flush() { }
             public override int Read(byte[] buffer, int offset, int count) => 0;
+
             public override long Seek(long offset, SeekOrigin origin)
                 => throw new NotSupportedException();
+
             public override void SetLength(long value) => throw new NotSupportedException();
+
             public override void Write(byte[] buffer, int offset, int count)
                 => throw new NotSupportedException();
 

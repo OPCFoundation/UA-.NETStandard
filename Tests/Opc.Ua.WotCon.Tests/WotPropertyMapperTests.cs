@@ -261,6 +261,5 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(dataType.IsNull, Is.True);
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
-
     }
 }

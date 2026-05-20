@@ -112,8 +112,8 @@ namespace Opc.Ua.Server.AliasNames
         {
             // Preserve any caller-assigned NodeId that already lives in our
             // namespace; otherwise mint a sequential numeric id.
-            if (!node.NodeId.IsNull
-                && node.NodeId.NamespaceIndex == NamespaceIndex)
+            if (!node.NodeId.IsNull &&
+                node.NodeId.NamespaceIndex == NamespaceIndex)
             {
                 return node.NodeId;
             }
@@ -297,8 +297,8 @@ namespace Opc.Ua.Server.AliasNames
             category.GetChildren(SystemContext, children);
             foreach (BaseInstanceState child in children)
             {
-                if (child is AliasNameCategoryState childCategory
-                    && !ReferenceEquals(childCategory, category))
+                if (child is AliasNameCategoryState childCategory &&
+                    !ReferenceEquals(childCategory, category))
                 {
                     WireCategoryHandlers(childCategory.NodeId, childCategory);
                 }
@@ -315,8 +315,8 @@ namespace Opc.Ua.Server.AliasNames
             NodeId targetReferenceType,
             CancellationToken ct)
         {
-            if (m_options.RequireSecurityAdminForMutations
-                && !HasSecureAdminAccess(context))
+            if (m_options.RequireSecurityAdminForMutations &&
+                !HasSecureAdminAccess(context))
             {
                 return new ValueTask<AddAliasesToCategoryMethodStateResult>(
                     new AddAliasesToCategoryMethodStateResult
@@ -343,8 +343,8 @@ namespace Opc.Ua.Server.AliasNames
             ArrayOf<ExpandedNodeId> targetNodes,
             CancellationToken ct)
         {
-            if (m_options.RequireSecurityAdminForMutations
-                && !HasSecureAdminAccess(context))
+            if (m_options.RequireSecurityAdminForMutations &&
+                !HasSecureAdminAccess(context))
             {
                 return new ValueTask<DeleteAliasesFromCategoryMethodStateResult>(
                     new DeleteAliasesFromCategoryMethodStateResult
@@ -418,8 +418,8 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (context is SessionSystemContext { OperationContext: OperationContext op } session)
             {
-                if (op.ChannelContext?.EndpointDescription?.SecurityMode
-                    != MessageSecurityMode.SignAndEncrypt)
+                if (op.ChannelContext?.EndpointDescription?.SecurityMode !=
+                    MessageSecurityMode.SignAndEncrypt)
                 {
                     return false;
                 }

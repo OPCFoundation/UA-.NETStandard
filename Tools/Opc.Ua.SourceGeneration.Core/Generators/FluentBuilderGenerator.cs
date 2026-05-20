@@ -526,8 +526,8 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine();
             writer.WriteLine("/// <summary>");
             writer.WriteLine(
-                "/// Source-generated typed sibling of"
-                + " <see cref=\"global::Opc.Ua.Server.Fluent.INodeManagerBuilder\"/>");
+                "/// Source-generated typed sibling of" +
+                " <see cref=\"global::Opc.Ua.Server.Fluent.INodeManagerBuilder\"/>");
             writer.WriteLine(
                 "/// that surfaces typed accessors for the predefined-instance tree.");
             writer.WriteLine("/// </summary>");
@@ -567,8 +567,8 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine();
             writer.WriteLine("/// <summary>");
             writer.WriteLine(
-                "/// Internal proxy that wraps the runtime fluent"
-                + " <c>NodeManagerBuilder</c>");
+                "/// Internal proxy that wraps the runtime fluent" +
+                " <c>NodeManagerBuilder</c>");
             writer.WriteLine("/// to surface the typed <see cref=\"{0}\"/> facade.", interfaceName);
             writer.WriteLine("/// </summary>");
             writer.WriteLine(
@@ -1565,6 +1565,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string ToolName
             => System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
+
         private static string ToolVersion
             => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
 

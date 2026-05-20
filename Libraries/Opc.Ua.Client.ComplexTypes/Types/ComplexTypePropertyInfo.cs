@@ -412,8 +412,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         PropertyInfo.SetValue(o, EnumHelper.Int32ArrayToEnumArray(
                             v.GetInt32Array(),
                             PropertyInfo.PropertyType.GetElementType()
-                                ?? throw new InvalidOperationException(
-                                    "PropertyType is not an array type.")));
+                            ?? throw new InvalidOperationException(
+                                "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Array().ToArray());
@@ -505,8 +505,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         PropertyInfo.SetValue(o, EnumHelper.Int32MatrixToEnumArray(
                            v.GetInt32Matrix(),
                            PropertyInfo.PropertyType.GetElementType()
-                                ?? throw new InvalidOperationException(
-                                    "PropertyType is not an array type.")));
+                           ?? throw new InvalidOperationException(
+                               "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Matrix().CreateArrayInstance());

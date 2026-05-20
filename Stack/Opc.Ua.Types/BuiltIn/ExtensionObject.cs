@@ -301,9 +301,9 @@ namespace Opc.Ua
         /// </summary>
         private static bool TypeIdMatches(ExpandedNodeId typeId, IEncodeable encodeable)
         {
-            return typeId == encodeable.TypeId
-                || typeId == encodeable.BinaryEncodingId
-                || typeId == encodeable.XmlEncodingId;
+            return typeId == encodeable.TypeId ||
+                typeId == encodeable.BinaryEncodingId ||
+                typeId == encodeable.XmlEncodingId;
         }
 
         /// <inheritdoc/>

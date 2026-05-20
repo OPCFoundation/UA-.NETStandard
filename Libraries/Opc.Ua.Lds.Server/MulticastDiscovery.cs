@@ -344,8 +344,8 @@ namespace Opc.Ua.Lds.Server
                 IPInterfaceProperties ipProps = nic.GetIPProperties();
                 foreach (UnicastIPAddressInformation u in ipProps.UnicastAddresses)
                 {
-                    if (u.Address.AddressFamily == AddressFamily.InterNetwork
-                        || u.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                    if (u.Address.AddressFamily == AddressFamily.InterNetwork ||
+                        u.Address.AddressFamily == AddressFamily.InterNetworkV6)
                     {
                         yield return u.Address;
                     }

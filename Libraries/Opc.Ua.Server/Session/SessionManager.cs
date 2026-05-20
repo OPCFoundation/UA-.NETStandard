@@ -661,9 +661,9 @@ namespace Opc.Ua.Server
             // is callable by USERNAME sessions regardless of role; once the
             // password is changed the next ActivateSession will see
             // MustChangePassword == false and grant the full role set.
-            if (effectiveIdentity.TokenType == UserTokenType.UserName
-                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
-                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            if (effectiveIdentity.TokenType == UserTokenType.UserName &&
+                !string.IsNullOrEmpty(effectiveIdentity.DisplayName) &&
+                m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbiMustChange)
                 {
@@ -745,10 +745,10 @@ namespace Opc.Ua.Server
         /// </param>
         protected virtual ServiceResult ComputeActivationStatus(IUserIdentity effectiveIdentity)
         {
-            if (effectiveIdentity != null
-                && effectiveIdentity.TokenType == UserTokenType.UserName
-                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
-                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            if (effectiveIdentity != null &&
+                effectiveIdentity.TokenType == UserTokenType.UserName &&
+                !string.IsNullOrEmpty(effectiveIdentity.DisplayName) &&
+                m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
             {
                 return new ServiceResult(StatusCodes.GoodPasswordChangeRequired);
             }

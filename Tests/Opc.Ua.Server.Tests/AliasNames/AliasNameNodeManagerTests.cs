@@ -109,11 +109,12 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 m_mockServer.Object,
                 m_configuration,
                 m_store,
-                options ?? new AliasNameNodeManagerOptions
-                {
-                    NamespaceUri = c_namespaceUri,
-                    RegisterWithServerRegistry = false
-                });
+                options ??
+                new AliasNameNodeManagerOptions
+                    {
+                        NamespaceUri = c_namespaceUri,
+                        RegisterWithServerRegistry = false
+                    });
         }
 
         [Test]
@@ -139,8 +140,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
             bool hasOrganizes = false;
             foreach (IReference r in refs)
             {
-                if (r.ReferenceTypeId.Equals(ReferenceTypeIds.Organizes)
-                    && r.TargetId.Equals(category.NodeId))
+                if (r.ReferenceTypeId.Equals(ReferenceTypeIds.Organizes) &&
+                    r.TargetId.Equals(category.NodeId))
                 {
                     hasOrganizes = true;
                     break;
@@ -226,7 +227,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             AliasNameCategoryState category = manager
                 .FindPredefinedNode<AliasNameCategoryState>(categoryId);
 
-            uint initial = (category.LastChange!.Value);
+            uint initial = category.LastChange!.Value;
             await m_store.AddAliasesAsync(categoryId,
                 [
                     new AliasAddRequest("LC1",

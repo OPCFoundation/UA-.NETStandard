@@ -296,14 +296,14 @@ namespace Opc.Ua.Server.FileSystem
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "Node manager unavailable.");
             }
-            if (!FileSystemNodeId.TryParse(objectToMoveOrCopy, out FileSystemNodeId source)
-                || source.RootType == FileSystemNodeId.Root)
+            if (!FileSystemNodeId.TryParse(objectToMoveOrCopy, out FileSystemNodeId source) ||
+                source.RootType == FileSystemNodeId.Root)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument,
                     "Source is not a directory or file.");
             }
-            if (!FileSystemNodeId.TryParse(targetDirectory, out FileSystemNodeId target)
-                || target.RootType == FileSystemNodeId.File)
+            if (!FileSystemNodeId.TryParse(targetDirectory, out FileSystemNodeId target) ||
+                target.RootType == FileSystemNodeId.File)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument,
                     "Target is not a directory.");

@@ -117,8 +117,8 @@ namespace Opc.Ua.Server.AliasNames.PubSub
 
         private void OnRegistryChanged(object? sender, AliasStoreChangedEventArgs e)
         {
-            if (Options.IncludedCategories != null
-                && !Options.IncludedCategories.Contains(e.CategoryId))
+            if (Options.IncludedCategories != null &&
+                !Options.IncludedCategories.Contains(e.CategoryId))
             {
                 return;
             }

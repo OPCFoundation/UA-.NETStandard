@@ -875,7 +875,8 @@ namespace Opc.Ua.Bindings
                 secureChannelId = decoder.ReadUInt32(null);
                 securityPolicyUri = decoder.ReadString(
                     null,
-                    TcpMessageLimits.MaxSecurityPolicyUriSize) ?? SecurityPolicies.None;
+                    TcpMessageLimits.MaxSecurityPolicyUriSize) ??
+                    SecurityPolicies.None;
                 certificateData = decoder.ReadByteString(
                     TcpMessageLimits.MaxCertificateSize);
                 thumbprintData = decoder.ReadByteString(

@@ -199,7 +199,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             string baseWithSeparator = baseFull;
             if (baseWithSeparator.Length == 0 ||
                 (baseWithSeparator[baseWithSeparator.Length - 1] != Path.DirectorySeparatorChar &&
-                 baseWithSeparator[baseWithSeparator.Length - 1] != Path.AltDirectorySeparatorChar))
+                    baseWithSeparator[baseWithSeparator.Length - 1] != Path.AltDirectorySeparatorChar))
             {
                 baseWithSeparator += Path.DirectorySeparatorChar;
             }
@@ -218,8 +218,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             // "con.jsonld" is still reserved on Windows.
             // Use ordinal comparison so the check is the same on every
             // platform and doesn't depend on the current culture.
-            if (Equals(name, "CON") || Equals(name, "PRN") ||
-                Equals(name, "AUX") || Equals(name, "NUL"))
+            if (Equals(name, "CON") ||
+                Equals(name, "PRN") ||
+                Equals(name, "AUX") ||
+                Equals(name, "NUL"))
             {
                 return true;
             }
@@ -227,7 +229,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 (name[0] == 'C' || name[0] == 'c') &&
                 (name[1] == 'O' || name[1] == 'o') &&
                 (name[2] == 'M' || name[2] == 'm') &&
-                name[3] >= '1' && name[3] <= '9')
+                name[3] >= '1' &&
+                name[3] <= '9')
             {
                 return true;
             }
@@ -235,7 +238,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 (name[0] == 'L' || name[0] == 'l') &&
                 (name[1] == 'P' || name[1] == 'p') &&
                 (name[2] == 'T' || name[2] == 't') &&
-                name[3] >= '1' && name[3] <= '9')
+                name[3] >= '1' &&
+                name[3] <= '9')
             {
                 return true;
             }

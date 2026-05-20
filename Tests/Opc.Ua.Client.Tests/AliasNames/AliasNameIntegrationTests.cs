@@ -87,8 +87,9 @@ namespace Opc.Ua.Client.Tests.AliasNames
 
             m_clientFixture = new ClientFixture(telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
+            m_url = new Uri(Utils.UriSchemeOpcTcp +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             try
             {

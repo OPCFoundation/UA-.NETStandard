@@ -4242,7 +4242,8 @@ namespace Opc.Ua.Client
                 EndpointDescription serverEndpoint = endpointDescriptions[ii];
                 Uri? actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
 
-                if (actualUrl != null && expectedUrl != null &&
+                if (actualUrl != null &&
+                    expectedUrl != null &&
                     actualUrl.Scheme == expectedUrl.Scheme &&
                     (!matchPort || actualUrl.Port == expectedUrl.Port) &&
                     serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri &&

@@ -2207,6 +2207,7 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
             }
         }
+
         /// <summary>
         /// Returns <c>true</c> if any <see cref="DataChangeNotification"/> in the given
         /// <paramref name="message"/> contains a <see cref="MonitoredItemNotification"/>

@@ -99,8 +99,9 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
 
             m_clientFixture = new ClientFixture(telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
+            m_url = new Uri(Utils.UriSchemeOpcTcp +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             try
             {
@@ -170,8 +171,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 "MonitoredItem strategy must add one subscription.");
 
             // Sanity: the new alias name does not exist yet.
-            string newAlias = "MITrigger_"
-                + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+            string newAlias = "MITrigger_" +
+                Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             IReadOnlyList<ExpandedNodeId> before = await resolver.ResolveAsync(newAlias);
             Assert.That(before, Is.Empty,
                 "Newly-generated alias name must not pre-exist in cache.");
@@ -183,8 +184,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             IAliasNameStore store = provider.AliasNameStoreRegistry
                 .GetStoreForCategory(ObjectIds.Aliases)
                 ?? throw new InvalidOperationException(
-                    "Expected a registered alias-name store rooted at "
-                    + "ObjectIds.Aliases.");
+                    "Expected a registered alias-name store rooted at " +
+                    "ObjectIds.Aliases.");
 
             int refServerNsIndex = m_server.CurrentInstance.NamespaceUris
                 .GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
@@ -223,8 +224,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             }
 
             Assert.That(resolved, Has.Count.EqualTo(1),
-                "MonitoredItem invalidation should have triggered a "
-                + "refetch picking up the new alias.");
+                "MonitoredItem invalidation should have triggered a " +
+                "refetch picking up the new alias.");
             Assert.That(resolved[0], Is.EqualTo(target),
                 "Refetched alias must point at the server-side target.");
         }

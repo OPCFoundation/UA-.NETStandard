@@ -120,7 +120,7 @@ namespace Opc.Ua
             {
                 var array = Array.CreateInstance(
                     Elements.GetType().GetElementType()
-                        ?? throw new InvalidOperationException("Elements is not an array type."),
+                    ?? throw new InvalidOperationException("Elements is not an array type."),
                     Dimensions);
 
                 int[] indexes = new int[Dimensions.Length];
@@ -462,7 +462,7 @@ namespace Opc.Ua
         {
             var flatArray = Array.CreateInstance(
                 array.GetType().GetElementType()
-                    ?? throw new InvalidOperationException("Argument is not an array type."),
+                ?? throw new InvalidOperationException("Argument is not an array type."),
                 array.Length);
 
             int[] indexes = new int[array.Rank];

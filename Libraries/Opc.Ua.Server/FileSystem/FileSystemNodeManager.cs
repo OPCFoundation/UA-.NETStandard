@@ -363,6 +363,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 Value = value;
             }
+
             public FileSystemNodeId Value { get; }
         }
     }

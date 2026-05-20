@@ -472,7 +472,6 @@ namespace Opc.Ua.Gds.Tests
             return ExpandedNodeId.ToNodeId(groups[3].NodeId, m_pushClient.PushClient.Session.NamespaceUris);
         }
 
-
         [Test]
         [Order(301)]
         public async Task AddRemoveCertAsync()

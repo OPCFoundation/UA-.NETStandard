@@ -84,8 +84,9 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
 
             m_clientFixture = new ClientFixture(telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
+            m_url = new Uri(Utils.UriSchemeOpcTcp +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             try
             {
@@ -144,8 +145,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             }
 
             // Allow a moment for the RemoveSubscription/Delete round-trips.
-            for (int i = 0; i < 20
-                && m_session.SubscriptionCount != initialCount; i++)
+            for (int i = 0; i < 20 &&
+                m_session.SubscriptionCount != initialCount; i++)
             {
                 await Task.Delay(50);
             }

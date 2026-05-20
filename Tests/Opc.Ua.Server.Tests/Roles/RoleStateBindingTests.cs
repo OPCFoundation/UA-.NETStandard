@@ -373,8 +373,8 @@ namespace Opc.Ua.Server.Tests.Roles
             bool hasAlice = false;
             foreach (IdentityMappingRuleType rule in synced)
             {
-                if (rule.CriteriaType == IdentityCriteriaType.UserName
-                    && string.Equals(rule.Criteria, "alice", System.StringComparison.Ordinal))
+                if (rule.CriteriaType == IdentityCriteriaType.UserName &&
+                    string.Equals(rule.Criteria, "alice", System.StringComparison.Ordinal))
                 {
                     hasAlice = true;
                     break;

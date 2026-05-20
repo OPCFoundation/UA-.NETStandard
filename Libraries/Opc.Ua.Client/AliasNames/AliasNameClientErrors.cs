@@ -52,17 +52,19 @@ namespace Opc.Ua.Client.AliasNames
                     "BadUserAccessDenied" +
                     (!categoryId.IsNull
                         ? " (category=" + categoryId + ")"
-                        : "") + ".");
+                        : "") +
+                    ".");
             }
-            if (code == StatusCodes.BadNotSupported
-                || code == StatusCodes.BadNotImplemented)
+            if (code == StatusCodes.BadNotSupported ||
+                code == StatusCodes.BadNotImplemented)
             {
                 return new NotSupportedException(
                     $"OPC UA Part 17 {operation} is not supported by this " +
                     "server/category" +
                     (!categoryId.IsNull
                         ? " (category=" + categoryId + ")"
-                        : "") + ".");
+                        : "") +
+                    ".");
             }
             return ServiceResultException.Create(
                 code,

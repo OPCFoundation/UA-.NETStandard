@@ -156,10 +156,10 @@ namespace Opc.Ua.Server
                 {
                     return true;
                 }
-                if (nodeId.NamespaceIndex == 0
-                    && nodeId.IdType == IdType.Numeric
-                    && nodeId.TryGetValue(out uint id)
-                    && id == securityAdminId)
+                if (nodeId.NamespaceIndex == 0 &&
+                    nodeId.IdType == IdType.Numeric &&
+                    nodeId.TryGetValue(out uint id) &&
+                    id == securityAdminId)
                 {
                     return true;
                 }

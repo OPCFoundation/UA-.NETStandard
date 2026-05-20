@@ -64,7 +64,6 @@ namespace Opc.Ua.Server
                             new LocalizedText($"Criteria must be empty for {rule.CriteriaType}."));
                     }
                     return ServiceResult.Good;
-
                 case IdentityCriteriaType.UserName:
                 case IdentityCriteriaType.Role:
                 case IdentityCriteriaType.GroupId:
@@ -75,7 +74,6 @@ namespace Opc.Ua.Server
                             new LocalizedText($"Criteria must be non-empty for {rule.CriteriaType}."));
                     }
                     return ServiceResult.Good;
-
                 case IdentityCriteriaType.Thumbprint:
                     if (!IsValidThumbprint(criteria))
                     {
@@ -84,7 +82,6 @@ namespace Opc.Ua.Server
                                 "Thumbprint must be an upper-case hexadecimal string with no spaces."));
                     }
                     return ServiceResult.Good;
-
                 case IdentityCriteriaType.X509Subject:
                     if (!IsValidX509Subject(criteria))
                     {
@@ -93,7 +90,6 @@ namespace Opc.Ua.Server
                                 "X509 subject must match the format Name=\"Value\"/Name=\"Value\"... per Part 18 §4.4.3."));
                     }
                     return ServiceResult.Good;
-
                 default:
                     return new ServiceResult(StatusCodes.BadInvalidArgument,
                         new LocalizedText($"Unknown criteriaType {rule.CriteriaType}."));

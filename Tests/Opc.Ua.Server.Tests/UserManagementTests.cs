@@ -189,9 +189,9 @@ namespace Opc.Ua.Server.Tests
             using var um = new UserManagementImpl(
                 new LinqUserDatabase(),
                 passwordLength: new Range { Low = 4, High = 64 },
-                passwordOptions: PasswordOptionsMask.SupportDisableUser
-                    | PasswordOptionsMask.SupportDisableDeleteForUser
-                    | PasswordOptionsMask.SupportInitialPasswordChange);
+                passwordOptions: PasswordOptionsMask.SupportDisableUser |
+                    PasswordOptionsMask.SupportDisableDeleteForUser |
+                    PasswordOptionsMask.SupportInitialPasswordChange);
 
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.NoDelete, string.Empty)), Is.True);
@@ -287,9 +287,9 @@ namespace Opc.Ua.Server.Tests
             using var um = new UserManagementImpl(
                 new LinqUserDatabase(),
                 passwordLength: new Range { Low = 4, High = 64 },
-                passwordOptions: PasswordOptionsMask.SupportDisableUser
-                    | PasswordOptionsMask.SupportNoChangeForUser
-                    | PasswordOptionsMask.SupportInitialPasswordChange);
+                passwordOptions: PasswordOptionsMask.SupportDisableUser |
+                    PasswordOptionsMask.SupportNoChangeForUser |
+                    PasswordOptionsMask.SupportInitialPasswordChange);
 
             Assert.That(ServiceResult.IsGood(um.AddUser("alice", "secret",
                 UserConfigurationMask.NoChangeByUser, string.Empty)), Is.True);

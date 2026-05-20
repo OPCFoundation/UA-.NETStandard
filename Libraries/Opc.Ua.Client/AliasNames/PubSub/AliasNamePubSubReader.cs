@@ -94,8 +94,8 @@ namespace Opc.Ua.Client.AliasNames.PubSub
             {
                 throw new ArgumentNullException(nameof(update));
             }
-            if (!string.IsNullOrEmpty(Options.ExpectedApplicationUri)
-                && !string.Equals(
+            if (!string.IsNullOrEmpty(Options.ExpectedApplicationUri) &&
+                !string.Equals(
                     update.ApplicationUri,
                     Options.ExpectedApplicationUri,
                     StringComparison.Ordinal))

@@ -132,8 +132,8 @@ namespace Opc.Ua.Server
         {
             // Only the standard Aliases (i=23470) node carries a LastChange
             // property in the shipped NodeSet; mirror its store value.
-            if (m_aliasesLastChangeNode != null
-                && e.CategoryId == ObjectIds.Aliases)
+            if (m_aliasesLastChangeNode != null &&
+                e.CategoryId == ObjectIds.Aliases)
             {
                 m_aliasesLastChangeNode.Value = e.LastChange;
                 m_aliasesLastChangeNode.ClearChangeMasks(SystemContext, false);

@@ -50,8 +50,10 @@ namespace Opc.Ua.Lds.Server
     public sealed class RegisteredServerStore : IDisposable
     {
         private readonly SemaphoreSlim m_lock = new(1, 1);
+
         private readonly Dictionary<string, RegistrationEntry> m_byUri
             = new(StringComparer.Ordinal);
+
         private readonly List<ServerOnNetworkRecord> m_records = [];
         private readonly ILogger m_logger;
         private uint m_nextRecordId = 1;
@@ -176,8 +178,8 @@ namespace Opc.Ua.Lds.Server
                 string uri = server.ServerUri;
 
                 // semaphore file: if path is set but file is missing, drop the registration
-                bool semaphoreValid = string.IsNullOrEmpty(server.SemaphoreFilePath)
-                    || File.Exists(server.SemaphoreFilePath);
+                bool semaphoreValid = string.IsNullOrEmpty(server.SemaphoreFilePath) ||
+                    File.Exists(server.SemaphoreFilePath);
 
                 if (!server.IsOnline || !semaphoreValid)
                 {
@@ -249,8 +251,8 @@ namespace Opc.Ua.Lds.Server
                 var result = new List<ApplicationDescription>(m_byUri.Count);
                 foreach (RegistrationEntry e in m_byUri.Values)
                 {
-                    if (serverUriFilter is { Count: > 0 }
-                        && !serverUriFilter.Contains(e.ServerUri))
+                    if (serverUriFilter is { Count: > 0 } &&
+                        !serverUriFilter.Contains(e.ServerUri))
                     {
                         continue;
                     }
@@ -340,8 +342,8 @@ namespace Opc.Ua.Lds.Server
             try
             {
                 ServerOnNetworkRecord existing = m_records.FirstOrDefault(r =>
-                    r.ObservedViaMulticast
-                    && string.Equals(r.DiscoveryUrl, discoveryUrl, StringComparison.Ordinal));
+                    r.ObservedViaMulticast &&
+                    string.Equals(r.DiscoveryUrl, discoveryUrl, StringComparison.Ordinal));
 
                 if (existing != null)
                 {
@@ -378,8 +380,8 @@ namespace Opc.Ua.Lds.Server
             {
                 List<string> staleUris = m_byUri.Values
                     .Where(e =>
-                        nowUtc - e.LastSeenUtc > RegistrationLifetime
-                        || (!string.IsNullOrEmpty(e.SemaphoreFilePath) && !File.Exists(e.SemaphoreFilePath)))
+                        nowUtc - e.LastSeenUtc > RegistrationLifetime ||
+                        (!string.IsNullOrEmpty(e.SemaphoreFilePath) && !File.Exists(e.SemaphoreFilePath)))
                     .Select(e => e.ServerUri)
                     .ToList();
 
@@ -390,8 +392,8 @@ namespace Opc.Ua.Lds.Server
                 }
 
                 m_records.RemoveAll(r =>
-                    r.ObservedViaMulticast
-                    && nowUtc - r.LastSeenUtc > MulticastRecordLifetime);
+                    r.ObservedViaMulticast &&
+                    nowUtc - r.LastSeenUtc > MulticastRecordLifetime);
             }
             finally
             {
@@ -418,8 +420,8 @@ namespace Opc.Ua.Lds.Server
             try
             {
                 m_byUri[entry.ServerUri] = entry;
-                if (!string.IsNullOrEmpty(entry.MdnsServerName)
-                    && entry.ServerCapabilities is { Count: > 0 })
+                if (!string.IsNullOrEmpty(entry.MdnsServerName) &&
+                    entry.ServerCapabilities is { Count: > 0 })
                 {
                     UpdateNetworkRecordsCore(entry);
                 }
@@ -466,8 +468,8 @@ namespace Opc.Ua.Lds.Server
             // Replace any prior records for this ServerUri originating from
             // explicit registration (preserve mDNS-observed records).
             m_records.RemoveAll(r =>
-                !r.ObservedViaMulticast
-                && string.Equals(r.ServerUri, entry.ServerUri, StringComparison.Ordinal));
+                !r.ObservedViaMulticast &&
+                string.Equals(r.ServerUri, entry.ServerUri, StringComparison.Ordinal));
 
             foreach (string url in entry.DiscoveryUrls)
             {
@@ -491,8 +493,8 @@ namespace Opc.Ua.Lds.Server
         private void RemoveNetworkRecordsForUriCore(string serverUri)
         {
             m_records.RemoveAll(r =>
-                !r.ObservedViaMulticast
-                && string.Equals(r.ServerUri, serverUri, StringComparison.Ordinal));
+                !r.ObservedViaMulticast &&
+                string.Equals(r.ServerUri, serverUri, StringComparison.Ordinal));
         }
 
         private static LocalizedText SelectName(

@@ -98,8 +98,8 @@ namespace Opc.Ua.Server.AliasNames
         /// <inheritdoc/>
         public uint? GetLastChange(NodeId categoryId)
         {
-            if (categoryId.IsNull
-                || !m_categories.TryGetValue(categoryId, out CategoryEntry? entry))
+            if (categoryId.IsNull ||
+                !m_categories.TryGetValue(categoryId, out CategoryEntry? entry))
             {
                 return null;
             }
@@ -563,8 +563,8 @@ namespace Opc.Ua.Server.AliasNames
             ITypeTable typeTree)
         {
             // Null/empty/References → match every alias regardless of refType.
-            if (filter.IsNull
-                || filter.Equals(ReferenceTypeIds.References))
+            if (filter.IsNull ||
+                filter.Equals(ReferenceTypeIds.References))
             {
                 return true;
             }

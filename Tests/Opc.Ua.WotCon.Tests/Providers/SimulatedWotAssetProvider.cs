@@ -185,8 +185,10 @@ namespace Opc.Ua.WotCon.Tests.Providers
 
         private readonly ConcurrentDictionary<string, Variant> m_values =
             new(StringComparer.Ordinal);
+
         private readonly ConcurrentDictionary<string, List<Subscription>> m_subscriptions =
             new(StringComparer.Ordinal);
+
         private readonly System.Collections.Concurrent.ConcurrentBag<ActionInvocation> m_invocations = [];
     }
 

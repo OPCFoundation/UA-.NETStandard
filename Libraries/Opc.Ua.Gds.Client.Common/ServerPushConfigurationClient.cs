@@ -660,7 +660,6 @@ namespace Opc.Ua.Gds.Client
             await m_serverConfiguration!.ApplyChangesAsync(ct).ConfigureAwait(false);
         }
 
-
         private ValueTask<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default)

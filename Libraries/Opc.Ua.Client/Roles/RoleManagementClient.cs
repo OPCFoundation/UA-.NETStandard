@@ -56,8 +56,10 @@ namespace Opc.Ua.Client.Roles
         public ISession Session { get; }
 
         private static NodeId RoleSetId => Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet;
+
         private static NodeId AddRoleMethodId
             => Opc.Ua.MethodIds.Server_ServerCapabilities_RoleSet_AddRole;
+
         private static NodeId RemoveRoleMethodId
             => Opc.Ua.MethodIds.Server_ServerCapabilities_RoleSet_RemoveRole;
 
@@ -107,8 +109,8 @@ namespace Opc.Ua.Client.Roles
                 {
                     continue;
                 }
-                if (!reference.TypeDefinition.IsNull
-                    && ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != Opc.Ua.ObjectTypeIds.RoleType)
+                if (!reference.TypeDefinition.IsNull &&
+                    ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != Opc.Ua.ObjectTypeIds.RoleType)
                 {
                     continue;
                 }
@@ -164,9 +166,9 @@ namespace Opc.Ua.Client.Roles
             for (int i = 0; i < propertyNames.Length; i++)
             {
                 BrowsePathResult pathResult = pathResponse.Results[i];
-                if (StatusCode.IsGood(pathResult.StatusCode)
-                    && pathResult.Targets.Count > 0
-                    && !pathResult.Targets[0].TargetId.IsNull)
+                if (StatusCode.IsGood(pathResult.StatusCode) &&
+                    pathResult.Targets.Count > 0 &&
+                    !pathResult.Targets[0].TargetId.IsNull)
                 {
                     resolved[i] = ExpandedNodeId.ToNodeId(
                         pathResult.Targets[0].TargetId, Session.NamespaceUris);

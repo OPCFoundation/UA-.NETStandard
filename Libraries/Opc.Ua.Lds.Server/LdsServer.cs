@@ -174,8 +174,8 @@ namespace Opc.Ua.Lds.Server
                     : (ICollection<string>)serverUris.ToList();
 
                 // include the LDS itself unless filtered out.
-                if (baseAddresses.Count > 0
-                    && (uriFilter.Count == 0 || uriFilter.Contains(ServerDescription.ApplicationUri)))
+                if (baseAddresses.Count > 0 &&
+                    (uriFilter.Count == 0 || uriFilter.Contains(ServerDescription.ApplicationUri)))
                 {
                     servers.Add(TranslateApplicationDescription(
                         parsedEndpointUrl,
@@ -406,8 +406,8 @@ namespace Opc.Ua.Lds.Server
                 {
                     using Certificate cert = Certificate.FromRawData(certBytes);
                     IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
-                    if (applicationUris.Count > 0
-                        && !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
+                    if (applicationUris.Count > 0 &&
+                        !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
                     {
                         return new ServiceResult(StatusCodes.BadServerUriInvalid,
                             new LocalizedText("ServerUri does not match the certificate ApplicationUri."));

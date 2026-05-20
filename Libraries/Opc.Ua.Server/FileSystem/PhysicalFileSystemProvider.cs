@@ -335,7 +335,7 @@ namespace Opc.Ua.Server.FileSystem
 
             if (full.Length < m_rootDirectory.Length ||
                 (!string.Equals(full, m_rootDirectory, StringComparison.Ordinal) &&
-                 !full.StartsWith(m_rootPrefix, StringComparison.Ordinal)))
+                    !full.StartsWith(m_rootPrefix, StringComparison.Ordinal)))
             {
                 throw new UnauthorizedAccessException(
                     $"Path '{path}' escapes the provider root.");

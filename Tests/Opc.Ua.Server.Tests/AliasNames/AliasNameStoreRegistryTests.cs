@@ -109,8 +109,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
             using var registry = new AliasNameStoreRegistry();
             var descriptor = new AliasNameCategoryDescriptor(
                 s_a, new QualifiedName("A", 2),
-                AliasNameCapabilities.AddAliasesToCategory
-                    | AliasNameCapabilities.LastChange);
+                AliasNameCapabilities.AddAliasesToCategory |
+                AliasNameCapabilities.LastChange);
             using var store = new InMemoryAliasNameStore([descriptor]);
             registry.Register(store);
 
@@ -134,8 +134,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
             using var registry = new AliasNameStoreRegistry();
             var descriptor = new AliasNameCategoryDescriptor(
                 s_a, new QualifiedName("A", 2),
-                AliasNameCapabilities.AddAliasesToCategory
-                    | AliasNameCapabilities.LastChange);
+                AliasNameCapabilities.AddAliasesToCategory |
+                AliasNameCapabilities.LastChange);
             using var store = new InMemoryAliasNameStore([descriptor]);
             registry.Register(store);
             registry.Unregister(store);

@@ -275,7 +275,8 @@ namespace Opc.Ua.Server
             }
 
             if (context is ISessionSystemContext session &&
-                subscription.SessionId != null! && !subscription.SessionId.Equals(session.SessionId))
+                subscription.SessionId != null! &&
+                !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;

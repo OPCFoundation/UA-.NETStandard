@@ -241,10 +241,10 @@ namespace Quickstarts.ReferenceServer
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.Aliases,
                 Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
                 subCategories: [tagVariables, topics]);
 
             // CA2000: ownership transferred to the registry which disposes

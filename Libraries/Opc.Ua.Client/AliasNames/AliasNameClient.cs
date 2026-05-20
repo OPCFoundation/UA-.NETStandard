@@ -361,8 +361,8 @@ namespace Opc.Ua.Client.AliasNames
                 nodesToRead,
                 ct).ConfigureAwait(false);
 
-            if (response.Results.Count == 0
-                || StatusCode.IsBad(response.Results[0].StatusCode))
+            if (response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode))
             {
                 return null;
             }
@@ -389,9 +389,9 @@ namespace Opc.Ua.Client.AliasNames
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 IncludeSubtypes = true,
                 NodeClassMask = (uint)NodeClass.Object,
-                ResultMask = (uint)(BrowseResultMask.BrowseName
-                    | BrowseResultMask.DisplayName
-                    | BrowseResultMask.TypeDefinition)
+                ResultMask = (uint)(BrowseResultMask.BrowseName |
+                    BrowseResultMask.DisplayName |
+                    BrowseResultMask.TypeDefinition)
             };
             ArrayOf<BrowseDescription> requests = [description];
             BrowseResponse response = await Session.BrowseAsync(
@@ -469,9 +469,9 @@ namespace Opc.Ua.Client.AliasNames
                 await Session.TranslateBrowsePathsToNodeIdsAsync(
                     null, requests, ct).ConfigureAwait(false);
 
-            if (response.Results.Count == 0
-                || StatusCode.IsBad(response.Results[0].StatusCode)
-                || response.Results[0].Targets.Count == 0)
+            if (response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode) ||
+                response.Results[0].Targets.Count == 0)
             {
                 return NodeId.Null;
             }

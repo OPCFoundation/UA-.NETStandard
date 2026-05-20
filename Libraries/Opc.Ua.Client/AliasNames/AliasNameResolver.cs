@@ -397,10 +397,13 @@ namespace Opc.Ua.Client.AliasNames
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly SemaphoreSlim m_strategyStartLock = new(1, 1);
         private readonly IAliasNameRefreshStrategy m_strategy;
+
         private Dictionary<string, ExpandedNodeId[]> m_forward
             = new(StringComparer.Ordinal);
+
         private Dictionary<string, string?[]> m_serverUris
             = new(StringComparer.Ordinal);
+
         private Dictionary<ExpandedNodeId, string> m_reverse = [];
         private int m_loaded;
         private int m_strategyStarted;

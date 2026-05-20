@@ -52,15 +52,19 @@ namespace Opc.Ua.Server
     {
         private static readonly NodeId s_anonymous
             = Opc.Ua.ObjectIds.WellKnownRole_Anonymous;
+
         private static readonly NodeId s_authenticatedUser
             = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser;
+
         private static readonly NodeId s_trustedApplication
             = Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication;
 
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
         private readonly Dictionary<NodeId, MutableRole> m_roles = [];
+
         private readonly Dictionary<string, NodeId> m_browseNameIndex
             = new(StringComparer.Ordinal);
+
         private uint m_nextDynamicId = 1;
         private bool m_disposed;
 
@@ -428,8 +432,8 @@ namespace Opc.Ua.Server
 
             bool isWellKnown = false;
             bool useOpcUaNamespace =
-                string.IsNullOrEmpty(namespaceUri)
-                || string.Equals(namespaceUri, Opc.Ua.Namespaces.OpcUa, StringComparison.Ordinal);
+                string.IsNullOrEmpty(namespaceUri) ||
+                string.Equals(namespaceUri, Opc.Ua.Namespaces.OpcUa, StringComparison.Ordinal);
 
             // If naming a well-known role under the OPC UA namespace, reuse
             // the well-known NodeId per Part 18 §4.2.2.
@@ -570,8 +574,8 @@ namespace Opc.Ua.Server
                 : string.Empty;
 
             string endpointUrl = endpoint?.EndpointUrl ?? string.Empty;
-            bool isSignedChannel = endpoint != null
-                && endpoint.SecurityMode is MessageSecurityMode.Sign
+            bool isSignedChannel = endpoint != null &&
+                endpoint.SecurityMode is MessageSecurityMode.Sign
                     or MessageSecurityMode.SignAndEncrypt;
             bool isEncryptedChannel = endpoint?.SecurityMode == MessageSecurityMode.SignAndEncrypt;
 
@@ -703,21 +707,21 @@ namespace Opc.Ua.Server
             {
                 IdentityCriteriaType.Anonymous => tokenType == UserTokenType.Anonymous,
                 IdentityCriteriaType.AuthenticatedUser => tokenType != UserTokenType.Anonymous,
-                IdentityCriteriaType.UserName => tokenType == UserTokenType.UserName
-                    && string.Equals(identity.DisplayName, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.Thumbprint => clientCertificate != null
-                    && string.Equals(clientThumbprint, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.X509Subject => clientCertificate != null
-                    && !string.IsNullOrEmpty(clientSubject)
-                    && string.Equals(clientSubject, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.UserName => tokenType == UserTokenType.UserName &&
+                    string.Equals(identity.DisplayName, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.Thumbprint => clientCertificate != null &&
+                    string.Equals(clientThumbprint, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.X509Subject => clientCertificate != null &&
+                    !string.IsNullOrEmpty(clientSubject) &&
+                    string.Equals(clientSubject, criteria, StringComparison.Ordinal),
                 IdentityCriteriaType.Role => MatchesGrantedRole(criteria, rolesGrantedSoFar),
                 // The certificate may advertise multiple ApplicationUris; any one
                 // matching the rule's criteria is sufficient.
-                IdentityCriteriaType.Application => clientCertificate != null
-                    && isSignedChannel
-                    && clientApplicationUris.Any(uri => string.Equals(uri, criteria, StringComparison.Ordinal)),
-                IdentityCriteriaType.TrustedApplication => clientCertificate != null
-                    && isSignedChannel,
+                IdentityCriteriaType.Application => clientCertificate != null &&
+                    isSignedChannel &&
+                    clientApplicationUris.Any(uri => string.Equals(uri, criteria, StringComparison.Ordinal)),
+                IdentityCriteriaType.TrustedApplication => clientCertificate != null &&
+                    isSignedChannel,
                 // GroupId: requires an external authorization service / JWT
                 // groups claim; without one, the rule cannot match.
                 IdentityCriteriaType.GroupId => false,

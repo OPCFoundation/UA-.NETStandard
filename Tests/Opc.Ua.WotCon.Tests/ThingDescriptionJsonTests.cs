@@ -223,7 +223,8 @@ namespace Opc.Ua.WotCon.Tests
                         .OrderBy(m => m.Key, StringComparer.Ordinal)
                         .Select(m =>
                             $"{m.Key}:{m.Value.Type}/{m.Value.Minimum}/{m.Value.Maximum}/{m.Value.Unit}/{m.Value.Description}")
-                        .ToArray() ?? [];
+                        .ToArray() ??
+                        [];
                     return $"{kv.Key}|title={kv.Value.Title}|desc={kv.Value.Description}|" +
                         $"members=[{string.Join(",", memberFields)}]";
                 })

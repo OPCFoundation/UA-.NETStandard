@@ -488,7 +488,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 options: null);
 
             Assert.That(
-                (notifier.EventNotifier & EventNotifiers.SubscribeToEvents),
+                notifier.EventNotifier & EventNotifiers.SubscribeToEvents,
                 Is.EqualTo(EventNotifiers.SubscribeToEvents),
                 "Publish must auto-promote SubscribeToEvents on the notifier.");
         }
@@ -787,6 +787,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private sealed class AsyncCountdown
         {
             private int m_remaining;
+
             private readonly TaskCompletionSource<bool> m_done =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 

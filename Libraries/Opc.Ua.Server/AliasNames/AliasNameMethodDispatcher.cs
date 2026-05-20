@@ -125,8 +125,8 @@ namespace Opc.Ua.Server.AliasNames
             NodeId targetReferenceType,
             CancellationToken ct)
         {
-            if (aliasNames.Count != targetNodes.Count
-                || aliasNames.Count != targetServers.Count)
+            if (aliasNames.Count != targetNodes.Count ||
+                aliasNames.Count != targetServers.Count)
             {
                 return new AddAliasesToCategoryMethodStateResult
                 {

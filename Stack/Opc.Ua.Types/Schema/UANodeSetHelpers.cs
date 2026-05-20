@@ -299,6 +299,7 @@ namespace Opc.Ua.Export
             }
 
             public override WriteState WriteState => m_inner.WriteState;
+
             public override string? LookupPrefix(string ns)
             {
                 foreach ((string prefix, string uri) in m_declarations)
@@ -310,6 +311,7 @@ namespace Opc.Ua.Export
                 }
                 return m_inner.LookupPrefix(ns);
             }
+
             public override void Flush() => m_inner.Flush();
             public override void WriteBase64(byte[] buffer, int index, int count) => m_inner.WriteBase64(buffer, index, count);
             public override void WriteCData(string? text) => m_inner.WriteCData(text);
@@ -328,11 +330,13 @@ namespace Opc.Ua.Export
             public override void WriteStartAttribute(string? prefix, string localName, string? ns) => m_inner.WriteStartAttribute(prefix, localName, ns);
             public override void WriteStartDocument() => m_inner.WriteStartDocument();
             public override void WriteStartDocument(bool standalone) => m_inner.WriteStartDocument(standalone);
+
             public override void WriteStartElement(string? prefix, string localName, string? ns)
             {
                 m_inner.WriteStartElement(prefix, localName, ns);
                 DeclareIfNeeded();
             }
+
             public override void WriteString(string? text) => m_inner.WriteString(text);
             public override void WriteSurrogateCharEntity(char lowChar, char highChar) => m_inner.WriteSurrogateCharEntity(lowChar, highChar);
             public override void WriteWhitespace(string? ws) => m_inner.WriteWhitespace(ws);

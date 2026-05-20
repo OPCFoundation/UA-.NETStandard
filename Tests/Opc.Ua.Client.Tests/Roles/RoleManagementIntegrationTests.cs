@@ -394,4 +394,3 @@ namespace Opc.Ua.Client.Tests.Roles
         }
     }
 }
-
