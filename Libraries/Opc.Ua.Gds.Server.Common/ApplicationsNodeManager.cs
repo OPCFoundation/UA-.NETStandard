@@ -643,6 +643,23 @@ namespace Opc.Ua.Gds.Server
                         true;
 
                     return activeNode;
+
+                case ObjectTypes.KeyCredentialServiceType:
+                    if (passiveNode is not KeyCredentialServiceState keyCredNode)
+                    {
+                        keyCredNode = new KeyCredentialServiceState(passiveNode.Parent);
+                        keyCredNode.Create(context, passiveNode);
+                        passiveNode.Parent?.ReplaceChild(context, keyCredNode);
+                    }
+
+                    keyCredNode.StartRequest!.OnCall = OnKeyCredentialStartRequest;
+                    keyCredNode.FinishRequest!.OnCall = OnKeyCredentialFinishRequest;
+                    if (keyCredNode.Revoke != null)
+                    {
+                        keyCredNode.Revoke.OnCall = OnKeyCredentialRevoke;
+                    }
+
+                    return keyCredNode;
             }
 
             return predefinedNode;
@@ -2228,6 +2245,83 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        private ServiceResult OnKeyCredentialStartRequest(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string applicationUri,
+            ByteString publicKey,
+            string securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ref NodeId requestId)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            m_logger.LogInformation("OnKeyCredentialStartRequest: {ApplicationUri}", applicationUri);
+
+            requestId = KeyCredentialRequestStore.StartRequest(
+                applicationUri,
+                publicKey,
+                securityPolicyUri,
+                requestedRoles);
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnKeyCredentialFinishRequest(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId requestId,
+            bool cancelRequest,
+            ref string credentialId,
+            ref ByteString credentialSecret,
+            ref string certificateThumbprint,
+            ref string securityPolicyUri,
+            ref ArrayOf<NodeId> grantedRoles)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            m_logger.LogInformation("OnKeyCredentialFinishRequest: {RequestId}", requestId);
+
+            KeyCredentialRequestState state = KeyCredentialRequestStore.FinishRequest(
+                requestId,
+                cancelRequest,
+                out string? cid,
+                out ByteString csecret,
+                out string? cthumb,
+                out string? spuri,
+                out ArrayOf<NodeId> granted);
+
+            credentialId = cid ?? string.Empty;
+            credentialSecret = csecret;
+            certificateThumbprint = cthumb ?? string.Empty;
+            securityPolicyUri = spuri ?? string.Empty;
+            grantedRoles = granted;
+
+            if (state == KeyCredentialRequestState.New)
+            {
+                return new ServiceResult(StatusCodes.BadNothingToDo);
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnKeyCredentialRevoke(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string credentialId)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            m_logger.LogInformation("OnKeyCredentialRevoke: {CredentialId}", credentialId);
+
+            KeyCredentialRequestStore.Revoke(credentialId);
+
+            return ServiceResult.Good;
+        }
+
         private readonly bool m_autoApprove;
         private uint m_nextNodeId;
         private readonly ApplicationConfiguration m_configuration;
@@ -2237,5 +2331,17 @@ namespace Opc.Ua.Gds.Server
         private readonly ICertificateGroup m_certificateGroupFactory;
         private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap = [];
+        private IKeyCredentialRequestStore? m_keyCredentialStore;
+
+        /// <summary>
+        /// Gets or sets the key-credential request store used by
+        /// KeyCredentialService handler methods. When <c>null</c> an
+        /// in-memory store is created lazily on first use.
+        /// </summary>
+        public IKeyCredentialRequestStore KeyCredentialRequestStore
+        {
+            get => m_keyCredentialStore ??= new InMemoryKeyCredentialRequestStore();
+            set => m_keyCredentialStore = value;
+        }
     }
 }
