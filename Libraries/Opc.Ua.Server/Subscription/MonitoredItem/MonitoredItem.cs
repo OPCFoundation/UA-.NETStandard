@@ -1479,12 +1479,12 @@ namespace Opc.Ua.Server
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item!.Value.ServerTimestamp = DateTime.MinValue;
+                item.Value = item.Value!.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item!.Value.SourceTimestamp = DateTime.MinValue;
+                item.Value = item.Value!.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
             ServerUtils.ReportPublishValue(NodeId, Id, item.Value!);

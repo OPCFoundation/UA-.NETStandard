@@ -221,7 +221,7 @@ namespace Opc.Ua.Server
             // force value to null if status code is bad.
             if (StatusCode.IsBad(value.StatusCode))
             {
-                value.WrappedValue = Variant.Null;
+                value = value.WithWrappedValue(Variant.Null);
             }
 
             // delete unneeded data.

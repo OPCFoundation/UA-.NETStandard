@@ -2118,7 +2118,7 @@ namespace Opc.Ua.Server
                             value = new DataValue(error.StatusCode);
                         }
 
-                        value.ServerTimestamp = DateTime.UtcNow;
+                        value = value.WithServerTimestamp(DateTime.UtcNow);
 
                         // queue the value.
                         monitoredItem.QueueValue(value, error);

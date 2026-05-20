@@ -268,13 +268,17 @@ namespace Opc.Ua.Server
 
             if (returnActualTime)
             {
-                value.SourceTimestamp = processedTimestamp;
-                value.ServerTimestamp = processedTimestamp;
+                DateTimeUtc minMaxStamp = processedTimestamp;
+                value = value
+                    .WithSourceTimestamp(minMaxStamp)
+                    .WithServerTimestamp(minMaxStamp);
             }
             else
             {
-                value.SourceTimestamp = GetTimestamp(slice);
-                value.ServerTimestamp = GetTimestamp(slice);
+                DateTimeUtc sliceStamp = GetTimestamp(slice);
+                value = value
+                    .WithSourceTimestamp(sliceStamp)
+                    .WithServerTimestamp(sliceStamp);
             }
 
             return value;
@@ -449,7 +453,7 @@ namespace Opc.Ua.Server
             // zero value if status is bad.
             if (StatusCode.IsBad(value.StatusCode))
             {
-                value.WrappedValue = Variant.Null;
+                value = value.WithWrappedValue(Variant.Null);
             }
 
             if (returnActualTime)
@@ -460,24 +464,27 @@ namespace Opc.Ua.Server
                     if (processedTimestamp == slice.StartTime)
                     {
                         processedTimestamp = processedTimestamp.AddMilliseconds(+1);
-                        value.StatusCode = value.StatusCode.WithAggregateBits(
-                            value.StatusCode.AggregateBits | AggregateBits.Interpolated);
+                        value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                            value.StatusCode.AggregateBits | AggregateBits.Interpolated));
                     }
                 }
                 else if (processedTimestamp == slice.EndTime)
                 {
                     processedTimestamp = processedTimestamp.AddMilliseconds(-1);
-                    value.StatusCode = value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Interpolated);
+                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Interpolated));
                 }
 
-                value.SourceTimestamp = processedTimestamp;
-                value.ServerTimestamp = processedTimestamp;
+                value = value
+                    .WithSourceTimestamp(processedTimestamp)
+                    .WithServerTimestamp(processedTimestamp);
             }
             else
             {
-                value.SourceTimestamp = GetTimestamp(slice);
-                value.ServerTimestamp = GetTimestamp(slice);
+                DateTimeUtc sliceStamp = GetTimestamp(slice);
+                value = value
+                    .WithSourceTimestamp(sliceStamp)
+                    .WithServerTimestamp(sliceStamp);
             }
 
             return value;
