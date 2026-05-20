@@ -81,6 +81,10 @@
         <Button Classes="tonal" Margin="0,0,4,0"
                 Content="🗑 Clear"
                 Command="{CompiledBinding ClearLogCommand}" />
+        <Button Classes="tonal" Margin="0,0,4,0"
+                Content="⚡ Trigger event"
+                ToolTip.Tip="Write to TriggerNode01 on the ConsoleReferenceServer to fire a BaseEvent."
+                Command="{CompiledBinding TriggerEventCommand}" />
       </WrapPanel>
     </Border>
 

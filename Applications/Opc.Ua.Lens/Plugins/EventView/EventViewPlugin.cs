@@ -104,6 +104,8 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     private ContentFilter? m_whereClause;
     private long m_eventCount;
     private long m_droppedCount;
+    private int m_triggerCounter;
+    private int m_autoTriggerFired;
     private EventViewView? m_view;
 
     [ObservableProperty]
@@ -368,6 +370,128 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         IsPaused = !IsPaused;
     }
 
+    // Resolves the ConsoleReferenceServer's TriggerNode01 by URI -> namespace
+    // index -> browse path and writes an incrementing integer to it. The
+    // server's OnWriteTriggerNode hook then fires a BaseEvent, which any
+    // subscription rooted on Server (or CTT, or any ancestor) will receive.
+    [RelayCommand]
+    private async Task TriggerEventAsync()
+    {
+        if (m_host.Connection.Session is not { } session)
+        {
+            m_log.LogInformation("Event View Trigger: not connected.");
+            return;
+        }
+
+        NodeId triggerId = await ResolveTriggerNodeAsync(session).ConfigureAwait(true);
+        if (triggerId.IsNull)
+        {
+            m_log.LogWarning(
+                "Event View Trigger: TriggerNode01 not found on this server " +
+                "(only the OPC Foundation reference server exposes it). " +
+                "Connect to ConsoleReferenceServer or write to a server-side event source manually.");
+            return;
+        }
+
+        int value = Interlocked.Increment(ref m_triggerCounter);
+        try
+        {
+            var wv = new WriteValue
+            {
+                NodeId = triggerId,
+                AttributeId = Attributes.Value,
+                Value = new DataValue { WrappedValue = new Variant(value) }
+            };
+            ArrayOf<WriteValue> writes = new WriteValue[] { wv };
+            WriteResponse resp = await session
+                .WriteAsync(null, writes, CancellationToken.None)
+                .ConfigureAwait(true);
+            StatusCode status = resp.Results.Count > 0 ? resp.Results[0] : StatusCodes.Bad;
+            if (StatusCode.IsBad(status))
+            {
+                m_log.LogWarning(
+                    "Event View Trigger: write to {Node} returned {Status}.",
+                    triggerId, status);
+            }
+            else
+            {
+                m_log.LogInformation(
+                    "Event View Trigger: wrote {Value} to {Node} — server should " +
+                    "emit a BaseEvent within the next publish.", value, triggerId);
+            }
+        }
+        catch (Exception ex)
+        {
+            m_log.LogError(ex, "Event View Trigger: write to {Node} failed.", triggerId);
+        }
+    }
+
+    private async Task<NodeId> ResolveTriggerNodeAsync(ManagedSession session)
+    {
+        // Lookup is keyed on the reference server's namespace URI so the
+        // index doesn't have to be hard-coded; fall back to scanning all
+        // known indexes for the same browse path so other reference
+        // implementations that re-use the same browse names still work.
+        int ns = session.NamespaceUris.GetIndex(
+            "http://opcfoundation.org/Quickstarts/ReferenceServer");
+        if (ns >= 0)
+        {
+            NodeId id = await TryTriggerNodeAsync(session, (ushort)ns).ConfigureAwait(false);
+            if (!id.IsNull)
+            {
+                return id;
+            }
+        }
+        for (int i = 1; i < session.NamespaceUris.Count; i++)
+        {
+            if (i == ns)
+            {
+                continue;
+            }
+            NodeId id = await TryTriggerNodeAsync(session, (ushort)i).ConfigureAwait(false);
+            if (!id.IsNull)
+            {
+                return id;
+            }
+        }
+        return NodeId.Null;
+    }
+
+    private static async Task<NodeId> TryTriggerNodeAsync(ManagedSession session, ushort ns)
+    {
+        var bp = new BrowsePath { StartingNode = ObjectIds.ObjectsFolder };
+        string[] segments = ["CTT", "NodeIds", "NodeIds_Events", "NodeIds_Events_TriggerNode01"];
+        foreach (string seg in segments)
+        {
+            bp.RelativePath.Elements = bp.RelativePath.Elements.AddItem(new RelativePathElement
+            {
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IsInverse = false,
+                IncludeSubtypes = true,
+                TargetName = new QualifiedName(seg, ns)
+            });
+        }
+        ArrayOf<BrowsePath> paths = new BrowsePath[] { bp };
+        try
+        {
+            TranslateBrowsePathsToNodeIdsResponse resp = await session
+                .TranslateBrowsePathsToNodeIdsAsync(null, paths, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (resp.Results.Count == 0
+                || resp.Results[0].StatusCode != StatusCodes.Good
+                || resp.Results[0].Targets.Count == 0)
+            {
+                return NodeId.Null;
+            }
+            return ExpandedNodeId.ToNodeId(
+                resp.Results[0].Targets[0].TargetId, session.NamespaceUris);
+        }
+        catch
+        {
+            return NodeId.Null;
+        }
+    }
+
     // ----- Wiring helpers -----
 
     /// <summary>
@@ -452,6 +576,24 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             });
             sub.AddItem(mi);
             await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
+            // Surface the server's filter feedback so users see why no
+            // events flow when the filter is rejected (e.g. unknown field
+            // path against the chosen EventType).
+            ServiceResult? createError = mi.Status.Error;
+            if (createError is not null && ServiceResult.IsBad(createError))
+            {
+                m_log.LogWarning(
+                    "Event View source {Name} create returned bad status: {Status}",
+                    displayName, createError);
+            }
+            else
+            {
+                m_log.LogInformation(
+                    "Event View source {Name} ({Node}) accepted by server " +
+                    "(ch={Handle}, filter={Filter}).",
+                    displayName, nodeId, mi.ClientHandle,
+                    mi.Status.FilterResult is null ? "(no diagnostics)" : "with diagnostics");
+            }
             var source = new EventSourceVm(nodeId, displayName, mi);
             m_byHandle[mi.ClientHandle] = source;
             Dispatcher.UIThread.Post(() =>
@@ -469,6 +611,19 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         finally
         {
             m_lock.Release();
+        }
+
+        // After a fresh source attaches, fire a test event automatically so
+        // the user sees at least one event flow through the pipeline without
+        // having to find the Trigger button.  Best-effort; quiet if the
+        // server has no TriggerNode01.
+        if (Interlocked.CompareExchange(ref m_autoTriggerFired, 1, 0) == 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(150).ConfigureAwait(false);
+                await TriggerEventAsync().ConfigureAwait(false);
+            });
         }
     }
 
@@ -732,12 +887,26 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     {
         long received = Interlocked.Read(ref m_eventCount);
         long dropped = Interlocked.Read(ref m_droppedCount);
+        string suffix;
+        if (EventSources.Count == 0)
+        {
+            suffix = " · pick an event source to subscribe";
+        }
+        else if (received == 0)
+        {
+            suffix = " · waiting for the server to emit events…";
+        }
+        else
+        {
+            suffix = string.Empty;
+        }
         Status = string.Format(CultureInfo.InvariantCulture,
-            "● {0} source{1} · {2} event{3}{4}{5}",
+            "● {0} source{1} · {2} event{3}{4}{5}{6}",
             EventSources.Count, EventSources.Count == 1 ? "" : "s",
             received, received == 1 ? "" : "s",
             dropped > 0 ? $" · {dropped} dropped" : "",
-            IsPaused ? " · paused" : "");
+            IsPaused ? " · paused" : "",
+            suffix);
     }
 
     partial void OnIsPausedChanged(bool value) => RefreshStatus();

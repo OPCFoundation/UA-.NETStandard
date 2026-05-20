@@ -143,6 +143,15 @@ internal static class Program
             return RatesProbe.RunAsync(endpoint).GetAwaiter().GetResult();
         }
 
+        if (args.Any(a => string.Equals(a, "--probe-events", StringComparison.OrdinalIgnoreCase)))
+        {
+            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
+            string endpoint = idx >= 0 && idx + 1 < args.Length
+                ? args[idx + 1]
+                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+            return EventsProbe.RunAsync(endpoint).GetAwaiter().GetResult();
+        }
+
         // Start the resource-monitor host before Avalonia so the
         // CPU / memory pane has data on first paint.  Disposed as the
         // process exits — Avalonia's StartWithClassicDesktopLifetime returns
