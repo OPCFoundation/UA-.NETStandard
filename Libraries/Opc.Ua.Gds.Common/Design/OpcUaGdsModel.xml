@@ -369,10 +369,22 @@
         <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
       </opc:Method>
       <opc:Method SymbolicName="UpdateApplication" TypeDefinition="UpdateApplicationMethodType" ModellingRule="Mandatory">
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+            <opc:TargetId>ApplicationRegistrationChangedAuditEventType</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
         <opc:DefaultRolePermissions Name="DiscoveryAdmin" />
         <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
       </opc:Method>
       <opc:Method SymbolicName="UnregisterApplication" TypeDefinition="UnregisterApplicationMethodType" ModellingRule="Mandatory">
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+            <opc:TargetId>ApplicationRegistrationChangedAuditEventType</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
         <opc:DefaultRolePermissions Name="DiscoveryAdmin" />
         <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
       </opc:Method>
