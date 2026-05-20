@@ -190,11 +190,6 @@ namespace Quickstarts.ReferenceServer
                 }
             }
 
-            // OPC UA Part 17 — AliasName provider for the reference server.
-            // Small static registry; always created.
-            var aliasNameNodeManager = new AliasNameNodeManager(server, configuration);
-            nodeManagers.Add(aliasNameNodeManager);
-
             if (EnableFileSystemNodeManager)
             {
                 // FileSystem node manager — exposes the configured
