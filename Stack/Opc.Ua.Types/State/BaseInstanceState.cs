@@ -47,6 +47,9 @@ namespace Opc.Ua
             Parent = parent;
         }
 
+        /// <inheritdoc/>
+        protected override bool RemovePlaceholderChildrenOnCreate => true;
+
         /// <summary>
         /// Initializes the instance from another instance.
         /// </summary>

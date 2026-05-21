@@ -221,7 +221,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Node_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.Node;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

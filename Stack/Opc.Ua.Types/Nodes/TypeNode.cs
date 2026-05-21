@@ -62,6 +62,6 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TypeNode_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.TypeNode_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId => DataTypeIds.TypeNode;
     }
 }

@@ -879,8 +879,8 @@ namespace Opc.Ua.Server
                     availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
                 }
 
-                moreNotifications = m_waitingForPublish = m_lastSentMessage < m_sentMessages.Count -
-                    1;
+                moreNotifications = m_waitingForPublish = (m_lastSentMessage < m_sentMessages.Count - 1) ||
+                    m_itemsToPublish.Count > 0;
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH QUEUED MESSAGE");
                 return m_sentMessages[m_lastSentMessage++];

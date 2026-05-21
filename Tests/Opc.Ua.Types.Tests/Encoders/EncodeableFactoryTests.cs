@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// <summary>
         /// Change when adding more IEncodeable
         /// </summary>
-        private const int kNumberOfBootstrapEncodeableTypes = 24;
+        private const int kNumberOfBootstrapEncodeableTypes = 18;
         private const int kNumberOfBootstrapFactoryEntries = kNumberOfBootstrapEncodeableTypes * 4;
         public static readonly NodeId ReadRequestEncoding = new(631);
 
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void Builder_AddEncodeableTypes_HandlesJsonEncodingSuffixParsing()
         {
             // This test verifies the JSON encoding suffix parsing logic in AddEncodeableTypes
-            // The method looks for fields ending with "_Encoding_DefaultJson" in ObjectIds classes
+            // The method looks for fields ending with "_Encoding_DefaultBinary" in ObjectIds classes
 
             // Arrange
             IEncodeableFactory factory = EncodeableFactory.Create();

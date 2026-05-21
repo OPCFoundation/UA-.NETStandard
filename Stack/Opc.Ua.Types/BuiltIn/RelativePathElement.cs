@@ -94,7 +94,7 @@ namespace Opc.Ua
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId => DataTypeIds.RelativePathElement;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
