@@ -123,14 +123,14 @@ internal sealed partial class CertificateRequestDialog : Window
         RefreshUi();
     }
 
-    private async Task OnBackAsync()
+    private Task OnBackAsync()
     {
         if (m_step > 1)
         {
             m_step--;
             RefreshUi();
         }
-        await Task.CompletedTask.ConfigureAwait(false);
+        return Task.CompletedTask;
     }
 
     private async Task OnNextAsync()

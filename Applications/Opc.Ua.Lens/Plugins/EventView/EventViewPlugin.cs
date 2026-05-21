@@ -65,6 +65,13 @@ internal sealed partial class EventSourceVm : ObservableObject
     [ObservableProperty]
     private string m_state = "pending";
 
+    /// <summary>
+    /// Set when client-side ApplyChanges throws (transport error, session
+    /// closed) so that <see cref="RefreshState"/> doesn't overwrite the
+    /// failure message on subsequent publishes.
+    /// </summary>
+    internal string? CreationFailure { get; set; }
+
     public EventSourceVm(NodeId nodeId, string name, ClassicMonitoredItem item)
     {
         NodeId = nodeId;
@@ -82,6 +89,11 @@ internal sealed partial class EventSourceVm : ObservableObject
     /// </summary>
     internal void RefreshState()
     {
+        if (CreationFailure is { } fail)
+        {
+            State = fail;
+            return;
+        }
         var st = MonitoredItem.Status;
         if (st.Error is { } err && ServiceResult.IsBad(err))
         {
@@ -624,6 +636,11 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
                     "Event View source {Name} ({Node}) ApplyChanges failed; " +
                     "source remains in the list but won't deliver events.",
                     displayName, nodeId);
+                // Make the failure visible in the source list so the user
+                // can see WHY no events flow and choose to Remove the row.
+                // Sticky so it survives the next publish/keep-alive refresh.
+                source.CreationFailure = $"FAILED: {applyEx.Message}";
+                RefreshStatus();
                 return;
             }
 
