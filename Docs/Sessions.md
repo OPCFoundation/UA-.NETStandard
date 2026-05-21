@@ -410,6 +410,29 @@ The dispatcher is the only framework-initiated `Reuse()` caller.
 Handler code that follows the retain-by-copy rule never reaches
 the unsafe pattern.
 
+### Server-side request/response pooling
+
+On the server side, decoded `IServiceRequest` and `IServiceResponse`
+objects are automatically returned to their activator pools after the
+service handler completes and the response is encoded to the wire.
+This is **unconditional** — no opt-in flag is required — because the
+server framework owns the full lifecycle of both objects:
+
+- The request is decoded by the channel, consumed by the service
+  handler, and never exposed to application code by reference.
+- The response is constructed by the handler, encoded by the channel's
+  `WriteSymmetricMessage` / `BinaryEncoder.EncodeMessage` path, and
+  then has no further consumers.
+
+The reuse calls are placed in `finally` blocks in
+`TcpTransportListener.OnRequestReceivedAsync` (UA-TCP transport) and
+`EndpointBase.InvokeServiceAsync` (HTTPS transport), ensuring both
+objects are released regardless of success or failure.
+
+Server-side node managers and service handlers do not need any code
+changes to benefit from this pooling — it is transparent at the
+channel/transport layer.
+
 ### Choosing an engine
 
 | Scenario | Engine |

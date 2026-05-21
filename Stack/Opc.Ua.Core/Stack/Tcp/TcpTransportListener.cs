@@ -1066,6 +1066,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             IServiceRequest request)
         {
+            IServiceResponse? response = null;
             try
             {
                 if (m_callback != null)
@@ -1078,7 +1079,7 @@ namespace Opc.Ua.Bindings
                         channel.ServerCertificate?.RawData,
                         channel.ChannelThumbprint);
 
-                    IServiceResponse response = await m_callback.ProcessRequestAsync(
+                    response = await m_callback.ProcessRequestAsync(
                         context,
                         request).ConfigureAwait(false);
 
@@ -1128,6 +1129,15 @@ namespace Opc.Ua.Bindings
                         faultEx,
                         "TCPLISTENER - Failed to send fault response to client.");
                 }
+            }
+            finally
+            {
+                // Return decoded request and response to their activator
+                // pools for reuse. Both have been fully consumed at this
+                // point: the request by the service handler and the
+                // response by the channel's wire-encode path.
+                (request as IPooledEncodeable)?.Reuse();
+                (response as IPooledEncodeable)?.Reuse();
             }
         }
 
