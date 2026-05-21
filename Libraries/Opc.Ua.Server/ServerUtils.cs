@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             public EventType EventType;
             public NodeId NodeId;
             public uint ServerHandle;
-            public DataValue? Value;
+            public DataValue Value;
             public MonitoringParameters? Parameters;
             public MonitoringMode MonitoringMode;
         }

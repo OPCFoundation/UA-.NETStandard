@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             using var stream = new MemoryStream(m_encodedBuffer!, writable: false);
             using var decoder = new BinaryDecoder(stream, m_context!);
-            ArrayOf<DataValue?> read = decoder.ReadDataValueArray(null);
+            ArrayOf<DataValue> read = decoder.ReadDataValueArray(null);
             return read.Count;
         }
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             }
             stream.Position = 0;
             using var decoder = new BinaryDecoder(stream, m_context!);
-            ArrayOf<DataValue?> read = decoder.ReadDataValueArray(null);
+            ArrayOf<DataValue> read = decoder.ReadDataValueArray(null);
             return read.Count;
         }
 

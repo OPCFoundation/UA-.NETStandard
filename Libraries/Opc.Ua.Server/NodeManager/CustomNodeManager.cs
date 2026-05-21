@@ -2011,12 +2011,10 @@ namespace Opc.Ua.Server
                     var propertyState = handle.Node as PropertyState;
                     Variant previousPropertyValue = propertyState?.Value ?? default;
 
-                    DataValue? oldValue = null;
+                    DataValue oldValue = default;
 
                     if (Server?.Auditing == true)
                     {
-                        //current server supports auditing
-                        oldValue = new DataValue();
                         // read the old value for the purpose of auditing
                         handle.Node.ReadAttribute(
                             systemContext,
@@ -2037,7 +2035,7 @@ namespace Opc.Ua.Server
                     Server.ReportAuditWriteUpdateEvent(
                         systemContext,
                         nodeToWrite,
-                        oldValue!,
+                        oldValue.WrappedValue,
                         errors[ii]?.StatusCode ?? StatusCodes.Good,
                         m_logger);
 

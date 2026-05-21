@@ -109,7 +109,7 @@ namespace Opc.Ua.Server
         public bool QueueRawValue(DataValue value)
         {
             // ignore bad data.
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -156,16 +156,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the next processed value.
+        /// Tries to produce the next processed value.
         /// </summary>
         /// <param name="returnPartial">If true a partial interval should be processed.</param>
-        /// <returns>The processed value. Null if nothing available and returnPartial is false.</returns>
-        public DataValue? GetProcessedValue(bool returnPartial)
+        /// <param name="value">The processed value when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a processed value is available; otherwise <c>false</c>.</returns>
+        public bool TryGetProcessedValue(bool returnPartial, out DataValue value)
         {
             // check if all done.
             if (Complete)
             {
-                return null;
+                value = default;
+                return false;
             }
 
             // update the slice.
@@ -181,7 +183,8 @@ namespace Opc.Ua.Server
             // check if a value can be produced.
             if (!CurrentSlice.Complete && !returnPartial)
             {
-                return null;
+                value = default;
+                return false;
             }
 
             // check if the slice extends beyond the range of available data.
@@ -197,15 +200,15 @@ namespace Opc.Ua.Server
             m_logger.LogTrace("Computing Aggregate {StartTime:HH:mm:ss.fff}", CurrentSlice.StartTime);
 
             // compute the value.
-            DataValue value = ComputeValue(CurrentSlice);
+            DataValue computed = ComputeValue(CurrentSlice);
 
             // check if overlapping the start of data.
             if (SetPartialBit)
             {
                 if (m_startOfData > earlyTime && m_startOfData < lateTime)
                 {
-                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial));
+                    computed = computed.WithStatus(computed.StatusCode.WithAggregateBits(
+                        computed.StatusCode.AggregateBits | AggregateBits.Partial));
                 }
 
                 if (!UsingExtrapolation &&
@@ -213,15 +216,15 @@ namespace Opc.Ua.Server
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
-                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial));
+                    computed = computed.WithStatus(computed.StatusCode.WithAggregateBits(
+                        computed.StatusCode.AggregateBits | AggregateBits.Partial));
                 }
             }
 
             // force value to null if status code is bad.
-            if (StatusCode.IsBad(value.StatusCode))
+            if (StatusCode.IsBad(computed.StatusCode))
             {
-                value = value.WithWrappedValue(Variant.Null);
+                computed = computed.WithWrappedValue(Variant.Null);
             }
 
             // delete unneeded data.
@@ -270,8 +273,8 @@ namespace Opc.Ua.Server
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
-                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial));
+                    computed = computed.WithStatus(computed.StatusCode.WithAggregateBits(
+                        computed.StatusCode.AggregateBits | AggregateBits.Partial));
                 }
             }
             else
@@ -280,7 +283,8 @@ namespace Opc.Ua.Server
             }
 
             // return the processed value.
-            return value;
+            value = computed;
+            return true;
         }
 
         /// <summary>
@@ -365,12 +369,12 @@ namespace Opc.Ua.Server
         /// <returns>Less than 0 if value1 is earlier than value2; 0 if they are equal; Greater than zero otherwise.</returns>
         protected int CompareTimestamps(DataValue value1, DataValue value2)
         {
-            if (value1 == null)
+            if (value1.IsNull)
             {
-                return value2 == null ? 0 : -1;
+                return value2.IsNull ? 0 : -1;
             }
 
-            if (value2 == null)
+            if (value2.IsNull)
             {
                 return +1;
             }
@@ -409,7 +413,7 @@ namespace Opc.Ua.Server
         {
             if (value2 == null)
             {
-                return value1 == null ? 0 : +1;
+                return value1.IsNull ? 0 : +1;
             }
 
             return CompareTimestamps(value1, value2.Value);
@@ -446,7 +450,7 @@ namespace Opc.Ua.Server
         /// <returns>Less than 0 if value1 is earlier than value2; 0 if they are equal; Greater than zero otherwise.</returns>
         protected int CompareTimestamps(DateTimeUtc value1, LinkedListNode<DataValue> value2)
         {
-            if (value2 == null || value2.Value == null)
+            if (value2 == null || value2.Value.IsNull)
             {
                 return +1;
             }
@@ -466,7 +470,7 @@ namespace Opc.Ua.Server
         /// <returns>True if the value is good.</returns>
         protected bool IsGood(DataValue value)
         {
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -1041,7 +1045,7 @@ namespace Opc.Ua.Server
 
             if (!Stepped)
             {
-                if (endBound != null)
+                if (!endBound.IsNull)
                 {
                     // do sloped interpolation if two good bounds exist.
                     if (IsGood(endBound.Value))
@@ -1090,7 +1094,7 @@ namespace Opc.Ua.Server
             // add the start point.
             DataValue startBound = GetSimpleBound(slice.StartTime, slice);
 
-            if (startBound != null)
+            if (!startBound.IsNull)
             {
                 values.Add(startBound);
             }
@@ -1112,7 +1116,7 @@ namespace Opc.Ua.Server
             // add the end point.
             DataValue endBound = GetSimpleBound(slice.EndTime, slice);
 
-            if (endBound != null)
+            if (!endBound.IsNull)
             {
                 values.Add(endBound);
             }
@@ -1182,7 +1186,7 @@ namespace Opc.Ua.Server
             // add the start point.
             DataValue startBound = Interpolate(slice.StartTime, slice);
 
-            if (startBound != null)
+            if (!startBound.IsNull)
             {
                 values.Add(startBound);
             }
@@ -1204,7 +1208,7 @@ namespace Opc.Ua.Server
             // add the end point.
             DataValue endBound = Interpolate(slice.EndTime, slice);
 
-            if (endBound != null)
+            if (!endBound.IsNull)
             {
                 values.Add(endBound);
             }
@@ -1245,7 +1249,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// The data point at the start of the region.
             /// </summary>
-            public DataValue? DataPoint;
+            public DataValue DataPoint;
         }
 
         /// <summary>

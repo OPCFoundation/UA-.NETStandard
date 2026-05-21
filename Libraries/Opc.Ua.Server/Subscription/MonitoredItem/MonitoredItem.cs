@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
             QueueSize = 0;
             m_discardOldest = true;
             Filter = null!;
-            m_lastValue = null;
+            m_lastValue = default;
             m_lastError = null;
             m_readyToPublish = false;
             m_readyToTrigger = false;
@@ -795,7 +795,7 @@ namespace Opc.Ua.Server
                 {
                     m_nextSamplingTime = HiResClock.TickCount64;
                     m_lastError = null;
-                    m_lastValue = null;
+                    m_lastValue = default;
                 }
 
                 MonitoringMode = monitoringMode;
@@ -899,12 +899,9 @@ namespace Opc.Ua.Server
                             Id);
                     }
 
-                    DataValue? processedValue = m_calculator.GetProcessedValue(false);
-
-                    while (processedValue != null)
+                    while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
                     {
                         AddValueToQueue(processedValue, null!);
-                        processedValue = m_calculator.GetProcessedValue(false);
                     }
 
                     return;
@@ -935,7 +932,7 @@ namespace Opc.Ua.Server
                 overflow = m_dataChangeQueueHandler!.QueueValue(value, error);
             }
 
-            if (m_lastValue != null)
+            if (!m_lastValue.IsNull)
             {
                 m_readyToTrigger = true;
             }
@@ -1365,15 +1362,15 @@ namespace Opc.Ua.Server
                     // pull any unprocessed data.
                     if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
-                        DataValue? processedValue = m_calculator.GetProcessedValue(false);
-
-                        while (processedValue != null)
+                        while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
                         {
                             AddValueToQueue(processedValue, null!);
                         }
 
-                        processedValue = m_calculator.GetProcessedValue(true);
-                        AddValueToQueue(processedValue!, null!);
+                        if (m_calculator.TryGetProcessedValue(true, out DataValue partialValue))
+                        {
+                            AddValueToQueue(partialValue, null!);
+                        }
                     }
 
                     IncrementSampleTime();
@@ -1406,12 +1403,12 @@ namespace Opc.Ua.Server
                     {
                         m_logger.LogTrace(
                             "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                            m_lastValue!.WrappedValue,
+                            m_lastValue.WrappedValue,
                             m_lastValue.StatusCode.Code,
                             m_lastValue.StatusCode.Code,
                             m_lastValue.StatusCode.Overflow);
                     }
-                    Publish(context, notifications, diagnostics, m_lastValue!, m_lastError!);
+                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -1584,7 +1581,7 @@ namespace Opc.Ua.Server
                 Id = Id,
                 IndexRange = m_indexRange!,
                 LastError = m_lastError!,
-                LastValue = m_lastValue!,
+                LastValue = m_lastValue,
                 MonitoringMode = MonitoringMode,
                 NodeId = NodeId,
                 OriginalFilter = Filter!,
@@ -1609,7 +1606,7 @@ namespace Opc.Ua.Server
             return ValueChanged(
                 value,
                 error,
-                m_lastValue!,
+                m_lastValue,
                 m_lastError!,
                 m_cachedDataChangeFilter!,
                 m_range);
@@ -1772,7 +1769,7 @@ namespace Opc.Ua.Server
                             DiagnosticsMasks);
                         m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
 
-                        if (queueLastValue && m_lastValue != null)
+                        if (queueLastValue && !m_lastValue.IsNull)
                         {
                             m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
                         }
@@ -1952,7 +1949,7 @@ namespace Opc.Ua.Server
         private double m_samplingInterval;
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
-        private DataValue? m_lastValue;
+        private DataValue m_lastValue;
         private ServiceResult? m_lastError;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;

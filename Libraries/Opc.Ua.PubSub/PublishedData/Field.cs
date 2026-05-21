@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Get/Set Value
         /// </summary>
-        public DataValue? Value { get; set; }
+        public DataValue Value { get; set; }
 
         /// <summary>
         /// Get/Set Target NodeId

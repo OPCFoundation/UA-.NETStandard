@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ValueTask<DataValue> GetValueAsync(NodeId nodeId, CancellationToken ct)
         {
-            return m_values.TryGet(nodeId, out DataValue? dataValue)
+            return m_values.TryGet(nodeId, out DataValue dataValue)
                 ? new ValueTask<DataValue>(dataValue)
                 : FindAsyncCore(nodeId, ct);
             ValueTask<DataValue> FindAsyncCore(NodeId nodeId, CancellationToken ct)
@@ -254,27 +254,27 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             int count = nodeIds.Count;
-            var result = new List<DataValue?>(nodeIds.Count);
+            var result = new List<DataValue>(nodeIds.Count);
             if (count != 0)
             {
                 var notFound = new List<NodeId>();
                 foreach (NodeId nodeId in nodeIds)
                 {
-                    if (m_values.TryGet(nodeId, out DataValue? dataValue))
+                    if (m_values.TryGet(nodeId, out DataValue dataValue))
                     {
                         result.Add(dataValue);
                         continue;
                     }
                     notFound.Add(nodeId);
-                    result.Add(null);
+                    result.Add(default);
                 }
                 if (notFound.Count != 0)
                 {
                     return FetchRemainingAsync(notFound, result, ct);
                 }
             }
-            Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return new ValueTask<ArrayOf<DataValue>>(result.ToArrayOf()!);
+            Debug.Assert(!result.Any(r => r.IsNull)); // None now should be null
+            return new ValueTask<ArrayOf<DataValue>>(result.ToArrayOf());
         }
 
         /// <inheritdoc/>
@@ -1102,10 +1102,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private async ValueTask<ArrayOf<DataValue>> FetchRemainingAsync(
             List<NodeId> remainingIds,
-            List<DataValue?> result,
+            List<DataValue> result,
             CancellationToken ct)
         {
-            Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
+            Debug.Assert(result.Count(r => r.IsNull) == remainingIds.Count);
 
             // fetch nodes and references from server.
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> readErrors) =
@@ -1129,15 +1129,15 @@ namespace Opc.Ua.Client
                     // Add to cache
                     m_values.AddOrUpdate(remainingIds[index], values[index]);
                 }
-                while (result[resultMissingIndex] != null)
+                while (!result[resultMissingIndex].IsNull)
                 {
                     resultMissingIndex++;
                     Debug.Assert(resultMissingIndex < result.Count);
                 }
                 result[resultMissingIndex] = values[index];
             }
-            Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return result.ToArrayOf()!;
+            Debug.Assert(!result.Any(r => r.IsNull)); // None now should be null
+            return result.ToArrayOf();
         }
 
         /// <summary>

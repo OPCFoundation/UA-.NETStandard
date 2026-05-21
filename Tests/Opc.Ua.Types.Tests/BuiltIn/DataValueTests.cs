@@ -485,7 +485,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             string result = dv.ToString();
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result, Does.Contain("42"));
         }
 
@@ -727,7 +727,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = dv.GetValueOrDefault<string>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -762,7 +762,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = dv.GetValueOrDefault<string>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -776,7 +776,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Argument result = dv.GetValueOrDefault<Argument>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Name, Is.EqualTo("test"));
         }
 
@@ -832,7 +832,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Argument result = dv.GetValue<Argument>(null);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Name, Is.EqualTo("test"));
         }
 
@@ -872,7 +872,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             string result = dv.ToString();
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]

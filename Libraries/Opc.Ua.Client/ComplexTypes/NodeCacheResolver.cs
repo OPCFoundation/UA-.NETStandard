@@ -450,7 +450,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // read the enum type array
                 DataValue value = await GetValueAsync(property.NodeId, ct).ConfigureAwait(false);
-                return value?.WrappedValue ?? default;
+                return value.IsNull ? default : value.WrappedValue;
             }
             return default;
         }
