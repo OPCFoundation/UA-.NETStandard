@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
                 ApplicationUri = "urn:other",
             });
             Assert.That(accepted, Is.False);
-            Assert.That(received, Is.EqualTo(0));
+            Assert.That(received, Is.Zero);
 
             accepted = reader.Submit(new AliasUpdateDataType
             {
@@ -90,7 +90,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
 
             int invalidations = 0;
             await strategy.StartAsync(
-                client, () => invalidations++, CancellationToken.None);
+                client, () => invalidations++, CancellationToken.None).ConfigureAwait(false);
             try
             {
                 // Matching update — must fire.
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
             }
             finally
             {
-                await strategy.DisposeAsync();
+                await strategy.DisposeAsync().ConfigureAwait(false);
             }
         }
 

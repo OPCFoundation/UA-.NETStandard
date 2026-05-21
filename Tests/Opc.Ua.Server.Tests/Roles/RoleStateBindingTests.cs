@@ -542,7 +542,7 @@ namespace Opc.Ua.Server.Tests.Roles
 
             Assert.That(result.ServiceResult.StatusCode,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(m_nodeManager.PredefinedNodes.Count, Is.EqualTo(countBefore),
+            Assert.That(m_nodeManager.PredefinedNodes, Has.Count.EqualTo(countBefore),
                 "Auth failures must not leave a partially-materialized node.");
         }
 

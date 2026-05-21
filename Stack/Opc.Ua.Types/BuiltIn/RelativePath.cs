@@ -32,6 +32,9 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
+// TODO: RCS1256 — needs polyfill for net48
+#pragma warning disable RCS1256 // Invalid argument null check
+
 namespace Opc.Ua
 {
     /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Opc.Ua.Security.Certificates;
+using TUnit.Core;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -39,13 +40,13 @@ namespace Opc.Ua.Aot.Tests
     public static class LeakDetectionSetup
     {
         [Before(Assembly)]
-        public static void GlobalSetup()
+        public static void GlobalSetup(AssemblyHookContext context)
         {
             Certificate.ResetLeakCounters();
         }
 
         [After(Assembly)]
-        public static void GlobalTeardown()
+        public static void GlobalTeardown(AssemblyHookContext context)
         {
             // Force GC to finalize any abandoned certificates. Multiple
             // cycles ensure that finalizable objects whose finalizer

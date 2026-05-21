@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(roleIds, Has.Member(ObjectIds.WellKnownRole_Supervisor));
             Assert.That(roleIds, Has.Member(ObjectIds.WellKnownRole_ConfigureAdmin));
             Assert.That(roleIds, Has.Member(ObjectIds.WellKnownRole_SecurityAdmin));
-            Assert.That(roleIds.Count, Is.EqualTo(9));
+            Assert.That(roleIds, Has.Count.EqualTo(9));
         }
 
         [Test]
@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_Anonymous);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.Identities.Count, Is.EqualTo(2));
+            Assert.That(entry!.Identities, Has.Count.EqualTo(2));
             Assert.That(entry.Identities.Any(r => r.CriteriaType == IdentityCriteriaType.Anonymous), Is.True);
             Assert.That(entry.Identities.Any(r => r.CriteriaType == IdentityCriteriaType.AuthenticatedUser), Is.True);
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_AuthenticatedUser);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.Identities.Count, Is.EqualTo(1));
+            Assert.That(entry!.Identities, Has.Count.EqualTo(1));
             Assert.That(entry.Identities[0].CriteriaType, Is.EqualTo(IdentityCriteriaType.AuthenticatedUser));
         }
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_TrustedApplication);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.Identities.Count, Is.EqualTo(1));
+            Assert.That(entry!.Identities, Has.Count.EqualTo(1));
             Assert.That(entry.Identities[0].CriteriaType, Is.EqualTo(IdentityCriteriaType.TrustedApplication));
         }
 

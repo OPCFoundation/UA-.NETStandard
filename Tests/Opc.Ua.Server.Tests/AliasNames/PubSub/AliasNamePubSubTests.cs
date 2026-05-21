@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.NamespaceUri,
                 Is.EqualTo("http://example.org/MyServer/"));
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.NamespaceUri,
                 Is.EqualTo("http://example.org/MyServer/"));
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
             Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(portable.Identifier.TryGetValue(out uint numeric), Is.True);
             Assert.That(numeric, Is.EqualTo(42u));
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             PortableNodeId portable = resolver.ToPortable(new NodeId(guid, 1));
 
             Assert.That(portable, Is.Not.Null);
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
             Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(portable.Identifier.TryGetValue(out Guid g), Is.True);
             Assert.That(g, Is.EqualTo(guid));
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1));
 
             Assert.That(portable, Is.Not.Null);
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
             Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Opaque));
             Assert.That(portable.Identifier.TryGetValue(out ByteString opaque), Is.True);
             Assert.That(opaque.Span.ToArray(), Is.EqualTo(bytes));

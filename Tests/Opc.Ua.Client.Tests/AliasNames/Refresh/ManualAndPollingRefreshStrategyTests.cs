@@ -59,18 +59,18 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             await strategy.StartAsync(
                 client,
                 () => invalidations++,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
-            await Task.Delay(50);
-            Assert.That(invalidations, Is.EqualTo(0));
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(invalidations, Is.Zero);
         }
 
         [Test]
         public async Task DisposeAsyncIsIdempotentAsync()
         {
             var strategy = new ManualAliasNameRefreshStrategy();
-            await strategy.DisposeAsync();
-            await strategy.DisposeAsync();
+            await strategy.DisposeAsync().ConfigureAwait(false);
+            await strategy.DisposeAsync().ConfigureAwait(false);
             Assert.Pass();
         }
     }
@@ -112,18 +112,18 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             await using var strategy = new PollingAliasNameRefreshStrategy(
                 TimeSpan.FromMilliseconds(120));
             await strategy.StartAsync(client, () => invalidations++,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
-            await WaitForAsync(() => invalidations >= 1);
+            await WaitForAsync(() => invalidations >= 1).ConfigureAwait(false);
             int firstInvalidations = invalidations;
 
             // Same value — must NOT bump.
-            await Task.Delay(300);
+            await Task.Delay(300).ConfigureAwait(false);
             Assert.That(invalidations, Is.EqualTo(firstInvalidations));
 
             // Wraparound — must bump.
             nextReturn = 0;
-            await WaitForAsync(() => invalidations > firstInvalidations);
+            await WaitForAsync(() => invalidations > firstInvalidations).ConfigureAwait(false);
             Assert.That(invalidations, Is.GreaterThan(firstInvalidations));
         }
 
@@ -142,11 +142,11 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             var strategy = new PollingAliasNameRefreshStrategy(
                 TimeSpan.FromMilliseconds(100));
             await strategy.StartAsync(client, () => invalidations++,
-                CancellationToken.None);
-            await Task.Delay(200);
-            await strategy.DisposeAsync();
+                CancellationToken.None).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+            await strategy.DisposeAsync().ConfigureAwait(false);
             int snapshot = invalidations;
-            await Task.Delay(300);
+            await Task.Delay(300).ConfigureAwait(false);
             Assert.That(invalidations, Is.EqualTo(snapshot));
         }
 
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             for (int i = 0; i < 50 && !predicate(); i++)
             {
-                await Task.Delay(50);
+                await Task.Delay(50).ConfigureAwait(false);
             }
             Assert.That(predicate(), Is.True, "Predicate did not become true within 2.5s.");
         }

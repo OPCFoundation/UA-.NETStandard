@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .ConfigureAwait(false);
 
                 Assert.That(result.ServiceResult, Is.EqualTo(ServiceResult.Good));
-                Assert.That(result.AliasNodeList.Count, Is.EqualTo(0),
+                Assert.That(result.AliasNodeList.Count, Is.Zero,
                     "Empty result list must round-trip through ToArrayOf without throwing.");
             }
         }
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .ConfigureAwait(false);
 
                 Assert.That(result.ServiceResult, Is.EqualTo(ServiceResult.Good));
-                Assert.That(result.AliasNodeList.Count, Is.EqualTo(0));
+                Assert.That(result.AliasNodeList.Count, Is.Zero);
             }
         }
 

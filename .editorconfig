@@ -881,7 +881,7 @@ dotnet_diagnostic.RCS1187.severity                                            = 
 # RCS1188 Remove redundant auto-property initialization
 dotnet_diagnostic.RCS1188.severity                                            = suggestion
 # RCS1189 Add or remove region name
-#dotnet_diagnostic.RCS1189.severity                                           = suggestion
+dotnet_diagnostic.RCS1189.severity                                            = suggestion
 # RCS1190 Join string expressions
 dotnet_diagnostic.RCS1190.severity                                            = suggestion
 # RCS1191 Declare enum value as combination of names
@@ -953,7 +953,7 @@ dotnet_diagnostic.RCS1214.severity                                            = 
 # RCS1225 Make class sealed
 dotnet_diagnostic.RCS1225.severity                                            = suggestion
 # RCS1226 Add paragraph to documentation comment
-#dotnet_diagnostic.RCS1226.severity                                           = suggestion
+dotnet_diagnostic.RCS1226.severity                                            = suggestion
 # RCS1227 Validate arguments correctly
 dotnet_diagnostic.RCS1227.severity                                            = warning
 # RCS1228 Unused element in a documentation comment
@@ -1013,7 +1013,7 @@ dotnet_diagnostic.RCS1252.severity                                            = 
 # RCS1255 Simplify argument null check
 #dotnet_diagnostic.RCS1255.severity                                           = suggestion
 # RCS1256 Invalid argument null check
-#dotnet_diagnostic.RCS1256.severity                                           = suggestion
+dotnet_diagnostic.RCS1256.severity                                            = warning
 # RCS1257 Use enum field explicitly
 dotnet_diagnostic.RCS1257.severity                                            = suggestion
 # RCS1258 Unnecessary enum flag
@@ -1077,7 +1077,7 @@ dotnet_diagnostic.NUnit2003.severity = suggestion
 dotnet_diagnostic.NUnit2004.severity = suggestion
 dotnet_diagnostic.NUnit2005.severity = suggestion
 dotnet_diagnostic.NUnit2006.severity = suggestion
-dotnet_diagnostic.NUnit2010.severity = suggestion
+dotnet_diagnostic.NUnit2010.severity = warning
 dotnet_diagnostic.NUnit2015.severity = suggestion
 dotnet_diagnostic.NUnit2016.severity = suggestion
 dotnet_diagnostic.NUnit2017.severity = suggestion
@@ -1107,6 +1107,9 @@ dotnet_diagnostic.NUnit2054.severity = suggestion
 dotnet_diagnostic.NUnit2055.severity = suggestion
 dotnet_diagnostic.NUnit2056.severity = silent
 dotnet_diagnostic.NUnit2057.severity = suggestion
+dotnet_diagnostic.NUnit2046.severity = warning
+dotnet_diagnostic.NUnit4002.severity = warning
+dotnet_diagnostic.TUnit0057.severity = warning
 
 # exclude generated code
 

@@ -73,7 +73,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.Open(mode, ref handle);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
-            Assert.That(handle, Is.EqualTo(0u), "No handle is allocated for a rejected mode.");
+            Assert.That(handle, Is.Zero, "No handle is allocated for a rejected mode.");
         }
 
         [Test]
@@ -109,7 +109,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.Open(ModeWriteErase, ref second);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-            Assert.That(second, Is.EqualTo(0u));
+            Assert.That(second, Is.Zero);
         }
 
         [Test]
@@ -168,7 +168,7 @@ namespace Opc.Ua.WotCon.Tests
                 ulong pos = 999;
                 ServiceResult getResult = harness.GetPosition(handle, ref pos);
                 Assert.That(ServiceResult.IsGood(getResult), Is.True);
-                Assert.That(pos, Is.EqualTo(0ul));
+                Assert.That(pos, Is.Zero);
 
                 Assert.That(ServiceResult.IsGood(harness.SetPosition(handle, 3)), Is.True);
 
@@ -288,8 +288,8 @@ namespace Opc.Ua.WotCon.Tests
             harness.Close(handle);
 
             // Persistent content remains unchanged (was empty).
-            Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
-            Assert.That(harness.MaterialiseCallCount, Is.EqualTo(0));
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
             Assert.That(harness.LastMaterialisedTd, Is.Null);
         }
 
@@ -316,7 +316,7 @@ namespace Opc.Ua.WotCon.Tests
             // Subsequent Read returns the persisted TD bytes.
             byte[] downloaded = harness.Download();
             Assert.That(downloaded, Is.EqualTo(tdBytes));
-            await Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         [Test]
@@ -330,9 +330,9 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(result.StatusCode,
                 Is.EqualTo(StatusCodes.BadDecodingError));
-            Assert.That(harness.MaterialiseCallCount, Is.EqualTo(0));
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
             // Bad TD must not become the new persisted content.
-            Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
+            Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
         [Test]
@@ -361,7 +361,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(result.StatusCode,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
             // When the callback fails, the new bytes must not become persistent content.
-            Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
+            Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
         // ----------------------------------------------------------------
@@ -381,7 +381,7 @@ namespace Opc.Ua.WotCon.Tests
             harness.Close(h1);
             Assert.That(harness.File.OpenCount.Value, Is.EqualTo((ushort)1));
             harness.Close(h2);
-            Assert.That(harness.File.OpenCount.Value, Is.EqualTo((ushort)0));
+            Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
 
         // ----------------------------------------------------------------

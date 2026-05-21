@@ -82,13 +82,13 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var stream = new MemoryStream(tdBytes);
 
-            await file.UploadAndUpdateAsync(stream, chunkSize: 16, CancellationToken.None);
+            await file.UploadAndUpdateAsync(stream, chunkSize: 16, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(capturedMode, Is.EqualTo((byte)6)); // Write | EraseExisting
             Assert.That(writtenSoFar, Is.EqualTo(tdBytes));
             Assert.That(closeAndUpdateCalled, Is.True);
             // No raw Close call on success — only CloseAndUpdate.
-            Assert.That(mock.CountCallsTo(Ua.Methods.FileType_Close), Is.EqualTo(0));
+            Assert.That(mock.CountCallsTo(Ua.Methods.FileType_Close), Is.Zero);
             Assert.That(
                 mock.CountCallsTo(Methods.WoTAssetFileType_CloseAndUpdate),
                 Is.EqualTo(1));
@@ -108,9 +108,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var stream = new MemoryStream();
 
-            await file.UploadAndUpdateAsync(stream, chunkSize: 32, CancellationToken.None);
+            await file.UploadAndUpdateAsync(stream, chunkSize: 32, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(writes, Is.EqualTo(0));
+            Assert.That(writes, Is.Zero);
             Assert.That(closeAndUpdateCalled, Is.True);
         }
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             try
             {
-                await file.UploadAndUpdateAsync(stream, chunkSize: 4, CancellationToken.None);
+                await file.UploadAndUpdateAsync(stream, chunkSize: 4, CancellationToken.None).ConfigureAwait(false);
                 Assert.Fail("expected exception");
             }
             catch (InvalidOperationException)
@@ -139,7 +139,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 // expected
             }
             Assert.That(closeCalled, Is.True);
-            Assert.That(closeAndUpdateCalls, Is.EqualTo(0));
+            Assert.That(closeAndUpdateCalls, Is.Zero);
         }
 
         [Test]
@@ -147,7 +147,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             using var stream = new MemoryStream();
             Assert.That(
-                async () => await ((WoTAssetFileTypeClient)null!).UploadAndUpdateAsync(stream),
+                async () => await ((WoTAssetFileTypeClient)null!).UploadAndUpdateAsync(stream).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -158,7 +158,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var file = new WoTAssetFileTypeClient(
                 mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             Assert.That(
-                async () => await file.UploadAndUpdateAsync((Stream)null!),
+                async () => await file.UploadAndUpdateAsync((Stream)null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var stream = new MemoryStream();
             Assert.That(
-                async () => await file.UploadAndUpdateAsync(stream, chunkSize: 0),
+                async () => await file.UploadAndUpdateAsync(stream, chunkSize: 0).ConfigureAwait(false),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             var file = new WoTAssetFileTypeClient(
                 mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
-            await file.UploadAndUpdateAsync(payload.AsMemory(), ct: CancellationToken.None);
+            await file.UploadAndUpdateAsync(payload.AsMemory(), ct: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(writtenSoFar, Is.EqualTo(payload));
             Assert.That(closeAndUpdateCalled, Is.True);

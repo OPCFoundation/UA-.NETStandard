@@ -331,8 +331,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var body = new TestEncodeable(11);
             var left = new ExtensionObject(body);
             var right = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(11));
-            Assert.That(left == right, Is.True);
-            Assert.That(left != right, Is.False);
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(left, Is.EqualTo(right));
         }
 
         /// <summary>

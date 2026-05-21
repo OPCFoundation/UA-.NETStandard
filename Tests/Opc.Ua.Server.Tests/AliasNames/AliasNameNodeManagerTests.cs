@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 output,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.Null.Or.EqualTo(ServiceResult.Good));
-            Assert.That(output.Count, Is.EqualTo(1));
+            Assert.That(output, Has.Count.EqualTo(1));
             Assert.That(output[0].TryGetStructure(
                 out ArrayOf<AliasNameDataType> aliases), Is.True);
             Assert.That(aliases.Count, Is.EqualTo(1));

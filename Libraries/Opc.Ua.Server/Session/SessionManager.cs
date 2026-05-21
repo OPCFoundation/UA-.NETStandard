@@ -36,6 +36,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
+// TODO: RCS1256 — needs polyfill for net48
+#pragma warning disable RCS1256 // Invalid argument null check
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -635,18 +638,22 @@ namespace Opc.Ua.Server
         /// Assigns mandatory roles to the effective identity based on the session's security context.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Per OPC UA Part 3 §4.9, the <see cref="Role.TrustedApplication"/> role is always
         /// assigned when a Session has been authenticated with a trusted ApplicationInstance
         /// Certificate and uses at least a signed communication channel.
-        ///
+        /// </para>
+        /// <para>
         /// Per OPC UA Part 18 §4.4 the live <see cref="IRoleManager"/> identity-mapping rules
         /// are evaluated and any matching roles are layered on top of the identity supplied
         /// by the ImpersonateUser callback.
-        ///
+        /// </para>
+        /// <para>
         /// Per OPC UA Part 18 §5.2.8, when the session authenticates via a USERNAME token and
         /// the user has the <see cref="UserConfigurationMask.MustChangePassword"/> bit set,
         /// the session is restricted to the <see cref="Role.Anonymous"/> role only — the
         /// session can only call <c>ChangePassword</c> until the password is changed.
+        /// </para>
         /// </remarks>
         protected virtual IUserIdentity AddMandatoryRoles(
             ISession session,
@@ -758,6 +765,7 @@ namespace Opc.Ua.Server
         /// marked stale by a Role configuration change.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Implements OPC UA Part 18 §4.4.1 "live re-evaluation": when an
         /// <see cref="IRoleManager"/> identity-mapping rule changes, sessions
         /// receive the new role grants on the next request without needing
@@ -765,11 +773,13 @@ namespace Opc.Ua.Server
         /// <see cref="AddMandatoryRoles"/> using the original impersonated
         /// <see cref="ISession.Identity"/> as the starting point, so the
         /// outcome is deterministic and idempotent.
-        ///
+        /// </para>
+        /// <para>
         /// Multiple concurrent requests racing through this method may each
         /// compute the same refresh; the last writer wins. This is acceptable
         /// because the computation is pure with respect to the current
         /// RoleManager state.
+        /// </para>
         /// </remarks>
         protected virtual void ReevaluateIdentityIfStale(
             ISession session,
