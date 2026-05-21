@@ -263,7 +263,7 @@ namespace Opc.Ua.Bindings
                 bool badRequestInterrupted = false;
                 try
                 {
-                    if (timeout != int.MaxValue || ct != default)
+                    if (timeout != int.MaxValue || ct.CanBeCanceled)
                     {
                         await WaitAsync(waitTask, timeout, ct).ConfigureAwait(false);
                     }
@@ -488,7 +488,7 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource? timeoutCancellationTokenSource =
                 timeout != int.MaxValue ? new CancellationTokenSource(timeout) : null;
             using CancellationTokenSource? linkedCancellationTokenSource =
-                timeoutCancellationTokenSource != null && ct != default ?
+                timeoutCancellationTokenSource != null && ct.CanBeCanceled ?
                 CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCancellationTokenSource.Token) :
                 null;
 
