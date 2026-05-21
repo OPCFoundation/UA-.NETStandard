@@ -52,7 +52,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             // The proxy translates ExpandedNodeIds (e.g. WoTAssetFileType_CloseAndUpdate)
             // through this NamespaceUris table; if the URI isn't present, ToNodeId
             // returns NodeId.Null and dispatch can no longer recover the numeric id.
-            messageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.WotCon.Namespaces.WotCon);
+            messageContext.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
 
             m_sessionMock = new Mock<ISessionClient>(MockBehavior.Strict);
             m_sessionMock.SetupGet(s => s.MessageContext).Returns(messageContext);
@@ -88,7 +88,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         public void OnOpen(Func<byte, uint> handler)
         {
-            m_handlers[Opc.Ua.Methods.FileType_Open] = req =>
+            m_handlers[Ua.Methods.FileType_Open] = req =>
             {
                 req.InputArguments[0].TryGetValue(out byte mode);
                 uint handle = handler(mode);
@@ -98,7 +98,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         public void OnRead(Func<uint, int, byte[]> handler)
         {
-            m_handlers[Opc.Ua.Methods.FileType_Read] = req =>
+            m_handlers[Ua.Methods.FileType_Read] = req =>
             {
                 req.InputArguments[0].TryGetValue(out uint h);
                 req.InputArguments[1].TryGetValue(out int len);
@@ -109,7 +109,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         public void OnWrite(Action<uint, byte[]> handler)
         {
-            m_handlers[Opc.Ua.Methods.FileType_Write] = req =>
+            m_handlers[Ua.Methods.FileType_Write] = req =>
             {
                 req.InputArguments[0].TryGetValue(out uint h);
                 req.InputArguments[1].TryGetValue(out ByteString data);
@@ -121,7 +121,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         public void OnClose(Action<uint> handler)
         {
-            m_handlers[Opc.Ua.Methods.FileType_Close] = req =>
+            m_handlers[Ua.Methods.FileType_Close] = req =>
             {
                 req.InputArguments[0].TryGetValue(out uint h);
                 handler(h);
@@ -131,7 +131,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         public void OnCloseAndUpdate(Action<uint> handler)
         {
-            m_handlers[Opc.Ua.WotCon.Methods.WoTAssetFileType_CloseAndUpdate] = req =>
+            m_handlers[Methods.WoTAssetFileType_CloseAndUpdate] = req =>
             {
                 req.InputArguments[0].TryGetValue(out uint h);
                 handler(h);

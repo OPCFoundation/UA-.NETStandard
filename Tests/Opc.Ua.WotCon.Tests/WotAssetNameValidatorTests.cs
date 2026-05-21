@@ -62,7 +62,7 @@ namespace Opc.Ua.WotCon.Tests
         public void ValidateRejectsEmptyOrWhitespace(string? name)
         {
             ServiceResult result = WotAssetNameValidator.Validate(name);
-            Assert.That((uint)result.StatusCode.Code,
+            Assert.That(result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             ServiceResult result = WotAssetNameValidator.Validate(name);
             Assert.That(ServiceResult.IsBad(result), Is.True);
-            Assert.That((uint)result.StatusCode.Code,
+            Assert.That(result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 

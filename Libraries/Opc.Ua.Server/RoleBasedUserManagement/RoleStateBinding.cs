@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
             m_nodeManager = nodeManager;
             m_roleManager = roleManager;
             m_auditServer = auditServer;
-            m_logger = (nodeManager.Server as IServerInternal)?.Telemetry?.CreateLogger<RoleStateBinding>()
+            m_logger = nodeManager.Server?.Telemetry?.CreateLogger<RoleStateBinding>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RoleStateBinding>.Instance;
         }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server
             }
 
             RoleSetState? roleSet = nodeManager.FindPredefinedNode<RoleSetState>(
-                Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet);
+                ObjectIds.Server_ServerCapabilities_RoleSet);
             if (roleSet == null)
             {
                 return null;

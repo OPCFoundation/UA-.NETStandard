@@ -626,12 +626,13 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            object? sessionId = null;
             int subscriptionCount;
             int requestCount;
             int readyToPublishCount = 0;
             int expiredCount = 0;
 
+
+            object? sessionId;
             lock (m_lock)
             {
                 sessionId = m_session?.Id;

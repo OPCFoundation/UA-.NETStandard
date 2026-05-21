@@ -371,7 +371,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             Assert.That(async () =>
             {
-                await file.DownloadToAsync((Stream)null!);
+                await file.DownloadToAsync(null!);
             }, Throws.ArgumentNullException);
         }
 

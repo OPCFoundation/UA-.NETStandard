@@ -35,7 +35,7 @@ namespace Opc.Ua.Aot.Tests
     /// AOT integration tests that verify the source-generated typed
     /// <c>Publish&lt;TEvent&gt;</c> overload on the boiler's
     /// <c>DrumX001</c> notifier wrapper actually wires an
-    /// <see cref="System.Collections.Generic.IAsyncEnumerable{T}"/>
+    /// <see cref="IAsyncEnumerable{T}"/>
     /// event source through the runtime
     /// <c>EventSourceRegistry</c> and dispatches events to
     /// monitored items under NativeAOT constraints (no JIT, no

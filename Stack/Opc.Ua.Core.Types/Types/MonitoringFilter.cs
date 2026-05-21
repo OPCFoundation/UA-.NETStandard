@@ -861,7 +861,7 @@ namespace Opc.Ua
 
             foreach (SimpleAttributeOperand clause in m_selectClauses)
             {
-                ServiceResult? clauseResult = null;
+                ServiceResult? clauseResult;
 
                 // check for null.
                 if (clause == null)

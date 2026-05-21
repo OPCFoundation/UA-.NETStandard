@@ -33,7 +33,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -564,7 +563,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             INodeBuilder<BaseObjectState> nodeBuilder = nonFluentBuilder.Node<BaseObjectState>(notifier.BrowseName.Name);
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                nodeBuilder.Publish<BaseObjectState, BaseEventState>(
+                nodeBuilder.Publish(
                     (_, _, ct) => EmptyStream(ct)));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -602,7 +601,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var channel = Channel.CreateUnbounded<BaseEventState>();
             builder.Node<BaseObjectState>(notifier.BrowseName.Name)
-                .Publish<BaseObjectState, BaseEventState>(
+                .Publish(
                     (_, _, ct) => channel.Reader.ReadAllAsync(ct),
                     new EventPublishOptions { AlwaysOn = true });
 
@@ -647,7 +646,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     source: AsyncEnumerable.Empty<BaseEventState>()));
 
             Assert.Throws<ArgumentNullException>(() =>
-                nodeBuilder.Publish<BaseObjectState, BaseEventState>(
+                nodeBuilder.Publish(
                     source: (IAsyncEnumerable<BaseEventState>)null));
         }
 

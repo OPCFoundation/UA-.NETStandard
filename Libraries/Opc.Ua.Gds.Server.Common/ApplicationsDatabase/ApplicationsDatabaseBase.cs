@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Opc.Ua.Security;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Gds.Server.Database
 {

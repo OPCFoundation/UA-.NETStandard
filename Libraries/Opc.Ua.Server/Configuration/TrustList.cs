@@ -558,8 +558,7 @@ namespace Opc.Ua.Server
 
             ServiceResult result = StatusCodes.Good;
 
-            MemoryStream? strm = null;
-
+            MemoryStream? strm;
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&

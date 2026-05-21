@@ -192,8 +192,8 @@ namespace Opc.Ua.Client.Tests.AliasNames
             var client = AliasNameClient
                 .OpenStandardAliases(m_session);
 
-            var names = new System.Collections.Generic.HashSet<string>();
-            var nodeIds = new System.Collections.Generic.HashSet<NodeId>();
+            var names = new HashSet<string>();
+            var nodeIds = new HashSet<NodeId>();
             await foreach (AliasNameSubCategoryInfo info in
                 client.EnumerateSubCategoriesAsync())
             {

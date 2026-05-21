@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                         ReferenceTypeIds.AliasFor)])
                 .ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode.Code,
+            Assert.That(result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadNotSupported),
                 "Service-level errors from the store must surface as the dispatch ServiceResult, not as exceptions.");
             Assert.That(codes, Is.Empty);
@@ -222,7 +222,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     [new AliasDeleteRequest("X", new ExpandedNodeId("T", 2))])
                 .ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode.Code,
+            Assert.That(result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(codes, Is.Empty);
         }

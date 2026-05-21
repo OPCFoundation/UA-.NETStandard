@@ -66,8 +66,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<IEventMonitoredItem>? monitoredItems = null;
-
+                List<IEventMonitoredItem>? monitoredItems;
                 lock (m_lock)
                 {
                     monitoredItems = [.. m_monitoredItems.Values];

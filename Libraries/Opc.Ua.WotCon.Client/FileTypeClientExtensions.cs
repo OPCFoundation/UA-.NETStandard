@@ -177,7 +177,7 @@ namespace Opc.Ua.WotCon.Client
             uint handle = await file.OpenAsync(readMode, ct).ConfigureAwait(false);
             try
             {
-                using System.IO.MemoryStream buffer = new();
+                using MemoryStream buffer = new();
                 while (true)
                 {
                     ByteString chunk = await file.ReadAsync(handle, chunkSize, ct).ConfigureAwait(false);

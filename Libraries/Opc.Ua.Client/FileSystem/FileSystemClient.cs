@@ -149,7 +149,7 @@ namespace Opc.Ua.Client.FileSystem
             {
                 return dir;
             }
-            throw (Exception)FileSystemErrors.NotFound(path, targetIsDirectory: true);
+            throw FileSystemErrors.NotFound(path, targetIsDirectory: true);
         }
 
         /// <summary>
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.FileSystem
             {
                 return file;
             }
-            throw (Exception)FileSystemErrors.NotFound(path, targetIsDirectory: false);
+            throw FileSystemErrors.NotFound(path, targetIsDirectory: false);
         }
 
         /// <summary>
@@ -264,7 +264,7 @@ namespace Opc.Ua.Client.FileSystem
                 }
                 if (!createIntermediate && !isLast)
                 {
-                    throw (Exception)FileSystemErrors.NotFound(
+                    throw FileSystemErrors.NotFound(
                         UaPath.Format(segments.Take(i + 1).ToArray()),
                         targetIsDirectory: true);
                 }
@@ -339,7 +339,7 @@ namespace Opc.Ua.Client.FileSystem
             UaFileSystemInfo? info = await GetInfoAsync(path, ct).ConfigureAwait(false);
             if (info == null)
             {
-                throw (Exception)FileSystemErrors.NotFound(path, targetIsDirectory: false);
+                throw FileSystemErrors.NotFound(path, targetIsDirectory: false);
             }
             await DeleteCoreAsync(info, recursive, ct).ConfigureAwait(false);
         }
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.FileSystem
             UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false);
             if (src == null)
             {
-                throw (Exception)FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
+                throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
             }
             return await MoveOrCopyAsync(src, destPath, copy: false, ct).ConfigureAwait(false);
         }
@@ -373,7 +373,7 @@ namespace Opc.Ua.Client.FileSystem
             UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false);
             if (src == null)
             {
-                throw (Exception)FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
+                throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
             }
             return await MoveOrCopyAsync(src, destPath, copy: true, ct).ConfigureAwait(false);
         }
@@ -955,7 +955,7 @@ namespace Opc.Ua.Client.FileSystem
                 {
                     if (throwOnMissing)
                     {
-                        throw (Exception)FileSystemErrors.NotFound(
+                        throw FileSystemErrors.NotFound(
                             UaPath.Format(segments.Take(i + 1).ToArray()),
                             targetIsDirectory: !isLast);
                     }

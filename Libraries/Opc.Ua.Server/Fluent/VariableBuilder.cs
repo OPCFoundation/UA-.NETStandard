@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(getter));
             }
-            ((INodeBuilder)this).OnRead(
+            OnRead(
                 (context, _, ref value) =>
                 {
                     value = ToVariant(getter(context));
@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(getter));
             }
-            ((INodeBuilder)this).OnRead(
+            OnRead(
                 async (context, _, ct) =>
                 {
                     TValue typed = await getter(context, ct).ConfigureAwait(false);
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            ((INodeBuilder)this).OnWrite(
+            OnWrite(
                 (context, _, ref value) =>
                 {
                     setter(context, FromVariant(value)!);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            ((INodeBuilder)this).OnWrite(
+            OnWrite(
                 async (context, _, value, ct) =>
                 {
                     TValue? typed = FromVariant(value);

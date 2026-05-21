@@ -173,8 +173,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<ContinuationPoint>? browseCPs = null;
-
+                List<ContinuationPoint>? browseCPs;
                 lock (m_lock)
                 {
                     browseCPs = m_browseContinuationPoints;
@@ -189,8 +188,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                List<HistoryContinuationPoint>? historyCPs = null;
-
+                List<HistoryContinuationPoint>? historyCPs;
                 lock (m_lock)
                 {
                     historyCPs = m_historyContinuationPoints;

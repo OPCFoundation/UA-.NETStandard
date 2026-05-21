@@ -29,10 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Client.Roles
 {
@@ -55,13 +53,13 @@ namespace Opc.Ua.Client.Roles
         /// <summary>The session used for all service calls.</summary>
         public ISession Session { get; }
 
-        private static NodeId RoleSetId => Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet;
+        private static NodeId RoleSetId => ObjectIds.Server_ServerCapabilities_RoleSet;
 
         private static NodeId AddRoleMethodId
-            => Opc.Ua.MethodIds.Server_ServerCapabilities_RoleSet_AddRole;
+            => MethodIds.Server_ServerCapabilities_RoleSet_AddRole;
 
         private static NodeId RemoveRoleMethodId
-            => Opc.Ua.MethodIds.Server_ServerCapabilities_RoleSet_RemoveRole;
+            => MethodIds.Server_ServerCapabilities_RoleSet_RemoveRole;
 
         /// <inheritdoc/>
         public async ValueTask<IReadOnlyList<RoleInfo>> ListRolesAsync(
@@ -110,7 +108,7 @@ namespace Opc.Ua.Client.Roles
                     continue;
                 }
                 if (!reference.TypeDefinition.IsNull &&
-                    ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != Opc.Ua.ObjectTypeIds.RoleType)
+                    ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != ObjectTypeIds.RoleType)
                 {
                     continue;
                 }

@@ -199,8 +199,8 @@ namespace Opc.Ua.Server.Tests.Roles
                     CriteriaType = IdentityCriteriaType.UserName,
                     Criteria = "alice"
                 }).ConfigureAwait(false);
-            Assert.That((StatusCode)result!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result!.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -213,8 +213,8 @@ namespace Opc.Ua.Server.Tests.Roles
                     CriteriaType = IdentityCriteriaType.UserName,
                     Criteria = "alice"
                 }).ConfigureAwait(false);
-            Assert.That((StatusCode)result!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(result!.StatusCode,
+                Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
@@ -246,8 +246,8 @@ namespace Opc.Ua.Server.Tests.Roles
                     CriteriaType = IdentityCriteriaType.Anonymous,
                     Criteria = "not-allowed"
                 }).ConfigureAwait(false);
-            Assert.That((StatusCode)result!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result!.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -301,8 +301,8 @@ namespace Opc.Ua.Server.Tests.Roles
         {
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, anonymous: true);
             ServiceResult result = InvokeBoolWrite(ctx, m_roleState.ApplicationsExclude!, true);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -322,8 +322,8 @@ namespace Opc.Ua.Server.Tests.Roles
             ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
             ServiceResult result = InvokeWrite(
                 ctx, m_roleState.ApplicationsExclude!, new Variant("not-a-bool"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         // ----------------------------------------------------------------
@@ -540,8 +540,8 @@ namespace Opc.Ua.Server.Tests.Roles
             AddRoleMethodStateResult result = await InvokeAddRoleAsync(
                 ctx, "ShouldNotMaterialize", "http://test.org/role-binding/").ConfigureAwait(false);
 
-            Assert.That((StatusCode)result.ServiceResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(m_nodeManager.PredefinedNodes.Count, Is.EqualTo(countBefore),
                 "Auth failures must not leave a partially-materialized node.");
         }
@@ -577,8 +577,8 @@ namespace Opc.Ua.Server.Tests.Roles
             ServiceResult removeResult = await InvokeRemoveRoleAsync(anonCtx, addResult.RoleNodeId)
                 .ConfigureAwait(false);
 
-            Assert.That((StatusCode)removeResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(removeResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(addResult.RoleNodeId), Is.True,
                 "Auth-rejected RemoveRole must leave the address space untouched.");
         }

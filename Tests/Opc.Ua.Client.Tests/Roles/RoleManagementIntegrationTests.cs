@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests.Roles
     /// the SecurityAdmin-only RoleSet methods directly without further
     /// configuration. Tests use <c>SecurityPolicies.Basic256Sha256</c> so
     /// the channel SecurityMode is <c>SignAndEncrypt</c> as required by
-    /// the <see cref="Opc.Ua.Server.RoleAuthorizationGate"/>.
+    /// the <see cref="Server.RoleAuthorizationGate"/>.
     /// </para>
     /// <para>
     /// Each test is fully isolated — a fresh <c>ServerFixture</c> +
@@ -386,10 +386,10 @@ namespace Opc.Ua.Client.Tests.Roles
                         Criteria = "should-not-stick"
                     }).ConfigureAwait(false));
 
-            Assert.That((StatusCode)ex!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument)
-                    .Or.EqualTo((StatusCode)StatusCodes.BadInvalidState)
-                    .Or.EqualTo((StatusCode)StatusCodes.BadNoMatch),
+            Assert.That(ex!.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument)
+                    .Or.EqualTo(StatusCodes.BadInvalidState)
+                    .Or.EqualTo(StatusCodes.BadNoMatch),
                 "Reserved-role AddIdentity must be rejected.");
         }
     }

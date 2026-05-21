@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server;
@@ -189,7 +188,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
         private readonly ConcurrentDictionary<string, List<Subscription>> m_subscriptions =
             new(StringComparer.Ordinal);
 
-        private readonly System.Collections.Concurrent.ConcurrentBag<ActionInvocation> m_invocations = [];
+        private readonly ConcurrentBag<ActionInvocation> m_invocations = [];
     }
 
     /// <summary>

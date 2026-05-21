@@ -36,7 +36,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
-using Opc.Ua.Lds.Server;
 using Serilog;
 using Serilog.Events;
 

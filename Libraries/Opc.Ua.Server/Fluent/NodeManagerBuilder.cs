@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (registry == null)
             {
-                throw new System.ArgumentNullException(nameof(registry));
+                throw new ArgumentNullException(nameof(registry));
             }
 
             if (EventSources != null)

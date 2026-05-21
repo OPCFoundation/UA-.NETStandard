@@ -200,10 +200,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 client,
                 new AliasNameResolverOptions
                 {
-                    RefreshStrategy = new Opc.Ua.Client.AliasNames.Refresh
-                        .MonitoredItemAliasNameRefreshStrategy(
-                        new Opc.Ua.Client.AliasNames.Refresh
-                            .MonitoredItemAliasNameRefreshStrategyOptions
+                    RefreshStrategy = new MonitoredItemAliasNameRefreshStrategy(
+                        new MonitoredItemAliasNameRefreshStrategyOptions
                         {
                             SharedSubscription = sharedSubscription,
                             SamplingIntervalMs = 500,

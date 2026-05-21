@@ -199,8 +199,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void RaiseSubscriptionEvent(ISubscription subscription, bool deleted)
         {
-            SubscriptionEventHandler? handler = null;
-
+            SubscriptionEventHandler? handler;
             lock (m_eventLock)
             {
                 handler = m_SubscriptionCreated;

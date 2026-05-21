@@ -34,7 +34,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
@@ -103,7 +102,7 @@ namespace Opc.Ua.WotCon.Tests
             (ServiceResult status, NodeId assetId) = await harness.Registry
                 .CreateAssetAsync(string.Empty, CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(assetId.IsNull, Is.True);
         }
 
@@ -116,7 +115,7 @@ namespace Opc.Ua.WotCon.Tests
             (ServiceResult status, _) = await harness.Registry
                 .CreateAssetAsync("   ", CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [TestCase("../escape")]
@@ -142,7 +141,7 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateAssetAsync(name, CancellationToken.None);
 
             Assert.That(status.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument),
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
                 $"name '{name}' must be rejected with BadInvalidArgument");
             Assert.That(assetId.IsNull, Is.True);
             // Defence-in-depth: no .jsonld file should have been written anywhere
@@ -162,7 +161,7 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateAssetAsync(longName, CancellationToken.None);
 
             Assert.That(status.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -190,7 +189,7 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateAssetAsync("asset-001", CancellationToken.None);
 
             Assert.That(status.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
+                Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
             Assert.That(assetId.IsNull, Is.True);
         }
 
@@ -207,7 +206,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult status = await harness.Registry
                 .DeleteAssetAsync(new NodeId(99999u, 3), CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -246,7 +245,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult status = await harness.Registry
                 .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         [Test]
@@ -344,7 +343,7 @@ namespace Opc.Ua.WotCon.Tests
             await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
-            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
@@ -483,7 +482,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(variable.OnSimpleReadValue, Is.Null);
             AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
                 harness.Manager.SystemContext, variable, CancellationToken.None);
-            Assert.That((uint)result.Result.StatusCode.Code,
+            Assert.That(result.Result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(result.Value.IsNull, Is.True);
         }
@@ -681,7 +680,7 @@ namespace Opc.Ua.WotCon.Tests
             (ServiceResult status, IReadOnlyList<string> endpoints) = await harness.Registry
                 .DiscoverAssetsAsync(CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(endpoints, Is.Empty);
         }
 
@@ -694,7 +693,7 @@ namespace Opc.Ua.WotCon.Tests
             (ServiceResult status, bool success, string text) = await harness.Registry
                 .ConnectionTestAsync("sim://foo", CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(success, Is.False);
             Assert.That(text, Is.Empty);
         }
@@ -708,7 +707,7 @@ namespace Opc.Ua.WotCon.Tests
             (ServiceResult status, NodeId assetId) = await harness.Registry
                 .CreateAssetForEndpointAsync("asset-x", "sim://endpoint", CancellationToken.None);
 
-            Assert.That(status.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(assetId.IsNull, Is.True);
         }
 
@@ -865,13 +864,13 @@ namespace Opc.Ua.WotCon.Tests
             // to ship the entire standard NodeSet.
             private static void SeedStandardTypeTree(TypeTable typeTable)
             {
-                NodeId baseObject = Opc.Ua.ObjectTypeIds.BaseObjectType;
-                NodeId baseVariable = Opc.Ua.VariableTypeIds.BaseVariableType;
-                NodeId baseDataVariable = Opc.Ua.VariableTypeIds.BaseDataVariableType;
-                NodeId propertyType = Opc.Ua.VariableTypeIds.PropertyType;
-                NodeId fileType = Opc.Ua.ObjectTypeIds.FileType;
-                NodeId namespaceMetadataType = Opc.Ua.ObjectTypeIds.NamespaceMetadataType;
-                NodeId baseInterfaceType = Opc.Ua.ObjectTypeIds.BaseInterfaceType;
+                NodeId baseObject = Ua.ObjectTypeIds.BaseObjectType;
+                NodeId baseVariable = VariableTypeIds.BaseVariableType;
+                NodeId baseDataVariable = VariableTypeIds.BaseDataVariableType;
+                NodeId propertyType = VariableTypeIds.PropertyType;
+                NodeId fileType = Ua.ObjectTypeIds.FileType;
+                NodeId namespaceMetadataType = Ua.ObjectTypeIds.NamespaceMetadataType;
+                NodeId baseInterfaceType = Ua.ObjectTypeIds.BaseInterfaceType;
                 NodeId methodNodeType = NodeId.Null;
 
                 typeTable.AddSubtype(baseObject, NodeId.Null);
@@ -884,39 +883,39 @@ namespace Opc.Ua.WotCon.Tests
                 typeTable.AddSubtype(propertyType, baseVariable);
 
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.References, NodeId.Null,
+                    Ua.ReferenceTypeIds.References, NodeId.Null,
                     new QualifiedName("References"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                    Opc.Ua.ReferenceTypeIds.References,
+                    Ua.ReferenceTypeIds.HierarchicalReferences,
+                    Ua.ReferenceTypeIds.References,
                     new QualifiedName("HierarchicalReferences"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.HasChild,
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    Ua.ReferenceTypeIds.HasChild,
+                    Ua.ReferenceTypeIds.HierarchicalReferences,
                     new QualifiedName("HasChild"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.Aggregates,
-                    Opc.Ua.ReferenceTypeIds.HasChild,
+                    Ua.ReferenceTypeIds.Aggregates,
+                    Ua.ReferenceTypeIds.HasChild,
                     new QualifiedName("Aggregates"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.HasComponent,
-                    Opc.Ua.ReferenceTypeIds.Aggregates,
+                    Ua.ReferenceTypeIds.HasComponent,
+                    Ua.ReferenceTypeIds.Aggregates,
                     new QualifiedName("HasComponent"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.HasProperty,
-                    Opc.Ua.ReferenceTypeIds.Aggregates,
+                    Ua.ReferenceTypeIds.HasProperty,
+                    Ua.ReferenceTypeIds.Aggregates,
                     new QualifiedName("HasProperty"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.Organizes,
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    Ua.ReferenceTypeIds.Organizes,
+                    Ua.ReferenceTypeIds.HierarchicalReferences,
                     new QualifiedName("Organizes"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.NonHierarchicalReferences,
-                    Opc.Ua.ReferenceTypeIds.References,
+                    Ua.ReferenceTypeIds.NonHierarchicalReferences,
+                    Ua.ReferenceTypeIds.References,
                     new QualifiedName("NonHierarchicalReferences"));
                 typeTable.AddReferenceSubtype(
-                    Opc.Ua.ReferenceTypeIds.HasInterface,
-                    Opc.Ua.ReferenceTypeIds.NonHierarchicalReferences,
+                    Ua.ReferenceTypeIds.HasInterface,
+                    Ua.ReferenceTypeIds.NonHierarchicalReferences,
                     new QualifiedName("HasInterface"));
                 _ = methodNodeType;
             }

@@ -34,7 +34,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.WotCon;
 
 namespace Opc.Ua.WotCon.Client
 {
@@ -126,7 +125,7 @@ namespace Opc.Ua.WotCon.Client
         public IAsyncEnumerable<WotAssetVariableEntry> EnumeratePropertiesAsync(
             CancellationToken ct = default)
             => BrowseChildrenAsync(
-                Opc.Ua.WotCon.ReferenceTypeIds.HasWoTComponent,
+                ReferenceTypeIds.HasWoTComponent,
                 includeSubtypes: false,
                 nodeClasses: NodeClass.Variable,
                 ct);
@@ -138,7 +137,7 @@ namespace Opc.Ua.WotCon.Client
         public IAsyncEnumerable<WotAssetVariableEntry> EnumerateActionsAsync(
             CancellationToken ct = default)
             => BrowseChildrenAsync(
-                Opc.Ua.ReferenceTypeIds.HasComponent,
+                Ua.ReferenceTypeIds.HasComponent,
                 includeSubtypes: false,
                 nodeClasses: NodeClass.Method,
                 ct);

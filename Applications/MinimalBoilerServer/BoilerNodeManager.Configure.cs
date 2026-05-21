@@ -165,7 +165,7 @@ namespace Boiler
             // registry auto-populates EventId/EventType/Time/SourceNode
             // so the iterator only fills the user-meaningful fields.
             builder.Boilers.Boiler__1.DrumX001
-                .Publish<BaseEventState>(GenerateDrumHeartbeatAsync);
+                .Publish(GenerateDrumHeartbeatAsync);
         }
 
         private long m_levelMeasurementTicks;

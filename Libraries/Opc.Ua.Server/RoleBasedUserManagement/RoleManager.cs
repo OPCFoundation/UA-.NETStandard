@@ -51,13 +51,13 @@ namespace Opc.Ua.Server
     public sealed class RoleManager : IRoleManager, IDisposable
     {
         private static readonly NodeId s_anonymous
-            = Opc.Ua.ObjectIds.WellKnownRole_Anonymous;
+            = ObjectIds.WellKnownRole_Anonymous;
 
         private static readonly NodeId s_authenticatedUser
-            = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser;
+            = ObjectIds.WellKnownRole_AuthenticatedUser;
 
         private static readonly NodeId s_trustedApplication
-            = Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication;
+            = ObjectIds.WellKnownRole_TrustedApplication;
 
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
         private readonly Dictionary<NodeId, MutableRole> m_roles = [];
@@ -101,17 +101,17 @@ namespace Opc.Ua.Server
                 });
 
             // Configurable well-known roles (no default identities).
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Observer,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Observer,
                 BrowseNames.WellKnownRole_Observer, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Operator,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Operator,
                 BrowseNames.WellKnownRole_Operator, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Engineer,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Engineer,
                 BrowseNames.WellKnownRole_Engineer, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Supervisor,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Supervisor,
                 BrowseNames.WellKnownRole_Supervisor, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+            AddBuiltInRole(ObjectIds.WellKnownRole_ConfigureAdmin,
                 BrowseNames.WellKnownRole_ConfigureAdmin, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
+            AddBuiltInRole(ObjectIds.WellKnownRole_SecurityAdmin,
                 BrowseNames.WellKnownRole_SecurityAdmin, isReserved: false);
         }
 
@@ -433,7 +433,7 @@ namespace Opc.Ua.Server
             bool isWellKnown = false;
             bool useOpcUaNamespace =
                 string.IsNullOrEmpty(namespaceUri) ||
-                string.Equals(namespaceUri, Opc.Ua.Namespaces.OpcUa, StringComparison.Ordinal);
+                string.Equals(namespaceUri, Ua.Namespaces.OpcUa, StringComparison.Ordinal);
 
             // If naming a well-known role under the OPC UA namespace, reuse
             // the well-known NodeId per Part 18 §4.2.2.
@@ -799,23 +799,23 @@ namespace Opc.Ua.Server
             return roleName switch
             {
                 BrowseNames.WellKnownRole_Anonymous
-                    => Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
+                    => ObjectIds.WellKnownRole_Anonymous,
                 BrowseNames.WellKnownRole_AuthenticatedUser
-                    => Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
+                    => ObjectIds.WellKnownRole_AuthenticatedUser,
                 BrowseNames.WellKnownRole_TrustedApplication
-                    => Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication,
+                    => ObjectIds.WellKnownRole_TrustedApplication,
                 BrowseNames.WellKnownRole_Observer
-                    => Opc.Ua.ObjectIds.WellKnownRole_Observer,
+                    => ObjectIds.WellKnownRole_Observer,
                 BrowseNames.WellKnownRole_Operator
-                    => Opc.Ua.ObjectIds.WellKnownRole_Operator,
+                    => ObjectIds.WellKnownRole_Operator,
                 BrowseNames.WellKnownRole_Engineer
-                    => Opc.Ua.ObjectIds.WellKnownRole_Engineer,
+                    => ObjectIds.WellKnownRole_Engineer,
                 BrowseNames.WellKnownRole_Supervisor
-                    => Opc.Ua.ObjectIds.WellKnownRole_Supervisor,
+                    => ObjectIds.WellKnownRole_Supervisor,
                 BrowseNames.WellKnownRole_ConfigureAdmin
-                    => Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+                    => ObjectIds.WellKnownRole_ConfigureAdmin,
                 BrowseNames.WellKnownRole_SecurityAdmin
-                    => Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
+                    => ObjectIds.WellKnownRole_SecurityAdmin,
                 _ => null
             };
         }

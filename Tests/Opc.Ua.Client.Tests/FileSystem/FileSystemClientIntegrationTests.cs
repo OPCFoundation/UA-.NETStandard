@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 TimestampsToReturn.Neither,
                 nodesToRead,
                 default).ConfigureAwait(false);
-            QualifiedName actual = response.Results[0].GetValue<QualifiedName>(QualifiedName.Null);
+            QualifiedName actual = response.Results[0].GetValue(QualifiedName.Null);
             Assert.That(actual.Name, Is.EqualTo("TestRoot"));
         }
 

@@ -81,7 +81,7 @@ namespace Opc.Ua.Lds.Server
 
         /// <summary>
         /// Optional hook tests use to plug in a multicast layer prior to
-        /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, System.Threading.CancellationToken)"/>.
+        /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken)"/>.
         /// </summary>
         public Func<LdsServer, MulticastDiscovery> MulticastFactory { get; set; }
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Lds.Server
 
                 ICollection<string> uriFilter = serverUris.IsNull
                     ? Array.Empty<string>()
-                    : (ICollection<string>)serverUris.ToList();
+                    : serverUris.ToList();
 
                 // include the LDS itself unless filtered out.
                 if (baseAddresses.Count > 0 &&
@@ -186,7 +186,7 @@ namespace Opc.Ua.Lds.Server
 
                 ICollection<string> requestedLocales = localeIds.IsNull
                     ? Array.Empty<string>()
-                    : (ICollection<string>)localeIds.ToList();
+                    : localeIds.ToList();
 
                 // append registered servers that pass the filter.
                 foreach (ApplicationDescription registered in Store.Find(uriFilter, requestedLocales))
@@ -333,7 +333,7 @@ namespace Opc.Ua.Lds.Server
 
             ICollection<string> capFilter = serverCapabilityFilter.IsNull
                 ? Array.Empty<string>()
-                : (ICollection<string>)serverCapabilityFilter.ToList();
+                : serverCapabilityFilter.ToList();
 
             (IList<ServerOnNetwork> records, DateTime lastReset) =
                 Store.ListOnNetwork(startingRecordId, maxRecordsToReturn, capFilter);

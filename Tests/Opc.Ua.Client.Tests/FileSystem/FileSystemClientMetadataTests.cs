@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 Size = 12_345UL,
                 Writable = true,
                 UserWritable = false,
-                OpenCount = (ushort)3
+                OpenCount = 3
             };
             props.Realize();
             harness.RegisterFile(harness.Root, new QualifiedName("data.bin"), properties: props);
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 Size = 0UL,
                 Writable = true,
                 UserWritable = true,
-                OpenCount = (ushort)0,
+                OpenCount = 0,
                 MimeType = "application/json",
                 MaxByteStringLength = 64_000u,
                 LastModifiedTime = expectedModified

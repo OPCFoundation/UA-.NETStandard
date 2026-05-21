@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Roles;
-using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Client.Tests.Roles
 {
@@ -314,7 +313,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped([(StatusCode)StatusCodes.Good]),
+                    Results = ArrayOf.Wrapped([StatusCodes.Good]),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
                 }));
 
@@ -363,7 +362,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped([(StatusCode)StatusCodes.Good]),
+                    Results = ArrayOf.Wrapped([StatusCodes.Good]),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
                 }));
 
@@ -542,7 +541,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped([(StatusCode)StatusCodes.Good]),
+                    Results = ArrayOf.Wrapped([StatusCodes.Good]),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
                 }));
 

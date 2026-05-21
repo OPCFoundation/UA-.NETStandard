@@ -206,7 +206,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 [request],
                 CancellationToken.None);
             Assert.That(addResults, Has.Length.EqualTo(1));
-            Assert.That(addResults[0], Is.EqualTo((StatusCode)StatusCodes.Good),
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.Good),
                 "Server-side AddAliasesAsync must succeed for the new alias.");
 
             // Wait for the MonitoredItem invalidation to arrive and the

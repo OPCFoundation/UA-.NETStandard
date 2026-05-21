@@ -729,7 +729,7 @@ namespace Opc.Ua.Server
                 // §5.2.8) reach the client.
                 StatusCode resultStatus = ServiceResult.IsGood(activationStatus)
                     ? activationStatus.StatusCode
-                    : (StatusCode)StatusCodes.Good;
+                    : StatusCodes.Good;
                 ResponseHeader responseHeader = CreateResponse(requestHeader, resultStatus);
 
                 if (parameters != null)

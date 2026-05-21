@@ -478,7 +478,7 @@ namespace Opc.Ua
             {
                 SerializableVariant s => Equals(s),
                 Variant n => Equals(n),
-                _ => ((object)Value).Equals(obj)
+                _ => Value.Equals(obj)
             };
         }
 
@@ -1236,7 +1236,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public ArrayOf<XmlElement> Value =>
-            this.ConvertAll(x => XmlElement.From(x)).ToArrayOf();
+            ConvertAll(x => XmlElement.From(x)).ToArrayOf();
 
         /// <inheritdoc/>
         public object GetValue()

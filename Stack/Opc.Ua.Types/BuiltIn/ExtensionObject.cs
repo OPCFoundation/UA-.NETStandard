@@ -425,7 +425,7 @@ namespace Opc.Ua
         /// Try get as json
         /// </summary>
         public bool TryGetAsJson(
-            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string json,
+            [MaybeNullWhen(false)] out string json,
             IServiceMessageContext? messageContext = null)
         {
             if (m_body is string s)

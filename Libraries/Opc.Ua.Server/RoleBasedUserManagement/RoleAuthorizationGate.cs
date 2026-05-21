@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     public static class RoleAuthorizationGate
     {
         private static readonly NodeId s_securityAdmin
-            = Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin;
+            = ObjectIds.WellKnownRole_SecurityAdmin;
 
         /// <summary>
         /// Returns <c>Good</c> if the calling session is authorised to invoke
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
             // canonical NodeId and the numeric identifier directly so a
             // custom IRoleManager that returns the well-known role under a
             // different NodeId representation still authorises correctly.
-            uint securityAdminId = Opc.Ua.Objects.WellKnownRole_SecurityAdmin;
+            uint securityAdminId = Objects.WellKnownRole_SecurityAdmin;
             foreach (NodeId nodeId in identity.GrantedRoleIds)
             {
                 if (nodeId == s_securityAdmin)

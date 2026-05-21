@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Tests
             uint handle = 0;
             ServiceResult result = harness.Open(mode, ref handle);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(handle, Is.EqualTo(0u), "No handle is allocated for a rejected mode.");
         }
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.WotCon.Tests
             uint second = 0;
             ServiceResult result = harness.Open(ModeWriteErase, ref second);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(second, Is.EqualTo(0u));
         }
 
@@ -123,7 +123,7 @@ namespace Opc.Ua.WotCon.Tests
             uint h3 = 0;
             ServiceResult result = harness.Open(ModeRead, ref h3);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTooManyOperations));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
         // ----------------------------------------------------------------
@@ -193,7 +193,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ServiceResult result = harness.SetPosition(handle, 100);
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
             finally
             {
@@ -212,7 +212,7 @@ namespace Opc.Ua.WotCon.Tests
                 ByteString data = default;
                 ServiceResult result = harness.Read(handle, 16, ref data);
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Is.EqualTo(StatusCodes.BadInvalidState));
             }
             finally
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2 }));
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Is.EqualTo(StatusCodes.BadInvalidState));
             }
             finally
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua.WotCon.Tests
                 ServiceResult result = harness.Write(
                     handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadOutOfMemory));
+                    Is.EqualTo(StatusCodes.BadOutOfMemory));
             }
             finally
             {
@@ -267,11 +267,11 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult writeResult = harness.Write(9999, ByteString.From(new byte[] { 1 }));
 
             Assert.That(readResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(closeResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(writeResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -329,7 +329,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+                Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(harness.MaterialiseCallCount, Is.EqualTo(0));
             // Bad TD must not become the new persisted content.
             Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
@@ -344,7 +344,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -359,7 +359,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Is.EqualTo(StatusCodes.BadConfigurationError));
             // When the callback fails, the new bytes must not become persistent content.
             Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
         }

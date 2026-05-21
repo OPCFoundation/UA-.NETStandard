@@ -31,12 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -450,7 +448,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId nodeId = m_manager.AllocateChildNodeId(entry.Name, "props", name);
             var hasWotComponent = ExpandedNodeId.ToNodeId(
-                Opc.Ua.WotCon.ReferenceTypeIds.HasWoTComponent,
+                ReferenceTypeIds.HasWoTComponent,
                 m_manager.Server.NamespaceUris);
 
             var variable = new BaseDataVariableState(entry.Asset)
@@ -460,13 +458,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(property.Title ?? name),
                 Description = property.Description != null ? new LocalizedText(property.Description) : LocalizedText.Null,
-                DataType = mapped ? dataType : Opc.Ua.DataTypeIds.BaseDataType,
+                DataType = mapped ? dataType : DataTypeIds.BaseDataType,
                 ValueRank = mapped ? valueRank : ValueRanks.Scalar,
                 AccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 Historizing = false,
                 ReferenceTypeId = hasWotComponent,
-                TypeDefinitionId = Opc.Ua.VariableTypeIds.BaseDataVariableType
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType
             };
             variable.AddReference(hasWotComponent, isInverse: true, entry.Asset.NodeId);
             entry.Asset.AddReference(hasWotComponent, isInverse: false, variable.NodeId);
@@ -517,12 +515,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(action.Title ?? name),
                 Description = action.Description != null ? new LocalizedText(action.Description) : LocalizedText.Null,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
                 Executable = true,
                 UserExecutable = true
             };
-            method.AddReference(Opc.Ua.ReferenceTypeIds.HasComponent, isInverse: true, entry.Asset.NodeId);
-            entry.Asset.AddReference(Opc.Ua.ReferenceTypeIds.HasComponent, isInverse: false, method.NodeId);
+            method.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: true, entry.Asset.NodeId);
+            entry.Asset.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: false, method.NodeId);
             entry.Asset.AddChild(method);
 
             IReadOnlyList<Argument> inputArgs = WotActionMapper.BuildArguments(action.Input);
@@ -538,12 +536,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 var inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
-                inputProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.InputArguments);
-                inputProperty.DisplayName = new LocalizedText(Opc.Ua.BrowseNames.InputArguments);
-                inputProperty.DataType = Opc.Ua.DataTypeIds.Argument;
+                inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
+                inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
+                inputProperty.DataType = DataTypeIds.Argument;
                 inputProperty.ValueRank = ValueRanks.OneDimension;
-                inputProperty.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
-                inputProperty.TypeDefinitionId = Opc.Ua.VariableTypeIds.PropertyType;
+                inputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+                inputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
                 inputProperty.Value = new ArrayOf<Argument>(argsArray);
                 method.InputArguments = inputProperty;
                 method.AddChild(inputProperty);
@@ -558,12 +556,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 var outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
-                outputProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.OutputArguments);
-                outputProperty.DisplayName = new LocalizedText(Opc.Ua.BrowseNames.OutputArguments);
-                outputProperty.DataType = Opc.Ua.DataTypeIds.Argument;
+                outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
+                outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
+                outputProperty.DataType = DataTypeIds.Argument;
                 outputProperty.ValueRank = ValueRanks.OneDimension;
-                outputProperty.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
-                outputProperty.TypeDefinitionId = Opc.Ua.VariableTypeIds.PropertyType;
+                outputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+                outputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
                 outputProperty.Value = new ArrayOf<Argument>(argsArray);
                 method.OutputArguments = outputProperty;
                 method.AddChild(outputProperty);

@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Anonymous, UserName("x"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
         }
 
         [Test]
@@ -166,7 +166,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_AuthenticatedUser, UserName("x"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
         }
 
         [Test]
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_TrustedApplication, UserName("x"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
         }
 
         [Test]
@@ -189,8 +189,8 @@ namespace Opc.Ua.Server.Tests
                      })
             {
                 ServiceResult result = manager.RemoveRole(reserved);
-                Assert.That((StatusCode)result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed),
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(StatusCodes.BadRequestNotAllowed),
                     $"RemoveRole on reserved role {reserved} should fail.");
             }
         }
@@ -216,8 +216,8 @@ namespace Opc.Ua.Server.Tests
                 manager.AddIdentity(ObjectIds.WellKnownRole_Observer, UserName("alice"))), Is.True);
             ServiceResult duplicate = manager.AddIdentity(
                 ObjectIds.WellKnownRole_Observer, UserName("alice"));
-            Assert.That((StatusCode)duplicate.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(duplicate.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.RemoveIdentity(
                 ObjectIds.WellKnownRole_Observer, UserName("alice"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -237,8 +237,8 @@ namespace Opc.Ua.Server.Tests
                 manager.AddApplication(ObjectIds.WellKnownRole_Observer, "urn:app")), Is.True);
             ServiceResult duplicate = manager.AddApplication(
                 ObjectIds.WellKnownRole_Observer, "urn:app");
-            Assert.That((StatusCode)duplicate.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(duplicate.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -249,8 +249,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(
                 manager.AddEndpoint(ObjectIds.WellKnownRole_Observer, ep)), Is.True);
             ServiceResult duplicate = manager.AddEndpoint(ObjectIds.WellKnownRole_Observer, ep);
-            Assert.That((StatusCode)duplicate.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(duplicate.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -258,8 +258,8 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.RemoveRole(new NodeId(99999u));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -267,8 +267,8 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(new NodeId(99999u), UserName("x"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         // ----------------------------------------------------------------
@@ -285,8 +285,8 @@ namespace Opc.Ua.Server.Tests
                     CriteriaType = IdentityCriteriaType.Anonymous,
                     Criteria = "not-empty"
                 });
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -295,8 +295,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint("aabbccddee"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -305,8 +305,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint("AA BB CC"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -324,8 +324,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 X509Subject("CN=NoQuotes"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -457,7 +457,7 @@ namespace Opc.Ua.Server.Tests
             var namespaces = new NamespaceTable();
             ServiceResult result = manager.AddRole(
                 BrowseNames.WellKnownRole_Observer,
-                Opc.Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa,
                 namespaces,
                 defaultNamespaceIndex: 0,
                 out NodeId newId);
@@ -471,12 +471,12 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddRole(
                 BrowseNames.WellKnownRole_Observer,
-                Opc.Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa,
                 new NamespaceTable(),
                 defaultNamespaceIndex: 0,
                 out _);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -484,8 +484,8 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddRole(string.Empty, null, new NamespaceTable(), 0, out _);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -818,8 +818,8 @@ namespace Opc.Ua.Server.Tests
                     CriteriaType = criteriaType,
                     Criteria = "must-be-empty"
                 });
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -839,8 +839,8 @@ namespace Opc.Ua.Server.Tests
                     CriteriaType = criteriaType,
                     Criteria = string.Empty
                 });
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -865,8 +865,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint("ABC"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument),
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "Odd-length thumbprints are not valid hex strings.");
         }
 
@@ -876,8 +876,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint(string.Empty));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
     }
 }

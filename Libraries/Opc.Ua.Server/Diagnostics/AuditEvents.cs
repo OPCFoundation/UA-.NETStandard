@@ -1076,10 +1076,10 @@ namespace Opc.Ua.Server
                     BrowseNames.SourceName,
                     "Session/ActivateSession",
                     false);
-                e.SetChildValue<UserIdentityToken>(
+                e.SetChildValue(
                     systemContext,
                     BrowseNames.UserIdentityToken,
-                    CoreUtils.Clone<UserIdentityToken>(session?.IdentityToken?.Token)!,
+                    CoreUtils.Clone(session?.IdentityToken?.Token)!,
                     false);
 
                 server.ReportAuditEvent(systemContext, e);

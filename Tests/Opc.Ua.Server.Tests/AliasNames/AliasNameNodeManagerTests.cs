@@ -30,7 +30,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.AliasNames;
@@ -64,7 +63,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var stringTable = new StringTable();
             var typeTable = new TypeTable(m_namespaceTable);
 
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
 
             m_mockServer.Setup(s => s.NamespaceUris).Returns(m_namespaceTable);
             m_mockServer.Setup(s => s.ServerUris).Returns(stringTable);

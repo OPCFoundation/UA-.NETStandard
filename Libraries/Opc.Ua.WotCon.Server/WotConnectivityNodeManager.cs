@@ -111,12 +111,12 @@ namespace Opc.Ua.WotCon.Server
                     SymbolicName = assetName,
                     BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
                     DisplayName = new LocalizedText(assetName),
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
-                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
+                    ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
                 };
                 asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
-                asset.AddReference(Opc.Ua.ReferenceTypeIds.HasInterface, isInverse: false,
-                    ExpandedNodeId.ToNodeId(Opc.Ua.WotCon.ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
+                asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
+                    ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
 
                 if (asset.WoTFile != null)
                 {
@@ -127,8 +127,8 @@ namespace Opc.Ua.WotCon.Server
                 }
 
                 m_managementObject!.AddChild(asset);
-                m_managementObject.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
-                asset.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
+                m_managementObject.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
+                asset.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
 
                 await AddPredefinedNodeAsync(SystemContext, asset, ct).ConfigureAwait(false);
                 return new AssetEntry(assetName, asset);
@@ -146,7 +146,7 @@ namespace Opc.Ua.WotCon.Server
             try
             {
                 m_managementObject?.RemoveReference(
-                    Opc.Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
+                    Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
                 m_managementObject?.RemoveChild(asset);
                 await DeleteNodeAsync(SystemContext, asset.NodeId, ct).ConfigureAwait(false);
             }
@@ -172,7 +172,7 @@ namespace Opc.Ua.WotCon.Server
         {
             if (predefinedNode is BaseObjectState passive &&
                 passive.TypeDefinitionId == ExpandedNodeId.ToNodeId(
-                    Opc.Ua.WotCon.ObjectTypeIds.WoTAssetConnectionManagementType,
+                    ObjectTypeIds.WoTAssetConnectionManagementType,
                     Server.NamespaceUris))
             {
                 WoTAssetConnectionManagementState active = passive as WoTAssetConnectionManagementState

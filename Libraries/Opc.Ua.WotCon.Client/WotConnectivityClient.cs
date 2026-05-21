@@ -33,7 +33,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.WotCon;
 
 namespace Opc.Ua.WotCon.Client
 {
@@ -106,14 +105,14 @@ namespace Opc.Ua.WotCon.Client
             ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             BrowsePath path = new()
             {
-                StartingNode = Opc.Ua.ObjectIds.ObjectsFolder,
+                StartingNode = Ua.ObjectIds.ObjectsFolder,
                 RelativePath = new RelativePath
                 {
                     Elements =
                     [
                         new RelativePathElement
                         {
-                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
+                            ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
                             IsInverse = false,
                             IncludeSubtypes = true,
                             TargetName = new QualifiedName("WoTAssetConnectionManagement", ns)
@@ -224,7 +223,7 @@ namespace Opc.Ua.WotCon.Client
                         [
                             new RelativePathElement
                             {
-                                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
                                 IsInverse = false,
                                 IncludeSubtypes = true,
                                 TargetName = new QualifiedName("WoTFile", wotConNs)
@@ -263,7 +262,7 @@ namespace Opc.Ua.WotCon.Client
                 ManagementObjectId,
                 maxResultsToReturn: 0,
                 BrowseDirection.Forward,
-                Opc.Ua.ReferenceTypeIds.Organizes,
+                Ua.ReferenceTypeIds.Organizes,
                 includeSubtypes: true,
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);

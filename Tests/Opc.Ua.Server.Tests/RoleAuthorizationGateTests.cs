@@ -84,8 +84,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt,
                 BuildIdentity(UserTokenType.Anonymous));
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -94,8 +94,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt,
                 BuildIdentity(UserTokenType.UserName, ObjectIds.WellKnownRole_Observer));
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -113,8 +113,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.Sign,
                 BuildIdentity(UserTokenType.UserName, ObjectIds.WellKnownRole_SecurityAdmin));
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
@@ -123,8 +123,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.None,
                 BuildIdentity(UserTokenType.UserName, ObjectIds.WellKnownRole_SecurityAdmin));
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
@@ -135,8 +135,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.None,
                 BuildIdentity(UserTokenType.Anonymous));
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadSecurityModeInsufficient),
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadSecurityModeInsufficient),
                 "SignAndEncrypt check must be evaluated before the role check.");
         }
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests
             // ObjectIds.WellKnownRole_SecurityAdmin. Both must be honoured.
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt,
                 BuildIdentity(UserTokenType.UserName,
-                    new NodeId(Opc.Ua.Objects.WellKnownRole_SecurityAdmin)));
+                    new NodeId(Objects.WellKnownRole_SecurityAdmin)));
             ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
@@ -168,8 +168,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.Sign,
                 BuildIdentity(UserTokenType.Anonymous));
             ServiceResult result = RoleAuthorizationGate.CheckEncryptedChannel(ctx);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
@@ -195,8 +195,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, identity.Object);
 
             ServiceResult result = RoleAuthorizationGate.CheckSelfUserName(ctx, "bob");
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
@@ -205,8 +205,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt,
                 BuildIdentity(UserTokenType.Anonymous));
             ServiceResult result = RoleAuthorizationGate.CheckSelfUserName(ctx, "alice");
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -223,8 +223,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, identity.Object);
 
             ServiceResult result = RoleAuthorizationGate.CheckSelfUserName(ctx, "Alice");
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied),
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied),
                 "CheckSelfUserName must use ordinal (case-sensitive) comparison.");
         }
     }

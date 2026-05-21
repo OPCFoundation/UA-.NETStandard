@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                             results[i] = new BrowseResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                References = System.Array
+                                References = Array
                                     .Empty<ReferenceDescription>()
                                     .ToArrayOf()
                             };
@@ -191,7 +191,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             return new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = System.Array.Empty<Variant>().ToArrayOf()
+                OutputArguments = Array.Empty<Variant>().ToArrayOf()
             };
         }
 

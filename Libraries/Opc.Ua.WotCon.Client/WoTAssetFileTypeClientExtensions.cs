@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.WotCon;
 
 namespace Opc.Ua.WotCon.Client
 {

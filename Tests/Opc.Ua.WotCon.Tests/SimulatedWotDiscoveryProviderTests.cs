@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task CreateThingDescriptionEmitsExpectedShape()
         {
-            Opc.Ua.WotCon.Server.ThingDescriptions.ThingDescription td = await m_discovery
+            Server.ThingDescriptions.ThingDescription td = await m_discovery
                 .CreateThingDescriptionAsync(
                     "asset-001",
                     SimulatedWotDiscoveryProvider.CannedEndpoint,
@@ -97,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void CanHandleAcceptsSimScheme()
         {
-            var td = new Opc.Ua.WotCon.Server.ThingDescriptions.ThingDescription
+            var td = new Server.ThingDescriptions.ThingDescription
             {
                 Base = "sim://opcua.test/wot/asset-001"
             };
@@ -108,7 +108,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void CanHandleRejectsHttpScheme()
         {
-            var td = new Opc.Ua.WotCon.Server.ThingDescriptions.ThingDescription
+            var td = new Server.ThingDescriptions.ThingDescription
             {
                 Base = "http://example.com/thing"
             };

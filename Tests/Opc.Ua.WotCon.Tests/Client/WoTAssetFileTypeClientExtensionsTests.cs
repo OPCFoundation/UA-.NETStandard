@@ -33,7 +33,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
 
 namespace Opc.Ua.WotCon.Tests.Client
@@ -87,9 +86,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(writtenSoFar, Is.EqualTo(tdBytes));
             Assert.That(closeAndUpdateCalled, Is.True);
             // No raw Close call on success — only CloseAndUpdate.
-            Assert.That(mock.CountCallsTo(Opc.Ua.Methods.FileType_Close), Is.EqualTo(0));
+            Assert.That(mock.CountCallsTo(Ua.Methods.FileType_Close), Is.EqualTo(0));
             Assert.That(
-                mock.CountCallsTo(Opc.Ua.WotCon.Methods.WoTAssetFileType_CloseAndUpdate),
+                mock.CountCallsTo(Methods.WoTAssetFileType_CloseAndUpdate),
                 Is.EqualTo(1));
         }
 

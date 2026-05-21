@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.UserManagement
             }
 
             UserManagementState? state = nodeManager.FindPredefinedNode<UserManagementState>(
-                new NodeId(Opc.Ua.Objects.UserManagement));
+                new NodeId(Objects.UserManagement));
             if (state == null)
             {
                 return null;
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.UserManagement
             var binding = new UserManagementBinding(
                 userManagement,
                 sessionManager,
-                (nodeManager.Server as IServerInternal)?.Telemetry);
+                nodeManager.Server?.Telemetry);
             binding.Initialize(state);
             return binding;
         }

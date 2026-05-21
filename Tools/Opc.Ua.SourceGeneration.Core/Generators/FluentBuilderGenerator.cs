@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Xml;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -1205,9 +1204,9 @@ namespace Opc.Ua.SourceGeneration
         /// surrounding OnCall.
         /// </summary>
         /// <remarks>
-        /// The base <see cref="Opc.Ua.MethodState"/> dispatcher
+        /// The base <see cref="MethodState"/> dispatcher
         /// pre-populates the outputs list with one default-valued
-        /// <see cref="Opc.Ua.Variant"/> per declared output argument
+        /// <see cref="Variant"/> per declared output argument
         /// before invoking the user handler, so the wrapper assigns
         /// boxed values by index rather than appending to avoid
         /// double-counting outputs at the wire.

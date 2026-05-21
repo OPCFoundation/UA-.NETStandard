@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -37,7 +36,7 @@ namespace Opc.Ua
     /// <summary>
     /// View description
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ViewDescription :
         IEncodeable,
         IEquatable<ViewDescription>

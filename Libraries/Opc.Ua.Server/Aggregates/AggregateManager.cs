@@ -163,8 +163,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            AggregatorFactory? factory = null;
-
+            AggregatorFactory? factory;
             lock (m_lock)
             {
                 if (!m_factories.TryGetValue(aggregateId, out factory))

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -37,7 +36,7 @@ namespace Opc.Ua
     /// <summary>
     /// Structure definition
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class StructureDefinition :
         DataTypeDefinition,
         IEquatable<StructureDefinition>

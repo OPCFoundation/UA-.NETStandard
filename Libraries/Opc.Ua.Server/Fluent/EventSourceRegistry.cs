@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -92,7 +91,7 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         public void Register(
             BaseObjectState notifier,
-            Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> factory,
+            Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> factory,
             EventPublishOptions? options)
         {
             if (notifier == null)
@@ -433,7 +432,7 @@ namespace Opc.Ua.Server.Fluent
         {
             ISystemContext systemContext = m_owner.SystemContext;
 
-            System.Collections.Generic.IAsyncEnumerable<BaseEventState> stream;
+            IAsyncEnumerable<BaseEventState> stream;
             try
             {
                 stream = entry.Factory(entry.Notifier, systemContext, ct);
@@ -618,7 +617,7 @@ namespace Opc.Ua.Server.Fluent
         {
             public SourceEntry(
                 BaseObjectState notifier,
-                Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> factory,
+                Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> factory,
                 EventPublishOptions options)
             {
                 Notifier = notifier;
@@ -627,7 +626,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             public BaseObjectState Notifier { get; }
-            public Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> Factory { get; }
+            public Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> Factory { get; }
             public EventPublishOptions Options { get; }
             public CancellationTokenSource? WorkerCts;
             public Task? WorkerTask;

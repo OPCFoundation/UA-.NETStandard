@@ -1858,7 +1858,7 @@ namespace Opc.Ua
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGetValue<T>([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value, IServiceMessageContext? context)
+        public bool TryGetValue<T>([MaybeNullWhen(false)] out T value, IServiceMessageContext? context)
             where T : IEncodeable
         {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
@@ -1881,7 +1881,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get
         /// </param>
-        public bool TryGetStructure<T>([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value) where T : IEncodeable
+        public bool TryGetStructure<T>([MaybeNullWhen(false)] out T value) where T : IEncodeable
         {
             return TryGetValue(out value, null);
         }

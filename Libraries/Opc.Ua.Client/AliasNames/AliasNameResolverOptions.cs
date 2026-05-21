@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using Opc.Ua.Client.AliasNames.Refresh;
 
 namespace Opc.Ua.Client.AliasNames

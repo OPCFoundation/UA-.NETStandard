@@ -3360,8 +3360,6 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                MethodState? method = null;
-
                 // check for valid handle.
                 NodeHandle handle = await GetManagerHandleAsync(
                     systemContext,
@@ -3384,10 +3382,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                method = await FindMethodStateAsync(
-                    context,
-                    methodToCall,
-                    cancellationToken).ConfigureAwait(false);
+                MethodState? method = await FindMethodStateAsync(
+    context,
+    methodToCall,
+    cancellationToken).ConfigureAwait(false);
 
                 if (method == null)
                 {

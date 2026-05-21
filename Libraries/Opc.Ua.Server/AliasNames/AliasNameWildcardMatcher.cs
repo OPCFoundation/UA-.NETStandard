@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.AliasNames
             //     regex constructs;
             //   - honour the OPC UA escape character '\' which makes the
             //     next character match literally.
-            StringBuilder sb = new System.Text.StringBuilder(pattern.Length + 8)
+            StringBuilder sb = new StringBuilder(pattern.Length + 8)
                 .Append('^');
             int i = 0;
             while (i < pattern.Length)

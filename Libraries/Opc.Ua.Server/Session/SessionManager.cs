@@ -698,14 +698,14 @@ namespace Opc.Ua.Server
             IRoleManager roleManager = m_server.RoleManager;
             if (roleManager != null)
             {
-                System.Collections.Generic.IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
+                IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
                     session.ClientCertificate,
                     context.ChannelContext?.EndpointDescription);
 
                 if (dynamicRoleIds.Count > 0)
                 {
-                    var dynamicRoles = new System.Collections.Generic.List<Role>(dynamicRoleIds.Count);
+                    var dynamicRoles = new List<Role>(dynamicRoleIds.Count);
                     foreach (NodeId roleId in dynamicRoleIds)
                     {
                         dynamicRoles.Add(new Role(roleId, roleId.ToString()));
