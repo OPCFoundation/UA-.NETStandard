@@ -2207,7 +2207,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             DataValue result = decoder.ReadDataValue("DataValue");
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue, Is.EqualTo(Variant.Null));
         }
 
@@ -2257,7 +2257,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Variant result = decoder.ReadVariantValue(null, default);
 
             DataValue dv = result.GetDataValue();
-            Assert.That(dv, Is.Not.Null);
+            Assert.That(dv.IsNull, Is.False);
             Assert.That(dv.WrappedValue.GetInt32(), Is.EqualTo(77));
         }
 

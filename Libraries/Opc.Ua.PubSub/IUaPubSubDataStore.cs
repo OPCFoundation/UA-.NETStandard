@@ -40,18 +40,23 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="nodeId">NodeId identifier for DataValue that will be stored</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/>.</param>
-        /// <param name="dataValue">Default value is null. </param>
+        /// <param name="dataValue">Default value is the default DataValue.</param>
         void WritePublishedDataItem(
             NodeId nodeId,
             uint attributeId = Attributes.Value,
-            DataValue? dataValue = null);
+            DataValue dataValue = default);
 
         /// <summary>
-        /// Read the DataValue stored for a specific NodeId and Attribute.
+        /// Try to read the DataValue stored for a specific NodeId and Attribute.
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
-        DataValue? ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value);
+        /// <param name="dataValue">The stored DataValue when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a DataValue is stored for the given NodeId and Attribute; otherwise <c>false</c>.</returns>
+        bool TryReadPublishedDataItem(
+            NodeId nodeId,
+            uint attributeId,
+            out DataValue dataValue);
 
         /// <summary>
         /// Updates the metadata if it has changed from when the DataStore was created.

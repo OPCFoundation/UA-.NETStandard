@@ -192,7 +192,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(dv, Is.Not.EqualTo((DataValue)null));
+            Assert.That(dv, Is.Not.EqualTo(default(DataValue)));
 #pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -264,8 +264,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualityOperatorBothNull()
         {
-            DataValue a = null;
-            DataValue b = null;
+            DataValue a = default;
+            DataValue b = default;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a, Is.EqualTo(b));
@@ -275,7 +275,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualityOperatorLeftNullRightNotNull()
         {
-            DataValue a = null;
+            DataValue a = default;
             var b = new DataValue();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
@@ -287,7 +287,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualityOperatorLeftNotNullRightNull()
         {
             var a = new DataValue();
-            DataValue b = null;
+            DataValue b = default;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(a, Is.Not.EqualTo(b));
@@ -349,7 +349,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var original = new DataValue(new Variant(1), StatusCodes.Good);
             DataValue updated = original.WithWrappedValue(new Variant(99));
 
-            Assert.That(ReferenceEquals(original, updated), Is.False);
+            Assert.That(original.Equals(updated), Is.False);
             Assert.That(original.WrappedValue, Is.EqualTo(new Variant(1)));
             Assert.That(updated.WrappedValue, Is.EqualTo(new Variant(99)));
             Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
@@ -485,7 +485,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             string result = dv.ToString();
 
-            Assert.That(result.IsNull, Is.False);
+            Assert.That(result, Is.Not.Null);
             Assert.That(result, Does.Contain("42"));
         }
 
@@ -520,9 +520,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 42,
                 99);
 
-            var clone = (DataValue)original.Clone();
+            DataValue clone = original;
 
-            Assert.That(clone, Is.Not.SameAs(original));
+            Assert.That(clone, Is.EqualTo(original));
             Assert.That(clone.WrappedValue, Is.EqualTo(original.WrappedValue));
             Assert.That(clone.StatusCode, Is.EqualTo(original.StatusCode));
             Assert.That(clone.SourceTimestamp, Is.EqualTo(original.SourceTimestamp));
@@ -581,7 +581,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsGoodWithNullReturnsFalse()
         {
-            Assert.That(DataValue.IsGood(null), Is.False);
+            Assert.That(DataValue.IsGood(default), Is.False);
         }
 
         [Test]
@@ -603,7 +603,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotGoodWithNullReturnsTrue()
         {
-            Assert.That(DataValue.IsNotGood(null), Is.True);
+            Assert.That(DataValue.IsNotGood(default), Is.True);
         }
 
         [Test]
@@ -625,7 +625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsUncertainWithNullReturnsFalse()
         {
-            Assert.That(DataValue.IsUncertain(null), Is.False);
+            Assert.That(DataValue.IsUncertain(default), Is.False);
         }
 
         [Test]
@@ -647,7 +647,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotUncertainWithNullReturnsFalse()
         {
-            Assert.That(DataValue.IsNotUncertain(null), Is.False);
+            Assert.That(DataValue.IsNotUncertain(default), Is.False);
         }
 
         [Test]
@@ -669,7 +669,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsBadWithNullReturnsTrue()
         {
-            Assert.That(DataValue.IsBad(null), Is.True);
+            Assert.That(DataValue.IsBad(default), Is.True);
         }
 
         [Test]
@@ -691,7 +691,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotBadWithNullReturnsFalse()
         {
-            Assert.That(DataValue.IsNotBad(null), Is.False);
+            Assert.That(DataValue.IsNotBad(default), Is.False);
         }
 
         [Test]
@@ -727,7 +727,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = dv.GetValueOrDefault<string>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            Assert.That(result.IsNull, Is.True);
+            Assert.That(result, Is.Null);
         }
 
         [Test]
@@ -762,7 +762,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = dv.GetValueOrDefault<string>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            Assert.That(result.IsNull, Is.True);
+            Assert.That(result, Is.Null);
         }
 
         [Test]
@@ -776,7 +776,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Argument result = dv.GetValueOrDefault<Argument>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
-            Assert.That(result.IsNull, Is.False);
+            Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));
         }
 
@@ -832,7 +832,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Argument result = dv.GetValue<Argument>(null);
 
-            Assert.That(result.IsNull, Is.False);
+            Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));
         }
 
@@ -872,7 +872,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             string result = dv.ToString();
 
-            Assert.That(result.IsNull, Is.False);
+            Assert.That(result, Is.Not.Null);
         }
 
         [Test]
@@ -916,9 +916,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var original = new DataValue(new Variant(99), StatusCodes.Uncertain, sourceTime, serverTime, 111, 222);
 
-            var clone = (DataValue)original.Clone();
+            DataValue clone = original;
 
-            Assert.That(clone, Is.Not.SameAs(original));
+            Assert.That(clone, Is.EqualTo(original));
             Assert.That(clone, Is.EqualTo(original));
         }
 

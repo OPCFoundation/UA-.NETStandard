@@ -163,10 +163,10 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 if (!publishedVariable.PublishedVariable.IsNull)
                                 {
-                                    dataValue = m_dataStore.ReadPublishedDataItem(
+                                    m_dataStore.TryReadPublishedDataItem(
                                         publishedVariable.PublishedVariable,
-                                        publishedVariable.AttributeId)
-                                        .GetValueOrDefault();
+                                        publishedVariable.AttributeId,
+                                        out dataValue);
                                 }
 
                                 if (dataValue.IsNull)

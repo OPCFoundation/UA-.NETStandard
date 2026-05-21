@@ -2714,7 +2714,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.GetInt32(), Is.EqualTo(value));
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
@@ -2744,7 +2744,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.SourceTimestamp, Is.EqualTo(expected));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(picoseconds));
         }
@@ -4574,7 +4574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue, Is.EqualTo(new Variant(42)));
             Assert.That(result.SourceTimestamp, Is.EqualTo(sourceTime));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(100));

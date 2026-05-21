@@ -1301,11 +1301,10 @@ namespace Opc.Ua.Types.Tests.State
         public void ReadAttributeReturnsBadForNullDataValue()
         {
             BaseObjectState node = CreateObjectNode();
-            // With DataValue still a class, passing a null reference via
-            // ref requires a local; assigning null mimics the legacy
-            // contract that ReadAttribute(... DataValue value) returned
-            // BadStructureMissing when value was null.
-            DataValue nullValue = null!;
+            // With DataValue now a readonly struct, passing a default value
+            // via ref mimics the legacy contract that ReadAttribute
+            // returned BadStructureMissing when value was null.
+            DataValue nullValue = default;
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.NodeId, default, default, ref nullValue);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
@@ -1607,7 +1606,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             BaseObjectState node = CreateObjectNode();
             ServiceResult result = node.WriteAttribute(
-                m_context, Attributes.BrowseName, default, null);
+                m_context, Attributes.BrowseName, default, default);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
 

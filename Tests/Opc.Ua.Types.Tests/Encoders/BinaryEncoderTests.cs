@@ -4549,7 +4549,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             // Act
-            encoder.WriteDataValue("test", null);
+            encoder.WriteDataValue("test", default);
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -6837,7 +6837,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             using var encoder = new BinaryEncoder(messageContext);
-            var array = new ArrayOf<DataValue>([null, new DataValue(Variant.From(42)), null]);
+            var array = new ArrayOf<DataValue>(new DataValue[] { default, new DataValue(Variant.From(42)), default });
             // Act
             encoder.WriteDataValueArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();

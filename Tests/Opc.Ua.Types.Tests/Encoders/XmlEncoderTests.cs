@@ -2339,7 +2339,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             // Act
-            encoder.WriteDataValue("TestValue", null);
+            encoder.WriteDataValue("TestValue", default);
             encoder.Close();
 
             // Assert
