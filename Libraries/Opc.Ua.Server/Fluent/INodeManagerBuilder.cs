@@ -220,6 +220,9 @@ namespace Opc.Ua.Server.Fluent
         /// and returns a typed <see cref="IVariableBuilder{TValue}"/>
         /// view.
         /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
         IVariableBuilder<TValue> Variable<TValue>(NodeId nodeId);
 
         /// <summary>
@@ -229,12 +232,18 @@ namespace Opc.Ua.Server.Fluent
         /// view. Same disambiguation semantics as
         /// <see cref="NodeFromTypeId(NodeId)"/>.
         /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
         IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId);
 
         /// <summary>
         /// Like <see cref="VariableFromTypeId{TValue}(NodeId)"/> but
         /// disambiguates among multiple instances by browse name.
         /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
         IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId, QualifiedName browseName);
     }
 }

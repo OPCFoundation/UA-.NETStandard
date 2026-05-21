@@ -89,6 +89,20 @@ namespace Opc.Ua.Server.Fluent
         /// is set) cannot deadlock because no other thread is contending
         /// on the manager's monitored-item semaphore.
         /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="notifier"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="factory"/> is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// A source is already registered for <paramref name="notifier"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="EventPublishOptions.RegisterAsRootNotifier"/> is
+        /// set and adding <paramref name="notifier"/> as a root notifier
+        /// failed.
+        /// </exception>
         public void Register(
             BaseObjectState notifier,
             Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> factory,
