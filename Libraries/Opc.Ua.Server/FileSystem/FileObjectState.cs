@@ -121,6 +121,7 @@ namespace Opc.Ua.Server.FileSystem
             Open.Create(context, MethodIds.FileType_Open,
                 new QualifiedName(BrowseNames.Open),
                 new LocalizedText(BrowseNames.Open), false);
+            Open.MethodDeclarationId = MethodIds.FileType_Open;
 
             Write = new WriteMethodState(this)
             {
@@ -131,6 +132,7 @@ namespace Opc.Ua.Server.FileSystem
             Write.Create(context, MethodIds.FileType_Write,
                 new QualifiedName(BrowseNames.Write),
                 new LocalizedText(BrowseNames.Write), false);
+            Write.MethodDeclarationId = MethodIds.FileType_Write;
 
             Read = new ReadMethodState(this)
             {
@@ -141,6 +143,7 @@ namespace Opc.Ua.Server.FileSystem
             Read.Create(context, MethodIds.FileType_Read,
                 new QualifiedName(BrowseNames.Read),
                 new LocalizedText(BrowseNames.Read), false);
+            Read.MethodDeclarationId = MethodIds.FileType_Read;
 
             Close = new CloseMethodState(this)
             {
@@ -151,6 +154,7 @@ namespace Opc.Ua.Server.FileSystem
             Close.Create(context, MethodIds.FileType_Close,
                 new QualifiedName(BrowseNames.Close),
                 new LocalizedText(BrowseNames.Close), false);
+            Close.MethodDeclarationId = MethodIds.FileType_Close;
 
             GetPosition = new GetPositionMethodState(this)
             {
@@ -161,6 +165,7 @@ namespace Opc.Ua.Server.FileSystem
             GetPosition.Create(context, MethodIds.FileType_GetPosition,
                 new QualifiedName(BrowseNames.GetPosition),
                 new LocalizedText(BrowseNames.GetPosition), false);
+            GetPosition.MethodDeclarationId = MethodIds.FileType_GetPosition;
 
             SetPosition = new SetPositionMethodState(this)
             {
@@ -171,6 +176,7 @@ namespace Opc.Ua.Server.FileSystem
             SetPosition.Create(context, MethodIds.FileType_SetPosition,
                 new QualifiedName(BrowseNames.SetPosition),
                 new LocalizedText(BrowseNames.SetPosition), false);
+            SetPosition.MethodDeclarationId = MethodIds.FileType_SetPosition;
         }
 
         private ServiceResult OnMimeType(ISystemContext context, NodeState node,

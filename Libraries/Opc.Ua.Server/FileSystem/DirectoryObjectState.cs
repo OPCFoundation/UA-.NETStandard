@@ -76,6 +76,7 @@ namespace Opc.Ua.Server.FileSystem
             DeleteFileSystemObject.Create(context, MethodIds.FileDirectoryType_DeleteFileSystemObject,
                 new QualifiedName(BrowseNames.DeleteFileSystemObject),
                 new LocalizedText(BrowseNames.DeleteFileSystemObject), false);
+            DeleteFileSystemObject.MethodDeclarationId = MethodIds.FileDirectoryType_DeleteFileSystemObject;
 
             CreateFile = new CreateFileMethodState(this)
             {
@@ -86,6 +87,7 @@ namespace Opc.Ua.Server.FileSystem
             CreateFile.Create(context, MethodIds.FileDirectoryType_CreateFile,
                 new QualifiedName(BrowseNames.CreateFile),
                 new LocalizedText(BrowseNames.CreateFile), false);
+            CreateFile.MethodDeclarationId = MethodIds.FileDirectoryType_CreateFile;
 
             CreateDirectory = new CreateDirectoryMethodState(this)
             {
@@ -96,6 +98,7 @@ namespace Opc.Ua.Server.FileSystem
             CreateDirectory.Create(context, MethodIds.FileDirectoryType_CreateDirectory,
                 new QualifiedName(BrowseNames.CreateDirectory),
                 new LocalizedText(BrowseNames.CreateDirectory), false);
+            CreateDirectory.MethodDeclarationId = MethodIds.FileDirectoryType_CreateDirectory;
 
             MoveOrCopy = new MoveOrCopyMethodState(this)
             {
@@ -106,6 +109,7 @@ namespace Opc.Ua.Server.FileSystem
             MoveOrCopy.Create(context, MethodIds.FileDirectoryType_MoveOrCopy,
                 new QualifiedName(BrowseNames.MoveOrCopy),
                 new LocalizedText(BrowseNames.MoveOrCopy), false);
+            MoveOrCopy.MethodDeclarationId = MethodIds.FileDirectoryType_MoveOrCopy;
         }
 
         public override INodeBrowser CreateBrowser(
