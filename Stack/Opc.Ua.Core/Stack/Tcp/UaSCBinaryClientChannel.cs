@@ -225,7 +225,7 @@ namespace Opc.Ua.Bindings
 
                     CompleteConnect(operation);
                 }
-                await operation.EndAsync(int.MaxValue, ct: ct).ConfigureAwait(false);
+                await operation.EndValueTaskAsync(int.MaxValue, ct: ct).ConfigureAwait(false);
 
                 SendQueuedOperations();
             }
@@ -264,7 +264,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
+                    _ = await operation.EndValueTaskAsync(timeout, false, ct).ConfigureAwait(false);
                     ValidateChannelCloseError(operation.Error);
                 }
                 catch (Exception e)
@@ -334,7 +334,7 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
+                await operation.EndValueTaskAsync(int.MaxValue, true, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -1086,7 +1086,7 @@ namespace Opc.Ua.Bindings
                         CompleteConnect(operation);
 
                         // Complete handshake
-                        await operation.EndAsync(int.MaxValue).ConfigureAwait(false);
+                        await operation.EndValueTaskAsync(int.MaxValue).ConfigureAwait(false);
 
                         SendQueuedOperations();
                     }
