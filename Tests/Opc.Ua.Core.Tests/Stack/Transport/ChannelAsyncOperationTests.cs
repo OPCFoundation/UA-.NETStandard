@@ -52,13 +52,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 null,
                 NullLogger.Instance);
 
-            _ = Task.Run(async () =>
+            Task completeTask = Task.Run(async () =>
             {
                 await Task.Delay(50).ConfigureAwait(false);
                 operation.Complete(123);
             });
 
             int result = await operation.EndAsync(int.MaxValue).ConfigureAwait(false);
+            await completeTask.ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(123));
             Assert.That(operation.Error.StatusCode, Is.EqualTo(StatusCodes.Good));

@@ -57,9 +57,8 @@ namespace Opc.Ua.Bindings
             if (timeout is > 0 and not int.MaxValue)
             {
                 m_timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
-                m_timeoutCancellationRegistration = m_timeoutCancellationTokenSource.Token.Register(
-                    static state => ((ChannelAsyncOperation<T>)state!).OnTimeout(),
-                    this);
+                m_timeoutCancellationRegistration =
+                    m_timeoutCancellationTokenSource.Token.Register(OnTimeout);
             }
         }
 
@@ -94,7 +93,8 @@ namespace Opc.Ua.Bindings
 
                     if (m_asyncWaitPending)
                     {
-                        m_asyncWaitSource.SetException(new TaskCanceledException());
+                        m_asyncWaitSource.SetException(
+                            new TaskCanceledException("ChannelAsyncOperation was disposed while an async wait was pending."));
                         m_asyncWaitPending = false;
                     }
                 }
