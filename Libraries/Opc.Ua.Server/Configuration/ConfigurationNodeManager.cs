@@ -292,6 +292,8 @@ namespace Opc.Ua.Server
                 m_serverConfigurationNode = null;
                 m_userManagementBinding?.Dispose();
                 m_userManagementBinding = null;
+
+                StopAlarmMonitoring();
             }
 
             base.Dispose(disposing);
@@ -1723,6 +1725,38 @@ namespace Opc.Ua.Server
         /// <c>CertificateExpired</c> and <c>TrustListOutOfDate</c> alarm
         /// instances per OPC 10000-12 §7.8.3.
         /// </summary>
+        /// <inheritdoc/>
+        public void StartAlarmMonitoring(TimeSpan interval)
+        {
+            if (m_alarmTimer != null)
+            {
+                return;
+            }
+
+            m_alarmTimer = new Timer(
+                _ =>
+                {
+                    try
+                    {
+                        EvaluateCertificateAlarms(SystemContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogWarning(ex, "Alarm evaluation tick failed.");
+                    }
+                },
+                null,
+                interval,
+                interval);
+        }
+
+        /// <inheritdoc/>
+        public void StopAlarmMonitoring()
+        {
+            m_alarmTimer?.Dispose();
+            m_alarmTimer = null;
+        }
+
         private void EvaluateCertificateAlarms(ISystemContext context)
         {
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
@@ -1820,6 +1854,7 @@ namespace Opc.Ua.Server
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
+        private Timer? m_alarmTimer;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();
