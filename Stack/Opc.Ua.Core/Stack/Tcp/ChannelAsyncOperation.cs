@@ -265,7 +265,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (timeout != int.MaxValue || ct != default)
                     {
-                        _ = await WaitAsync(waitTask, timeout, ct).ConfigureAwait(false);
+                        await WaitAsync(waitTask, timeout, ct).ConfigureAwait(false);
                     }
                     else
                     {

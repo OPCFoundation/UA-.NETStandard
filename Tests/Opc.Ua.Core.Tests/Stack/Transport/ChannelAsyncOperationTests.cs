@@ -77,11 +77,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Task<int> task = operation.EndAsync(int.MaxValue, ct: cancellationTokenSource.Token);
             cancellationTokenSource.Cancel();
 
-            Assert.That(
-                async () => await task.ConfigureAwait(false),
-                Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode))
-                    .EqualTo(StatusCodes.BadRequestInterrupted));
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(() => task);
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadRequestInterrupted));
         }
 
         [Test]
@@ -93,11 +92,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 null,
                 NullLogger.Instance);
 
-            Assert.That(
-                async () => await operation.EndAsync(int.MaxValue).ConfigureAwait(false),
-                Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode))
-                    .EqualTo(StatusCodes.BadRequestTimeout));
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(() => operation.EndAsync(int.MaxValue));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
         }
     }
 }
