@@ -45,6 +45,14 @@ internal sealed class PluginRegistration
     public required string Description { get; init; }
     public required string MenuHeader { get; init; }
 
+    /// <summary>
+    /// Optional keyboard shortcut (e.g. <c>"Ctrl+Shift+S"</c>) displayed
+    /// next to the plug-in's entry in the Tabs → Add menu and registered
+    /// as the actual hot-key.  <c>null</c> for plug-ins without a
+    /// shortcut.
+    /// </summary>
+    public string? InputGesture { get; init; }
+
     public required Func<MainViewModel, IPlugin> Factory { get; init; }
 }
 
@@ -62,7 +70,8 @@ internal static class PluginRegistry
             DisplayName = "Subscription",
             Glyph = "⚡",
             Description = "Live notification view for OPC UA subscriptions: monitored items, animation canvas, signal/histogram/heatmap modes.",
-            MenuHeader = "Subscri_ption",
+            MenuHeader = "_Subscription",
+            InputGesture = "Ctrl+Shift+S",
             Factory = _ => throw new System.NotImplementedException(
                 "Subscription factory wired by MainViewModel in Phase 2.")
         },
@@ -73,6 +82,7 @@ internal static class PluginRegistry
             Glyph = "🛡",
             Description = "Server certificate and trust-list management via the OPC UA GDS Push API.",
             MenuHeader = "GDS _Push",
+            InputGesture = "Ctrl+Shift+P",
             Factory = vm => new UaLens.Plugins.GdsPush.GdsPushPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -82,6 +92,7 @@ internal static class PluginRegistry
             Glyph = "🏛",
             Description = "Connect to a Global Discovery Server to manage server registrations, certificate groups, and trust lists.",
             MenuHeader = "GDS _Management",
+            InputGesture = "Ctrl+Shift+M",
             Factory = vm => new UaLens.Plugins.GdsManagement.GdsManagementPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -91,6 +102,7 @@ internal static class PluginRegistry
             Glyph = "🔍",
             Description = "Discover OPC UA servers via LDS (local network) and GDS (global), plus saved Custom endpoints.",
             MenuHeader = "GDS _Discovery",
+            InputGesture = "Ctrl+Shift+D",
             Factory = vm => new UaLens.Plugins.GdsDiscovery.GdsDiscoveryPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -99,7 +111,8 @@ internal static class PluginRegistry
             DisplayName = "Performance",
             Glyph = "📊",
             Description = "Synthetic write / call benchmarks against the connected session — throughput and latency percentiles.",
-            MenuHeader = "_Performance",
+            MenuHeader = "Per_formance",
+            InputGesture = "Ctrl+Shift+B",
             Factory = vm => new UaLens.Plugins.Performance.PerformancePlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -108,7 +121,8 @@ internal static class PluginRegistry
             DisplayName = "Event View",
             Glyph = "🔔",
             Description = "Rich event-details viewer — subscribes to event sources and shows event-field trees alongside the event log.",
-            MenuHeader = "E_vents",
+            MenuHeader = "_Event View",
+            InputGesture = "Ctrl+Shift+V",
             Factory = vm => new UaLens.Plugins.EventView.EventViewPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -118,6 +132,7 @@ internal static class PluginRegistry
             Glyph = "📈",
             Description = "History read (raw / processed / at-time) and history update for variables.",
             MenuHeader = "_Historian",
+            InputGesture = "Ctrl+Shift+H",
             Factory = vm => new UaLens.Plugins.Historian.HistorianPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -127,6 +142,7 @@ internal static class PluginRegistry
             Glyph = "📁",
             Description = "Browse FileType / FileDirectoryType objects like Windows Explorer.",
             MenuHeader = "_File System",
+            InputGesture = "Ctrl+Shift+L",
             Factory = vm => new UaLens.Plugins.FileSystem.FileSystemPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -136,6 +152,7 @@ internal static class PluginRegistry
             Glyph = "🔑",
             Description = "Manage local certificate stores (Application, TrustedPeer, TrustedIssuer, Rejected). Works without an active session.",
             MenuHeader = "_Certificate Manager",
+            InputGesture = "Ctrl+Shift+C",
             Factory = vm => new UaLens.Plugins.CertificateManager.CertificateManagerPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -145,6 +162,7 @@ internal static class PluginRegistry
             Glyph = "🛂",
             Description = "Manage server role-based access control (RBAC) — roles, identities, applications and endpoints per OPC UA Part 18.",
             MenuHeader = "_Role Management",
+            InputGesture = "Ctrl+Shift+R",
             Factory = vm => new UaLens.Plugins.RoleManagement.RoleManagementPlugin(vm.CreatePluginHost())
         },
         new PluginRegistration
@@ -154,6 +172,7 @@ internal static class PluginRegistry
             Glyph = "👤",
             Description = "Manage server user accounts (add/modify/remove/change password) per OPC UA Part 18.",
             MenuHeader = "_User Management",
+            InputGesture = "Ctrl+Shift+U",
             Factory = vm => new UaLens.Plugins.UserManagement.UserManagementPlugin(vm.CreatePluginHost())
         }
     ];

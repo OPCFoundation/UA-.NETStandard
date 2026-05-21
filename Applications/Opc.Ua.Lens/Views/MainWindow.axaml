@@ -139,41 +139,7 @@
         <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
       </MenuItem>
       <MenuItem Header="_Tabs">
-        <MenuItem Header="_Add…">
-          <MenuItem x:Name="MenuNewSubscription"   Header="_Subscription"        InputGesture="Ctrl+Shift+S">
-            <MenuItem.Icon><TextBlock Text="⚡" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewGdsPush"        Header="GDS _Push"            InputGesture="Ctrl+Shift+P">
-            <MenuItem.Icon><TextBlock Text="🛡" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewGdsManagement"  Header="GDS _Management"      InputGesture="Ctrl+Shift+M">
-            <MenuItem.Icon><TextBlock Text="🏛" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewGdsDiscovery"   Header="GDS _Discovery"       InputGesture="Ctrl+Shift+D">
-            <MenuItem.Icon><TextBlock Text="🔍" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewPerformance"    Header="Per_formance"         InputGesture="Ctrl+Shift+B">
-            <MenuItem.Icon><TextBlock Text="📊" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewEventView"      Header="_Event View"          InputGesture="Ctrl+Shift+V">
-            <MenuItem.Icon><TextBlock Text="🔔" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewHistorian"      Header="_Historian"           InputGesture="Ctrl+Shift+H">
-            <MenuItem.Icon><TextBlock Text="📈" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewFileSystem"     Header="_File System"         InputGesture="Ctrl+Shift+L">
-            <MenuItem.Icon><TextBlock Text="📁" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewCertificateManager" Header="_Certificate Manager" InputGesture="Ctrl+Shift+C">
-            <MenuItem.Icon><TextBlock Text="🔑" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewRoleManagement" Header="_Role Management" InputGesture="Ctrl+Shift+R">
-            <MenuItem.Icon><TextBlock Text="🛂" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-          <MenuItem x:Name="MenuNewUserManagement" Header="_User Management" InputGesture="Ctrl+Shift+U">
-            <MenuItem.Icon><TextBlock Text="👤" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
-          </MenuItem>
-        </MenuItem>
+        <MenuItem x:Name="MenuTabsAdd" Header="_Add…" />
         <Separator />
         <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />
         <MenuItem x:Name="MenuCloseTab"     Header="_Close Active Tab"     InputGesture="Ctrl+W" />

@@ -123,16 +123,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         var menuSessionClose = this.RequiredControl<MenuItem>("MenuSessionClose");
         var menuSessionReconnect = this.RequiredControl<MenuItem>("MenuSessionReconnect");
         var menuSessionChangeUser = this.RequiredControl<MenuItem>("MenuSessionChangeUser");
-        var menuAddTab = this.RequiredControl<MenuItem>("MenuNewSubscription");
-        var menuNewGdsPush = this.RequiredControl<MenuItem>("MenuNewGdsPush");
-        var menuNewGdsManagement = this.RequiredControl<MenuItem>("MenuNewGdsManagement");
-        var menuNewPerformance = this.RequiredControl<MenuItem>("MenuNewPerformance");
-        var menuNewEventView = this.RequiredControl<MenuItem>("MenuNewEventView");
-        var menuNewHistorian = this.RequiredControl<MenuItem>("MenuNewHistorian");
-        var menuNewFileSystem = this.RequiredControl<MenuItem>("MenuNewFileSystem");
-        var menuNewCertificateManager = this.RequiredControl<MenuItem>("MenuNewCertificateManager");
-        var menuNewRoleManagement = this.RequiredControl<MenuItem>("MenuNewRoleManagement");
-        var menuNewUserManagement = this.RequiredControl<MenuItem>("MenuNewUserManagement");
+        var menuTabsAdd = this.RequiredControl<MenuItem>("MenuTabsAdd");
         var menuRenameTab = this.RequiredControl<MenuItem>("MenuRenameTab");
         var menuCloseTab = this.RequiredControl<MenuItem>("MenuCloseTab");
         var menuAddItem = this.RequiredControl<MenuItem>("MenuAddItemMenu");
@@ -180,41 +171,16 @@ internal sealed partial class MainWindow : Window, IDisposable
         menuSave.Click += async (_, _) => await OnSaveSessionAsync().ConfigureAwait(true);
 
         // --- Subscription menu ---
-        menuAddTab.Click += async (_, _) =>
-        {
-            if (!m_vm.IsConnected)
-            {
-                return;
-            }
-
-            try
-            {
-                await m_vm.AddTabCommand.ExecuteAsync(null).ConfigureAwait(true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"AddTab failed: {ex}");
-            }
-        };
         menuAddItem.Click += async (_, _) => await OnAddItem().ConfigureAwait(true);
         menuAddRecursive.Click += async (_, _) => await OnAddRecursivelyAsync().ConfigureAwait(true);
         menuRemoveItem.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(true);
         menuSubSettings.Click += async (_, _) => await OnSettings().ConfigureAwait(true);
 
-        // --- Tabs → New … wiring ---
-        menuNewGdsPush.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsPush).ConfigureAwait(true);
-        menuNewGdsManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsManagement).ConfigureAwait(true);
-        var menuNewGdsDiscovery = this.RequiredControl<MenuItem>("MenuNewGdsDiscovery");
-        menuNewGdsDiscovery.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsDiscovery).ConfigureAwait(true);
+        // --- Tabs → Add+ menu — populated dynamically from PluginRegistry ---
+        PopulateTabsAddMenu(menuTabsAdd);
+
         var menuLocales = this.RequiredControl<MenuItem>("MenuLocales");
         menuLocales.Click += async (_, _) => await OnLocalesAsync().ConfigureAwait(true);
-        menuNewPerformance.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Performance).ConfigureAwait(true);
-        menuNewEventView.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.EventView).ConfigureAwait(true);
-        menuNewHistorian.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(true);
-        menuNewFileSystem.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.FileSystem).ConfigureAwait(true);
-        menuNewCertificateManager.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.CertificateManager).ConfigureAwait(true);
-        menuNewRoleManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.RoleManagement).ConfigureAwait(true);
-        menuNewUserManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.UserManagement).ConfigureAwait(true);
 
         // --- Tabs → Rename / Duplicate / Close Active Tab ---
         menuRenameTab.Click += (_, _) =>
@@ -702,8 +668,6 @@ internal sealed partial class MainWindow : Window, IDisposable
             }
 
             // Subscription.
-            if (ctrl && shift && e.Key == Key.S)
-            { InvokeMenu(menuAddTab); e.Handled = true; return; }
             if (ctrl && shift && e.Key == Key.I)
             { InvokeMenu(menuAddRecursive); e.Handled = true; return; }
             if (ctrl && e.Key == Key.I)
@@ -713,26 +677,15 @@ internal sealed partial class MainWindow : Window, IDisposable
             if (ctrl && e.Key == Key.OemComma)
             { InvokeMenu(menuSubSettings); e.Handled = true; return; }
 
-            // New-tab shortcuts for the non-Subscription plug-ins.
-            // Listed before the plain Ctrl+V (cycle view-mode) and Ctrl+R
-            // (toggle References) bindings so the shift-modified variants
-            // take precedence.
-            if (ctrl && shift && e.Key == Key.P)
-            { InvokeMenu(menuNewGdsPush); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.M)
-            { InvokeMenu(menuNewGdsManagement); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.D)
-            { InvokeMenu(menuNewGdsDiscovery); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.B)
-            { InvokeMenu(menuNewPerformance); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.V)
-            { InvokeMenu(menuNewEventView); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.H)
-            { InvokeMenu(menuNewHistorian); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.L)
-            { InvokeMenu(menuNewFileSystem); e.Handled = true; return; }
-            if (ctrl && shift && e.Key == Key.C)
-            { InvokeMenu(menuNewCertificateManager); e.Handled = true; return; }
+            // New-tab shortcuts for every registered plug-in (incl.
+            // Subscription with Ctrl+Shift+S).  Driven by
+            // PluginRegistry.InputGesture so new plug-ins inherit
+            // the shortcut behaviour automatically.
+            if (TryDispatchPluginShortcut(e))
+            {
+                e.Handled = true;
+                return;
+            }
 
             // View — checkable items: toggle then invoke handler.
             if (e.Key == Key.F2)
@@ -1281,6 +1234,63 @@ internal sealed partial class MainWindow : Window, IDisposable
     /// Invoke a menu item as if it had been clicked.  Skips disabled items
     /// so keyboard shortcuts respect the same enable state.
     /// </summary>
+    /// <summary>
+    /// Checks whether the given <see cref="KeyEventArgs"/> matches any
+    /// registered plug-in's <see cref="PluginRegistration.InputGesture"/>
+    /// and, if so, dispatches the corresponding Add-tab action.  Routes
+    /// the Subscription kind through <c>MainViewModel.AddTabCommand</c>
+    /// and everything else through <c>AddPluginAsync(kind)</c>.
+    /// </summary>
+    private bool TryDispatchPluginShortcut(Avalonia.Input.KeyEventArgs e)
+    {
+        foreach (PluginRegistration reg in PluginRegistry.All)
+        {
+            if (string.IsNullOrEmpty(reg.InputGesture))
+            {
+                continue;
+            }
+            Avalonia.Input.KeyGesture gesture;
+            try
+            {
+                gesture = Avalonia.Input.KeyGesture.Parse(reg.InputGesture);
+            }
+            catch
+            {
+                continue;
+            }
+            if (gesture.Key != e.Key || gesture.KeyModifiers != e.KeyModifiers)
+            {
+                continue;
+            }
+            PluginKind kind = reg.Kind;
+            _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                try
+                {
+                    if (kind == PluginKind.Subscription)
+                    {
+                        if (!m_vm.IsConnected)
+                        {
+                            return;
+                        }
+                        await m_vm.AddTabCommand.ExecuteAsync(null).ConfigureAwait(true);
+                    }
+                    else
+                    {
+                        await m_vm.AddPluginAsync(kind).ConfigureAwait(true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Plugin shortcut dispatch ({kind}) failed: {ex}");
+                }
+            });
+            return true;
+        }
+        return false;
+    }
+
     private static void InvokeMenu(MenuItem item)
     {
         if (!item.IsEnabled)
@@ -1728,6 +1738,66 @@ internal sealed partial class MainWindow : Window, IDisposable
     }
 
     private double m_lastFlyoutWidth;
+
+    /// <summary>
+    /// Builds the Tabs → Add+ submenu from <see cref="PluginRegistry.All"/>
+    /// so every registered plug-in kind shows up automatically with the
+    /// metadata declared in its <see cref="PluginRegistration"/>
+    /// (DisplayName / Glyph / InputGesture / MenuHeader).  The
+    /// Subscription kind retains its special routing through
+    /// <c>MainViewModel.AddTabCommand</c>; everything else dispatches
+    /// to <c>m_vm.AddPluginAsync(kind)</c>.
+    /// </summary>
+    private void PopulateTabsAddMenu(MenuItem host)
+    {
+        var items = new List<object>();
+        foreach (PluginRegistration reg in PluginRegistry.All)
+        {
+            var menuItem = new MenuItem
+            {
+                Header = reg.MenuHeader,
+                Icon = new TextBlock
+                {
+                    Text = reg.Glyph,
+                    Width = 18,
+                    TextAlignment = Avalonia.Media.TextAlignment.Center,
+                    FontSize = 14
+                }
+            };
+            if (!string.IsNullOrEmpty(reg.InputGesture))
+            {
+                menuItem.InputGesture = Avalonia.Input.KeyGesture.Parse(reg.InputGesture);
+            }
+            ToolTip.SetTip(menuItem, reg.Description);
+
+            PluginKind kind = reg.Kind;
+            menuItem.Click += async (_, _) =>
+            {
+                try
+                {
+                    if (kind == PluginKind.Subscription)
+                    {
+                        if (!m_vm.IsConnected)
+                        {
+                            return;
+                        }
+                        await m_vm.AddTabCommand.ExecuteAsync(null).ConfigureAwait(true);
+                    }
+                    else
+                    {
+                        await m_vm.AddPluginAsync(kind).ConfigureAwait(true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Tabs->Add ({kind}) failed: {ex}");
+                }
+            };
+            items.Add(menuItem);
+        }
+        host.ItemsSource = items;
+    }
 
     /// <summary>
     /// 📤 Export — write the connected server's address space (every node
@@ -2488,6 +2558,74 @@ internal sealed partial class MainWindow : Window, IDisposable
             Foreground = (Application.Current?.FindResource("TextPrimary") as Avalonia.Media.IBrush)
                 ?? Avalonia.Media.Brushes.Transparent
         };
+        var sb = new System.Text.StringBuilder();
+        sb.Append(
+            "  ─── Navigation ───\n" +
+            "  Tab / Shift+Tab     cycle focus across controls\n" +
+            "  Ctrl+Tab / Ctrl+Sh+Tab  cycle subscription tabs\n" +
+            "  Arrow keys          navigate inside the focused tree / list / text\n" +
+            "  Right / Left        expand / collapse a tree node\n" +
+            "  Enter               default button (OK in dialogs)\n" +
+            "  Esc                 Cancel in dialogs\n" +
+            "\n" +
+            "  ─── File ───\n" +
+            "  Ctrl+E              Export NodeSet2 XML\n" +
+            "  Ctrl+Shift+E        Export Plugin Data (CSV / JSON)\n" +
+            "  Ctrl+Q              Quit\n" +
+            "\n" +
+            "  ─── Session ───\n" +
+            "  Ctrl+N / Ctrl+U     Connect (open Create-Session dialog)\n" +
+            "  Ctrl+O              Load session\n" +
+            "  Ctrl+S              Save session\n" +
+            "  Ctrl+K              Manage Certificates\n" +
+            "\n" +
+            "  ─── Tabs (add) ───\n");
+
+        // Build the per-plugin shortcut block dynamically from the
+        // registry so new plug-ins appear automatically without needing
+        // to keep the cheat sheet in sync by hand.
+        foreach (PluginRegistration reg in PluginRegistry.All)
+        {
+            if (string.IsNullOrEmpty(reg.InputGesture))
+            {
+                continue;
+            }
+            sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "  {0,-20}{1}\n", reg.InputGesture, reg.DisplayName));
+        }
+
+        sb.Append(
+            "\n" +
+            "  ─── Tabs (manage) ───\n" +
+            "  F2 (in tab strip)   Rename Active Tab\n" +
+            "  Ctrl+W              Close Active Tab\n" +
+            "  (right-click tab)   Rename… / Duplicate / Close\n" +
+            "\n" +
+            "  ─── Subscription ───\n" +
+            "  Ctrl+I              Add item…\n" +
+            "  Ctrl+Shift+I        Add recursively…\n" +
+            "  Ctrl+Shift+R        Remove item…\n" +
+            "  Ctrl+,              Subscription settings…\n" +
+            "\n" +
+            "  ─── View ───\n" +
+            "  F2                  Toggle diagnostics panel\n" +
+            "  Ctrl+L              Toggle log panel\n" +
+            "  Ctrl+B              Toggle address-space pane\n" +
+            "  Ctrl+Shift+F        Toggle address-space filter / view combo\n" +
+            "  Ctrl+A              Toggle Attributes pane (sub of address space)\n" +
+            "  Ctrl+R              Toggle References pane (sub of address space)\n" +
+            "  Ctrl+V              Cycle chart view mode\n" +
+            "  Ctrl++ / Ctrl+−     Zoom chart time-scale in / out\n" +
+            "  Ctrl+0              Reset chart time-scale\n" +
+            "\n" +
+            "  ─── Help ───\n" +
+            "  F1                  Cheat sheet (this dialog)\n" +
+            "\n" +
+            "  Tree-view glyphs (letter tiles):\n" +
+            "    [C] Object   [C] ObjectType   [V] Variable   [V] VariableType\n" +
+            "    [M] Method   [R] ReferenceType   [T] DataType   [W] View\n" +
+            "    Solid tiles are concrete instances; outlined tiles are type templates.");
+
         help.Content = new ScrollViewer
         {
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -2496,68 +2634,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             {
                 Margin = new Thickness(20),
                 FontFamily = new Avalonia.Media.FontFamily("Cascadia Mono, Consolas, monospace"),
-                Text =
-                    "  ─── Navigation ───\n" +
-                    "  Tab / Shift+Tab     cycle focus across controls\n" +
-                    "  Ctrl+Tab / Ctrl+Sh+Tab  cycle subscription tabs\n" +
-                    "  Arrow keys          navigate inside the focused tree / list / text\n" +
-                    "  Right / Left        expand / collapse a tree node\n" +
-                    "  Enter               default button (OK in dialogs)\n" +
-                    "  Esc                 Cancel in dialogs\n" +
-                    "\n" +
-                    "  ─── File ───\n" +
-                    "  Ctrl+E              Export NodeSet2 XML\n" +
-                    "  Ctrl+Shift+E        Export Plugin Data (CSV / JSON)\n" +
-                    "  Ctrl+Q              Quit\n" +
-                    "\n" +
-                    "  ─── Session ───\n" +
-                    "  Ctrl+N / Ctrl+U     Connect (open Create-Session dialog)\n" +
-                    "  Ctrl+O              Load session\n" +
-                    "  Ctrl+S              Save session\n" +
-                    "  Ctrl+K              Manage Certificates\n" +
-                    "\n" +
-                    "  ─── Tabs (add) ───\n" +
-                    "  Ctrl+Shift+S        Subscription\n" +
-                    "  Ctrl+Shift+P        GDS Push\n" +
-                    "  Ctrl+Shift+M        GDS Management\n" +
-                    "  Ctrl+Shift+D        GDS Discovery\n" +
-                    "  Ctrl+Shift+B        Performance (Benchmark)\n" +
-                    "  Ctrl+Shift+V        Event View\n" +
-                    "  Ctrl+Shift+H        Historian\n" +
-                    "  Ctrl+Shift+L        File System (fiLe)\n" +
-                    "  Ctrl+Shift+C        Certificate Manager\n" +
-                    "  Ctrl+Shift+R        Role Management\n" +
-                    "  Ctrl+Shift+U        User Management\n" +
-                    "\n" +
-                    "  ─── Tabs (manage) ───\n" +
-                    "  F2 (in tab strip)   Rename Active Tab\n" +
-                    "  Ctrl+W              Close Active Tab\n" +
-                    "  (right-click tab)   Rename… / Duplicate / Close\n" +
-                    "\n" +
-                    "  ─── Subscription ───\n" +
-                    "  Ctrl+I              Add item…\n" +
-                    "  Ctrl+Shift+I        Add recursively…\n" +
-                    "  Ctrl+Shift+R        Remove item…\n" +
-                    "  Ctrl+,              Subscription settings…\n" +
-                    "\n" +
-                    "  ─── View ───\n" +
-                    "  F2                  Toggle diagnostics panel\n" +
-                    "  Ctrl+L              Toggle log panel\n" +
-                    "  Ctrl+B              Toggle address-space pane\n" +
-                    "  Ctrl+Shift+F        Toggle address-space filter / view combo\n" +
-                    "  Ctrl+A              Toggle Attributes pane (sub of address space)\n" +
-                    "  Ctrl+R              Toggle References pane (sub of address space)\n" +
-                    "  Ctrl+V              Cycle chart view mode\n" +
-                    "  Ctrl++ / Ctrl+−     Zoom chart time-scale in / out\n" +
-                    "  Ctrl+0              Reset chart time-scale\n" +
-                    "\n" +
-                    "  ─── Help ───\n" +
-                    "  F1                  Cheat sheet (this dialog)\n" +
-                    "\n" +
-                    "  Tree-view glyphs (letter tiles):\n" +
-                    "    [C] Object   [C] ObjectType   [V] Variable   [V] VariableType\n" +
-                    "    [M] Method   [R] ReferenceType   [T] DataType   [W] View\n" +
-                    "    Solid tiles are concrete instances; outlined tiles are type templates."
+                Text = sb.ToString()
             }
         };
         help.ShowDialog(this);
