@@ -40,6 +40,9 @@ using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Test;
 using Range = Opc.Ua.Range;
+using HistoryArchive = TestData.HistoryArchive;
+using HistoryDataReader = TestData.HistoryDataReader;
+using IHistoryDataSource = TestData.IHistoryDataSource;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -77,6 +80,8 @@ namespace Quickstarts.ReferenceServer
                 m_semaphore?.Dispose();
                 m_simulationTimer?.Dispose();
                 m_simulationTimer = null;
+                m_historyArchive?.Dispose();
+                m_historyArchive = null;
             }
             base.Dispose(disposing);
         }
@@ -3814,6 +3819,9 @@ namespace Quickstarts.ReferenceServer
 
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
 
+                // Enable history archiving for selected scalar variables.
+                EnableHistoryArchiving();
+
                 if (m_simulationEnabled)
                 {
                     // reset random generator and generate boundary values
@@ -5376,6 +5384,527 @@ namespace Quickstarts.ReferenceServer
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
+
+        private HistoryArchive? m_historyArchive;
+
+        #region Historical Access
+
+        /// <summary>
+        /// Identifiers of the nodes that support history archiving.
+        /// </summary>
+        private static readonly string[] HistoricalNodeNames =
+        [
+            "Scalar_Static_Double",
+            "Scalar_Static_Int32",
+            "Scalar_Static_Float"
+        ];
+
+        /// <summary>
+        /// Enables history archiving on selected scalar variables.
+        /// </summary>
+        private void EnableHistoryArchiving()
+        {
+            m_historyArchive = new HistoryArchive(Server.Telemetry);
+
+            foreach (string name in HistoricalNodeNames)
+            {
+                var nodeId = new NodeId(name, NamespaceIndex);
+
+                if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
+                {
+                    continue;
+                }
+
+                if (node is not BaseVariableState variable)
+                {
+                    continue;
+                }
+
+                variable.Historizing = true;
+                variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+
+                BuiltInType builtInType = TypeInfo.GetBuiltInType(variable.DataType);
+                m_historyArchive.CreateRecord(nodeId, builtInType);
+            }
+        }
+
+        /// <summary>
+        /// Returns the history data source for a node.
+        /// </summary>
+        private IHistoryDataSource? GetHistoryDataSource(NodeId nodeId)
+        {
+            return m_historyArchive?.GetHistoryFile(nodeId);
+        }
+
+        /// <summary>
+        /// Restores a previously cached history reader.
+        /// </summary>
+        private static HistoryDataReader? RestoreDataReader(
+            ServerSystemContext context,
+            ByteString continuationPoint)
+        {
+            if (context?.OperationContext?.Session == null)
+            {
+                return null;
+            }
+
+            return context.OperationContext.Session
+                .RestoreHistoryContinuationPoint(continuationPoint) as HistoryDataReader;
+        }
+
+        /// <summary>
+        /// Saves a history data reader as a continuation point.
+        /// </summary>
+        private static void SaveDataReader(ServerSystemContext context, HistoryDataReader reader)
+        {
+            context?.OperationContext?.Session?
+                .SaveHistoryContinuationPoint(reader.Id, reader);
+        }
+
+        /// <summary>
+        /// Reads raw history data for a single variable.
+        /// </summary>
+        private static ServiceResult HistoryReadRaw(
+            ServerSystemContext context,
+            IHistoryDataSource? datasource,
+            ReadRawModifiedDetails? details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueId nodeToRead,
+            HistoryReadResult result)
+        {
+            List<DataValue> dataValues = [];
+
+            HistoryDataReader? reader;
+            if (!nodeToRead.ContinuationPoint.IsEmpty)
+            {
+                reader = RestoreDataReader(context, nodeToRead.ContinuationPoint);
+
+                if (reader == null)
+                {
+                    return StatusCodes.BadContinuationPointInvalid;
+                }
+
+                if (reader.VariableId != nodeToRead.NodeId)
+                {
+                    reader.Dispose();
+                    return StatusCodes.BadContinuationPointInvalid;
+                }
+
+                if (releaseContinuationPoints)
+                {
+                    reader.Dispose();
+                    return ServiceResult.Good;
+                }
+            }
+            else
+            {
+                if (datasource == null || details == null)
+                {
+                    return StatusCodes.BadNotReadable;
+                }
+
+                reader = new HistoryDataReader(nodeToRead.NodeId, datasource);
+                reader.BeginReadRaw(
+                    context,
+                    details,
+                    timestampsToReturn,
+                    nodeToRead.ParsedIndexRange,
+                    nodeToRead.DataEncoding,
+                    dataValues);
+            }
+
+            bool complete = reader.NextReadRaw(
+                context,
+                timestampsToReturn,
+                nodeToRead.ParsedIndexRange,
+                nodeToRead.DataEncoding,
+                dataValues);
+
+            if (!complete)
+            {
+                SaveDataReader(context, reader);
+                result.StatusCode = StatusCodes.GoodMoreData;
+            }
+            else
+            {
+                reader.Dispose();
+            }
+
+            result.HistoryData = new ExtensionObject(new HistoryData
+            {
+                DataValues = dataValues
+            });
+
+            return result.StatusCode;
+        }
+
+        /// <summary>
+        /// Reads raw or modified history data.
+        /// </summary>
+        protected override async ValueTask HistoryReadRawModifiedAsync(
+            ServerSystemContext context,
+            ReadRawModifiedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                NodeState source = await ValidateNodeAsync(
+                    context, handle, cache, cancellationToken).ConfigureAwait(false);
+
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistoryDataSource? datasource = GetHistoryDataSource(handle.NodeId);
+
+                if (datasource == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = HistoryReadRaw(
+                    context,
+                    datasource,
+                    details,
+                    timestampsToReturn,
+                    false,
+                    nodesToRead[handle.Index],
+                    results[handle.Index]);
+            }
+        }
+
+        /// <summary>
+        /// Reads processed (aggregate) history data.
+        /// </summary>
+        protected override async ValueTask HistoryReadProcessedAsync(
+            ServerSystemContext context,
+            ReadProcessedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                NodeState source = await ValidateNodeAsync(
+                    context, handle, cache, cancellationToken).ConfigureAwait(false);
+
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistoryDataSource? datasource = GetHistoryDataSource(handle.NodeId);
+
+                if (datasource == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                // Determine which aggregate to use for this node.
+                NodeId aggregateId = NodeId.Null;
+                if (!details.AggregateType.IsNull && details.AggregateType.Count > 0)
+                {
+                    aggregateId = (ii < details.AggregateType.Count)
+                        ? details.AggregateType[ii]
+                        : details.AggregateType[0];
+                }
+
+                AggregateConfiguration configuration = details.AggregateConfiguration;
+                if (configuration == null || configuration.UseServerCapabilitiesDefaults)
+                {
+                    configuration = Server.AggregateManager.GetDefaultConfiguration(handle.NodeId);
+                }
+
+                IAggregateCalculator? calculator = Server.AggregateManager.CreateCalculator(
+                    aggregateId,
+                    details.StartTime,
+                    details.EndTime,
+                    details.ProcessingInterval,
+                    false,
+                    configuration);
+
+                if (calculator == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadAggregateNotSupported;
+                    continue;
+                }
+
+                // Feed all raw values in the time range to the calculator.
+                var rawDetails = new ReadRawModifiedDetails
+                {
+                    StartTime = details.StartTime,
+                    EndTime = details.EndTime,
+                    NumValuesPerNode = 0,
+                    IsReadModified = false,
+                    ReturnBounds = true
+                };
+
+                List<DataValue> rawValues = [];
+                var tempReader = new HistoryDataReader(handle.NodeId, datasource);
+                tempReader.BeginReadRaw(
+                    context,
+                    rawDetails,
+                    TimestampsToReturn.Source,
+                    NumericRange.Null,
+                    QualifiedName.Null,
+                    rawValues);
+
+                tempReader.NextReadRaw(
+                    context,
+                    TimestampsToReturn.Source,
+                    NumericRange.Null,
+                    QualifiedName.Null,
+                    rawValues);
+
+                tempReader.Dispose();
+
+                // Push values and collect processed results.
+                List<DataValue> processedValues = [];
+
+                foreach (DataValue rawValue in rawValues)
+                {
+                    if (!calculator.QueueRawValue(rawValue))
+                    {
+                        // Collect any computed values.
+                        DataValue? computed = calculator.GetProcessedValue(false);
+                        while (computed != null)
+                        {
+                            processedValues.Add(computed);
+                            computed = calculator.GetProcessedValue(false);
+                        }
+                    }
+                }
+
+                // Flush remaining.
+                DataValue? final1 = calculator.GetProcessedValue(true);
+                while (final1 != null)
+                {
+                    processedValues.Add(final1);
+                    final1 = calculator.GetProcessedValue(true);
+                }
+
+                results[handle.Index].HistoryData = new ExtensionObject(new HistoryData
+                {
+                    DataValues = processedValues
+                });
+
+                errors[handle.Index] = ServiceResult.Good;
+            }
+        }
+
+        /// <summary>
+        /// Releases continuation points for history read operations.
+        /// </summary>
+        protected override async ValueTask HistoryReleaseContinuationPointsAsync(
+            ServerSystemContext context,
+            ArrayOf<HistoryReadValueId> nodesToRead,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                NodeState source = await ValidateNodeAsync(
+                    context, handle, cache, cancellationToken).ConfigureAwait(false);
+
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadContinuationPointInvalid;
+                    continue;
+                }
+
+                errors[handle.Index] = HistoryReadRaw(
+                    context,
+                    null,
+                    null,
+                    TimestampsToReturn.Neither,
+                    true,
+                    nodesToRead[handle.Index],
+                    new HistoryReadResult());
+            }
+        }
+
+        /// <summary>
+        /// Inserts, replaces, or updates raw history data values.
+        /// </summary>
+        protected override async ValueTask HistoryUpdateDataAsync(
+            ServerSystemContext context,
+            ArrayOf<UpdateDataDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                NodeState source = await ValidateNodeAsync(
+                    context, handle, cache, cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (GetHistoryDataSource(handle.NodeId) is not IHistoryDataSource file)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                UpdateDataDetails details = nodesToUpdate[handle.Index];
+                HistoryUpdateResult result = results[handle.Index];
+
+                var perResult = new List<StatusCode>();
+                if (!details.UpdateValues.IsNull)
+                {
+                    foreach (DataValue value in details.UpdateValues)
+                    {
+                        StatusCode sc = details.PerformInsertReplace switch
+                        {
+                            PerformUpdateType.Insert => file.InsertRaw(value),
+                            PerformUpdateType.Replace => file.ReplaceRaw(value),
+                            PerformUpdateType.Update => file.UpsertRaw(value),
+                            PerformUpdateType.Remove => file.DeleteAtTime(value.SourceTimestamp.ToDateTime()),
+                            _ => StatusCodes.BadInvalidArgument
+                        };
+                        perResult.Add(sc);
+                    }
+                }
+                result.OperationResults = perResult;
+                errors[handle.Index] = ServiceResult.Good;
+            }
+        }
+
+        /// <summary>
+        /// Deletes raw history values in a time range.
+        /// </summary>
+        protected override async ValueTask HistoryDeleteRawModifiedAsync(
+            ServerSystemContext context,
+            ArrayOf<DeleteRawModifiedDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                NodeState source = await ValidateNodeAsync(
+                    context, handle, cache, cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (GetHistoryDataSource(handle.NodeId) is not IHistoryDataSource file)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                DeleteRawModifiedDetails details = nodesToUpdate[handle.Index];
+
+                // Reject IsDeleteModified — we don't track modified history separately.
+                if (details.IsDeleteModified)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                file.DeleteRaw(details.StartTime.ToDateTime(), details.EndTime.ToDateTime());
+                errors[handle.Index] = ServiceResult.Good;
+            }
+        }
+
+        /// <summary>
+        /// Deletes raw history values at specific timestamps.
+        /// </summary>
+        protected override async ValueTask HistoryDeleteAtTimeAsync(
+            ServerSystemContext context,
+            ArrayOf<DeleteAtTimeDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                NodeState source = await ValidateNodeAsync(
+                    context, handle, cache, cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (GetHistoryDataSource(handle.NodeId) is not IHistoryDataSource file)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                DeleteAtTimeDetails details = nodesToUpdate[handle.Index];
+                HistoryUpdateResult result = results[handle.Index];
+
+                var perResult = new List<StatusCode>();
+                if (!details.ReqTimes.IsNull)
+                {
+                    foreach (DateTimeUtc t in details.ReqTimes)
+                    {
+                        perResult.Add(file.DeleteAtTime(t.ToDateTime()));
+                    }
+                }
+                result.OperationResults = perResult;
+                errors[handle.Index] = ServiceResult.Good;
+            }
+        }
+
+        #endregion
 
         private static readonly ArrayOf<double> s_doubleArray =
         [

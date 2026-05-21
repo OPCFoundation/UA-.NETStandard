@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua;
 
 namespace TestData
@@ -59,5 +60,36 @@ namespace TestData
         /// <param name="position">A index previously returned by the reader.</param>
         /// <returns>The DataValue.</returns>
         DataValue? NextRaw(DateTimeUtc lastTime, bool isForward, bool isReadModified, ref int position);
+
+        /// <summary>
+        /// Inserts a new value at the value's source timestamp; returns
+        /// <see cref="StatusCodes.BadEntryExists"/> if a non-modified entry
+        /// already occupies that slot.
+        /// </summary>
+        StatusCode InsertRaw(DataValue value);
+
+        /// <summary>
+        /// Replaces an existing value at the source timestamp; returns
+        /// <see cref="StatusCodes.BadNoEntryExists"/> when nothing matches.
+        /// </summary>
+        StatusCode ReplaceRaw(DataValue value);
+
+        /// <summary>
+        /// Inserts the value when no entry exists at the timestamp;
+        /// otherwise replaces it. Mirrors
+        /// <see cref="PerformUpdateType.Update"/>.
+        /// </summary>
+        StatusCode UpsertRaw(DataValue value);
+
+        /// <summary>
+        /// Deletes raw entries whose source timestamp falls in
+        /// <c>[startTime, endTime)</c>.
+        /// </summary>
+        StatusCode DeleteRaw(DateTime startTime, DateTime endTime);
+
+        /// <summary>
+        /// Deletes a single entry at the specified source timestamp.
+        /// </summary>
+        StatusCode DeleteAtTime(DateTime sourceTimestamp);
     }
 }
