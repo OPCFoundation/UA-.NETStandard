@@ -149,7 +149,7 @@ namespace Opc.Ua.WotCon.Client
             NodeClass nodeClasses,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            NodeId refTypeId = ExpandedNodeId.ToNodeId(referenceType, Session.NamespaceUris);
+            var refTypeId = ExpandedNodeId.ToNodeId(referenceType, Session.NamespaceUris);
             (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
                 requestHeader: null,
                 view: null,
@@ -160,7 +160,7 @@ namespace Opc.Ua.WotCon.Client
                 includeSubtypes: includeSubtypes,
                 (uint)nodeClasses,
                 ct).ConfigureAwait(false);
-            ReferenceDescription[] snapshot = new ReferenceDescription[references.Count];
+            var snapshot = new ReferenceDescription[references.Count];
             for (int i = 0; i < references.Count; i++)
             {
                 snapshot[i] = references[i];
@@ -168,7 +168,7 @@ namespace Opc.Ua.WotCon.Client
             foreach (ReferenceDescription reference in snapshot)
             {
                 ct.ThrowIfCancellationRequested();
-                NodeId targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 yield return new WotAssetVariableEntry(
                     targetId,
                     reference.BrowseName.Name ?? string.Empty);

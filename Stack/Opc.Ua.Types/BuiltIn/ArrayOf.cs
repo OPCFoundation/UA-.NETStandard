@@ -530,7 +530,7 @@ namespace Opc.Ua
         [Pure]
         public ArrayOf<T> AddItem(T value)
         {
-            T[] buffer = new T[Count + 1];
+            var buffer = new T[Count + 1];
             Span<T> dest = buffer.AsSpan();
             Span.CopyTo(dest);
             dest[Count] = value;
@@ -555,7 +555,7 @@ namespace Opc.Ua
             {
                 return AddItem(value);
             }
-            T[] buffer = new T[Count + 1];
+            var buffer = new T[Count + 1];
             Span<T> target = buffer.AsSpan();
             if (index == 0)
             {
@@ -584,7 +584,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            T[] buffer = new T[Count];
+            var buffer = new T[Count];
             Span.CopyTo(buffer);
             buffer[index] = value;
             return buffer.ToArrayOf();
@@ -602,7 +602,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            T[] buffer = new T[Count];
+            var buffer = new T[Count];
             Span.CopyTo(buffer);
             value.Span.CopyTo(buffer.AsSpan(index));
             return buffer.ToArrayOf();
@@ -1057,7 +1057,7 @@ namespace Opc.Ua
             {
                 return [];
             }
-            T[] buffer = new T[length];
+            var buffer = new T[length];
             Span<T> dest = buffer.AsSpan();
             foreach (ArrayOf<T> item in arrays)
             {

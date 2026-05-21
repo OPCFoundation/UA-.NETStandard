@@ -114,7 +114,7 @@ namespace Opc.Ua.Aot.Tests
                     await Assert.That(fields.EventFields.Count)
                         .IsEqualTo(eventFilter.SelectClauses.Count);
 
-                    List<Variant> values = fields.EventFields.ToList();
+                    var values = fields.EventFields.ToList();
                     string sourceName = values[2].GetString();
                     ushort severity = values[3].GetUInt16();
                     LocalizedText message = values[4].GetLocalizedText();

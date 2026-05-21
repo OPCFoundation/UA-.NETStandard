@@ -967,7 +967,7 @@ namespace Opc.Ua
                     FieldInfo? infoField = Array.Find(infoFields, f => f.Name == field.Name);
                     if (infoField != null && infoField.FieldType == typeof(SecurityPolicyInfo))
                     {
-                        SecurityPolicyInfo? info = (SecurityPolicyInfo?)infoField.GetValue(null);
+                        var info = (SecurityPolicyInfo?)infoField.GetValue(null);
                         if (info != null)
                         {
                             keyValuePairs.Add(field.Name, info);

@@ -202,7 +202,7 @@ namespace Boiler
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                Task delay = Task.Delay(
+                var delay = Task.Delay(
                     TimeSpan.FromMilliseconds(500), cancellationToken);
                 try
                 {

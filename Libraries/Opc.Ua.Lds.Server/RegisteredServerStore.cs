@@ -378,7 +378,7 @@ namespace Opc.Ua.Lds.Server
             m_lock.Wait();
             try
             {
-                List<string> staleUris = m_byUri.Values
+                var staleUris = m_byUri.Values
                     .Where(e =>
                         nowUtc - e.LastSeenUtc > RegistrationLifetime ||
                         (!string.IsNullOrEmpty(e.SemaphoreFilePath) && !File.Exists(e.SemaphoreFilePath)))

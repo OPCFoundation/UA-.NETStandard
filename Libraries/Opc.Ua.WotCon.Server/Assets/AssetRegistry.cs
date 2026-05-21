@@ -449,7 +449,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             bool mapped = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId nodeId = m_manager.AllocateChildNodeId(entry.Name, "props", name);
-            NodeId hasWotComponent = ExpandedNodeId.ToNodeId(
+            var hasWotComponent = ExpandedNodeId.ToNodeId(
                 Opc.Ua.WotCon.ReferenceTypeIds.HasWoTComponent,
                 m_manager.Server.NamespaceUris);
 
@@ -486,18 +486,18 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 variable.Value = Variant.Null;
                 variable.StatusCode = StatusCodes.BadConfigurationError;
-                variable.OnSimpleReadValueAsync = static (ISystemContext _, NodeState _, CancellationToken _) =>
+                variable.OnSimpleReadValueAsync = static (_, _, _) =>
                     new ValueTask<AttributeSimpleReadResult>(
                         new AttributeSimpleReadResult(StatusCodes.BadConfigurationError, Variant.Null));
             }
             else
             {
                 variable.Value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
-                variable.OnSimpleReadValueAsync = (ISystemContext _, NodeState _, CancellationToken ct) =>
+                variable.OnSimpleReadValueAsync = (_, _, ct) =>
                     ReadFromProviderAsync(entry, tag, ct);
                 if (!property.ReadOnly)
                 {
-                    variable.OnSimpleWriteValueAsync = (ISystemContext _, NodeState _, Variant value, CancellationToken ct) =>
+                    variable.OnSimpleWriteValueAsync = (_, _, value, ct) =>
                         WriteToProviderAsync(entry, tag, value, ct);
                 }
             }
@@ -530,12 +530,12 @@ namespace Opc.Ua.WotCon.Server.Assets
 
             if (inputArgs.Count > 0)
             {
-                Argument[] argsArray = new Argument[inputArgs.Count];
+                var argsArray = new Argument[inputArgs.Count];
                 for (int i = 0; i < inputArgs.Count; i++)
                 {
                     argsArray[i] = inputArgs[i];
                 }
-                PropertyState<ArrayOf<Argument>> inputProperty =
+                var inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
                 inputProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.InputArguments);
@@ -550,12 +550,12 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             if (outputArgs.Count > 0)
             {
-                Argument[] argsArray = new Argument[outputArgs.Count];
+                var argsArray = new Argument[outputArgs.Count];
                 for (int i = 0; i < outputArgs.Count; i++)
                 {
                     argsArray[i] = outputArgs[i];
                 }
-                PropertyState<ArrayOf<Argument>> outputProperty =
+                var outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
                 outputProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.OutputArguments);
@@ -573,12 +573,12 @@ namespace Opc.Ua.WotCon.Server.Assets
             var tag = new WotActionTag(name, nodeId, inputArgs, outputArgs, form);
 
             method.OnCallMethod2Async = (
-                ISystemContext _,
-                MethodState _,
-                NodeId _,
-                ArrayOf<Variant> inputArguments,
-                List<Variant> outputArguments,
-                CancellationToken ct) =>
+                _,
+                _,
+                _,
+                inputArguments,
+                outputArguments,
+                ct) =>
                 InvokeActionAsync(entry, tag, inputArguments, outputArguments, ct);
 
             entry.Actions[nodeId] = (method, tag);
@@ -647,13 +647,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return StatusCodes.BadNotConnected;
             }
 
-            Variant[] inputCopy = new Variant[inputArguments.Count];
+            var inputCopy = new Variant[inputArguments.Count];
             for (int i = 0; i < inputArguments.Count; i++)
             {
                 inputCopy[i] = inputArguments[i];
             }
 
-            Variant[] outputBuffer = new Variant[tag.OutputArguments.Count];
+            var outputBuffer = new Variant[tag.OutputArguments.Count];
             try
             {
                 ServiceResult status = await provider.InvokeActionAsync(

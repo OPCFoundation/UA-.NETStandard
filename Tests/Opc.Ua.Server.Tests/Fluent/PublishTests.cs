@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -282,18 +282,18 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            ByteString customEventId = Uuid.NewUuid().ToByteString();
+            var customEventId = Uuid.NewUuid().ToByteString();
             var customSource = new NodeId("OtherSource", kNs);
             const string kCustomSourceName = "AlternateName";
             const ushort kCustomSeverity = 800;
 
-            BaseEventState authored = new BaseEventState(parent: null);
+            var authored = new BaseEventState(parent: null);
             authored.EventId = PropertyState<ByteString>.With<VariantBuilder>(authored, customEventId);
             authored.SourceNode = PropertyState<NodeId>.With<VariantBuilder>(authored, customSource);
             authored.SourceName = PropertyState<string>.With<VariantBuilder>(authored, kCustomSourceName);
             authored.Severity = PropertyState<ushort>.With<VariantBuilder>(authored, kCustomSeverity);
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -327,7 +327,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -600,7 +600,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             builder.Node<BaseObjectState>(notifier.BrowseName.Name)
                 .Publish<BaseObjectState, BaseEventState>(
                     (_, _, ct) => channel.Reader.ReadAllAsync(ct),

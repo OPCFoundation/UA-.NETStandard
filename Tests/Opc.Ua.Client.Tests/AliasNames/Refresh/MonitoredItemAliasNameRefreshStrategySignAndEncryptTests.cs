@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
 
             int initialSubscriptions = m_session.SubscriptionCount;
 
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
             await using var resolver = new AliasNameResolver(
                 client,
                 new AliasNameResolverOptions

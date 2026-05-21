@@ -141,7 +141,7 @@ namespace Opc.Ua.WotCon.Tests
                 [new Argument { Name = "in1", DataType = DataTypeIds.Int64 }],
                 [new Argument { Name = "out1", DataType = DataTypeIds.Int64 }],
                 form: (JsonElement?)null);
-            Variant[] outputs = new Variant[1];
+            var outputs = new Variant[1];
 
             ServiceResult result = await m_provider.InvokeActionAsync(
                 actionTag,

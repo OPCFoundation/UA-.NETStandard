@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateBuilderForVariable<int>(DataTypeIds.Int32);
 
             ISystemContext seenContext = null;
-            b.Variable<int>("Root/Var").OnRead((ISystemContext c) =>
+            b.Variable<int>("Root/Var").OnRead(c =>
             {
                 seenContext = c;
                 return 7;
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateBuilderForVariable<int>(DataTypeIds.Int32);
 
             int callCount = 0;
-            b.Variable<int>("Root/Var").OnRead(async (CancellationToken ct) =>
+            b.Variable<int>("Root/Var").OnRead(async ct =>
             {
                 callCount++;
                 await Task.Yield();
@@ -277,7 +277,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             using var cts = new CancellationTokenSource();
             CancellationToken seenToken = default;
 
-            b.Variable<int>("Root/Var").OnRead((CancellationToken ct) =>
+            b.Variable<int>("Root/Var").OnRead(ct =>
             {
                 seenToken = ct;
                 return new ValueTask<int>(33);
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateBuilderForVariable<double>(DataTypeIds.Double);
 
             double captured = double.NaN;
-            b.Variable<double>("Root/Var").OnWrite((double x) => captured = x);
+            b.Variable<double>("Root/Var").OnWrite(x => captured = x);
 
             // Action<TValue> overload registers OnSimpleWriteValue (since it
             // only needs the Variant, not the full ref-StatusCode/Timestamp
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             ISystemContext seenContext = null;
             double captured = 0;
-            b.Variable<double>("Root/Var").OnWrite((ISystemContext c, double x) =>
+            b.Variable<double>("Root/Var").OnWrite((c, x) =>
             {
                 seenContext = c;
                 captured = x;
@@ -379,7 +379,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateBuilderForVariable<double>(DataTypeIds.Double);
 
             double captured = 0;
-            b.Variable<double>("Root/Var").OnWrite(async (double x, CancellationToken ct) =>
+            b.Variable<double>("Root/Var").OnWrite(async (x, ct) =>
             {
                 captured = x;
                 await Task.Yield();
@@ -413,7 +413,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             CancellationToken seenToken = default;
 
             b.Variable<double>("Root/Var").OnWrite(
-                (ISystemContext c, double x, CancellationToken ct) =>
+                (c, x, ct) =>
                 {
                     seenContext = c;
                     seenToken = ct;
@@ -464,7 +464,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateBuilderForVariable<string>(DataTypeIds.String);
 
             string captured = null;
-            b.Variable<string>("Root/Var").OnWrite((string s) => captured = s);
+            b.Variable<string>("Root/Var").OnWrite(s => captured = s);
 
             var dv = new DataValue
             {

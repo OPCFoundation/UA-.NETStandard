@@ -464,7 +464,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.RevokeCertificate!.OnCall = OnRevokeCertificate;
                     activeNode.CheckRevocationStatus!.OnCallAsync = OnCheckRevocationStatusAsync;
 
-                    var defaultApplicationCertificateTypes = activeNode.CertificateGroups!
+                    PropertyState<ArrayOf<NodeId>> defaultApplicationCertificateTypes = activeNode.CertificateGroups!
                         .DefaultApplicationGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultApplicationGroupId,
@@ -489,7 +489,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable!.Value =
                         false;
 
-                    var defaultHttpsCertificateTypes = activeNode.CertificateGroups
+                    PropertyState<ArrayOf<NodeId>> defaultHttpsCertificateTypes = activeNode.CertificateGroups
                         .DefaultHttpsGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultHttpsGroupId,
@@ -514,7 +514,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable!.Value =
                         false;
 
-                    var defaultUserTokenCertificateTypes = activeNode.CertificateGroups
+                    PropertyState<ArrayOf<NodeId>> defaultUserTokenCertificateTypes = activeNode.CertificateGroups
                         .DefaultUserTokenGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultUserTokenGroupId,

@@ -81,12 +81,12 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
 
             // Build a session harness so we can construct an
             // AliasNameClient pointing at a custom category.
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.SessionMock.SetupGet(s => s.NamespaceUris)
                 .Returns(BuildNamespaceTable());
 
             var categoryId = new NodeId("MyCategory", 1);
-            AliasNameClient client = new AliasNameClient(harness.Session, categoryId);
+            var client = new AliasNameClient(harness.Session, categoryId);
 
             int invalidations = 0;
             await strategy.StartAsync(

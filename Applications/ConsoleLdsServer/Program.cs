@@ -161,7 +161,7 @@ namespace Opc.Ua.Lds.Server.Console
                     {
                         if (timeoutMs >= 0)
                         {
-                            using CancellationTokenSource timeoutCts =
+                            using var timeoutCts =
                                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                             timeoutCts.CancelAfter(timeoutMs);
                             await Task.Delay(Timeout.Infinite, timeoutCts.Token).ConfigureAwait(false);

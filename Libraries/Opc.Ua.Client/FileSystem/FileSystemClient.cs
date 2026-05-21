@@ -778,7 +778,7 @@ namespace Opc.Ua.Client.FileSystem
                     RelativePath = new RelativePath { Elements = [element] }
                 });
             }
-            ArrayOf<BrowsePath> browsePaths = browsePathsList.ToArrayOf();
+            var browsePaths = browsePathsList.ToArrayOf();
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
@@ -810,7 +810,7 @@ namespace Opc.Ua.Client.FileSystem
                         targetIsDirectory: false);
                 }
 
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     result.Targets[0].TargetId,
                     Session.MessageContext.NamespaceUris);
                 indexToProperty[nodesToReadList.Count] = i;
@@ -826,7 +826,7 @@ namespace Opc.Ua.Client.FileSystem
                 return default;
             }
 
-            ArrayOf<ReadValueId> nodesToRead = nodesToReadList.ToArrayOf();
+            var nodesToRead = nodesToReadList.ToArrayOf();
             ReadResponse readResponse = await Session.ReadAsync(
                 null,
                 0.0,
@@ -1077,10 +1077,10 @@ namespace Opc.Ua.Client.FileSystem
             bool includeFiles,
             bool includeDirectories)
         {
-            NodeId childId = ExpandedNodeId.ToNodeId(
+            var childId = ExpandedNodeId.ToNodeId(
                 reference.NodeId,
                 Session.MessageContext.NamespaceUris);
-            NodeId typeDef = ExpandedNodeId.ToNodeId(
+            var typeDef = ExpandedNodeId.ToNodeId(
                 reference.TypeDefinition,
                 Session.MessageContext.NamespaceUris);
             QualifiedName name = reference.BrowseName;

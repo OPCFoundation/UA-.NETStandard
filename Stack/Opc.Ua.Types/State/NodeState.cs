@@ -1435,7 +1435,7 @@ namespace Opc.Ua
 
             using var decoder = new XmlDecoder(null, reader, messageContext);
             // check if a namespace table was provided.
-            NamespaceTable? namespaceUris = new NamespaceTable();
+            var namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
             {
@@ -2413,7 +2413,7 @@ namespace Opc.Ua
 
             while (true)
             {
-                BaseInstanceState? next = root as BaseInstanceState;
+                var next = root as BaseInstanceState;
 
                 // CA1508: `next` can legitimately be null when `root` is a NodeState that does
                 // not derive from BaseInstanceState (e.g. an ObjectTypeState root). The

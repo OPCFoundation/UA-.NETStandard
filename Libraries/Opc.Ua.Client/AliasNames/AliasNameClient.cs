@@ -424,7 +424,7 @@ namespace Opc.Ua.Client.AliasNames
                 {
                     continue;
                 }
-                NodeId localId = ExpandedNodeId.ToNodeId(
+                var localId = ExpandedNodeId.ToNodeId(
                     r.NodeId, Session.NamespaceUris);
                 if (localId.IsNull)
                 {

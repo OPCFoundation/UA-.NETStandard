@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverPreservesNumericIdentifier()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             PortableNodeId portable = resolver.ToPortable(new NodeId(42u, 1));
 
             Assert.That(portable, Is.Not.Null);
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverPreservesGuidIdentifier()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             var guid = Guid.NewGuid();
             PortableNodeId portable = resolver.ToPortable(new NodeId(guid, 1));
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverPreservesOpaqueIdentifier()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             var bytes = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
             PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1));
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverReturnsNullForNullNodeId()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             PortableNodeId portable = resolver.ToPortable(NodeId.Null);
             Assert.That(portable, Is.Null,
                 "Null NodeId must short-circuit to null without throwing.");
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverReturnsNullForUnknownNamespaceIndex()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             // Namespace index 99 is not registered — the resolver must
             // gracefully return null rather than emit a PortableNodeId
             // with a null/empty namespace URI.

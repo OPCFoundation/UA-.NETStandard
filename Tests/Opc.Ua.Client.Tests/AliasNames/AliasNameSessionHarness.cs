@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         public static AliasNameSessionHarness Create()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetry);
+            var messageContext = ServiceMessageContext.Create(telemetry);
 
             var sessionMock = new Mock<ISession>(MockBehavior.Loose);
             sessionMock.SetupGet(s => s.MessageContext).Returns(messageContext);

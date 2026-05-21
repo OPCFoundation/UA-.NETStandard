@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasOnStandardTagVariablesReturnsSeededEntriesAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
 
             IReadOnlyList<AliasNameDataType> result =
@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasWithPrefixWildcardMatchesAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
 
             IReadOnlyList<AliasNameDataType> result =
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasOnTopicsReturnsServerEventsAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTopics(m_session);
 
             IReadOnlyList<AliasNameDataType> result =
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task ResolverRoundTripsAliasToNodeIdAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
             await using var resolver = new AliasNameResolver(client);
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             // The standard Aliases (i=23470) node has TagVariables and
             // Topics as Organizes children in the shipped NodeSet; the
             // client's IAsyncEnumerable must yield both.
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardAliases(m_session);
 
             var names = new System.Collections.Generic.HashSet<string>();
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         {
             // TagVariables has no sub-categories in the standard NodeSet —
             // the enumeration must yield zero results without throwing.
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
             int count = 0;
             await foreach (AliasNameSubCategoryInfo _ in

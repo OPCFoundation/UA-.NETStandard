@@ -133,7 +133,7 @@ namespace Opc.Ua.WotCon.Client
                     StatusCodes.BadNodeIdUnknown,
                     "WoTAssetConnectionManagement entry point not found on the connected server.");
             }
-            NodeId managementId = ExpandedNodeId.ToNodeId(
+            var managementId = ExpandedNodeId.ToNodeId(
                 response.Results[0].Targets[0].TargetId,
                 session.NamespaceUris);
             return new WotConnectivityClient(session, managementId, telemetry);
@@ -243,7 +243,7 @@ namespace Opc.Ua.WotCon.Client
                     StatusCodes.BadNoMatch,
                     "WoTFile child not found below the asset object.");
             }
-            NodeId fileId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
+            var fileId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
 
             string assetName = await ReadDisplayNameAsync(assetId, ct).ConfigureAwait(false);
             WoTAssetFileTypeClient file = new(Session, fileId, Telemetry);
@@ -267,7 +267,7 @@ namespace Opc.Ua.WotCon.Client
                 includeSubtypes: true,
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
-            ReferenceDescription[] snapshot = new ReferenceDescription[references.Count];
+            var snapshot = new ReferenceDescription[references.Count];
             for (int i = 0; i < references.Count; i++)
             {
                 snapshot[i] = references[i];
@@ -275,7 +275,7 @@ namespace Opc.Ua.WotCon.Client
             foreach (ReferenceDescription reference in snapshot)
             {
                 ct.ThrowIfCancellationRequested();
-                NodeId targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 yield return new WotAssetEntry(targetId, reference.DisplayName.Text ?? string.Empty);
             }
         }

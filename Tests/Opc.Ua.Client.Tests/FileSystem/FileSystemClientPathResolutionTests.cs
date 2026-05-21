@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetInfoAsyncReturnsRootForEmptyPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             UaFileSystemInfo info = await client.GetInfoAsync(string.Empty)
@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetFileAsyncResolvesTwoSegmentPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId reports = harness.RegisterDirectory(
                 harness.Root, new QualifiedName("Reports"));
             NodeId fileId = harness.RegisterFile(
@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetDirectoryAsyncResolvesQualifiedSegmentsAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId child = harness.RegisterDirectory(
                 harness.Root, new QualifiedName("Reports", 1));
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetInfoAsyncReturnsNullForMissingPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             UaFileSystemInfo info = await client.GetInfoAsync("/missing/path")
@@ -109,7 +109,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetFileAsyncThrowsFileNotFoundForMissingPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             Assert.ThrowsAsync<FileNotFoundException>(
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetDirectoryAsyncThrowsDirectoryNotFoundForMissingPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             Assert.ThrowsAsync<DirectoryNotFoundException>(
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetFileAsyncThrowsWhenPathResolvesToDirectoryAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterDirectory(harness.Root, new QualifiedName("Reports"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GetDirectoryAsyncThrowsWhenPathResolvesToFileAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("data.csv"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task ExistsAsyncReturnsTrueForExistingPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("data.csv"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task ExistsAsyncReturnsFalseForMissingPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             Assert.That(await client.ExistsAsync("/missing").ConfigureAwait(false), Is.False);
@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task ResolvedPathIsCachedAcrossLookupsAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("data.csv"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                     (header, paths, ct) =>
                     {
                         translateCalls++;
-                        BrowsePathResult[] results = new BrowsePathResult[paths.Count];
+                        var results = new BrowsePathResult[paths.Count];
                         for (int i = 0; i < paths.Count; i++)
                         {
                             results[i] = harness.ResolveBrowsePathForTest(paths[i]);

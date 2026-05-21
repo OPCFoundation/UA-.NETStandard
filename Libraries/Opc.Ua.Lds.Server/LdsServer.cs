@@ -404,7 +404,7 @@ namespace Opc.Ua.Lds.Server
             {
                 try
                 {
-                    using Certificate cert = Certificate.FromRawData(certBytes);
+                    using var cert = Certificate.FromRawData(certBytes);
                     IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
                     if (applicationUris.Count > 0 &&
                         !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))

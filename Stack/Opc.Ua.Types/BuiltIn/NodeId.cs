@@ -300,7 +300,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            var context = ServiceMessageContext.CreateEmpty(null!);
             context.NamespaceUris = namespaceTable;
 
             return Parse(
@@ -882,7 +882,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        ByteString bytes = ByteString.FromBase64(text[2..]);
+                        var bytes = ByteString.FromBase64(text[2..]);
                         value = new NodeId(bytes, namespaceIndex);
                         return true;
                     }

@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddUser_HappyPath_Succeeds()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             ServiceResult result = um.AddUser("alice", "secret", UserConfigurationMask.None, "Tester");
             Assert.That(ServiceResult.IsGood(result), Is.True);
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddUser_DuplicateUserName_ReturnsBadAlreadyExists()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult duplicate = um.AddUser("alice", "secret2", UserConfigurationMask.None, string.Empty);
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddUser_PasswordTooShort_ReturnsBadOutOfRange()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             ServiceResult result = um.AddUser("alice", "ab", UserConfigurationMask.None, string.Empty);
             Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
         }
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddUser_PasswordTooLong_ReturnsBadOutOfRange()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             ServiceResult result = um.AddUser("alice", new string('a', 200),
                 UserConfigurationMask.None, string.Empty);
             Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddUser_MustChangePasswordPlusNoChangeByUser_ReturnsBadConfigurationError()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             ServiceResult result = um.AddUser("alice", "secret",
                 UserConfigurationMask.MustChangePassword | UserConfigurationMask.NoChangeByUser,
                 string.Empty);
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveUser_NonExistent_ReturnsBadNotFound()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             ServiceResult result = um.RemoveUser("ghost", callingUserName: null);
             Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
         }
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveUser_SelfReference_ReturnsBadInvalidSelfReference()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.RemoveUser("alice", callingUserName: "alice");
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ModifyUser_DisableSelfReference_ReturnsBadInvalidSelfReference()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.ModifyUser(
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ModifyUser_DisableOther_RaisesUserDeactivatedEvent()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveUser_RaisesUserDeactivatedEvent()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
 
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ChangePassword_HappyPath_Succeeds()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "oldpass", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.ChangePassword("alice", "oldpass", "newpass");
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ChangePassword_SameAsOld_ReturnsBadAlreadyExists()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.ChangePassword("alice", "secret", "secret");
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ChangePassword_WrongOldPassword_ReturnsBadIdentityTokenInvalid()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.ChangePassword("alice", "wrong", "newpass");
@@ -272,7 +272,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ChangePassword_ClearsMustChangePasswordBit()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(um.AddUser("alice", "secret",
                 UserConfigurationMask.MustChangePassword, string.Empty)), Is.True);
             Assert.That(um.MustChangePassword("alice"), Is.True);
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsUserActive_DisabledUser_ReturnsFalse()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(um.AddUser("alice", "secret",
                 UserConfigurationMask.Disabled, string.Empty)), Is.True);
             Assert.That(um.IsUserActive("alice"), Is.False);
@@ -309,7 +309,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsUserActive_ActiveUser_ReturnsTrue()
         {
-            using var um = CreateManager();
+            using UserManagementImpl um = CreateManager();
             Assert.That(ServiceResult.IsGood(um.AddUser("alice", "secret",
                 UserConfigurationMask.None, string.Empty)), Is.True);
             Assert.That(um.IsUserActive("alice"), Is.True);

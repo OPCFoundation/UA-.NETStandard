@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Roles
             // instances). Each child's NodeId + browse name is returned;
             // properties are then read in a single call per role to keep the
             // round-trip count proportional to the number of roles.
-            var browseDescriptions = new[]
+            BrowseDescription[] browseDescriptions = new[]
             {
                 new BrowseDescription
                 {
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.Roles
             }
             foreach (ReferenceDescription reference in materializedRefs)
             {
-                NodeId roleId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var roleId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (roleId.IsNull)
                 {
                     continue;
@@ -437,7 +437,7 @@ namespace Opc.Ua.Client.Roles
             NodeClass expectedClass,
             CancellationToken cancellationToken)
         {
-            var browsePaths = new[]
+            BrowsePath[] browsePaths = new[]
             {
                 new BrowsePath
                 {
@@ -474,7 +474,7 @@ namespace Opc.Ua.Client.Roles
         {
             NodeId propertyId = await ResolveChildAsync(parentId, browseName, NodeClass.Variable, cancellationToken)
                 .ConfigureAwait(false);
-            var writes = new[]
+            WriteValue[] writes = new[]
             {
                 new WriteValue
                 {

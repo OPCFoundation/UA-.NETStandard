@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
             // The data-change notification carries a DataValue in the
             // first value of NotificationValue. Extract the uint and
             // compare on inequality.
-            MonitoredItemNotification? notification = item.LastValue as
+            var notification = item.LastValue as
                 MonitoredItemNotification;
             if (notification == null)
             {

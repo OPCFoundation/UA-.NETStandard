@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Client
                 while (offset < thingDescriptionJson.Length)
                 {
                     int take = Math.Min(chunkSize, thingDescriptionJson.Length - offset);
-                    ByteString chunk = ByteString.From(
+                    var chunk = ByteString.From(
                         thingDescriptionJson.Slice(offset, take).ToArray());
                     await file.WriteAsync(handle, chunk, ct).ConfigureAwait(false);
                     offset += take;

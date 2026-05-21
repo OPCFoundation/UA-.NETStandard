@@ -169,7 +169,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId,
+                var targetId = ExpandedNodeId.ToNodeId(reference.TargetId,
                     m_nodeManager.SystemContext.NamespaceUris);
                 if (targetId.IsNull)
                 {
@@ -418,7 +418,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            PropertyState<bool> active = PropertyState<bool>.With<VariantBuilder>(parent);
+            var active = PropertyState<bool>.With<VariantBuilder>(parent);
             active.Create(context, passiveVar);
             parent.ReplaceChild(context, active);
             manager.ReplacePredefinedNode(active.NodeId, active);
@@ -443,25 +443,25 @@ namespace Opc.Ua.Server
 
         private NodeValueEventHandler WriteApplicationsExcludeHandler(NodeId roleId)
         {
-            return (ISystemContext context, NodeState node, NumericRange indexRange,
-                    QualifiedName dataEncoding, ref Variant value,
-                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+            return (context, node, indexRange,
+                    dataEncoding, ref value,
+                    ref statusCode, ref timestamp) =>
                 OnWriteExclude(context, roleId, ref value, isApplications: true);
         }
 
         private NodeValueEventHandler WriteEndpointsExcludeHandler(NodeId roleId)
         {
-            return (ISystemContext context, NodeState node, NumericRange indexRange,
-                    QualifiedName dataEncoding, ref Variant value,
-                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+            return (context, node, indexRange,
+                    dataEncoding, ref value,
+                    ref statusCode, ref timestamp) =>
                 OnWriteExclude(context, roleId, ref value, isApplications: false);
         }
 
         private NodeValueEventHandler WriteCustomConfigurationHandler(NodeId roleId)
         {
-            return (ISystemContext context, NodeState node, NumericRange indexRange,
-                    QualifiedName dataEncoding, ref Variant value,
-                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+            return (context, node, indexRange,
+                    dataEncoding, ref value,
+                    ref statusCode, ref timestamp) =>
                 OnWriteCustomConfiguration(context, roleId, ref value);
         }
 
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server
             // compatible if the runtime resequences known namespaces.
             int opcUaNsIndex = context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/");
             ushort ns = opcUaNsIndex >= 0 ? (ushort)opcUaNsIndex : (ushort)0;
-            PropertyState<bool> property = PropertyState<bool>.With<VariantBuilder>(parent);
+            var property = PropertyState<bool>.With<VariantBuilder>(parent);
             property.BrowseName = new QualifiedName(browseName, ns);
             property.DisplayName = new LocalizedText(browseName);
             property.SymbolicName = browseName;
@@ -796,7 +796,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant ruleVariant = Variant.FromStructure(rule);
+            var ruleVariant = Variant.FromStructure(rule);
             var result = new AddIdentityMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -820,7 +820,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant ruleVariant = Variant.FromStructure(rule);
+            var ruleVariant = Variant.FromStructure(rule);
             var result = new RemoveIdentityMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -844,7 +844,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant uriVariant = Variant.From(applicationUri);
+            var uriVariant = Variant.From(applicationUri);
             var result = new AddApplicationMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -868,7 +868,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant uriVariant = Variant.From(applicationUri);
+            var uriVariant = Variant.From(applicationUri);
             var result = new RemoveApplicationMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -892,7 +892,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant epVariant = Variant.FromStructure(endpoint);
+            var epVariant = Variant.FromStructure(endpoint);
             var result = new AddEndpointMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -916,7 +916,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant epVariant = Variant.FromStructure(endpoint);
+            var epVariant = Variant.FromStructure(endpoint);
             var result = new RemoveEndpointMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))

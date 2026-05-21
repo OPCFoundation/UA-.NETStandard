@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(getter));
             }
-            OnRead((ISystemContext _) => getter());
+            OnRead(_ => getter());
             return this;
         }
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(getter));
             }
             ((INodeBuilder)this).OnRead(
-                (ISystemContext context, NodeState _, ref Variant value) =>
+                (context, _, ref value) =>
                 {
                     value = ToVariant(getter(context));
                     return ServiceResult.Good;
@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(getter));
             }
             return OnRead(
-                (ISystemContext _, CancellationToken ct) => getter(ct));
+                (_, ct) => getter(ct));
         }
 
         /// <inheritdoc/>
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(getter));
             }
             ((INodeBuilder)this).OnRead(
-                async (ISystemContext context, NodeState _, CancellationToken ct) =>
+                async (context, _, ct) =>
                 {
                     TValue typed = await getter(context, ct).ConfigureAwait(false);
                     return new AttributeSimpleReadResult(
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            OnWrite((ISystemContext _, TValue v) => setter(v));
+            OnWrite((_, v) => setter(v));
             return this;
         }
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(setter));
             }
             ((INodeBuilder)this).OnWrite(
-                (ISystemContext context, NodeState _, ref Variant value) =>
+                (context, _, ref value) =>
                 {
                     setter(context, FromVariant(value)!);
                     return ServiceResult.Good;
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            return OnWrite((ISystemContext _, TValue v, CancellationToken ct) => setter(v, ct));
+            return OnWrite((_, v, ct) => setter(v, ct));
         }
 
         /// <inheritdoc/>
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(setter));
             }
             ((INodeBuilder)this).OnWrite(
-                async (ISystemContext context, NodeState _, Variant value, CancellationToken ct) =>
+                async (context, _, value, ct) =>
                 {
                     TValue? typed = FromVariant(value);
                     await setter(context, typed!, ct).ConfigureAwait(false);

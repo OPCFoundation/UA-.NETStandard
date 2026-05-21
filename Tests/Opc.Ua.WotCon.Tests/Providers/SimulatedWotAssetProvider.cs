@@ -145,7 +145,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
         {
             // For tests we echo each input into the matching output and
             // record the call so tests can assert on it.
-            Variant[] inputSnapshot = new Variant[inputs.Count];
+            var inputSnapshot = new Variant[inputs.Count];
             for (int i = 0; i < inputs.Count; i++)
             {
                 inputSnapshot[i] = inputs[i];

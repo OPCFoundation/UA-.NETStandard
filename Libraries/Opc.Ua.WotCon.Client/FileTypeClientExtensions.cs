@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Client
                 while (offset < content.Length)
                 {
                     int take = Math.Min(chunkSize, content.Length - offset);
-                    ByteString chunk = ByteString.From(content.Slice(offset, take).ToArray());
+                    var chunk = ByteString.From(content.Slice(offset, take).ToArray());
                     await file.WriteAsync(handle, chunk, ct).ConfigureAwait(false);
                     offset += take;
                 }

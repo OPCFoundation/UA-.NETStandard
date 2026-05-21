@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         public async Task StrategyCreatesAndDisposesSubscriptionAsync()
         {
             int initialCount = m_session.SubscriptionCount;
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
 
             AliasNameResolver resolver = new(
                 client,
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         public async Task ManualResolverDoesNotCreateSubscriptionAsync()
         {
             int initialCount = m_session.SubscriptionCount;
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
 
             await using var resolver = new AliasNameResolver(
                 client,
@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 "Test setup must own the subscription.");
 
             int sharedItemCountBefore = (int)sharedSubscription.MonitoredItemCount;
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
 
             var resolver = new AliasNameResolver(
                 client,

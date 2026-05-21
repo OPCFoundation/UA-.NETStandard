@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CreateDirectoryAsyncIssuesCallWithCorrectMethodIdAndArgsAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             ScriptCreateDirectory(harness, new NodeId(7001));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CreateFileAsyncIssuesCallWithRequestFileOpenFalseAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             ScriptCreateFile(harness, new NodeId(7002));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CreateDirectoryAsyncCreatesIntermediateDirectoriesAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             // Each CreateDirectory call yields a fresh NodeId per call.
             int counter = 0;
             harness.CallHandler = req =>
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CreateDirectoryAsyncThrowsWhenIntermediateMissingAndFlagFalseAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             Assert.ThrowsAsync<DirectoryNotFoundException>(
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CreateDirectoryAsyncRejectsNamespacePrefixedLeafAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             Assert.ThrowsAsync<ArgumentException>(
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task DeleteAsyncOnFileIssuesCallOnParentAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId fileId = harness.RegisterFile(harness.Root, new QualifiedName("data.bin"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task DeleteAsyncOnEmptyDirectoryWithoutRecursiveCallsServerOnceAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task DeleteAsyncOnNonEmptyDirectoryWithoutRecursiveThrowsAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             harness.RegisterFile(subdir, new QualifiedName("file.txt"));
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -189,14 +189,14 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task DeleteAsyncOnNonEmptyDirectoryWithRecursiveCallsServerOnceAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             harness.RegisterFile(subdir, new QualifiedName("file.txt"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             await client.DeleteAsync("/subdir", recursive: true).ConfigureAwait(false);
 
-            List<CallMethodRequest> deletes = harness.CallRequests
+            var deletes = harness.CallRequests
                 .Where(r => r.MethodId.TryGetValue(out uint mid) &&
                     mid == Methods.FileDirectoryType_DeleteFileSystemObject)
                 .ToList();
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task MoveAsyncIssuesMoveOrCopyOnSourceParentAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId srcDir = harness.RegisterDirectory(harness.Root, new QualifiedName("src"));
             NodeId fileId = harness.RegisterFile(srcDir, new QualifiedName("data.bin"));
             NodeId destDir = harness.RegisterDirectory(harness.Root, new QualifiedName("dest"));
@@ -237,7 +237,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CopyAsyncIssuesMoveOrCopyWithCreateCopyTrueAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId srcDir = harness.RegisterDirectory(harness.Root, new QualifiedName("src"));
             harness.RegisterFile(srcDir, new QualifiedName("data.bin"));
             harness.RegisterDirectory(harness.Root, new QualifiedName("dest"));
@@ -258,7 +258,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task DeleteAsyncMapsBadUserAccessDeniedAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("locked.bin"));
             harness.CallHandler = req =>
             {
@@ -350,7 +350,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         private static CallMethodRequest SingleCallTo(
             FileSystemSessionHarness harness, uint methodId)
         {
-            List<CallMethodRequest> matches = harness.CallRequests
+            var matches = harness.CallRequests
                 .Where(r => r.MethodId.TryGetValue(out uint mid) && mid == methodId)
                 .ToList();
             Assert.That(matches, Has.Count.EqualTo(1),

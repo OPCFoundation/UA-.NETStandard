@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         public WotAssetFileTypeSessionMock()
         {
             var telemetryMock = new Mock<ITelemetryContext>();
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetryMock.Object);
+            var messageContext = ServiceMessageContext.Create(telemetryMock.Object);
             // The proxy translates ExpandedNodeIds (e.g. WoTAssetFileType_CloseAndUpdate)
             // through this NamespaceUris table; if the URI isn't present, ToNodeId
             // returns NodeId.Null and dispatch can no longer recover the numeric id.

@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task RefreshAsyncPopulatesMandatoryPropertiesAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             var props = new FileProperties
             {
                 Size = 12_345UL,
@@ -73,8 +73,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task RefreshAsyncPopulatesOptionalPropertiesAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
-            DateTime expectedModified = new DateTime(2024, 5, 12, 13, 0, 0, DateTimeKind.Utc);
+            var harness = FileSystemSessionHarness.Create();
+            var expectedModified = new DateTime(2024, 5, 12, 13, 0, 0, DateTimeKind.Utc);
             var props = new FileProperties
             {
                 Size = 0UL,
@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task RefreshAsyncToleratesMissingOptionalPropertiesAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             // No properties realised — the harness will return BadNoMatch
             // for every property lookup.
             harness.RegisterFile(harness.Root, new QualifiedName("data.bin"),
