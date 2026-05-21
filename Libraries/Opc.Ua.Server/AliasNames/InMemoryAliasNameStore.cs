@@ -117,6 +117,13 @@ namespace Opc.Ua.Server.AliasNames
         /// the local server.</param>
         /// <param name="referenceTypeId">Reference type — typically
         /// <c>ReferenceTypeIds.AliasFor</c>.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="name"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="categoryId"/> does not match a registered
+        /// category.
+        /// </exception>
         public void Seed(
             NodeId categoryId,
             string name,

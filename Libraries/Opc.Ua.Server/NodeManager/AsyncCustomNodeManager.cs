@@ -496,6 +496,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="node">The pre-built node subtree to register.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is null.
+        /// </exception>
         public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
         {
             if (node == null)

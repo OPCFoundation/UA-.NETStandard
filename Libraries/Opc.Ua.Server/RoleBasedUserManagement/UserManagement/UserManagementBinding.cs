@@ -84,6 +84,12 @@ namespace Opc.Ua.Server.UserManagement
         /// <c>null</c> if the standard <c>UserManagement</c> object is not
         /// present in the address space.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeManager"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="userManagement"/> is null.
+        /// </exception>
         public static UserManagementBinding? Bind(
             AsyncCustomNodeManager nodeManager,
             IUserManagement userManagement,

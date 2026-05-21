@@ -1207,8 +1207,11 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_lock = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        // These fields are populated by Open(); they remain non-null for the lifetime of the
-        // listener (Close()/Dispose() do not reassign to null).
+        /// <summary>
+        /// These fields are populated by Open(); they remain non-null
+        /// for the lifetime of the listener (Close()/Dispose() do not
+        /// reassign to null).
+        /// </summary>
         private List<EndpointDescription> m_descriptions = null!;
         private BufferManager m_bufferManager = null!;
         private ChannelQuotas m_quotas = null!;

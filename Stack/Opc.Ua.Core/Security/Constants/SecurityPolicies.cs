@@ -675,6 +675,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature on the data provided using the SecurityPolicy.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// <paramref name="securityPolicyUri"/> is not a supported
+        /// security policy.
+        /// </exception>
         public static SignatureData CreateSignatureData(
            string securityPolicyUri,
            Certificate localCertificate,

@@ -325,6 +325,9 @@ namespace Opc.Ua.Server.FileSystem
         /// path while rejecting any attempt to escape the configured
         /// root via <c>..</c> segments or rooted paths.
         /// </summary>
+        /// <exception cref="UnauthorizedAccessException">
+        /// <paramref name="path"/> escapes the configured provider root.
+        /// </exception>
         private string ResolveAbsolute(string path)
         {
             string relative = NormaliseRelative(path);

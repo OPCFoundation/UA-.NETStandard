@@ -2601,6 +2601,9 @@ namespace Opc.Ua.Server
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="e">The ServiceResultException e.</param>
         /// <returns>Returns an exception thrown when a UA defined error occurs, the return type is <seealso cref="ServiceResultException"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="e"/> is null.
+        /// </exception>
         protected virtual ServiceResultException TranslateException(
             DiagnosticsMasks diagnosticsMasks,
             ArrayOf<string> preferredLocales,

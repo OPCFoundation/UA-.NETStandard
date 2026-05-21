@@ -190,6 +190,9 @@ namespace Opc.Ua.Client.AliasNames
         /// alias name <paramref name="aliasName"/>, or an empty list
         /// when no mapping exists. Loads the cache on demand.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="aliasName"/> is null.
+        /// </exception>
         public async Task<IReadOnlyList<ExpandedNodeId>> ResolveAsync(
             string aliasName,
             CancellationToken ct = default)
@@ -253,6 +256,9 @@ namespace Opc.Ua.Client.AliasNames
         /// <see cref="AliasNameResolverOptions.UseVerbose"/>; returns an
         /// empty list otherwise.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="aliasName"/> is null.
+        /// </exception>
         public async Task<IReadOnlyList<string?>> ResolveServerUrisAsync(
             string aliasName,
             CancellationToken ct = default)

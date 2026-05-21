@@ -186,12 +186,14 @@ namespace Opc.Ua.Server.Fluent
             return (TValue)boxed;
         }
 
-        // The reflection-based Variant(object) constructor is the only
-        // generic entry point for an open-ended TValue. AOT users should
-        // prefer the per-type generated walker (FluentBuilderGenerator) which
-        // routes through the typed Variant.From overloads instead. The
-        // suppression is scoped to this single call site so trim/AOT
-        // analysis still tracks every other path through this assembly.
+        /// <summary>
+        /// The reflection-based Variant(object) constructor is the only
+        /// generic entry point for an open-ended TValue. AOT users should
+        /// prefer the per-type generated walker (FluentBuilderGenerator) which
+        /// routes through the typed Variant.From overloads instead. The
+        /// suppression is scoped to this single call site so trim/AOT
+        /// analysis still tracks every other path through this assembly.
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
             "Trimming",
             "IL2026:RequiresUnreferencedCode",

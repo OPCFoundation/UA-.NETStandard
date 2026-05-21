@@ -86,6 +86,9 @@ namespace Opc.Ua
         /// <summary>
         /// Opens a reverse listener host.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// CreateListener has not been called before Open.
+        /// </exception>
         public void Open()
         {
             if (m_listener == null)

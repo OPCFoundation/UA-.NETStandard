@@ -89,6 +89,12 @@ namespace Opc.Ua.Server
         /// events. Returns the binding instance so the caller can dispose it
         /// on server shutdown.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeManager"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="roleManager"/> is null.
+        /// </exception>
         public static RoleStateBinding? Bind(
             AsyncCustomNodeManager nodeManager,
             IRoleManager roleManager,
@@ -607,7 +613,7 @@ namespace Opc.Ua.Server
             // and inverse references for every materialized child.
             // Pass the spec-defined BrowseName so the standard browse-path
             // lookups (e.g. "/AddIdentity") match the instance.
-            ushort opcUaNs = 0;
+            const ushort opcUaNs = 0;
             roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(
                 roleState, new QualifiedName(BrowseNames.AddIdentity, opcUaNs));
             AssignChildNodeId(context, roleState.AddIdentity);

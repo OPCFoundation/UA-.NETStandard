@@ -312,6 +312,13 @@ namespace Opc.Ua.Server.Fluent
         /// the owning manager. Called once by
         /// <see cref="FluentNodeManagerBase"/>; subsequent calls throw.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// An <see cref="EventSourceRegistry"/> is already attached to
+        /// this builder.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="registry"/> is null.
+        /// </exception>
         internal void AttachEventSources(EventSourceRegistry registry)
         {
             if (EventSources != null)
