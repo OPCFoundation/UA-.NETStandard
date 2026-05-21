@@ -200,7 +200,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
     {
         public const string BindingUri = "sim://opcua.test/wot";
 
-        public IReadOnlyCollection<string> SupportedBindings { get; } = new[] { BindingUri };
+        public IReadOnlyCollection<string> SupportedBindings { get; } = [BindingUri];
 
         public bool CanHandle(ThingDescription thingDescription)
         {

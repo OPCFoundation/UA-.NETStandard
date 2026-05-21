@@ -138,14 +138,14 @@ namespace Opc.Ua.WotCon.Tests
             var actionTag = new WotActionTag(
                 "Echo",
                 new NodeId(2u, 2),
-                new[] { new Argument { Name = "in1", DataType = DataTypeIds.Int64 } },
-                new[] { new Argument { Name = "out1", DataType = DataTypeIds.Int64 } },
+                [new Argument { Name = "in1", DataType = DataTypeIds.Int64 }],
+                [new Argument { Name = "out1", DataType = DataTypeIds.Int64 }],
                 form: (JsonElement?)null);
             Variant[] outputs = new Variant[1];
 
             ServiceResult result = await m_provider.InvokeActionAsync(
                 actionTag,
-                new[] { new Variant(42L) },
+                [new Variant(42L)],
                 outputs,
                 CancellationToken.None);
 

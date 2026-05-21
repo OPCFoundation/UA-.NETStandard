@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.Tests.Roles
                         new CallMethodResult
                         {
                             StatusCode = StatusCodes.Good,
-                            OutputArguments = ArrayOf.Wrapped(new[] { Variant.From(expectedNew) })
+                            OutputArguments = ArrayOf.Wrapped([Variant.From(expectedNew)])
                         }
                     }),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.Tests.Roles
         {
             ArrayOf<CallMethodRequest> capturedRequests = default;
             SetupCallResponse(captured => capturedRequests = captured,
-                outputs: new[] { Variant.From(new NodeId(1u, 0)) });
+                outputs: [Variant.From(new NodeId(1u, 0))]);
 
             await m_client.AddRoleAsync("MyRole").ConfigureAwait(false);
 
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
+                    Results = ArrayOf.Wrapped([(StatusCode)StatusCodes.Good]),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
                 }));
 
@@ -363,7 +363,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
+                    Results = ArrayOf.Wrapped([(StatusCode)StatusCodes.Good]),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
                 }));
 
@@ -542,7 +542,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
+                    Results = ArrayOf.Wrapped([(StatusCode)StatusCodes.Good]),
                     DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
                 }));
 

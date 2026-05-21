@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests
                 manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, false)), Is.True);
 
             using Certificate cert = CertificateBuilder.Create("CN=Test")
-                .AddExtension(new X509SubjectAltNameExtension("urn:listed:app", new[] { "localhost" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:listed:app", ["localhost"]))
                 .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
@@ -628,7 +628,7 @@ namespace Opc.Ua.Server.Tests
                 manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
 
             using Certificate cert = CertificateBuilder.Create("CN=Test")
-                .AddExtension(new X509SubjectAltNameExtension("urn:blocked:app", new[] { "localhost" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:blocked:app", ["localhost"]))
                 .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
@@ -653,7 +653,7 @@ namespace Opc.Ua.Server.Tests
                 manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
 
             using Certificate cert = CertificateBuilder.Create("CN=Test")
-                .AddExtension(new X509SubjectAltNameExtension("urn:other:app", new[] { "localhost" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:other:app", ["localhost"]))
                 .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);

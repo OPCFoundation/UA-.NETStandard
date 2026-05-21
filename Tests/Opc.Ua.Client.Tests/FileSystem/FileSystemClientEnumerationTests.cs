@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 files.Add(file.Name);
             }
-            Assert.That(files, Is.EqualTo(new[] { "a.txt" }));
+            Assert.That(files, Is.EqualTo(["a.txt"]));
         }
 
         [Test]
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 directories.Add(dir.Name);
             }
-            Assert.That(directories, Is.EqualTo(new[] { "subdir" }));
+            Assert.That(directories, Is.EqualTo(["subdir"]));
         }
 
         [Test]
@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 seen.Add(entry.Name);
             }
-            Assert.That(seen, Is.EqualTo(new[] { "a.txt" }));
+            Assert.That(seen, Is.EqualTo(["a.txt"]));
         }
 
         [Test]

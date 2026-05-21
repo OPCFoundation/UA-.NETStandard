@@ -160,7 +160,7 @@ namespace Opc.Ua.WotCon.Tests
         public void GetPositionAndSetPositionWorkOnReadHandle()
         {
             using var harness = new Harness();
-            harness.Upload(new byte[] { 1, 2, 3, 4, 5 });
+            harness.Upload([1, 2, 3, 4, 5]);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
             try
@@ -186,7 +186,7 @@ namespace Opc.Ua.WotCon.Tests
         public void SetPositionBeyondLengthReturnsBadInvalidArgument()
         {
             using var harness = new Harness();
-            harness.Upload(new byte[] { 1, 2, 3 });
+            harness.Upload([1, 2, 3]);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
             try

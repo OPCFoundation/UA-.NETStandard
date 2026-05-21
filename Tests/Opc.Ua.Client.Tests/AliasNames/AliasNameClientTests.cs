@@ -154,15 +154,14 @@ namespace Opc.Ua.Client.Tests.AliasNames
             AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
             client.Options.AllowVerboseProbe = false;
             StatusCode[] result = await client.AddAliasesToCategoryAsync(
-                new[]
-                {
+                [
                     new AliasNameAddRequest("A",
                         new ExpandedNodeId("T1", 2),
                         null, ReferenceTypeIds.AliasFor),
                     new AliasNameAddRequest("A",
                         new ExpandedNodeId("T1", 2),
                         null, ReferenceTypeIds.AliasFor)
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
 
             Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result[0].Code, Is.EqualTo(StatusCodes.Good));
@@ -206,10 +205,9 @@ namespace Opc.Ua.Client.Tests.AliasNames
 
             AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
             StatusCode[] result = await client.DeleteAliasesFromCategoryAsync(
-                new[]
-                {
+                [
                     new AliasNameDeleteRequest("A", new ExpandedNodeId("T", 2))
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
             Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(harness.CallRequests, Has.Count.EqualTo(1));
             Assert.That(harness.CallRequests[0].InputArguments.Count, Is.EqualTo(2));

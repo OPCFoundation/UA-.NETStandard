@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
         public const string CannedEndpoint = "sim://opcua.test/wot/asset-001";
 
         public ValueTask<IReadOnlyList<string>> DiscoverAsync(CancellationToken ct)
-            => new(new[] { CannedEndpoint });
+            => new([CannedEndpoint]);
 
         public ValueTask<(bool Success, string Status)> TestAsync(
             string assetEndpoint,

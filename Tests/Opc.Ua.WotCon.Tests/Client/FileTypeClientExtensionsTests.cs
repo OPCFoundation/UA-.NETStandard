@@ -197,7 +197,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             byte[] full = new byte[1024];
             byte[] partial = new byte[500];
             byte[] extra = new byte[1024]; // should never be requested
-            var source = new Queue<byte[]>(new[] { full, partial, extra });
+            var source = new Queue<byte[]>([full, partial, extra]);
 
             using var dest = new MemoryStream();
             await FileTypeClientExtensions.CopyChunksToStreamAsync(
