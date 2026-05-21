@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -224,9 +224,6 @@ namespace Opc.Ua.Bindings
             m_bufferManager = bufferManager ??
                 throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
-            m_incomingMessageSize = -1;
-            m_readComplete = OnReadComplete;
-            m_readState = ReadState.Ready;
         }
 
         /// <summary>
@@ -245,8 +242,6 @@ namespace Opc.Ua.Bindings
             m_bufferManager = bufferManager ??
                 throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
-            m_incomingMessageSize = -1;
-            m_readComplete = OnReadComplete;
         }
 
         /// <summary>
@@ -380,326 +375,388 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts reading messages from the socket.
         /// </summary>
-        public void ReadNextMessage()
+        public async Task ReadNextMessageAsync(CancellationToken ct = default)
         {
-            lock (m_readLock)
+            byte[]? receiveBuffer = null;
+            try
             {
-                do
+                while (true)
                 {
-                    // allocate a buffer large enough to a message chunk.
-                    m_receiveBuffer ??= m_bufferManager.TakeBuffer(
+                    receiveBuffer = m_bufferManager.TakeBuffer(
                         m_receiveBufferSize,
-                        "ReadNextMessage");
+                        "ReadNextMessageAsync");
 
-                    // read the first 8 bytes of the message which contains the message size.
-                    m_bytesReceived = 0;
-                    m_bytesToReceive = TcpMessageLimits.MessageTypeAndSize;
-                    m_incomingMessageSize = -1;
+                    // Read the fixed-size message header (type + size = 8 bytes).
+                    int headerRead = await ReceiveExactAsync(
+                        receiveBuffer,
+                        0,
+                        TcpMessageLimits.MessageTypeAndSize,
+                        ct).ConfigureAwait(false);
 
-                    do
+                    if (headerRead == 0)
                     {
-                        ReadNextBlock();
-                    } while (m_readState == ReadState.ReadNextBlock);
-                } while (m_readState == ReadState.ReadNextMessage);
+                        m_bufferManager.ReturnBuffer(receiveBuffer, "ReadNextMessageAsync");
+                        receiveBuffer = null;
+                        m_sink?.OnReceiveError(this,
+                            ServiceResult.Create(
+                                StatusCodes.BadConnectionClosed,
+                                "Remote side closed connection."));
+                        return;
+                    }
+
+                    // Validate the message type.
+                    uint messageType = BitConverter.ToUInt32(receiveBuffer, 0);
+                    if (!TcpMessageType.IsValid(messageType))
+                    {
+                        m_bufferManager.ReturnBuffer(receiveBuffer, "ReadNextMessageAsync");
+                        receiveBuffer = null;
+                        m_sink?.OnReceiveError(this,
+                            ServiceResult.Create(
+                                StatusCodes.BadTcpMessageTypeInvalid,
+                                "Message type {0:X8} is invalid.",
+                                messageType));
+                        return;
+                    }
+
+                    // Validate the declared message size.
+                    int messageSize = BitConverter.ToInt32(receiveBuffer, 4);
+                    if (messageSize <= 0 || messageSize > m_receiveBufferSize)
+                    {
+                        m_bufferManager.ReturnBuffer(receiveBuffer, "ReadNextMessageAsync");
+                        receiveBuffer = null;
+                        m_sink?.OnReceiveError(this,
+                            ServiceResult.Create(
+                                StatusCodes.BadTcpMessageTooLarge,
+                                "Messages size {0} bytes is too large for buffer of size {1}.",
+                                messageSize,
+                                m_receiveBufferSize));
+                        return;
+                    }
+
+                    // Read the remainder of the message body.
+                    int remaining = messageSize - TcpMessageLimits.MessageTypeAndSize;
+                    if (remaining > 0)
+                    {
+                        int bodyRead = await ReceiveExactAsync(
+                            receiveBuffer,
+                            TcpMessageLimits.MessageTypeAndSize,
+                            remaining,
+                            ct).ConfigureAwait(false);
+
+                        if (bodyRead == 0)
+                        {
+                            m_bufferManager.ReturnBuffer(receiveBuffer, "ReadNextMessageAsync");
+                            receiveBuffer = null;
+                            m_sink?.OnReceiveError(this,
+                                ServiceResult.Create(
+                                    StatusCodes.BadConnectionClosed,
+                                    "Remote side closed connection."));
+                            return;
+                        }
+                    }
+
+                    // Deliver the complete message chunk to the sink.
+                    IMessageSink? sink = m_sink;
+                    if (sink != null)
+                    {
+                        var messageChunk = new ArraySegment<byte>(receiveBuffer, 0, messageSize);
+                        receiveBuffer = null; // sink now owns the buffer
+                        try
+                        {
+                            sink.OnMessageReceived(this, messageChunk);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                ex,
+                                "Unexpected error invoking OnMessageReceived callback.");
+                        }
+                    }
+                    else
+                    {
+                        m_bufferManager.ReturnBuffer(receiveBuffer, "ReadNextMessageAsync");
+                        receiveBuffer = null;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Normal cancellation - loop exits silently.
+            }
+            catch (Exception ex)
+            {
+                m_sink?.OnReceiveError(this,
+                    ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error receiving data."));
+            }
+            finally
+            {
+                if (receiveBuffer != null)
+                {
+                    m_bufferManager.ReturnBuffer(receiveBuffer, "ReadNextMessageAsync");
+                }
             }
         }
+
+        /// <summary>
+        /// Reads exactly <paramref name="count"/> bytes starting at
+        /// <paramref name="offset"/> in <paramref name="buffer"/>.
+        /// Returns 0 if the remote side closed the connection before any bytes were read.
+        /// </summary>
+        private async Task<int> ReceiveExactAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken ct)
+        {
+            int totalReceived = 0;
+            while (totalReceived < count)
+            {
+                int received = await ReceiveAsync(
+                    buffer,
+                    offset + totalReceived,
+                    count - totalReceived,
+                    ct).ConfigureAwait(false);
+
+                if (received == 0)
+                {
+                    // Connection closed without sending all bytes.
+                    return 0;
+                }
+
+                totalReceived += received;
+            }
+
+            return totalReceived;
+        }
+
+#if NETFRAMEWORK
+        /// <summary>
+        /// Single async receive call wrapped in a Task (legacy .NET Framework path).
+        /// </summary>
+        private Task<int> ReceiveAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+        {
+            Socket? socket;
+            lock (m_socketLock)
+            {
+                socket = m_socket;
+            }
+
+            if (socket == null || !socket.Connected)
+            {
+                return Task.FromResult(0);
+            }
+
+            var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var args = new SocketAsyncEventArgs();
+            args.SetBuffer(buffer, offset, count);
+            CancellationTokenRegistration registration = ct.Register(
+                static state => ((TaskCompletionSource<int>)state!).TrySetCanceled(),
+                tcs);
+
+            args.Completed += (_, e) =>
+            {
+                registration.Dispose();
+                if (e.SocketError != SocketError.Success)
+                {
+                    tcs.TrySetException(new SocketException((int)e.SocketError));
+                }
+                else
+                {
+                    tcs.TrySetResult(e.BytesTransferred);
+                }
+
+                e.Dispose();
+            };
+
+            try
+            {
+                if (!socket.ReceiveAsync(args))
+                {
+                    // Completed synchronously.
+                    registration.Dispose();
+                    SocketError socketError = args.SocketError;
+                    int bytesTransferred = args.BytesTransferred;
+                    args.Dispose();
+
+                    if (socketError != SocketError.Success)
+                    {
+                        return Task.FromException<int>(new SocketException((int)socketError));
+                    }
+
+                    return Task.FromResult(bytesTransferred);
+                }
+            }
+            catch (Exception ex)
+            {
+                registration.Dispose();
+                args.Dispose();
+                return Task.FromException<int>(ex);
+            }
+
+            return tcs.Task;
+        }
+#else
+        /// <summary>
+        /// Single async receive call using the modern <see cref="Memory{T}"/> API.
+        /// </summary>
+        private ValueTask<int> ReceiveAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+        {
+            Socket? socket;
+            lock (m_socketLock)
+            {
+                socket = m_socket;
+            }
+
+            if (socket == null || !socket.Connected)
+            {
+                return new ValueTask<int>(0);
+            }
+
+            return socket.ReceiveAsync(buffer.AsMemory(offset, count), SocketFlags.None, ct);
+        }
+#endif
 
         /// <summary>
         /// Changes the sink used to report reads.
         /// </summary>
         public void ChangeSink(IMessageSink sink)
         {
-            lock (m_readLock)
-            {
-                m_sink = sink;
-            }
+            m_sink = sink;
         }
 
-        /// <summary>
-        /// Handles a read complete event.
-        /// </summary>
-        private void OnReadComplete(object? sender, SocketAsyncEventArgs e)
+        /// <inheritdoc/>
+        public ValueTask SendAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
         {
-            lock (m_readLock)
-            {
-                ServiceResult? error = null;
-
-                try
-                {
-                    bool innerCall = m_readState == ReadState.ReadComplete;
-                    error = DoReadComplete(e);
-                    // to avoid recursion, inner calls of OnReadComplete return
-                    // after processing the ReadComplete and let the outer call handle it
-                    if (!innerCall && !ServiceResult.IsBad(error))
-                    {
-                        while (ReadNext())
-                        {
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    m_logger.LogError(ex, "Unexpected error during OnReadComplete,");
-                    error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, ex.Message);
-                }
-                finally
-                {
-                    e?.Dispose();
-                }
-
-                if (m_readState == ReadState.NotConnected && ServiceResult.IsGood(error))
-                {
-                    error = ServiceResult.Create(
-                        StatusCodes.BadConnectionClosed,
-                        "Remote side closed connection.");
-                }
-
-                if (ServiceResult.IsBad(error))
-                {
-                    if (m_receiveBuffer != null)
-                    {
-                        m_bufferManager.ReturnBuffer(m_receiveBuffer, "OnReadComplete");
-                        m_receiveBuffer = null;
-                    }
-
-                    m_sink?.OnReceiveError(this, error);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handles a read complete event.
-        /// </summary>
-        private ServiceResult DoReadComplete(SocketAsyncEventArgs e)
-        {
-            // complete operation.
-            int bytesRead = e.BytesTransferred;
-            m_readState = ReadState.Ready;
-
-            lock (m_socketLock)
-            {
-                if (m_receiveBuffer != null)
-                {
-                    BufferManager.UnlockBuffer(m_receiveBuffer);
-                }
-            }
-
-            if (bytesRead == 0)
-            {
-                // Remote end has closed the connection
-
-                // free the empty receive buffer.
-                if (m_receiveBuffer != null)
-                {
-                    m_bufferManager.ReturnBuffer(m_receiveBuffer, "DoReadComplete");
-                    m_receiveBuffer = null;
-                }
-
-                m_readState = ReadState.Error;
-                return ServiceResult.Create(
-                    StatusCodes.BadConnectionClosed,
-                    "Remote side closed connection");
-            }
-
-            m_bytesReceived += bytesRead;
-
-            // check if more data left to read.
-            if (m_bytesReceived < m_bytesToReceive)
-            {
-                m_readState = ReadState.ReadNextBlock;
-                return ServiceResult.Good;
-            }
-
-            // start reading the message body.
-            if (m_receiveBuffer != null)
-            {
-                if (m_incomingMessageSize < 0)
-                {
-                    uint messageType = BitConverter.ToUInt32(m_receiveBuffer, 0);
-                    if (!TcpMessageType.IsValid(messageType))
-                    {
-                        m_readState = ReadState.Error;
-
-                        return ServiceResult.Create(
-                            StatusCodes.BadTcpMessageTypeInvalid,
-                            "Message type {0:X8} is invalid.",
-                            messageType);
-                    }
-
-                    m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
-                    if (m_incomingMessageSize <= 0 || m_incomingMessageSize > m_receiveBufferSize)
-                    {
-                        m_readState = ReadState.Error;
-
-                        return ServiceResult.Create(
-                            StatusCodes.BadTcpMessageTooLarge,
-                            "Messages size {0} bytes is too large for buffer of size {1}.",
-                            m_incomingMessageSize,
-                            m_receiveBufferSize);
-                    }
-
-                    // set up buffer for reading the message body.
-                    m_bytesToReceive = m_incomingMessageSize;
-
-                    m_readState = ReadState.ReadNextBlock;
-
-                    return ServiceResult.Good;
-                }
-
-                // notify the sink.
-                IMessageSink sink = m_sink;
-                if (sink != null)
-                {
-                    try
-                    {
-                        // send notification (implementor responsible for freeing buffer) on success.
-                        var messageChunk = new ArraySegment<byte>(
-                            m_receiveBuffer,
-                            0,
-                            m_incomingMessageSize);
-
-                        // must allocate a new buffer for the next message.
-                        m_receiveBuffer = null;
-
-                        sink.OnMessageReceived(this, messageChunk);
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.LogError(ex, "Unexpected error invoking OnMessageReceived callback.");
-                    }
-                }
-            }
-
-            // free the receive buffer.
-            if (m_receiveBuffer != null)
-            {
-                m_bufferManager.ReturnBuffer(m_receiveBuffer, "DoReadComplete");
-                m_receiveBuffer = null;
-            }
-
-            // start receiving next message.
-            m_readState = ReadState.ReadNextMessage;
-
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Reads the next block of data from the socket.
-        /// </summary>
-        private void ReadNextBlock()
-        {
-            Socket? socket;
-
-            // check if already closed.
-            lock (m_socketLock)
-            {
-                socket = m_socket;
-
-                if (socket == null || !socket.Connected)
-                {
-                    // buffer is returned in calling code
-                    m_readState = ReadState.NotConnected;
-                    return;
-                }
-            }
-
-            BufferManager.LockBuffer(m_receiveBuffer!);
-
-            SocketAsyncEventArgs? args = null;
-            try
-            {
-                args = new SocketAsyncEventArgs();
-                m_readState = ReadState.Receive;
-                args.SetBuffer(
-                    m_receiveBuffer,
-                    m_bytesReceived,
-                    m_bytesToReceive - m_bytesReceived);
-                args.Completed += m_readComplete;
-                if (!socket.ReceiveAsync(args))
-                {
-                    // I/O completed synchronously
-                    if (args.SocketError != SocketError.Success)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadTcpInternalError,
-                            args.SocketError.ToString());
-                    }
-                    // set state to inner complete
-                    m_readState = ReadState.ReadComplete;
-                    m_readComplete(null, args);
-                }
-                args = null; // ownership transferred
-            }
-            catch (ServiceResultException)
-            {
-                BufferManager.UnlockBuffer(m_receiveBuffer!);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                BufferManager.UnlockBuffer(m_receiveBuffer!);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpInternalError,
-                    ex,
-                    "BeginReceive failed.");
-            }
-            finally
-            {
-                args?.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// Helper to read next block or message based on current state.
-        /// </summary>
-        private bool ReadNext()
-        {
-            switch (m_readState)
-            {
-                case ReadState.ReadNextBlock:
-                    ReadNextBlock();
-                    return true;
-                case ReadState.ReadNextMessage:
-                    ReadNextMessage();
-                    return true;
-                case ReadState.Ready:
-                case ReadState.Receive:
-                case ReadState.ReadComplete:
-                case ReadState.NotConnected:
-                case ReadState.Error:
-                    return false;
-                default:
-                    Debug.Fail("Unexpected read state.");
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// Sends a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        public bool Send(IMessageSocketAsyncEventArgs args)
-        {
-            if (args is not TcpMessageSocketAsyncEventArgs eventArgs)
-            {
-                throw new ArgumentNullException(nameof(args));
-            }
             if (m_socket == null)
             {
                 throw new InvalidOperationException("The socket is not connected.");
             }
-            eventArgs.Args.SocketError = SocketError.NotConnected;
-            return m_socket.SendAsync(eventArgs.Args);
+
+            return SendAllAsync(buffer, ct);
         }
 
-        /// <summary>
-        /// Create event args for TcpMessageSocket.
-        /// </summary>
-        public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
+        /// <inheritdoc/>
+        public ValueTask SendAsync(IList<ArraySegment<byte>> buffers, CancellationToken ct = default)
         {
-            return new TcpMessageSocketAsyncEventArgs();
+            if (m_socket == null)
+            {
+                throw new InvalidOperationException("The socket is not connected.");
+            }
+
+            return SendBufferListAsync(buffers, ct);
         }
+
+        private async ValueTask SendAllAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
+        {
+            while (data.Length > 0)
+            {
+                int sent = await SendOnceAsync(data, ct).ConfigureAwait(false);
+                if (sent == 0)
+                {
+                    throw new SocketException((int)SocketError.ConnectionReset);
+                }
+
+                data = data.Slice(sent);
+            }
+        }
+
+        private async ValueTask SendBufferListAsync(IList<ArraySegment<byte>> buffers, CancellationToken ct)
+        {
+            foreach (ArraySegment<byte> segment in buffers)
+            {
+                await SendAllAsync(
+                    new ReadOnlyMemory<byte>(segment.Array, segment.Offset, segment.Count),
+                    ct).ConfigureAwait(false);
+            }
+        }
+
+#if NETFRAMEWORK
+        private Task<int> SendOnceAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
+        {
+            Socket? socket;
+            lock (m_socketLock)
+            {
+                socket = m_socket;
+            }
+
+            if (socket == null)
+            {
+                return Task.FromResult(0);
+            }
+
+            if (!MemoryMarshal.TryGetArray(data, out ArraySegment<byte> segment))
+            {
+                segment = new ArraySegment<byte>(data.ToArray());
+            }
+
+            var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var args = new SocketAsyncEventArgs();
+            args.SetBuffer(segment.Array, segment.Offset, segment.Count);
+            CancellationTokenRegistration registration = ct.Register(
+                static state => ((TaskCompletionSource<int>)state!).TrySetCanceled(),
+                tcs);
+
+            args.Completed += (_, e) =>
+            {
+                registration.Dispose();
+                if (e.SocketError != SocketError.Success)
+                {
+                    tcs.TrySetException(new SocketException((int)e.SocketError));
+                }
+                else
+                {
+                    tcs.TrySetResult(e.BytesTransferred);
+                }
+
+                e.Dispose();
+            };
+
+            try
+            {
+                if (!socket.SendAsync(args))
+                {
+                    registration.Dispose();
+                    SocketError socketError = args.SocketError;
+                    int bytesTransferred = args.BytesTransferred;
+                    args.Dispose();
+
+                    if (socketError != SocketError.Success)
+                    {
+                        return Task.FromException<int>(new SocketException((int)socketError));
+                    }
+
+                    return Task.FromResult(bytesTransferred);
+                }
+            }
+            catch (Exception ex)
+            {
+                registration.Dispose();
+                args.Dispose();
+                return Task.FromException<int>(ex);
+            }
+
+            return tcs.Task;
+        }
+#else
+        private ValueTask<int> SendOnceAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
+        {
+            Socket? socket;
+            lock (m_socketLock)
+            {
+                socket = m_socket;
+            }
+
+            if (socket == null)
+            {
+                return new ValueTask<int>(0);
+            }
+
+            return socket.SendAsync(data, SocketFlags.None, ct);
+        }
+#endif
 
         private void ShutdownAndDispose(Socket socket)
         {
@@ -725,31 +782,9 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
-        private readonly EventHandler<SocketAsyncEventArgs> m_readComplete;
 
         private readonly Lock m_socketLock = new();
         private Socket? m_socket;
         private bool m_closed;
-
-        /// <summary>
-        /// States for the nested read handler.
-        /// </summary>
-        private enum ReadState
-        {
-            Ready = 0,
-            ReadNextMessage = 1,
-            ReadNextBlock = 2,
-            Receive = 3,
-            ReadComplete = 4,
-            NotConnected = 5,
-            Error = 0xff
-        }
-
-        private readonly Lock m_readLock = new();
-        private byte[]? m_receiveBuffer;
-        private int m_bytesReceived;
-        private int m_bytesToReceive;
-        private int m_incomingMessageSize;
-        private ReadState m_readState;
     }
 }

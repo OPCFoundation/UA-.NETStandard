@@ -541,124 +541,105 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Handles a write complete event.
-        /// </summary>
-        protected virtual void OnWriteComplete(object? sender, IMessageSocketAsyncEventArgs e)
-        {
-            ServiceResult error = ServiceResult.Good;
-            try
-            {
-                if (e.BytesTransferred == 0)
-                {
-                    error = ServiceResult.Create(
-                        StatusCodes.BadConnectionClosed,
-                        "The socket was closed by the remote application.");
-                }
-                if (e.Buffer != null)
-                {
-                    BufferManager.ReturnBuffer(e.Buffer, "OnWriteComplete");
-                }
-                HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
-            }
-            catch (Exception ex)
-            {
-                if (ex is InvalidOperationException)
-                {
-                    // suppress chained exception in HandleWriteComplete/ReturnBuffer
-                    e.BufferList = null;
-                }
-                error = ServiceResult.Create(
-                    ex,
-                    StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation.");
-                HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
-            }
-
-            e.Dispose();
-        }
-
-        /// <summary>
-        /// Queues a write request.
+        /// Queues a write request for a single contiguous buffer.
+        /// The buffer is returned to <see cref="BufferManager"/> after the send completes.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         protected void BeginWriteMessage(ArraySegment<byte> buffer, object? state)
         {
-            ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args =
-                (Socket?.MessageSocketEventArgs())
-                ?? throw ServiceResultException.Create(
+            IMessageSocket socket =
+                Socket ?? throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
                     "The socket was closed by the remote application.");
 
+            Interlocked.Increment(ref m_activeWriteRequests);
+            byte[] bufferArray = buffer.GetArray();
+            var data = new ReadOnlyMemory<byte>(bufferArray, buffer.Offset, buffer.Count);
+
+            ValueTask task;
             try
             {
-                Interlocked.Increment(ref m_activeWriteRequests);
-                args.SetBuffer(buffer.GetArray(), buffer.Offset, buffer.Count);
-                args.Completed += OnWriteComplete;
-                args.UserToken = state;
-                if (!Socket.Send(args))
-                {
-                    // I/O completed synchronously
-                    if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
-                    {
-                        error = ServiceResult.Create(
-                            StatusCodes.BadConnectionClosed,
-                            args.SocketErrorString);
-                        HandleWriteComplete(null, state, args.BytesTransferred, error);
-                        args.Dispose();
-                    }
-                    else
-                    {
-                        // success, call Complete
-                        OnWriteComplete(null, args);
-                    }
-                }
+                task = socket.SendAsync(data);
             }
             catch (Exception ex)
             {
-                error = ServiceResult.Create(
-                    ex,
-                    StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation.");
-
-                HandleWriteComplete(null, state, args.BytesTransferred, error);
-                args.Dispose();
+                BufferManager.ReturnBuffer(bufferArray, "BeginWriteMessage");
+                HandleWriteComplete(
+                    null,
+                    state,
+                    0,
+                    ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error during write operation."));
+                return;
             }
+
+            if (task.IsCompletedSuccessfully)
+            {
+                BufferManager.ReturnBuffer(bufferArray, "BeginWriteMessage");
+                HandleWriteComplete(null, state, buffer.Count, ServiceResult.Good);
+                return;
+            }
+
+            _ = CompleteWriteAsync(task, bufferArray, null, state, buffer.Count);
         }
 
         /// <summary>
-        /// Queues a write request.
+        /// Queues a write request for a collection of buffers.
+        /// The buffers are released via <see cref="HandleWriteComplete"/> after the send completes.
         /// </summary>
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
-            ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = Socket!.MessageSocketEventArgs();
+            IMessageSocket socket =
+                Socket ?? throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "The socket was closed by the remote application.");
 
+            Interlocked.Increment(ref m_activeWriteRequests);
+
+            ValueTask task;
             try
             {
-                // m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
+                task = socket.SendAsync(buffers);
+            }
+            catch (Exception ex)
+            {
+                HandleWriteComplete(
+                    buffers,
+                    state,
+                    0,
+                    ServiceResult.Create(
+                        ex,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error during write operation."));
+                return;
+            }
 
-                Interlocked.Increment(ref m_activeWriteRequests);
-                args.BufferList = buffers;
-                args.Completed += OnWriteComplete;
-                args.UserToken = state;
-                IMessageSocket? socket = Socket;
-                if (socket == null || !socket.Send(args))
-                {
-                    // I/O completed synchronously
-                    if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))
-                    {
-                        error = ServiceResult.Create(
-                            StatusCodes.BadConnectionClosed,
-                            args.SocketErrorString);
-                        HandleWriteComplete(buffers, state, args.BytesTransferred, error);
-                        args.Dispose();
-                    }
-                    else
-                    {
-                        OnWriteComplete(null, args);
-                    }
-                }
+            if (task.IsCompletedSuccessfully)
+            {
+                HandleWriteComplete(buffers, state, buffers.TotalSize, ServiceResult.Good);
+                return;
+            }
+
+            _ = CompleteWriteAsync(task, null, buffers, state, buffers.TotalSize);
+        }
+
+        /// <summary>
+        /// Awaits a pending write <see cref="ValueTask"/> and then calls
+        /// <see cref="HandleWriteComplete"/> with the outcome.
+        /// </summary>
+        private async Task CompleteWriteAsync(
+            ValueTask task,
+            byte[]? bufferToReturn,
+            BufferCollection? buffers,
+            object? state,
+            int expectedBytes)
+        {
+            ServiceResult error = ServiceResult.Good;
+            try
+            {
+                await task.ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -666,9 +647,14 @@ namespace Opc.Ua.Bindings
                     ex,
                     StatusCodes.BadTcpInternalError,
                     "Unexpected error during write operation.");
-                HandleWriteComplete(buffers, state, args.BytesTransferred, error);
-                args.Dispose();
             }
+
+            if (bufferToReturn != null)
+            {
+                BufferManager.ReturnBuffer(bufferToReturn, "CompleteWriteAsync");
+            }
+
+            HandleWriteComplete(buffers, state, ServiceResult.IsGood(error) ? expectedBytes : 0, error);
         }
 
         /// <summary>

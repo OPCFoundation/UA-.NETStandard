@@ -192,7 +192,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 // start reading messages.
-                ar.Socket!.ReadNextMessage();
+                ar.Socket!.ReadNextMessageAsync();
 
                 // send reverse hello message.
                 using var encoder = new BinaryEncoder(

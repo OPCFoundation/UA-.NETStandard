@@ -161,7 +161,7 @@ namespace Opc.Ua.Bindings
                     Socket.Handle,
                     ChannelId);
 
-                Socket.ReadNextMessage();
+                Socket.ReadNextMessageAsync();
             }
         }
 

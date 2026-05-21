@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -191,9 +192,13 @@ namespace Opc.Ua.Bindings
         void Close();
 
         /// <summary>
-        /// Starts reading messages from the socket.
+        /// Starts the async read loop that delivers complete message chunks via
+        /// <see cref="IMessageSink.OnMessageReceived"/> until the connection is
+        /// closed or an error occurs.  The returned <see cref="Task"/> completes
+        /// when the loop terminates; errors are reported through
+        /// <see cref="IMessageSink.OnReceiveError"/> before the task completes.
         /// </summary>
-        void ReadNextMessage();
+        Task ReadNextMessageAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Changes the sink used to report reads.
@@ -201,14 +206,16 @@ namespace Opc.Ua.Bindings
         void ChangeSink(IMessageSink sink);
 
         /// <summary>
-        /// Sends a buffer.
+        /// Sends a single contiguous buffer asynchronously.
+        /// The caller retains ownership of the underlying array; the implementation
+        /// must not access it after the returned <see cref="ValueTask"/> completes.
         /// </summary>
-        bool Send(IMessageSocketAsyncEventArgs args);
+        ValueTask SendAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default);
 
         /// <summary>
-        /// Get the message socket event args.
+        /// Sends a list of buffers as a logical gather-write asynchronously.
         /// </summary>
-        IMessageSocketAsyncEventArgs MessageSocketEventArgs();
+        ValueTask SendAsync(IList<ArraySegment<byte>> buffers, CancellationToken ct = default);
     }
 
     /// <summary>

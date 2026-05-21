@@ -948,7 +948,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     // start reading messages.
-                    Socket.ReadNextMessage();
+                    Socket.ReadNextMessageAsync();
 
                     // send the hello message.
                     SendHelloMessage(operation);
