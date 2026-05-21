@@ -130,12 +130,12 @@ namespace Opc.Ua.SourceGeneration
             // depth-first and emit nested type declarations.
             LinkChildWrappers();
 
-            string fileStem = string.IsNullOrEmpty(OverrideManagerClassName)
-                ? nsPrefix
-                : OverrideManagerClassName;
             string fileName = Path.Combine(
                 m_context.OutputFolder,
-                CoreUtils.Format("{0}.FluentBuilders.g.cs", fileStem));
+                CoreUtils.Format("{0}.FluentBuilders.g.cs",
+                    string.IsNullOrEmpty(OverrideManagerClassName)
+                        ? nsPrefix
+                        : OverrideManagerClassName));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -338,7 +338,6 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, hnode.Instance);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "Builder");
-            string nsUri = ResolveNodeBrowseNamespace(hnode.Instance);
             var wrapper = new InstanceWrapper
             {
                 Key = key,
@@ -346,7 +345,7 @@ namespace Opc.Ua.SourceGeneration
                 LeafName = leafName,
                 ParentKey = parentKey,
                 NodeStateType = ResolveStateClrType(hnode.Instance),
-                BrowseNamespaceUri = nsUri,
+                BrowseNamespaceUri = ResolveNodeBrowseNamespace(hnode.Instance),
                 SupportsPublish = QualifiesAsEventNotifier(hnode.Instance),
                 Children = [],
                 ChildObjectKeys = [],
@@ -1388,8 +1387,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return ComposeKey(root, string.Empty);
             }
-            string parentPath = relativePath[..^trim];
-            return ComposeKey(root, parentPath);
+            return ComposeKey(root, relativePath[..^trim]);
         }
 
         /// <summary>
@@ -1467,8 +1465,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                string refName = reference.ReferenceType?.Name;
-                if (refName is "GeneratesEvent" or
+                if (reference.ReferenceType?.Name is "GeneratesEvent" or
                     "AlwaysGeneratesEvent")
                 {
                     return true;
@@ -1508,12 +1505,10 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetVariableValueClrType(VariableDesign variable)
         {
-            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
-            Namespace[] namespaces = m_context.ModelDesign.Namespaces;
             return variable.DataTypeNode.GetMethodArgumentTypeAsCode(
                 variable.ValueRank,
-                targetNamespace,
-                namespaces,
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
                 isOptional: false);
         }
 

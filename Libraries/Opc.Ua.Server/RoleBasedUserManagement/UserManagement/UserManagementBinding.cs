@@ -219,7 +219,6 @@ namespace Opc.Ua.Server.UserManagement
                 return result;
             }
 
-            string? callingUserName = RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName;
             result.ServiceResult = m_userManagement.ModifyUser(
                 userName,
                 modifyPassword,
@@ -228,7 +227,7 @@ namespace Opc.Ua.Server.UserManagement
                 (UserConfigurationMask)userConfiguration,
                 modifyDescription,
                 description,
-                callingUserName);
+                RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName);
             if (ServiceResult.IsGood(result.ServiceResult))
             {
                 SyncProperties();
@@ -253,8 +252,8 @@ namespace Opc.Ua.Server.UserManagement
                 return result;
             }
 
-            string? callingUserName = RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName;
-            result.ServiceResult = m_userManagement.RemoveUser(userName, callingUserName);
+            result.ServiceResult = m_userManagement.RemoveUser(
+                userName, RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName);
             if (ServiceResult.IsGood(result.ServiceResult))
             {
                 SyncProperties();
@@ -300,8 +299,7 @@ namespace Opc.Ua.Server.UserManagement
             }
             try
             {
-                System.Collections.Generic.IList<ISession> sessions = m_sessionManager.GetSessions();
-                foreach (ISession session in sessions)
+                foreach (ISession session in m_sessionManager.GetSessions())
                 {
                     if (string.Equals(session.Identity?.DisplayName, e.UserName, StringComparison.Ordinal))
                     {

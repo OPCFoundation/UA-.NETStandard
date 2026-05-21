@@ -1552,11 +1552,10 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        string[] defaultDomainNames = GetDefaultDomainNames(application);
                         certificate = await certificateGroup.SigningRequestAsync(
                             application,
                             certificateTypeNodeId,
-                            defaultDomainNames,
+                            GetDefaultDomainNames(application),
                             certificateRequest,
                             cancellationToken).ConfigureAwait(false);
                     }
@@ -1675,8 +1674,7 @@ namespace Opc.Ua.Gds.Server
             var certificateGroupIdList = new List<NodeId>();
             foreach (KeyValuePair<NodeId, ICertificateGroup> certificateGroup in m_certificateGroups)
             {
-                NodeId key = certificateGroup.Key;
-                certificateGroupIdList.Add(key);
+                certificateGroupIdList.Add(certificateGroup.Key);
             }
             certificateGroupIds = [.. certificateGroupIdList];
 

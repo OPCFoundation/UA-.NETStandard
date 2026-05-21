@@ -176,8 +176,7 @@ namespace MemoryBuffer
                 }
             }
 
-            var result = new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
-            return result;
+            return new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
         }
 
         /// <summary>

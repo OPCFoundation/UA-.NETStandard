@@ -355,8 +355,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return string.Empty;
             }
-            string trimmed = path.TrimStart('/');
-            return trimmed.Replace('/', Path.DirectorySeparatorChar);
+            return path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
         }
 
         private static string JoinProviderPath(string basePath, string name)

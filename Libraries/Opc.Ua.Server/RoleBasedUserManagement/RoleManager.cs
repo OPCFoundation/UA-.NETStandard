@@ -756,8 +756,7 @@ namespace Opc.Ua.Server
 
         private NodeId AllocateDynamicNodeId(ushort namespaceIndex)
         {
-            uint id = m_nextDynamicId++;
-            return new NodeId(id, namespaceIndex);
+            return new NodeId(m_nextDynamicId++, namespaceIndex);
         }
 
         private ServiceResult TryGetMutableRole(NodeId roleId, bool requireMutable, out MutableRole? role)
