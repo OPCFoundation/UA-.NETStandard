@@ -258,6 +258,10 @@ namespace Opc.Ua.Server
                     }
 
                     m_monitoredItems.Clear();
+                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
+                    {
+                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                    }
                     m_sentMessages.Clear();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
@@ -717,7 +721,9 @@ namespace Opc.Ua.Server
                             m_lastSentMessage--;
                         }
 
+                        NotificationMessage removed = m_sentMessages[ii];
                         m_sentMessages.RemoveAt(ii);
+                        ReuseNotificationPayloads(removed);
                         return null;
                     }
                 }
@@ -1069,6 +1075,10 @@ namespace Opc.Ua.Server
                     overflowCount,
                     Id,
                     m_maxMessageCount);
+                for (int ii = 0; ii < overflowCount; ii++)
+                {
+                    ReuseNotificationPayloads(messages[ii]);
+                }
                 messages.RemoveRange(0, overflowCount);
             }
 
@@ -1082,10 +1092,18 @@ namespace Opc.Ua.Server
 
                 if (m_maxMessageCount <= messages.Count)
                 {
+                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
+                    {
+                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                    }
                     m_sentMessages.Clear();
                 }
                 else
                 {
+                    for (int ii = 0; ii < messages.Count; ii++)
+                    {
+                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                    }
                     m_sentMessages.RemoveRange(0, messages.Count);
                 }
             }
@@ -2766,5 +2784,39 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Walk a <see cref="NotificationMessage"/> that is being
+        /// discarded (acknowledged or evicted from the retransmission
+        /// queue) and return every pooled notification payload to its
+        /// activator's pool via <see cref="IPooledEncodeable.Reuse"/>.
+        /// </summary>
+        private static void ReuseNotificationPayloads(NotificationMessage message)
+        {
+            ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (data[i].TryGetValue(out DataChangeNotification? dcn))
+                {
+                    ReadOnlySpan<MonitoredItemNotification> items =
+                        dcn.MonitoredItems.Span;
+                    for (int j = 0; j < items.Length; j++)
+                    {
+                        (items[j] as IPooledEncodeable)?.Reuse();
+                    }
+                    (dcn as IPooledEncodeable)?.Reuse();
+                }
+                else if (data[i].TryGetValue(out EventNotificationList? enl))
+                {
+                    ReadOnlySpan<EventFieldList> events = enl.Events.Span;
+                    for (int j = 0; j < events.Length; j++)
+                    {
+                        (events[j] as IPooledEncodeable)?.Reuse();
+                    }
+                    (enl as IPooledEncodeable)?.Reuse();
+                }
+            }
+            (message as IPooledEncodeable)?.Reuse();
+        }
     }
 }
