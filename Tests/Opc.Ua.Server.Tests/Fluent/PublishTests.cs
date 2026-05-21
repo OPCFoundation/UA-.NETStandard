@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
 
-        #endregion
+        #endregion Lazy / eager activation
 
         #region Event delivery
 
@@ -348,7 +348,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
-        #endregion
+        #endregion Event delivery
 
         #region Errors and validation
 
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     options: null));
         }
 
-        #endregion
+        #endregion Errors and validation
 
         #region Auto-promote and root-notifier
 
@@ -506,7 +506,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
         }
 
-        #endregion
+        #endregion Auto-promote and root-notifier
 
         #region Lifecycle / dispose
 
@@ -535,7 +535,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
 
-        #endregion
+        #endregion Lifecycle / dispose
 
         #region Extension method (Publish on builder)
 
@@ -657,7 +657,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null));
         }
 
-        #endregion
+        #endregion Extension method (Publish on builder)
 
         #region Helpers
 
@@ -838,6 +838,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
-        #endregion
+        #endregion Helpers
     }
 }
