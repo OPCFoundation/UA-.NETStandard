@@ -88,6 +88,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         public byte[] CurrentContent { get; private set; } = [];
 
         /// <summary>Replaces the persisted content (called by the registry).</summary>
+        /// <exception cref="ArgumentNullException"><paramref name="content"/> is null.</exception>
         public void UpdatePersistedContent(byte[] content)
         {
             CurrentContent = content ?? throw new ArgumentNullException(nameof(content));

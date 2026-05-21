@@ -42,6 +42,7 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Creates a new factory using the supplied options.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
         public WotConnectivityNodeManagerFactory(WotConnectivityServerOptions options)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));

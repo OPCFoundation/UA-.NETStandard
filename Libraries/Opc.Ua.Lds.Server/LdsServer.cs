@@ -188,10 +188,7 @@ namespace Opc.Ua.Lds.Server
                     : localeIds.ToList();
 
                 // append registered servers that pass the filter.
-                foreach (ApplicationDescription registered in Store.Find(uriFilter, requestedLocales))
-                {
-                    servers.Add(registered);
-                }
+                servers.AddRange(Store.Find(uriFilter, requestedLocales));
             }
             finally
             {
@@ -349,6 +346,7 @@ namespace Opc.Ua.Lds.Server
         /// Validates a <see cref="RegisteredServer"/> against Part 12 §6.4.2/§6.4.5
         /// requirements, returning the appropriate status code on failure.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
         protected virtual ServiceResult ValidateRegistration(
             SecureChannelContext secureChannelContext,
             RegisteredServer server)

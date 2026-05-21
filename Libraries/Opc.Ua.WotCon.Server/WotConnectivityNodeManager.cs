@@ -55,6 +55,7 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Initialises a new <see cref="WotConnectivityNodeManager"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
         public WotConnectivityNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,

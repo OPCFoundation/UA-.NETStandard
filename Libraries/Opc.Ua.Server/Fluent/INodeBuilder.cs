@@ -70,7 +70,10 @@ namespace Opc.Ua.Server.Fluent
         /// Returns a strongly-typed view of the same node. Throws if the
         /// resolved node is not assignable to <typeparamref name="TState"/>.
         /// </summary>
-        /// <typeparam name="TState"></typeparam>
+        /// <typeparam name="TState">The expected node state type.</typeparam>
+        /// <exception cref="ServiceResultException">
+        /// The resolved node is not assignable to <typeparamref name="TState"/>.
+        /// </exception>
         INodeBuilder<TState> As<TState>() where TState : NodeState;
 
         /// <summary>
