@@ -1926,7 +1926,7 @@ namespace Opc.Ua
                                                 m_stack.Push(uaBody);
                                             }
                                             encodeable.Decode(this);
-                                            value = new ExtensionObject(encodeable);
+                                            value = new ExtensionObject(typeId, encodeable);
                                             return true;
                                         }
                                         catch (Exception ex)
