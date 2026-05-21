@@ -200,14 +200,14 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns the status-code-good static helper, mirroring
-        /// <see cref="DataValue.IsGood(DataValue?)"/>.
+        /// <see cref="DataValue.IsGood(DataValue)"/>.
         /// </summary>
         public static bool IsGood(DataValueStruct value)
             => StatusCode.IsGood(value.StatusCode);
 
         /// <summary>
         /// Returns the status-code-bad static helper, mirroring
-        /// <see cref="DataValue.IsBad(DataValue?)"/>.
+        /// <see cref="DataValue.IsBad(DataValue)"/>.
         /// </summary>
         public static bool IsBad(DataValueStruct value)
             => StatusCode.IsBad(value.StatusCode);

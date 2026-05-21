@@ -29,6 +29,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -72,7 +73,8 @@ namespace Opc.Ua
     /// </example>
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
-    public class DataValue : ICloneable, IFormattable, IEquatable<DataValue>
+    [StructLayout(LayoutKind.Auto)]
+    public readonly struct DataValue : INullable, IFormattable, IEquatable<DataValue>
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -336,72 +338,24 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public override bool Equals(object? obj)
+            => obj is DataValue other && Equals(other);
+
+        /// <inheritdoc/>
+        public bool Equals(DataValue other)
         {
-            return obj switch
-            {
-                null => false,
-                DataValue value => Equals(value),
-                _ => base.Equals(obj)
-            };
+            return StatusCode == other.StatusCode &&
+                ServerTimestamp == other.ServerTimestamp &&
+                SourceTimestamp == other.SourceTimestamp &&
+                ServerPicoseconds == other.ServerPicoseconds &&
+                SourcePicoseconds == other.SourcePicoseconds &&
+                m_value == other.m_value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataValue? other)
-        {
-            if (ReferenceEquals(this, other))
-            {
-                return true;
-            }
-
-            if (other is null)
-            {
-                return false;
-            }
-
-            if (StatusCode != other.StatusCode)
-            {
-                return false;
-            }
-
-            if (ServerTimestamp != other.ServerTimestamp)
-            {
-                return false;
-            }
-
-            if (SourceTimestamp != other.SourceTimestamp)
-            {
-                return false;
-            }
-
-            if (ServerPicoseconds != other.ServerPicoseconds)
-            {
-                return false;
-            }
-
-            if (SourcePicoseconds != other.SourcePicoseconds)
-            {
-                return false;
-            }
-
-            if (m_value != other.m_value)
-            {
-                return false;
-            }
-
-            return true;
-        }
+        public static bool operator ==(DataValue a, DataValue b) => a.Equals(b);
 
         /// <inheritdoc/>
-        public static bool operator ==(DataValue? a, DataValue? b)
-        {
-            return a is null ? b is null : a.Equals(b);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(DataValue? a, DataValue? b)
-        {
-            return !(a == b);
-        }
+        public static bool operator !=(DataValue a, DataValue b) => !a.Equals(b);
 
         /// <inheritdoc/>
         public override int GetHashCode()
@@ -431,30 +385,33 @@ namespace Opc.Ua
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return Copy();
-        }
-
         /// <summary>
-        /// Creates a deep copy of the DataValue.
+        /// Creates a deep copy of the DataValue, deep-copying the
+        /// Variant payload so that reference-type bodies (e.g.
+        /// ExtensionObject) are not shared with the source.
         /// </summary>
         /// <returns>A new <see cref="DataValue"/> that is a deep copy of this instance.</returns>
         public DataValue Copy()
         {
-            var copy = (DataValue)base.MemberwiseClone();
-            copy.m_value = m_value.Copy();
-            return copy;
+            return new DataValue(
+                m_value.Copy(),
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
-        /// Makes a deep copy of the object.
+        /// True when the struct holds no payload (all-default fields).
         /// </summary>
-        public new object MemberwiseClone()
-        {
-            return Copy();
-        }
+        public bool IsNull
+            => m_value.IsNull &&
+               m_statusCode.Code == 0 &&
+               m_sourceTimestamp == DateTimeUtc.MinValue &&
+               m_serverTimestamp == DateTimeUtc.MinValue &&
+               m_sourcePicoseconds == 0 &&
+               m_serverPicoseconds == 0;
 
         /// <summary>
         /// The value of data value.
@@ -499,85 +456,37 @@ namespace Opc.Ua
         /// Returns true if the status code is good.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsGood(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsGood(value.StatusCode);
-            }
-
-            return false;
-        }
+        public static bool IsGood(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsGood(value.StatusCode); }
 
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotGood(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsNotGood(value.StatusCode);
-            }
-
-            return true;
-        }
+        public static bool IsNotGood(DataValue value) { if (value.IsNull) { return true; } return StatusCode.IsNotGood(value.StatusCode); }
 
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
         /// <param name="value">The value to checck the quality of</param>
-        public static bool IsUncertain(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsUncertain(value.StatusCode);
-            }
-
-            return false;
-        }
+        public static bool IsUncertain(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsUncertain(value.StatusCode); }
 
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotUncertain(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsNotUncertain(value.StatusCode);
-            }
-
-            return false;
-        }
+        public static bool IsNotUncertain(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsNotUncertain(value.StatusCode); }
 
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsBad(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsBad(value.StatusCode);
-            }
-
-            return true;
-        }
+        public static bool IsBad(DataValue value) { if (value.IsNull) { return true; } return StatusCode.IsBad(value.StatusCode); }
 
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotBad(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsNotBad(value.StatusCode);
-            }
-
-            return false;
-        }
+        public static bool IsNotBad(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsNotBad(value.StatusCode); }
 
         /// <summary>
         /// Ensures the data value contains a value with the specified type.
@@ -700,7 +609,7 @@ namespace Opc.Ua
             return defaultValue;
         }
 
-        private Variant m_value;
+        private readonly Variant m_value;
         private readonly StatusCode m_statusCode;
         private readonly DateTimeUtc m_sourceTimestamp;
         private readonly DateTimeUtc m_serverTimestamp;

@@ -343,9 +343,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue? value)
+        public void WriteDataValue(string? fieldName, DataValue value)
         {
-            if (value == null)
+            if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
@@ -1026,9 +1026,9 @@ namespace Opc.Ua
         /// Write data value
         /// </summary>
         /// <param name="value"></param>
-        private void WriteDataValue(DataValue? value)
+        private void WriteDataValue(DataValue value)
         {
-            if (value == null)
+            if (value.IsNull)
             {
                 m_writer.WriteNullValue();
                 return;

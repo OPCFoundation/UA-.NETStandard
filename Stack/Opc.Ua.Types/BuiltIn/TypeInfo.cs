@@ -1818,7 +1818,7 @@ namespace Opc.Ua
                 case BuiltInType.Variant:
                     return Variant.Null;
                 case BuiltInType.DataValue:
-                    return (DataValue)null!;
+                    return default(DataValue);
                 case BuiltInType.Enumeration:
                     return 0;
                 case BuiltInType.Number:

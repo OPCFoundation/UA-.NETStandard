@@ -612,7 +612,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string? fieldName)
+        public DataValue ReadDataValue(string? fieldName)
         {
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
@@ -1495,7 +1495,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1504,7 +1504,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            var values = new DataValue?[length];
+            var values = new DataValue[length];
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1741,9 +1741,7 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return Variant.From(ReadExtensionObject(null));
                     case BuiltInType.DataValue:
-#pragma warning disable CS8604 // Possible null reference argument
-                        return Variant.From(ReadDataValue(null));
-#pragma warning restore CS8604
+return Variant.From(ReadDataValue(null));
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:

@@ -3602,14 +3602,6 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref DataValue value)
         {
-            // check for bad parameter.
-            if (value == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
-                    "DataValue missing");
-            }
-
             Variant valueToRead = value.WrappedValue;
 
             ServiceResult result = ServiceResult.Good;
@@ -3954,14 +3946,6 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
-            // check for bad parameter.
-            if (value == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
-                    "DataValue missing");
-            }
-
             Variant valueToWrite = value.WrappedValue;
 
             if (attributeId == Attributes.Value)

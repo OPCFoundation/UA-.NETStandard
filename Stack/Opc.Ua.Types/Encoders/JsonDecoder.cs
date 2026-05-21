@@ -363,11 +363,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string? fieldName)
+        public DataValue ReadDataValue(string? fieldName)
         {
             if (TryGetDataValueFromElement(
                 GetPropertyElement(fieldName),
-                out DataValue? value))
+                out DataValue value))
             {
                 return value;
             }
@@ -375,11 +375,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
             if (TryGetDataValueArrayFromElement(
                 GetPropertyElement(fieldName),
-                out ArrayOf<DataValue?> values))
+                out ArrayOf<DataValue> values))
             {
                 return values;
             }
@@ -1278,7 +1278,7 @@ namespace Opc.Ua
         /// </summary>
         private bool TryGetDataValueFromElement(
             JsonElement element,
-            out DataValue? value)
+            out DataValue value)
         {
             switch (element.ValueKind)
             {
@@ -1371,7 +1371,7 @@ namespace Opc.Ua
         /// </summary>
         private bool TryGetDataValueArrayFromElement(
             JsonElement element,
-            out ArrayOf<DataValue?> values)
+            out ArrayOf<DataValue> values)
         {
             if (TryGetArrayElements(
                 element,
@@ -1382,7 +1382,7 @@ namespace Opc.Ua
                     values = default;
                     return true;
                 }
-                var result = new DataValue?[elements.Count];
+                var result = new DataValue[elements.Count];
                 for (int i = 0; i < elements.Count; i++)
                 {
                     if (!TryGetDataValueFromElement(elements[i], out result[i]))
@@ -3325,8 +3325,8 @@ namespace Opc.Ua
                         return true;
                     case BuiltInType.DataValue when TryGetDataValueFromElement(
                         element,
-                        out DataValue? v):
-                        value = Variant.From(v!);
+                        out DataValue v):
+                        value = Variant.From(v);
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
                         element,
@@ -3477,13 +3477,11 @@ namespace Opc.Ua
                         return true;
                     case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                         element,
-                        out ArrayOf<DataValue?> v):
+                        out ArrayOf<DataValue> v):
                         // Argument cannot be used due to nullability differences.
                         // ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout;
                         // null elements are tolerated by Variant.
-#pragma warning disable CS8620
                         value = Variant.From(v);
-#pragma warning restore CS8620
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                         element,
@@ -3671,13 +3669,11 @@ namespace Opc.Ua
                             return true;
                         case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                             element,
-                            out ArrayOf<DataValue?> v):
+                            out ArrayOf<DataValue> v):
                             // Argument cannot be used due to nullability differences.
                             // MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout;
                             // null elements are tolerated by Variant.
-#pragma warning disable CS8620
                             value = Variant.From(v.ToMatrix(dims));
-#pragma warning restore CS8620
                             return true;
                         case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                             element,

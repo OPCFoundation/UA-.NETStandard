@@ -1805,14 +1805,6 @@ namespace Opc.Ua
                     context, attributeId, indexRange, dataEncoding, seed, cancellationToken)
                     .ConfigureAwait(false);
             }
-
-            if (seed == null)
-            {
-                return (ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
-                    "DataValue missing"), default!);
-            }
-
             ServiceResult result;
             Variant valueToRead;
             DateTimeUtc sourceTimestamp;
@@ -1965,14 +1957,6 @@ namespace Opc.Ua
                     context, attributeId, indexRange, value, cancellationToken)
                     .ConfigureAwait(false);
             }
-
-            if (value == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
-                    "DataValue missing");
-            }
-
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 return ServiceResult.Create(

@@ -960,7 +960,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string? fieldName)
+        public DataValue ReadDataValue(string? fieldName)
         {
             var value = new DataValue();
 
@@ -1805,11 +1805,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new List<DataValue?>();
+                var values = new List<DataValue>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("DataValue"))
@@ -2209,9 +2209,7 @@ namespace Opc.Ua
                         case "ExtensionObject":
                             return ReadExtensionObject(typeName);
                         case "DataValue":
-#pragma warning disable CS8604 // Possible null reference argument
-                            return ReadDataValue(typeName);
-#pragma warning restore CS8604
+return ReadDataValue(typeName);
                         case "Matrix":
                             return ReadMatrix(typeName);
                         default:
