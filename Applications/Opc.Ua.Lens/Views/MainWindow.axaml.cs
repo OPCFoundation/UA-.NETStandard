@@ -131,6 +131,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         var menuNewHistorian = this.RequiredControl<MenuItem>("MenuNewHistorian");
         var menuNewFileSystem = this.RequiredControl<MenuItem>("MenuNewFileSystem");
         var menuNewCertificateManager = this.RequiredControl<MenuItem>("MenuNewCertificateManager");
+        var menuNewRoleManagement = this.RequiredControl<MenuItem>("MenuNewRoleManagement");
+        var menuNewUserManagement = this.RequiredControl<MenuItem>("MenuNewUserManagement");
         var menuRenameTab = this.RequiredControl<MenuItem>("MenuRenameTab");
         var menuCloseTab = this.RequiredControl<MenuItem>("MenuCloseTab");
         var menuAddItem = this.RequiredControl<MenuItem>("MenuAddItemMenu");
@@ -211,6 +213,8 @@ internal sealed partial class MainWindow : Window, IDisposable
         menuNewHistorian.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(true);
         menuNewFileSystem.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.FileSystem).ConfigureAwait(true);
         menuNewCertificateManager.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.CertificateManager).ConfigureAwait(true);
+        menuNewRoleManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.RoleManagement).ConfigureAwait(true);
+        menuNewUserManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.UserManagement).ConfigureAwait(true);
 
         // --- Tabs → Rename / Duplicate / Close Active Tab ---
         menuRenameTab.Click += (_, _) =>
@@ -2522,6 +2526,8 @@ internal sealed partial class MainWindow : Window, IDisposable
                     "  Ctrl+Shift+H        Historian\n" +
                     "  Ctrl+Shift+L        File System (fiLe)\n" +
                     "  Ctrl+Shift+C        Certificate Manager\n" +
+                    "  Ctrl+Shift+R        Role Management\n" +
+                    "  Ctrl+Shift+U        User Management\n" +
                     "\n" +
                     "  ─── Tabs (manage) ───\n" +
                     "  F2 (in tab strip)   Rename Active Tab\n" +

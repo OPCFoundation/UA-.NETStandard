@@ -167,6 +167,12 @@
           <MenuItem x:Name="MenuNewCertificateManager" Header="_Certificate Manager" InputGesture="Ctrl+Shift+C">
             <MenuItem.Icon><TextBlock Text="🔑" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
           </MenuItem>
+          <MenuItem x:Name="MenuNewRoleManagement" Header="_Role Management" InputGesture="Ctrl+Shift+R">
+            <MenuItem.Icon><TextBlock Text="🛂" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewUserManagement" Header="_User Management" InputGesture="Ctrl+Shift+U">
+            <MenuItem.Icon><TextBlock Text="👤" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
         </MenuItem>
         <Separator />
         <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />
