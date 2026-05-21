@@ -341,5 +341,123 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     "Error while reporting ApplicationRegistrationChangedAuditEventState event.");
             }
         }
+
+        /// <summary>
+        /// Raise KeyCredentialRequestedAudit event (OPC 10000-12 §8).
+        /// </summary>
+        internal static void ReportKeyCredentialRequestedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "KeyCredentialRequestedAuditEvent",
+                static () => new KeyCredentialRequestedAuditEventState(null),
+                logger, exception);
+        }
+
+        /// <summary>
+        /// Raise KeyCredentialDeliveredAudit event (OPC 10000-12 §8).
+        /// </summary>
+        internal static void ReportKeyCredentialDeliveredAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "KeyCredentialDeliveredAuditEvent",
+                static () => new KeyCredentialDeliveredAuditEventState(null),
+                logger, null);
+        }
+
+        /// <summary>
+        /// Raise KeyCredentialRevokedAudit event (OPC 10000-12 §8).
+        /// </summary>
+        internal static void ReportKeyCredentialRevokedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "KeyCredentialRevokedAuditEvent",
+                static () => new KeyCredentialRevokedAuditEventState(null),
+                logger, exception);
+        }
+
+        /// <summary>
+        /// Raise AccessTokenIssuedAudit event (OPC 10000-12 §9).
+        /// </summary>
+        internal static void ReportAccessTokenIssuedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "AccessTokenIssuedAuditEvent",
+                static () => new AccessTokenIssuedAuditEventState(null),
+                logger, exception);
+        }
+
+        /// <summary>
+        /// Generic helper that raises a simple audit event derived from
+        /// <see cref="Ua.AuditUpdateMethodEventState"/>.
+        /// </summary>
+        private static void ReportSimpleAuditEvent(
+            IAuditEventServer? server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState? method,
+            ArrayOf<Variant> inputArguments,
+            string eventName,
+            Func<Ua.AuditUpdateMethodEventState> factory,
+            ILogger logger,
+            Exception? exception)
+        {
+            try
+            {
+                Ua.AuditUpdateMethodEventState e = factory();
+
+                TranslationInfo message = exception == null
+                    ? new TranslationInfo(eventName, "en-US", $"{eventName}.")
+                    : new TranslationInfo(eventName, "en-US",
+                        $"{eventName} - Exception: {exception.Message}.");
+
+                e.Initialize(
+                    systemContext, null, EventSeverity.Min,
+                    new LocalizedText(message), exception == null,
+                    DateTime.UtcNow);
+
+                e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Attribute/Call", false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.LocalTime, TimeZoneDataType.Local, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.InputArguments, inputArguments, false);
+
+                server?.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error while reporting {EventName} event.", eventName);
+            }
+        }
     }
 }

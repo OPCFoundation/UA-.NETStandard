@@ -2300,9 +2300,15 @@ namespace Opc.Ua.Gds.Server
             // identityToken against a token service and return a JWT or
             // opaque access token. This reference implementation returns
             // Bad_NotSupported.
-            throw new ServiceResultException(
+            var ex = new ServiceResultException(
                 StatusCodes.BadNotSupported,
                 "RequestAccessToken is not implemented by this GDS. Use an external Authorization Service.");
+
+            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger, ex);
+
+            throw ex;
         }
 
         private ServiceResult OnKeyCredentialStartRequest(
@@ -2324,6 +2330,10 @@ namespace Opc.Ua.Gds.Server
                 publicKey,
                 securityPolicyUri,
                 requestedRoles);
+
+            ArrayOf<Variant> auditInputs = [applicationUri, publicKey, securityPolicyUri, requestedRoles];
+            Server.ReportKeyCredentialRequestedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
 
             return ServiceResult.Good;
         }
@@ -2364,6 +2374,10 @@ namespace Opc.Ua.Gds.Server
                 return new ServiceResult(StatusCodes.BadNothingToDo);
             }
 
+            ArrayOf<Variant> auditInputs = [requestId, cancelRequest];
+            Server.ReportKeyCredentialDeliveredAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
             return ServiceResult.Good;
         }
 
@@ -2378,6 +2392,10 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation("OnKeyCredentialRevoke: {CredentialId}", credentialId);
 
             KeyCredentialRequestStore.Revoke(credentialId);
+
+            ArrayOf<Variant> auditInputs = [credentialId];
+            Server.ReportKeyCredentialRevokedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
 
             return ServiceResult.Good;
         }
