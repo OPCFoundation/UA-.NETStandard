@@ -52,8 +52,8 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | §7.10.6 | CreateSelfSignedCertificate | ✅ | `ConfigurationNodeManager.CreateSelfSignedCertificateAsync` |
 | §7.10.7 | GetCertificates | ✅ | `ConfigurationNodeManager.GetCertificates` |
 | §7.10.8 | GetRejectedList | ✅ | `ConfigurationNodeManager.GetRejectedList` |
-| §7.10.10 | ConfirmUpdate | ❌ | Requires transaction infrastructure |
-| §7.10.16 | ApplicationConfigurationType / ManagedApplications | ❌ | Requires proxy + ConfigurationFileType |
+| §7.10.10 | ConfirmUpdate | ⚠️ | `ConfigurationFileState` generated; `StubManagedApplicationsNodeManager` provides extension point |
+| §7.10.16 | ApplicationConfigurationType / ManagedApplications | ⚠️ | `IManagedApplicationsNodeManager` interface + `StubManagedApplicationsNodeManager` stub |
 
 ## TrustList (§7.8)
 
@@ -65,8 +65,8 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | LastUpdateTime | ✅ | Set during init + CloseAndUpdate |
 | Writable / UserWritable | ✅ | Set to true for GDS groups |
 | ActivityTimeout / DefaultValidationOptions | ✅ | Generated from model CSV |
-| CertificateExpirationAlarm | ❌ | Alarm lifecycle not wired |
-| TrustListOutOfDateAlarm | ❌ | Alarm lifecycle not wired |
+| CertificateExpirationAlarm | ⚠️ | Property values populated at startup; active-state deferred |
+| TrustListOutOfDateAlarm | ⚠️ | Property values populated at startup; active-state deferred |
 
 ## Audit Events
 
