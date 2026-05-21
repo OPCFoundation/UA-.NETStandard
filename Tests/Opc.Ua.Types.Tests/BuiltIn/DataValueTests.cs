@@ -279,7 +279,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var b = new DataValue();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a, Is.Not.EqualTo(b));
+            // Both are default DataValues, so they are equal.
+            Assert.That(a, Is.EqualTo(b));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -290,7 +291,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue b = default;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(a, Is.Not.EqualTo(b));
+            // Both are default DataValues, so they are equal.
+            Assert.That(a, Is.EqualTo(b));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -579,9 +581,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void IsGoodWithNullReturnsFalse()
+        public void IsGoodWithDefaultReturnsTrue()
         {
-            Assert.That(DataValue.IsGood(default), Is.False);
+            // Default DataValue has StatusCode = Good (0).
+            Assert.That(DataValue.IsGood(default), Is.True);
         }
 
         [Test]
@@ -601,9 +604,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void IsNotGoodWithNullReturnsTrue()
+        public void IsNotGoodWithDefaultReturnsFalse()
         {
-            Assert.That(DataValue.IsNotGood(default), Is.True);
+            Assert.That(DataValue.IsNotGood(default), Is.False);
         }
 
         [Test]
@@ -645,9 +648,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void IsNotUncertainWithNullReturnsFalse()
+        public void IsNotUncertainWithDefaultReturnsTrue()
         {
-            Assert.That(DataValue.IsNotUncertain(default), Is.False);
+            Assert.That(DataValue.IsNotUncertain(default), Is.True);
         }
 
         [Test]
@@ -667,9 +670,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void IsBadWithNullReturnsTrue()
+        public void IsBadWithDefaultReturnsFalse()
         {
-            Assert.That(DataValue.IsBad(default), Is.True);
+            // Default DataValue has StatusCode = Good (0).
+            Assert.That(DataValue.IsBad(default), Is.False);
         }
 
         [Test]
@@ -689,9 +693,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void IsNotBadWithNullReturnsFalse()
+        public void IsNotBadWithDefaultReturnsTrue()
         {
-            Assert.That(DataValue.IsNotBad(default), Is.False);
+            Assert.That(DataValue.IsNotBad(default), Is.True);
         }
 
         [Test]

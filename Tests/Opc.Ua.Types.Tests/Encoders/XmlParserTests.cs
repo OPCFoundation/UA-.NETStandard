@@ -2207,7 +2207,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             DataValue result = decoder.ReadDataValue("DataValue");
 
-            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.IsNull, Is.True);
             Assert.That(result.WrappedValue, Is.EqualTo(Variant.Null));
         }
 

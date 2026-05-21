@@ -456,37 +456,37 @@ namespace Opc.Ua
         /// Returns true if the status code is good.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsGood(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsGood(value.StatusCode); }
+        public static bool IsGood(DataValue value) => StatusCode.IsGood(value.StatusCode);
 
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotGood(DataValue value) { if (value.IsNull) { return true; } return StatusCode.IsNotGood(value.StatusCode); }
+        public static bool IsNotGood(DataValue value) => StatusCode.IsNotGood(value.StatusCode);
 
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
-        /// <param name="value">The value to checck the quality of</param>
-        public static bool IsUncertain(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsUncertain(value.StatusCode); }
+        /// <param name="value">The value to check the quality of</param>
+        public static bool IsUncertain(DataValue value) => StatusCode.IsUncertain(value.StatusCode);
 
         /// <summary>
-        /// Returns true if the status is good or uncertain.
+        /// Returns true if the status is good or bad.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotUncertain(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsNotUncertain(value.StatusCode); }
+        public static bool IsNotUncertain(DataValue value) => StatusCode.IsNotUncertain(value.StatusCode);
 
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsBad(DataValue value) { if (value.IsNull) { return true; } return StatusCode.IsBad(value.StatusCode); }
+        public static bool IsBad(DataValue value) => StatusCode.IsBad(value.StatusCode);
 
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotBad(DataValue value) { if (value.IsNull) { return false; } return StatusCode.IsNotBad(value.StatusCode); }
+        public static bool IsNotBad(DataValue value) => StatusCode.IsNotBad(value.StatusCode);
 
         /// <summary>
         /// Ensures the data value contains a value with the specified type.

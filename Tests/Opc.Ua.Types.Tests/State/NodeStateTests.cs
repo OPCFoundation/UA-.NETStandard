@@ -1298,16 +1298,15 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void ReadAttributeReturnsBadForNullDataValue()
+        public void ReadAttributeAcceptsDefaultDataValue()
         {
             BaseObjectState node = CreateObjectNode();
-            // With DataValue now a readonly struct, passing a default value
-            // via ref mimics the legacy contract that ReadAttribute
-            // returned BadStructureMissing when value was null.
-            DataValue nullValue = default;
+            // With DataValue now a readonly struct, passing default(DataValue)
+            // is the normal seed pattern - the read fills it in.
+            DataValue dv = default;
             ServiceResult result = node.ReadAttribute(
-                m_context, Attributes.NodeId, default, default, ref nullValue);
-            Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
+                m_context, Attributes.NodeId, default, default, ref dv);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
         [Test]
