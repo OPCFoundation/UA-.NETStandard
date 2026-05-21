@@ -290,11 +290,11 @@ namespace Opc.Ua.Server
                     {
                         sb.Append('/');
                     }
-                    sb.Append(Name);
-                    sb.Append('=');
-                    sb.Append('"');
-                    sb.Append(Value);
-                    sb.Append('"');
+                    sb.Append(Name)
+                        .Append('=')
+                        .Append('"')
+                        .Append(Value)
+                        .Append('"');
                 }
             }
             return sb.ToString();

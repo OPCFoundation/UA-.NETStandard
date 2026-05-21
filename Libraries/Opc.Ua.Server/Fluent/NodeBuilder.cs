@@ -343,7 +343,10 @@ namespace Opc.Ua.Server.Fluent
     /// <see cref="NodeBuilder"/>; the only added value is a typed
     /// <see cref="Node"/> property.
     /// </summary>
-    /// <typeparam name="TState"></typeparam>
+    /// <typeparam name="TState">
+    /// The concrete <see cref="NodeState"/> derivative the resolved node
+    /// is narrowed to.
+    /// </typeparam>
     internal class NodeBuilder<TState> : NodeBuilder, INodeBuilder<TState>
         where TState : NodeState
     {

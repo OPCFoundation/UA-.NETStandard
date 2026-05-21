@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         [Test]
         public async Task UploadAndUpdateStreamRoundTripsTdAndCallsCloseAndUpdateAsync()
         {
-            string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"Test\"}";
+            const string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"Test\"}";
             byte[] tdBytes = Encoding.UTF8.GetBytes(td);
 
             var mock = new WotAssetFileTypeSessionMock();

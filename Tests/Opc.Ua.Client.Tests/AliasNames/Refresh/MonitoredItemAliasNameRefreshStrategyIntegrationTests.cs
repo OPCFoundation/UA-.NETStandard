@@ -80,10 +80,10 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-            m_server = await m_serverFixture.StartAsync(m_pkiRoot);
+            m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(telemetry);
-            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
+            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             m_url = new Uri(Utils.UriSchemeOpcTcp +
                 "://localhost:" +
                 m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
@@ -91,7 +91,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             try
             {
                 m_session = await m_clientFixture.ConnectAsync(
-                    m_url, SecurityPolicies.None);
+                    m_url, SecurityPolicies.None).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -105,13 +105,13 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             if (m_session != null)
             {
-                await m_session.CloseAsync();
+                await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
                 m_session = null;
             }
             if (m_serverFixture != null)
             {
-                await m_serverFixture.StopAsync();
+                await m_serverFixture.StopAsync().ConfigureAwait(false);
             }
             m_clientFixture?.Dispose();
             m_server?.Dispose();
@@ -134,21 +134,21 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 });
             try
             {
-                await resolver.EnsureLoadedAsync();
+                await resolver.EnsureLoadedAsync().ConfigureAwait(false);
                 Assert.That(m_session.SubscriptionCount,
                     Is.EqualTo(initialCount + 1),
                     "MonitoredItem strategy must add one subscription.");
             }
             finally
             {
-                await resolver.DisposeAsync();
+                await resolver.DisposeAsync().ConfigureAwait(false);
             }
 
             // Allow a moment for the RemoveSubscription/Delete round-trips.
             for (int i = 0; i < 20 &&
                 m_session.SubscriptionCount != initialCount; i++)
             {
-                await Task.Delay(50);
+                await Task.Delay(50).ConfigureAwait(false);
             }
             Assert.That(m_session.SubscriptionCount, Is.EqualTo(initialCount),
                 "Owned subscription must be removed on DisposeAsync.");
@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 {
                     RefreshMode = AliasNameResolverRefreshMode.Manual
                 });
-            await resolver.EnsureLoadedAsync();
+            await resolver.EnsureLoadedAsync().ConfigureAwait(false);
 
             Assert.That(m_session.SubscriptionCount, Is.EqualTo(initialCount));
         }
@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 PublishingInterval = 500,
             };
             m_session.AddSubscription(sharedSubscription);
-            await sharedSubscription.CreateAsync();
+            await sharedSubscription.CreateAsync().ConfigureAwait(false);
             Assert.That(m_session.SubscriptionCount,
                 Is.EqualTo(initialCount + 1),
                 "Test setup must own the subscription.");
@@ -209,7 +209,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 });
             try
             {
-                await resolver.EnsureLoadedAsync();
+                await resolver.EnsureLoadedAsync().ConfigureAwait(false);
 
                 Assert.That(m_session.SubscriptionCount,
                     Is.EqualTo(initialCount + 1),
@@ -220,7 +220,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             }
             finally
             {
-                await resolver.DisposeAsync();
+                await resolver.DisposeAsync().ConfigureAwait(false);
             }
 
             // After the strategy disposes, the shared subscription must
@@ -236,8 +236,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             // Test owns the subscription — clean it up.
             try
             {
-                await m_session.RemoveSubscriptionAsync(sharedSubscription);
-                await sharedSubscription.DeleteAsync(silent: true);
+                await m_session.RemoveSubscriptionAsync(sharedSubscription).ConfigureAwait(false);
+                await sharedSubscription.DeleteAsync(silent: true).ConfigureAwait(false);
             }
             catch
             {

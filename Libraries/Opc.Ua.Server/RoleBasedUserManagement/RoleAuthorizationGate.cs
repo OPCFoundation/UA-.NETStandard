@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
             // canonical NodeId and the numeric identifier directly so a
             // custom IRoleManager that returns the well-known role under a
             // different NodeId representation still authorises correctly.
-            uint securityAdminId = Objects.WellKnownRole_SecurityAdmin;
+            const uint securityAdminId = Objects.WellKnownRole_SecurityAdmin;
             foreach (NodeId nodeId in identity.GrantedRoleIds)
             {
                 if (nodeId == s_securityAdmin)

@@ -218,7 +218,10 @@ namespace Opc.Ua.Server.Fluent
     /// builder; use <see cref="INodeBuilder.As{TState}"/> chaining when
     /// you need to restore the typed view.
     /// </summary>
-    /// <typeparam name="TState"></typeparam>
+    /// <typeparam name="TState">
+    /// The concrete <see cref="NodeState"/> derivative the resolved node
+    /// is narrowed to.
+    /// </typeparam>
     public interface INodeBuilder<out TState> : INodeBuilder
         where TState : NodeState
     {

@@ -259,7 +259,7 @@ namespace Opc.Ua.Gds.Server.Database
         /// <returns>true if the target string matches the pattern, otherwise false.</returns>
         public static bool Match(string? target, string pattern)
         {
-            if (target == null || target.Length == 0)
+            if (string.IsNullOrEmpty(target))
             {
                 return false;
             }

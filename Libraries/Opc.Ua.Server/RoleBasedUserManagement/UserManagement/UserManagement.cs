@@ -482,7 +482,7 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("MustChangePassword and NoChangeByUser are mutually exclusive."));
             }
 
-            UserConfigurationMask supported =
+            const UserConfigurationMask supported =
                 UserConfigurationMask.NoDelete |
                 UserConfigurationMask.Disabled |
                 UserConfigurationMask.NoChangeByUser |

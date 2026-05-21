@@ -88,7 +88,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                             new("T1", 2),
                             new("T2", 2)
                         }.ToArrayOf(),
-                        new string[] { "", "" }.ToArrayOf(),
+                        new string[] { string.Empty, string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                             new("T1", 2),
                             new("T2", 2)
                         }.ToArrayOf(),
-                        new string[] { "" }.ToArrayOf(),
+                        new string[] { string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                         s_categoryId,
                         new string[] { null! }.ToArrayOf(),
                         new ExpandedNodeId[] { new("T1", 2) }.ToArrayOf(),
-                        new string[] { "" }.ToArrayOf(),
+                        new string[] { string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -264,13 +264,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .AddAliasesAsync(
                         registry,
                         s_categoryId,
-                        new string[] { "A", "" }.ToArrayOf(),
+                        new string[] { "A", string.Empty }.ToArrayOf(),
                         new ExpandedNodeId[]
                         {
                             new("T1", 2),
                             new("T2", 2)
                         }.ToArrayOf(),
-                        new string[] { "", "" }.ToArrayOf(),
+                        new string[] { string.Empty, string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);

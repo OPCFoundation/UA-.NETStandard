@@ -71,6 +71,7 @@ namespace Opc.Ua.Lds.Server
         /// <param name="loopbackOnly">When true, restricts announcements and
         ///   queries to the loopback NIC. Used by in-process tests.</param>
         /// <param name="logger">Optional logger.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="store"/> is null.</exception>
         public MulticastDiscovery(
             RegisteredServerStore store,
             bool loopbackOnly = false,

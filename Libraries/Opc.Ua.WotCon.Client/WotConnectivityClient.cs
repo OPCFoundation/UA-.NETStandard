@@ -53,6 +53,9 @@ namespace Opc.Ua.WotCon.Client
         /// <param name="managementObjectId">NodeId of the
         /// <c>WoTAssetConnectionManagement</c> object on the server.</param>
         /// <param name="telemetry">Telemetry context used for diagnostics.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="managementObjectId"/> is empty.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="telemetry"/> is null.</exception>
         public WotConnectivityClient(
             ISession session,
             NodeId managementObjectId,
@@ -88,6 +91,9 @@ namespace Opc.Ua.WotCon.Client
         /// (<c>WoTAssetConnectionManagement</c>) by translating from
         /// the <c>Objects</c> folder.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="telemetry"/> is null.</exception>
+        /// <exception cref="ServiceResultException">The WoTAssetConnectionManagement entry point was not found on the connected server.</exception>
         public static async ValueTask<WotConnectivityClient> ForServerAsync(
             ISession session,
             ITelemetryContext telemetry,
@@ -206,6 +212,8 @@ namespace Opc.Ua.WotCon.Client
         /// asset NodeId. Browses for the asset's <c>WoTFile</c> child to
         /// populate the file proxy.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="assetId"/> is empty.</exception>
+        /// <exception cref="ServiceResultException">The WoTFile child was not found below the asset object.</exception>
         public async ValueTask<WotAssetClient> OpenAssetAsync(
             NodeId assetId,
             CancellationToken ct = default)

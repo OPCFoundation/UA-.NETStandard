@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.AliasNames
                     "BadUserAccessDenied" +
                     (!categoryId.IsNull
                         ? " (category=" + categoryId + ")"
-                        : "") +
+                        : string.Empty) +
                     ".");
             }
             if (code == StatusCodes.BadNotSupported ||
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.AliasNames
                     "server/category" +
                     (!categoryId.IsNull
                         ? " (category=" + categoryId + ")"
-                        : "") +
+                        : string.Empty) +
                     ".");
             }
             return ServiceResultException.Create(

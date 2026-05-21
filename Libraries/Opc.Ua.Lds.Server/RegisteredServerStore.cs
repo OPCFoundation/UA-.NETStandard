@@ -162,6 +162,7 @@ namespace Opc.Ua.Lds.Server
         /// <paramref name="server"/>'s state. Returns the live registration
         /// (post-merge) or <c>null</c> if it was removed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
         public async Task<RegistrationEntry> RegisterAsync(
             RegisteredServer server,
             MdnsDiscoveryConfiguration mdnsConfig,
@@ -326,6 +327,7 @@ namespace Opc.Ua.Lds.Server
         /// Adds or refreshes mDNS-observed peer records. Called by
         /// <see cref="MulticastDiscovery"/> when service discoveries occur.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="discoveryUrl"/> is null or empty.</exception>
         public void UpsertMulticastRecord(
             string serverUri,
             string serverName,
@@ -404,6 +406,8 @@ namespace Opc.Ua.Lds.Server
         /// Test seam: directly insert a registration without protocol validation.
         /// Used by the LdsTestFixture to deterministically populate state.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="entry"/> is null.</exception>
+        /// <exception cref="ArgumentException">The <see cref="RegistrationEntry.ServerUri"/> of <paramref name="entry"/> is null or empty.</exception>
         internal void SeedRegistration(RegistrationEntry entry)
         {
             if (entry == null)

@@ -75,6 +75,8 @@ namespace Opc.Ua.Client.AliasNames
         /// <c>AliasNameCategoryType</c> instance.</param>
         /// <param name="options">Optional configuration; defaults applied
         /// when <c>null</c>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="categoryId"/> is null.</exception>
         public AliasNameClient(
             ISession session,
             NodeId categoryId,
@@ -149,6 +151,12 @@ namespace Opc.Ua.Client.AliasNames
         /// result; a null/empty <paramref name="referenceTypeFilter"/>
         /// matches every reference type.
         /// </summary>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
+        /// <exception cref="NotSupportedException">The category does not
+        /// expose <c>FindAlias</c>.</exception>
+        /// <exception cref="UnauthorizedAccessException">The session does
+        /// not have permission to search aliases in this category.</exception>
         public async Task<IReadOnlyList<AliasNameDataType>> FindAliasAsync(
             string aliasNameSearchPattern,
             NodeId? referenceTypeFilter = null,
@@ -178,6 +186,12 @@ namespace Opc.Ua.Client.AliasNames
         /// server replies with <c>BadNotImplemented</c>/<c>BadMethodInvalid</c>
         /// which is translated into <see cref="NotSupportedException"/>.
         /// </summary>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
+        /// <exception cref="NotSupportedException">The category does not
+        /// expose <c>FindAliasVerbose</c>.</exception>
+        /// <exception cref="UnauthorizedAccessException">The session does
+        /// not have permission to search aliases in this category.</exception>
         public async Task<IReadOnlyList<AliasNameVerboseDataType>> FindAliasVerboseAsync(
             string aliasNameSearchPattern,
             NodeId? referenceTypeFilter = null,
@@ -209,6 +223,12 @@ namespace Opc.Ua.Client.AliasNames
         /// expose <c>AddAliasesToCategory</c>.</exception>
         /// <exception cref="UnauthorizedAccessException">The session does
         /// not have permission to add aliases to this category.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="requests"/> is null.</exception>
+        /// <exception cref="ArgumentException">Not all entries in
+        /// <paramref name="requests"/> share the same
+        /// <see cref="AliasNameAddRequest.TargetReferenceType"/>.</exception>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
         public async Task<StatusCode[]> AddAliasesToCategoryAsync(
             IReadOnlyList<AliasNameAddRequest> requests,
             CancellationToken ct = default)
@@ -274,6 +294,9 @@ namespace Opc.Ua.Client.AliasNames
         /// expose <c>DeleteAliasesFromCategory</c>.</exception>
         /// <exception cref="UnauthorizedAccessException">The session does
         /// not have permission to delete aliases from this category.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="requests"/> is null.</exception>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
         public async Task<StatusCode[]> DeleteAliasesFromCategoryAsync(
             IReadOnlyList<AliasNameDeleteRequest> requests,
             CancellationToken ct = default)
@@ -378,6 +401,8 @@ namespace Opc.Ua.Client.AliasNames
         /// (Part 17 §6.3.1 <c>SubAliasNameCategories</c>) via a forward
         /// browse on <see cref="ReferenceTypeIds.Organizes"/>.
         /// </summary>
+        /// <exception cref="ServiceResultException">The browse operation
+        /// returned an error status code.</exception>
         public async IAsyncEnumerable<AliasNameSubCategoryInfo>
             EnumerateSubCategoriesAsync(
                 [EnumeratorCancellation] CancellationToken ct = default)

@@ -67,6 +67,8 @@ namespace Opc.Ua.WotCon.Client
         /// <c>Write | EraseExisting</c>.</param>
         /// <param name="chunkSize">Maximum per-write chunk size.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask UploadAsync(
             this FileTypeClient file,
             ReadOnlyMemory<byte> content,
@@ -118,6 +120,10 @@ namespace Opc.Ua.WotCon.Client
         /// <param name="chunkSize">Maximum per-write chunk size and
         /// size of the rented intermediate buffer.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="content"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="content"/> is not readable.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask UploadAsync(
             this FileTypeClient file,
             Stream content,
@@ -160,6 +166,8 @@ namespace Opc.Ua.WotCon.Client
         /// Reads the entire content of the file behind <paramref name="file"/>
         /// into memory using chunked <c>Read</c> calls.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask<byte[]> DownloadAllAsync(
             this FileTypeClient file,
             int chunkSize = DefaultChunkSize,
@@ -213,6 +221,10 @@ namespace Opc.Ua.WotCon.Client
         /// the file contents.</param>
         /// <param name="chunkSize">Maximum per-read chunk size.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="destination"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="destination"/> is not writable.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask DownloadToAsync(
             this FileTypeClient file,
             Stream destination,

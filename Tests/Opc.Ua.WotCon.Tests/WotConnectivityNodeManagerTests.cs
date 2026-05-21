@@ -97,10 +97,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetWithEmptyNameReturnsBadInvalidArgument()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync(string.Empty, CancellationToken.None);
+                .CreateAssetAsync(string.Empty, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(assetId.IsNull, Is.True);
@@ -110,10 +110,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetWithWhitespaceNameReturnsBadInvalidArgument()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, _) = await harness.Registry
-                .CreateAssetAsync("   ", CancellationToken.None);
+                .CreateAssetAsync("   ", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -135,10 +135,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetWithUnsafeNameReturnsBadInvalidArgumentAndDoesNotPersist(string name)
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync(name, CancellationToken.None);
+                .CreateAssetAsync(name, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidArgument),
@@ -154,11 +154,11 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetWithTooLongNameReturnsBadInvalidArgument()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             string longName = new('a', WotAssetNameValidator.MaxNameLength + 1);
 
             (ServiceResult status, _) = await harness.Registry
-                .CreateAssetAsync(longName, CancellationToken.None);
+                .CreateAssetAsync(longName, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
@@ -168,10 +168,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetWithUniqueNameReturnsGoodAndNonNullNodeId()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(assetId.IsNull, Is.False);
@@ -182,11 +182,11 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetWithDuplicateNameReturnsBadBrowseNameDuplicated()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
-            await harness.Registry.CreateAssetAsync("asset-001", CancellationToken.None);
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.Registry.CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
 
             (ServiceResult status, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode,
                 Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
@@ -201,10 +201,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task DeleteAssetReturnsBadNotFoundForUnknownId()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             ServiceResult status = await harness.Registry
-                .DeleteAssetAsync(new NodeId(99999u, 3), CancellationToken.None);
+                .DeleteAssetAsync(new NodeId(99999u, 3), CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
@@ -213,12 +213,12 @@ namespace Opc.Ua.WotCon.Tests
         public async Task DeleteAssetRemovesItFromTheRegistry()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
 
             ServiceResult status = await harness.Registry
-                .DeleteAssetAsync(assetId, CancellationToken.None);
+                .DeleteAssetAsync(assetId, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(harness.Registry.AssetNames, Does.Not.Contain("asset-001"));
@@ -232,9 +232,9 @@ namespace Opc.Ua.WotCon.Tests
         public async Task RebuildReturnsBadNotSupportedWhenNoFactoryAcceptsTd()
         {
             using var harness = new ManagerHarness(_tempFolder); // no bindings registered
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             var td = new ThingDescription
             {
@@ -243,7 +243,7 @@ namespace Opc.Ua.WotCon.Tests
             };
 
             ServiceResult status = await harness.Registry
-                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
@@ -254,9 +254,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             var td = new ThingDescription
             {
@@ -265,7 +265,7 @@ namespace Opc.Ua.WotCon.Tests
             };
 
             ServiceResult status = await harness.Registry
-                .RebuildAsync(entry, td, persistOnSuccess: true, CancellationToken.None);
+                .RebuildAsync(entry, td, persistOnSuccess: true, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             string persistedPath = Path.Combine(_tempFolder, "asset-001.jsonld");
@@ -284,9 +284,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             var td = new ThingDescription
             {
@@ -305,7 +305,7 @@ namespace Opc.Ua.WotCon.Tests
             };
 
             ServiceResult status = await harness.Registry
-                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(entry.Properties, Has.Count.EqualTo(1));
@@ -325,9 +325,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             var td = new ThingDescription
             {
@@ -340,7 +340,7 @@ namespace Opc.Ua.WotCon.Tests
                 }
             };
 
-            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
             Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -352,9 +352,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             await harness.Registry.RebuildAsync(
                 entry,
@@ -368,7 +368,7 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 },
                 persistOnSuccess: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
             // Push a provider-side value the simulated provider remembers.
@@ -379,7 +379,7 @@ namespace Opc.Ua.WotCon.Tests
                 "Async hooks should replace the sync OnSimpleReadValue.");
 
             AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
-                harness.Manager.SystemContext, variable, CancellationToken.None);
+                harness.Manager.SystemContext, variable, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.Result), Is.True);
             Assert.That(result.Value.AsBoxedObject(), Is.EqualTo(12.3));
@@ -391,9 +391,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             await harness.Registry.RebuildAsync(
                 entry,
@@ -407,7 +407,7 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 },
                 persistOnSuccess: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
             Assert.That(variable.OnSimpleWriteValueAsync, Is.Not.Null,
                 "OnSimpleWriteValueAsync must be wired for non-read-only properties.");
@@ -415,7 +415,7 @@ namespace Opc.Ua.WotCon.Tests
                 "Async hooks should replace the sync OnSimpleWriteValue.");
 
             AttributeWriteResult result = await variable.OnSimpleWriteValueAsync!(
-                harness.Manager.SystemContext, variable, new Variant(42.5), CancellationToken.None);
+                harness.Manager.SystemContext, variable, new Variant(42.5), CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.Result), Is.True);
             var simulated = (SimulatedWotAssetProvider)entry.Provider!;
@@ -428,9 +428,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             await harness.Registry.RebuildAsync(
                 entry,
@@ -444,7 +444,7 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 },
                 persistOnSuccess: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
             Assert.That(variable.OnSimpleWriteValueAsync, Is.Null);
@@ -458,9 +458,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             await harness.Registry.RebuildAsync(
                 entry,
@@ -475,13 +475,13 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 },
                 persistOnSuccess: false,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
             Assert.That(variable.OnSimpleReadValueAsync, Is.Not.Null);
             Assert.That(variable.OnSimpleReadValue, Is.Null);
             AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
-                harness.Manager.SystemContext, variable, CancellationToken.None);
+                harness.Manager.SystemContext, variable, CancellationToken.None).ConfigureAwait(false);
             Assert.That(result.Result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(result.Value.IsNull, Is.True);
@@ -493,9 +493,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             var td = new ThingDescription
             {
@@ -526,7 +526,7 @@ namespace Opc.Ua.WotCon.Tests
                 }
             };
 
-            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(entry.Actions, Has.Count.EqualTo(1));
             (MethodState method, WotActionTag tag) = entry.Actions.Values.First();
@@ -547,9 +547,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
 
             await harness.Registry.RebuildAsync(
@@ -564,7 +564,7 @@ namespace Opc.Ua.WotCon.Tests
                         ["Current"] = new WotProperty { Type = "number" }
                     }
                 },
-                persistOnSuccess: false, CancellationToken.None);
+                persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
             Assert.That(entry.Properties, Has.Count.EqualTo(2));
 
             // Second rebuild with fewer properties — children must be replaced, not appended.
@@ -579,7 +579,7 @@ namespace Opc.Ua.WotCon.Tests
                         ["Power"] = new WotProperty { Type = "number" }
                     }
                 },
-                persistOnSuccess: false, CancellationToken.None);
+                persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(entry.Properties, Has.Count.EqualTo(1));
             Assert.That(entry.Properties.Values.First().Tag.Name, Is.EqualTo("Power"));
@@ -589,7 +589,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FindByNodeIdReturnsNullForUnknownAsset()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             Assert.That(harness.Registry.FindByNodeId(new NodeId(999u, 3)), Is.Null);
         }
@@ -600,9 +600,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             await harness.Registry.RebuildAsync(
                 entry,
@@ -615,7 +615,7 @@ namespace Opc.Ua.WotCon.Tests
                         ["Voltage"] = new WotProperty { Type = "number" }
                     }
                 },
-                persistOnSuccess: false, CancellationToken.None);
+                persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             (BaseDataVariableState variable, WotPropertyTag _) = entry.Properties.Values.First();
             bool found = harness.Registry.TryGetProperty(
@@ -636,9 +636,9 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
             (_, NodeId assetId) = await harness.Registry
-                .CreateAssetAsync("asset-001", CancellationToken.None);
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
             await harness.Registry.RebuildAsync(
                 entry,
@@ -651,7 +651,7 @@ namespace Opc.Ua.WotCon.Tests
                         ["Reset"] = new WotAction { Title = "Reset" }
                     }
                 },
-                persistOnSuccess: false, CancellationToken.None);
+                persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
 
             (MethodState method, WotActionTag _) = entry.Actions.Values.First();
             bool found = harness.Registry.TryGetAction(
@@ -675,10 +675,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task DiscoverAssetsReturnsBadNotSupportedWhenNoDiscoveryProvider()
         {
             using var harness = new ManagerHarness(_tempFolder); // no discovery
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, IReadOnlyList<string> endpoints) = await harness.Registry
-                .DiscoverAssetsAsync(CancellationToken.None);
+                .DiscoverAssetsAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(endpoints, Is.Empty);
@@ -688,10 +688,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task ConnectionTestReturnsBadNotSupportedWhenNoDiscoveryProvider()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, bool success, string text) = await harness.Registry
-                .ConnectionTestAsync("sim://foo", CancellationToken.None);
+                .ConnectionTestAsync("sim://foo", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(success, Is.False);
@@ -702,10 +702,10 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CreateAssetForEndpointReturnsBadNotSupportedWhenNoDiscoveryProvider()
         {
             using var harness = new ManagerHarness(_tempFolder);
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, NodeId assetId) = await harness.Registry
-                .CreateAssetForEndpointAsync("asset-x", "sim://endpoint", CancellationToken.None);
+                .CreateAssetForEndpointAsync("asset-x", "sim://endpoint", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(assetId.IsNull, Is.True);
@@ -717,10 +717,10 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 discoveryProvider: new SimulatedWotDiscoveryProvider());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, IReadOnlyList<string> endpoints) = await harness.Registry
-                .DiscoverAssetsAsync(CancellationToken.None);
+                .DiscoverAssetsAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(endpoints, Has.Count.EqualTo(1));
@@ -733,10 +733,10 @@ namespace Opc.Ua.WotCon.Tests
             using var harness = new ManagerHarness(
                 _tempFolder,
                 discoveryProvider: new SimulatedWotDiscoveryProvider());
-            await harness.StartAsync();
+            await harness.StartAsync().ConfigureAwait(false);
 
             (ServiceResult status, bool success, _) = await harness.Registry
-                .ConnectionTestAsync(SimulatedWotDiscoveryProvider.CannedEndpoint, CancellationToken.None);
+                .ConnectionTestAsync(SimulatedWotDiscoveryProvider.CannedEndpoint, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(success, Is.True);
@@ -755,9 +755,9 @@ namespace Opc.Ua.WotCon.Tests
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory()))
             {
-                await harness.StartAsync();
+                await harness.StartAsync().ConfigureAwait(false);
                 (_, NodeId id) = await harness.Registry
-                    .CreateAssetAsync(assetName, CancellationToken.None);
+                    .CreateAssetAsync(assetName, CancellationToken.None).ConfigureAwait(false);
                 originalAssetId = id;
                 AssetEntry entry = harness.Registry.FindByNodeId(id)!;
                 await harness.Registry.RebuildAsync(
@@ -772,7 +772,7 @@ namespace Opc.Ua.WotCon.Tests
                         }
                     },
                     persistOnSuccess: true,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
             }
 
             Assert.That(File.Exists(Path.Combine(_tempFolder, assetName + ".jsonld")), Is.True);
@@ -783,7 +783,7 @@ namespace Opc.Ua.WotCon.Tests
             using var reloaded = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
-            await reloaded.StartAsync();
+            await reloaded.StartAsync().ConfigureAwait(false);
 
             Assert.That(reloaded.Registry.AssetNames, Has.Member(assetName));
         }
@@ -858,10 +858,12 @@ namespace Opc.Ua.WotCon.Tests
                     Options);
             }
 
-            // Pre-seed the standard UA base types that WotCon subtypes
-            // reference, so AsyncCustomNodeManager.AddTypesToTypeTree can
-            // succeed when loading the generated model without us having
-            // to ship the entire standard NodeSet.
+            /// <summary>
+            /// Pre-seed the standard UA base types that WotCon subtypes
+            /// reference, so AsyncCustomNodeManager.AddTypesToTypeTree can
+            /// succeed when loading the generated model without us having
+            /// to ship the entire standard NodeSet.
+            /// </summary>
             private static void SeedStandardTypeTree(TypeTable typeTable)
             {
                 NodeId baseObject = Ua.ObjectTypeIds.BaseObjectType;
@@ -924,9 +926,11 @@ namespace Opc.Ua.WotCon.Tests
             public WotConnectivityServerOptions Options { get; }
             public WotConnectivityNodeManager Manager { get; }
 
-            // Access the AssetRegistry via reflection — it's an internal
-            // implementation detail of the node manager but the spec
-            // behaviour we want to verify lives there.
+            /// <summary>
+            /// Access the AssetRegistry via reflection — it's an internal
+            /// implementation detail of the node manager but the spec
+            /// behaviour we want to verify lives there.
+            /// </summary>
             public AssetRegistry Registry
                 => (AssetRegistry)typeof(WotConnectivityNodeManager)
                     .GetField("m_registry",
@@ -938,7 +942,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 IDictionary<NodeId, IList<IReference>> externalReferences =
                     new Dictionary<NodeId, IList<IReference>>();
-                await Manager.CreateAddressSpaceAsync(externalReferences);
+                await Manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
             }
 
             public void Dispose()

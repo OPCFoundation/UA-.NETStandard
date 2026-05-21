@@ -41,7 +41,9 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public static class WoTAssetFileTypeClientExtensions
     {
-        // Spec §6.3.10 only allows Read (1) and Write|EraseExisting (6).
+        /// <summary>
+        /// Spec §6.3.10 only allows Read (1) and Write|EraseExisting (6).
+        /// </summary>
         private const byte WriteEraseMode = 6;
 
         /// <summary>
@@ -53,6 +55,8 @@ namespace Opc.Ua.WotCon.Client
         /// <param name="thingDescriptionJson">The TD payload as UTF-8 JSON bytes.</param>
         /// <param name="chunkSize">Maximum per-write chunk size.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask UploadAndUpdateAsync(
             this WoTAssetFileTypeClient file,
             ReadOnlyMemory<byte> thingDescriptionJson,
@@ -112,6 +116,10 @@ namespace Opc.Ua.WotCon.Client
         /// <param name="chunkSize">Maximum per-write chunk size and
         /// size of the rented intermediate buffer.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="thingDescriptionJson"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="thingDescriptionJson"/> is not readable.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask UploadAndUpdateAsync(
             this WoTAssetFileTypeClient file,
             Stream thingDescriptionJson,

@@ -52,6 +52,12 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </remarks>
     internal sealed class AssetRegistry : IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AssetRegistry"/> class.
+        /// </summary>
+        /// <param name="manager">The node manager that owns this registry.</param>
+        /// <param name="options">The WoT connectivity server options.</param>
+        /// <param name="logger">The logger instance.</param>
         public AssetRegistry(
             WotConnectivityNodeManager manager,
             WotConnectivityServerOptions options,
@@ -241,6 +247,15 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Creates an asset, synthesises a TD via the discovery provider,
         /// materialises it and persists the TD.
         /// </summary>
+        /// <param name="assetName">The name for the new asset.</param>
+        /// <param name="assetEndpoint">The endpoint URI to discover the TD from.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A tuple containing the operation status and the created asset's node identifier.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// The created asset could not be found after creation.
+        /// </exception>
         public async ValueTask<(ServiceResult Status, NodeId AssetId)> CreateAssetForEndpointAsync(
             string assetName,
             string assetEndpoint,
@@ -286,6 +301,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Discovers available asset endpoints via the configured discovery provider.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A tuple containing the operation status and the list of discovered endpoints.
+        /// </returns>
         public async ValueTask<(ServiceResult Status, IReadOnlyList<string> Endpoints)> DiscoverAssetsAsync(
             CancellationToken ct)
         {
@@ -306,6 +328,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Tests connectivity to the specified asset endpoint.
+        /// </summary>
+        /// <param name="assetEndpoint">The endpoint URI to test.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A tuple containing the operation status, a success flag and a status text.
+        /// </returns>
         public async ValueTask<(ServiceResult Status, bool Success, string StatusText)> ConnectionTestAsync(
             string assetEndpoint,
             CancellationToken ct)
@@ -330,6 +360,19 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Rebuilds the variable + method children of an asset from a TD,
         /// reconnecting (or replacing) its provider as appropriate.
         /// </summary>
+        /// <param name="entry">The asset entry to rebuild.</param>
+        /// <param name="td">The thing description to materialise.</param>
+        /// <param name="persistOnSuccess">
+        /// Whether to persist the TD to disk on success.
+        /// </param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>A <see cref="ServiceResult"/> indicating the outcome.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="entry"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="td"/> is null.
+        /// </exception>
         public async ValueTask<ServiceResult> RebuildAsync(
             AssetEntry entry,
             ThingDescription td,
@@ -727,6 +770,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Enumerates persisted thing descriptions from the storage folder,
+        /// loading and deserialising each one.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// An async enumerable of tuples containing the asset name and its
+        /// <see cref="ThingDescription"/>.
+        /// </returns>
         public async IAsyncEnumerable<(string Name, ThingDescription Description)> EnumeratePersistedAsync(
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
@@ -767,6 +819,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Disposes all asset providers and releases associated resources.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             AssetEntry[] entries;

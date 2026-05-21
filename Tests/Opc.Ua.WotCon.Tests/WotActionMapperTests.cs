@@ -75,7 +75,9 @@ namespace Opc.Ua.WotCon.Tests
                 "Members without description/unit/bounds should have a null LocalizedText.");
         }
 
-        // G4: member with unit only — no min/max, no description — must produce '[unit]' only.
+        /// <summary>
+        /// G4: member with unit only — no min/max, no description — must produce '[unit]' only.
+        /// </summary>
         [Test]
         public void BuildArgumentsForUnitOnlyMemberFormatsBracketsOnly()
         {
@@ -93,7 +95,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].Description.Text, Is.EqualTo("[V]"));
         }
 
-        // G4: minimum-only member must produce '(min=X)' without trailing comma or 'max=' text.
+        /// <summary>
+        /// G4: minimum-only member must produce '(min=X)' without trailing comma or 'max=' text.
+        /// </summary>
         [Test]
         public void BuildArgumentsForMinimumOnlyMemberFormatsMinOnly()
         {
@@ -111,7 +115,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].Description.Text, Is.EqualTo("(min=0)"));
         }
 
-        // G4: maximum-only member must produce '(max=X)' without leading 'min=' or comma.
+        /// <summary>
+        /// G4: maximum-only member must produce '(max=X)' without leading 'min=' or comma.
+        /// </summary>
         [Test]
         public void BuildArgumentsForMaximumOnlyMemberFormatsMaxOnly()
         {
@@ -129,7 +135,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].Description.Text, Is.EqualTo("(max=100)"));
         }
 
-        // G4: description + unit must include exactly one space separator between them.
+        /// <summary>
+        /// G4: description + unit must include exactly one space separator between them.
+        /// </summary>
         [Test]
         public void BuildArgumentsForDescriptionAndUnitInsertsSeparatorSpace()
         {
@@ -178,7 +186,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].Description.Text, Is.EqualTo("raw payload"));
         }
 
-        // G5: non-object schema without a Description must produce a null LocalizedText.
+        /// <summary>
+        /// G5: non-object schema without a Description must produce a null LocalizedText.
+        /// </summary>
         [TestCase(null)]
         [TestCase("")]
         public void BuildArgumentsForNonObjectSchemaWithoutDescriptionEmitsNullText(string? description)
@@ -196,8 +206,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].Description.IsNull, Is.True);
         }
 
-        // G3: empty Properties dictionary on a type:object schema must collapse to the
-        // same fallback as a null Properties (single BaseDataType argument).
+        /// <summary>
+        /// G3: empty Properties dictionary on a type:object schema must collapse to the
+        /// same fallback as a null Properties (single BaseDataType argument).
+        /// </summary>
         [Test]
         public void BuildArgumentsForEmptyPropertiesDictionaryCollapsesToBaseDataType()
         {
@@ -216,7 +228,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].Name, Is.EqualTo("empty"));
         }
 
-        // G3: non-object schema without a Title must fall back to the literal "value" as Name.
+        /// <summary>
+        /// G3: non-object schema without a Title must fall back to the literal "value" as Name.
+        /// </summary>
         [Test]
         public void BuildArgumentsForNonObjectSchemaWithoutTitleNamesArgumentValue()
         {
@@ -251,8 +265,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
-        // G6: array member with Items.Type = "object" must keep ValueRank=OneDimension but
-        // fall back to BaseDataType because object has no mapping (per Spec Table 14).
+        /// <summary>
+        /// G6: array member with Items.Type = "object" must keep ValueRank=OneDimension but
+        /// fall back to BaseDataType because object has no mapping (per Spec Table 14).
+        /// </summary>
         [Test]
         public void BuildArgumentsForArrayOfObjectMemberFallsBackToBaseDataType()
         {
@@ -276,7 +292,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
-        // G6: array member without Items (Items = null) must also fall back to BaseDataType.
+        /// <summary>
+        /// G6: array member without Items (Items = null) must also fall back to BaseDataType.
+        /// </summary>
         [Test]
         public void BuildArgumentsForArrayMemberWithoutItemsFallsBackToBaseDataType()
         {

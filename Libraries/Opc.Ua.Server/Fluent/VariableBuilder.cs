@@ -39,7 +39,9 @@ namespace Opc.Ua.Server.Fluent
     /// delegate on the underlying <see cref="BaseVariableState"/> and
     /// performs <see cref="Variant"/> marshalling on every read / write.
     /// </summary>
-    /// <typeparam name="TValue"></typeparam>
+    /// <typeparam name="TValue">
+    /// CLR type carried by the variable's <c>Value</c> attribute.
+    /// </typeparam>
     internal sealed class VariableBuilder<TValue> :
         NodeBuilder<BaseVariableState>,
         IVariableBuilder<TValue>

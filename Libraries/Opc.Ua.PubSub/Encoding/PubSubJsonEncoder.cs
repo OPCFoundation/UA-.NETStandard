@@ -251,6 +251,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encodes a message in a stream.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public static ArraySegment<byte> EncodeMessage(
             IEncodeable message,
             byte[] buffer,
@@ -342,7 +344,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Completes writing and returns the JSON text.
         /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="NotSupportedException">The underlying stream is not a <see cref="MemoryStream"/>.</exception>
         public string CloseAndReturnText()
         {
             try
@@ -1136,7 +1138,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a byte string to the stream with a given index and count.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The byte string length exceeds the maximum allowed.</exception>
         public void WriteByteString(string? fieldName, byte[] value, int index, int count)
         {
             if (fieldName != null && !IncludeDefaultValues && value == null)
@@ -1166,7 +1168,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The byte string length exceeds the maximum allowed or encoding fails.</exception>
         public void WriteByteString(string? fieldName, ReadOnlySpan<byte> value)
         {
             // == compares memory reference, comparing to empty means we compare to the default
@@ -1872,7 +1874,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The encoding would create invalid JSON or the nesting level is exceeded.</exception>
         public void WriteEncodeable(string? fieldName, IEncodeable value, Type systemType)
         {
             bool isNull = value == null;
@@ -1983,7 +1985,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The array length exceeds the maximum allowed.</exception>
         public void WriteBooleanArray(string? fieldName, ArrayOf<bool> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
@@ -2606,7 +2608,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The array length exceeds the maximum allowed or the encoding would create invalid JSON.</exception>
         public void WriteEncodeableArray(
             string? fieldName,
             ArrayOf<IEncodeable> values,
@@ -2667,7 +2669,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The array length exceeds the maximum allowed or the array element type is invalid.</exception>
         public void WriteEnumeratedArray(string? fieldName, Array? values, Type? systemType)
         {
             if (values == null || values.Length == 0)
@@ -2715,7 +2717,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode an array according to its valueRank and BuiltInType
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The encoding of the array fails due to invalid data or exceeded limits.</exception>
+        /// <exception cref="InvalidOperationException">The argument is not an array type.</exception>
         public void WriteArray(
             string fieldName,
             object array,
@@ -3261,7 +3264,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes the contents of a Variant to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">An unexpected built-in type is encountered.</exception>
         public void WriteVariantContents(object? value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
@@ -3391,7 +3394,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a Variant array to the stream.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The array length exceeds the maximum allowed.</exception>
         public void WriteObjectArray(string? fieldName, ArrayOf<object> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
@@ -3560,7 +3563,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Called on properties which can only be modified for the deprecated encoding.
         /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="NotSupportedException">The encoding type is <see cref="PubSubJsonEncoding.Compact"/> or <see cref="PubSubJsonEncoding.Verbose"/>.</exception>
         private bool ThrowIfCompactOrVerbose(bool value)
         {
             if (EncodingToUse is PubSubJsonEncoding.Compact or PubSubJsonEncoding.Verbose)
@@ -3704,7 +3707,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes the matrix as a flattended array with dimensions.
         /// Validates the dimensions and array size.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The number of elements does not match the dimensions.</exception>
         private void WriteArrayDimensionMatrix(
             string fieldName,
             BuiltInType builtInType,
@@ -3733,7 +3736,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Write multi dimensional array in structure.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The number of elements does not match the dimensions.</exception>
+        /// <exception cref="InvalidOperationException">The matrix elements is not an array type.</exception>
         private void WriteStructureMatrix(
             string fieldName,
             Matrix matrix,
@@ -3795,7 +3799,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">The maximum nesting level is exceeded.</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckAndIncrementNestingLevel()
         {

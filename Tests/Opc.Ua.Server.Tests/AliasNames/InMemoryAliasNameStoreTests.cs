@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 [new AliasAddRequest("A", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
             IReadOnlyList<AliasNameDataType> result = await store
-                .FindAliasAsync(s_root, "", NodeId.Null, EmptyTypeTree())
+                .FindAliasAsync(s_root, string.Empty, NodeId.Null, EmptyTypeTree())
                 .ConfigureAwait(false);
             Assert.That(result, Is.Empty);
         }
@@ -366,7 +366,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         {
             using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.AddAliasesAsync(s_root,
-                [new AliasAddRequest("", s_t1, null, ReferenceTypeIds.AliasFor)],
+                [new AliasAddRequest(string.Empty, s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(r[0].Code, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
@@ -396,7 +396,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         {
             using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.DeleteAliasesAsync(s_root,
-                [new AliasDeleteRequest("", s_t1)],
+                [new AliasDeleteRequest(string.Empty, s_t1)],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(r[0].Code, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
@@ -418,7 +418,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             // All three rows fail individually — none should bump LastChange.
             StatusCode[] r = await store.AddAliasesAsync(s_root,
                 [
-                    new AliasAddRequest("", s_t1, null, ReferenceTypeIds.AliasFor),
+                    new AliasAddRequest(string.Empty, s_t1, null, ReferenceTypeIds.AliasFor),
                     new AliasAddRequest("X", ExpandedNodeId.Null, null, ReferenceTypeIds.AliasFor),
                     new AliasAddRequest("Y", s_t1, null, NodeId.Null)
                 ],

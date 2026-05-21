@@ -204,7 +204,7 @@ namespace Opc.Ua.WotCon.Tests
         public void TryGetSafeFileNameRejectsEmptyBaseFolder()
         {
             bool ok = WotAssetNameValidator.TryGetSafeFileName(
-                "asset", "", out string? path);
+                "asset", string.Empty, out string? path);
             Assert.That(ok, Is.False);
             Assert.That(path, Is.Null);
         }

@@ -84,6 +84,11 @@ namespace Opc.Ua.Server.Fluent
         /// <c>TypeDefinitionId</c> matches the supplied <see cref="NodeId"/>.
         /// Typically a generated walk over the manager's predefined nodes.
         /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/>, <paramref name="nodeManager"/>,
+        /// <paramref name="rootResolver"/>, <paramref name="nodeIdResolver"/>,
+        /// or <paramref name="typeIdResolver"/> is null.
+        /// </exception>
         public NodeManagerBuilder(
             ISystemContext context,
             IAsyncNodeManager nodeManager,

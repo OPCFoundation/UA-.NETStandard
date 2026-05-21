@@ -51,10 +51,12 @@ namespace Opc.Ua.Server.Tests.Fluent
     {
         private const ushort kNs = 2;
         private const string kNamespaceUri = "http://test.org/UA/Publish/";
-        // Generous timeout: reconcile/worker tasks run on the thread pool which
-        // can be starved when the broader test suite (e.g. AsyncCustomNodeManager
-        // tests with [Parallelizable(ParallelScope.All)]) saturates CPU. 15s
-        // keeps green runs under 1s while eliminating false negatives under load.
+        /// <summary>
+        /// Generous timeout: reconcile/worker tasks run on the thread pool which
+        /// can be starved when the broader test suite (e.g. AsyncCustomNodeManager
+        /// tests with [Parallelizable(ParallelScope.All)]) saturates CPU. 15s
+        /// keeps green runs under 1s while eliminating false negatives under load.
+        /// </summary>
         private static readonly TimeSpan s_signalTimeout = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan s_negativeWindow = TimeSpan.FromMilliseconds(250);
 

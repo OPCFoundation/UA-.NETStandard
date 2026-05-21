@@ -238,10 +238,7 @@ namespace Opc.Ua
                 case Attributes.DataTypeDefinition:
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
-                    NodeAttributeEventHandler<ExtensionObject>? onReadDataTypeDefinition
-                        = OnReadDataTypeDefinition;
-
-                    if (onReadDataTypeDefinition != null)
+                    if (OnReadDataTypeDefinition is { } onReadDataTypeDefinition)
                     {
                         result = onReadDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
@@ -295,10 +292,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ExtensionObject>? onWriteDataTypeDefinition
-                        = OnWriteDataTypeDefinition;
-
-                    if (onWriteDataTypeDefinition != null)
+                    if (OnWriteDataTypeDefinition is { } onWriteDataTypeDefinition)
                     {
                         result = onWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }

@@ -133,7 +133,9 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Strongly-typed sibling of <see cref="Node(NodeId)"/>.
         /// </summary>
-        /// <typeparam name="TState"></typeparam>
+        /// <typeparam name="TState">
+        /// Expected concrete <see cref="NodeState"/> derivative.
+        /// </typeparam>
         INodeBuilder<TState> Node<TState>(NodeId nodeId)
             where TState : NodeState;
 

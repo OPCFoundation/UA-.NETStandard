@@ -84,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Initializes a new <see cref="FluentBuilderGenerator"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
         public FluentBuilderGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));

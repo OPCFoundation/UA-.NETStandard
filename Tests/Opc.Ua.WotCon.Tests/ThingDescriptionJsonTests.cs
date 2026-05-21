@@ -200,7 +200,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(actionProjection, Is.EqualTo(originalActionProjection));
         }
 
-        // G7/G8: shared helpers that lock the persisted field set in one place.
+        /// <summary>
+        /// G7/G8: shared helpers that lock the persisted field set in one place.
+        /// </summary>
         private static string[] ProjectProperties(ThingDescription td)
         {
             return [.. td.Properties!

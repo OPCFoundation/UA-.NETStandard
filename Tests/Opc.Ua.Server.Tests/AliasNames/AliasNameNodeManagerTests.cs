@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
         private static readonly string[] s_singleX = ["X"];
         private static readonly ExpandedNodeId[] s_singleT = [new("T", 1)];
-        private static readonly string[] s_singleEmpty = [""];
+        private static readonly string[] s_singleEmpty = [string.Empty];
 
         [Test]
         public async Task AddAliasesAnonymousIsRejectedWithBadUserAccessDeniedAsync()

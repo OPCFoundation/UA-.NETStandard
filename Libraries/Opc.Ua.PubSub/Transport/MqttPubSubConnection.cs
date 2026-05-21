@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Gets and sets the MqttClientOptions for the publisher connection
         /// </summary>
-        /// <exception cref="InvalidConstraintException"></exception>
+        /// <exception cref="InvalidConstraintException">The connection is already started.</exception>
         public MqttClientOptions? PublisherMqttClientOptions
         {
             get
@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Gets and sets the MqttClientOptions for the subscriber connection
         /// </summary>
-        /// <exception cref="InvalidConstraintException"></exception>
+        /// <exception cref="InvalidConstraintException">The connection is already started.</exception>
         public MqttClientOptions? SubscriberMqttClientOptions
         {
             get
