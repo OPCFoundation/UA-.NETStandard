@@ -52,8 +52,8 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | §7.10.6 | CreateSelfSignedCertificate | ✅ | `ConfigurationNodeManager.CreateSelfSignedCertificateAsync` |
 | §7.10.7 | GetCertificates | ✅ | `ConfigurationNodeManager.GetCertificates` |
 | §7.10.8 | GetRejectedList | ✅ | `ConfigurationNodeManager.GetRejectedList` |
-| §7.10.10 | ConfirmUpdate | ⚠️ | `ConfigurationFileState` generated; `StubManagedApplicationsNodeManager` provides extension point |
-| §7.10.16 | ApplicationConfigurationType / ManagedApplications | ⚠️ | `IManagedApplicationsNodeManager` interface + `StubManagedApplicationsNodeManager` stub |
+| §7.10.10 | ConfirmUpdate | ⚠️ | `DefaultManagedApplicationsNodeManager` + `IConfigurationDataStore` abstraction; optimistic concurrency via version tracking |
+| §7.10.16 | ApplicationConfigurationType / ManagedApplications | ⚠️ | `DefaultManagedApplicationsNodeManager` creates `ApplicationConfigurationState` nodes; `IConfigurationDataStore` abstracts persistence |
 
 ## TrustList (§7.8)
 
@@ -65,8 +65,8 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | LastUpdateTime | ✅ | Set during init + CloseAndUpdate |
 | Writable / UserWritable | ✅ | Set to true for GDS groups |
 | ActivityTimeout / DefaultValidationOptions | ✅ | Generated from model CSV |
-| CertificateExpirationAlarm | ⚠️ | Property values populated at startup; active-state deferred |
-| TrustListOutOfDateAlarm | ⚠️ | Property values populated at startup; active-state deferred |
+| CertificateExpirationAlarm | ⚠️ | Property values populated at startup; timer-based re-evaluation via `StartAlarmMonitoring` |
+| TrustListOutOfDateAlarm | ⚠️ | Property values populated at startup; timer-based re-evaluation via `StartAlarmMonitoring` |
 
 ## Audit Events
 
@@ -99,10 +99,10 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | Feature | Status | Source |
 |---------|--------|--------|
 | GetServiceDescription | ✅ | `OnGetServiceDescription` |
-| RequestAccessToken | ⚠️ | Stub returns Bad_NotSupported |
-| StartRequestToken (RC) | ❌ | Model-only; no handler |
-| FinishRequestToken (RC) | ❌ | Model-only; no handler |
-| RefreshToken (RC) | ❌ | Model-only; no handler |
+| RequestAccessToken | ⚠️ | Dispatches to `IAccessTokenProvider` when injected; returns Bad_NotSupported otherwise |
+| StartRequestToken (RC) | ⚠️ | `IAccessTokenProvider.StartRequestTokenAsync` interface defined; dispatched when provider is injected |
+| FinishRequestToken (RC) | ⚠️ | `IAccessTokenProvider.FinishRequestTokenAsync` interface defined; dispatched when provider is injected |
+| RefreshToken (RC) | ⚠️ | `IAccessTokenProvider.RefreshTokenAsync` interface defined; dispatched when provider is injected |
 | SupportedRoles (RC) | ✅ | Model property exposed |
 | Client proxy | ✅ | `AuthorizationServiceClient.cs` |
 
@@ -120,3 +120,20 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | rcp+ reverse-connect | ✅ | `MulticastDiscovery.ReverseConnectScheme` |
 | Annex C TXT keys | ✅ | path / caps / rc |
 | Annex D identifiers | ✅ | LDS / LDS-ME |
+
+## Extension Points (Phase 2 Abstractions)
+
+Every extension point a user needs to provide or override:
+
+| Interface | Purpose | Default impl | User replaces when... |
+|-----------|---------|-------------|----------------------|
+| `IApplicationsDatabase` | Application registration store | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` | Using a SQL/NoSQL database |
+| `ICertificateRequest` | Cert request lifecycle | `LinqApplicationsDatabase` | Custom approval workflow |
+| `ICertificateGroup` | CA operations | `CertificateGroup` | External CA (EST, ACME, etc.) |
+| `IKeyCredentialRequestStore` | KeyCredential lifecycle | `InMemoryKeyCredentialRequestStore` | Persistent store, external IdP |
+| `ISecretStore` | Secret storage for credentials | `InMemorySecretStore` | Key Vault, DPAPI, K8s secrets |
+| `IAccessTokenProvider` | Token issuance for AuthorizationService | `null` (Bad_NotSupported) | OAuth2/JWT provider |
+| `IConfigurationDataStore` | ManagedApplications config persistence | `InMemoryConfigurationDataStore` | File-system, database |
+| `IManagedApplicationsNodeManager` | ManagedApplications folder | `StubManagedApplicationsNodeManager` / `DefaultManagedApplicationsNodeManager` | Full push management |
+| `IConfigurationNodeManager` | Alarm monitoring | `ConfigurationNodeManager.StartAlarmMonitoring` | Custom thresholds/sources |
+| `IUserDatabase` | User/password store | Existing in `GlobalDiscoverySampleServer` | LDAP, database |
