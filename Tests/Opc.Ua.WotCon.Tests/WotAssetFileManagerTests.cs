@@ -436,28 +436,42 @@ namespace Opc.Ua.WotCon.Tests
                 => _materialisedTds.Count == 0 ? null : _materialisedTds[^1];
 
             public ServiceResult Open(byte mode, ref uint fileHandle)
-                => File.Open!.OnCall!.Invoke(Context, File.Open, _objectId, mode, ref fileHandle);
+            {
+                return File.Open!.OnCall!.Invoke(Context, File.Open, _objectId, mode, ref fileHandle);
+            }
 
             public ServiceResult Close(uint fileHandle)
-                => File.Close!.OnCall!.Invoke(Context, File.Close, _objectId, fileHandle);
+            {
+                return File.Close!.OnCall!.Invoke(Context, File.Close, _objectId, fileHandle);
+            }
 
             public ServiceResult Read(uint fileHandle, int length, ref ByteString data)
-                => File.Read!.OnCall!.Invoke(Context, File.Read, _objectId, fileHandle, length, ref data);
+            {
+                return File.Read!.OnCall!.Invoke(Context, File.Read, _objectId, fileHandle, length, ref data);
+            }
 
             public ServiceResult Write(uint fileHandle, ByteString data)
-                => File.Write!.OnCall!.Invoke(Context, File.Write, _objectId, fileHandle, data);
+            {
+                return File.Write!.OnCall!.Invoke(Context, File.Write, _objectId, fileHandle, data);
+            }
 
             public ServiceResult GetPosition(uint fileHandle, ref ulong position)
-                => File.GetPosition!.OnCall!.Invoke(
-                    Context, File.GetPosition, _objectId, fileHandle, ref position);
+            {
+                return File.GetPosition!.OnCall!.Invoke(
+                                Context, File.GetPosition, _objectId, fileHandle, ref position);
+            }
 
             public ServiceResult SetPosition(uint fileHandle, ulong position)
-                => File.SetPosition!.OnCall!.Invoke(
-                    Context, File.SetPosition, _objectId, fileHandle, position);
+            {
+                return File.SetPosition!.OnCall!.Invoke(
+                                Context, File.SetPosition, _objectId, fileHandle, position);
+            }
 
             public ServiceResult CloseAndUpdate(uint fileHandle)
-                => File.CloseAndUpdate!.OnCall!.Invoke(
-                    Context, File.CloseAndUpdate, _objectId, fileHandle);
+            {
+                return File.CloseAndUpdate!.OnCall!.Invoke(
+                                Context, File.CloseAndUpdate, _objectId, fileHandle);
+            }
 
             public void Upload(byte[] content)
             {
@@ -510,7 +524,10 @@ namespace Opc.Ua.WotCon.Tests
                 }
             }
 
-            public void Dispose() => Manager.Dispose();
+            public void Dispose()
+            {
+                Manager.Dispose();
+            }
 
             private ValueTask<ServiceResult> DefaultMaterialise(
                 ThingDescription td,

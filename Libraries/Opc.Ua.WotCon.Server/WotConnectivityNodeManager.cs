@@ -315,10 +315,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
-            void OnChange(WotPropertyTag t, Variant value, StatusCode status, DateTime timestamp)
-            {
-                OnProviderValueChange(variable, value, status, timestamp);
-            }
+            void OnChange(WotPropertyTag t, Variant value, StatusCode status, DateTime timestamp) => OnProviderValueChange(variable, value, status, timestamp);
             lock (entry.SubscriberCallbacks)
             {
                 entry.SubscriberCallbacks[subscriberId] = OnChange;

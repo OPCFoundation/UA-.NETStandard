@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         {
             var registry = new AliasNameStoreRegistry();
             registry.Dispose();
-            Assert.That(() => registry.Dispose(), Throws.Nothing,
+            Assert.That(registry.Dispose, Throws.Nothing,
                 "Dispose must be idempotent — the SDK's standard server-shutdown flow disposes node managers twice.");
         }
     }

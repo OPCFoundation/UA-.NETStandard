@@ -108,7 +108,9 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         private static NodeId? SessionIdOf(ISystemContext context)
-            => (context as ISessionSystemContext)?.SessionId;
+        {
+            return (context as ISessionSystemContext)?.SessionId;
+        }
 
         private ServiceResult OnOpen(
             ISystemContext context,
@@ -401,12 +403,19 @@ namespace Opc.Ua.WotCon.Server.Assets
             public bool Writing { get; }
 
             public static Handle OpenRead(NodeId? sessionId, byte[] snapshot)
-                => new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
+            {
+                return new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
+            }
 
             public static Handle OpenWrite(NodeId? sessionId)
-                => new(sessionId, new MemoryStream(), writing: true);
+            {
+                return new(sessionId, new MemoryStream(), writing: true);
+            }
 
-            public void Dispose() => Stream.Dispose();
+            public void Dispose()
+            {
+                Stream.Dispose();
+            }
         }
 
         private readonly WoTAssetFileState m_file;

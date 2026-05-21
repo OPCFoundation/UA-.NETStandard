@@ -521,30 +521,36 @@ namespace Opc.Ua.Lds.Server
             return names[0];
         }
 
-        private static RegistrationEntry Clone(RegistrationEntry e) => new()
+        private static RegistrationEntry Clone(RegistrationEntry e)
         {
-            ServerUri = e.ServerUri,
-            ProductUri = e.ProductUri,
-            ServerNames = [.. e.ServerNames],
-            ServerType = e.ServerType,
-            GatewayServerUri = e.GatewayServerUri,
-            DiscoveryUrls = [.. e.DiscoveryUrls],
-            SemaphoreFilePath = e.SemaphoreFilePath,
-            IsOnline = e.IsOnline,
-            LastSeenUtc = e.LastSeenUtc,
-            ServerCapabilities = [.. e.ServerCapabilities],
-            MdnsServerName = e.MdnsServerName
-        };
+            return new()
+            {
+                ServerUri = e.ServerUri,
+                ProductUri = e.ProductUri,
+                ServerNames = [.. e.ServerNames],
+                ServerType = e.ServerType,
+                GatewayServerUri = e.GatewayServerUri,
+                DiscoveryUrls = [.. e.DiscoveryUrls],
+                SemaphoreFilePath = e.SemaphoreFilePath,
+                IsOnline = e.IsOnline,
+                LastSeenUtc = e.LastSeenUtc,
+                ServerCapabilities = [.. e.ServerCapabilities],
+                MdnsServerName = e.MdnsServerName
+            };
+        }
 
-        private static ServerOnNetworkRecord Clone(ServerOnNetworkRecord r) => new()
+        private static ServerOnNetworkRecord Clone(ServerOnNetworkRecord r)
         {
-            RecordId = r.RecordId,
-            ServerUri = r.ServerUri,
-            ServerName = r.ServerName,
-            DiscoveryUrl = r.DiscoveryUrl,
-            ServerCapabilities = [.. r.ServerCapabilities],
-            LastSeenUtc = r.LastSeenUtc,
-            ObservedViaMulticast = r.ObservedViaMulticast
-        };
+            return new()
+            {
+                RecordId = r.RecordId,
+                ServerUri = r.ServerUri,
+                ServerName = r.ServerName,
+                DiscoveryUrl = r.DiscoveryUrl,
+                ServerCapabilities = [.. r.ServerCapabilities],
+                LastSeenUtc = r.LastSeenUtc,
+                ObservedViaMulticast = r.ObservedViaMulticast
+            };
+        }
     }
 }

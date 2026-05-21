@@ -56,25 +56,39 @@ namespace Opc.Ua.Server.Tests
     public class RoleManagerTests
     {
         private static IdentityMappingRuleType Anonymous()
-            => new() { CriteriaType = IdentityCriteriaType.Anonymous };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.Anonymous };
+        }
 
         private static IdentityMappingRuleType AuthenticatedUser()
-            => new() { CriteriaType = IdentityCriteriaType.AuthenticatedUser };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.AuthenticatedUser };
+        }
 
         private static IdentityMappingRuleType TrustedApplication()
-            => new() { CriteriaType = IdentityCriteriaType.TrustedApplication };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.TrustedApplication };
+        }
 
         private static IdentityMappingRuleType UserName(string name)
-            => new() { CriteriaType = IdentityCriteriaType.UserName, Criteria = name };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.UserName, Criteria = name };
+        }
 
         private static IdentityMappingRuleType Thumbprint(string thumbprint)
-            => new() { CriteriaType = IdentityCriteriaType.Thumbprint, Criteria = thumbprint };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.Thumbprint, Criteria = thumbprint };
+        }
 
         private static IdentityMappingRuleType X509Subject(string subject)
-            => new() { CriteriaType = IdentityCriteriaType.X509Subject, Criteria = subject };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.X509Subject, Criteria = subject };
+        }
 
         private static IdentityMappingRuleType Application(string uri)
-            => new() { CriteriaType = IdentityCriteriaType.Application, Criteria = uri };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.Application, Criteria = uri };
+        }
 
         // ----------------------------------------------------------------
         // Well-known roles + default identities (Part 18 §4.3)

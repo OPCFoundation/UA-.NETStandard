@@ -78,7 +78,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         private static TypeTable EmptyTypeTree()
-            => new(new NamespaceTable());
+        {
+            return new(new NamespaceTable());
+        }
 
         [Test]
         public async Task AddAndFindRoundTripAsync()

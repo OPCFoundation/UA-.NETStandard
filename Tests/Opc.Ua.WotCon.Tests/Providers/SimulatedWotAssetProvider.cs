@@ -211,6 +211,8 @@ namespace Opc.Ua.WotCon.Tests.Providers
         public ValueTask<IWotAssetProvider> ConnectAsync(
             ThingDescription thingDescription,
             CancellationToken ct)
-            => new(new SimulatedWotAssetProvider(thingDescription));
+        {
+            return new(new SimulatedWotAssetProvider(thingDescription));
+        }
     }
 }

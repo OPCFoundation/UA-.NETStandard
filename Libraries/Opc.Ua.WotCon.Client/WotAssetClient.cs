@@ -83,7 +83,9 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask UploadThingDescriptionAsync(
             ReadOnlyMemory<byte> thingDescriptionJson,
             CancellationToken ct = default)
-            => File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        {
+            return File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        }
 
         /// <summary>
         /// Uploads a WoT Thing Description streamed from
@@ -97,14 +99,18 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask UploadThingDescriptionAsync(
             Stream thingDescriptionJson,
             CancellationToken ct = default)
-            => File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        {
+            return File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        }
 
         /// <summary>
         /// Downloads the currently persisted WoT Thing Description.
         /// </summary>
         public ValueTask<byte[]> DownloadThingDescriptionAsync(
             CancellationToken ct = default)
-            => File.DownloadAllAsync(ct: ct);
+        {
+            return File.DownloadAllAsync(ct: ct);
+        }
 
         /// <summary>
         /// Downloads the currently persisted WoT Thing Description and
@@ -116,7 +122,9 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask DownloadThingDescriptionAsync(
             Stream destination,
             CancellationToken ct = default)
-            => File.DownloadToAsync(destination, ct: ct);
+        {
+            return File.DownloadToAsync(destination, ct: ct);
+        }
 
         /// <summary>
         /// Enumerates the asset's property variables (children attached
@@ -124,11 +132,13 @@ namespace Opc.Ua.WotCon.Client
         /// </summary>
         public IAsyncEnumerable<WotAssetVariableEntry> EnumeratePropertiesAsync(
             CancellationToken ct = default)
-            => BrowseChildrenAsync(
-                ReferenceTypeIds.HasWoTComponent,
-                includeSubtypes: false,
-                nodeClasses: NodeClass.Variable,
-                ct);
+        {
+            return BrowseChildrenAsync(
+                        ReferenceTypeIds.HasWoTComponent,
+                        includeSubtypes: false,
+                        nodeClasses: NodeClass.Variable,
+                        ct);
+        }
 
         /// <summary>
         /// Enumerates the asset's action methods (children attached via
@@ -136,11 +146,13 @@ namespace Opc.Ua.WotCon.Client
         /// </summary>
         public IAsyncEnumerable<WotAssetVariableEntry> EnumerateActionsAsync(
             CancellationToken ct = default)
-            => BrowseChildrenAsync(
-                Ua.ReferenceTypeIds.HasComponent,
-                includeSubtypes: false,
-                nodeClasses: NodeClass.Method,
-                ct);
+        {
+            return BrowseChildrenAsync(
+                        Ua.ReferenceTypeIds.HasComponent,
+                        includeSubtypes: false,
+                        nodeClasses: NodeClass.Method,
+                        ct);
+        }
 
         private async IAsyncEnumerable<WotAssetVariableEntry> BrowseChildrenAsync(
             ExpandedNodeId referenceType,

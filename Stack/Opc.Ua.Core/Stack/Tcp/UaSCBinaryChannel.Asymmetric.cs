@@ -85,10 +85,7 @@ namespace Opc.Ua.Bindings
         {
             get => SecurityPolicy?.Uri ?? string.Empty;
 
-            private set
-            {
-                SecurityPolicy = SecurityPolicies.GetInfo(value);
-            }
+            private set => SecurityPolicy = SecurityPolicies.GetInfo(value);
         }
 
         /// <summary>

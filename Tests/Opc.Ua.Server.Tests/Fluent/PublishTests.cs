@@ -790,7 +790,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             private readonly TaskCompletionSource<bool> m_done =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public AsyncCountdown(int target) => m_remaining = target;
+            public AsyncCountdown(int target)
+            {
+                m_remaining = target;
+            }
 
             public void SignalOne()
             {
@@ -800,12 +803,18 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             }
 
-            public Task<bool> WaitAsync() => m_done.Task;
+            public Task<bool> WaitAsync()
+            {
+                return m_done.Task;
+            }
         }
 
         private static class AsyncEnumerable
         {
-            public static IAsyncEnumerable<T> Empty<T>() => EmptyImpl<T>();
+            public static IAsyncEnumerable<T> Empty<T>()
+            {
+                return EmptyImpl<T>();
+            }
 
             private static async IAsyncEnumerable<T> EmptyImpl<T>(
                 [EnumeratorCancellation] CancellationToken ct = default)

@@ -649,7 +649,7 @@ namespace Opc.Ua.Server
                 // The certificate may advertise multiple ApplicationUris (Subject
                 // Alternative Names); any match against the role's Applications list
                 // counts as inclusion.
-                bool inList = clientApplicationUris.Any(uri => role.Applications.Contains(uri));
+                bool inList = clientApplicationUris.Any(role.Applications.Contains);
                 if (role.ApplicationsExclude ? inList : !inList)
                 {
                     return false;

@@ -164,7 +164,9 @@ namespace Opc.Ua.WotCon.Client
 
         /// <summary>Calls <c>DeleteAsset</c>.</summary>
         public ValueTask DeleteAssetAsync(NodeId assetId, CancellationToken ct = default)
-            => Proxy.DeleteAssetAsync(assetId, ct);
+        {
+            return Proxy.DeleteAssetAsync(assetId, ct);
+        }
 
         /// <summary>Calls <c>DiscoverAssets</c>.</summary>
         public async ValueTask<IReadOnlyList<string>> DiscoverAssetsAsync(
@@ -195,7 +197,9 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask<(bool Success, string Status)> ConnectionTestAsync(
             string assetEndpoint,
             CancellationToken ct = default)
-            => Proxy.ConnectionTestAsync(assetEndpoint, ct);
+        {
+            return Proxy.ConnectionTestAsync(assetEndpoint, ct);
+        }
 
         /// <summary>
         /// Builds a <see cref="WotAssetClient"/> wrapper for an existing

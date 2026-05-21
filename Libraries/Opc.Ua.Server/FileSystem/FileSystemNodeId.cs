@@ -87,13 +87,19 @@ namespace Opc.Ua.Server.FileSystem
         public ushort NamespaceIndex { get; }
 
         public static NodeId BuildRoot(ushort namespaceIndex)
-            => new FileSystemNodeId(Root, string.Empty, namespaceIndex).ToNodeId();
+        {
+            return new FileSystemNodeId(Root, string.Empty, namespaceIndex).ToNodeId();
+        }
 
         public static NodeId BuildDirectory(string providerPath, ushort namespaceIndex)
-            => new FileSystemNodeId(Directory, providerPath, namespaceIndex).ToNodeId();
+        {
+            return new FileSystemNodeId(Directory, providerPath, namespaceIndex).ToNodeId();
+        }
 
         public static NodeId BuildFile(string providerPath, ushort namespaceIndex)
-            => new FileSystemNodeId(File, providerPath, namespaceIndex).ToNodeId();
+        {
+            return new FileSystemNodeId(File, providerPath, namespaceIndex).ToNodeId();
+        }
 
         /// <summary>
         /// Attempts to parse the given <see cref="NodeId"/> into the
@@ -167,7 +173,10 @@ namespace Opc.Ua.Server.FileSystem
         /// Returns this struct as a <see cref="NodeId"/> with the
         /// existing root + component path.
         /// </summary>
-        public NodeId ToNodeId() => ToNodeId(componentName: null);
+        public NodeId ToNodeId()
+        {
+            return ToNodeId(componentName: null);
+        }
 
         /// <summary>
         /// Returns this struct as a <see cref="NodeId"/>, optionally

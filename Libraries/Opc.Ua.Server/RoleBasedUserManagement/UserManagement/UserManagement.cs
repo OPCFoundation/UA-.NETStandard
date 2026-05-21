@@ -465,7 +465,7 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("Password must contain at least one digit."));
             }
             if ((PasswordOptions & PasswordOptionsMask.RequiresSpecialCharacters) != 0 &&
-                password.All(c => char.IsLetterOrDigit(c)))
+                password.All(char.IsLetterOrDigit))
             {
                 return new ServiceResult(StatusCodes.BadOutOfRange,
                     new LocalizedText("Password must contain at least one special character."));
