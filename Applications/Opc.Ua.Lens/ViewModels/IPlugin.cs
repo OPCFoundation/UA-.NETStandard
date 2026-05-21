@@ -51,7 +51,9 @@ internal enum PluginKind
     EventView,
     Historian,
     FileSystem,
-    CertificateManager
+    CertificateManager,
+    RoleManagement,
+    UserManagement
 }
 
 /// <summary>

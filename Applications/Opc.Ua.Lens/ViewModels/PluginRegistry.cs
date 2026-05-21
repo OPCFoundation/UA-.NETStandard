@@ -137,6 +137,24 @@ internal static class PluginRegistry
             Description = "Manage local certificate stores (Application, TrustedPeer, TrustedIssuer, Rejected). Works without an active session.",
             MenuHeader = "_Certificate Manager",
             Factory = vm => new UaLens.Plugins.CertificateManager.CertificateManagerPlugin(vm.CreatePluginHost())
+        },
+        new PluginRegistration
+        {
+            Kind = PluginKind.RoleManagement,
+            DisplayName = "Role Management",
+            Glyph = "🛂",
+            Description = "Manage server role-based access control (RBAC) — roles, identities, applications and endpoints per OPC UA Part 18.",
+            MenuHeader = "_Role Management",
+            Factory = vm => new UaLens.Plugins.RoleManagement.RoleManagementPlugin(vm.CreatePluginHost())
+        },
+        new PluginRegistration
+        {
+            Kind = PluginKind.UserManagement,
+            DisplayName = "User Management",
+            Glyph = "👤",
+            Description = "Manage server user accounts (add/modify/remove/change password) per OPC UA Part 18.",
+            MenuHeader = "_User Management",
+            Factory = vm => new UaLens.Plugins.UserManagement.UserManagementPlugin(vm.CreatePluginHost())
         }
     ];
 
