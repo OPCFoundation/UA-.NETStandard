@@ -67,7 +67,9 @@ namespace Opc.Ua.PubSub.Transport
         private MqttClientOptions? m_subscriberMqttClientOptions;
         private readonly List<MqttMetadataPublisher> m_metaDataPublishers = [];
 
-        // Cancellation token source used to cancel the reconnect handler when the connection is stopped.
+        /// <summary>
+        /// Cancellation token source used to cancel the reconnect handler when the connection is stopped.
+        /// </summary>
         private CancellationTokenSource? m_stopCts;
 
         /// <summary>

@@ -120,6 +120,7 @@ namespace Alarms
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
+        /// <exception cref="InvalidOperationException">The Alarms.AlarmController type could not be found.</exception>
         public override void CreateAddressSpace(
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {

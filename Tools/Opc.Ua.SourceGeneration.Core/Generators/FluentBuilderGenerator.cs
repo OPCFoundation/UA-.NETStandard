@@ -487,6 +487,7 @@ namespace Opc.Ua.SourceGeneration
         /// Verifies that no two children of the same wrapper sanitize to
         /// the same C# accessor identifier.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Two children of the same wrapper resolve to the same C# accessor name.</exception>
         private void ValidateNoCollisions()
         {
             foreach (InstanceWrapper wrapper in m_wrappers.Values)
@@ -1552,9 +1553,11 @@ namespace Opc.Ua.SourceGeneration
         private Dictionary<string, InstanceWrapper> m_wrappers = [];
         private Dictionary<string, MethodWrapper> m_methodWrappers = [];
 
-        // Single nesting step. Wrappers are emitted inside the body of
-        // the file template at column 4; each additional nesting level
-        // adds one Indent.
+        /// <summary>
+        /// Single nesting step. Wrappers are emitted inside the body of
+        /// the file template at column 4; each additional nesting level
+        /// adds one Indent.
+        /// </summary>
         private const string Indent = "    ";
 
         private static string ToolName
@@ -1590,10 +1593,14 @@ namespace Opc.Ua.SourceGeneration
             public string BrowseName;
             public string BrowseNamespaceUri;
             public ChildKind Kind;
-            public string ValueClrType;       // Variable
-            public string WrapperClassName;   // Method or Object
-            public string ChildKey;           // Object — key into m_wrappers
-            public string ChildStateType;     // Object — node state type
+            /// <summary>CLR type name of the variable's value.</summary>
+            public string ValueClrType;
+            /// <summary>Generated wrapper class name for a method or object child.</summary>
+            public string WrapperClassName;
+            /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
+            public string ChildKey;
+            /// <summary>Node state type for object children.</summary>
+            public string ChildStateType;
         }
 
         private sealed class MethodWrapper

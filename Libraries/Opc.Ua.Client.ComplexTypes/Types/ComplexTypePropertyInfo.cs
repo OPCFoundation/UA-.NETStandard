@@ -289,6 +289,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Set the value of a property.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The property type is not an array type.</exception>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
             Justification = "Uses reflection to cast enum types.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
@@ -597,6 +598,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Complex type identifier if field is a structure
         /// </summary>
+        /// <exception cref="InvalidOperationException">The property type is not an array type.</exception>
         public ExpandedNodeId GetDataTypeId(NamespaceTable namespaceTable)
         {
             // For arrays, GetElementType is non-null because PropertyType.IsArray is true.

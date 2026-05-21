@@ -94,6 +94,9 @@ namespace Opc.Ua.Lds.Server
         /// <param name="discoveryUrls">The LDS's discovery URLs.</param>
         /// <param name="capabilities">The LDS's server capabilities (e.g. LDS, LDS-ME).</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentException"><paramref name="applicationUri"/> is null or empty.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="discoveryUrls"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="capabilities"/> is null.</exception>
         public Task StartAsync(
             string applicationUri,
             IList<string> discoveryUrls,
