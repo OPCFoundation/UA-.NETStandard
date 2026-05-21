@@ -1044,13 +1044,8 @@ namespace Opc.Ua
             NamespaceTable namespaceTable,
             StringTable? serverUris = null)
         {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
             var context = ServiceMessageContext.CreateEmpty(null!);
-            context.NamespaceUris = namespaceTable;
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
             // Substitute an empty server table when none is supplied so that any
             // svu= prefix in the input is naturally rejected (no URI in the
             // empty table will resolve under RequireResolvedUris).

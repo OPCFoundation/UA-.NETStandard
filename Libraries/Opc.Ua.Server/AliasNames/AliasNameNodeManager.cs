@@ -244,20 +244,15 @@ namespace Opc.Ua.Server.AliasNames
             WireCategoryHandlers(descriptor.NodeId, category);
 
             // Seed LastChange.
-            if (category.LastChange != null)
-            {
-                category.LastChange.Value
+            category.LastChange?.Value
                     = m_store.GetLastChange(descriptor.NodeId) ?? 0u;
-            }
 
             return category;
         }
 
         private void WireCategoryHandlers(NodeId categoryId, AliasNameCategoryState category)
         {
-            if (category.FindAlias != null)
-            {
-                category.FindAlias.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
+            category.FindAlias?.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
                     AliasNameMethodDispatcher.FindAliasAsync(
                         m_localCategoryDispatcher,
                         Server.TypeTree,
@@ -265,10 +260,7 @@ namespace Opc.Ua.Server.AliasNames
                         pattern,
                         refType,
                         ct);
-            }
-            if (category.FindAliasVerbose != null)
-            {
-                category.FindAliasVerbose.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
+            category.FindAliasVerbose?.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
                     AliasNameMethodDispatcher.FindAliasVerboseAsync(
                         m_localCategoryDispatcher,
                         Server.TypeTree,
@@ -276,19 +268,12 @@ namespace Opc.Ua.Server.AliasNames
                         pattern,
                         refType,
                         ct);
-            }
-            if (category.AddAliasesToCategory != null)
-            {
-                category.AddAliasesToCategory.OnCallAsync =
+            category.AddAliasesToCategory?.OnCallAsync =
                     (ctx, method, objId, names, targets, servers, refType, ct) =>
                         DispatchAddAsync(ctx, categoryId, objId, names, targets, servers, refType, ct);
-            }
-            if (category.DeleteAliasesFromCategory != null)
-            {
-                category.DeleteAliasesFromCategory.OnCallAsync =
+            category.DeleteAliasesFromCategory?.OnCallAsync =
                     (ctx, method, objId, names, targets, ct) =>
                         DispatchDeleteAsync(ctx, categoryId, objId, names, targets, ct);
-            }
 
             // Recurse into sub-category children (already wired through
             // BuildCategoryTree, but their state objects sit on this

@@ -155,10 +155,7 @@ namespace Opc.Ua
             if (Comment != null)
             {
                 Comment.Value = comment;
-                if (Comment.SourceTimestamp != null)
-                {
-                    Comment.SourceTimestamp.Value = DateTime.UtcNow;
-                }
+                Comment.SourceTimestamp?.Value = DateTime.UtcNow;
 
                 ClientUserId?.Value = clientUserId;
             }

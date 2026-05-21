@@ -77,17 +77,8 @@ namespace Opc.Ua.Client.AliasNames.Refresh
             Action onInvalidate,
             CancellationToken ct)
         {
-            if (client == null)
-            {
-                throw new ArgumentNullException(nameof(client));
-            }
-            if (onInvalidate == null)
-            {
-                throw new ArgumentNullException(nameof(onInvalidate));
-            }
-
-            m_client = client;
-            m_onInvalidate = onInvalidate;
+            m_client = client ?? throw new ArgumentNullException(nameof(client));
+            m_onInvalidate = onInvalidate ?? throw new ArgumentNullException(nameof(onInvalidate));
 
             NodeId lastChangeId = await client
                 .ResolveLastChangeNodeIdAsync(ct)

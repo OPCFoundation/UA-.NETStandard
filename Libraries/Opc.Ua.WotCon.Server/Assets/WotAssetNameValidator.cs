@@ -115,7 +115,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             // files on Linux, stripped trailing dots/spaces on Windows,
             // home-folder expansion when passed to a shell).
             char first = name[0];
-            if (first == '.' || first == ' ' || first == '~')
+            if (first is '.' or ' ' or '~')
             {
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
@@ -124,8 +124,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             // Reject trailing dot / space — Windows silently strips
             // these when resolving file paths, which would let a caller
             // smuggle a name that compares unequal to its on-disk form.
-            char last = name[name.Length - 1];
-            if (last == '.' || last == ' ')
+            char last = name[^1];
+            if (last is '.' or ' ')
             {
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
@@ -198,8 +198,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             // because matching is anchored at the absolute prefix.
             string baseWithSeparator = baseFull;
             if (baseWithSeparator.Length == 0 ||
-                (baseWithSeparator[baseWithSeparator.Length - 1] != Path.DirectorySeparatorChar &&
-                    baseWithSeparator[baseWithSeparator.Length - 1] != Path.AltDirectorySeparatorChar))
+                (baseWithSeparator[^1] != Path.DirectorySeparatorChar &&
+                    baseWithSeparator[^1] != Path.AltDirectorySeparatorChar))
             {
                 baseWithSeparator += Path.DirectorySeparatorChar;
             }

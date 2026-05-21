@@ -159,24 +159,12 @@ namespace Opc.Ua.Server.UserManagement
             {
                 return;
             }
-            if (m_state.Users != null)
-            {
-                m_state.Users.Value = ArrayOf.Wrapped(
+            m_state.Users?.Value = ArrayOf.Wrapped(
                     System.Linq.Enumerable.ToArray(m_userManagement.SnapshotUsers()));
-            }
-            if (m_state.PasswordLength != null)
-            {
-                m_state.PasswordLength.Value = m_userManagement.PasswordLength;
-            }
-            if (m_state.PasswordOptions != null)
-            {
-                m_state.PasswordOptions.Value = (uint)m_userManagement.PasswordOptions;
-            }
-            if (m_state.PasswordRestrictions != null)
-            {
-                m_state.PasswordRestrictions.Value = m_userManagement.PasswordRestrictions
+            m_state.PasswordLength?.Value = m_userManagement.PasswordLength;
+            m_state.PasswordOptions?.Value = (uint)m_userManagement.PasswordOptions;
+            m_state.PasswordRestrictions?.Value = m_userManagement.PasswordRestrictions
                     ?? LocalizedText.Null;
-            }
         }
 
         private async ValueTask<AddUserMethodStateResult> OnAddUserAsync(

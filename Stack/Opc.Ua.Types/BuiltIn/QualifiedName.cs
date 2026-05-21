@@ -399,13 +399,8 @@ namespace Opc.Ua
         /// table.</exception>
         public static QualifiedName ParseLongForm(string text, NamespaceTable namespaceTable)
         {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
             var context = ServiceMessageContext.CreateEmpty(null!);
-            context.NamespaceUris = namespaceTable;
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
 
             // Parse(IServiceMessageContext, string, bool) is already strict on
             // unresolved nsu= URIs (throws BadNodeIdInvalid). updateTables: false

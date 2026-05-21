@@ -336,11 +336,7 @@ namespace Opc.Ua.Client.FileSystem
             bool recursive = false,
             CancellationToken ct = default)
         {
-            UaFileSystemInfo? info = await GetInfoAsync(path, ct).ConfigureAwait(false);
-            if (info == null)
-            {
-                throw FileSystemErrors.NotFound(path, targetIsDirectory: false);
-            }
+            UaFileSystemInfo? info = await GetInfoAsync(path, ct).ConfigureAwait(false) ?? throw FileSystemErrors.NotFound(path, targetIsDirectory: false);
             await DeleteCoreAsync(info, recursive, ct).ConfigureAwait(false);
         }
 
@@ -353,11 +349,7 @@ namespace Opc.Ua.Client.FileSystem
             string destPath,
             CancellationToken ct = default)
         {
-            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false);
-            if (src == null)
-            {
-                throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
-            }
+            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false) ?? throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
             return await MoveOrCopyAsync(src, destPath, copy: false, ct).ConfigureAwait(false);
         }
 
@@ -370,11 +362,7 @@ namespace Opc.Ua.Client.FileSystem
             string destPath,
             CancellationToken ct = default)
         {
-            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false);
-            if (src == null)
-            {
-                throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
-            }
+            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false) ?? throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
             return await MoveOrCopyAsync(src, destPath, copy: true, ct).ConfigureAwait(false);
         }
 

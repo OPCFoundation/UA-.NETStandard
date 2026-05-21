@@ -110,10 +110,10 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 m_store,
                 options ??
                 new AliasNameNodeManagerOptions
-                    {
-                        NamespaceUri = c_namespaceUri,
-                        RegisterWithServerRegistry = false
-                    });
+                {
+                    NamespaceUri = c_namespaceUri,
+                    RegisterWithServerRegistry = false
+                });
         }
 
         [Test]
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>
             {
-                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+                new(System.Array.Empty<StatusCode>().ToArrayOf())
             };
 
             ServiceResult result = await category.AddAliasesToCategory!.CallAsync(
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>
             {
-                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+                new(System.Array.Empty<StatusCode>().ToArrayOf())
             };
             return await category.AddAliasesToCategory!.CallAsync(
                 context, categoryId, input, argumentErrors, output,
@@ -369,7 +369,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>
             {
-                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+                new(System.Array.Empty<StatusCode>().ToArrayOf())
             };
             return await category.DeleteAliasesFromCategory!.CallAsync(
                 context, categoryId, input, argumentErrors, output,

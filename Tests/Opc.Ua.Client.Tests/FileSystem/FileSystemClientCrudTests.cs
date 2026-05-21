@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public async Task CreateDirectoryAsyncThrowsWhenIntermediateMissingAndFlagFalseAsync()
+        public Task CreateDirectoryAsyncThrowsWhenIntermediateMissingAndFlagFalseAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -125,10 +125,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 async () => await client
                     .CreateDirectoryAsync("/a/b/c", createIntermediate: false)
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
-        public async Task CreateDirectoryAsyncRejectsNamespacePrefixedLeafAsync()
+        public Task CreateDirectoryAsyncRejectsNamespacePrefixedLeafAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -137,6 +138,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 async () => await client
                     .CreateDirectoryAsync("/1:Reports")
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -168,7 +170,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public async Task DeleteAsyncOnNonEmptyDirectoryWithoutRecursiveThrowsAsync()
+        public Task DeleteAsyncOnNonEmptyDirectoryWithoutRecursiveThrowsAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
@@ -183,6 +185,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.That(harness.CallRequests.Any(r =>
                 r.MethodId.TryGetValue(out uint mid) &&
                 mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -255,7 +258,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public async Task DeleteAsyncMapsBadUserAccessDeniedAsync()
+        public Task DeleteAsyncMapsBadUserAccessDeniedAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("locked.bin"));
@@ -276,6 +279,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
             Assert.ThrowsAsync<UnauthorizedAccessException>(
                 async () => await client.DeleteAsync("/locked.bin").ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         // -------- helpers ------------------------------------------------

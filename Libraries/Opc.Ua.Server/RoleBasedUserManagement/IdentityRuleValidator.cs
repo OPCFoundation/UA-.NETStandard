@@ -123,11 +123,11 @@ namespace Opc.Ua.Server
             }
             foreach (char c in criteria)
             {
-                if (c >= '0' && c <= '9')
+                if (c is >= '0' and <= '9')
                 {
                     continue;
                 }
-                if (c >= 'A' && c <= 'F')
+                if (c is >= 'A' and <= 'F')
                 {
                     continue;
                 }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                string name = criteria.Substring(nameStart, index - nameStart);
+                string name = criteria[nameStart..index];
                 if (!IsKnownSubjectName(name))
                 {
                     return false;
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server
                 {
                     break;
                 }
-                string name = subject.Substring(nameStart, i - nameStart).Trim();
+                string name = subject[nameStart..i].Trim();
                 i++; // skip '='
                 string value;
                 if (i < subject.Length && subject[i] == '"')
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server
                     {
                         i++;
                     }
-                    value = subject.Substring(vs, i - vs);
+                    value = subject[vs..i];
                     if (i < subject.Length)
                     {
                         i++; // skip closing quote
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server
                     {
                         i++;
                     }
-                    value = subject.Substring(vs, i - vs).Trim();
+                    value = subject[vs..i].Trim();
                 }
                 if (name.Length > 0 && IsKnownSubjectName(name))
                 {
@@ -280,9 +280,9 @@ namespace Opc.Ua.Server
             var sb = new StringBuilder();
             foreach (string name in order)
             {
-                foreach ((string Name, string Value) pair in pairs)
+                foreach ((string Name, string Value) in pairs)
                 {
-                    if (!string.Equals(pair.Name, name, StringComparison.Ordinal))
+                    if (!string.Equals(Name, name, StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -290,10 +290,10 @@ namespace Opc.Ua.Server
                     {
                         sb.Append('/');
                     }
-                    sb.Append(pair.Name);
+                    sb.Append(Name);
                     sb.Append('=');
                     sb.Append('"');
-                    sb.Append(pair.Value);
+                    sb.Append(Value);
                     sb.Append('"');
                 }
             }

@@ -52,7 +52,7 @@ namespace Opc.Ua.Lds.Server
     {
         private readonly ITelemetryContext m_telemetry;
         private ILogger m_log;
-        private SemaphoreSlim m_lock;
+        private readonly SemaphoreSlim m_lock;
         private MulticastDiscovery m_multicast;
 
         /// <summary>
@@ -362,7 +362,7 @@ namespace Opc.Ua.Lds.Server
             // (Sign or SignAndEncrypt). None is rejected.
             MessageSecurityMode mode = secureChannelContext?.EndpointDescription?.SecurityMode
                 ?? MessageSecurityMode.Invalid;
-            if (mode == MessageSecurityMode.None || mode == MessageSecurityMode.Invalid)
+            if (mode is MessageSecurityMode.None or MessageSecurityMode.Invalid)
             {
                 return new ServiceResult(StatusCodes.BadSecurityChecksFailed,
                     new LocalizedText("RegisterServer requires a signed secure channel."));

@@ -1468,8 +1468,8 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 string refName = reference.ReferenceType?.Name;
-                if (refName == "GeneratesEvent" ||
-                    refName == "AlwaysGeneratesEvent")
+                if (refName is "GeneratesEvent" or
+                    "AlwaysGeneratesEvent")
                 {
                     return true;
                 }

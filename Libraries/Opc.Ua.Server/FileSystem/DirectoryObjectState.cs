@@ -127,8 +127,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             base.PopulateBrowser(context, browser);
 
-            var manager = context?.SystemHandle as FileSystemNodeManager;
-            if (manager == null)
+            if (context?.SystemHandle is not FileSystemNodeManager manager)
             {
                 return;
             }
@@ -157,8 +156,7 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnCreateDirectory(ISystemContext context, MethodState method,
             NodeId objectId, string directoryName, ref NodeId directoryNodeId)
         {
-            var manager = context?.SystemHandle as FileSystemNodeManager;
-            if (manager == null)
+            if (context?.SystemHandle is not FileSystemNodeManager manager)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "Node manager unavailable.");
@@ -192,8 +190,7 @@ namespace Opc.Ua.Server.FileSystem
             NodeId objectId, string fileName, bool requestFileOpen,
             ref NodeId fileNodeId, ref uint fileHandle)
         {
-            var manager = context?.SystemHandle as FileSystemNodeManager;
-            if (manager == null)
+            if (context?.SystemHandle is not FileSystemNodeManager manager)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "Node manager unavailable.");
@@ -241,8 +238,7 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnDeleteFileSystemObject(ISystemContext context, MethodState method,
             NodeId objectId, NodeId objectToDelete)
         {
-            var manager = context?.SystemHandle as FileSystemNodeManager;
-            if (manager == null)
+            if (context?.SystemHandle is not FileSystemNodeManager manager)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "Node manager unavailable.");
@@ -290,8 +286,7 @@ namespace Opc.Ua.Server.FileSystem
             NodeId objectId, NodeId objectToMoveOrCopy, NodeId targetDirectory,
             bool createCopy, string newName, ref NodeId newNodeId)
         {
-            var manager = context?.SystemHandle as FileSystemNodeManager;
-            if (manager == null)
+            if (context?.SystemHandle is not FileSystemNodeManager manager)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "Node manager unavailable.");
@@ -361,7 +356,7 @@ namespace Opc.Ua.Server.FileSystem
                 return string.Empty;
             }
             int slash = providerPath.LastIndexOf('/');
-            return slash < 0 ? providerPath : providerPath.Substring(slash + 1);
+            return slash < 0 ? providerPath : providerPath[(slash + 1)..];
         }
     }
 }

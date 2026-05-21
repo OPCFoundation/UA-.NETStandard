@@ -58,15 +58,13 @@ namespace Opc.Ua.Server.AliasNames.PubSub
         {
             var fields = new FieldMetaData[]
             {
-                new FieldMetaData
-                {
+                new() {
                     Name = "ApplicationUri",
                     BuiltInType = (byte)BuiltInType.String,
                     DataType = DataTypeIds.String,
                     ValueRank = ValueRanks.Scalar
                 },
-                new FieldMetaData
-                {
+                new() {
                     Name = "Categories",
                     BuiltInType = (byte)BuiltInType.ExtensionObject,
                     DataType = DataTypeIds.AliasCategoryUpdateDataType,

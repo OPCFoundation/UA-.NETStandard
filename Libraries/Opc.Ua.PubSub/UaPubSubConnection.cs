@@ -477,13 +477,12 @@ namespace Opc.Ua.PubSub
                     response = new DataSetWriterConfigurationResponse
                     {
                         DataSetWriterIds = [dataSetWriterId],
-                        StatusCodes = [StatusCodes.Good]
+                        StatusCodes = [StatusCodes.Good],
+                        DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.ToList()
+                            .First(group =>
+                                group.DataSetWriters.ToList()
+                                .First(writer => writer.DataSetWriterId == dataSetWriterId) != null)
                     };
-
-                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.ToList()
-                        .First(group =>
-                            group.DataSetWriters.ToList()
-                            .First(writer => writer.DataSetWriterId == dataSetWriterId) != null);
                 }
 
                 responses.Add(response);

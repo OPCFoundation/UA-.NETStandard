@@ -390,14 +390,8 @@ namespace Opc.Ua.WotCon.Server
 
         private void WireManagementMethods(WoTAssetConnectionManagementState management)
         {
-            if (management.CreateAsset != null)
-            {
-                management.CreateAsset.OnCallAsync = OnCreateAssetAsync;
-            }
-            if (management.DeleteAsset != null)
-            {
-                management.DeleteAsset.OnCallAsync = OnDeleteAssetAsync;
-            }
+            management.CreateAsset?.OnCallAsync = OnCreateAssetAsync;
+            management.DeleteAsset?.OnCallAsync = OnDeleteAssetAsync;
             management.DiscoverAssets ??= management.AddDiscoverAssets(SystemContext);
             management.DiscoverAssets.OnCallAsync = OnDiscoverAssetsAsync;
 

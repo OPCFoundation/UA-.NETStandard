@@ -348,11 +348,10 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("New password matches the old password."));
             }
 
-            UserMetadata? metadata;
             m_lock.EnterReadLock();
             try
             {
-                if (!m_metadata.TryGetValue(userName, out metadata))
+                if (!m_metadata.TryGetValue(userName, out UserMetadata? metadata))
                 {
                     return new ServiceResult(StatusCodes.BadNotFound);
                 }

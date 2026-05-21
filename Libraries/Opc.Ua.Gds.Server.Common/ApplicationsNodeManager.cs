@@ -857,11 +857,8 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
             try
             {
-                ApplicationRecordDataType? foundApplication = m_database.GetApplication(applicationId);
-                if (foundApplication == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNotFound);
-                }
+                ApplicationRecordDataType? foundApplication = m_database.GetApplication(applicationId)
+                    ?? throw new ServiceResultException(StatusCodes.BadNotFound);
                 application = foundApplication;
             }
             catch (ArgumentException ex)
@@ -1930,16 +1927,13 @@ namespace Opc.Ua.Gds.Server
                     certificateGroup.Id);
             }
 
-            if (certificateGroup.DefaultTrustList != null)
-            {
-                certificateGroup.DefaultTrustList.Handle = new TrustList(
+            certificateGroup.DefaultTrustList?.Handle = new TrustList(
                     certificateGroup.DefaultTrustList,
                     new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
                     new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     Server.Telemetry);
-            }
         }
 
         private void HasTrustListAccess(

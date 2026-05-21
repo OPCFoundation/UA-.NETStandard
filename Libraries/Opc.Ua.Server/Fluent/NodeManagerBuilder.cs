@@ -314,11 +314,6 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         internal void AttachEventSources(EventSourceRegistry registry)
         {
-            if (registry == null)
-            {
-                throw new ArgumentNullException(nameof(registry));
-            }
-
             if (EventSources != null)
             {
                 throw ServiceResultException.Create(
@@ -326,7 +321,7 @@ namespace Opc.Ua.Server.Fluent
                     "An EventSourceRegistry is already attached to this builder.");
             }
 
-            EventSources = registry;
+            EventSources = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
         private static string FormatNodeId(NodeId nodeId)

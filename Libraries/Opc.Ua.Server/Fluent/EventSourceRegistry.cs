@@ -597,12 +597,9 @@ namespace Opc.Ua.Server.Fluent
                     (ushort)EventSeverity.Medium);
             }
 
-            if (e.Message == null)
-            {
-                e.Message = PropertyState<LocalizedText>.With<VariantBuilder>(
+            e.Message ??= PropertyState<LocalizedText>.With<VariantBuilder>(
                     e,
                     new LocalizedText(string.Empty));
-            }
         }
 
         private void ThrowIfDisposed()
@@ -638,7 +635,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly SemaphoreSlim m_reconcileSignal;
         private readonly CancellationTokenSource m_managerCts;
         private readonly Task m_reconcileTask;
-        private readonly object m_sourcesLock = new object();
+        private readonly object m_sourcesLock = new();
         private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private int m_disposed;
     }

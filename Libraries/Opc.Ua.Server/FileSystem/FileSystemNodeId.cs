@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             string? componentPath = end < identifier.Length
-                ? identifier.Substring(end)
+                ? identifier[end..]
                 : null;
 
             result = new FileSystemNodeId(

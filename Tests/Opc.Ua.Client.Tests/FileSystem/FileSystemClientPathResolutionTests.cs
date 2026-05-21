@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public async Task GetFileAsyncThrowsFileNotFoundForMissingPathAsync()
+        public Task GetFileAsyncThrowsFileNotFoundForMissingPathAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -113,10 +113,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.ThrowsAsync<FileNotFoundException>(
                 async () => await client.GetFileAsync("/missing.txt")
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
-        public async Task GetDirectoryAsyncThrowsDirectoryNotFoundForMissingPathAsync()
+        public Task GetDirectoryAsyncThrowsDirectoryNotFoundForMissingPathAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -124,10 +125,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.ThrowsAsync<DirectoryNotFoundException>(
                 async () => await client.GetDirectoryAsync("/missing")
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
-        public async Task GetFileAsyncThrowsWhenPathResolvesToDirectoryAsync()
+        public Task GetFileAsyncThrowsWhenPathResolvesToDirectoryAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             harness.RegisterDirectory(harness.Root, new QualifiedName("Reports"));
@@ -136,10 +138,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.ThrowsAsync<FileNotFoundException>(
                 async () => await client.GetFileAsync("/Reports")
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
-        public async Task GetDirectoryAsyncThrowsWhenPathResolvesToFileAsync()
+        public Task GetDirectoryAsyncThrowsWhenPathResolvesToFileAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("data.csv"));
@@ -148,6 +151,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.ThrowsAsync<DirectoryNotFoundException>(
                 async () => await client.GetDirectoryAsync("/data.csv")
                     .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]

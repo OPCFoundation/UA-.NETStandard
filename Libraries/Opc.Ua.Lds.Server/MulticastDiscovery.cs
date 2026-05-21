@@ -76,11 +76,7 @@ namespace Opc.Ua.Lds.Server
             bool loopbackOnly = false,
             ILogger logger = null)
         {
-            if (store == null)
-            {
-                throw new ArgumentNullException(nameof(store));
-            }
-            m_store = store;
+            m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_loopbackOnly = loopbackOnly;
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
         }
@@ -257,11 +253,11 @@ namespace Opc.Ua.Lds.Server
                     {
                         if (str.StartsWith("path=", StringComparison.Ordinal))
                         {
-                            path = str.Substring("path=".Length);
+                            path = str["path=".Length..];
                         }
                         else if (str.StartsWith("caps=", StringComparison.Ordinal))
                         {
-                            foreach (string raw in str.Substring("caps=".Length)
+                            foreach (string raw in str["caps=".Length..]
                                 .Split(s_capsSeparator, StringSplitOptions.RemoveEmptyEntries))
                             {
                                 string trimmed = raw.Trim();
@@ -344,8 +340,8 @@ namespace Opc.Ua.Lds.Server
                 IPInterfaceProperties ipProps = nic.GetIPProperties();
                 foreach (UnicastIPAddressInformation u in ipProps.UnicastAddresses)
                 {
-                    if (u.Address.AddressFamily == AddressFamily.InterNetwork ||
-                        u.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                    if (u.Address.AddressFamily is AddressFamily.InterNetwork or
+                        AddressFamily.InterNetworkV6)
                     {
                         yield return u.Address;
                     }
@@ -362,13 +358,13 @@ namespace Opc.Ua.Lds.Server
 
             // mDNS instance names should be friendly UTF-8 strings; strip URI scheme.
             int schemeIdx = applicationUri.IndexOf("://", StringComparison.Ordinal);
-            string trimmed = schemeIdx >= 0 ? applicationUri.Substring(schemeIdx + 3) : applicationUri;
+            string trimmed = schemeIdx >= 0 ? applicationUri[(schemeIdx + 3)..] : applicationUri;
             // limit length and replace separators that confuse some browsers.
             string sanitized = trimmed
                 .Replace('/', '-')
                 .Replace(':', '-')
                 .Replace('?', '-');
-            return sanitized.Length > 63 ? sanitized.Substring(0, 63) : sanitized;
+            return sanitized.Length > 63 ? sanitized[..63] : sanitized;
         }
     }
 }

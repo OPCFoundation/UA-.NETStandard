@@ -94,9 +94,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (category.FindAlias != null)
-            {
-                category.FindAlias.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
+            category.FindAlias?.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
                     AliasNameMethodDispatcher.FindAliasAsync(
                         m_aliasRegistry!,
                         Server.TypeTree,
@@ -104,7 +102,6 @@ namespace Opc.Ua.Server
                         pattern,
                         refType,
                         ct);
-            }
 
             if (includeLastChange && category.LastChange != null)
             {

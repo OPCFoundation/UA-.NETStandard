@@ -58,9 +58,11 @@ namespace Opc.Ua.WotCon.Tests.Client
             byte capturedMode = 0;
             byte[] writtenSoFar = [];
             bool closeAndUpdateCalled = false;
-            mock.OnOpen(mode => {
-            capturedMode = mode;
-            return 17; });
+            mock.OnOpen(mode =>
+            {
+                capturedMode = mode;
+                return 17;
+            });
             mock.OnWrite((handle, data) =>
             {
                 Assert.That(handle, Is.EqualTo(17u));

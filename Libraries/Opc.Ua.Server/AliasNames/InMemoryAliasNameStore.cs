@@ -69,12 +69,7 @@ namespace Opc.Ua.Server.AliasNames
         public InMemoryAliasNameStore(
             IReadOnlyList<AliasNameCategoryDescriptor> rootCategories)
         {
-            if (rootCategories == null)
-            {
-                throw new ArgumentNullException(nameof(rootCategories));
-            }
-
-            RootCategories = rootCategories;
+            RootCategories = rootCategories ?? throw new ArgumentNullException(nameof(rootCategories));
 
             // Flatten the descriptor tree into a category lookup table.
             foreach (AliasNameCategoryDescriptor root in rootCategories)

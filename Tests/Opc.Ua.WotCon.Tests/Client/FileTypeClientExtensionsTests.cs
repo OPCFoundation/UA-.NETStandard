@@ -243,9 +243,11 @@ namespace Opc.Ua.WotCon.Tests.Client
             byte capturedMode = 0;
             byte[] writtenSoFar = [];
             bool closed = false;
-            mock.OnOpen(mode => {
-            capturedMode = mode;
-            return 99; });
+            mock.OnOpen(mode =>
+            {
+                capturedMode = mode;
+                return 99;
+            });
             mock.OnWrite((handle, data) =>
             {
                 Assert.That(handle, Is.EqualTo(99u));
@@ -254,9 +256,11 @@ namespace Opc.Ua.WotCon.Tests.Client
                 Array.Copy(data, 0, joined, writtenSoFar.Length, data.Length);
                 writtenSoFar = joined;
             });
-            mock.OnClose(handle => {
-            Assert.That(handle, Is.EqualTo(99u));
-            closed = true; });
+            mock.OnClose(handle =>
+            {
+                Assert.That(handle, Is.EqualTo(99u));
+                closed = true;
+            });
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var source = new MemoryStream(payload);
@@ -279,9 +283,11 @@ namespace Opc.Ua.WotCon.Tests.Client
             int position = 0;
             byte capturedMode = 0;
             bool closed = false;
-            mock.OnOpen(mode => {
-            capturedMode = mode;
-            return 88; });
+            mock.OnOpen(mode =>
+            {
+                capturedMode = mode;
+                return 88;
+            });
             mock.OnRead((handle, len) =>
             {
                 Assert.That(handle, Is.EqualTo(88u));
@@ -295,9 +301,11 @@ namespace Opc.Ua.WotCon.Tests.Client
                 position += take;
                 return slice;
             });
-            mock.OnClose(handle => {
-            Assert.That(handle, Is.EqualTo(88u));
-            closed = true; });
+            mock.OnClose(handle =>
+            {
+                Assert.That(handle, Is.EqualTo(88u));
+                closed = true;
+            });
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var destination = new MemoryStream();
@@ -406,9 +414,11 @@ namespace Opc.Ua.WotCon.Tests.Client
             bool opened = false;
             bool closed = false;
             int writes = 0;
-            mock.OnOpen(_ => {
-            opened = true;
-            return 1; });
+            mock.OnOpen(_ =>
+            {
+                opened = true;
+                return 1;
+            });
             mock.OnWrite((_, _) => { writes++; });
             mock.OnClose(_ => { closed = true; });
 

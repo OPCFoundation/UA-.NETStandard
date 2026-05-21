@@ -92,10 +92,7 @@ namespace Opc.Ua.Server
                 // tearing down sessions to avoid late-stage callbacks racing
                 // with disposal.
                 IRoleManager? subscribed = Interlocked.Exchange(ref m_subscribedRoleManager, null);
-                if (subscribed != null)
-                {
-                    subscribed.RoleConfigurationChanged -= OnRoleConfigurationChanged;
-                }
+                subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
 
                 // create snapshot of all sessions
                 KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
@@ -865,14 +862,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (previous != null)
-            {
-                previous.RoleConfigurationChanged -= OnRoleConfigurationChanged;
-            }
-            if (current != null)
-            {
-                current.RoleConfigurationChanged += OnRoleConfigurationChanged;
-            }
+            previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+            current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
         }
 
         /// <summary>

@@ -312,58 +312,31 @@ namespace Opc.Ua.Server
         {
             ISystemContext context = m_nodeManager.SystemContext;
 
-            if (roleState.AddIdentity == null)
-            {
-                roleState.AddIdentity = PromoteMethodChild(
+            roleState.AddIdentity ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.AddIdentity,
                     parent => new AddIdentityMethodState(parent));
-            }
-            if (roleState.RemoveIdentity == null)
-            {
-                roleState.RemoveIdentity = PromoteMethodChild(
+            roleState.RemoveIdentity ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.RemoveIdentity,
                     parent => new RemoveIdentityMethodState(parent));
-            }
-            if (roleState.AddApplication == null)
-            {
-                roleState.AddApplication = PromoteMethodChild(
+            roleState.AddApplication ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.AddApplication,
                     parent => new AddApplicationMethodState(parent));
-            }
-            if (roleState.RemoveApplication == null)
-            {
-                roleState.RemoveApplication = PromoteMethodChild(
+            roleState.RemoveApplication ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.RemoveApplication,
                     parent => new RemoveApplicationMethodState(parent));
-            }
-            if (roleState.AddEndpoint == null)
-            {
-                roleState.AddEndpoint = PromoteMethodChild(
+            roleState.AddEndpoint ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.AddEndpoint,
                     parent => new AddEndpointMethodState(parent));
-            }
-            if (roleState.RemoveEndpoint == null)
-            {
-                roleState.RemoveEndpoint = PromoteMethodChild(
+            roleState.RemoveEndpoint ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.RemoveEndpoint,
                     parent => new RemoveEndpointMethodState(parent));
-            }
 
-            if (roleState.ApplicationsExclude == null)
-            {
-                roleState.ApplicationsExclude = PromoteBoolPropertyChild(
+            roleState.ApplicationsExclude ??= PromoteBoolPropertyChild(
                     m_nodeManager, context, roleState, BrowseNames.ApplicationsExclude);
-            }
-            if (roleState.EndpointsExclude == null)
-            {
-                roleState.EndpointsExclude = PromoteBoolPropertyChild(
+            roleState.EndpointsExclude ??= PromoteBoolPropertyChild(
                     m_nodeManager, context, roleState, BrowseNames.EndpointsExclude);
-            }
-            if (roleState.CustomConfiguration == null)
-            {
-                roleState.CustomConfiguration = PromoteBoolPropertyChild(
+            roleState.CustomConfiguration ??= PromoteBoolPropertyChild(
                     m_nodeManager, context, roleState, BrowseNames.CustomConfiguration);
-            }
         }
 
         private static TTyped? PromoteMethodChild<TTyped>(
@@ -472,30 +445,12 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            if (roleState.Identities != null)
-            {
-                roleState.Identities.Value = ArrayOf.Wrapped(entry.Identities.ToArray());
-            }
-            if (roleState.Applications != null)
-            {
-                roleState.Applications.Value = ArrayOf.Wrapped(entry.Applications.ToArray());
-            }
-            if (roleState.ApplicationsExclude != null)
-            {
-                roleState.ApplicationsExclude.Value = entry.ApplicationsExclude;
-            }
-            if (roleState.Endpoints != null)
-            {
-                roleState.Endpoints.Value = ArrayOf.Wrapped(entry.Endpoints.ToArray());
-            }
-            if (roleState.EndpointsExclude != null)
-            {
-                roleState.EndpointsExclude.Value = entry.EndpointsExclude;
-            }
-            if (roleState.CustomConfiguration != null)
-            {
-                roleState.CustomConfiguration.Value = entry.CustomConfiguration;
-            }
+            roleState.Identities?.Value = ArrayOf.Wrapped(entry.Identities.ToArray());
+            roleState.Applications?.Value = ArrayOf.Wrapped(entry.Applications.ToArray());
+            roleState.ApplicationsExclude?.Value = entry.ApplicationsExclude;
+            roleState.Endpoints?.Value = ArrayOf.Wrapped(entry.Endpoints.ToArray());
+            roleState.EndpointsExclude?.Value = entry.EndpointsExclude;
+            roleState.CustomConfiguration?.Value = entry.CustomConfiguration;
             roleState.ClearChangeMasks(m_nodeManager.SystemContext, includeChildren: true);
         }
 

@@ -375,7 +375,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             string name = string.IsNullOrEmpty(providerPath)
                 ? MountName
-                : providerPath.Substring(providerPath.LastIndexOf('/') + 1);
+                : providerPath[(providerPath.LastIndexOf('/') + 1)..];
 
             if (isDirectory)
             {
@@ -429,12 +429,12 @@ namespace Opc.Ua.Server.FileSystem
             Directory.CreateDirectory(target);
             foreach (string dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
             {
-                string sub = dir.Substring(source.Length).TrimStart(Path.DirectorySeparatorChar);
+                string sub = dir[source.Length..].TrimStart(Path.DirectorySeparatorChar);
                 Directory.CreateDirectory(Path.Combine(target, sub));
             }
             foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
             {
-                string sub = file.Substring(source.Length).TrimStart(Path.DirectorySeparatorChar);
+                string sub = file[source.Length..].TrimStart(Path.DirectorySeparatorChar);
                 File.Copy(file, Path.Combine(target, sub), overwrite: false);
             }
         }
