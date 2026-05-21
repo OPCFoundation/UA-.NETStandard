@@ -349,11 +349,11 @@ namespace Quickstarts.ConsoleReferencePublisher
         )
         {
             // Read value to be incremented
-            DataValue? dataValue = m_dataStore.ReadPublishedDataItem(
+            if (!m_dataStore.TryReadPublishedDataItem(
                 new NodeId(variable.Name!, namespaceIndex),
-                Attributes.Value
-            );
-            if (dataValue == null || dataValue.WrappedValue.IsNull)
+                Attributes.Value,
+                out DataValue dataValue) ||
+                dataValue.WrappedValue.IsNull)
             {
                 return;
             }

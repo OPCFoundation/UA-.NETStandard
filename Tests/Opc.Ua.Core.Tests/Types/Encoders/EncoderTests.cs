@@ -140,9 +140,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
             DataValue expected = dataValue;
-            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
 
-            DataValue result = null;
+            DataValue result = default;
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 result = decoder.ReadDataValue("DataValue");
             }
 
-            Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
+            Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
             // see: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17
             if ((expected.SourcePicoseconds != 0 && expected.SourceTimestamp == DateTimeUtc.MinValue) ||
                 (expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue))
