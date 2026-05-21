@@ -393,7 +393,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("operator1");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Operator));
@@ -407,7 +407,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("alice");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Engineer));
         }
@@ -422,7 +422,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("alice");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Engineer));
         }
@@ -537,7 +537,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             // No cert ⇒ client app URI is empty ⇒ doesn't match the include list
             // ⇒ role not granted.
@@ -578,7 +578,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("Operator1");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
@@ -606,7 +606,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
@@ -633,7 +633,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
@@ -658,7 +658,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
@@ -685,7 +685,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -711,7 +711,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -737,7 +737,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -763,7 +763,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -796,7 +796,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("alice");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),

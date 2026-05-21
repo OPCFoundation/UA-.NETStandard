@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             var mock = new WotAssetFileTypeSessionMock();
             byte capturedMode = 0;
-            byte[] writtenSoFar = Array.Empty<byte>();
+            byte[] writtenSoFar = [];
             bool closeAndUpdateCalled = false;
             mock.OnOpen(mode => {
             capturedMode = mode;
@@ -179,7 +179,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             // alongside the new Stream overload.
             byte[] payload = Encoding.UTF8.GetBytes("{\"title\":\"x\"}");
             var mock = new WotAssetFileTypeSessionMock();
-            byte[] writtenSoFar = Array.Empty<byte>();
+            byte[] writtenSoFar = [];
             bool closeAndUpdateCalled = false;
             mock.OnOpen(_ => 1);
             mock.OnWrite((_, data) =>

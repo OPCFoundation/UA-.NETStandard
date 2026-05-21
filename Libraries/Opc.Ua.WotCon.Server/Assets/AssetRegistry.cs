@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 lock (m_byName)
                 {
-                    return m_byName.Keys.ToArray();
+                    return [.. m_byName.Keys];
                 }
             }
         }
@@ -772,7 +772,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             AssetEntry[] entries;
             lock (m_byName)
             {
-                entries = m_byNodeId.Values.ToArray();
+                entries = [.. m_byNodeId.Values];
                 m_byName.Clear();
                 m_byNodeId.Clear();
             }

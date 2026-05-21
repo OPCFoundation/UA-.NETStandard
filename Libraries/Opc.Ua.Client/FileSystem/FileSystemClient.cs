@@ -252,7 +252,7 @@ namespace Opc.Ua.Client.FileSystem
                 {
                     UaFileSystemInfo info = await BuildInfoAsync(
                         new ResolvedNode(childId.Value, segment),
-                        segments.Take(i + 1).ToArray(),
+                        [.. segments.Take(i + 1)],
                         ct).ConfigureAwait(false);
                     if (info is UaDirectoryInfo dir)
                     {
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.FileSystem
                 if (!createIntermediate && !isLast)
                 {
                     throw FileSystemErrors.NotFound(
-                        UaPath.Format(segments.Take(i + 1).ToArray()),
+                        UaPath.Format([.. segments.Take(i + 1)]),
                         targetIsDirectory: true);
                 }
                 if (segment.NamespaceIndex != 0)
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.FileSystem
             }
             else
             {
-                string parentPath = UaPath.Format(segments.Take(segments.Length - 1).ToArray());
+                string parentPath = UaPath.Format([.. segments.Take(segments.Length - 1)]);
                 if (createIntermediate)
                 {
                     parent = await CreateDirectoryAsync(parentPath, true, ct).ConfigureAwait(false);
@@ -703,7 +703,7 @@ namespace Opc.Ua.Client.FileSystem
             }
             else
             {
-                string parentPath = UaPath.Format(segments.Take(segments.Length - 1).ToArray());
+                string parentPath = UaPath.Format([.. segments.Take(segments.Length - 1)]);
                 destDir = await GetDirectoryAsync(parentPath, ct).ConfigureAwait(false);
             }
             return await MoveOrCopyAsync(source, destDir, segments[^1].Name!, copy, ct)
@@ -956,7 +956,7 @@ namespace Opc.Ua.Client.FileSystem
                     if (throwOnMissing)
                     {
                         throw FileSystemErrors.NotFound(
-                            UaPath.Format(segments.Take(i + 1).ToArray()),
+                            UaPath.Format([.. segments.Take(i + 1)]),
                             targetIsDirectory: !isLast);
                     }
                     return null;
@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Client.FileSystem
             if (segments.Length > 1)
             {
                 ResolvedNode? parent = await ResolveSegmentsAsync(
-                    segments.Take(segments.Length - 1).ToArray(),
+                    [.. segments.Take(segments.Length - 1)],
                     throwOnMissing: true,
                     ct).ConfigureAwait(false);
                 if (parent != null)
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.Client.FileSystem
                         parent: null, // grandparent reference omitted for the synthesized parent stub
                         parent.Value.NodeId,
                         parent.Value.BrowseName,
-                        segments.Take(segments.Length - 1).ToArray());
+                        [.. segments.Take(segments.Length - 1)]);
                 }
             }
             else

@@ -241,7 +241,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 payload[i] = (byte)(i & 0xff);
             }
             byte capturedMode = 0;
-            byte[] writtenSoFar = Array.Empty<byte>();
+            byte[] writtenSoFar = [];
             bool closed = false;
             mock.OnOpen(mode => {
             capturedMode = mode;
@@ -288,7 +288,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 int take = Math.Min(len, payload.Length - position);
                 if (take <= 0)
                 {
-                    return Array.Empty<byte>();
+                    return [];
                 }
                 byte[] slice = new byte[take];
                 Array.Copy(payload, position, slice, 0, take);

@@ -77,7 +77,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
                 Subscription[] snapshot;
                 lock (subs)
                 {
-                    snapshot = subs.ToArray();
+                    snapshot = [.. subs];
                 }
                 foreach (Subscription s in snapshot)
                 {
@@ -113,7 +113,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
             OnWotValueChange callback,
             CancellationToken ct)
         {
-            List<Subscription> bucket = m_subscriptions.GetOrAdd(tag.Name, _ => new List<Subscription>());
+            List<Subscription> bucket = m_subscriptions.GetOrAdd(tag.Name, _ => []);
             lock (bucket)
             {
                 bucket.Add(new Subscription(subscriberId, tag, callback));
@@ -158,7 +158,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
         }
 
         /// <summary>Returns the list of recorded action invocations (test helper).</summary>
-        public IReadOnlyList<ActionInvocation> Invocations => m_invocations.ToArray();
+        public IReadOnlyList<ActionInvocation> Invocations => [.. m_invocations];
 
         public ValueTask DisposeAsync()
         {

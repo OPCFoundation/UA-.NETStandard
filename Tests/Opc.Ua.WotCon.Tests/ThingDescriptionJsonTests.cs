@@ -203,18 +203,17 @@ namespace Opc.Ua.WotCon.Tests
         // G7/G8: shared helpers that lock the persisted field set in one place.
         private static string[] ProjectProperties(ThingDescription td)
         {
-            return td.Properties!
+            return [.. td.Properties!
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv =>
                     $"{kv.Key}|type={kv.Value.Type}|title={kv.Value.Title}|" +
                     $"desc={kv.Value.Description}|ro={kv.Value.ReadOnly}|" +
-                    $"obs={kv.Value.Observable}|unit={kv.Value.Unit}")
-                .ToArray();
+                    $"obs={kv.Value.Observable}|unit={kv.Value.Unit}")];
         }
 
         private static string[] ProjectActions(ThingDescription td)
         {
-            return td.Actions!
+            return [.. td.Actions!
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv =>
                 {
@@ -226,8 +225,7 @@ namespace Opc.Ua.WotCon.Tests
                         [];
                     return $"{kv.Key}|title={kv.Value.Title}|desc={kv.Value.Description}|" +
                         $"members=[{string.Join(",", memberFields)}]";
-                })
-                .ToArray();
+                })];
         }
     }
 }

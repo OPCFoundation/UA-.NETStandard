@@ -391,7 +391,7 @@ namespace Opc.Ua.WotCon.Tests
         private sealed class Harness : IDisposable
         {
             private readonly NodeId _objectId;
-            private readonly List<ThingDescription> _materialisedTds = new();
+            private readonly List<ThingDescription> _materialisedTds = [];
             private readonly Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> _materialiseDelegate;
 
             public Harness(

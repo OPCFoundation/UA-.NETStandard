@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Fluent
             List<SourceEntry> snapshot;
             lock (m_sourcesLock)
             {
-                snapshot = new List<SourceEntry>(m_sources.Values);
+                snapshot = [.. m_sources.Values];
                 m_sources.Clear();
             }
 
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Fluent
             List<SourceEntry> snapshot;
             lock (m_sourcesLock)
             {
-                snapshot = new List<SourceEntry>(m_sources.Values);
+                snapshot = [.. m_sources.Values];
             }
 
             foreach (SourceEntry entry in snapshot)
@@ -639,7 +639,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly CancellationTokenSource m_managerCts;
         private readonly Task m_reconcileTask;
         private readonly object m_sourcesLock = new object();
-        private readonly Dictionary<NodeId, SourceEntry> m_sources = new Dictionary<NodeId, SourceEntry>();
+        private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private int m_disposed;
     }
 }

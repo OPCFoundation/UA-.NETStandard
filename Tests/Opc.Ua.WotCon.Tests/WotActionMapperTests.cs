@@ -205,7 +205,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Type = "object",
                 Title = "empty",
-                Properties = new Dictionary<string, WotActionMember>()
+                Properties = []
             };
 
             IReadOnlyList<Argument> arguments = WotActionMapper.BuildArguments(schema);

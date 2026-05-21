@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.FileSystem
                 if (!externalReferences.TryGetValue(ObjectIds.FileSystem,
                     out IList<IReference>? references))
                 {
-                    externalReferences[ObjectIds.FileSystem] = references = new List<IReference>();
+                    externalReferences[ObjectIds.FileSystem] = references = [];
                 }
                 NodeId rootId = FileSystemNodeId.BuildRoot(NamespaceIndex);
                 references.Add(new NodeStateReference(
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server.FileSystem
             return NamespaceUriBase + "/" + provider.MountName;
         }
 
-        private readonly Dictionary<NodeId, FileHandle> m_handles = new();
+        private readonly Dictionary<NodeId, FileHandle> m_handles = [];
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in

@@ -112,7 +112,7 @@ namespace Opc.Ua.Lds.Server
             m_lock.Wait();
             try
             {
-                return m_byUri.Values.Select(Clone).ToList();
+                return [.. m_byUri.Values.Select(Clone)];
             }
             finally
             {
@@ -203,12 +203,12 @@ namespace Opc.Ua.Lds.Server
 
                 entry.ProductUri = server.ProductUri;
                 entry.ServerNames = server.ServerNames.IsNull
-                    ? new List<LocalizedText>()
+                    ? []
                     : server.ServerNames.ToList();
                 entry.ServerType = server.ServerType;
                 entry.GatewayServerUri = server.GatewayServerUri;
                 entry.DiscoveryUrls = server.DiscoveryUrls.IsNull
-                    ? new List<string>()
+                    ? []
                     : server.DiscoveryUrls.ToList();
                 entry.SemaphoreFilePath = server.SemaphoreFilePath;
                 entry.IsOnline = true;
@@ -218,7 +218,7 @@ namespace Opc.Ua.Lds.Server
                 {
                     entry.MdnsServerName = mdnsConfig.MdnsServerName;
                     entry.ServerCapabilities = mdnsConfig.ServerCapabilities.IsNull
-                        ? new List<string>()
+                        ? []
                         : mdnsConfig.ServerCapabilities.ToList();
 
                     UpdateNetworkRecordsCore(entry);
@@ -305,15 +305,14 @@ namespace Opc.Ua.Lds.Server
                     source = source.Take((int)maxRecordsToReturn);
                 }
 
-                IList<ServerOnNetwork> dto = source
+                IList<ServerOnNetwork> dto = [.. source
                     .Select(r => new ServerOnNetwork
                     {
                         RecordId = r.RecordId,
                         ServerName = r.ServerName,
                         DiscoveryUrl = r.DiscoveryUrl,
                         ServerCapabilities = [.. r.ServerCapabilities]
-                    })
-                    .ToList();
+                    })];
 
                 return (dto, m_lastCounterResetTime);
             }

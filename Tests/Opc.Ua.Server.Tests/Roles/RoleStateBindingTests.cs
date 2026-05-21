@@ -651,7 +651,7 @@ namespace Opc.Ua.Server.Tests.Roles
             identity.Setup(i => i.DisplayName).Returns(anonymous ? "Anonymous" : "admin");
             NodeId[] roles = securityAdmin
                 ? [ObjectIds.WellKnownRole_SecurityAdmin]
-                : System.Array.Empty<NodeId>();
+                : [];
             identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Wrapped(roles));
             return identity.Object;
         }

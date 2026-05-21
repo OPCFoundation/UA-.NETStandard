@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests.Roles
                             OutputArguments = ArrayOf.Wrapped([Variant.From(expectedNew)])
                         }
                     }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    DiagnosticInfos = []
                 }));
 
             NodeId result = await m_client.AddRoleAsync("OpsLead", "urn:example:roles").ConfigureAwait(false);
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Tests.Roles
                                 })
                             }
                         }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        DiagnosticInfos = []
                     }));
 
             // Second call: CallAsync sends the AddIdentity method invocation.
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 {
                     ResponseHeader = new ResponseHeader(),
                     Results = ArrayOf.Wrapped([StatusCodes.Good]),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    DiagnosticInfos = []
                 }));
 
             await m_client.SetApplicationsExcludeAsync(
@@ -353,7 +353,7 @@ namespace Opc.Ua.Client.Tests.Roles
                                 })
                             }
                         }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        DiagnosticInfos = []
                     }));
             m_sessionMock.Setup(s => s.WriteAsync(
                     It.IsAny<RequestHeader>(),
@@ -363,7 +363,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 {
                     ResponseHeader = new ResponseHeader(),
                     Results = ArrayOf.Wrapped([StatusCodes.Good]),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    DiagnosticInfos = []
                 }));
 
             await m_client.SetEndpointsExcludeAsync(ObjectIds.WellKnownRole_Operator, false).ConfigureAwait(false);
@@ -402,7 +402,7 @@ namespace Opc.Ua.Client.Tests.Roles
                                 })
                             }
                         }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        DiagnosticInfos = []
                     }));
 
             ArrayOf<CallMethodRequest> capturedRequests = default;
@@ -529,7 +529,7 @@ namespace Opc.Ua.Client.Tests.Roles
                                 })
                             }
                         }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        DiagnosticInfos = []
                     }));
             ArrayOf<WriteValue> capturedWrites = default;
             m_sessionMock.Setup(s => s.WriteAsync(
@@ -542,7 +542,7 @@ namespace Opc.Ua.Client.Tests.Roles
                 {
                     ResponseHeader = new ResponseHeader(),
                     Results = ArrayOf.Wrapped([StatusCodes.Good]),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    DiagnosticInfos = []
                 }));
 
             await m_client.SetCustomConfigurationAsync(
@@ -598,7 +598,7 @@ namespace Opc.Ua.Client.Tests.Roles
                                 })
                             }
                         }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        DiagnosticInfos = []
                     }));
         }
 
@@ -621,11 +621,11 @@ namespace Opc.Ua.Client.Tests.Roles
                         {
                             StatusCode = StatusCodes.Good,
                             OutputArguments = outputs == null
-                                ? ArrayOf.Empty<Variant>()
+                                ? []
                                 : ArrayOf.Wrapped(outputs)
                         }
                     }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    DiagnosticInfos = []
                 }));
         }
     }

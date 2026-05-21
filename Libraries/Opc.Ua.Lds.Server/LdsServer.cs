@@ -116,12 +116,11 @@ namespace Opc.Ua.Lds.Server
             if (m_multicast != null)
             {
                 IList<string> capabilities = ServerCapabilities.IsNull
-                    ? new List<string>()
+                    ? []
                     : ServerCapabilities.ToList();
-                IList<string> baseUris = BaseAddresses
+                IList<string> baseUris = [.. BaseAddresses
                     .Select(b => b.Url?.ToString())
-                    .Where(u => !string.IsNullOrEmpty(u))
-                    .ToList();
+                    .Where(u => !string.IsNullOrEmpty(u))];
                 await m_multicast
                     .StartAsync(configuration.ApplicationUri, baseUris, capabilities, cancellationToken)
                     .ConfigureAwait(false);
@@ -518,7 +517,7 @@ namespace Opc.Ua.Lds.Server
             }
 
             endpoints = endpointsList.ToArray();
-            return hosts.Values.ToList();
+            return [.. hosts.Values];
         }
 
         /// <inheritdoc />
