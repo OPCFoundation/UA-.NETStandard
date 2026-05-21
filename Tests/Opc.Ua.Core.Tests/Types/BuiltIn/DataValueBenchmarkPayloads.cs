@@ -44,10 +44,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     /// scenario.
     /// </summary>
     /// <remarks>
-    /// The Phase-1 (class-only) baseline lives here. Phase-3 will add
-    /// the <c>DataValueStruct</c> counterparts side-by-side so the
-    /// same encoded bytes feed both decoders for a like-for-like
-    /// comparison.
+    /// DataValue is now a <c>readonly struct</c>; the benchmark
+    /// suite focuses on encode/decode and dispatch throughput on
+    /// the unified type.
     /// </remarks>
     public static class DataValueBenchmarkPayloads
     {

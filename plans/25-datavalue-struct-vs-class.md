@@ -1,5 +1,18 @@
 # DataValue: class vs `readonly struct` — measurement and recommendation
 
+**Status: MIGRATED (2026-05-21)**
+
+`DataValue` has been converted from a reference-type `class` to a
+`readonly struct`. The migration shipped on branch `dvstruct` across
+PR-1 through PR-5. The experimental `DataValueStruct` sibling type and
+its transitional encoder/decoder shims (`ReadDataValueStruct`,
+`WriteDataValueStruct`, `_Struct` benchmarks) have been removed.
+All consumers now target the unified `DataValue` value type.
+
+The remainder of this document is preserved for historical context.
+
+---
+
 Branch: `nullable5`  
 Date: 2026-05-20  
 Hardware: Intel Xeon W-2235 @ 3.80 GHz, 6 physical / 12 logical cores, Windows 11 25H2  

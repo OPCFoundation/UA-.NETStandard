@@ -90,7 +90,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             m_arrayOfValues = m_values.ToArrayOf();
             m_encodedBuffer = DataValueBenchmarkPayloads.EncodeAsDataValueArray(
                 m_arrayOfValues, m_context);
-            m_structValues = BuildStructPayload(m_values);
         }
 
         [GlobalCleanup]
@@ -100,7 +99,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             m_context = null;
             m_values = null;
             m_encodedBuffer = null;
-            m_structValues = null;
         }
 
         /// <summary>
@@ -234,136 +232,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
 
         // ----------------------------------------------------------------
-        // STRUCT counterparts (Phase 3) — exactly the same shapes
-        // routed through DataValueStruct + the new
-        // ReadDataValueStructArray / WriteDataValueStructArray entry
-        // points so BDN reports both side-by-side under a single
-        // benchmark group.
-        // ----------------------------------------------------------------
-
-        /// <summary>
-        /// B1 (struct) — decoder hot path using
-        /// <see cref="DataValueStruct"/>. The hot path mutates a ref
-        /// builder, then commits once; no per-field copy.
-        /// </summary>
-        [Benchmark(Description = "B1S — BinaryDecoder.ReadDataValueStruct × N")]
-        public int Decode_StructDataValueArray()
-        {
-            using var stream = new MemoryStream(m_encodedBuffer!, writable: false);
-            using var decoder = new BinaryDecoder(stream, m_context!);
-            // Same encoded bytes; the class-decoder wrote them, struct
-            // decoder reads them — wire format is byte-identical.
-            DataValueStruct[] read = decoder.ReadDataValueStructArray(null);
-            return read.Length;
-        }
-
-        /// <summary>
-        /// B2 (struct) — encoder for <see cref="DataValueStruct"/>.
-        /// </summary>
-        [Benchmark(Description = "B2S — BinaryEncoder.WriteDataValueStructArray × N")]
-        public long Encode_StructDataValueArray()
-        {
-            using var stream = new MemoryStream();
-            using (var encoder = new BinaryEncoder(stream, m_context!, leaveOpen: true))
-            {
-                encoder.WriteDataValueStructArray(null, m_structValues!);
-            }
-            return stream.Length;
-        }
-
-        /// <summary>
-        /// B3 (struct) — dispatch chain over <see cref="DataValueStruct"/>.
-        /// The 48-byte struct payload travels through 5 stack frames;
-        /// compares per-call copy cost with the class' 8 B reference.
-        /// </summary>
-        [Benchmark(Description = "B3S — Dispatch chain × N (5 frames, struct)")]
-        public uint Dispatch_StructDataValue()
-        {
-            DataValueStruct[] values = m_structValues!;
-            uint accumulator = 0;
-            for (int i = 0; i < values.Length; i++)
-            {
-                accumulator ^= DispatchStructFrame1(values[i]);
-            }
-            return accumulator;
-        }
-
-        /// <summary>
-        /// B4 (struct) — allocate + capture into
-        /// <c>List&lt;DataValueStruct&gt;</c>.
-        /// </summary>
-        [Benchmark(Description = "B4S — Allocate + List<DataValueStruct> × N")]
-        public int Allocate_StructDataValueList()
-        {
-            var list = new List<DataValueStruct>(Count);
-            DateTimeUtc ts = DataValueBenchmarkPayloads.ReferenceTimestamp;
-            for (int i = 0; i < Count; i++)
-            {
-                list.Add(new DataValueStruct(
-                    new Variant(i * 1.0),
-                    (StatusCode)StatusCodes.Good,
-                    ts,
-                    ts));
-            }
-            return list.Count;
-        }
-
-        /// <summary>
-        /// B5 (struct) — copy. A <see cref="DataValueStruct"/> copies
-        /// itself by value (no allocation); only the inner
-        /// <see cref="Variant"/>'s array payload would still allocate
-        /// if we forced a deep copy. The struct overhead is therefore
-        /// expected to be the 48 B copy on entry; no managed allocations.
-        /// </summary>
-        [Benchmark(Description = "B5S — DataValueStruct value-copy × N")]
-        public int Copy_StructDataValue()
-        {
-            DataValueStruct[] values = m_structValues!;
-            int observed = 0;
-            for (int i = 0; i < values.Length; i++)
-            {
-                DataValueStruct copy = values[i];
-                observed += (int)copy.StatusCode.Code;
-            }
-            return observed;
-        }
-
-        /// <summary>
-        /// B6 (struct) — equality.
-        /// </summary>
-        [Benchmark(Description = "B6S — DataValueStruct.Equals × N")]
-        public int Equals_StructDataValue()
-        {
-            DataValueStruct[] values = m_structValues!;
-            int equal = 0;
-            for (int i = 0; i < values.Length; i++)
-            {
-                DataValueStruct a = values[i];
-                DataValueStruct b = values[i];
-                if (a.Equals(b)) { equal++; }
-            }
-            return equal;
-        }
-
-        /// <summary>
-        /// B7 (struct) — round-trip via
-        /// <see cref="DataValueStruct"/>.
-        /// </summary>
-        [Benchmark(Description = "B7S — Encode + Decode round-trip × N (struct)")]
-        public int RoundTrip_StructDataValueArray()
-        {
-            using var stream = new MemoryStream();
-            using (var encoder = new BinaryEncoder(stream, m_context!, leaveOpen: true))
-            {
-                encoder.WriteDataValueStructArray(null, m_structValues!);
-            }
-            stream.Position = 0;
-            using var decoder = new BinaryDecoder(stream, m_context!);
-            DataValueStruct[] read = decoder.ReadDataValueStructArray(null);
-            return read.Length;
-        }
-
-        // ----------------------------------------------------------------
         // NUnit entry points so the benchmark shapes also run in CI.
         // ----------------------------------------------------------------
 
@@ -388,49 +256,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             }
         }
 
-        [TestCase(1, Payload.ScalarDouble)]
-        [TestCase(100, Payload.ScalarString)]
-        [TestCase(10, Payload.ArrayDouble1K)]
-        public void DecodeAndEncodeMatchStructRoundTrip(int count, Payload shape)
-        {
-            Count = count;
-            Shape = shape;
-            GlobalSetup();
-            try
-            {
-                int decoded = Decode_StructDataValueArray();
-                Assert.That(decoded, Is.EqualTo(count));
-                int rt = RoundTrip_StructDataValueArray();
-                Assert.That(rt, Is.EqualTo(count));
-            }
-            finally
-            {
-                GlobalCleanup();
-            }
-        }
-
-        [Test]
-        public void ClassAndStructProduceIdenticalWireBytes()
-        {
-            // The struct re-encoder must produce byte-identical output
-            // for the same logical values — otherwise the GC-vs-copy
-            // benchmark would compare apples to oranges.
-            Count = 16;
-            Shape = Payload.ScalarDouble;
-            GlobalSetup();
-            try
-            {
-                long classBytes = Encode_ClassDataValueArray();
-                long structBytes = Encode_StructDataValueArray();
-                Assert.That(structBytes, Is.EqualTo(classBytes),
-                    "Class and struct encoders must produce equal-length output.");
-            }
-            finally
-            {
-                GlobalCleanup();
-            }
-        }
-
         // ----------------------------------------------------------------
         // Helpers
         // ----------------------------------------------------------------
@@ -444,23 +269,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 Payload.ArrayDouble1K => DataValueBenchmarkPayloads.BuildArrayDoubles(count, length: 1024),
                 _ => throw new ArgumentOutOfRangeException(nameof(shape))
             };
-        }
-
-        private static DataValueStruct[] BuildStructPayload(DataValue[] source)
-        {
-            var result = new DataValueStruct[source.Length];
-            for (int i = 0; i < source.Length; i++)
-            {
-                DataValue v = source[i];
-                result[i] = new DataValueStruct(
-                    v.WrappedValue,
-                    v.StatusCode,
-                    v.SourceTimestamp,
-                    v.ServerTimestamp,
-                    v.SourcePicoseconds,
-                    v.ServerPicoseconds);
-            }
-            return result;
         }
 
         // 5-frame dispatch chain so the JIT must materialise the
@@ -486,39 +294,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static uint DispatchFrame5(DataValue value) => value.StatusCode.Code;
 
-        // 5-frame dispatch chain for the struct counterpart. The
-        // DataValueStruct is passed by value at every frame so the
-        // ~48 B copy cost is materialised on each call.
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchStructFrame1(DataValueStruct value)
-            => DispatchStructFrame2(value) ^ 0xA;
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchStructFrame2(DataValueStruct value)
-            => DispatchStructFrame3(value) ^ 0xB;
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchStructFrame3(DataValueStruct value)
-            => DispatchStructFrame4(value) ^ 0xC;
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchStructFrame4(DataValueStruct value)
-            => DispatchStructFrame5(value) ^ 0xD;
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchStructFrame5(DataValueStruct value)
-            => value.StatusCode.Code;
-
         private ITelemetryContext? m_telemetry;
         private IServiceMessageContext? m_context;
         private DataValue[]? m_values;
         private ArrayOf<DataValue> m_arrayOfValues;
         private byte[]? m_encodedBuffer;
-        private DataValueStruct[]? m_structValues;
     }
 }
