@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Count,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
             Assert.That(count, Is.GreaterThan(0));
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Count,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
             Assert.That(count, Is.LessThan(6));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Count,
                 dataValues, startTime, endTime, 4000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
         }
 
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_AnnotationCount,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
             Assert.That(count, Is.GreaterThan(0));
@@ -230,8 +230,8 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Count,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(annotationResult, Is.Not.Null);
-            Assert.That(countResult, Is.Not.Null);
+            Assert.That(annotationResult.IsNull, Is.False);
+            Assert.That(countResult.IsNull, Is.False);
             int annotationCount = (int)(double)annotationResult.WrappedValue.ConvertToDouble();
             int goodCount = (int)(double)countResult.WrappedValue.ConvertToDouble();
             Assert.That(annotationCount, Is.GreaterThanOrEqualTo(goodCount));
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DurationInStateZero,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double duration = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(duration, Is.GreaterThan(0));
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DurationInStateNonZero,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double duration = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(duration, Is.GreaterThan(0));
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DurationInStateZero,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double duration = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(duration, Is.Zero.Within(0.001));
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DurationInStateNonZero,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double duration = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(duration, Is.Zero.Within(0.001));
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_NumberOfTransitions,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
             Assert.That(count, Is.GreaterThan(0));
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_NumberOfTransitions,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
             Assert.That(count, Is.Zero);
@@ -364,7 +364,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_NumberOfTransitions,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
             Assert.That(count, Is.GreaterThanOrEqualTo(1));
@@ -387,8 +387,8 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DurationInStateNonZero,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(zeroResult, Is.Not.Null);
-            Assert.That(nonZeroResult, Is.Not.Null);
+            Assert.That(zeroResult.IsNull, Is.False);
+            Assert.That(nonZeroResult.IsNull, Is.False);
             double zeroDuration = (double)zeroResult.WrappedValue.ConvertToDouble();
             double nonZeroDuration = (double)nonZeroResult.WrappedValue.ConvertToDouble();
             Assert.That(zeroDuration, Is.GreaterThanOrEqualTo(0));
@@ -408,7 +408,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Count,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -425,7 +425,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_AnnotationCount,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
     }

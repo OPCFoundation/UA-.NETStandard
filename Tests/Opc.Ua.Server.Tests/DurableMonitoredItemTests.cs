@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             bool status3 = queue.Dequeue(out DataValue result3, out ServiceResult resultError3);
 
             Assert.That(status3, Is.False);
-            Assert.That(result3, Is.Null);
+            Assert.That(result3.IsNull, Is.True);
             Assert.That(resultError3, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Server.Tests
             bool status4 = queue.Dequeue(out DataValue result4, out ServiceResult resultError4);
 
             Assert.That(status4, Is.False);
-            Assert.That(result4, Is.Null);
+            Assert.That(result4.IsNull, Is.True);
             Assert.That(resultError4, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
             bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests
             bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Server.Tests
                 out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
         }
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Server.Tests
                 out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
         }

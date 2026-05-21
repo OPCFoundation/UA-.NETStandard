@@ -429,7 +429,7 @@ namespace Opc.Ua.Server.Tests
                 values,
                 errors).ConfigureAwait(false);
 
-            Assert.That(values[0], Is.Not.Null);
+            Assert.That(values[0].IsNull, Is.False);
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(asyncCallbackCalled, Is.True);

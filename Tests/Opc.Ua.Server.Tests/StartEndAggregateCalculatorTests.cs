@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Start,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double startVal = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(startVal, Is.EqualTo(10.0).Within(0.0001));
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_End,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
         }
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Delta,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double delta = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(delta, Is.GreaterThan(0));
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Delta,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double delta = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(delta, Is.Zero.Within(0.0001));
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Delta,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double delta = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(delta, Is.LessThan(0));
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Delta,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StartBound,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_EndBound,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DeltaBounds,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -271,7 +271,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DeltaBounds,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Start,
                 dataValues, startTime, endTime, 4000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double startVal = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(startVal, Is.EqualTo(100.0).Within(0.0001));
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_EndBound,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -320,7 +320,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_DeltaBounds,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Delta,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double delta = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(delta, Is.GreaterThan(0));
@@ -359,8 +359,8 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_End,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(startResult, Is.Not.Null);
-            Assert.That(endResult, Is.Not.Null);
+            Assert.That(startResult.IsNull, Is.False);
+            Assert.That(endResult.IsNull, Is.False);
             double startVal = (double)startResult.WrappedValue.ConvertToDouble();
             double endVal = (double)endResult.WrappedValue.ConvertToDouble();
             Assert.That(startVal, Is.EqualTo(endVal).Within(0.0001));

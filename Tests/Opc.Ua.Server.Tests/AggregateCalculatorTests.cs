@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests
                 12000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests
                 5000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server.Tests
                 5000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests
                 5000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests
                 12000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
@@ -410,7 +410,7 @@ namespace Opc.Ua.Server.Tests
                 5000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
@@ -439,7 +439,7 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
@@ -502,7 +502,7 @@ namespace Opc.Ua.Server.Tests
                 5000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
@@ -531,7 +531,7 @@ namespace Opc.Ua.Server.Tests
                 5000);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
 
             double variance = (double)result.WrappedValue.ConvertToDouble();
@@ -569,8 +569,8 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(varianceResult, Is.Not.Null);
-            Assert.That(stdDevResult, Is.Not.Null);
+            Assert.That(varianceResult.IsNull, Is.False);
+            Assert.That(stdDevResult.IsNull, Is.False);
 
             double variance = (double)varianceResult.WrappedValue.ConvertToDouble();
             double stdDev = (double)stdDevResult.WrappedValue.ConvertToDouble();
@@ -607,8 +607,8 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(varianceResult, Is.Not.Null);
-            Assert.That(stdDevResult, Is.Not.Null);
+            Assert.That(varianceResult.IsNull, Is.False);
+            Assert.That(stdDevResult.IsNull, Is.False);
 
             double variance = (double)varianceResult.WrappedValue.ConvertToDouble();
             double stdDev = (double)stdDevResult.WrappedValue.ConvertToDouble();
@@ -645,8 +645,8 @@ namespace Opc.Ua.Server.Tests
                 10000);
 
             // Assert
-            Assert.That(sampleVarianceResult, Is.Not.Null);
-            Assert.That(populationVarianceResult, Is.Not.Null);
+            Assert.That(sampleVarianceResult.IsNull, Is.False);
+            Assert.That(populationVarianceResult.IsNull, Is.False);
 
             double sampleVariance = (double)sampleVarianceResult.WrappedValue.ConvertToDouble();
             double populationVariance = (double)populationVarianceResult.WrappedValue.ConvertToDouble();

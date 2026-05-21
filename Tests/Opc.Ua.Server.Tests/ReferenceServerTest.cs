@@ -1687,7 +1687,7 @@ namespace Opc.Ua.Server.Tests
                 // Verify the data values have proper timestamps
                 foreach (DataValue dataValue in historyData.DataValues)
                 {
-                    Assert.That(dataValue, Is.Not.Null, "DataValue should not be null");
+                    Assert.That(dataValue.IsNull, Is.False, "DataValue should not be null");
                     Assert.That(dataValue.ServerTimestamp,
                         Is.Not.EqualTo(DateTimeUtc.MinValue),
                         "DataValue should have a valid ServerTimestamp");

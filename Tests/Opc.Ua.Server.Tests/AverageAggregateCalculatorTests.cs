@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Average,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double avg = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(avg, Is.GreaterThan(0));
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Average,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double avg = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(avg, Is.EqualTo(25.0).Within(0.0001));
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Average,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double avg = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(avg, Is.LessThan(0));
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Average,
                 dataValues, startTime, endTime, 4000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
         }
 
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Average,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_TimeAverage,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double timeAvg = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(timeAvg, Is.GreaterThan(0));
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_TimeAverage2,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double timeAvg2 = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(timeAvg2, Is.GreaterThan(0));
@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Total,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double total = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(total, Is.GreaterThan(0));
@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Total2,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double total2 = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(total2, Is.GreaterThan(0));
@@ -284,7 +284,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_TimeAverage,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double timeAvg = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(timeAvg, Is.EqualTo(42.0).Within(0.5));
@@ -303,7 +303,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Total,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -320,7 +320,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Average,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             double avg = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(avg, Is.GreaterThan(0));
         }
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_TimeAverage2,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double timeAvg2 = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(timeAvg2, Is.EqualTo(100.0).Within(0.5));
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_TimeAverage,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
     }
