@@ -357,6 +357,14 @@ namespace Opc.Ua.Server
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
+            // OPC 10000-12 §7.8.3: populate the optional alarm property
+            // values (ExpirationDate, TrustListId, LastUpdateTime) from
+            // the current certificate and CRL state. Active-state
+            // transitions (SetActiveState) are not performed during
+            // CreateAddressSpace to avoid event-notification issues before
+            // the subscription infrastructure is ready.
+            EvaluateCertificateAlarms(systemContext);
+
             // find ServerNamespaces node and subscribe to StateChanged
 
             if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
@@ -1707,6 +1715,89 @@ namespace Opc.Ua.Server
             public NodeId SessionId { get; set; }
             public Certificate CertificateWithPrivateKey { get; set; } = null!;
             public CertificateCollection IssuerCollection { get; set; } = null!;
+        }
+
+        /// <summary>
+        /// Evaluates certificate expiration and trust-list staleness for
+        /// all certificate groups and activates/deactivates the optional
+        /// <c>CertificateExpired</c> and <c>TrustListOutOfDate</c> alarm
+        /// instances per OPC 10000-12 §7.8.3.
+        /// </summary>
+        private void EvaluateCertificateAlarms(ISystemContext context)
+        {
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            {
+                CertificateGroupState node = certGroup.Node!;
+
+                try
+                {
+                    // --- CertificateExpired alarm ---
+                    // Only populate properties if the optional alarm instance
+                    // was loaded from the predefined nodeset. We set property
+                    // values directly rather than calling SetActiveState to
+                    // avoid triggering event notifications during server
+                    // startup (which can fail before subscriptions exist).
+                    if (node.CertificateExpired?.ExpirationDate != null)
+                    {
+                        DateTime expirationDate = DateTime.MaxValue;
+
+                        foreach (CertificateIdentifier certIdent in certGroup.ApplicationCertificates)
+                        {
+                            if (certIdent.RawData != null && certIdent.RawData.Length > 0)
+                            {
+                                try
+                                {
+                                    using var cert = Certificate.FromRawData(certIdent.RawData);
+                                    if (cert.NotAfter < expirationDate)
+                                    {
+                                        expirationDate = cert.NotAfter;
+                                    }
+                                }
+                                catch
+                                {
+                                    // ignore parsing errors
+                                }
+                            }
+                        }
+
+                        if (expirationDate != DateTime.MaxValue)
+                        {
+                            node.CertificateExpired.ExpirationDate.Value = expirationDate;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to evaluate CertificateExpired alarm for group {Group}.",
+                        certGroup.BrowseName);
+                }
+
+                try
+                {
+                    // --- TrustListOutOfDate alarm ---
+                    if (node.TrustListOutOfDate?.TrustListId != null)
+                    {
+                        node.TrustListOutOfDate.TrustListId.Value =
+                            node.TrustList?.NodeId ?? default;
+
+                        if (node.TrustListOutOfDate.LastUpdateTime != null)
+                        {
+                            node.TrustListOutOfDate.LastUpdateTime.Value =
+                                (DateTime)(node.TrustList?.LastUpdateTime?.Value
+                                    ?? (DateTimeUtc)DateTime.MinValue);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to evaluate TrustListOutOfDate alarm for group {Group}.",
+                        certGroup.BrowseName);
+                }
+            }
         }
 
         private class ServerCertificateGroup
