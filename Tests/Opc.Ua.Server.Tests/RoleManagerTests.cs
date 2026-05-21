@@ -55,19 +55,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class RoleManagerTests
     {
-        private static IdentityMappingRuleType Anonymous()
-        {
-            return new() { CriteriaType = IdentityCriteriaType.Anonymous };
-        }
-
         private static IdentityMappingRuleType AuthenticatedUser()
         {
             return new() { CriteriaType = IdentityCriteriaType.AuthenticatedUser };
-        }
-
-        private static IdentityMappingRuleType TrustedApplication()
-        {
-            return new() { CriteriaType = IdentityCriteriaType.TrustedApplication };
         }
 
         private static IdentityMappingRuleType UserName(string name)
@@ -83,11 +73,6 @@ namespace Opc.Ua.Server.Tests
         private static IdentityMappingRuleType X509Subject(string subject)
         {
             return new() { CriteriaType = IdentityCriteriaType.X509Subject, Criteria = subject };
-        }
-
-        private static IdentityMappingRuleType Application(string uri)
-        {
-            return new() { CriteriaType = IdentityCriteriaType.Application, Criteria = uri };
         }
 
         // ----------------------------------------------------------------

@@ -85,9 +85,9 @@ namespace Opc.Ua.Server.UserManagement
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
             PasswordLength = passwordLength ?? new Range { Low = 8, High = 256 };
             PasswordOptions = passwordOptions
-                ?? PasswordOptionsMask.SupportDisableUser |
+                ?? (PasswordOptionsMask.SupportDisableUser |
                     PasswordOptionsMask.SupportInitialPasswordChange |
-                    PasswordOptionsMask.SupportDescriptionForUser;
+                    PasswordOptionsMask.SupportDescriptionForUser);
             PasswordRestrictions = passwordRestrictions;
         }
 

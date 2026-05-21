@@ -710,16 +710,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             return notifier;
         }
 
-        private static async Task WaitForAsync(Task task)
-        {
-            Task completed = await Task.WhenAny(task, Task.Delay(s_signalTimeout)).ConfigureAwait(false);
-            if (completed != task)
-            {
-                Assert.Fail($"Operation did not signal within {s_signalTimeout.TotalSeconds:F1}s.");
-            }
-            await task.ConfigureAwait(false);
-        }
-
         private static async Task<T> WaitForAsync<T>(Task<T> task)
         {
             Task completed = await Task.WhenAny(task, Task.Delay(s_signalTimeout)).ConfigureAwait(false);

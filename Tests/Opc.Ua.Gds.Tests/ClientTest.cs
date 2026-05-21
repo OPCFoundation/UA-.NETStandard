@@ -1800,11 +1800,6 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private int GoodServersOnNetworkCount()
-        {
-            return m_goodApplicationTestSet.Sum(a => a.ApplicationRecord.DiscoveryUrls.Count);
-        }
-
         private const int kGoodApplicationsTestCount = 10;
         private const int kInvalidApplicationsTestCount = 10;
         private ApplicationTestDataGenerator m_appTestDataGenerator;
