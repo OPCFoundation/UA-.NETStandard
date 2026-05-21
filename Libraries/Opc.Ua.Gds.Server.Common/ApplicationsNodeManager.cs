@@ -2296,19 +2296,27 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
-            // Stub: a production implementation would validate the
-            // identityToken against a token service and return a JWT or
-            // opaque access token. This reference implementation returns
-            // Bad_NotSupported.
-            var ex = new ServiceResultException(
-                StatusCodes.BadNotSupported,
-                "RequestAccessToken is not implemented by this GDS. Use an external Authorization Service.");
+            if (AccessTokenProvider == null)
+            {
+                var ex = new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "RequestAccessToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
 
-            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+                ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+
+                throw ex;
+            }
+
+            accessToken = AccessTokenProvider.RequestAccessTokenAsync(
+                identityToken, resourceId).AsTask().GetAwaiter().GetResult();
+
+            ArrayOf<Variant> successAuditInputs = [Variant.FromStructure(identityToken), resourceId];
             Server.ReportAccessTokenIssuedAuditEvent(
-                context, objectId, method, auditInputs, m_logger, ex);
+                context, objectId, method, successAuditInputs, m_logger);
 
-            throw ex;
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnKeyCredentialStartRequest(
@@ -2421,5 +2429,12 @@ namespace Opc.Ua.Gds.Server
             get => m_keyCredentialStore ??= new InMemoryKeyCredentialRequestStore();
             set => m_keyCredentialStore = value;
         }
+
+        /// <summary>
+        /// Gets or sets the access-token provider used by
+        /// AuthorizationService handler methods. When <c>null</c> the
+        /// built-in handlers return <c>Bad_NotSupported</c>.
+        /// </summary>
+        public IAccessTokenProvider? AccessTokenProvider { get; set; }
     }
 }

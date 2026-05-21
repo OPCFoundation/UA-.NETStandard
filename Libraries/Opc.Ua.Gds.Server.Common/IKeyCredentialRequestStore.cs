@@ -143,11 +143,41 @@ namespace Opc.Ua.Gds.Server
     /// In-memory implementation of <see cref="IKeyCredentialRequestStore"/>.
     /// Suitable for testing and single-process GDS deployments.
     /// </summary>
+    /// <remarks>
+    /// When an <see cref="ISecretStore"/> is supplied, credential secrets
+    /// are persisted through the store rather than held in-process. This
+    /// allows a production deployment to plug in Key Vault, DPAPI,
+    /// Kubernetes secrets, or any other backend that implements
+    /// <see cref="ISecretStore"/> without changing the GDS code.
+    /// </remarks>
     public sealed class InMemoryKeyCredentialRequestStore : IKeyCredentialRequestStore
     {
         private int m_nextId;
         private readonly ConcurrentDictionary<NodeId, KeyCredentialRequestRecord> m_requests = new();
         private readonly ConcurrentDictionary<string, KeyCredentialRequestRecord> m_credentials = new(StringComparer.Ordinal);
+        private readonly ISecretStore m_secretStore;
+
+        /// <summary>
+        /// Creates a store that holds credential secrets in-process.
+        /// </summary>
+        public InMemoryKeyCredentialRequestStore()
+            : this(new InMemorySecretStore("KeyCredential"))
+        {
+        }
+
+        /// <summary>
+        /// Creates a store that delegates credential-secret persistence
+        /// to the supplied <paramref name="secretStore"/>.
+        /// </summary>
+        /// <param name="secretStore">
+        /// The secret store used to persist, materialise and purge
+        /// credential secrets. Pass an <see cref="InMemorySecretStore"/>
+        /// for testing or a Key Vault / DPAPI store for production.
+        /// </param>
+        public InMemoryKeyCredentialRequestStore(ISecretStore secretStore)
+        {
+            m_secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
+        }
 
         /// <inheritdoc/>
         public NodeId StartRequest(
@@ -158,6 +188,12 @@ namespace Opc.Ua.Gds.Server
         {
             int id = Interlocked.Increment(ref m_nextId);
             var requestId = new NodeId((uint)id);
+            string credentialId = $"KC-{id}";
+
+            // generate and persist the credential secret via ISecretStore
+            byte[] secretBytes = GenerateRandomBytes(32);
+            var secretId = new SecretIdentifier(credentialId, m_secretStore.StoreType);
+            m_secretStore.SetAsync(secretId, secretBytes).AsTask().GetAwaiter().GetResult();
 
             var record = new KeyCredentialRequestRecord
             {
@@ -168,8 +204,8 @@ namespace Opc.Ua.Gds.Server
                 RequestedRoles = requestedRoles,
                 State = KeyCredentialRequestState.Approved,
                 CreatedAt = DateTime.UtcNow,
-                CredentialId = $"KC-{id}",
-                CredentialSecret = GenerateRandomSecret(32),
+                CredentialId = credentialId,
+                CredentialSecret = ByteString.From(secretBytes),
                 CertificateThumbprint = null,
                 GrantedSecurityPolicyUri = securityPolicyUri,
                 GrantedRoles = requestedRoles
@@ -200,6 +236,12 @@ namespace Opc.Ua.Gds.Server
             if (cancelRequest)
             {
                 record.State = KeyCredentialRequestState.Rejected;
+                // purge the secret on cancel
+                if (record.CredentialId != null)
+                {
+                    var secretId = new SecretIdentifier(record.CredentialId, m_secretStore.StoreType);
+                    m_secretStore.RemoveAsync(secretId).AsTask().GetAwaiter().GetResult();
+                }
                 credentialId = null;
                 credentialSecret = default;
                 certificateThumbprint = null;
@@ -213,8 +255,13 @@ namespace Opc.Ua.Gds.Server
                 record.State = KeyCredentialRequestState.Completed;
             }
 
+            // materialise the secret from the store
             credentialId = record.CredentialId;
-            credentialSecret = record.CredentialSecret;
+            var sid = new SecretIdentifier(credentialId!, m_secretStore.StoreType);
+            using ISecret? secret = m_secretStore.TryGet(sid);
+            credentialSecret = secret != null
+                ? ByteString.From(secret.Bytes.ToArray())
+                : record.CredentialSecret;
             certificateThumbprint = record.CertificateThumbprint;
             securityPolicyUri = record.GrantedSecurityPolicyUri;
             grantedRoles = record.GrantedRoles;
@@ -232,14 +279,18 @@ namespace Opc.Ua.Gds.Server
             }
 
             record.State = KeyCredentialRequestState.Rejected;
+
+            // purge the secret from the backing store
+            var secretId = new SecretIdentifier(credentialId, m_secretStore.StoreType);
+            m_secretStore.RemoveAsync(secretId).AsTask().GetAwaiter().GetResult();
         }
 
-        private static ByteString GenerateRandomSecret(int length)
+        private static byte[] GenerateRandomBytes(int length)
         {
             byte[] buffer = new byte[length];
             using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
             rng.GetBytes(buffer);
-            return ByteString.From(buffer);
+            return buffer;
         }
     }
 }
