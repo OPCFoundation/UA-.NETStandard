@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.Zero);
             Assert.That(queue.IsDurable, Is.False);
             Assert.That(queue.Dequeue(out _, out _), Is.False);
-            Assert.That(queue.PeekLastValue(), Is.Null);
+            Assert.That(queue.TryPeekLastValue(out _), Is.False);
             Assert.Throws<InvalidOperationException>(
                 () => queue.OverwriteLastValue(new DataValue(), null));
             Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new DataValue(), null));
@@ -70,7 +70,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked1), Is.True);
+            Assert.That(peeked1, Is.EqualTo(dataValue));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             var dataValue2 = new DataValue(new Variant(false));
@@ -79,7 +80,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue2));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked2), Is.True);
+            Assert.That(peeked2, Is.EqualTo(dataValue2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
             bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
@@ -120,7 +122,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked3), Is.True);
+            Assert.That(peeked3, Is.EqualTo(dataValue));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             var dataValue2 = new DataValue(new Variant(false));
@@ -188,7 +191,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked4), Is.True);
+            Assert.That(peeked4, Is.EqualTo(dataValue));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             var dataValue2 = new DataValue(new Variant(false));
@@ -197,7 +201,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue2));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked5), Is.True);
+            Assert.That(peeked5, Is.EqualTo(dataValue2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);

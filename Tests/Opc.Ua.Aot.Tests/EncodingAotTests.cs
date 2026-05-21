@@ -52,7 +52,7 @@ namespace Opc.Ua.Aot.Tests
                 stream, fixture.Session.MessageContext, true);
             DataValue decoded = decoder.ReadDataValue("Value");
 
-            await Assert.That(decoded).IsNotNull();
+            await Assert.That(decoded.IsNull).IsFalse();
             await Assert.That(StatusCode.IsGood(decoded.StatusCode)).IsTrue();
         }
 
@@ -133,7 +133,7 @@ namespace Opc.Ua.Aot.Tests
                 json, fixture.Session.MessageContext);
             DataValue decoded = decoder.ReadDataValue("Value");
 
-            await Assert.That(decoded).IsNotNull();
+            await Assert.That(decoded.IsNull).IsFalse();
             await Assert.That(StatusCode.IsGood(decoded.StatusCode)).IsTrue();
         }
 

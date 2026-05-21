@@ -112,13 +112,12 @@ namespace TestData
             // get first bound.
             if (m_request.ReturnBounds)
             {
-                DataValue? value = m_source.FirstRaw(
+                if (m_source.TryFirstRaw(
                     m_startTime,
                     !m_isForward,
                     m_request.IsReadModified,
-                    out m_position);
-
-                if (value != null)
+                    out m_position,
+                    out DataValue value))
                 {
                     AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
                 }
@@ -149,15 +148,14 @@ namespace TestData
                     return false;
                 }
 
-                DataValue? value = m_source.NextRaw(
+                if (!m_source.TryNextRaw(
                     m_lastTime,
                     m_isForward,
                     m_request.IsReadModified,
-                    ref m_position);
-
-                // no more data.
-                if (value == null)
+                    ref m_position,
+                    out DataValue value))
                 {
+                    // no more data.
                     return true;
                 }
 
@@ -188,7 +186,7 @@ namespace TestData
             DataValue value)
         {
             // ignore invalid case.
-            if (value == null)
+            if (value.IsNull)
             {
                 return;
             }

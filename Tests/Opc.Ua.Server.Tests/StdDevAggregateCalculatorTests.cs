@@ -91,8 +91,8 @@ namespace Opc.Ua.Server.Tests
             bool hasData = true;
             while (hasData)
             {
-                DataValue result = calculator.GetProcessedValue(true);
-                if (result != null)
+                bool _hasresult = calculator.TryGetProcessedValue(true, out DataValue result);
+                if (_hasresult)
                 {
                     results.Add(result);
                 }
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
-            return results.Count > 0 ? results[0] : null;
+            return results.Count > 0 ? results[0] : default;
         }
 
         [Test]

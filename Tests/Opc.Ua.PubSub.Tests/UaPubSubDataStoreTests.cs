@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub.Tests
             var nodeId = new NodeId("TestNode", 2);
             store.WritePublishedDataItem(nodeId, Variant.From(42));
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.GetInt32(), Is.EqualTo(42));
         }
 
@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Tests
             var nodeId = new NodeId("TestNode", 2);
             store.WritePublishedDataItem(nodeId, Variant.From(10), status: StatusCodes.Good);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests
             var ts = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             store.WritePublishedDataItem(nodeId, Variant.From(10), timestamp: ts);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.SourceTimestamp, Is.EqualTo(ts));
         }
 
@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Tests
             var dv = new DataValue(new Variant(true));
             store.WritePublishedDataItem(nodeId, Attributes.Value, dv);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.SameAs(dv));
+            Assert.That(result, Is.EqualTo(dv));
         }
 
         [Test]
@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Tests
             // attributeId 0 should default to Attributes.Value
             store.WritePublishedDataItem(nodeId, 0, dv);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.SameAs(dv));
+            Assert.That(result, Is.EqualTo(dv));
         }
 
         [Test]
@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests
             store.WritePublishedDataItem(nodeId, Attributes.Value, dv1);
             store.WritePublishedDataItem(nodeId, Attributes.Value, dv2);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.SameAs(dv2));
+            Assert.That(result, Is.EqualTo(dv2));
         }
 
         [Test]
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests
             var store = new UaPubSubDataStore();
             var nodeId = new NodeId("Missing", 2);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Tests
             store.WritePublishedDataItem(nodeId, Attributes.Value,
                 new DataValue(new Variant(42)));
             store.TryReadPublishedDataItem(nodeId, Attributes.NodeId, out DataValue result);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub.Tests
             store.WritePublishedDataItem(nodeId, Attributes.Value, dv);
             // attributeId 0 should default to Attributes.Value
             store.TryReadPublishedDataItem(nodeId, 0, out DataValue result);
-            Assert.That(result, Is.SameAs(dv));
+            Assert.That(result, Is.EqualTo(dv));
         }
 
         [Test]
@@ -227,10 +227,10 @@ namespace Opc.Ua.PubSub.Tests
             store.WritePublishedDataItem(node2, Attributes.Value,
                 new DataValue(new Variant(200)));
             Assert.That(
-                (store.TryReadPublishedDataItem(node1, Attributes.Value, out DataValue _tryRead) ? _tryRead : default).WrappedValue.GetInt32(),
+                (store.TryReadPublishedDataItem(node1, Attributes.Value, out DataValue _t1) ? _t1 : default).WrappedValue.GetInt32(),
                 Is.EqualTo(100));
             Assert.That(
-                (store.TryReadPublishedDataItem(node2, Attributes.Value, out DataValue _tryRead) ? _tryRead : default).WrappedValue.GetInt32(),
+                (store.TryReadPublishedDataItem(node2, Attributes.Value, out DataValue _t3) ? _t3 : default).WrappedValue.GetInt32(),
                 Is.EqualTo(200));
         }
 
@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Tests
             var nodeId = new NodeId("TestNode", 2);
             store.WritePublishedDataItem(nodeId, Attributes.Value, null);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]

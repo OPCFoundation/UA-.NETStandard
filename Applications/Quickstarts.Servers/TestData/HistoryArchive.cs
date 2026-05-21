@@ -182,7 +182,7 @@ namespace TestData
     /// </summary>
     internal sealed class HistoryEntry
     {
-        public DataValue Value = null!;
+        public DataValue Value;
         public bool IsModified;
     }
 

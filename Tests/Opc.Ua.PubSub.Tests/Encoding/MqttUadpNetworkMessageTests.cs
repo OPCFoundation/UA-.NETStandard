@@ -2125,12 +2125,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataValue dataValueEncoded = fieldEncoded.Value;
                     DataValue dataValueDecoded = fieldDecoded.Value;
                     Assert.That(
-                        fieldEncoded.Value,
-                        Is.Not.Null,
+                        fieldEncoded.Value.IsNull,
+                        Is.False,
                         $"uadpDataSetMessage.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                     Assert.That(
-                        fieldDecoded.Value,
-                        Is.Not.Null,
+                        fieldDecoded.Value.IsNull,
+                        Is.False,
                         $"uadpDataSetMessageDecoded.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                     // check dataValues values

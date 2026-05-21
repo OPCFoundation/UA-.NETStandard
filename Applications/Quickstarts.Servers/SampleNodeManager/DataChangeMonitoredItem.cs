@@ -602,7 +602,7 @@ namespace Opc.Ua.Sample
                 FilterToUse = DataChangeFilter!,
                 Id = Id,
                 LastError = m_lastError!,
-                LastValue = m_lastValue!,
+                LastValue = m_lastValue ?? default,
                 MonitoringMode = MonitoringMode,
                 NodeId = m_source.Node.NodeId,
                 OriginalFilter = DataChangeFilter!,
@@ -619,7 +619,7 @@ namespace Opc.Ua.Sample
         }
 
         /// <inheritdoc/>
-        public void QueueValue(DataValue? value, ServiceResult? error, bool ignoreFilters)
+        public void QueueValue(DataValue value, ServiceResult? error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -627,9 +627,9 @@ namespace Opc.Ua.Sample
                 if (!AlwaysReportUpdates &&
                     !ignoreFilters &&
                     !MonitoredItem.ValueChanged(
-                        value!,
+                        value,
                         error!,
-                        m_lastValue!,
+                        m_lastValue ?? default,
                         m_lastError!,
                         DataChangeFilter!,
                         m_range))
@@ -638,7 +638,7 @@ namespace Opc.Ua.Sample
                 }
 
                 // make a shallow copy of the value.
-                if (value != null)
+                if (!value.IsNull)
                 {
                     value = new DataValue(
                         value.WrappedValue,
@@ -659,7 +659,7 @@ namespace Opc.Ua.Sample
                 m_lastError = error;
 
                 // queue value.
-                m_queue?.QueueValue(value!, error!);
+                m_queue?.QueueValue(value, error!);
 
                 // flag the item as ready to publish.
                 m_readyToPublish = true;
@@ -837,7 +837,7 @@ namespace Opc.Ua.Sample
             {
                 if (value != null)
                 {
-                    value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
+                    value = value.Value.WithStatus(value.Value.StatusCode.SetSemanticsChanged(true));
                 }
 
                 m_semanticsChanged = false;
@@ -848,24 +848,24 @@ namespace Opc.Ua.Sample
             {
                 if (value != null)
                 {
-                    value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
+                    value = value.Value.WithStatus(value.Value.StatusCode.SetStructureChanged(true));
                 }
 
                 m_structureChanged = false;
             }
 
             // copy data value.
-            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = value! };
+            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = value ?? default };
 
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item.Value = item.Value!.WithServerTimestamp(DateTimeUtc.MinValue);
+                item.Value = item.Value.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item.Value = item.Value!.WithSourceTimestamp(DateTimeUtc.MinValue);
+                item.Value = item.Value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
             notifications.Enqueue(item);

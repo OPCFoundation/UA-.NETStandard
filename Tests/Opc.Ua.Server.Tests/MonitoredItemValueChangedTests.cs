@@ -10,10 +10,9 @@ namespace Opc.Ua.Server.Tests
     public class MonitoredItemValueChangedTests
     {
         [Test]
-        public void ValueChangedValueNullThrowsArgumentNullException()
+        public void ValueChangedDefaultValueThrowsArgumentException()
         {
-            Assert.Throws<ArgumentNullException>(
-                () => MonitoredItem.ValueChanged(null, null, null, null, null, 0));
+            Assert.Throws<ArgumentException>(() => MonitoredItem.ValueChanged(default, null, default, null, null, 0));
         }
 
         [Test]
@@ -21,7 +20,7 @@ namespace Opc.Ua.Server.Tests
         {
             var value = new DataValue(new Variant(1));
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, null, null, null, 0),
+                MonitoredItem.ValueChanged(value, null, default, null, null, 0),
                 Is.True);
         }
 

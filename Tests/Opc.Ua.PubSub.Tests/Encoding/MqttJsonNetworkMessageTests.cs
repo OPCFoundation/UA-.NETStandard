@@ -2377,12 +2377,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataValue dataValueEncoded = fieldEncoded.Value;
                     DataValue dataValueDecoded = fieldDecoded.Value;
                     Assert.That(
-                        fieldEncoded.Value,
-                        Is.Not.Null,
+                        fieldEncoded.Value.IsNull,
+                        Is.False,
                         $"jsonDataSetMessage.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {jsonDataSetMessage.DataSetWriterId}");
                     Assert.That(
-                        fieldDecoded.Value,
-                        Is.Not.Null,
+                        fieldDecoded.Value.IsNull,
+                        Is.False,
                         $"jsonDataSetMessageDecoded.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {jsonDataSetMessage.DataSetWriterId}");
 
                     // check dataValues values

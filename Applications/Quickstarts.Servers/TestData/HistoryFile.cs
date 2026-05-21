@@ -53,13 +53,15 @@ namespace TestData
         /// <param name="startTime">The starting time for the search.</param>
         /// <param name="isForward">Whether to search forward in time.</param>
         /// <param name="isReadModified">Whether to return modified data.</param>
-        /// <param name="position">A index that must be passed to the NextRaw call. </param>
-        /// <returns>The DataValue.</returns>
-        public DataValue? FirstRaw(
+        /// <param name="position">A index that must be passed to the NextRaw call.</param>
+        /// <param name="value">The next DataValue when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a value was found; <c>false</c> if no more data.</returns>
+        public bool TryFirstRaw(
             DateTimeUtc startTime,
             bool isForward,
             bool isReadModified,
-            out int position)
+            out int position,
+            out DataValue value)
         {
             position = -1;
 
@@ -90,32 +92,36 @@ namespace TestData
 
                 if (position < 0 || position >= m_entries.Count)
                 {
-                    return null;
+                    value = default;
+                    return false;
                 }
 
                 HistoryEntry entry = m_entries[position];
 
-                return new DataValue(
+                value = new DataValue(
                     entry.Value.WrappedValue,
                     entry.Value.StatusCode,
                     entry.Value.SourceTimestamp,
                     entry.Value.ServerTimestamp);
+                return true;
             }
         }
 
         /// <summary>
-        /// Returns the next value in the archive.
+        /// Tries to return the next value in the archive.
         /// </summary>
         /// <param name="lastTime">The timestamp of the last value returned.</param>
         /// <param name="isForward">Whether to search forward in time.</param>
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">An index previously returned by the reader.</param>
-        /// <returns>The DataValue.</returns>
-        public DataValue? NextRaw(
+        /// <param name="value">The next DataValue when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a value was found; <c>false</c> if no more data.</returns>
+        public bool TryNextRaw(
             DateTimeUtc lastTime,
             bool isForward,
             bool isReadModified,
-            ref int position)
+            ref int position,
+            out DataValue value)
         {
             position++;
 
@@ -123,16 +129,18 @@ namespace TestData
             {
                 if (position < 0 || position >= m_entries.Count)
                 {
-                    return null;
+                    value = default;
+                    return false;
                 }
 
                 HistoryEntry entry = m_entries[position];
 
-                return new DataValue(
+                value = new DataValue(
                     entry.Value.WrappedValue,
                     entry.Value.StatusCode,
                     entry.Value.SourceTimestamp,
                     entry.Value.ServerTimestamp);
+                return true;
             }
         }
 
