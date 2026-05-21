@@ -48,11 +48,6 @@ namespace Opc.Ua.Server
         bool QueueRawValue(DataValue value);
 
         /// <summary>
-        /// Returns the next processed value.
-        /// </summary>
-        /// <param name="returnPartial">If true a partial interval should be processed.</param>
-        /// <returns>The processed value. Null if nothing available and returnPartial is false.</returns>
-        /// <summary>
         /// Tries to produce the next processed value.
         /// </summary>
         /// <param name="returnPartial">If true a partial interval should be processed.</param>

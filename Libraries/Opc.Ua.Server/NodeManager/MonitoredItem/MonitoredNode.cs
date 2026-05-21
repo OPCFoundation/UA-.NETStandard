@@ -324,10 +324,10 @@ namespace Opc.Ua.Server
 
             if (ServiceResult.IsBad(error))
             {
-                value = null;
+                value = default;
             }
 
-            monitoredItem.QueueValue(value!, error);
+            monitoredItem.QueueValue(value, error);
         }
 
         /// <summary>

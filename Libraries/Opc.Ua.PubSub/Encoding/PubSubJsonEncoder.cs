@@ -1679,9 +1679,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
-        public void WriteDataValue(string? fieldName, DataValue? value)
+        public void WriteDataValue(string? fieldName, DataValue value)
         {
-            bool isNull = value == null;
+            bool isNull = value.IsNull;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1692,7 +1692,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (!isNull)
             {
-                if (!value!.WrappedValue.TypeInfo.IsUnknown &&
+                if (!value.WrappedValue.TypeInfo.IsUnknown &&
                     value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
                 {
                     if (EncodingToUse is not PubSubJsonEncoding.Compact and not PubSubJsonEncoding.Verbose)

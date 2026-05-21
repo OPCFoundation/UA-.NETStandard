@@ -115,11 +115,14 @@ namespace Opc.Ua.PubSub
             {
                 if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? value))
                 {
-                    value[attributeId] = dataValue!;
+                    value[attributeId] = dataValue.GetValueOrDefault();
                 }
                 else
                 {
-                    var dictionary = new Dictionary<uint, DataValue> { { attributeId, dataValue! } };
+                    var dictionary = new Dictionary<uint, DataValue>
+                    {
+                        { attributeId, dataValue.GetValueOrDefault() }
+                    };
                     m_store.Add(nodeId, dictionary);
                 }
             }
@@ -149,7 +152,7 @@ namespace Opc.Ua.PubSub
             lock (m_lock)
             {
                 if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? dictionary) &&
-                    dictionary.TryGetValue(attributeId, out DataValue? value))
+                    dictionary.TryGetValue(attributeId, out DataValue value))
                 {
                     return value;
                 }

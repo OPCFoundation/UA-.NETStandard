@@ -159,16 +159,17 @@ namespace Opc.Ua.PubSub.PublishedData
                                 };
 
                                 // retrieve value from DataStore
-                                DataValue? dataValue = null;
+                                DataValue dataValue = default;
 
                                 if (!publishedVariable.PublishedVariable.IsNull)
                                 {
                                     dataValue = m_dataStore.ReadPublishedDataItem(
                                         publishedVariable.PublishedVariable,
-                                        publishedVariable.AttributeId);
+                                        publishedVariable.AttributeId)
+                                        .GetValueOrDefault();
                                 }
 
-                                if (dataValue == null)
+                                if (dataValue.IsNull)
                                 {
                                     //try to get the dataValue from ExtensionFields
                                     /*If an entry of the PublishedData references one of the ExtensionFields, the substituteValue shall contain the
@@ -185,14 +186,17 @@ namespace Opc.Ua.PubSub.PublishedData
                                             dataValue = new DataValue(extensionField.Value);
                                         }
                                     }
-                                    dataValue ??= DataValue.FromStatusCode(StatusCodes.Bad, DateTime.UtcNow);
+                                    if (dataValue.IsNull)
+                                    {
+                                        dataValue = DataValue.FromStatusCode(StatusCodes.Bad, DateTime.UtcNow);
+                                    }
                                 }
                                 else
                                 {
-                                    dataValue = CoreUtils.Clone(dataValue);
+                                    dataValue = dataValue.Copy();
 
                                     //check StatusCode and return SubstituteValue if possible
-                                    if (dataValue!.StatusCode == StatusCodes.Bad &&
+                                    if (dataValue.StatusCode == StatusCodes.Bad &&
                                         publishedVariable.SubstituteValue != Variant.Null)
                                     {
                                         dataValue = dataValue

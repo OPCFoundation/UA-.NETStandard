@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub
                         continue;
                     }
 
-                    if (field1.Value!.StatusCode != field2.Value!.StatusCode)
+                    if (field1.Value.StatusCode != field2.Value.StatusCode)
                     {
                         changed = true;
                         continue;

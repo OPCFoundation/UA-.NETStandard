@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Server
 
             if (!Stepped)
             {
-                if (!endBound.IsNull)
+                if (endBound != null)
                 {
                     // do sloped interpolation if two good bounds exist.
                     if (IsGood(endBound.Value))

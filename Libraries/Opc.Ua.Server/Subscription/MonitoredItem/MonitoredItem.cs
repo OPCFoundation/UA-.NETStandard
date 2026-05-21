@@ -852,7 +852,7 @@ namespace Opc.Ua.Server
                 }
 
                 // make a shallow copy of the value.
-                if (value != null)
+                if (!value.IsNull)
                 {
                     if (m_logger.IsEnabled(LogLevel.Trace))
                     {
@@ -873,7 +873,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create empty value if none provided.
-                if (ServiceResult.IsBad(error) && value == null)
+                if (ServiceResult.IsBad(error) && value.IsNull)
                 {
                     value = new DataValue(
                         Variant.Null,
@@ -883,7 +883,7 @@ namespace Opc.Ua.Server
                 }
 
                 // this should never happen.
-                if (value == null)
+                if (value.IsNull)
                 {
                     return;
                 }
@@ -1436,10 +1436,7 @@ namespace Opc.Ua.Server
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                if (value != null)
-                {
-                    value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
-                }
+                value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
 
                 if (error != null)
                 {
@@ -1457,10 +1454,7 @@ namespace Opc.Ua.Server
             // set structure changed bit.
             if (m_structureChanged)
             {
-                if (value != null)
-                {
-                    value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
-                }
+                value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
 
                 if (error != null)
                 {
@@ -1595,12 +1589,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Applies the filter to value to determine if the new value should be kept.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="value"/> is the default/null DataValue.</exception>
         protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
         {
-            if (value == null)
+            if (value.IsNull)
             {
-                throw new ArgumentNullException(nameof(value));
+                throw new ArgumentException("value cannot be null/default", nameof(value));
             }
 
             return ValueChanged(
@@ -1624,9 +1618,9 @@ namespace Opc.Ua.Server
             DataChangeFilter filter,
             double range)
         {
-            if (value == null)
+            if (value.IsNull)
             {
-                throw new ArgumentNullException(nameof(value));
+                throw new ArgumentException("value cannot be null/default", nameof(value));
             }
 
             // select default data change filters.
@@ -1664,7 +1658,7 @@ namespace Opc.Ua.Server
             {
                 status = error.StatusCode;
             }
-            else if (lastValue != null)
+            else if (!lastValue.IsNull)
             {
                 status = value.StatusCode;
             }
@@ -1676,7 +1670,7 @@ namespace Opc.Ua.Server
             {
                 lastStatus = lastError.StatusCode;
             }
-            else if (lastValue != null)
+            else if (!lastValue.IsNull)
             {
                 lastStatus = lastValue.StatusCode;
             }
@@ -1688,7 +1682,7 @@ namespace Opc.Ua.Server
             }
 
             // value changed if only one is null.
-            if (lastValue == null)
+            if (lastValue.IsNull)
             {
                 return true;
             }

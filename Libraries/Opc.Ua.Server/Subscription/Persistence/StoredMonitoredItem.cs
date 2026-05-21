@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
 
         /// <inheritdoc/>
-        public DataValue LastValue { get; set; } = null!;
+        public DataValue LastValue { get; set; }
 
         /// <inheritdoc/>
         public ServiceResult LastError { get; set; } = null!;

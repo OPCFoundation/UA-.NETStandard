@@ -356,7 +356,7 @@ namespace Opc.Ua.PubSub.Encoding
                     foreach (Field field in DataSet.Fields)
                     {
                         // 00 Variant type
-                        binaryEncoder.WriteVariant("Variant", field.Value!.WrappedValue);
+                        binaryEncoder.WriteVariant("Variant", field.Value.WrappedValue);
                     }
                     break;
                 case FieldTypeEncodingMask.DataValue:
@@ -413,7 +413,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     case FieldTypeEncodingMask.Variant:
                         // 00 Variant type
-                        binaryEncoder.WriteVariant("FieldValue", field.Value!.WrappedValue);
+                        binaryEncoder.WriteVariant("FieldValue", field.Value.WrappedValue);
                         break;
                     case FieldTypeEncodingMask.DataValue:
                         // 10 DataValue type
@@ -708,7 +708,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 // 01 RawData Field Encoding
-                Variant variant = field.Value!.WrappedValue;
+                Variant variant = field.Value.WrappedValue;
 
                 if (variant.IsNull)
                 {
