@@ -126,12 +126,12 @@ internal sealed partial class SubscriptionBenchView : UserControl
         rightAxis.TickLabelStyle.ForeColor = s_dim;
         rightAxis.TickLabelStyle.FontName = "Cascadia Mono";
 
-        m_dl1s = AddLogger(plot, s_c1s, 1.5f);
-        m_dl10s = AddLogger(plot, s_c10s, 1.5f);
-        m_dl30s = AddLogger(plot, s_c30s, 1.5f);
-        m_dl60s = AddLogger(plot, s_c60s, 1.5f);
-        m_dlCpu = AddLogger(plot, s_cCpu, 1.2f);
-        m_dlMem = AddLogger(plot, s_cMem, 1.2f);
+        m_dl1s = AddLogger(plot, s_c1s, 1.5f, "1s rate");
+        m_dl10s = AddLogger(plot, s_c10s, 1.5f, "10s rate");
+        m_dl30s = AddLogger(plot, s_c30s, 1.5f, "30s rate");
+        m_dl60s = AddLogger(plot, s_c60s, 1.5f, "60s rate");
+        m_dlCpu = AddLogger(plot, s_cCpu, 1.2f, "CPU %");
+        m_dlMem = AddLogger(plot, s_cMem, 1.2f, "Mem MB");
 
         // CPU + memory go on the secondary right axis so resource usage
         // and value throughput share an X timeline but stay readable
@@ -155,15 +155,24 @@ internal sealed partial class SubscriptionBenchView : UserControl
         m_dlCpu?.ViewSlide(60);
         m_dlMem?.ViewSlide(60);
 
+        // Legend mirrors ScottPlotPump.ApplyDarkTheme so colours/font
+        // match the rest of the app's dark-navy charts.
+        plot.Legend.BackgroundColor = s_figBg;
+        plot.Legend.FontColor = s_text;
+        plot.Legend.FontName = "Cascadia Mono";
+        plot.Legend.OutlineColor = s_dim;
+        plot.ShowLegend();
+
         plot.Axes.Margins(0, 0.1);
         m_chart.Refresh();
     }
 
-    private static DataLogger AddLogger(Plot plot, Color color, float lineWidth)
+    private static DataLogger AddLogger(Plot plot, Color color, float lineWidth, string label)
     {
         DataLogger logger = plot.Add.DataLogger();
         logger.Color = color;
         logger.LineWidth = lineWidth;
+        logger.LegendText = label;
         return logger;
     }
 
