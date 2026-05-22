@@ -77,6 +77,12 @@ namespace Opc.Ua
     public readonly struct DataValue : INullable, IFormattable, IEquatable<DataValue>
     {
         /// <summary>
+        /// Returns an instance of a null DataValue. This is the same as
+        /// <c>default(DataValue)</c>.
+        /// </summary>
+        public static readonly DataValue Null;
+
+        /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public DataValue()
@@ -455,38 +461,32 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is good.
         /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsGood(DataValue value) => StatusCode.IsGood(value.StatusCode);
+        public bool IsGood => StatusCode.IsGood(m_statusCode);
 
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotGood(DataValue value) => StatusCode.IsNotGood(value.StatusCode);
+        public bool IsNotGood => StatusCode.IsNotGood(m_statusCode);
 
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsUncertain(DataValue value) => StatusCode.IsUncertain(value.StatusCode);
+        public bool IsUncertain => StatusCode.IsUncertain(m_statusCode);
 
         /// <summary>
         /// Returns true if the status is good or bad.
         /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotUncertain(DataValue value) => StatusCode.IsNotUncertain(value.StatusCode);
+        public bool IsNotUncertain => StatusCode.IsNotUncertain(m_statusCode);
 
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsBad(DataValue value) => StatusCode.IsBad(value.StatusCode);
+        public bool IsBad => StatusCode.IsBad(m_statusCode);
 
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotBad(DataValue value) => StatusCode.IsNotBad(value.StatusCode);
+        public bool IsNotBad => StatusCode.IsNotBad(m_statusCode);
 
         /// <summary>
         /// Ensures the data value contains a value with the specified type.
@@ -615,5 +615,59 @@ namespace Opc.Ua
         private readonly DateTimeUtc m_serverTimestamp;
         private readonly ushort m_sourcePicoseconds;
         private readonly ushort m_serverPicoseconds;
+    }
+
+    /// <summary>
+    /// Obsolete static helpers for <see cref="DataValue"/>.
+    /// </summary>
+    /// <remarks>
+    /// The static <c>DataValue.IsGood</c>/<c>IsBad</c>/... methods have been
+    /// replaced with instance properties on <see cref="DataValue"/>.
+    /// These extension methods preserve binary compatibility for callers
+    /// that have not yet migrated.
+    /// </remarks>
+    public static class DataValueExtensions
+    {
+        /// <summary>
+        /// Returns true if the status code is good.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        [Obsolete("Use the DataValue.IsGood instance property.")]
+        public static bool IsGood(this DataValue value) => value.IsGood;
+
+        /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        [Obsolete("Use the DataValue.IsNotGood instance property.")]
+        public static bool IsNotGood(this DataValue value) => value.IsNotGood;
+
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        [Obsolete("Use the DataValue.IsUncertain instance property.")]
+        public static bool IsUncertain(this DataValue value) => value.IsUncertain;
+
+        /// <summary>
+        /// Returns true if the status is good or bad.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        [Obsolete("Use the DataValue.IsNotUncertain instance property.")]
+        public static bool IsNotUncertain(this DataValue value) => value.IsNotUncertain;
+
+        /// <summary>
+        /// Returns true if the status code is bad.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        [Obsolete("Use the DataValue.IsBad instance property.")]
+        public static bool IsBad(this DataValue value) => value.IsBad;
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        /// <param name="value">The value to check the quality of</param>
+        [Obsolete("Use the DataValue.IsNotBad instance property.")]
+        public static bool IsNotBad(this DataValue value) => value.IsNotBad;
     }
 }

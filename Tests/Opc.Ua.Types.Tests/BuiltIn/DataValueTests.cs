@@ -569,7 +569,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
-            Assert.That(DataValue.IsGood(dv), Is.True);
+            Assert.That(dv.IsGood, Is.True);
         }
 
         [Test]
@@ -577,14 +577,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
-            Assert.That(DataValue.IsGood(dv), Is.False);
+            Assert.That(dv.IsGood, Is.False);
         }
 
         [Test]
         public void IsGoodWithDefaultReturnsTrue()
         {
             // Default DataValue has StatusCode = Good (0).
-            Assert.That(DataValue.IsGood(default), Is.True);
+            Assert.That(default(DataValue).IsGood, Is.True);
         }
 
         [Test]
@@ -592,7 +592,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
-            Assert.That(DataValue.IsNotGood(dv), Is.True);
+            Assert.That(dv.IsNotGood, Is.True);
         }
 
         [Test]
@@ -600,13 +600,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
-            Assert.That(DataValue.IsNotGood(dv), Is.False);
+            Assert.That(dv.IsNotGood, Is.False);
         }
 
         [Test]
         public void IsNotGoodWithDefaultReturnsFalse()
         {
-            Assert.That(DataValue.IsNotGood(default), Is.False);
+            Assert.That(default(DataValue).IsNotGood, Is.False);
         }
 
         [Test]
@@ -614,7 +614,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Uncertain);
 
-            Assert.That(DataValue.IsUncertain(dv), Is.True);
+            Assert.That(dv.IsUncertain, Is.True);
         }
 
         [Test]
@@ -622,13 +622,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
-            Assert.That(DataValue.IsUncertain(dv), Is.False);
+            Assert.That(dv.IsUncertain, Is.False);
         }
 
         [Test]
         public void IsUncertainWithNullReturnsFalse()
         {
-            Assert.That(DataValue.IsUncertain(default), Is.False);
+            Assert.That(default(DataValue).IsUncertain, Is.False);
         }
 
         [Test]
@@ -636,7 +636,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
-            Assert.That(DataValue.IsNotUncertain(dv), Is.True);
+            Assert.That(dv.IsNotUncertain, Is.True);
         }
 
         [Test]
@@ -644,13 +644,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Uncertain);
 
-            Assert.That(DataValue.IsNotUncertain(dv), Is.False);
+            Assert.That(dv.IsNotUncertain, Is.False);
         }
 
         [Test]
         public void IsNotUncertainWithDefaultReturnsTrue()
         {
-            Assert.That(DataValue.IsNotUncertain(default), Is.True);
+            Assert.That(default(DataValue).IsNotUncertain, Is.True);
         }
 
         [Test]
@@ -658,7 +658,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
-            Assert.That(DataValue.IsBad(dv), Is.True);
+            Assert.That(dv.IsBad, Is.True);
         }
 
         [Test]
@@ -666,14 +666,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
-            Assert.That(DataValue.IsBad(dv), Is.False);
+            Assert.That(dv.IsBad, Is.False);
         }
 
         [Test]
         public void IsBadWithDefaultReturnsFalse()
         {
             // Default DataValue has StatusCode = Good (0).
-            Assert.That(DataValue.IsBad(default), Is.False);
+            Assert.That(default(DataValue).IsBad, Is.False);
         }
 
         [Test]
@@ -681,7 +681,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
-            Assert.That(DataValue.IsNotBad(dv), Is.True);
+            Assert.That(dv.IsNotBad, Is.True);
         }
 
         [Test]
@@ -689,13 +689,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
-            Assert.That(DataValue.IsNotBad(dv), Is.False);
+            Assert.That(dv.IsNotBad, Is.False);
         }
 
         [Test]
         public void IsNotBadWithDefaultReturnsTrue()
         {
-            Assert.That(DataValue.IsNotBad(default), Is.True);
+            Assert.That(default(DataValue).IsNotBad, Is.True);
         }
 
         [Test]

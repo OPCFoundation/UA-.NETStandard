@@ -101,7 +101,8 @@ namespace Opc.Ua.Server
             m_discardedValueHandler = discardedValueHandler!;
             m_monitoredItemId = monitoredItemId;
             m_discardOldest = false;
-            m_overflow = default; m_overflowPending = false;
+            m_overflow = default;
+            m_overflowPending = false;
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
         }
@@ -124,7 +125,8 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
             m_discardedValueHandler = discardedValueHandler!;
             m_nextSampleTime = 0;
-            m_overflow = default; m_overflowPending = false;
+            m_overflow = default;
+            m_overflowPending = false;
             SetSamplingInterval(samplingInterval);
         }
 
@@ -161,7 +163,8 @@ namespace Opc.Ua.Server
 
             m_dataValueQueue.ResetQueue(queueSize, queueErrors);
 
-            m_overflow = default; m_overflowPending = false;
+            m_overflow = default;
+            m_overflowPending = false;
 
             // requeue the data.
             if (existingValues != null)
@@ -273,7 +276,8 @@ namespace Opc.Ua.Server
                 if (m_overflowPending && m_overflow == value)
                 {
                     SetOverflowBit(ref value, ref error);
-                    m_overflow = default; m_overflowPending = false;
+                    m_overflow = default;
+                    m_overflowPending = false;
                 }
 
                 if (!noEventLog && m_logger.IsEnabled(LogLevel.Trace))
@@ -337,7 +341,8 @@ namespace Opc.Ua.Server
                     }
 
                     //set overflow bit in newest value
-                    m_overflow = value; m_overflowPending = true;
+                    m_overflow = value;
+                    m_overflowPending = true;
 
                     // overwrite last value
                     m_dataValueQueue.OverwriteLastValue(value, error);

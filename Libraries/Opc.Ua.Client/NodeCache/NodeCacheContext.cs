@@ -372,7 +372,7 @@ namespace Opc.Ua.Client
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
                 var node = new Node { NodeId = itemsToRead[ii].NodeId };
-                if (!DataValue.IsGood(nodeClassValues[ii]))
+                if (!nodeClassValues[ii].IsGood)
                 {
                     nodeCollection.Add(node);
                     errors.Add(
@@ -499,7 +499,7 @@ namespace Opc.Ua.Client
                 // the node probably does not exist if the node class is not found.
                 if (attributeId == Attributes.NodeClass)
                 {
-                    if (!DataValue.IsGood(values[ii]))
+                    if (!values[ii].IsGood)
                     {
                         throw ServiceResultException.Create(
                             values[ii].StatusCode,
@@ -516,7 +516,7 @@ namespace Opc.Ua.Client
                             values[ii]);
                     }
                 }
-                else if (!DataValue.IsGood(values[ii]))
+                else if (!values[ii].IsGood)
                 {
                     // check for unsupported attributes.
                     if (values[ii].StatusCode == StatusCodes.BadAttributeIdInvalid)

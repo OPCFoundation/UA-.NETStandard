@@ -1299,9 +1299,8 @@ namespace Opc.Ua.Sample
                     // owned by this node manager.
                     nodeToRead.Processed = true;
 
-                    // create an initial value (default ctor sets the
-                    // value/timestamps/status; only override ServerTimestamp).
-                    DataValue value = values[ii] = new DataValue()
+                    // create an initial value with the current server timestamp.
+                    DataValue value = values[ii] = DataValue.Null
                         .WithServerTimestamp(DateTimeUtc.Now);
 
                     // check if the node is ready for reading.

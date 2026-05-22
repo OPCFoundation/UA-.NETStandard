@@ -256,7 +256,7 @@ namespace Opc.Ua.Mcp.Tools
                 ArrayOf<DataValue> dataValues = timestamps.Select((ts, i) => new DataValue(
                     new Variant(values[i]),
                     StatusCodes.Good,
-                    DateTime.Parse(ts, System.Globalization.CultureInfo.InvariantCulture))).ToArray();
+                    DateTime.Parse(ts, System.Globalization.CultureInfo.InvariantCulture))).ToArrayOf();
 
                 var updateDetails = new UpdateDataDetails
                 {
