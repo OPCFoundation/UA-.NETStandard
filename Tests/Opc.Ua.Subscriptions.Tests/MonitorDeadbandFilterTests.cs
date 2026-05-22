@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for MonitoredItem deadband filters including
@@ -76,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "005")]
         public async Task AbsoluteDeadbandZeroNotifiesOnAnyChangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -113,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "004")]
         public async Task AbsoluteDeadbandSmallThresholdAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -162,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "003")]
         public async Task AbsoluteDeadbandLargeThresholdAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -196,8 +192,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "001")]
         public async Task AbsoluteDeadbandExactlyAtBoundaryAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -235,8 +229,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "Err-004")]
         public async Task AbsoluteDeadbandNegativeValueRejectedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -256,8 +248,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "006")]
         public async Task AbsoluteDeadbandMaxDoubleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -279,8 +269,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "011")]
         public async Task PercentDeadbandTenPercentOnAnalogNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -317,8 +305,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "015")]
         public async Task PercentDeadbandZeroNotifiesOnAnyChangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -354,8 +340,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "013")]
         public async Task PercentDeadbandHundredPercentOnlyExtremeChangesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -392,8 +376,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "012")]
         public async Task PercentDeadbandFiftyPercentAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -429,8 +411,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "Err-002")]
         public async Task PercentDeadbandNegativeRejectedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -450,8 +430,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "007")]
         public async Task AbsoluteDeadbandOnInt32NodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -474,8 +452,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "008")]
         public async Task AbsoluteDeadbandOnInt16NodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt16);
@@ -498,8 +474,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "009")]
         public async Task AbsoluteDeadbandOnUInt32NodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticUInt32);
@@ -522,8 +496,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "010")]
         public async Task AbsoluteDeadbandOnByteNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticByte);
@@ -546,8 +518,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "002")]
         public async Task AbsoluteDeadbandOnFloatAnalogNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticFloat);
@@ -570,8 +540,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "003")]
         public async Task AbsoluteDeadbandOnDoubleAnalogNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -604,8 +572,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "014")]
         public async Task PercentDeadbandOnDoubleAnalogNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -621,8 +587,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "Err-006")]
         public async Task DeadbandOnStringNodeReturnsBadFilterNotAllowedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -642,8 +606,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "Err-005")]
         public async Task DeadbandOnBooleanNodeReturnsBadFilterNotAllowedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -663,8 +625,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "Err-005")]
         public async Task PercentDeadbandOnNonAnalogNodeReturnsBadFilterNotAllowedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -684,8 +644,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "021")]
         public async Task ModifyItemToAddDeadbandFilterAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -730,8 +688,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "021")]
         public async Task ModifyItemToRemoveDeadbandFilterAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -996,8 +952,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "001")]
         public async Task DisabledModeAbsoluteDeadbandZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1016,8 +970,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "002")]
         public async Task SamplingModeAbsoluteDeadbandZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1036,8 +988,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "003")]
         public async Task SamplingModeAbsoluteDeadbandZeroQueueZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1060,8 +1010,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "004")]
         public async Task ReportingModeAbsoluteDeadbandZeroQueueOneAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1080,8 +1028,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "005")]
         public async Task ReportingModeAbsoluteDeadbandZeroQueueZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1104,8 +1050,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "006")]
         public async Task DeadbandOnNonValueAttributesRejectedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1144,8 +1088,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "007")]
         public async Task AbsoluteDeadbandWritePublishThresholdTwoAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1190,8 +1132,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "008")]
         public async Task AbsoluteDeadbandWritePublishThresholdOneAsync()
         {
             NodeId nodeId = ToNodeId(Constants.AnalogTypeDouble);
@@ -1236,8 +1176,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "009")]
         public async Task AbsoluteDeadbandLargeThresholdNewSubscriptionAsync()
         {
             // Use a fresh subscription for this test
@@ -1305,8 +1243,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "010")]
         [Category("LongRunning")]
         public async Task ArrayDeadbandFirstElementAsync()
         {
@@ -1381,8 +1317,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "011")]
         public async Task ArrayDeadbandIndexRangeOneTwoAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1434,8 +1368,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "012")]
         public async Task ArrayDeadbandMiddleIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1489,8 +1421,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "013")]
         public async Task ArrayDeadbandIndexRangeOneThreeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1555,8 +1485,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "014")]
         public async Task ArrayDeadbandFullRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1610,8 +1538,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "015")]
         public async Task DeadbandOnArrayDimensionsAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1642,8 +1568,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "016")]
         public async Task ArrayDeadbandFullRangeWriteSequenceAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1716,8 +1640,6 @@ samplingInterval: 50,                                 filter: filter)
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items Deadband Filter")]
-        [Property("Tag", "018")]
         public async Task ArrayDeadbandQueueSizeOneNoIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Basic conformance unit.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsBasicTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Basic")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeExistsInAddressSpaceAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -56,8 +56,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Basic")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeExistsInAddressSpaceAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -67,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Basic")]
-        [Property("Tag", "Test_001")]
         public async Task AcknowledgeableConditionTypeHasAckedStateAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -86,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Basic")]
-        [Property("Tag", "Test_002")]
         public async Task AlarmConditionTypeHasActiveAndSuppressedStateAsync()
         {
             bool hasActive = await TypeHasPropertyAsync(

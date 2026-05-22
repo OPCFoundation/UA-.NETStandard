@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Service Set – Browse.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     {
         [Description("Browse Objects folder with BrowseDirection=Both. Should return both forward and inverse references.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task Browse001DirectionBothAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -75,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Objects folder with BrowseDirection=Forward only.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "002")]
         public async Task Browse002DirectionForwardAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -111,8 +109,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Objects folder with BrowseDirection=Inverse. Should return the parent reference (Root).")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "003")]
         public async Task Browse003DirectionInverseAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -147,8 +143,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with specific ReferenceTypeId filter (Organizes). Only Organizes references should be returned.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "004")]
         public async Task Browse004ReferenceTypeFilterAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -182,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with NodeClassMask filter for Object nodes only.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "006")]
         public async Task Browse005NodeClassMaskFilterAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -217,8 +209,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse the Objects folder and verify expected children. The Objects folder should contain the Server object.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task Browse006ObjectsFolderContainsServerAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -257,8 +247,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with RequestedMaxReferencesPerNode = 1 to force continuation points. Then use BrowseNext to retrieve remaining references.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task Browse007ContinuationPointWithBrowseNextAsync()
         {
             BrowseResponse browseResponse = await Session.BrowseAsync(
@@ -314,8 +302,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse the Root node. Should have Objects, Types, and Views folders.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task Browse008RootNodeChildrenAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -354,8 +340,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse multiple nodes in a single request.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task Browse009MultipleNodesAsync()
         {
             var browseDescs = new BrowseDescription[]
@@ -398,8 +382,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with max 1 ref, obtain continuation point, then release it via BrowseNext with releaseContinuationPoints=true.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task Browse010BrowseNextReleaseContinuationPointAsync()
         {
             BrowseResponse browseResponse = await Session.BrowseAsync(
@@ -442,8 +424,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse ObjectsFolder with ResultMask=BrowseName only.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task Browse011BrowseWithResultMaskBrowseNameOnlyAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -477,8 +457,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse ObjectsFolder with ResultMask=DisplayName only.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task Browse012BrowseWithResultMaskDisplayNameOnlyAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -512,8 +490,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse ObjectsFolder with ResultMask=0 (none). Should still return references but with minimal information.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task Browse013BrowseWithResultMaskNoneAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -541,8 +517,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse ObjectsFolder with HierarchicalReferences and IncludeSubtypes=true. Should return references of subtypes like Organizes and HasComponent.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "005")]
         public async Task Browse014BrowseIncludeSubtypesTrueAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -570,8 +544,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse ObjectsFolder with HierarchicalReferences and IncludeSubtypes=false. Should return only exact HierarchicalReferences (likely none, since children are typically linked via Organizes or HasComponent subtypes).")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "015")]
         public async Task Browse015BrowseIncludeSubtypesFalseAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -602,8 +574,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Server node and verify mandatory children are present. ServerStatus and NamespaceArray must exist.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "018")]
         public async Task Browse016BrowseServerNodeMandatoryChildrenAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -641,8 +611,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse ServerStatus children. Should have properties like CurrentTime, State, StartTime.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "018")]
         public async Task Browse017BrowseServerStatusChildrenAsync()
         {
             // First browse Server to find ServerStatus NodeId
@@ -716,8 +684,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse TypesFolder forward with Organizes. Should contain ObjectTypes, VariableTypes, DataTypes, ReferenceTypes.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task Browse018BrowseTypesFolderAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -758,8 +724,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse an invalid node. Should return BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-002")]
         public async Task Browse019BrowseInvalidNodeAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -786,8 +750,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Server with HasProperty references only. All returned references should be HasProperty type.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "004")]
         public async Task Browse020BrowseHasPropertyReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -821,8 +783,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Server with HasComponent references only. All returned references should be HasComponent type.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "004")]
         public async Task Browse021BrowseHasComponentReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -856,8 +816,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Server with NodeClassMask=Variable. All returned references should be Variable class.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "006")]
         public async Task Browse022BrowseNodeClassMaskVariableAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -891,8 +849,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse MethodsFolder with NodeClassMask=Method. All returned references should be Method class.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "006")]
         public async Task Browse023BrowseNodeClassMaskMethodAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -926,8 +882,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse two nodes with max 1 ref each, then call BrowseNext with both continuation points in a single request.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task Browse024BrowseNextMultipleContinuationPointsAsync()
         {
             BrowseResponse browseResponse = await Session.BrowseAsync(
@@ -1010,8 +964,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with RequestedMaxReferencesPerNode=1 to get continuation point.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "005")]
         public async Task BrowseWithMaxRefsPerNodeOneGetsContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1046,8 +998,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("BrowseNext with valid continuation point returns next batch.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "006")]
         public async Task BrowseNextWithValidContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1093,8 +1043,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("BrowseNext until all references returned.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "009")]
         public async Task BrowseNextUntilAllReferencesReturnedAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1136,8 +1084,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("BrowseNext with ReleaseContinuationPoints=true releases the point.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task BrowseNextReleaseContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1174,8 +1120,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("BrowseNext with invalid continuation point returns BadContinuationPointInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-009")]
         public async Task BrowseNextInvalidContinuationPointAsync()
         {
             var invalidCp = ByteString.From(new byte[] { 0xFF, 0xFE, 0xFD, 0xFC });
@@ -1193,8 +1137,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with RequestedMaxReferencesPerNode=0 returns all references.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "009")]
         public async Task BrowseWithMaxRefsZeroReturnsAllAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1219,8 +1161,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Multiple concurrent browses with continuation points.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task MultipleConcurrentBrowsesWithContinuationPointsAsync()
         {
             var descriptions = new BrowseDescription[]
@@ -1271,8 +1211,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse a node with many references and verify pagination works.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "004")]
         public async Task BrowseNodeWithManyReferencesAsync()
         {
             // Types folder typically has many subtypes
@@ -1308,8 +1246,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with View (if views exist, else Assert.Ignore).")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "017")]
         public async Task BrowseWithViewAsync()
         {
             // Check if Views folder has any children
@@ -1373,8 +1309,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseRootFolderAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1403,8 +1337,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "006")]
         public async Task BrowseWithNodeClassMaskObjectsOnlyAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1433,8 +1365,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task BrowseWithResultMaskBrowseNameOnlyAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1464,8 +1394,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "003")]
         public async Task BrowseInverseFromObjectsFolderAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -1495,8 +1423,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseServerDiagnosticsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(

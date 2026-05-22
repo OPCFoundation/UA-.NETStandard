@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Subscription Minimum 02 covering
@@ -51,8 +53,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
     public class SubscriptionMinimumTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalZeroRevisedUpAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -68,8 +68,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalNegativeRevisedUpAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -85,8 +83,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalVerySmallRevisedUpAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -102,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalOneMillisecondRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -119,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalTenMillisecondsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -136,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalFiftyAcceptedOrRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -153,8 +143,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "005")]
         public async Task MinimumPublishingIntervalConsistentAcrossCreatesAsync()
         {
             CreateSubscriptionResponse r1 = await CreateSubAsync(
@@ -171,8 +159,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumPublishingIntervalFromServerCapabilitiesAsync()
         {
             // Read MinSupportedSampleRate from ServerCapabilities
@@ -206,8 +192,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumLifetimeCountZeroRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -222,8 +206,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumLifetimeCountOneRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -240,8 +222,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumLifetimeCountTwoRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -258,8 +238,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumLifetimeCountExactlyThreeTimesKeepAliveAsync()
         {
             // Request lifetime = 3 * keepAlive exactly
@@ -277,8 +255,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumLifetimeCountLessThanThreeTimesRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -295,8 +271,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumLifetimeCountMaxUint32RevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -311,8 +285,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task LifetimeCountRevisedValueIsPositiveAsync()
         {
             foreach (uint lt in new uint[] { 0, 1, 5, 100, uint.MaxValue })
@@ -329,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumKeepAliveCountZeroRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -346,8 +316,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumKeepAliveCountOneAcceptedOrRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -363,8 +331,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task MinimumKeepAliveCountMaxUint32RevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -380,8 +346,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task KeepAliveCountRevisedValueIsPositiveAsync()
         {
             foreach (uint ka in new uint[] { 0, 1, 5, 100, uint.MaxValue })
@@ -399,8 +363,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "005")]
         public async Task KeepAliveCountRevisionConsistentAcrossCreatesAsync()
         {
             CreateSubscriptionResponse r1 = await CreateSubAsync(
@@ -416,8 +378,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "007")]
         public async Task ModifySubscriptionKeepAliveCountZeroRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -439,8 +399,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "008")]
         public async Task ModifySubscriptionKeepAliveCountRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -462,8 +420,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "006")]
         public async Task RevisedValuesConsistentWithinSameSessionAsync()
         {
             CreateSubscriptionResponse r1 = await CreateSubAsync(
@@ -485,8 +441,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task RevisedPublishingIntervalGreaterThanZeroAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -499,8 +453,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task RevisedLifetimeAlwaysThreeTimesKeepAliveAsync()
         {
             foreach (uint ka in new uint[] { 1, 5, 10, 50 })
@@ -520,8 +472,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task AllRevisedValuesReturnedInResponseAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -538,8 +488,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "007")]
         public async Task ModifySubscriptionRevisesAllParametersAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -564,8 +512,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task CreateSubscriptionAllBelowMinimumAllRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -586,8 +532,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task RevisedValuesDoNotExceedServerMaximumsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -606,8 +550,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "001")]
         public async Task CreateTwoEqualPrioritySubsPublishBothAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2,
@@ -633,8 +575,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "002")]
         public async Task CreateTwoSubsWithItemsPublishCallbacksAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -662,8 +602,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "003")]
         public async Task CreateSubsMonitorWritePublishCleanupAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -694,8 +632,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "004")]
         public async Task CreateSubsWritePublishVerifyNotificationsAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -735,8 +671,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "005")]
         public async Task ModifySubRaisePriorityPublishVerifyAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2,
@@ -766,8 +700,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "006")]
         public async Task ModifySubLowerPriorityPublishVerifyAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2,
@@ -797,8 +729,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "007")]
         public async Task ModifySubRaiseThenLowerPriorityAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2,
@@ -841,8 +771,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "008")]
         public async Task ModifySubSettingsWritePublishAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -879,8 +807,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "009")]
         public async Task SetPublishingModeToggleOnTwoSubsAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -947,8 +873,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "010")]
         public async Task SetPublishingModeDisableOneOfTwoAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -992,8 +916,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "011")]
         public async Task SetPublishingModeEnableDisabledSubAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2,
@@ -1032,8 +954,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "012")]
         public async Task SetPublishingModeDisableBothSubsAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1070,8 +990,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "013")]
         public async Task SetPublishingModeReEnableBothSubsAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1118,8 +1036,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "014")]
         public async Task SetPublishingModeDisableOneVerifyOtherContinuesAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1170,8 +1086,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "015")]
         public async Task SetPublishingModeToggleVerifyStopsReportingAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1215,8 +1129,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "016")]
         public async Task DeleteMultipleValidSubscriptionsAsync()
         {
             const int count = 5;
@@ -1240,8 +1152,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "017")]
         public async Task CreateSubsWithItemsPublishThenDeleteAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1272,8 +1182,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "018")]
         public async Task PublishRepublishVerifyRetransmissionAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(1).ConfigureAwait(false);
@@ -1306,8 +1214,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "019")]
         public async Task CreateSubsLifecycleCleanupAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1332,8 +1238,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "020")]
         public async Task CreateSubsWriteVerifyNotificationDeliveryAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1365,8 +1269,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "022")]
         public async Task FiveSubsWithPrioritiesHighestDominatesAsync()
         {
             try
@@ -1426,8 +1328,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "023")]
         public async Task TwoSubsPublishBothReceiveCallbacksAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(2).ConfigureAwait(false);
@@ -1483,8 +1383,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "024")]
         public async Task FiveSubsDisabledThenEnablePublishAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(5,
@@ -1527,8 +1425,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "025")]
         public async Task FiveSubsDisableEvenNumberedVerifyOddContinueAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(5).ConfigureAwait(false);
@@ -1573,8 +1469,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "026")]
         public async Task ThreeSubsWithPriorities1And125And255Async()
         {
             try
@@ -1634,8 +1528,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 02")]
-        [Property("Tag", "027")]
         public async Task FiveSamePrioritySubsRoundRobinFairnessAsync()
         {
             const int subCount = 5;
@@ -1680,8 +1572,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "001")]
         public async Task FiveSubsPriority1And200HighestDominatesAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(5,
@@ -1724,8 +1614,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "002")]
         public async Task DeleteFiveValidSubscriptionsAsync()
         {
             const int count = 5;
@@ -1749,8 +1637,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "003")]
         public async Task MultiSessionMultiSubPublishCallbacksAsync()
         {
             const int sessionCount = 2;
@@ -1846,8 +1732,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "004")]
         public async Task FiveSubsEnableAfterDisabledReceiveDataAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(5,
@@ -1892,8 +1776,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "005")]
         public async Task FiveSubsDisableSubsetVerifyOthersContinueAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(5).ConfigureAwait(false);
@@ -1938,8 +1820,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "006")]
         public async Task ThreeSubsPriorities1And125And255OrderingAsync()
         {
             List<(uint SubId, NodeId NodeId)> subs = await CreateSubsWithItemsAsync(3,
@@ -1987,8 +1867,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Minimum 05")]
-        [Property("Tag", "007")]
         public async Task SamePrioritySubsEachServicedOncePerLoopAsync()
         {
             const int subCount = 5;

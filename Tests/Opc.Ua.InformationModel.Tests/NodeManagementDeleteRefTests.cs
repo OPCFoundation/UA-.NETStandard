@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.NodeManagement
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Node Management Delete Ref.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
     {
         [Description("Attempt to delete a reference that does not exist and verify the result is reported per item.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Ref")]
-        [Property("Tag", "test")]
         public async Task DeleteNonExistentReferenceReportsResultAsync()
         {
             try

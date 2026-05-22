@@ -32,7 +32,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -41,8 +43,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityPolicyDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task EndpointsAdvertiseSecurityPoliciesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -61,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task NoneSecurityPolicyPresentAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -71,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task AtLeastOneSecureEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -89,8 +85,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task BasicSecurityPoliciesIfSupportedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -102,8 +96,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task SecurityPolicyUriFormatAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -118,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task SignAndEncryptModeIfSupportedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -136,8 +126,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task SignOnlyModeIfSupportedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -154,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task NoneModeAlwaysSupportedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -172,8 +158,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task EachEndpointHasValidModeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -187,8 +171,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task SecurityModeMatchesPolicyConsistencyAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -202,8 +184,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task EndpointsAdvertiseUserTokenPoliciesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -220,8 +200,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task AnonymousTokenTypeAvailableAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -249,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task UsernameTokenTypeIfAvailableAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -276,8 +252,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task EachTokenPolicyHasIssuedTokenTypeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -294,8 +268,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task EachTokenPolicyHasSecurityPolicyUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -318,8 +290,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task ConnectWithNonePolicyAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(
@@ -335,8 +305,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             }
         }
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task SessionSecurityDetailsRecordedAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(

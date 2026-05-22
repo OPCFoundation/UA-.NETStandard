@@ -32,7 +32,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session General Service Behaviour.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Invoke CreateSession with default parameters. Verify the session is created successfully (Connected, non-null SessionId, non-null AuthenticationToken, positive RevisedSessionTimeout) and can service a basic Read.")]
         [Test]
-        [Property("ConformanceUnit", "Session General Service Behaviour")]
-        [Property("Tag", "001")]
         public async Task CreateSessionWithDefaultParametersAsync()
         {
             ISession session = await ClientFixture
@@ -74,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Invoke CreateSession with several RequestedSessionTimeout values. The server is expected to revise each one to a value supported by the server (always greater than zero). Very small values should be revised up, very large values should be revised down (or kept). See Part 4 §5.6.2.")]
         [Test]
-        [Property("ConformanceUnit", "Session General Service Behaviour")]
-        [Property("Tag", "002")]
         public async Task RequestedSessionTimeoutIsRevisedByServerAsync()
         {
             uint originalTimeout = ClientFixture.SessionTimeout;
@@ -129,8 +127,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("RequestHeader.AuthenticationToken handling. A CreateSession request whose RequestHeader.AuthenticationToken contains a (valid-looking) NodeId must be ignored by the server: the server still accepts the request and returns a freshly minted AuthenticationToken in the response. Subsequent service calls on the new session implicitly carry that issued token in their RequestHeader.AuthenticationToken and must succeed. Two sessions created in this way must end up with distinct, server-issued SessionIds (the public surrogate for the AuthenticationToken).")]
         [Test]
-        [Property("ConformanceUnit", "Session General Service Behaviour")]
-        [Property("Tag", "003")]
         public async Task AuthenticationTokenHandlingDuringCreateSessionAsync()
         {
             ISession session = await ClientFixture

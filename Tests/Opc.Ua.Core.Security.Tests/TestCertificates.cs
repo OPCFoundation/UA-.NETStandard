@@ -31,7 +31,7 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// Test certificate helpers used by Security conformance tests. Mints

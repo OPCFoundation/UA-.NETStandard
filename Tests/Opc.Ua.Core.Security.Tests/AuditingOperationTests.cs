@@ -33,7 +33,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.Auditing
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for auditing operational event types,
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
     public class AuditingOperationTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerObjectEventNotifierBitIsSetAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -65,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditEventTypeExistsInAddressSpaceAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -76,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task BaseEventTypeHasEventIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -88,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task BaseEventTypeHasTimeAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -100,8 +94,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task BaseEventTypeHasSourceNodeAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -112,8 +104,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -124,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "007")]
         public Task AuditEventAfterCreateSessionFiresAsync()
         {
             return AssertAuditEventFiresAsync(
@@ -139,8 +127,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "011")]
         public Task AuditEventAfterActivateSessionFiresAsync()
         {
             return AssertAuditEventFiresAsync(
@@ -154,8 +140,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "020")]
         public Task AuditEventAfterCloseSessionFiresAsync()
         {
             return AssertAuditEventFiresAsync(
@@ -354,8 +338,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
             }
         }
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerAuditingPropertyIsBoolAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -373,8 +355,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerAuditingDataTypeIsBooleanAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -394,8 +374,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task SessionDiagnosticsArrayIsReadableAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -416,8 +394,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerCurrentTimeIsRecentAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -433,8 +409,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing History Services")]
-        [Property("Tag", "001")]
         public async Task AuditHistoryUpdateEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -449,8 +423,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing History Services")]
-        [Property("Tag", "001")]
         public async Task AuditHistoryEventUpdateHasPropertyAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -471,8 +443,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing History Services")]
-        [Property("Tag", "001")]
         public async Task AuditHistoryValueUpdateEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -487,8 +457,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing History Services")]
-        [Property("Tag", "002")]
         public async Task AuditHistoryDeleteEventTypeExistsOrFailAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -502,8 +470,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing History Services")]
-        [Property("Tag", "002")]
         public async Task AuditHistoryRawModifyDeleteExistsOrFailAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -517,8 +483,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ProgramTransitionAuditEventTypeExistsOrFailAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -532,8 +496,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "001")]
         public async Task AuditAddNodesHasNodesToAddAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -544,8 +506,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "007")]
         public async Task AuditDeleteNodesHasNodesToDeleteAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -556,8 +516,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "003")]
         public async Task AuditAddReferencesHasReferencesToAddAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -568,8 +526,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "009")]
         public async Task AuditDeleteReferencesHasReferencesToDeleteAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -581,8 +537,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditCancelHasRequestHandleAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -602,8 +556,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionCommentHasCommentAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -624,8 +576,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionRespondExistsOrFailAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -640,8 +590,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionShelvingExistsOrFailAsync()
         {
             DataValue result = await ReadBrowseNameAsync(

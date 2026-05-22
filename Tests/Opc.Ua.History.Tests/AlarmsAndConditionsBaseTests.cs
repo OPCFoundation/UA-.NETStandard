@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Base conformance unit.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsBaseTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_001")]
         public async Task LimitAlarmTypeExistsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -58,8 +58,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_002")]
         public async Task LimitAlarmTypeIsSubtypeOfAlarmConditionTypeAsync()
         {
             await VerifySubtypeOfAsync(
@@ -68,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_001")]
         public async Task LimitAlarmTypeHasHighHighLimitAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -79,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_001")]
         public async Task LimitAlarmTypeHasHighLimitAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -90,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_001")]
         public async Task LimitAlarmTypeHasLowLimitAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -101,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_001")]
         public async Task LimitAlarmTypeHasLowLowLimitAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -112,8 +102,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Limit")]
-        [Property("Tag", "Test_001")]
         public async Task ExclusiveAndNonExclusiveLimitAlarmTypesExistAsync()
         {
             DataValue dvExcl = await ReadAttributeAsync(
@@ -138,8 +126,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeExistsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -150,8 +136,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasConditionRefreshMethodAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -162,8 +146,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasConditionRefresh2MethodAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -174,8 +156,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasConditionNameAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -186,8 +166,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasBranchIdAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -198,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasEnabledStateAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -210,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "N/A")]
         public async Task ConditionRefreshSubscriptionEventTestAsync()
         {
             uint subscriptionId = await CreateEventSubscriptionAsync()
@@ -233,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Refresh")]
-        [Property("Tag", "N/A")]
         public async Task ConditionRefreshReturnsEventsAsync()
         {
             uint subscriptionId = await CreateEventSubscriptionAsync()
@@ -260,8 +232,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Discrete")]
-        [Property("Tag", "Test_001")]
         public async Task DiscreteAlarmTypeExistsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -272,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Discrete")]
-        [Property("Tag", "Test_002")]
         public async Task DiscreteAlarmTypeIsSubtypeOfAlarmConditionAsync()
         {
             await VerifySubtypeOfAsync(
@@ -282,8 +250,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Base Discrete")]
-        [Property("Tag", "Test_001")]
         public async Task OffNormalAlarmTypeExistsAsync()
         {
             DataValue dv = await ReadAttributeAsync(

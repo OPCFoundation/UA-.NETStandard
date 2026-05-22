@@ -31,7 +31,7 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// Helper to build an <see cref="UserIdentity"/> from a raw

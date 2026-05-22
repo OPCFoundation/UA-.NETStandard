@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MethodServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Method Service Set – Call.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
     {
         [Description("Call Methods_Void with no arguments. Expect Good status.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "001")]
         public async Task MethodCall001CallVoidMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Add with (1.5f, 2u). Expect output 3.5f.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "004")]
         public async Task MethodCall002CallAddMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -107,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Hello with \"World\". Expect \"hello World\".")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "007")]
         public async Task MethodCall003CallHelloMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -143,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Multiply with appropriate arguments.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "008")]
         public async Task MethodCall004CallMultiplyMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -176,8 +170,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Void and Hello in a single request. Both should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "005")]
         public async Task MethodCall005CallMultipleMethodsInOneRequestAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -215,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Output which has output arguments only.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "003")]
         public async Task MethodCall006CallOutputOnlyMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -244,8 +234,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Input which has input arguments only.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "009")]
         public async Task MethodCall007CallInputOnlyMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -274,8 +262,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call a non-existent method. Expect BadNodeIdUnknown or BadMethodInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-005")]
         public async Task MethodCallErr001CallNonExistentMethodAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -299,8 +285,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Void with wrong ObjectId. Expect BadMethodInvalid or similar Bad status.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-006")]
         public async Task MethodCallErr002CallWithWrongObjectIdAsync()
         {
             NodeId methodId = ToNodeId(
@@ -325,8 +309,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Add with only 1 argument. Expect BadArgumentsMissing or BadInvalidArgument.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-003")]
         public async Task MethodCallErr003CallWithMissingArgumentsAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -355,8 +337,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call Methods_Void with unexpected arguments. Expect BadInvalidArgument or BadTooManyArguments.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-004")]
         public async Task MethodCallErr004CallWithTooManyArgumentsAsync()
         {
             NodeId objectId = ToNodeId(Constants.MethodsFolder);
@@ -385,8 +365,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call GetMonitoredItems on Server with an active subscription.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "016")]
         public async Task MethodCall008VerifyMethodNodeClassIsMethodAsync()
         {
             CancellationToken ct = CancellationToken.None;
@@ -468,8 +446,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call a method that has IN parameters only.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "002")]
         public async Task MethodCallInputOnlyAsync()
         {
             CancellationToken ct = CancellationToken.None;
@@ -497,8 +473,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call the same method multiple times in a single Call request.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "006")]
         public async Task MethodCallSameMethodMultipleTimesAsync()
         {
             CancellationToken ct = CancellationToken.None;
@@ -545,8 +519,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call with an invalid Object NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-001")]
         public async Task MethodCallErrInvalidObjectNodeIdAsync()
         {
             CancellationToken ct = CancellationToken.None;
@@ -567,8 +539,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call with valid object but invalid Method NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-002")]
         public async Task MethodCallErrInvalidMethodNodeIdAsync()
         {
             CancellationToken ct = CancellationToken.None;
@@ -589,8 +559,6 @@ namespace Opc.Ua.Conformance.Tests.MethodServices
 
         [Description("Call method with wrong data type for input arguments.")]
         [Test]
-        [Property("ConformanceUnit", "Method Call")]
-        [Property("Tag", "Err-004")]
         public async Task MethodCallErrWrongArgumentTypesAsync()
         {
             CancellationToken ct = CancellationToken.None;

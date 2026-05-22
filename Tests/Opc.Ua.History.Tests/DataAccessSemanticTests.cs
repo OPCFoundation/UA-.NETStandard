@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DataAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for Data Access semantic checks:
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
     public class DataAccessSemanticTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task WriteAnalogAndReadBackAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_AnalogType_Double");
@@ -79,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task AnalogItemTypeDefinitionHasEURangeAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_AnalogType_Double");
@@ -92,8 +90,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task AnalogItemHasEngineeringUnitsAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_AnalogType_Double");
@@ -105,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task WriteOutsideEURangeHandledGracefullyAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_AnalogType_Double");
@@ -155,8 +149,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task ReadMultiStateValueDiscreteEnumValuesAsync()
         {
             NodeId nodeId =
@@ -182,8 +174,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task WriteValidMultiStateValueAsync()
         {
             NodeId nodeId =
@@ -217,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task WriteInvalidMultiStateValueAsync()
         {
             NodeId nodeId =
@@ -254,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task ReadDataItemValueAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_DataItem_Double");
@@ -265,8 +251,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task DataItemHasDefinitionPropertyAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_DataItem_Double");
@@ -285,8 +269,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task AnalogTypeHasTypeDefinitionAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_AnalogType_Double");
@@ -315,8 +297,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task DataItemHasTypeDefinitionAsync()
         {
             NodeId nodeId = DaNodeId("DataAccess_DataItem_Double");
@@ -345,8 +325,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Semantic Changes")]
-        [Property("Tag", "N/A")]
         public async Task ReadAnalogArrayItemValueAsync()
         {
             NodeId nodeId =

@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -43,10 +45,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoParityTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-
-        [Property("Tag", "003")]
-
         public async Task AssociatedWithAsync()
         {
             await SubtypeAsync(AssociatedWithId, ReferenceTypeIds.NonHierarchicalReferences, "AssociatedWith").ConfigureAwait(
@@ -54,16 +52,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task ControlsAsync()
         {
             await SubtypeAsync(ControlsId, ReferenceTypeIds.HierarchicalReferences, "Controls").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task HasAttachedComponentAsync()
         {
             await SubtypeAsync(HasAttachedComponentId, HasPhysicalComponentId, "HasAttachedComponent").ConfigureAwait(
@@ -71,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task HasContainedComponentAsync()
         {
             await SubtypeAsync(HasContainedComponentId, HasPhysicalComponentId, "HasContainedComponent").ConfigureAwait(
@@ -80,8 +72,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task HasOrderedComponentAsync()
         {
             await SubtypeAsync(ReferenceTypeIds.HasOrderedComponent, ReferenceTypeIds.HasComponent, "HasOrderedComponent")
@@ -89,9 +79,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task HasPhysicalComponentAsync()
         {
             await SubtypeAsync(HasPhysicalComponentId, ReferenceTypeIds.HasComponent, "HasPhysicalComponent")
@@ -99,41 +86,30 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task IsExecutableOnAsync()
         {
             await NodeOkAsync(IsExecutableOnId, "IsExecutableOn").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task IsExecutingOnAsync()
         {
             await NodeOkAsync(IsExecutingOnId, "IsExecutingOn").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task IsHostedByAsync()
         {
             await NodeOkAsync(IsHostedById, "IsHostedBy").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task IsPhysicallyConnectedToAsync()
         {
             await NodeOkAsync(IsPhysicallyConnectedToId, "IsPhysicallyConnectedTo").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task RepresentsSameEntityAsAsync()
         {
             await SubtypeAsync(
@@ -143,9 +119,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task RepresentsSameFunctionalityAsAsync()
         {
             await SubtypeAsync(
@@ -155,33 +128,24 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task RepresentsSameHardwareAsAsync()
         {
             await NodeOkAsync(RepresentsSameHardwareAsId, "RepresentsSameHardwareAs").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task RequiresAsync()
         {
             await SubtypeAsync(RequiresId, ReferenceTypeIds.HierarchicalReferences, "Requires").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task UtilizesAsync()
         {
             await SubtypeAsync(UtilizesId, ReferenceTypeIds.NonHierarchicalReferences, "Utilizes").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SubvariablesOfStructuresAsync()
         {
             await SubtypeAsync(HasStructuredComponentId, ReferenceTypeIds.HasComponent, "HasStructuredComponent")
@@ -189,17 +153,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task AudioTypeAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.AudioDataType), "AudioDataType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task BitFieldMaskDataTypeAsync()
         {
             await SubtypeAsync(
@@ -209,17 +168,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task DecimalDataTypeAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.Decimal), "Decimal").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task DecimalStringDataTypeAsync()
         {
             await SubtypeAsync(new NodeId(DataTypes.DecimalString), new NodeId(DataTypes.String), "DecimalString")
@@ -227,9 +181,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task NormalizedStringDataTypeAsync()
         {
             await SubtypeAsync(
@@ -239,25 +190,18 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task TrimmedStringAsync()
         {
             await SubtypeAsync(TrimmedStringId, new NodeId(DataTypes.String), "TrimmedString").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task UriStringAsync()
         {
             await SubtypeAsync(new NodeId(DataTypes.UriString), new NodeId(DataTypes.String), "UriString").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SemanticVersionStringAsync()
         {
             await SubtypeAsync(SemanticVersionStringId, new NodeId(DataTypes.String), "SemanticVersionString")
@@ -265,57 +209,42 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task HandleDataTypeAsync()
         {
             await SubtypeAsync(HandleId, new NodeId(DataTypes.UInt32), "Handle").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task KeyValuePairAsync()
         {
             await NodeOkAsync(KeyValuePairId, "KeyValuePair").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task EUInformationAsync()
         {
             await NodeOkAsync(EUInformationId, "EUInformation").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task RangeDataTypeAsync()
         {
             await NodeOkAsync(RangeId, "Range").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task StatusResultDataTypeAsync()
         {
             await NodeOkAsync(StatusResultId, "StatusResult").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task ContentFilterAsync()
         {
             await NodeOkAsync(ContentFilterElementId, "ContentFilterElement").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ReferenceDescriptionAsync()
         {
             // The standard 1.05 nodeset renamed this DataType from
@@ -327,73 +256,54 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task OptionSetDataTypeAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.OptionSet), "OptionSet").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task CurrencyAsync()
         {
             await NodeOkAsync(CurrencyUnitTypeId, "CurrencyUnitType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task MethodArgumentDataTypeAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.Argument), "Argument").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task LocalTimeAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.TimeZoneDataType), "TimeZoneDataType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task EngineeringUnitsAsync()
         {
             await NodeOkAsync(EUInformationId, "EUInformation").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task CoreStructure2Async()
         {
             await NodeOkAsync(new NodeId(DataTypes.Structure), "Structure").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task TypeInformationAsync()
         {
             await NodeOkAsync(ObjectTypeIds.BaseObjectType, "BaseObjectType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task UaBinaryFileAsync()
         {
             await NodeOkAsync(ObjectTypeIds.DataTypeEncodingType, "DataTypeEncodingType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task EventQueueOverflowEventTypeAsync()
         {
             await NodeOkAsync(EventQueueOverflowEventTypeId, "EventQueueOverflowEventType").ConfigureAwait(
@@ -401,25 +311,18 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task DeviceFailureAsync()
         {
             await NodeOkAsync(DeviceFailureEventTypeId, "DeviceFailureEventType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task SemanticChangeAsync()
         {
             await NodeOkAsync(SemanticChangeEventTypeId, "SemanticChangeEventType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task DateDataTypesAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.DateString), "DateString").ConfigureAwait(false);
@@ -430,9 +333,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ImageDataTypesAsync()
         {
             await NodeOkAsync(new NodeId(DataTypes.Image), "Image").ConfigureAwait(false);
@@ -445,9 +345,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task PortableIDsAsync()
         {
             await NodeOkAsync(PortableNodeIdId, "PortableNodeId")
@@ -456,9 +353,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task RationalNumberAsync()
         {
             await NodeOkAsync(RationalNumberTypeId, "RationalNumberType").ConfigureAwait(false);
@@ -472,17 +366,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task ProgressEventsExistsAsync()
         {
             await NodeOkAsync(ProgressEventTypeId, "ProgressEventType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ProgressEventsPropertiesAsync()
         {
             List<ReferenceDescription> r = await BrAsync(ProgressEventTypeId).ConfigureAwait(false);
@@ -496,9 +385,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ProgressEventsIsSubtypeAsync()
         {
             await SubtypeAsync(ProgressEventTypeId, ObjectTypeIds.BaseEventType, "ProgressEventType").ConfigureAwait(
@@ -506,9 +392,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task EventsCapabilitiesAsync()
         {
             List<ReferenceDescription> r = await BrAsync(ObjectIds.Server_ServerCapabilities, ReferenceTypeIds.HasProperty).ConfigureAwait(
@@ -517,17 +400,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task HistoryReadCapabilitiesAsync()
         {
             await NodeOkAsync(HistoryCapsId, "HistoryServerCapabilities").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task HistoryReadDataCapabilitiesAsync()
         {
             DataValue dv = await RvAsync(AccessHistDataId).ConfigureAwait(false);
@@ -540,9 +418,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task HistoryReadEventsCapabilitiesAsync()
         {
             DataValue dv = await RvAsync(AccessHistEventsId).ConfigureAwait(false);
@@ -555,9 +430,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task HistoryUpdateDataCapabilitiesAsync()
         {
             DataValue dv = await RvAsync(InsertDataCapId).ConfigureAwait(false);
@@ -570,9 +442,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task HistoryUpdateEventsCapabilitiesAsync()
         {
             DataValue dv = await RvAsync(InsertEventCapId).ConfigureAwait(false);
@@ -585,9 +454,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task MethodCapabilitiesAsync()
         {
             List<ReferenceDescription> r = await BrAsync(ObjectIds.Server_ServerCapabilities, ReferenceTypeIds.HasComponent).ConfigureAwait(
@@ -596,9 +462,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task NodeManagementCapabilitiesAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement)
@@ -607,9 +470,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task QueryCapabilitiesAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxQueryContinuationPoints).ConfigureAwait(
@@ -618,9 +478,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SecurityRoleCapabilitiesAsync()
         {
             DataValue dv = await RaAsync(ObjectIds.Server_ServerCapabilities_RoleSet, Attributes.BrowseName)
@@ -632,9 +489,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task MaxMonitoredItemsQueueSizeAsync()
         {
             DataValue dv = await RvAsync(
@@ -647,9 +501,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2ProfileArrayAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_ServerProfileArray).ConfigureAwait(
@@ -658,9 +509,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2LocaleIdArrayAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_LocaleIdArray).ConfigureAwait(false);
@@ -669,9 +517,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MinSampleRateAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MinSupportedSampleRate).ConfigureAwait(
@@ -680,9 +525,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxBrowseCPsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints).ConfigureAwait(
@@ -691,9 +533,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxQueryCPsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxQueryContinuationPoints).ConfigureAwait(
@@ -702,9 +541,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxHistoryCPsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxHistoryContinuationPoints)
@@ -713,9 +549,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2SoftwareCertsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_SoftwareCertificates).ConfigureAwait(
@@ -727,9 +560,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxArrayLengthAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxArrayLength).ConfigureAwait(
@@ -741,9 +571,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxStringLengthAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxStringLength).ConfigureAwait(
@@ -755,9 +582,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxByteStringLengthAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxByteStringLength).ConfigureAwait(
@@ -769,9 +593,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2OperationLimitsAsync()
         {
             await NodeOkAsync(ObjectIds.Server_ServerCapabilities_OperationLimits, "OperationLimits")
@@ -779,9 +600,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxSessionsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxSessions).ConfigureAwait(
@@ -793,9 +611,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxSubsPerSessionAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession)
@@ -807,9 +622,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2MaxMIPerSubAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription)
@@ -821,9 +633,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerCaps2ConformanceUnitsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_ConformanceUnits).ConfigureAwait(
@@ -835,9 +644,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task CapsSubsMaxSubsAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession).ConfigureAwait(
@@ -850,9 +656,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task CapsSubsMaxMIAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription).ConfigureAwait(
@@ -865,9 +668,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ServerTypeAsync()
         {
             await NodeOkAsync(ServerTypeId, "ServerType").ConfigureAwait(false);
@@ -880,9 +680,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task StateMachineInstanceAsync()
         {
             await NodeOkAsync(StateMachineTypeId, "StateMachineType").ConfigureAwait(false);
@@ -892,9 +689,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task FiniteStateMachineInstanceAsync()
         {
             await NodeOkAsync(FiniteStateMachineTypeId, "FiniteStateMachineType").ConfigureAwait(
@@ -904,9 +698,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task AvailableStatesTransitionsAsync()
         {
             List<ReferenceDescription> r = await BrAsync(FiniteStateMachineTypeId).ConfigureAwait(
@@ -920,25 +711,18 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task OrderedListAsync()
         {
             await NodeOkAsync(OrderedListTypeId, "OrderedListType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task NamespaceMetadataFolderAsync()
         {
             await NodeOkAsync(ObjectIds.Server_Namespaces, "Namespaces").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task NamespaceMetadataChildrenAsync()
         {
             List<ReferenceDescription> r = await BrAsync(ObjectIds.Server_Namespaces).ConfigureAwait(false);
@@ -948,9 +732,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task NamespaceMetadataUriAsync()
         {
             List<ReferenceDescription> r = await BrAsync(ObjectIds.Server_Namespaces).ConfigureAwait(false);
@@ -965,17 +746,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task GetMonitoredItemsExistsAsync()
         {
             await NodeOkAsync(MethodIds.Server_GetMonitoredItems, "GetMonitoredItems").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task GetMonitoredItemsBrowseNameAsync()
         {
             DataValue dv = await RaAsync(MethodIds.Server_GetMonitoredItems, Attributes.BrowseName).ConfigureAwait(
@@ -985,9 +761,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task GetMonitoredItemsInputArgsAsync()
         {
             List<ReferenceDescription> r = await BrAsync(MethodIds.Server_GetMonitoredItems, ReferenceTypeIds.HasProperty).ConfigureAwait(
@@ -996,9 +769,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task GetMonitoredItemsOutputArgsAsync()
         {
             List<ReferenceDescription> r = await BrAsync(MethodIds.Server_GetMonitoredItems, ReferenceTypeIds.HasProperty)
@@ -1007,17 +777,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task ResendDataExistsAsync()
         {
             await NodeOkAsync(MethodIds.Server_ResendData, "ResendData").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ResendDataBrowseNameAsync()
         {
             DataValue dv = await RaAsync(MethodIds.Server_ResendData, Attributes.BrowseName).ConfigureAwait(
@@ -1030,9 +795,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ResendDataInputArgsAsync()
         {
             List<ReferenceDescription> r = await BrAsync(MethodIds.Server_ResendData, ReferenceTypeIds.HasProperty).ConfigureAwait(false);
@@ -1045,9 +807,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task RequestServerStateChangeAsync()
         {
             // Server_RequestServerStateChange (i=12886) is admin-only per
@@ -1085,9 +844,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SystemStatusCurrentTimeAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerStatus_CurrentTime).ConfigureAwait(false);
@@ -1107,9 +863,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SystemStatusStartTimeAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerStatus_StartTime).ConfigureAwait(false);
@@ -1119,9 +872,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SystemStatusStateAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
@@ -1132,9 +882,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SystemStatusUnderlyingAsync()
         {
             DataValue dv = await RvAsync(VariableIds.Server_ServerStatus_BuildInfo_ProductName).ConfigureAwait(false);
@@ -1144,33 +891,24 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task SpatialDataCartesianAsync()
         {
             await NodeOkAsync(CartesianCoordinatesTypeId, "CartesianCoordinatesType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task SpatialDataThreeDAsync()
         {
             await NodeOkAsync(ThreeDCartesianCoordinatesTypeId, "ThreeDCartesianCoordinatesType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task SelectionListExistsAsync()
         {
             await NodeOkAsync(SelectionListTypeId, "SelectionListType").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SelectionListSelectionsAsync()
         {
             List<ReferenceDescription> r = await BrAsync(SelectionListTypeId).ConfigureAwait(false);
@@ -1183,9 +921,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task SelectionListDescriptionsAsync()
         {
             List<ReferenceDescription> r = await BrAsync(SelectionListTypeId).ConfigureAwait(false);
@@ -1198,9 +933,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ValueAsTextAsync()
         {
             // ValueAsText is a mandatory property of
@@ -1217,9 +949,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task PlaceholderMandatoryAsync()
         {
             await NodeOkAsync(ObjectIds.ModellingRule_MandatoryPlaceholder, "MandatoryPlaceholder").ConfigureAwait(
@@ -1227,17 +956,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task PlaceholderOptionalAsync()
         {
             await NodeOkAsync(ObjectIds.ModellingRule_OptionalPlaceholder, "OptionalPlaceholder").ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task EstimatedReturnTimeAsync()
         {
             List<ReferenceDescription> r = await BrAsync(ServerTypeId).ConfigureAwait(false);
@@ -1253,9 +977,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task DeprecatedInformationAsync()
         {
             DataValue dv = await RaAsync(DeprecatedId, Attributes.BrowseName).ConfigureAwait(false);
@@ -1267,9 +988,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ExportFileFormatAsync()
         {
             DataValue dv = await RaAsync(ExportNsId, Attributes.BrowseName).ConfigureAwait(false);
@@ -1281,9 +999,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task ImportFileFormatAsync()
         {
             DataValue dv = await RaAsync(ImportNsId, Attributes.BrowseName).ConfigureAwait(false);
@@ -1295,9 +1010,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task OptionSetAccessLevelExAsync()
         {
             DataValue dv = await RaAsync(VariableIds.Server_ServerStatus_State, Attributes.AccessLevelEx).ConfigureAwait(
@@ -1309,9 +1021,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task OptionSetWriteMaskAsync()
         {
             DataValue dv = await RaAsync(ObjectIds.Server, Attributes.WriteMask).ConfigureAwait(false);
@@ -1321,9 +1030,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task OptionSetUserWriteMaskAsync()
         {
             DataValue dv = await RaAsync(ObjectIds.Server, Attributes.UserWriteMask).ConfigureAwait(false);
@@ -1333,9 +1039,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
-
         public async Task OptionSetEventNotifierAsync()
         {
             DataValue dv = await RaAsync(ObjectIds.Server, Attributes.EventNotifier).ConfigureAwait(false);
@@ -1345,13 +1048,11 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info State Machine Instance")]
-        [Property("Tag", "001")]
         public async Task StateMachineGeneratesEventAsync()
         {
-            // Issue #3720 — CTT BaseInfoStateMachine Instance reports
-            // "Could not find GeneratesEvent reference on type node ... or any
-            //  of its parent types for instance ...".
+            // Issue #3720 — instances of StateMachineType were reported as
+            // missing the GeneratesEvent reference on the type node or any
+            // of its parent types.
             // Per Part 5 §6.4.2, instances of StateMachineType (and subtypes)
             // shall have a GeneratesEvent reference to the event type emitted
             // on state changes (typically TransitionEventType i=2311).
@@ -1363,13 +1064,11 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Finite State Machine Instance")]
-        [Property("Tag", "001")]
         public async Task FiniteStateMachineGeneratesEventAsync()
         {
             // Issue #3720 — same failure mode as above for FiniteStateMachineType
             // and its concrete subtypes (e.g. ExclusiveLimitStateMachineType
-            // i=9318 reported by the upstream CTT).
+            // i=9318).
             await GeneratesEventReferenceFoundOnTypeOrAncestorAsync(
                 FiniteStateMachineTypeId, "FiniteStateMachineType").ConfigureAwait(false);
         }

@@ -30,7 +30,7 @@
 using System;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     public sealed class TokenValidatorMock : ITokenValidator, IDisposable
     {

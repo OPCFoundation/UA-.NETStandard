@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.FileSystem
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// Conformance tests for the FileSystem NodeManager exposed by the
@@ -338,8 +340,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         #endregion helpers
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "010")]
         public async Task VolumeBrowseNameMatchesPathAsync()
         {
             RequireVolume();
@@ -360,8 +360,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "011")]
         public async Task VolumeHasFileDirectoryTypeDefinitionAsync()
         {
             RequireVolume();
@@ -389,8 +387,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "012")]
         public async Task VolumeBrowsableForChildrenAsync()
         {
             RequireVolume();
@@ -411,8 +407,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "020")]
         public async Task DirectoryHasMethodsAsync()
         {
             RequireDirectoryWithFile();
@@ -450,8 +444,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "030")]
         public async Task FileHasMethodsAsync()
         {
             RequireDirectoryWithFile();
@@ -469,8 +461,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "031")]
         public async Task FileHasPropertiesAsync()
         {
             RequireDirectoryWithFile();
@@ -488,8 +478,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "032")]
         public async Task FileSizePropertyAsync()
         {
             RequireDirectoryWithFile();
@@ -512,8 +500,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "033")]
         public async Task FileWritablePropertyIsBooleanAsync()
         {
             RequireDirectoryWithFile();
@@ -528,8 +514,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "040")]
         public async Task OpenFileForReadingAsync()
         {
             RequireDirectoryWithFile();
@@ -563,8 +547,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "041")]
         public async Task ReadFromOpenFileAsync()
         {
             RequireDirectoryWithFile();
@@ -611,8 +593,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "042")]
         public async Task GetPositionAfterOpenAsync()
         {
             RequireDirectoryWithFile();
@@ -645,8 +625,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "043")]
         public async Task SetPositionThenGetPositionAsync()
         {
             RequireDirectoryWithFile();
@@ -691,8 +669,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "044")]
         public async Task OpenCountIncrementsAndDecrementsAsync()
         {
             RequireDirectoryWithFile();
@@ -759,8 +735,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
         }
 
         [Test]
-        [Property("ConformanceUnit", "FileSystem")]
-        [Property("Tag", "045")]
         public async Task CloseInvalidHandleReturnsBadAsync()
         {
             RequireDirectoryWithFile();

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AliasName
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for AliasName type hierarchy verification.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
     {
         [Description("Verify AliasNameCategoryType (i=23456) exists in the server address space by reading its BrowseName attribute.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task VerifyAliasNameCategoryTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -64,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Verify AliasNameType (i=23455) exists in the server address space by reading its BrowseName attribute.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task VerifyAliasNameTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -81,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Browse the Objects folder looking for a child node with BrowseName \"Aliases\". The Aliases folder is optional.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "002")]
         public async Task BrowseServerForAliasesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -123,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Browse the Objects folder for a \"TagVariables\" child node. This is an optional feature of the AliasName model.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Category Tags")]
-        [Property("Tag", "001")]
         public async Task VerifyTagVariablesObjectExistsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -165,8 +159,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Verify the AliasFor reference type (i=23469) exists in the server address space by reading its BrowseName.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task VerifyAliasForReferenceTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -182,8 +174,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Translate the browse path \"Objects → Server\" to verify the well-known Server node resolves correctly.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public async Task TranslateBrowsePathForWellKnownNodeAsync()
         {
             ArrayOf<BrowsePath> browsePaths = new BrowsePath[]
@@ -221,8 +211,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Resolve the path \"Server/NamespaceArray\" via TranslateBrowsePaths.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public async Task TranslateBrowsePathForNamespaceArrayAsync()
         {
             ArrayOf<BrowsePath> browsePaths = new BrowsePath[]
@@ -262,8 +250,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Resolve the path \"Server/ServerStatus\" via TranslateBrowsePaths.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public async Task TranslateBrowsePathForServerStatusAsync()
         {
             ArrayOf<BrowsePath> browsePaths = new BrowsePath[]
@@ -303,8 +289,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Resolve the path \"Server/ServerStatus/State\" via TranslateBrowsePaths.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public async Task TranslateBrowsePathForServerStateAsync()
         {
             ArrayOf<BrowsePath> browsePaths = new BrowsePath[]
@@ -350,8 +334,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Attempt to resolve an invalid path \"Server/NonExistentChild\" and verify the server returns a failure status.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public async Task TranslateBrowsePathInvalidPathAsync()
         {
             ArrayOf<BrowsePath> browsePaths = new BrowsePath[]

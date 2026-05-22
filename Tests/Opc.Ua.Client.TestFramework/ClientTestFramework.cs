@@ -36,11 +36,11 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Server.Tests;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Client test framework, common code to setup connections.

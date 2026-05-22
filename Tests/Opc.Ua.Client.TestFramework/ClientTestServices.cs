@@ -30,9 +30,9 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server.Tests;
+using Opc.Ua.Server.TestFramework;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Map test services to client session API.

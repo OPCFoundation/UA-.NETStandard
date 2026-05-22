@@ -36,7 +36,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance depth tests for certificate validation, nonce
@@ -49,8 +51,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityCertValidationDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "007")]
         public async Task CertErrorExpiredIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -59,8 +59,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "008")]
         public async Task CertErrorNotYetValidIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -69,8 +67,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "N/A")]
         public async Task CertErrorHostnameMismatchIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -79,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "N/A")]
         public async Task CertErrorUriMismatchIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -89,8 +83,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "005")]
         public async Task CertErrorUntrustedIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -99,8 +91,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "038")]
         public async Task CertErrorRevokedIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -109,8 +99,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "N/A")]
         public async Task CertErrorKeyTooShortIsIgnoredAsync()
         {
             await GetEpsAsync().ConfigureAwait(false);
@@ -119,8 +107,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "048")]
         public async Task SelfSignedCertificateIsAcceptedAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -137,8 +123,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertHasNonEmptyCommonNameAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -154,8 +138,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertSerialNumberIsNonEmptyAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -170,8 +152,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertSignatureAlgorithmIsSha256OrBetterAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -200,8 +180,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "029")]
         public async Task CertBasicConstraintsIsNotCaAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -225,8 +203,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "029")]
         public async Task CertBasicConstraintsPathLengthIsZeroOrAbsentAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -248,8 +224,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "048")]
         public async Task CertIssuerEqualsSubjectForSelfSignedAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -268,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertThumbprintIsNonEmptyAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -284,8 +256,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertHasRsaPublicKeyAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -305,8 +275,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertPublicKeyIsAccessibleAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -323,8 +291,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertValiditySpanIsPositiveAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -340,8 +306,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CertKeyUsageFlagsArePresentAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -366,8 +330,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task EndpointCertThumbprintMatchesParsedCertAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -389,8 +351,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task EndpointCertByteRoundtripAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -414,8 +374,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task AllSecurePoliciesHaveEndpointsAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -433,8 +391,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NoneEndpointHasNoRequiredCertAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -453,8 +409,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task SecureEndpointCertIsPemExportableAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -471,8 +425,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NonceIsValidOnSignAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -500,8 +452,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NonceIsValidOnSignAndEncryptAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -527,8 +477,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NoncesAreUniqueAcrossFiveSessionsAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -566,8 +514,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NonceIsNotAllZerosOnSecureSessionAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -596,8 +542,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NoneEndpointNonceMayBeEmptyAsync()
         {
             await Task.CompletedTask.ConfigureAwait(false);
@@ -609,8 +553,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task Basic256Sha256PolicyExistsAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -625,8 +567,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task Aes128Sha256RsaOaepPolicyExistsOrFailAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -647,8 +587,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task Aes256Sha256RsaPssPolicyExistsOrFailAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -669,8 +607,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NonePolicyExistsAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -681,8 +617,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task NoneSecurityLevelIsZeroAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -698,8 +632,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task SecureEndpointSecurityLevelIsPositiveAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -717,8 +649,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task SecureEndpointUrlIsNotEmptyAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -737,8 +667,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task AllEndpointUrlsAreNotEmptyAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -751,8 +679,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public Task SessionEndpointMatchesConnected()
         {
             Assert.That(Session.Connected, Is.True);
@@ -763,8 +689,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public Task SessionSecurityModeIsNone()
         {
             Assert.That(Session.Connected, Is.True);
@@ -774,8 +698,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public Task SessionIdentityIsNotNull()
         {
             Assert.That(Session.Connected, Is.True);
@@ -785,8 +707,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public Task SessionTimeoutIsPositive()
         {
             Assert.That(Session.Connected, Is.True);
@@ -797,8 +717,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task ReconnectYieldsNewSessionIdAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -831,8 +749,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task InvalidSecurityPolicyFailsAsync()
         {
             try
@@ -858,8 +774,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task SecureConnectionCanReadServerStatusAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);
@@ -899,8 +813,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task CrossModeSessionIdsAreDifferentAsync()
         {
             ArrayOf<EndpointDescription> eps = await GetEpsAsync().ConfigureAwait(false);

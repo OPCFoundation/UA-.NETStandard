@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua
+namespace Opc.Ua.Core.TestFramework
 {
     /// <summary>
     /// The type of JSON encoding to use.

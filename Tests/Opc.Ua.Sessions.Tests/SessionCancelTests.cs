@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session Cancel.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Calls Cancel() against an in-flight request. Timing-sensitive against the in-process reference server: requests typically complete before the Cancel reaches the server, so we accept either CancelCount &gt;= 0 with a Good result.")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "001")]
         public async Task CancelInFlightRequestReturnsCountAsync()
         {
             // Fire a Read in the background and immediately attempt to cancel by
@@ -77,8 +77,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Cancel a completed call. Issues a Read of a valid node, waits for it to complete, then calls Cancel with the (already-completed) request handle. Expected: ServiceResult = Good, CancelCount = 0.")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "003")]
         public async Task CancelCompletedRequestReturnsZeroAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -115,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call Cancel with an unknown request handle. Expected: ServiceResult = Good, CancelCount = 0 (Cancel is idempotent and does not error on unknown handles).")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "004")]
         public async Task CancelUnknownRequestHandleReturnsZeroAsync()
         {
             const uint UnknownRequestHandle = 0xDEADBEEF;
@@ -135,10 +131,8 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
                 "Cancel of an unknown request handle must report CancelCount = 0.");
         }
 
-        [Description("CTT Err-001: Cancel - server returns service result Bad_NothingToDo. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Cancel - server returns service result Bad_NothingToDo. ")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "Err-001")]
         public void CancelWithInjectedBadNothingToDoAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
@@ -152,10 +146,8 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
             Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
         }
 
-        [Description("CTT Err-002: Cancel - server returns Good but overrides CancelCount to 0. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Cancel - server returns Good but overrides CancelCount to 0. ")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "Err-002")]
         public async Task CancelWithInjectedZeroCancelCountAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
@@ -170,10 +162,8 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
             Assert.That(response.CancelCount, Is.Zero);
         }
 
-        [Description("CTT Err-003: Cancel - server returns Bad_NothingToDo and decrements the actual CancelCount by 1. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Cancel - server returns Bad_NothingToDo and decrements the actual CancelCount by 1. ")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "Err-003")]
         public void CancelWithInjectedDecrementedCancelCountAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
@@ -194,10 +184,8 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
             Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
         }
 
-        [Description("CTT Err-004: Cancel - server returns Good and increments the actual CancelCount by 1. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Cancel - server returns Good and increments the actual CancelCount by 1. ")]
         [Test]
-        [Property("ConformanceUnit", "Session Cancel")]
-        [Property("Tag", "Err-004")]
         public async Task CancelWithInjectedIncrementedCancelCountAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(

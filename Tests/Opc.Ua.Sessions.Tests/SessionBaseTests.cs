@@ -33,7 +33,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session Service Set – base session
@@ -45,24 +47,18 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     public class SessionBaseTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void CreateSessionWithSpecificName()
         {
             Assert.That(Session.SessionName, Is.Not.Null.And.Not.Empty);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "001")]
         public void CreateSessionWithRequestedTimeout()
         {
             Assert.That(Session.SessionTimeout, Is.GreaterThan(0));
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionDiagnosticsArrayFindOurSessionAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -75,8 +71,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task ActivateSessionWithAnonymousIdentityAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -96,8 +90,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "010")]
         public async Task CloseSessionWithDeleteSubscriptionsTrueAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -111,8 +103,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "010")]
         public async Task CloseSessionWithDeleteSubscriptionsFalseAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -126,8 +116,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "002")]
         public async Task SessionKeepaliveVerifySessionStaysActiveAsync()
         {
             Assert.That(Session.Connected, Is.True);
@@ -136,8 +124,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void VerifySessionEndpointDescription()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -146,8 +132,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "012")]
         public void VerifySessionServerCertificate()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -159,8 +143,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void ReadMaxResponseMessageSize()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -170,8 +152,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-001")]
         public async Task CreateAndVerifyMultipleSessionsAsync()
         {
             ISession session1 = await ClientFixture
@@ -201,16 +181,12 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "009")]
         public void SessionIdentityToken()
         {
             Assert.That(Session.Identity, Is.Not.Null);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "013")]
         public async Task CreateSessionWithEmptyNameAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -229,8 +205,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "013")]
         public async Task CreateSessionWithLongNameAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -250,16 +224,12 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "001")]
         public void SessionTimeoutIsRevisedByServer()
         {
             Assert.That(Session.SessionTimeout, Is.GreaterThan(0));
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionDiagnosticsCurrentSubscriptionsCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -272,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionDiagnosticsCurrentSessionCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -286,8 +254,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionSecurityDiagnosticsAsync()
         {
             // OPC UA well-known NodeId 2162 = SecurityRejectedSessionCount
@@ -305,8 +271,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task ActivateMultipleTimesOnSameSessionAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -335,8 +299,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-001")]
         public async Task CreateSessionVerifySessionIdIsUniqueAsync()
         {
             ISession session1 = await ClientFixture
@@ -365,8 +327,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "005")]
         public void VerifySessionPreferredLocales()
         {
             Assert.That(Session, Is.Not.Null);
@@ -374,8 +334,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionDiagnosticsCumulatedSessionCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -388,8 +346,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task CreateSessionAndReadServerStateAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -417,8 +373,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "010")]
         public async Task CloseSessionAndVerifyDisconnectedAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -433,8 +387,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void SessionEndpointHasTransportProfileUri()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -444,8 +396,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadRejectedSessionCountAsync()
         {
             // OPC UA well-known NodeId 2154 = RejectedSessionCount
@@ -458,8 +408,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionDiagnosticsSecurityRejectedRequestsCountAsync()
         {
             // OPC UA well-known NodeId 2163 = SecurityRejectedRequestsCount
@@ -490,8 +438,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Invoke CreateSession specifying a RequestedSessionTimeout of 0. We expect the RevisedSessionTimeout != 0. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "001")]
         public async Task CreateSessionWithZeroTimeoutReturnsRevisedTimeoutAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -508,8 +454,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession with default parameters, except for a small timeout of 10 seconds. Activate the session and stall (do not use) the session for a period GREATER than the timeout perio")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "002")]
         public async Task CreateSessionStallsBeyondTimeoutPeriodAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -526,8 +470,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Invoke CreateSession and then check if the session appears within the server diagnostics. This script must first read the servers profile to see if diagnostics are supported and if")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task CreateSessionAppearsInServerDiagnosticsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -544,8 +486,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("activate a session using default parameters. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task ActivateSessionWithDefaultParametersAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -562,8 +502,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Specify numerous localeIds supported by the server, in a ranked order. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "005")]
         public async Task CreateSessionWithRankedLocaleIdsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -580,8 +518,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("activate a session that has been transferred to another channel. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "008")]
         public async Task ActivateSessionTransferredToAnotherChannelAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -598,8 +534,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("provide NO software certificates. This used to be a problem, but UA 1.02 changed this behavior. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "009")]
         public async Task CreateSessionWithNoSoftwareCertificatesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -616,8 +550,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CloseSession using default parameters. This test works by first opening a session (default parameters) and then closes it. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "010")]
         public async Task CloseSessionWithDefaultParametersAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -634,8 +566,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("provide NO software certificates. This used to be a problem, but UA 1.02 changed this behavior. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "011")]
         public async Task ActivateSessionWithNoSoftwareCertificatesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -652,8 +582,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Using SecurityPolicy None/anonymous, create a session while specifying a not-trusted certificate.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "012")]
         public async Task CreateSessionWithUntrustedCertificateAndNoneSecurityAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -670,8 +598,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Create a session without specifying a SessionName (legal, but some servers crash) */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "013")]
         public async Task CreateSessionWithoutSessionNameAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -688,8 +614,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Over a non-secure channel; call ActivateSession() specifying an empty ClientSignature. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "015")]
         public async Task ActivateSessionWithEmptyClientSignatureOnNonSecureChannelAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -705,8 +629,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
         [Description("CreateSession – injects service result Bad_SecureChannelIdInvalid in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-001-01")]
         public Task CreateSessionWithInjectedBadSecureChannelIdInvalidAsync()
         {
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadSecureChannelIdInvalid);
@@ -729,8 +651,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – injects service result Bad_NonceInvalid in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-001-02")]
         public Task CreateSessionWithInjectedBadNonceInvalidAsync()
         {
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadNonceInvalid);
@@ -738,8 +658,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – injects service result Bad_SecurityChecksFailed in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-001-03")]
         public Task CreateSessionWithInjectedBadSecurityChecksFailedAsync()
         {
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadSecurityChecksFailed);
@@ -747,8 +665,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – injects service result Bad_CertificateTimeInvalid in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-001-04")]
         public Task CreateSessionWithInjectedBadCertificateTimeInvalidAsync()
         {
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateTimeInvalid);
@@ -756,8 +672,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – injects service result Bad_CertificateIssuerTimeInvalid in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-001-05")]
         public Task CreateSessionWithInjectedBadCertificateIssuerTimeInvalidAsync()
         {
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateIssuerTimeInvalid);
@@ -765,8 +679,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – injects service result Bad_CertificateHostnameInvalid in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-001-06")]
         public Task CreateSessionWithInjectedBadCertificateHostnameInvalidAsync()
         {
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateHostNameInvalid);
@@ -774,8 +686,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the SessionId returned by the server is null for the second session.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-003")]
         public async Task CreateSessionWithInjectedNullSessionIdAsync()
         {
             // A null SessionId in the response makes ActivateSession fail
@@ -789,8 +699,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns the same AuthenticationToken for two distinct sessions.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-006")]
         public async Task CreateSessionWithInjectedDuplicateAuthenticationTokenAsync()
         {
             // Capture the AuthenticationToken from the first
@@ -851,8 +759,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server revises the session timeout to (client request * 10).")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-007")]
         public Task CreateSessionWithInjectedExcessiveRevisedSessionTimeoutAsync()
         {
             return AssertCreateSessionAcceptsTimeoutMutationAsync(
@@ -861,8 +767,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server revises the session timeout to an unreasonably low value (1 second).")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-008")]
         public Task CreateSessionWithInjectedTooLowRevisedSessionTimeoutAsync()
         {
             return AssertCreateSessionAcceptsTimeoutMutationAsync(
@@ -898,8 +802,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns a ServerNonce that is less than 32 bytes long.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-011")]
         public async Task CreateSessionWithInjectedShortServerNonceAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
@@ -937,8 +839,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the EndpointDescriptions returned in the response differ from those obtained from the Discovery endpoint.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-020")]
         public Task CreateSessionWithMismatchedEndpointDescriptionsAsync()
         {
             return AssertCreateSessionToleratesServerEndpointsMutationAsync(
@@ -961,8 +861,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns an empty ServerEndpoints array.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-021")]
         public Task CreateSessionWithInjectedEmptyServerEndpointsAsync()
         {
             return AssertCreateSessionToleratesServerEndpointsMutationAsync(
@@ -1003,8 +901,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns an empty ServerSoftwareCertificates array.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-024")]
         public async Task CreateSessionWithInjectedEmptyServerSoftwareCertificatesAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
@@ -1031,8 +927,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns an empty ServerSignature.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-025")]
         public async Task CreateSessionWithInjectedEmptyServerSignatureAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
@@ -1069,8 +963,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns a MaxRequestMessageSize of 500 bytes.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-026")]
         public Task CreateSessionWithInjectedSmallMaxRequestMessageSizeAsync()
         {
             return AssertCreateSessionAcceptsMessageSizeMutationAsync(
@@ -1079,8 +971,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CreateSession – the server returns a MaxResponseMessageSize equal to the client's request multiplied by 10.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-027")]
         public Task CreateSessionWithInjectedExcessiveMaxResponseMessageSizeAsync()
         {
             return AssertCreateSessionAcceptsMessageSizeMutationAsync(
@@ -1113,8 +1003,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_IdentityTokenInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-01")]
         public Task ActivateSessionWithInjectedBadIdentityTokenInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadIdentityTokenInvalid);
@@ -1122,8 +1010,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_IdentityTokenRejected.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-02")]
         public Task ActivateSessionWithInjectedBadIdentityTokenRejectedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadIdentityTokenRejected);
@@ -1131,8 +1017,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_UserAccessDenied.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-03")]
         public Task ActivateSessionWithInjectedBadUserAccessDeniedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadUserAccessDenied);
@@ -1140,8 +1024,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_ApplicationSignatureInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-04")]
         public Task ActivateSessionWithInjectedBadApplicationSignatureInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadApplicationSignatureInvalid);
@@ -1149,8 +1031,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_UserSignatureInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-05")]
         public Task ActivateSessionWithInjectedBadUserSignatureInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadUserSignatureInvalid);
@@ -1158,8 +1038,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_NoValidCertificates.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-06")]
         public Task ActivateSessionWithInjectedBadNoValidCertificatesAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadNoValidCertificates);
@@ -1167,8 +1045,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_IdentityChangeNotSupported.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-07")]
         public Task ActivateSessionWithInjectedBadIdentityChangeNotSupportedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadIdentityChangeNotSupported);
@@ -1176,8 +1052,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateTimeInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-08")]
         public Task ActivateSessionWithInjectedBadCertificateTimeInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateTimeInvalid);
@@ -1185,8 +1059,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateIssuerTimeInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-09")]
         public Task ActivateSessionWithInjectedBadCertificateIssuerTimeInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateIssuerTimeInvalid);
@@ -1194,8 +1066,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateHostNameInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-10")]
         public Task ActivateSessionWithInjectedBadCertificateHostNameInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateHostNameInvalid);
@@ -1203,8 +1073,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateUriInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-11")]
         public Task ActivateSessionWithInjectedBadCertificateUriInvalidAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateUriInvalid);
@@ -1212,8 +1080,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateUseNotAllowed.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-12")]
         public Task ActivateSessionWithInjectedBadCertificateUseNotAllowedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateUseNotAllowed);
@@ -1221,8 +1087,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateIssuerUseNotAllowed.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-13")]
         public Task ActivateSessionWithInjectedBadCertificateIssuerUseNotAllowedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateIssuerUseNotAllowed);
@@ -1230,8 +1094,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateUntrusted.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-14")]
         public Task ActivateSessionWithInjectedBadCertificateUntrustedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateUntrusted);
@@ -1239,8 +1101,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateRevocationUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-15")]
         public Task ActivateSessionWithInjectedBadCertificateRevocationUnknownAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateRevocationUnknown);
@@ -1248,8 +1108,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateIssuerRevocationUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-16")]
         public Task ActivateSessionWithInjectedBadCertificateIssuerRevocationUnknownAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateIssuerRevocationUnknown);
@@ -1257,8 +1115,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateRevoked.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-17")]
         public Task ActivateSessionWithInjectedBadCertificateRevokedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateRevoked);
@@ -1266,8 +1122,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_CertificateIssuerRevoked.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-18")]
         public Task ActivateSessionWithInjectedBadCertificateIssuerRevokedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadCertificateIssuerRevoked);
@@ -1275,8 +1129,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – injects service result Bad_SecurityChecksFailed.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-029-19")]
         public Task ActivateSessionWithInjectedBadSecurityChecksFailedAsync()
         {
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadSecurityChecksFailed);
@@ -1294,8 +1146,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("CloseSession – the server returns Bad_SessionIdInvalid as the service result.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-036")]
         public async Task CloseSessionWithInjectedBadSessionIdInvalidAsync()
         {
             ISession aux = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -1318,8 +1168,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – the server returns an empty ServerNonce in the response.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-030")]
         public async Task ActivateSessionWithInjectedEmptyServerNonceAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<ActivateSessionRequest, ActivateSessionResponse>(
@@ -1356,8 +1204,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – the first entry of the per-result Results array contains Bad_CertificateUriInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-032")]
         public async Task ActivateSessionWithInjectedFirstResultBadCertificateUriInvalidAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<ActivateSessionRequest, ActivateSessionResponse>(
@@ -1402,8 +1248,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("ActivateSession – every entry of the Results array contains a Bad_ status code.")]
         [Test]
-        [Property("ConformanceUnit", "Session Client Base")]
-        [Property("Tag", "Err-033")]
         public async Task ActivateSessionWithInjectedAllResultsBadAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<ActivateSessionRequest, ActivateSessionResponse>(

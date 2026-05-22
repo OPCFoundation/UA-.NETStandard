@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Server Capabilities and Base Information conformance.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class ServerCapabilitiesTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadServerProfileArrayAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -54,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadLocaleIdArrayAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -65,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "002")]
         public async Task ReadMinSupportedSampleRateAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -77,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "003")]
         public async Task ReadMaxBrowseContinuationPointsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -87,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadMaxQueryContinuationPointsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -97,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadMaxHistoryContinuationPointsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -107,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "011")]
         public async Task ReadOperationLimitsMaxNodesPerReadAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -117,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "012")]
         public async Task ReadOperationLimitsMaxNodesPerWriteAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -127,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "013")]
         public async Task ReadOperationLimitsMaxNodesPerBrowseAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -137,8 +121,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadNamespaceArrayAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -150,8 +132,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadServerArrayAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -162,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadServerStatusStateAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -173,8 +151,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadServerStatusCurrentTimeAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -184,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadServerStatusStartTimeAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -195,8 +169,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoProductNameAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -207,8 +179,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoSoftwareVersionAsync()
         {
             DataValue result = await ReadNodeValueAsync(

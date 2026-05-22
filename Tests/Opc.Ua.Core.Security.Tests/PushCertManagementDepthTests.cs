@@ -33,7 +33,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -42,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class PushCertManagementDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "008")]
         public async Task CreateSigningRequestWithRsaKeyTypeAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -62,12 +62,7 @@ namespace Opc.Ua.Conformance.Tests.Security
                 admin.Dispose();
             }
         }
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "008")]
-
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "008")]
         public async Task CreateSigningRequestMethodExistsAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -86,12 +81,7 @@ namespace Opc.Ua.Conformance.Tests.Security
                 admin.Dispose();
             }
         }
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "008")]
-
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
         public async Task TrustListOpenWithReadModeAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -114,12 +104,7 @@ namespace Opc.Ua.Conformance.Tests.Security
                 admin.Dispose();
             }
         }
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
-
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
         public async Task TrustListNodeExistsAsync()
         {
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(Session, ServerConfigurationNodeId).ConfigureAwait(false);
@@ -127,8 +112,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
         public async Task TrustListOpenCloseMultipleTimesAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -149,8 +132,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "013")]
         public async Task TrustListOpenMaskTrustedCertificatesAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -175,8 +156,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "013")]
         public async Task TrustListOpenMaskIssuerCertificatesAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -198,8 +177,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "013")]
         public async Task TrustListOpenMaskAllAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -222,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
         public async Task TrustListCloseAndReopenSucceedsAsync()
         {
             ArrayOf<ReferenceDescription> r1 = await BrowseChildrenAsync(Session, ServerConfigurationNodeId).ConfigureAwait(false);
@@ -232,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "011")]
         public async Task TrustListSizePropertyExistsAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -258,8 +231,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "003")]
         public async Task DefaultApplicationGroupHasCertificateAsync()
         {
             NodeId cg = await FindChildAsync(Session, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
@@ -268,8 +239,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "004")]
         public async Task HttpsGroupExistsOrIsAbsentAsync()
         {
             NodeId cg = await FindChildAsync(Session, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
@@ -278,8 +247,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "004")]
         public async Task UserTokenGroupExistsOrIsAbsentAsync()
         {
             NodeId cg = await FindChildAsync(Session, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
@@ -288,8 +255,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "002")]
         public async Task CertificateGroupTypeDefinitionExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(null, 0, TimestampsToReturn.Both,
@@ -301,8 +266,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "Err-007")]
         public async Task NonAdminCannotOpenTrustListForWriteAsync()
         {
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(Session, ServerConfigurationNodeId).ConfigureAwait(false);
@@ -310,8 +273,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
         public async Task AdminCanReadTrustListAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -332,8 +293,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "019")]
         public async Task AdminCanCallGetRejectedListAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -354,8 +313,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "016")]
         public async Task AdminCanCallGetCertificatesAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -380,8 +337,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "015")]
         public async Task ApplyChangesIdempotentAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -402,8 +357,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "017")]
         public async Task GetCertificateStatusMethodExistsAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -428,8 +381,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "Err-006")]
         public async Task NonAdminCannotCallApplyChangesAsync()
         {
             NodeId m = await FindMethodAsync(Session, ServerConfigurationNodeId, "ApplyChanges").ConfigureAwait(false);
@@ -446,8 +397,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "Err-008")]
         public async Task NonAdminCannotUpdateCertificateAsync()
         {
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(Session, ServerConfigurationNodeId).ConfigureAwait(false);
@@ -455,8 +404,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "015")]
         public async Task AdminCanCallApplyChangesAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);
@@ -477,8 +424,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Push Model for Global Certificate and TrustList Management")]
-        [Property("Tag", "010")]
         public async Task TrustListReadReturnsValidDataAsync()
         {
             ISession admin = await TryConnectAsAdminAsync().ConfigureAwait(false);

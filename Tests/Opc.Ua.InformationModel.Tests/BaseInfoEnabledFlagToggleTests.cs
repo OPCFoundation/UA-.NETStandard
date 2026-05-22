@@ -34,7 +34,9 @@ using Opc.Ua.Client;
 using Opc.Ua.Server;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// Dedicated fixture for tests that require the
@@ -85,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "015")]
         public async Task Diagnostics015VerifyEnabledFlagToggleAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);

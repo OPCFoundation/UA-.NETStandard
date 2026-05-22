@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Base Information Model conformance.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInformationTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadServerTypeDefinitionAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -75,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadNamespaceArrayContainsOpcUaAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -89,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadServerArrayContainsServerUriAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -103,8 +99,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadMaxBrowseContinuationPointsPositiveAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -116,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadMaxQueryContinuationPointsExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -127,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadMaxHistoryContinuationPointsExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -138,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadConformanceUnitsExistsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -164,15 +152,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task SecurityGroupFolderHasMandatoryMethodsAsync()
         {
-            // Issue #3719 — CTT BaseInfoCoreStructure reports
-            // "SecurityGroupFolderType.AddSecurityGroup not found on instance
-            //  with NodeId 'i=15443' even though it is Mandatory" and the same
-            //  for RemoveSecurityGroup. Per Part 14 (PubSub) the standard
-            //  SecurityGroups folder (i=15443) shall expose these two methods.
+            // Issue #3719 — the SecurityGroups folder (i=15443) was reported
+            // as missing the Mandatory AddSecurityGroup / RemoveSecurityGroup
+            // methods on its instance. Per Part 14 (PubSub) the standard
+            // SecurityGroups folder (i=15443) shall expose these two methods.
             await BrowseRequiresMandatoryMethodsAsync(
                 folderNodeId: new NodeId(15443),
                 folderName: "SecurityGroups (i=15443)",
@@ -181,14 +166,11 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task PubSubKeyPushTargetFolderHasMandatoryMethodsAsync()
         {
-            // Issue #3719 — CTT BaseInfoCoreStructure reports
-            // "PubSubKeyPushTargetFolderType.AddPushTarget not found on instance
-            //  with NodeId 'i=25440' even though it is Mandatory" and same for
-            //  RemovePushTarget.
+            // Issue #3719 — the KeyPushTargets folder (i=25440) was reported
+            // as missing the Mandatory AddPushTarget / RemovePushTarget
+            // methods on its instance.
             await BrowseRequiresMandatoryMethodsAsync(
                 folderNodeId: new NodeId(25440),
                 folderName: "KeyPushTargets (i=25440)",
@@ -250,8 +232,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxNodesPerReadPositiveAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -264,8 +244,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxNodesPerWriteExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -276,8 +254,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxNodesPerBrowseExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -288,8 +264,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxNodesPerMethodCallExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -300,8 +274,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxNodesPerRegisterNodesExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -312,8 +284,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxNodesPerTranslateBrowsePathsExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -324,8 +294,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadOperationLimitsMaxMonitoredItemsPerCallExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -336,8 +304,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadDiagnosticsEnabledFlagExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -347,8 +313,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoProductNameNotEmptyAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -360,8 +324,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoSoftwareVersionExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -372,8 +334,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoManufacturerNameExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -384,8 +344,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoBuildNumberExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -396,8 +354,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadBuildInfoBuildDateExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -407,8 +363,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadServerStatusStartTimeBeforeCurrentTimeAsync()
         {
             DataValue startResult = await ReadNodeValueAsync(
@@ -425,8 +379,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadServerStatusSecondsTillShutdownZeroAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -438,8 +390,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadServerServiceLevelAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -450,8 +400,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Type Information")]
-        [Property("Tag", "001")]
         public async Task ReadServerAuditingPropertyExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(

@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for miscellaneous base information model checks.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoMiscTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task ReadServerServiceLevelAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -56,8 +56,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -66,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasEventIdAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -79,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasEventTypeAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -92,8 +86,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasSourceNodeAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -105,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasSourceNameAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -118,8 +108,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasTimeAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -131,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasMessageAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -144,8 +130,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyBaseEventTypeHasSeverityAsync()
         {
             BrowseResponse response = await BrowseChildrenAsync(
@@ -157,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifySystemEventTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -167,8 +149,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Device Failure")]
-        [Property("Tag", "000")]
         public async Task VerifyDeviceFailureEventTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -177,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task VerifyAuditEventTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -187,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadSessionDiagnosticsSummaryNodeAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -200,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "001")]
         public async Task ReadServerDiagnosticsEnabledFlagAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -211,8 +185,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Progress Events")]
-        [Property("Tag", "001")]
         public async Task VerifyProgressEventTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(

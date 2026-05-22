@@ -36,13 +36,14 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Client.Tests;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Conformance.Tests.Discovery
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// Base fixture for in-process Local Discovery Server (LDS) conformance tests.

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Security Basic256Sha256.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     {
         [Description("Call GetEndpoints to identify a secure endpoint to attach that is 256Sha256: Open a secure channel, use Sign only (if available; else exit). Create a session using Anonymous if ava")]
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "001")]
         public async Task EndpointsAdvertiseSignSecurityModeAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -69,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Call GetEndpoints to identify a secure endpoint to attach that is 256Sha256: Open a secure channel, use SignAndEncrypt. Create a session using Anonymous if available, otherwise use")]
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "002")]
         public async Task EndpointsAdvertiseSignAndEncryptSecurityModeAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -94,8 +92,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "004")]
         public async Task EndpointAvailableForUnusedChannelDosAttackAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -119,8 +115,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "005")]
         public async Task EndpointAvailableForPartiallyUsedChannelDosAttackAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -145,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Create a secure channel.")]
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "006")]
         public async Task EndpointAvailableForCreateSecureChannelAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -171,8 +163,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Close an already closed secure channel.")]
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "007")]
         public async Task EndpointAvailableForCloseAlreadyClosedChannelAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -197,8 +187,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Close a secure channel that has timed-out due to inactivity.")]
         [Test]
-        [Property("ConformanceUnit", "Security Basic256Sha256")]
-        [Property("Tag", "008")]
         public async Task EndpointAvailableForCloseTimedOutChannelAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);

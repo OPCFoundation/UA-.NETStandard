@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests verifying that fundamental ReferenceTypes
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
     public class AddressSpaceReferenceTypeTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task OrganizesReferenceTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -53,8 +53,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task HasComponentReferenceTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -63,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task HasPropertyReferenceTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -73,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task HasSubtypeReferenceTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -83,8 +77,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task HasTypeDefinitionReferenceTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -93,8 +85,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task BooleanDataTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -103,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task Int32DataTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -113,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task StringDataTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(

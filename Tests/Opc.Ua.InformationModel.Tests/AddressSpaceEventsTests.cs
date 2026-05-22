@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for event-related address space structure.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
     public class AddressSpaceEventsTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Address Space Events")]
-        [Property("Tag", "000")]
         public async Task ServerObjectHasEventNotifierAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -67,8 +67,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Events")]
-        [Property("Tag", "000")]
         public async Task BaseEventTypeExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -89,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Events")]
-        [Property("Tag", "000")]
         public async Task BaseEventTypeHasMandatoryPropertiesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -127,8 +123,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Events")]
-        [Property("Tag", "000")]
         public async Task AuditEventTypeExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -147,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Events")]
-        [Property("Tag", "000")]
         public async Task AuditEventTypeIsSubtypeOfBaseEventTypeAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -176,8 +168,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Events")]
-        [Property("Tag", "000")]
         public async Task ObjectsFolderHasEventNotifierAttributeAsync()
         {
             ReadResponse response = await Session.ReadAsync(

@@ -34,7 +34,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Subscription Transfer covering
@@ -69,8 +71,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
             Assert.That(Session, Is.Not.Null, "Failed to create signed transfer session");
         }
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferSubscriptionToNewSessionSucceedsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -110,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferSubscriptionOriginalSessionCannotPublishAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -159,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferSubscriptionNewSessionCanPublishAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -201,8 +197,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferSubscriptionPreservesMonitoredItemsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -248,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferSubscriptionIdPreservedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -288,8 +280,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "008")]
         public async Task TransferSubscriptionReturnsAvailableSeqNumsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -331,8 +321,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "009")]
         public async Task TransferWithSendInitialTrueGetsDataAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -376,8 +364,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "010")]
         public async Task TransferWithSendInitialFalseNoImmediateDataAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -423,8 +409,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "011")]
         public async Task TransferWithSendInitialTrueAllItemsReportAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -470,8 +454,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "012")]
         public async Task TransferSendInitialFalseStaticNodeNoDataAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -515,9 +497,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "009")]
-        [Property("Tag", "010")]
         public async Task TransferSendInitialRespectsMonitoringModeAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -581,8 +560,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "Err-007")]
         public async Task TransferNonExistentSubscriptionReturnsBadAsync()
         {
             Client.ISession session2 = await CreateSessionAsync()
@@ -605,8 +582,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "Err-001")]
         public async Task TransferAlreadyTransferredFailsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -656,9 +631,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "013")]
-        [Property("Tag", "014")]
         public async Task TransferMixedValidInvalidPartialResultsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -709,8 +681,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "015")]
         public async Task TransferToSameSessionBehaviorAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -756,8 +726,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "Err-005")]
         public async Task TransferEmptyListBehaviorAsync()
         {
             Client.ISession session2 = await CreateSessionAsync()
@@ -787,8 +755,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "Err-007")]
         public async Task TransferDeletedSubscriptionReturnsBadAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -818,8 +784,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferWithMultipleMonitoredItemsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -866,8 +830,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "009")]
         public async Task TransferWithDisabledItemAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -930,8 +892,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "009")]
         public async Task TransferWithSamplingItemAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -990,8 +950,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferItemCountPreservedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1047,8 +1005,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferWithDataChangeFilterAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1114,8 +1070,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "008")]
         public async Task TransferWithQueuedNotificationsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1158,8 +1112,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferredSubContinuesPeriodicNotificationsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1205,8 +1157,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferredSubWriteTriggerNotificationAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1270,8 +1220,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferredSubKeepAliveOnNewSessionAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1313,8 +1261,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferredSubSequenceNumberContinuesAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1361,9 +1307,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "011")]
-        [Property("Tag", "012")]
         public async Task TransferMultipleSubscriptionsAtOnceAsync()
         {
             var subIds = new List<uint>();
@@ -1419,8 +1362,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "001")]
         public async Task TransferThenDeleteOnNewSessionAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(

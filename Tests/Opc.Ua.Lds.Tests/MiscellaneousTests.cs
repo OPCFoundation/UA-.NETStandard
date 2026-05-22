@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Miscellaneous
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for miscellaneous server behavior:
@@ -49,8 +51,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
     {
         [Description("Verify server handles rapid connect/disconnect gracefully.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Timeouts")]
-        [Property("Tag", "001")]
         public async Task RapidConnectDisconnectAsync()
         {
             for (int i = 0; i < 5; i++)
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Verify server handles multiple concurrent sessions.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Timeouts")]
-        [Property("Tag", "002")]
         public async Task ConcurrentSessionsAsync()
         {
             const int count = 5;
@@ -106,8 +104,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Read many nodes in a single Read call (stress test).")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "003")]
         public async Task ReadManyNodesInSingleCallAsync()
         {
             // Build a batch of 100 reads using the same set of scalar nodes
@@ -139,8 +135,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Browse many nodes in a single Browse call.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "003")]
         public async Task BrowseManyNodesInSingleCallAsync()
         {
             var descriptions = new List<BrowseDescription>();
@@ -181,8 +175,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Write many nodes in a single Write call.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "003")]
         public async Task WriteManyNodesInSingleCallAsync()
         {
             var values = new List<WriteValue>();
@@ -215,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Verify StatusCode Good equals zero.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public void StatusCodeGoodIsZero()
         {
             Assert.That((uint)StatusCodes.Good, Is.Zero);
@@ -224,8 +214,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Verify BadNodeIdUnknown has expected code value.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public void StatusCodeBadNodeIdUnknownIsCorrect()
         {
             Assert.That(StatusCodes.BadNodeIdUnknown, Is.EqualTo(0x80340000u));
@@ -233,8 +221,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Verify server returns timestamps in UTC.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ServerTimestampsAreUtcAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -267,8 +253,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Read a non-existent node and verify BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ReadNonExistentNodeReturnsBadNodeIdUnknownAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -290,8 +274,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Verify server returns proper error for reading an invalid attribute.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ReadInvalidAttributeIdReturnsBadAttributeIdInvalidAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -313,8 +295,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
 
         [Description("Verify the server ResponseHeader always has a non-default timestamp.")]
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ResponseHeaderHasTimestampAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -334,8 +314,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task WriteAndReadBackValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -375,8 +353,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Administrative Access")]
-        [Property("Tag", "001")]
         public async Task VerifyServerStateIsRunningAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -399,8 +375,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ReadNamespaceArrayAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -424,8 +398,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ReadServerArrayAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -449,8 +421,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Administrative Access")]
-        [Property("Tag", "001")]
         public async Task ReadServiceLevelAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -472,8 +442,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task VerifyServerCurrentTimeUpdatesAsync()
         {
             ReadResponse first = await Session.ReadAsync(
@@ -510,8 +478,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "003")]
         public async Task VerifyMaxNodesPerReadAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -536,8 +502,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task VerifyLocaleIdArrayAsync()
         {
             ReadResponse response = await Session.ReadAsync(

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Minimum Continuation Point 05.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     {
         [Description("Given five nodes to browse And the nodes exist And the nodes have at least two forward references When Browse is called Then the server returns a continuation point for each node A")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 05")]
-        [Property("Tag", "001")]
         public async Task BrowseFiveNodesReturnsContinuationPointPerNodeAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given five nodes to browse And the nodes exist And each node has at least three forward references And RequestedMaxReferencesPerNode is 1 And Browse has been called When BrowseNext")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 05")]
-        [Property("Tag", "003")]
         public async Task BrowseNextOnFiveNodesReturnsRemainingReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -89,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given two nodes to browse And the nodes exist And each node has at least three forward references And RequestedMaxReferencesPerNode is 1 And Browse has been called separately for e")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 05")]
-        [Property("Tag", "004")]
         public async Task BrowseNextOnSeparateBrowsesReturnsRemainingReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(

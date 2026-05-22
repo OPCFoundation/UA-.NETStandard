@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.NodeManagement
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Node Management Add Node.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
     {
         [Description("add a node using typical parameters. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "001")]
         public async Task AddNodeWithTypicalParametersSucceedsAsync()
         {
             var addRequest = new AddNodesItem
@@ -107,8 +107,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("add a node varying the browseName and reference type. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "002")]
         public async Task AddNodeWithVariedBrowseNameAndReferenceTypeSucceedsAsync()
         {
             var addRequest = new AddNodesItem
@@ -171,8 +169,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("add a node using typical parameters. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "003")]
         public async Task AddNodeWithTypicalParametersAlternateSucceedsAsync()
         {
             var addRequest = new AddNodesItem
@@ -231,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("add a node but do not specify any properties. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-001")]
         public async Task AddNodeWithoutPropertiesReturnsBadStatusAsync()
         {
             try
@@ -260,8 +254,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("add a node but do not specify any properties. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-002")]
         public async Task AddNodeWithoutPropertiesAlternateReturnsBadStatusAsync()
         {
             try
@@ -289,8 +281,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("parentNodeId is inknown. Expect BadParentIdInvalid. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-003")]
         public async Task AddNodeWithUnknownParentReturnsBadParentIdInvalidAsync()
         {
             try
@@ -318,8 +308,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("parentNodeId is inknown. Expect BadReferenceTypeIdInvalid. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-004")]
         public async Task AddNodeWithInvalidReferenceTypeReturnsBadReferenceTypeIdInvalidAsync()
         {
             try
@@ -347,8 +335,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Use incorrect reference type. Expects BadReferenceNotAllowed. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-005")]
         public async Task AddNodeWithIncorrectReferenceTypeReturnsBadReferenceNotAllowedAsync()
         {
             try
@@ -376,8 +362,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("specify a nodeid even if not supported. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-006")]
         public async Task AddNodeWithSpecifiedNodeIdReturnsExpectedStatusAsync()
         {
             try
@@ -405,8 +389,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("specify a nodeid even if not supported, namespaceIndex is 0 (OPC). May be accepted, or return BadNodeIdRejected */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-007")]
         public async Task AddNodeWithSpecifiedNodeIdInNamespaceZeroReturnsExpectedStatusAsync()
         {
             try
@@ -434,8 +416,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("add a node using typical parameters. Then add it again: BadNodeIdExists */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-008")]
         public async Task AddDuplicateNodeReturnsBadNodeIdExistsAsync()
         {
             try
@@ -463,8 +443,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Round-trip test: add a Variable node and verify it can be deleted.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "test")]
         public async Task AddNodesWriteTestRoundTripSucceedsAsync()
         {
             var addRequest = new AddNodesItem

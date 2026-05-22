@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Shelving conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsShelvingTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_000")]
         public async Task ShelvedStateMachineTypeExistsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -56,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_000")]
         public async Task ShelvedStateMachineHasTimedShelveMethodAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -68,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_000")]
         public async Task ShelvedStateMachineHasOneShotShelveMethodAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -80,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_000")]
         public async Task ShelvedStateMachineHasUnshelveMethodAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -92,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_000")]
         public async Task ShelvedStateMachineHasUnshelveTimeAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -104,8 +94,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_000")]
         public async Task AlarmConditionTypeHasShelvingStateAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -116,8 +104,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_002")]
         public async Task TimedShelveTransitionsToTimedShelvedAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()
@@ -140,8 +126,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_003")]
         public async Task OneShotShelveTransitionsToOneShotShelvedAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()
@@ -171,8 +155,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_004")]
         public async Task UnshelveTransitionsToUnshelvedAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()
@@ -199,8 +181,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_005")]
         public async Task TimedShelveWithDurationAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()
@@ -230,8 +210,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Test_006")]
         public async Task ShelveGeneratesEventAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()
@@ -261,8 +239,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Err_001")]
         public async Task ErrTimedShelveWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -275,8 +251,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Err_002")]
         public async Task ErrTimedShelveWithZeroDurationAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()
@@ -296,8 +270,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Shelving")]
-        [Property("Tag", "Err_003")]
         public async Task ErrUnshelveWhenNotShelvedAsync()
         {
             NodeId shelvingState = await GetShelvingStateNodeAsync()

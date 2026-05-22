@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// Conformance unit smoke tests for Alarms and Conditions types and
@@ -48,152 +50,102 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsPlaceholderTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm Metrics")]
-        [Property("Tag", "001")]
         public Task AlarmMetricsPlaceholder()
             => AssertTypeExistsAsync(new NodeId(17279), "AlarmMetricsType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Audible Sound")]
-        [Property("Tag", "001")]
         public Task AudibleSoundPlaceholder()
             => AssertTypeExistsAsync(new NodeId(16390), "AudibleSound");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Condition Sub-Classes")]
-        [Property("Tag", "001")]
         public Task ConditionSubClassesPlaceholder()
             => AssertTypeExistsAsync(new NodeId(11163), "BaseConditionClassType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C ConditionClasses")]
-        [Property("Tag", "001")]
         public Task ConditionClassesPlaceholder()
             => AssertTypeExistsAsync(new NodeId(11163), "BaseConditionClassType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Dialog")]
-        [Property("Tag", "001")]
         public Task DialogPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.DialogConditionType, "DialogConditionType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Discrepancy")]
-        [Property("Tag", "001")]
         public Task DiscrepancyPlaceholder()
             => AssertTypeExistsAsync(new NodeId(17080), "DiscrepancyAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Discrete")]
-        [Property("Tag", "001")]
         public Task DiscretePlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.DiscreteAlarmType, "DiscreteAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Exclusive Deviation")]
-        [Property("Tag", "001")]
         public Task ExclusiveDeviationPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveDeviationAlarmType, "ExclusiveDeviationAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Exclusive Level")]
-        [Property("Tag", "001")]
         public Task ExclusiveLevelPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveLevelAlarmType, "ExclusiveLevelAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Exclusive Limit")]
-        [Property("Tag", "001")]
         public Task ExclusiveLimitPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveLimitAlarmType, "ExclusiveLimitAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Exclusive Rate Of Change")]
-        [Property("Tag", "001")]
         public Task ExclusiveRateOfChangePlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveRateOfChangeAlarmType, "ExclusiveRateOfChangeAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C First In Group Alarm")]
-        [Property("Tag", "001")]
         public Task FirstInGroupAlarmPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.AlarmGroupType, "AlarmGroupType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Non Exclusive Deviation")]
-        [Property("Tag", "001")]
         public Task NonExclusiveDeviationPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveDeviationAlarmType, "NonExclusiveDeviationAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Non Exclusive Level")]
-        [Property("Tag", "001")]
         public Task NonExclusiveLevelPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveLevelAlarmType, "NonExclusiveLevelAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Non Exclusive Limit")]
-        [Property("Tag", "001")]
         public Task NonExclusiveLimitPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveLimitAlarmType, "NonExclusiveLimitAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Non Exclusive Rate Of Change")]
-        [Property("Tag", "001")]
         public Task NonExclusiveRateOfChangePlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveRateOfChangeAlarmType, "NonExclusiveRateOfChangeAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Off Normal")]
-        [Property("Tag", "001")]
         public Task OffNormalPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.OffNormalAlarmType, "OffNormalAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C On Off Delay")]
-        [Property("Tag", "001")]
         public Task OnOffDelayPlaceholder()
             => AssertTypeExistsAsync(new NodeId(16395), "OnDelay");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Out of Service")]
-        [Property("Tag", "001")]
         public Task OutOfServicePlaceholder()
             => AssertTypeExistsAsync(new NodeId(16371), "OutOfServiceState");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Re-Alarming")]
-        [Property("Tag", "001")]
         public Task ReAlarmingPlaceholder()
             => AssertTypeExistsAsync(new NodeId(16400), "ReAlarmTime");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Silencing")]
-        [Property("Tag", "001")]
         public Task SilencingPlaceholder()
             => AssertTypeExistsAsync(new NodeId(16380), "SilenceState");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Suppression by Operator")]
-        [Property("Tag", "001")]
         public Task SuppressionByOperatorPlaceholder()
             => AssertTypeExistsAsync(new NodeId(9215), "SuppressedOrShelved");
 
         [Test]
-        [Property("ConformanceUnit", "A and C System Off Normal")]
-        [Property("Tag", "001")]
         public Task SystemOffNormalPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.SystemOffNormalAlarmType, "SystemOffNormalAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Trip")]
-        [Property("Tag", "001")]
         public Task TripPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.TripAlarmType, "TripAlarmType");
 
         [Test]
-        [Property("ConformanceUnit", "A and C Wrapper Mapping")]
-        [Property("Tag", "001")]
         public Task WrapperMappingPlaceholder()
             => AssertTypeExistsAsync(ObjectTypeIds.RefreshStartEventType, "RefreshStartEventType");
 

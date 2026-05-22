@@ -31,7 +31,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Refresh and A and C Refresh2
@@ -116,8 +116,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh")]
-        [Property("Tag", "N/A")]
         public async Task ConditionRefreshMethodExistsAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -127,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh")]
-        [Property("Tag", "Test_002")]
         public async Task ConditionRefreshReturnsCurrentStateAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -141,8 +137,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh")]
-        [Property("Tag", "Err_003")]
         public async Task ErrConditionRefreshWithBadSubscriptionIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -155,8 +149,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh")]
-        [Property("Tag", "Err_005")]
         public async Task ErrConditionRefreshWithInvalidArgsAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -168,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh")]
-        [Property("Tag", "Err_004")]
         public async Task ErrConditionRefreshConcurrentAsync()
         {
             CallResponse response = await Session.CallAsync(
@@ -210,8 +200,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "N/A")]
         public async Task ConditionRefresh2MethodExistsAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -221,8 +209,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "Test_002")]
         public async Task ConditionRefresh2ReturnsCurrentStateAsync()
         {
             if (m_monitoredItemId == 0)
@@ -241,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "Err_002")]
         public async Task ErrConditionRefresh2WithBadSubscriptionIdAsync()
         {
             if (m_monitoredItemId == 0)
@@ -261,8 +245,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "Err_004")]
         public async Task ErrConditionRefresh2WithBadMonitoredItemIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -276,8 +258,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "Err_006")]
         public async Task ErrConditionRefresh2WithInvalidArgsAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -289,8 +269,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "Err_003")]
         public async Task ErrConditionRefresh2ConcurrentAsync()
         {
             if (m_monitoredItemId == 0)
@@ -337,8 +315,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Refresh2")]
-        [Property("Tag", "Err_007")]
         public async Task ErrConditionRefresh2OnNonEventItemAsync()
         {
             var dataItem = new MonitoredItemCreateRequest

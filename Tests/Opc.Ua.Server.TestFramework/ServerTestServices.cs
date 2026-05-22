@@ -31,7 +31,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Opc.Ua.Server.Tests
+namespace Opc.Ua.Server.TestFramework
 {
     /// <summary>
     /// Interface for common test framework services.

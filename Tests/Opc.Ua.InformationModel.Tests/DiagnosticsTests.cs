@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for server diagnostics information.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class DiagnosticsTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "001")]
         public async Task ReadServerDiagnosticsEnabledFlagAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -55,8 +55,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadServerDiagnosticsSummaryAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -71,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadDiagnosticsSummaryCurrentSessionCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -84,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadDiagnosticsSummaryCurrentSubscriptionCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -94,8 +88,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadSessionsDiagnosticsSummaryAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -104,8 +96,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadServerCurrentTimeIsRecentAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -119,8 +109,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadServerStateIsRunningAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -130,8 +118,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ServerDiagnosticsNodeBrowseHasChildrenAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -163,8 +149,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadDiagnosticsSummaryCumulatedSessionCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -175,8 +159,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task ReadDiagnosticsSummaryServerViewCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(

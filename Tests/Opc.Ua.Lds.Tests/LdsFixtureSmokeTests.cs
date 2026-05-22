@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Discovery
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// Sanity tests for the in-process LDS fixture. Verifies the LDS starts,

@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance depth tests for View Service Set browse
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     public class ViewDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "001")]
         public async Task ContinuationPointWithMaxRefs1Async()
         {
             BrowseResult result = await BrowseAsync(
@@ -62,8 +62,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task ContinuationPointWithMaxRefs2Async()
         {
             BrowseResult result = await BrowseAsync(
@@ -77,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task ContinuationPointWithMaxRefs5Async()
         {
             BrowseResult result = await BrowseAsync(
@@ -92,8 +88,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task ContinuationPointWithMaxRefs10Async()
         {
             BrowseResult result = await BrowseAsync(
@@ -107,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "009")]
         public async Task ContinuationPointWithMaxRefs0ReturnsAllAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -119,8 +111,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task BrowseAllRefsWithMaxRefs1MatchesUnlimitedAsync()
         {
             List<ReferenceDescription> allAtOnce = await BrowseAllRefsAsync(
@@ -132,8 +122,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task BrowseAllRefsWithMaxRefs3MatchesUnlimitedAsync()
         {
             List<ReferenceDescription> allAtOnce = await BrowseAllRefsAsync(
@@ -144,8 +132,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "005")]
         public async Task ReleaseContinuationPointSucceedsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -166,8 +152,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task BrowseTwoNodesSimultaneouslyAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -203,8 +187,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task BrowseThreeNodesReturnsThreeResultsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -245,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task BrowseMultipleWithMaxRefsOneAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -286,8 +266,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "007")]
         public async Task BrowseObjectsFolderAndServerReturnDifferentAsync()
         {
             List<ReferenceDescription> objRefs = await BrowseAllRefsAsync(
@@ -302,8 +280,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseWithNullViewSucceedsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -314,8 +290,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseWithDefaultViewDescSucceedsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -341,8 +315,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-014")]
         public async Task BrowseNextWithEmptyCpReturnsErrorAsync()
         {
             BrowseNextResponse response = await Session.BrowseNextAsync(
@@ -357,8 +329,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-003")]
         public async Task BrowseNextWithInvalidCpReturnsErrorAsync()
         {
             byte[] fakeBytes = [0xFF, 0xFE, 0xFD, 0xFC];
@@ -374,8 +344,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-003")]
         public async Task BrowseNextReleaseThenUseCpFailsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -401,8 +369,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-006")]
         public async Task BrowseNextReleaseAlreadyReleasedCpFailsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -434,8 +400,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-003")]
         public async Task BrowseNextWithMultipleInvalidCpsFailAsync()
         {
             byte[] fake1 = [0x01, 0x02];
@@ -457,8 +421,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskBrowseNameOnlyAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -469,8 +431,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskDisplayNameOnlyAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -481,8 +441,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskNodeClassOnlyAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -493,8 +451,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskReferenceTypeOnlyAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -506,8 +462,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskIsForwardOnlyAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -518,8 +472,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskTypeDefinitionOnlyAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -531,8 +483,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskNoneReturnsReferencesAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -543,8 +493,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "010")]
         public async Task ResultMaskAllReturnsFullAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -559,8 +507,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "019")]
         public async Task ResultMaskBrowseAndDisplayNameAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -573,8 +519,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "027")]
         public async Task ServerDiagnosticsSummaryExistsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -587,8 +531,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "018")]
         public async Task ServerStatusNodeExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -608,8 +550,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "027")]
         public async Task BrowseServerDiagnosticsHasSessionArrayAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -633,8 +573,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "018")]
         public async Task BrowseServerCapabilitiesExistsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -656,8 +594,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "018")]
         public async Task BrowseNamespacesArrayExistsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -680,8 +616,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "003")]
         public async Task BrowseInverseOnRootReturnsNoRefsAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -693,8 +627,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "002")]
         public async Task BrowseForwardOnObjectsFolderReturnsChildrenAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -705,8 +637,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseBothDirectionOnServerReturnsRefsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -733,8 +663,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseTypesFolderHasChildrenAsync()
         {
             BrowseResult result = await BrowseAsync(
@@ -746,8 +674,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "001")]
         public async Task BrowseViewsFolderSucceedsAsync()
         {
             BrowseResult result = await BrowseAsync(

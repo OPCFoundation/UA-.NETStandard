@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Conformance.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Constants for compliance test NodeIds in the ReferenceServer address space.

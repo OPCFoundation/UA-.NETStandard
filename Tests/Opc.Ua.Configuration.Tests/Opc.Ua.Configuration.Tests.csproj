@@ -32,7 +32,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
-    <Compile Include="..\Common\Logging.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Opc.Ua.Configuration.Tests.Config.xml">
@@ -77,5 +76,8 @@
     <None Update="test-server-explicit.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Address Space UserWriteMask.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
     {
         [Description("Write to the Value attribute of a Variable, where the AccessLevel == CurrentWriteService. */")]
         [Test]
-        [Property("ConformanceUnit", "Address Space UserWriteMask")]
-        [Property("Tag", "004")]
         public async Task WriteValueAttributeWithCurrentWriteAccessLevelAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -60,8 +60,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
 
         [Description("Write to a node whose AccessLevel does not contain write capabilities. */")]
         [Test]
-        [Property("ConformanceUnit", "Address Space UserWriteMask")]
-        [Property("Tag", "Err-001")]
         public async Task WriteToNodeWithoutWriteAccessLevelFailsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -75,10 +73,8 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
             Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Write a valid value to each attribute that can be written to as determined by the value of the WriteMask and/or UserWriteMask attributes. */ include( &quot;./library/Base/NodeTypeAttrib")]
+        [Description("Write a valid value to each attribute that can be written to as determined by the value of the WriteMask and/or UserWriteMask attributes.")]
         [Test]
-        [Property("ConformanceUnit", "Address Space UserWriteMask")]
-        [Property("Tag", "Err-002")]
         public async Task WriteAttributesPerWriteMaskCapabilitiesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -94,8 +90,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
 
         [Description("Write to a node whose UserAccessLevel does not contain write capabilities. */")]
         [Test]
-        [Property("ConformanceUnit", "Address Space UserWriteMask")]
-        [Property("Tag", "Err-004")]
         public async Task WriteToNodeWithoutUserWriteAccessLevelFailsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(

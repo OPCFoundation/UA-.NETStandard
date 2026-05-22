@@ -3519,7 +3519,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                _ = ValidateMonitoringFilter(attributes.Filter);
+                error = ValidateMonitoringFilter(attributes.Filter);
 
                 if (ServiceResult.IsBad(error))
                 {
@@ -3554,7 +3554,7 @@ namespace Opc.Ua.Server
             }
 
             // validate monitoring filter.
-            _ = ValidateMonitoringFilter(attributes.Filter);
+            error = ValidateMonitoringFilter(attributes.Filter);
 
             if (ServiceResult.IsBad(error))
             {

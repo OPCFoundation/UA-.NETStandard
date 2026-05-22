@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for session-level diagnostics.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Read the SessionDiagnosticsArray variable and verify that an array value is returned by the server.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadSessionDiagnosticsArrayFindsCurrentSessionAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify the session name is accessible and non-empty on the connected session object.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public void VerifySessionDiagnosticsSessionName()
         {
             Assert.That(Session.SessionName, Is.Not.Null.And.Not.Empty,
@@ -80,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the Server.ServerStatus node and verify that a ServerStatusDataType with a valid ServerUri is returned.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task VerifySessionDiagnosticsServerUriAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -96,8 +92,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that the session endpoint URL matches the server URL that was used when establishing the connection.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public void VerifySessionDiagnosticsEndpointUrl()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -114,8 +108,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the CumulatedSessionCount diagnostic and verify it is greater than zero (at least one session has been created).")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadTotalRequestCountGreaterThanZeroAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -133,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the CurrentSubscriptionCount diagnostic and verify it is a non-negative value.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadCurrentSubscriptionsCountMatchesOursAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -152,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that the session security mode property matches the security mode that was negotiated during connection.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "015")]
         public void VerifySessionSecurityModeMatchesConnection()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -165,8 +153,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that the session security policy URI property matches the policy used during connection.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "015")]
         public void VerifySessionSecurityPolicyUriMatchesConnection()
         {
             Assert.That(Session.Endpoint, Is.Not.Null);
@@ -178,8 +164,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the RejectedSessionCount diagnostic and verify it is a non-negative value. A healthy test run should have zero or very few rejected sessions.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadUnauthorizedRequestCountZeroForSuccessfulSessionAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -197,8 +181,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the ServerViewCount diagnostic variable and verify it returns a Good status code.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadServerViewCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -212,8 +194,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the MaxBrowseContinuationPoints capability and verify it returns a Good status code with a non-negative value.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadMaxBrowseContinuationPointsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -231,8 +211,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the Server_ServerStatus_State variable and verify that the server reports a Running state.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadServerStateIsRunningAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -249,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the SecurityRejectedSessionCount diagnostic variable and verify it returns a Good status with a non-negative value.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadRejectedRequestCountAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -266,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read the ServerDiagnosticsSummary node and verify it returns a Good or access-denied status (anonymous sessions may be restricted from reading full diagnostics).")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task ReadServerDiagnosticsSummaryAsync()
         {
             DataValue result = await ReadNodeValueAsync(

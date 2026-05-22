@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Base Information DataType and structure type
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoDataTypeTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Audio Type")]
-        [Property("Tag", "001")]
         public async Task AudioDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -61,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info BitFieldMaskDataType")]
-        [Property("Tag", "001")]
         public async Task BitFieldMaskDataTypeIsSubtypeOfUInt64Async()
         {
             await AssertNodeExistsAsync(
@@ -76,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Date DataTypes")]
-        [Property("Tag", "001")]
         public async Task DateDataTypesExistUnderStringAsync()
         {
             await AssertNodeExistsAsync(
@@ -94,8 +90,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Decimal DataType")]
-        [Property("Tag", "001")]
         public async Task DecimalDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -104,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info DecimalString DataType")]
-        [Property("Tag", "001")]
         public async Task DecimalStringIsSubtypeOfStringAsync()
         {
             await AssertNodeExistsAsync(
@@ -119,8 +111,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Handle DataType")]
-        [Property("Tag", "001")]
         public async Task HandleIsSubtypeOfUInt32Async()
         {
             await AssertNodeExistsAsync(
@@ -133,8 +123,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Image DataTypes")]
-        [Property("Tag", "001")]
         public async Task ImageDataTypesExistAsync()
         {
             await AssertNodeExistsAsync(
@@ -159,8 +147,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info NormalizedString DataType")]
-        [Property("Tag", "001")]
         public async Task NormalizedStringIsSubtypeOfStringAsync()
         {
             await AssertNodeExistsAsync(
@@ -174,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info SemanticVersionString")]
-        [Property("Tag", "001")]
         public async Task SemanticVersionStringIsSubtypeOfStringAsync()
         {
             await AssertNodeExistsAsync(
@@ -189,8 +173,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info TrimmedString")]
-        [Property("Tag", "001")]
         public async Task TrimmedStringIsSubtypeOfStringAsync()
         {
             await AssertNodeExistsAsync(
@@ -204,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info UriString")]
-        [Property("Tag", "001")]
         public async Task UriStringIsSubtypeOfStringAsync()
         {
             await AssertNodeExistsAsync(
@@ -219,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ContentFilter")]
-        [Property("Tag", "001")]
         public async Task ContentFilterElementExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -237,8 +215,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Core Structure 2")]
-        [Property("Tag", "001")]
         public async Task StructureDataTypeExistsAndHasChildrenAsync()
         {
             await AssertNodeExistsAsync(
@@ -254,8 +230,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Core Structure 2")]
-        [Property("Tag", "002")]
         public async Task StructureHasUnionAndOptionalFieldsSubtypesAsync()
         {
             List<ReferenceDescription> refs = await BrowseRefsAsync(
@@ -277,8 +251,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info EUInformation")]
-        [Property("Tag", "001")]
         public async Task EUInformationExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -287,8 +259,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info KeyValuePair")]
-        [Property("Tag", "001")]
         public async Task KeyValuePairStructureExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -297,8 +267,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Method Argument DataType")]
-        [Property("Tag", "001")]
         public async Task ArgumentDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -313,8 +281,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet DataType")]
-        [Property("Tag", "001")]
         public async Task OptionSetDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -323,8 +289,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Portable IDs")]
-        [Property("Tag", "001")]
         public async Task PortableNodeIdAndQualifiedNameExistAsync()
         {
             await AssertNodeExistsAsync(
@@ -337,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Range DataType")]
-        [Property("Tag", "001")]
         public async Task RangeDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -346,8 +308,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Rational Number")]
-        [Property("Tag", "001")]
         public async Task RationalNumberTypeHasComponentsAsync()
         {
             await AssertNodeExistsAsync(
@@ -370,8 +330,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Rational Number")]
-        [Property("Tag", "002")]
         public async Task RationalNumberDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -380,8 +338,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ReferenceDescription")]
-        [Property("Tag", "001")]
         public async Task ReferenceDescriptionDataTypeExistsAsync()
         {
             // The standard 1.05 nodeset renamed this DataType from
@@ -393,8 +349,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info StatusResult DataType")]
-        [Property("Tag", "001")]
         public async Task StatusResultDataTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -402,8 +356,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info UaBinary File")]
-        [Property("Tag", "001")]
         public async Task DataTypeEncodingTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -412,8 +364,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Currency")]
-        [Property("Tag", "001")]
         public async Task CurrencyUnitTypeExistsAsync()
         {
             await AssertNodeExistsAsync(
@@ -422,8 +372,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Currency")]
-        [Property("Tag", "002")]
         public async Task CurrencyUnitTypeHasAlphabeticCodeAsync()
         {
             await AssertNodeExistsAsync(
@@ -438,8 +386,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Currency")]
-        [Property("Tag", "003")]
         public async Task CurrencyUnitTypeHasCurrencyAsync()
         {
             await AssertNodeExistsAsync(
@@ -451,8 +397,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Currency")]
-        [Property("Tag", "004")]
         public async Task CurrencyUnitTypeHasExponentAsync()
         {
             await AssertNodeExistsAsync(
@@ -464,8 +408,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Spatial Data")]
-        [Property("Tag", "001")]
         public async Task SpatialDataCoordinateTypesExistAsync()
         {
             await AssertNodeExistsAsync(
@@ -478,8 +420,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Spatial Data")]
-        [Property("Tag", "002")]
         public async Task SpatialDataStructuresExistAsync()
         {
             await AssertNodeExistsAsync(

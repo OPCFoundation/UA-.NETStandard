@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for the SetTriggering service covering simple
@@ -77,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SimpleTriggerReportingTriggersScanningAsync()
         {
             // A(Reporting) triggers B(Sampling); fire A → B reports
@@ -113,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SimpleTriggerLinkedItemOnlyReportsWhenTriggerFiresAsync()
         {
             // B in Sampling mode does not report on its own
@@ -149,8 +147,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SimpleTriggerWriteToLinkedItemNoNotificationAloneAsync()
         {
             // Write to B while B is Sampling → no notification from B
@@ -188,8 +184,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SimpleTriggerRemoveLinkStopsTriggeringAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -233,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SimpleTriggerAddLinkAfterCreationAsync()
         {
             // Create both items first, then SetTriggering
@@ -271,8 +263,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SimpleTriggerBothItemsInSameNotificationAsync()
         {
             // When A triggers B, both appear in same publish cycle
@@ -323,8 +313,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         [Category("LongRunning")]
         public async Task ChainTriggerATriggersB_BTriggersCAsync()
         {
@@ -374,8 +362,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task ChainTriggerOnlyDirectLinksHonoredAsync()
         {
             // A→B→C but A does not directly trigger C
@@ -415,8 +401,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task ChainTriggerRemoveMiddleLinkBreaksChainAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -459,8 +443,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task ChainTriggerThreeLevelsDeepAsync()
         {
             // A→B, B→C, C→D
@@ -502,8 +484,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task OneTriggerMultipleLinkedItemsAsync()
         {
             // A triggers B, C, D simultaneously
@@ -550,8 +530,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task MultipleTriggersSameLinkedItemAsync()
         {
             // Both A and B trigger C
@@ -593,8 +571,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task AddFiveLinkedItemsToOneTriggerAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -637,8 +613,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task TriggerWithTenLinkedItemsAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -686,8 +660,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         [Category("LongRunning")]
         public async Task RemoveOneOfMultipleLinkedItemsRestRemainAsync()
         {
@@ -747,8 +719,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task RemoveAllLinksAtOnceAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -781,8 +751,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task RemoveLinksOneByOneAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -814,8 +782,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task RemoveNonExistentLinkReturnsBadAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -835,8 +801,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task RemoveLinkThenReAddAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -868,8 +832,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task RemoveLinksFromInvalidTriggerReturnsBadAsync()
         {
             NodeId nodeB = ToNodeId(Constants.ScalarStaticInt32);
@@ -892,8 +854,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         [Category("LongRunning")]
         public async Task TriggerWithDisabledLinkedItemAsync()
         {
@@ -933,8 +893,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task TriggerItemDisabledStopsTriggeringAllAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticInt32);
@@ -974,8 +932,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task TriggerItemSamplingNoAutoReportingAsync()
         {
             // Trigger in Sampling mode → does not auto-report
@@ -1005,8 +961,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SetLinkedItemToReportingStillTriggerableAsync()
         {
             // Linked item set to Reporting → always reports
@@ -1044,8 +998,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task ChangeLinkedModeFromSamplingToDisabledStopsTriggeringAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1080,8 +1032,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-029")]
         public async Task SetTriggeringInvalidSubscriptionIdAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1103,8 +1053,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-026")]
         public async Task SetTriggeringInvalidTriggeringItemIdAsync()
         {
             NodeId nodeB = ToNodeId(Constants.ScalarStaticInt32);
@@ -1129,8 +1077,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-026")]
         public async Task SetTriggeringInvalidLinkedItemIdAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1150,8 +1096,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-030")]
         public async Task SetTriggeringEmptyAddAndRemoveArraysAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1183,8 +1127,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-029")]
         public async Task SetTriggeringOnDeletedSubscriptionAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1214,8 +1156,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task SetTriggeringSameItemAsTriggerAndLinkedAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1240,8 +1180,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task TriggerPreservedAfterModifyMonitoredItemAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1291,8 +1229,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task TriggerWithDataChangeFilterOnLinkedItemAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1332,8 +1268,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task TriggerWithDifferentSamplingIntervalsAsync()
         {
             // Trigger at 50ms, linked at 5000ms
@@ -1369,8 +1303,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         [Category("LongRunning")]
         public async Task DeleteTriggerItemLinksAutomaticallyRemovedAsync()
         {
@@ -1418,8 +1350,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task DeleteLinkedItemTriggerStillWorksAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1471,8 +1401,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "001")]
         public async Task BasicAddSingleLinkAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1509,8 +1437,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "002")]
         public async Task AddMultipleLinksAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1549,8 +1475,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "003")]
         public async Task AddOneLinkThenRemoveAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1581,8 +1505,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "004")]
         public async Task AddMultipleLinksThenRemoveAllAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1619,8 +1541,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "005")]
         public async Task ReplaceLinksAddAndRemoveInOneCallAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1677,8 +1597,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "006")]
         public async Task TriggerWithDeadbandFilterAsync()
         {
             NodeId nodeA = ToNodeId(Constants.AnalogTypeDouble);
@@ -1731,8 +1649,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "007")]
         public async Task CircularTriggerBothItemsAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticInt32);
@@ -1776,8 +1692,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "008")]
         public async Task MixedAddRemoveSubsequentCallsAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1826,8 +1740,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "009")]
         public async Task TriggerReportingLinksMixedModesAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1866,8 +1778,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "010")]
         public async Task TriggerReportingLinkedReportingAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1903,8 +1813,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "011")]
         [Category("LongRunning")]
         public async Task TriggerReportingFourLinksMixedModesAsync()
         {
@@ -1958,8 +1866,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "012")]
         public async Task SameItemInAddAndRemoveAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1996,8 +1902,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "013")]
         public async Task TriggerSamplingLinkSamplingAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticInt32);
@@ -2032,8 +1936,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "014")]
         public async Task TriggerSamplingLinksReportingAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticInt32);
@@ -2070,8 +1972,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "015")]
         public async Task SameNodeIdTriggerAndLinkAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticInt32);
@@ -2104,8 +2004,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "016")]
         [Category("LongRunning")]
         public async Task DisabledTriggerSamplingLinkKeepAliveAsync()
         {
@@ -2150,8 +2048,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "017")]
         [Category("LongRunning")]
         public async Task DisabledTriggerFourLinksMixedModesAsync()
         {
@@ -2208,8 +2104,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "018")]
         public async Task DisabledTriggerSameNodeLinkReportingAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticInt32);
@@ -2243,8 +2137,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "019")]
         [Category("LongRunning")]
         public async Task DisabledTriggerDisabledLinkNoNotificationsAsync()
         {
@@ -2288,8 +2180,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "020")]
         public async Task DeadbandAbsoluteOnTriggerSamplingLinksAsync()
         {
             NodeId nodeA = ToNodeId(Constants.AnalogTypeDouble);
@@ -2340,8 +2230,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "021")]
         public async Task DeleteLinkedItemThenRemoveExpectsBadAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -2378,8 +2266,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "022")]
         public async Task DeleteTriggerItemCleanupAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -2422,8 +2308,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "023")]
         public async Task DeleteTriggerWritePublishNoDataAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -2464,8 +2348,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "024")]
         public async Task RemoveAlreadyDeletedLinkExpectsBadAsync()
         {
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
@@ -2501,8 +2383,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Triggering")]
-        [Property("Tag", "025")]
         public async Task NonNumericTriggerAndLinkAsync()
         {
             NodeId nodeA = ToNodeId(Constants.ScalarStaticString);

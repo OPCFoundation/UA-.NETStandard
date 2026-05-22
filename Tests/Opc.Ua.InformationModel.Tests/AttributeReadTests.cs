@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AttributeServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Attribute Service Set – Read.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
     {
         [Description("Read Value from a single valid node. Expect StatusCode Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "001")]
         public async Task AttributeRead001SingleNodeValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -72,8 +72,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value from multiple valid nodes. All should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "002")]
         public async Task AttributeRead002MultipleNodesValueAsync()
         {
             var readValueIds = Constants.ScalarStaticNodes
@@ -101,8 +99,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read DisplayName attribute. Expect a non-null LocalizedText.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead003DisplayNameAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -132,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read BrowseName attribute. Expect a non-null QualifiedName.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "010")]
         public async Task AttributeRead004BrowseNameAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -163,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read NodeClass attribute. Should return Variable for data nodes.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead006NodeClassAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -192,8 +184,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read DataType attribute. Should return a valid DataType NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead007DataTypeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -223,8 +213,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard attributes in a single call for a Variable node.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "003")]
         public async Task AttributeRead008AllAttributesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -271,8 +259,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with TimestampsToReturn=Source. Source timestamp should be present.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "007")]
         public async Task AttributeRead009TimestampsSourceAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -301,8 +287,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with TimestampsToReturn=Server. Server timestamp should be present.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "008")]
         public async Task AttributeRead010TimestampsServerAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -331,8 +315,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with MaxAge=0 (from device). Server must return a fresh value.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "004")]
         public async Task AttributeRead011MaxAgeZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -357,8 +339,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read an invalid/non-existent NodeId. Expect BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-004")]
         public async Task AttributeReadErr001InvalidNodeIdAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -382,8 +362,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with an invalid AttributeId. Expect BadAttributeIdInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-001")]
         public async Task AttributeReadErr002InvalidAttributeIdAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -409,8 +387,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read an attribute not valid for the node class. E.g., read InverseName from a Variable node.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-001")]
         public async Task AttributeReadErr003AttributeNotValidForNodeClassAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -437,8 +413,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value of an array node. Expect Good and an array value.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "022")]
         public async Task AttributeRead012ReadArrayValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -469,8 +443,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read an array node with IndexRange=\"0\". Should return a single element.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "024")]
         public async Task AttributeRead013ReadWithIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -496,8 +468,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Batch read of 5 different scalar nodes. All should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "014")]
         public async Task AttributeRead014BatchReadMultipleNodesAsync()
         {
             ExpandedNodeId[] nodes =
@@ -534,8 +504,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read MinimumSamplingInterval from a variable node. Should return Good (or BadAttributeIdInvalid). If Good, value >= 0.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead016ReadMinimumSamplingIntervalAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -571,8 +539,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Historizing attribute from a variable node. Should return Good and a boolean value.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead017ReadHistorizingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -601,8 +567,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read AccessLevel from a variable node. Should return Good and a non-zero value (at least readable).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead018ReadAccessLevelAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -631,8 +595,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read UserAccessLevel from a variable node. Should return Good and a byte value.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead019ReadUserAccessLevelAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -660,8 +622,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read ValueRank from a scalar variable. Should return Scalar (-1).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead020ReadValueRankAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -690,8 +650,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read ValueRank from an array variable. Should return OneDimension (1).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead021ReadValueRankArrayAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -720,8 +678,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard Object attributes from the Server object. All should return Good. NodeClass should be Object.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "012")]
         public async Task AttributeRead022ReadAllAttributesOfObjectAsync()
         {
             uint[] attributeIds =
@@ -766,8 +722,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard Variable attributes from a scalar variable node. All should return Good or at least not BadAttributeIdInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "003")]
         public async Task AttributeRead023ReadAllAttributesOfVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -818,8 +772,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard Method attributes from a method node. Browse the Methods folder to find a child method, then read its attributes.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "012")]
         public async Task AttributeRead024ReadAllAttributesOfMethodAsync()
         {
             NodeId methodsFolderId = ToNodeId(Constants.MethodsFolder);
@@ -889,8 +841,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard ReferenceType attributes from Organizes. All should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "012")]
         public async Task AttributeRead025ReadAllAttributesOfReferenceTypeAsync()
         {
             uint[] attributeIds =
@@ -932,8 +882,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Description from the Server object. Should return Good. Value is a LocalizedText (may be null or empty).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead026ReadDescriptionAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -956,8 +904,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read WriteMask from a variable node. Should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead027ReadWriteMaskAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -982,8 +928,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read UserWriteMask from a variable node. Should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task AttributeRead028ReadUserWriteMaskAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1008,8 +952,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with TimestampsToReturn=Neither. Both timestamps should be MinValue.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "009")]
         public async Task AttributeRead029TimestampsNoneAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1040,8 +982,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read EventNotifier from the Server object. Should return Good. Value is a byte.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "027")]
         public async Task AttributeRead030ReadEventNotifierAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1067,8 +1007,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Server_ServerStatus_CurrentTime. Should return Good and a DateTime close to now.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "018")]
         public async Task AttributeRead031ReadServerStatusCurrentTimeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1100,9 +1038,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Server_ServerArray. Should return Good and a string array with at least one entry.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "022")]
-        [Property("Tag", "023")]
         public async Task AttributeRead032ReadServerArrayAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1131,8 +1066,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Server_NamespaceArray. Should return Good and a string array. First entry should be \"http://opcfoundation.org/UA/\".")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "022")]
         public async Task AttributeRead033ReadNamespaceArrayAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1163,8 +1096,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with NodeId.Null. Should return BadNodeIdUnknown or BadNodeIdInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-005")]
         public async Task AttributeReadErr004ReadNullNodeIdAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1190,8 +1121,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Mix of valid and invalid nodes. First and third should be Good; second should be BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-008")]
         public async Task AttributeReadErr005MixOfValidAndInvalidNodesAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1227,8 +1156,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value attribute from an Object node (Server). Should return BadAttributeIdInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-001")]
         public async Task AttributeReadErr006ReadValueFromObjectNodeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1252,8 +1179,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Executable attribute from a Variable node. Should return BadAttributeIdInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-001")]
         public async Task AttributeReadErr007ReadExecutableFromVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1279,8 +1204,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with DataEncoding=Default Binary should succeed.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "037")]
         public async Task ReadWithDefaultBinaryEncodingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1308,8 +1231,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with DataEncoding=Default XML should succeed or return unsupported.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "037")]
         public async Task ReadWithDefaultXmlEncodingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1336,8 +1257,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with DataEncoding=Default JSON should succeed or return unsupported.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "037")]
         public async Task ReadWithDefaultJsonEncodingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1364,8 +1283,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value of a DataType node should return Null.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-001")]
         public async Task ReadValueOfDataTypeNodeReturnsNullAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1388,8 +1305,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value of a ReferenceType node should return BadAttributeIdInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-001")]
         public async Task ReadValueOfReferenceTypeNodeReturnsErrorAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1412,8 +1327,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all attributes of the Views folder.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "012")]
         public async Task ReadAllAttributesOfViewsFolderAsync()
         {
             uint[] attrIds =
@@ -1452,8 +1365,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read array of structures (if available).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "022")]
         public async Task ReadArrayVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -1478,8 +1389,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read nested structure (ServerStatusDataType on ServerStatus).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "001")]
         public async Task ReadServerStatusStructureAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1501,8 +1410,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read ExtensionObject value from ServerStatus (complex structure).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "001")]
         public async Task ReadComplexStructureValueAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1525,8 +1432,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task ReadDisplayNameOfServerAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1548,8 +1453,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task ReadDescriptionOfServerStatusAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1572,8 +1475,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task ReadDataTypeOfInt32VariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1597,8 +1498,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task ReadAccessLevelOfInt32VariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1624,8 +1523,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task ReadMinimumSamplingIntervalAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1650,8 +1547,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "017")]
         public async Task ReadHistorizingAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1677,8 +1572,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "012")]
         public async Task ReadIsAbstractOnObjectTypeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1703,8 +1596,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read a data value with TimestampsToReturn = BOTH.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "006")]
         public async Task AttributeRead006ReadWithTimestampsBothAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1721,8 +1612,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Reads the BROWSENAME attribute of multiple valid nodes.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "011")]
         public async Task AttributeRead011ReadBrowseNameMultipleNodesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1739,8 +1628,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Reads the same valid attribute from the same valid node multiple times in the same call.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "013")]
         public async Task AttributeRead013ReadSameAttributeMultipleTimesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1757,8 +1644,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("MaxAge greater than Int32.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "016")]
         public async Task AttributeRead016MaxAgeGreaterThanInt32Async()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1775,8 +1660,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read array with indexRange retrieving elements 2–4 only.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "025")]
         public async Task AttributeRead025ReadArrayIndexRange2To4Async()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1793,8 +1676,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read array with indexRange retrieving the last 3 elements.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "026")]
         public async Task AttributeRead026ReadArrayLastThreeElementsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1811,8 +1692,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read any attribute except Value; SourceTimestamp is null.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "028")]
         public async Task AttributeRead028ReadNonValueAttributeAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1829,8 +1708,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value of a multi-dimensional array for each data-type.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "030")]
         public async Task AttributeRead030ReadMultiDimensionalArrayValueAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1847,8 +1724,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value of multiple multi-dimensional array nodes.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "031")]
         public async Task AttributeRead031ReadMultipleMultiDimensionalArraysAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1865,8 +1740,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange reading a single element of a multi-dimensional array.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "032")]
         public async Task AttributeRead032IndexRangeSingleElementMultiDimAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1883,8 +1756,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange reading a range from a multi-dimensional array.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "033")]
         public async Task AttributeRead033IndexRangeMultiDimAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1901,8 +1772,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange reading last 3 elements of last dimension.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "034")]
         public async Task AttributeRead034IndexRangeLastThreeMultiDimAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1919,8 +1788,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange lower bound within array but exceeding upper bound.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "036")]
         public async Task AttributeRead036IndexRangeExceedingUpperBoundAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1937,8 +1804,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read multiple valid attributes and one invalid attribute.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-002")]
         public async Task AttributeReadErr002ReadInvalidNodeIdAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1954,8 +1819,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the same invalid attribute from a valid node multiple times in the same call.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-003")]
         public async Task AttributeReadErr003ReadSameInvalidAttributeMultipleTimesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1971,8 +1834,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read from a node id with invalid syntax.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-006")]
         public async Task AttributeReadErr006ReadFromInvalidSyntaxNodeIdAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -1988,8 +1849,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read valid attributes from multiple non-existent nodes.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-009")]
         public async Task AttributeReadErr009ReadFromNonExistentNodesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2005,8 +1864,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read valid attributes from nodes with invalid syntax.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-010")]
         public async Task AttributeReadErr010ReadFromInvalidSyntaxNodesAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2022,8 +1879,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Specifies a null nodes array for reading.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-011")]
         public async Task AttributeReadErr011NullNodesArrayAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2039,8 +1894,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange outside the bounds of the array.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-012")]
         public async Task AttributeReadErr012IndexRangeOutOfBoundsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2056,8 +1909,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid IndexRange \"-2:0\".")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-013")]
         public async Task AttributeReadErr013InvalidIndexRangeNegativeAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2073,8 +1924,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("MaxAge is a negative number.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-014")]
         public async Task AttributeReadErr014NegativeMaxAgeAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2090,8 +1939,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange on non-applicable attributes.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-015")]
         public async Task AttributeReadErr015IndexRangeOnNonApplicableAttributeAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2107,8 +1954,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read a node that is NOT readable.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-016")]
         public async Task AttributeReadErr016ReadNonReadableNodeAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2124,8 +1969,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Value with invalid DataEncoding.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-017")]
         public async Task AttributeReadErr017InvalidDataEncodingAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2141,8 +1984,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid TimestampsToReturn value.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-019")]
         public async Task AttributeReadErr019InvalidTimestampsToReturnAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2158,8 +1999,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid IndexRange \"2-4\" (dash is invalid).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-022")]
         public async Task AttributeReadErr022InvalidIndexRangeDashAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2175,8 +2014,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid IndexRange \"2:2\" (not a range).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-023")]
         public async Task AttributeReadErr023InvalidIndexRangeSameValueAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(
@@ -2192,8 +2029,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid IndexRange \"5:2\" (backwards).")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read")]
-        [Property("Tag", "Err-024")]
         public async Task AttributeReadErr024InvalidIndexRangeBackwardsAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(

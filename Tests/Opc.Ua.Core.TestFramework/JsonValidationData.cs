@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Core.TestFramework
 {
     /// <summary>
     /// Helper class to create list of encoding validation items.

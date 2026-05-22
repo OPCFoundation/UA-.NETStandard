@@ -32,7 +32,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.TestFramework
 {
     /// <summary>
     /// Test helper that creates a temporary directory-backed PKI store

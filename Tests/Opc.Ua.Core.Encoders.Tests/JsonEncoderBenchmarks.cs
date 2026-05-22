@@ -35,7 +35,7 @@ using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Core.Encoders.Tests
 {
     [TestFixture]
     [Category("JsonEncoder")]

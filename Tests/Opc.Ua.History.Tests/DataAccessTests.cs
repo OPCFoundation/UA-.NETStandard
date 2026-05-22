@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DataAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for Data Access nodes (AnalogItem, DiscreteItem, arrays).
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
     public class DataAccessTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task ReadScalarInt32ValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -54,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task ReadScalarDoubleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -64,8 +62,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task ReadScalarStringValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -74,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task ReadBooleanArrayValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayBoolean);
@@ -84,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task ReadInt32ArrayValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -94,8 +86,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "004")]
         public async Task WriteAndReadBackScalarInt32Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -122,8 +112,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "004")]
         public async Task WriteAndReadBackScalarDoubleAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -150,8 +138,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "004")]
         public async Task WriteAndReadBackStringAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -178,8 +164,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task ReadAllScalarStaticNodesSucceedsAsync()
         {
             var readValueIds = Constants.ScalarStaticNodes

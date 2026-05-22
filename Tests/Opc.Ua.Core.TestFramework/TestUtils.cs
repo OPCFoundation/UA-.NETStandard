@@ -30,7 +30,7 @@
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.TestFramework
 {
     /// <summary>
     /// Common utilities for tests.

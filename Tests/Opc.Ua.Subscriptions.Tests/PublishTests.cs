@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Publish and notification behavior.
@@ -74,8 +76,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "005")]
         [Category("LongRunning")]
         public async Task PublishReturnsKeepAliveWhenNoChangesAsync()
         {
@@ -128,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "001")]
         public async Task PublishReturnsDataChangeNotificationAfterWriteAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -157,8 +155,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "001")]
         public async Task PublishReturnsCorrectClientHandleAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -182,8 +178,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "002")]
         public async Task MultipleSubscriptionsPublishReturnsNotificationsFromEachAsync()
         {
             // Create a second subscription
@@ -246,8 +240,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "001")]
         public async Task PublishWithAcknowledgementOfPreviousSequenceNumberAsync()
         {
             await CreateMonitoredItemAsync(
@@ -276,8 +268,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "003")]
         public async Task RepublishValidSequenceNumberReturnsNotificationAsync()
         {
             await CreateMonitoredItemAsync(
@@ -300,8 +290,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "Err-001")]
         public Task RepublishInvalidSequenceNumberReturnsBadMessageNotAvailable()
         {
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
@@ -313,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "001")]
         public async Task PublishNotificationMessageHasValidTimestampAsync()
         {
             await CreateMonitoredItemAsync(
@@ -330,8 +316,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Publish Basic")]
-        [Property("Tag", "001")]
         public async Task PublishNotificationSequenceNumberIsPositiveAsync()
         {
             await CreateMonitoredItemAsync(

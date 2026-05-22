@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Monitor Value Change V2 covering
@@ -96,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         [TestCase(16)]
         [TestCase(17)]
         [TestCase(18)]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         [Category("LongRunning")]
         public async Task DataChangeOnScalarTypeAsync(int index)
         {
@@ -157,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         public async Task DataChangeFilterStatusOnlyNoNotifyOnValueChangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -203,8 +201,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         public async Task DataChangeFilterStatusValueNotifyOnValueChangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -244,8 +240,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         public async Task
             DataChangeFilterStatusValueTimestampNotifyAlways()
         {
@@ -283,8 +277,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         public async Task DataChangeFilterDefaultTriggerIsStatusValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -313,8 +305,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-022")]
         public async Task
             DataChangeFilterInvalidTriggerValueReturnsError()
         {
@@ -339,8 +329,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "Err-003")]
         public async Task
             DataChangeFilterOnNonVariableNodeReturnsError()
         {
@@ -367,8 +355,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "009")]
         public async Task
             ValueChangeNotificationWithinSamplingInterval()
         {
@@ -397,8 +383,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "009")]
         public async Task
             ValueChangeNotificationFastSamplingInterval()
         {
@@ -426,8 +410,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "009")]
         [Category("LongRunning")]
         public async Task
             ValueChangeNotificationSlowSamplingInterval()
@@ -467,8 +449,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "007")]
         [Category("LongRunning")]
         public async Task
             MultipleValueChangesBeforePublishOnlyLatestOrQueued()
@@ -513,8 +493,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         [Category("LongRunning")]
         public async Task
             WriteIdenticalValueNoNotificationWithStatusValueTrigger()
@@ -569,8 +547,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         public async Task
             WriteIdenticalValueNotificationWithSvtTrigger()
         {
@@ -615,8 +591,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         [Category("LongRunning")]
         public async Task
             WriteIdenticalValueStatusOnlyNoNotification()
@@ -670,8 +644,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "001")]
         public async Task WriteDifferentValueAlwaysNotifiesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -701,8 +673,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "007")]
         public async Task
             RapidChangesQueueSizeOneOnlyLatestValue()
         {
@@ -741,8 +711,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "007")]
         public async Task
             RapidChangesQueueSizeFiveAccumulatesValues()
         {
@@ -783,8 +751,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "007")]
         public async Task
             RapidChangesOverflowDiscardOldest()
         {
@@ -822,8 +788,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "007")]
         public async Task
             RapidChangesOverflowDiscardNewest()
         {
@@ -860,8 +824,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "007")]
         public async Task OverflowBitSetOnQueueOverflowAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -910,8 +872,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "001")]
         public async Task
             FiveItemsOnDifferentNodesAllNotify()
         {
@@ -997,8 +957,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "001")]
         public async Task TwoItemsOnSameNodeBothNotifyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1042,8 +1000,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "002")]
         public async Task
             ItemsWithDifferentSamplingIntervals()
         {
@@ -1081,8 +1037,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "019")]
         public async Task ItemsWithDifferentClientHandlesAsync()
         {
             NodeId nodeId1 = ToNodeId(Constants.ScalarStaticInt32);
@@ -1125,8 +1079,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "014")]
         public async Task CreateAndDeleteItemRepeatedlyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);

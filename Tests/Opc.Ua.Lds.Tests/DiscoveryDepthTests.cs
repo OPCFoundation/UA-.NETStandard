@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance depth tests for Discovery services: FindServers
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     public class DiscoveryDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task FindServersNoFilterReturnsAtLeastOneAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -61,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersMatchingUriReturnsServerAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -85,8 +83,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "011")]
         public async Task FindServersNonMatchingUriReturnsEmptyAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -105,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task FindServersWithDefaultFilterReturnsResultsAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -122,8 +116,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task FindServersReturnsServerApplicationTypeAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -142,8 +134,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersReturnsNonEmptyApplicationUriAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -161,8 +151,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task FindServersReturnsDiscoveryUrlsAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -179,8 +167,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsDefaultReturnsAtLeastOneAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -195,8 +181,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithUaTcpProfileFilterAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -222,8 +206,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithHttpsProfileFilterOrIgnoreAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -251,8 +233,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsWithDefaultProfileReturnsResultsAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -268,8 +248,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task AllEndpointsHaveNonEmptyUrlAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -288,8 +266,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task AllEndpointsHaveServerDescriptionAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -311,8 +287,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task AllEndpointsHaveTransportProfileUriAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -332,8 +306,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task SecureEndpointsHaveNonEmptyCertAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()
@@ -357,8 +329,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task AllEndpointsHaveValidSecurityModeAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync()

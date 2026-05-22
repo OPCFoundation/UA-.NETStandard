@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for OptionSet verification.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoOptionSetTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadAccessLevelAttributeAsOptionSetAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -63,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadWriteMaskAttributeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -75,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadUserWriteMaskAttributeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -87,8 +83,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadAccessLevelContainsCurrentReadBitAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -103,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadAccessLevelContainsCurrentWriteBitAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -119,8 +111,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task VerifyOptionSetTypeExistsInTypeHierarchyAsync()
         {
             var optionSetTypeId = new NodeId(12755);
@@ -141,8 +131,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadUserAccessLevelAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -154,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task AccessLevelBitsAreConsistentAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -179,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task WriteMaskDecodedAsUInt32Async()
         {
             DataValue result = await ReadAttributeAsync(
@@ -193,8 +177,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task BrowseOptionSetTypeChildrenAsync()
         {
             var optionSetTypeId = new NodeId(12755);
@@ -232,8 +214,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task ReadEventNotifierAttributeAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -244,8 +224,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task VerifyAccessLevelExTypeAttributeAsync()
         {
             const uint accessLevelEx = 27;

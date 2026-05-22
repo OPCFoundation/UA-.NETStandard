@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C CertificateExpiration
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C CertificateExpiration")]
-        [Property("Tag", "Test_000")]
         public async Task CertificateExpirationAlarmTypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -58,8 +58,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C CertificateExpiration")]
-        [Property("Tag", "Test_000")]
         public async Task CertificateExpirationIsSubtypeOfSystemOffNormalAsync()
         {
             await VerifySubtypeOfAsync(
@@ -69,8 +67,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C CertificateExpiration")]
-        [Property("Tag", "Test_000")]
         public async Task CertificateExpirationHasExpirationDateAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -82,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C CertificateExpiration")]
-        [Property("Tag", "Test_000")]
         public async Task CertificateExpirationHasExpirationLimitAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -95,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C CertificateExpiration")]
-        [Property("Tag", "Test_000")]
         public async Task CertificateExpirationHasCertificateTypeAsync()
         {
             bool has = await TypeHasPropertyAsync(

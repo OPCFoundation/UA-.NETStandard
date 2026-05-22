@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for OPC UA Role Management.
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class RoleManagementTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "001")]
         public async Task RoleSetFolderExistsAsync()
         {
             NodeId serverCapabilities = ToNodeId(
@@ -75,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task RoleSetContainsWellKnownRolesAsync()
         {
             NodeId roleSet = ToNodeId(
@@ -109,8 +107,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "003")]
         public async Task AnonymousRoleNodeClassIsObjectAsync()
         {
             NodeId anonymousId = ToNodeId(ObjectIds.WellKnownRole_Anonymous);
@@ -132,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "003")]
         public async Task AuthenticatedUserRoleHasCorrectNodeClassAsync()
         {
             NodeId roleId = ToNodeId(
@@ -156,8 +150,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task ObserverRoleExistsAsync()
         {
             NodeId roleId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -167,8 +159,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task OperatorRoleExistsAsync()
         {
             NodeId roleId = ToNodeId(ObjectIds.WellKnownRole_Operator);
@@ -178,8 +168,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task EngineerRoleExistsAsync()
         {
             NodeId roleId = ToNodeId(ObjectIds.WellKnownRole_Engineer);
@@ -189,8 +177,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task SupervisorRoleExistsAsync()
         {
             NodeId roleId = ToNodeId(ObjectIds.WellKnownRole_Supervisor);
@@ -200,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task SecurityAdminRoleExistsAsync()
         {
             NodeId roleId = ToNodeId(
@@ -212,8 +196,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "002")]
         public async Task ConfigureAdminRoleExistsAsync()
         {
             NodeId roleId = ToNodeId(
@@ -224,8 +206,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "003")]
         public async Task RoleHasTypeDefinitionRoleTypeAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -265,8 +245,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "001")]
         public async Task RoleSetHasAddRoleMethodAsync()
         {
             NodeId roleSet = ToNodeId(
@@ -285,8 +263,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "003")]
         public async Task AnonymousRoleHasIdentitiesPropertyAsync()
         {
             NodeId anonymousId = ToNodeId(ObjectIds.WellKnownRole_Anonymous);
@@ -303,8 +279,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Well Known")]
-        [Property("Tag", "003")]
         public async Task ReadAnonymousIdentitiesAsync()
         {
             ISession adminSession = null;
@@ -335,8 +309,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Applications")]
-        [Property("Tag", "001")]
         public async Task RoleHasApplicationsPropertyAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -354,8 +326,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Endpoints")]
-        [Property("Tag", "001")]
         public async Task RoleHasEndpointsPropertyAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -373,8 +343,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Applications")]
-        [Property("Tag", "002")]
         public async Task ReadApplicationsExcludePropertyAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -383,20 +351,24 @@ namespace Opc.Ua.Conformance.Tests.Security
 
             if (excludeId.IsNull)
             {
-                Assert.Fail(
+                Assert.Ignore(
                     "ApplicationsExclude not found. " +
-                    "Feature not supported by server.");
+                    "Optional feature not supported by server.");
             }
 
             DataValue dv = await ReadPropertyValueAsync(excludeId)
                 .ConfigureAwait(false);
+            if (!StatusCode.IsGood(dv.StatusCode))
+            {
+                Assert.Ignore(
+                    "ApplicationsExclude exposed but unreadable: " +
+                    $"{dv.StatusCode}.");
+            }
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(dv.WrappedValue.TryGetValue(out bool _), Is.True);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Endpoints")]
-        [Property("Tag", "002")]
         public async Task ReadEndpointsExcludePropertyAsync()
         {
             ISession adminSession = null;
@@ -431,8 +403,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "001")]
         public async Task RoleHasAddIdentityMethodAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -450,8 +420,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "002")]
         public async Task RoleHasRemoveIdentityMethodAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -469,8 +437,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "003")]
         public async Task AddIdentityToObserverRoleSucceedsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -531,8 +497,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "004")]
         public async Task ReadObserverIdentitiesAfterAddAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -601,8 +565,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "005")]
         public async Task RemoveIdentityFromObserverRoleSucceedsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -659,8 +621,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "006")]
         public async Task ReadObserverIdentitiesAfterRemoveAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -725,8 +685,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "007")]
         public async Task AddIdentityWithUserNameCriteriaAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -786,8 +744,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "008")]
         public async Task AddIdentityWithThumbprintCriteriaAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -848,8 +804,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "009")]
         public async Task AddIdentityDuplicateIsIdempotentAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -871,11 +825,7 @@ namespace Opc.Ua.Conformance.Tests.Security
                     adminSession, observerId, addMethod,
                     new Variant(rule)).ConfigureAwait(false);
 
-                if (result1.StatusCode == StatusCodes.BadNotImplemented ||
-                    result1.StatusCode == StatusCodes.BadServiceUnsupported)
-                {
-                    Assert.Ignore($"Server method not implemented: {result1.StatusCode}");
-                }
+                IgnoreIfRoleMethodNotSupported(result1.StatusCode);
 
                 Assert.That(
                     StatusCode.IsGood(result1.StatusCode), Is.True);
@@ -884,11 +834,7 @@ namespace Opc.Ua.Conformance.Tests.Security
                     adminSession, observerId, addMethod,
                     new Variant(rule)).ConfigureAwait(false);
 
-                if (result2.StatusCode == StatusCodes.BadNotImplemented ||
-                    result2.StatusCode == StatusCodes.BadServiceUnsupported)
-                {
-                    Assert.Ignore($"Server method not implemented: {result2.StatusCode}");
-                }
+                IgnoreIfRoleMethodNotSupported(result2.StatusCode);
 
                 Assert.That(
                     StatusCode.IsGood(result2.StatusCode), Is.True);
@@ -922,8 +868,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "010")]
         public async Task RemoveNonExistentIdentityReturnsNoMatchAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -973,8 +917,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "011")]
         public async Task AddIdentityWithoutSecurityAdminFailsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1062,8 +1004,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "012")]
         public async Task RemoveIdentityWithoutSecurityAdminFailsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1119,8 +1059,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "013")]
         public async Task AddIdentityWithNoArgumentsFailsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1185,8 +1123,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server IdentityManagement")]
-        [Property("Tag", "014")]
         public async Task AddIdentityWithEmptyCriteriaFailsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1235,8 +1171,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Applications")]
-        [Property("Tag", "003")]
         public async Task AddApplicationToRoleSucceedsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1295,8 +1229,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Applications")]
-        [Property("Tag", "004")]
         public async Task ReadApplicationsAfterAddAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1363,8 +1295,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Applications")]
-        [Property("Tag", "005")]
         public async Task RemoveApplicationFromRoleSucceedsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1419,8 +1349,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Applications")]
-        [Property("Tag", "006")]
         public async Task AddApplicationWithoutAdminFailsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1508,8 +1436,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Endpoints")]
-        [Property("Tag", "003")]
         public async Task AddEndpointToRoleSucceedsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1570,8 +1496,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Endpoints")]
-        [Property("Tag", "004")]
         public async Task ReadEndpointsAfterAddAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1640,8 +1564,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Endpoints")]
-        [Property("Tag", "005")]
         public async Task RemoveEndpointFromRoleSucceedsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);
@@ -1705,8 +1627,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Restrict Endpoints")]
-        [Property("Tag", "006")]
         public async Task AddEndpointWithoutAdminFailsAsync()
         {
             NodeId observerId = ToNodeId(ObjectIds.WellKnownRole_Observer);

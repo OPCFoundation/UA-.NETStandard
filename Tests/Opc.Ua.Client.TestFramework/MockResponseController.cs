@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Conformance.Tests.Mock
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// In-process mock controller that lets a conformance test inject

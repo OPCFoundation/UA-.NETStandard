@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for the Redundancy Server conformance unit.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class RedundancyModelTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task ServerObjectHasServerRedundancyChildAsync()
         {
             BrowseResult result = await BrowseChildrenAsync(
@@ -68,8 +68,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task RedundancySupportIsValidEnumAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -87,8 +85,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task ServerUriArrayIsReadableAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -122,8 +118,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task RedundancySupportHasCorrectDataTypeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -148,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task ServerRedundancyHasTypeDefinitionAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -184,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ServerType")]
-        [Property("Tag", "001")]
         public async Task CurrentServerIdExistsIfRedundancyEnabledAsync()
         {
             DataValue dv = await ReadValueAsync(

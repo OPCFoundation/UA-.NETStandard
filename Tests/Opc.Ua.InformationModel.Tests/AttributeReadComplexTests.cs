@@ -34,7 +34,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.AttributeServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Attribute Service Set – Reading complex attributes,
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
     {
         [Description("Read Server_ServerStatus (structured type) and verify the value is returned as an ExtensionObject with Good status.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "001")]
         public async Task ReadExtensionObjectValueAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -81,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Server_ServerStatus and verify the decoded structure contains accessible nested fields such as StartTime and State.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "001")]
         public async Task ReadNestedStructureValueAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -129,8 +127,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the SessionDiagnosticsArray variable which contains an array of ExtensionObjects. Verify the result is Good and the value is an array or empty collection.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "001")]
         public async Task ReadArrayOfExtensionObjectsAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -180,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read Server_ServerStatus_State which is an enumeration value. Verify the result is a numeric value representing a valid ServerState.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "005")]
         public async Task ReadEnumerationValueAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -208,8 +202,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read a structured type node with DataEncoding set to \"Default Binary\". Expect Good status since binary encoding is the native OPC UA encoding.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "002")]
         public async Task ReadWithDataEncodingDefaultBinaryAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -235,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read a structured type node with DataEncoding set to \"Default XML\". Expect Good or BadDataEncodingUnsupported since XML encoding is optional.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "004")]
         public async Task ReadWithDataEncodingDefaultXmlAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -264,8 +254,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read with an invalid DataEncoding name. Expect BadDataEncodingInvalid or BadDataEncodingUnsupported.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "003")]
         public async Task ReadWithInvalidDataEncodingAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -294,8 +282,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard attributes of a Variable node in a single call. Verify each attribute returns Good status.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "002")]
         public async Task ReadAllAttributesOfVariableNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -338,8 +324,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read all standard attributes of the Server object node. Verify NodeClass, BrowseName, DisplayName, Description, and EventNotifier return valid results.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "003")]
         public async Task ReadAllAttributesOfObjectNodeAsync()
         {
             uint[] attributeIds =
@@ -380,8 +364,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the AccessLevelEx attribute (id=27) from a Variable node. This attribute may not be supported by all servers; if BadAttributeIdInvalid is returned the test is skipped.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "004")]
         public async Task ReadAccessLevelExAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -413,8 +395,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the RolePermissions attribute (id=26) from a Variable node. This attribute may not be supported; if BadAttributeIdInvalid is returned the test is skipped.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "004")]
         public async Task ReadRolePermissionsAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -449,8 +429,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the UserRolePermissions attribute (id=25) from a Variable node. This attribute may not be supported; if BadAttributeIdInvalid is returned the test is skipped.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "004")]
         public async Task ReadUserRolePermissionsAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -486,8 +464,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the DataTypeDefinition attribute (id=23) on a DataType node. This provides the structure or enum definition of the type. If BadAttributeIdInvalid is returned the test is skipped.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "001")]
         public async Task ReadDataTypeDefinitionAttributeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -532,8 +508,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the ArrayDimensions attribute on an array variable node. Verify the result is Good and the value is a valid array.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "003")]
         public async Task ReadArrayDimensionsOnArrayNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -557,8 +531,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Read the DataType attribute of a Variable node and verify it returns a valid, non-null NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Read Complex")]
-        [Property("Tag", "001")]
         public async Task ReadDataTypeOfVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);

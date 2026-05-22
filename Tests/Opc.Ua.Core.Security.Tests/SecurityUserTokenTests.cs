@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Security – user token handling,
@@ -48,8 +50,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityUserTokenTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "002")]
         public async Task ConnectSysadminOnSignEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -91,8 +91,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "011")]
         public async Task ConnectSysadminOnSignAndEncryptEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -134,8 +132,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "012")]
         public async Task ConnectAppuserVerifyLimitedAccessAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -194,8 +190,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "001")]
         public async Task AnonymousCanReadNodesAsync()
         {
             // Shared session is anonymous
@@ -216,8 +210,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "001")]
         public async Task SysadminCanReadNodeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -266,8 +258,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "001")]
         public async Task SysadminCanWriteNodeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -317,8 +307,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "012")]
         public async Task AppuserWriteDeniedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -370,8 +358,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Invalid user token")]
-        [Property("Tag", "001")]
         public async Task ConnectWithEmptyPasswordRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints;
@@ -419,8 +405,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "013")]
         public async Task VerifySecurityLevelOrderingAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -460,8 +444,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "014")]
         public async Task ConnectWithEachSecurityPolicyAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -511,8 +493,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "013")]
         public async Task EachSessionHasUniqueSessionIdAsync()
         {
             var sessionIds = new List<NodeId>();
@@ -550,8 +530,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "014")]
         public async Task SessionTimeoutIsPositiveAsync()
         {
             ISession session;
@@ -581,8 +559,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Invalid user token")]
-        [Property("Tag", "001")]
         public async Task ActivateWithEmptyUsernameIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -618,8 +594,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Invalid user token")]
-        [Property("Tag", "002")]
         public async Task ActivateWithVeryLongUsernameIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -654,8 +628,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Invalid user token")]
-        [Property("Tag", "002")]
         public async Task ActivateWithVeryLongPasswordIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -694,8 +666,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Invalid user token")]
-        [Property("Tag", "001")]
         public async Task ActivateWithSpecialCharsInUsernameIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -730,8 +700,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Invalid user token")]
-        [Property("Tag", "002")]
         public async Task ActivateWithUnicodePasswordIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -766,8 +734,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "009")]
         public async Task SwitchFromAnonymousToUserNameMidSessionAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -810,8 +776,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "004")]
         public async Task SwitchFromUserNameToAnonymousMidSessionAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -853,8 +817,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "012")]
         public async Task SwitchFromOneUserToAnotherMidSessionAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -897,8 +859,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "001")]
         public async Task ActivateCorrectCredentialsOnNoneAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -933,8 +893,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "002")]
         public async Task ActivateCorrectCredentialsOnSignAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -976,8 +934,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "011")]
         public async Task ActivateCorrectCredentialsOnSignAndEncryptAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -1019,8 +975,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "015")]
         public async Task UserNameTokenPolicyIdMatchesAdvertisedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -1044,8 +998,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "009")]
         public async Task SysadminCanReadAdminRestrictedNodeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -1095,8 +1047,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "012")]
         public async Task AppuserWriteToAdminNodeDeniedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);

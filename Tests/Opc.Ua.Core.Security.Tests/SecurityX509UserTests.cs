@@ -34,10 +34,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Conformance.Tests.Security;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Security User X509 conformance unit.
@@ -49,8 +50,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityX509UserTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task AtLeastOneEndpointAdvertisesCertificateTokenAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -64,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task ActivateWithValidX509CertOnSecureEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -112,8 +109,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "005")]
         public async Task ActivateWithExpiredX509CertIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -165,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task ActivateX509OnSecurityModeNoneAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -212,8 +205,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task X509UserCanReadNodeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -281,8 +272,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task X509UserWriteBehaviorAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -353,8 +342,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task SwitchFromX509ToAnonymousAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -415,8 +402,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task SwitchFromAnonymousToX509Async()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -471,8 +456,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "002")]
         public async Task ActivateWithUntrustedX509CertIsRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -516,8 +499,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task TwoSessionsWithSameX509CertAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -580,8 +561,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task X509TokenIncludesCertificateDataAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -601,8 +580,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task SessionDiagnosticsShowsX509AuthAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -657,8 +634,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "009")]
         public async Task X509CertWithWrongKeyUsageBehaviorAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -722,8 +697,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "007")]
         public async Task X509CertWithAppUriInSanBehaviorAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -802,8 +775,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public Task X509UserCertDnAccessible()
         {
             using Certificate userCert = CreateSelfSignedUserCert(
@@ -816,8 +787,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task ActivateWithSignAndEncryptX509SucceedsAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);

@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery Service Set – GetEndpoints.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     {
         [Description("GetEndpoints with default parameters returns at least one endpoint.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpoints001DefaultParametersAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints specifying preferred locales still returns endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "002")]
         public async Task GetEndpoints002WithLocalesAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -86,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints with a different (but valid) URL still returns endpoints. The server should accept the request even if the URL does not exactly match.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpoints003DifferentUrlAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -106,8 +102,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify each returned endpoint has required fields: SecurityMode, SecurityPolicyUri, and UserIdentityTokens.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpoints004VerifyEndpointFieldsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -139,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints requesting a specific transport profile. Endpoints should use the UA TCP transport profile.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpoints005TransportProfileAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -165,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify that the Server field in each endpoint matches the server's ApplicationDescription.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task GetEndpoints006VerifyServerApplicationDescriptionAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -194,8 +184,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify the endpoint URL in each returned endpoint is not empty.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpoints007VerifyEndpointUrlAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -219,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify that at least one endpoint supports MessageSecurityMode.None when the server has SecurityNone enabled.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpoints008SecurityNoneAvailableAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -249,8 +235,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints with invalid transport profile URI returns zero matching endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "011")]
         public async Task GetEndpointsErr001InvalidTransportProfileAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -281,8 +265,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify that the server certificate is present in endpoints with security.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "Err-002")]
         public async Task GetEndpointsErr002SecureEndpointHasCertificateAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);

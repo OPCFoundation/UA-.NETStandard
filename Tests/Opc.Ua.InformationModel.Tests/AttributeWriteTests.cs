@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AttributeServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Attribute Service Set – Write Values.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
     {
         [Description("Write a single Int32 value and read it back.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite001WriteSingleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -86,8 +86,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write multiple values in a single call. Both should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "002")]
         public async Task AttributeWrite002WriteMultipleValuesAsync()
         {
             NodeId int32Node = ToNodeId(Constants.ScalarStaticInt32);
@@ -119,8 +117,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a Boolean value and read it back.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite003WriteBooleanAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -158,8 +154,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a negative Int32 value and read it back.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite004WriteInt32Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -195,8 +189,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a Double value and read it back.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite005WriteDoubleAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -232,8 +224,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a String value and read it back.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite006WriteStringAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -269,8 +259,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a DateTime value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite007WriteDateTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDateTime);
@@ -294,8 +282,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a ByteString value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "007")]
         public async Task AttributeWrite008WriteByteStringAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticByteString);
@@ -319,8 +305,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a Float value and read it back.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite009WriteFloatAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticFloat);
@@ -356,8 +340,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write an SByte value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite010WriteSByteAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticSByte);
@@ -381,8 +363,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a Byte value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite011WriteByteAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticByte);
@@ -406,8 +386,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write an Int16 value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite012WriteInt16Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt16);
@@ -431,8 +409,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a UInt16 value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite013WriteUInt16Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticUInt16);
@@ -456,8 +432,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write an Int64 value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite014WriteInt64Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt64);
@@ -481,8 +455,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a UInt64 value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite015WriteUInt64Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticUInt64);
@@ -506,8 +478,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a Guid value. Expect Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "001")]
         public async Task AttributeWrite016WriteGuidAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticGuid);
@@ -531,9 +501,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Boolean, Int32, String, and Double in one call. Read all back and verify.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "002")]
-        [Property("Tag", "003")]
         public async Task AttributeWrite017WriteAndReadBackMultipleTypesAsync()
         {
             NodeId boolNode = ToNodeId(Constants.ScalarStaticBoolean);
@@ -603,8 +570,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write an Int32 array and read it back. Verify length.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "018")]
         public async Task AttributeWrite018WriteArrayValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -646,8 +611,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Err 001: Write to an invalid NodeId from Constants. Expect BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-002")]
         public async Task AttributeWriteErr001WriteToInvalidNodeIdAsync()
         {
             WriteResponse writeResponse = await Session.WriteAsync(
@@ -669,8 +632,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Err 002: Write a String to a node that expects Int32. Expect BadTypeMismatch.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-008")]
         public async Task AttributeWriteErr002WriteWrongDataTypeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -694,8 +655,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Err 003: Write to a completely made-up NodeId. Expect BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-003")]
         public async Task AttributeWriteErr003WriteBadNodeIdUnknownAsync()
         {
             WriteResponse writeResponse = await Session.WriteAsync(
@@ -717,8 +676,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with SourceTimestamp set to UtcNow. Server may accept or reject the timestamp.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithSourceTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -749,8 +706,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with ServerTimestamp set. Most servers ignore or reject server timestamp on write.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithServerTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -781,8 +736,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with both SourceTimestamp and ServerTimestamp set.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithBothTimestampsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -815,8 +768,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with explicit StatusCode.Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithStatusCodeGoodAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -847,8 +798,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with StatusCode.Bad. Some servers do not allow writing bad status.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithStatusCodeBadAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -879,8 +828,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with SourceTimestamp set to one year in the past.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithSourceTimestampInPastAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -911,8 +858,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with SourceTimestamp set to one hour in the future.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteWithSourceTimestampInFutureAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -943,8 +888,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with SourceTimestamp, then read back with TimestampsToReturn.Source and verify SourceTimestamp is set.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteReadBackTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -996,8 +939,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with StatusCode = Uncertain. Server may accept or reject.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteStatusCodeOverrideToUncertainAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1028,8 +969,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write Int32 with SourceTimestamp = DateTime.MinValue. Server should accept the value and ignore or reset the timestamp.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task AttributeWriteValueWithMinDateTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);

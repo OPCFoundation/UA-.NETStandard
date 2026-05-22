@@ -34,7 +34,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for the Subscription Multiple conformance unit.
@@ -50,8 +52,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
     public class SubscriptionMultipleTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Subscription Multiple")]
-        [Property("Tag", "001")]
         public async Task CreateMaxSubscriptionsPerSessionWithItemsAsync()
         {
             uint maxSubs = await ReadMaxSubscriptionsPerSession().ConfigureAwait(false);
@@ -110,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Multiple")]
-        [Property("Tag", "002")]
         public async Task MaxSubscriptionsAcrossMultipleSessionsAsync()
         {
             uint maxSubs = await ReadMaxSubscriptionsPerSession().ConfigureAwait(false);
@@ -214,8 +212,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Multiple")]
-        [Property("Tag", "003")]
         public async Task CreateSubsWithDataItemsWritePublishVerifyAsync()
         {
             uint maxSubs = await ReadMaxSubscriptionsPerSession().ConfigureAwait(false);

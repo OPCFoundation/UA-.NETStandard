@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session Service Set – Sessionless Invocation.
@@ -48,8 +50,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Call GetEndpoints via DiscoveryClient without an established session. The service should return Good with at least one endpoint.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsWithoutSessionAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call FindServers via DiscoveryClient without an established session. The service should return Good with at least one server.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task FindServersWithoutSessionAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -92,8 +90,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify each endpoint returned by GetEndpoints has EndpointUrl, SecurityMode, and SecurityPolicyUri populated.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsReturnsValidEndpointsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -125,8 +121,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify each ApplicationDescription returned by FindServers has ApplicationUri, ApplicationName, and ApplicationType populated.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task FindServersReturnsValidApplicationDescriptionAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -158,8 +152,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call GetEndpoints with a transport profile filter for UA TCP. All returned endpoints should match the requested transport profile.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsWithProfileFilterAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -193,8 +185,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call GetEndpoints multiple times sequentially without a session. All calls should succeed and return endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsMultipleCallsInSequenceAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -216,8 +206,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call FindServers multiple times sequentially without a session. All calls should succeed and return servers.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task FindServersMultipleCallsInSequenceAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -239,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify GetEndpoints returns at least one endpoint, confirming the server supports sessionless discovery.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsReturnsDifferentSecurityModesAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -259,8 +245,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that endpoints with security (not None) include a ServerCertificate.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "012")]
         public async Task GetEndpointsReturnsServerCertificateAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -292,8 +276,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify each ApplicationDescription returned by FindServers has at least one DiscoveryUrl.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task FindServersReturnsDiscoveryUrlsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -321,8 +303,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Pass an empty string array as the profile filter to GetEndpoints. Should return all available endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task SessionlessGetEndpointsWithEmptyProfileFilterAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -342,8 +322,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call GetEndpoints twice and verify the same number of endpoints is returned each time.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task SessionlessGetEndpointsReturnsSameResultsOnRepeatedCallsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -366,8 +344,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Create and dispose a DiscoveryClient without calling any services. Verifies that client lifecycle management works without errors.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task DiscoveryClientCreatedAndDisposedAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -383,8 +359,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call GetEndpoints with locale IDs specified. The call should succeed regardless of locale support.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "005")]
         public async Task GetEndpointsWithLocaleIdsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -404,8 +378,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Call FindServers passing the server URL as the endpointUrl parameter. The server should return at least one matching application.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task FindServersWithEndpointUrlAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -425,8 +397,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify at least one endpoint uses SecurityMode.None, since the test fixture has SecurityNone and AutoAccept enabled.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "015")]
         public async Task GetEndpointsContainsNoneSecurityModeAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -459,8 +429,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Create a DiscoveryClient without providing any user credentials. The client should connect successfully for discovery operations.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "012")]
         public async Task DiscoveryClientConnectsWithoutCredentialsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -482,8 +450,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that both GetEndpoints and FindServers work without any authentication tokens, confirming sessionless invocation.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "012")]
         public async Task SessionlessCallsDoNotRequireAuthenticationAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -508,8 +474,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that each endpoint returned by GetEndpoints has a TransportProfileUri set.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsReturnsTransportProfileUriAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -533,8 +497,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Verify that each server returned by FindServers has ApplicationType of Server or ClientAndServer.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task FindServersApplicationTypeIsServerOrBothAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);

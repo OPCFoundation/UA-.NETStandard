@@ -42,7 +42,9 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+using Opc.Ua.Core.TestFramework;
+
+namespace Opc.Ua.Core.Encoders.Tests
 {
     /// <summary>
     /// Tests for the Json encoder and decoder class.

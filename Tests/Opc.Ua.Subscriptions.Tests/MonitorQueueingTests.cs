@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for MonitoredItem queue behavior including
@@ -75,8 +77,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task QueueSizeOneOnlyLatestValueDeliveredAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -118,8 +118,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task QueueSizeFiveAccumulatesUpToFiveValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -155,8 +153,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task QueueSizeTenWithFewerChangesProvidesAllChangesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -192,8 +188,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "005")]
         public async Task QueueSizeZeroRevisedToOneAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -209,8 +203,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task DiscardOldestTrueDropsFirstEnqueuedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -253,8 +245,6 @@ queueSize: 2, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task DiscardOldestFalseDropsNewestEnqueuedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -296,8 +286,6 @@ queueSize: 2, discardOldest: false))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task DiscardOldestDefaultIsTrueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -338,8 +326,6 @@ queueSize: 2, discardOldest: false))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "005")]
         public async Task ModifyItemDiscardOldestChangedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -377,8 +363,6 @@ queueSize: 5, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task QueueOverflowSetsOverflowBitInStatusCodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -423,8 +407,6 @@ queueSize: 2, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         [Category("LongRunning")]
         public async Task QueueOverflowWithSingleItemQueueAsync()
         {
@@ -473,8 +455,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task QueueOverflowCountMatchesDroppedItemsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -516,8 +496,6 @@ queueSize: queueSize, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "005")]
         public async Task VeryLargeQueueSizeRevisedDownwardAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -533,8 +511,6 @@ queueSize: queueSize, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "005")]
         public async Task QueueSizePreservedAfterModifyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -574,8 +550,6 @@ queueSize: queueSize, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "017")]
         public async Task QueueSizeDifferentPerItemAsync()
         {
             NodeId node1 = ToNodeId(Constants.ScalarStaticInt32);
@@ -610,8 +584,6 @@ queueSize: queueSize, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "001")]
         public async Task QueueSizeOneDiscardOldestDeliversLatestAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -659,8 +631,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "002")]
         public async Task QueueSizeFiveAccumulatesFiveValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -703,8 +673,6 @@ queueSize: 5))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "003")]
         [Category("LongRunning")]
         public async Task QueueSizeTenFewerChangesAllDeliveredAsync()
         {
@@ -756,8 +724,6 @@ queueSize: 10))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "004")]
         public async Task QueueSizeZeroRevisedToAtLeastOneAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -776,8 +742,6 @@ queueSize: 10))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "005")]
         public async Task DiscardOldestTrueKeepsNewestAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -823,8 +787,6 @@ queueSize: 2, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "006")]
         public async Task DiscardOldestFalseKeepsOldestAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -870,8 +832,6 @@ queueSize: 2, discardOldest: false))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "007")]
         [Category("LongRunning")]
         public async Task DefaultDiscardOldestBehavesAsTrueAsync()
         {
@@ -926,8 +886,6 @@ queueSize: 2))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "008")]
         public async Task ModifyDiscardOldestFromTrueToFalseAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -966,8 +924,6 @@ queueSize: 5, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "009")]
         public async Task QueueOverflowMaySetOverflowBitAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1015,8 +971,6 @@ queueSize: 2, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "010")]
         public async Task QueueOverflowSizeOneBoundedCountAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1059,8 +1013,6 @@ queueSize: 1, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "011")]
         public async Task QueueOverflowCountBoundedByQueueSizeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -1105,8 +1057,6 @@ queueSize: queueSize, discardOldest: true))
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Queueing")]
-        [Property("Tag", "014")]
         public async Task TwoItemsDifferentQueueSizesAsync()
         {
             NodeId node1 = ToNodeId(Constants.ScalarStaticInt32);

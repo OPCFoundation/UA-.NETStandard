@@ -29,7 +29,7 @@
 
 using System;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     public static class Extensions
     {

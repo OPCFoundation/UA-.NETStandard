@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Confirm conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsConfirmTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Test_001")]
         public async Task AcknowledgeableConditionTypeHasConfirmMethodAsync()
         {
             BrowseResult result = await BrowseForwardAsync(
@@ -66,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Test_001")]
         public async Task AcknowledgeableConditionTypeHasConfirmedStateAsync()
         {
             BrowseResult result = await BrowseForwardAsync(
@@ -88,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Test_002")]
         public async Task ConfirmConditionSetsConfirmedStateTrueAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -139,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_005")]
         public async Task ErrConfirmWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -155,8 +147,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_006")]
         public async Task ErrConfirmWithInvalidMethodArgsAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -171,8 +161,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_007")]
         public async Task ErrConfirmAlreadyConfirmedAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -201,8 +189,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_008")]
         public async Task ErrConfirmWithNullEventIdAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -219,8 +205,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_009")]
         public async Task ErrConfirmWithEmptyCommentAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -246,8 +230,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_004")]
         public async Task ErrConfirmOnDisabledConditionAsync()
         {
             NodeId alarmId = RequireAlarm();

@@ -29,7 +29,7 @@
 
 using System.Collections.Generic;
 
-namespace Opc.Ua.Conformance.Tests.Security
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// Compile-time lookup of well-known role child node IDs (methods and
@@ -40,7 +40,7 @@ namespace Opc.Ua.Conformance.Tests.Security
     /// cannot Browse them. These tests still need to verify the methods exist
     /// on the server, which they do — Browse just hides them.
     /// </summary>
-    internal static class WellKnownRoleNodeIds
+    public static class WellKnownRoleNodeIds
     {
         private sealed record Key(uint Parent, string ChildName);
 

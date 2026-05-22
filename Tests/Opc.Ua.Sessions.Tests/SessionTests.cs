@@ -32,7 +32,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session Service Set.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Verify the shared session is connected.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void Session001VerifySessionConnected()
         {
             Assert.That(Session.Connected, Is.True, "Session should be connected.");
@@ -54,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read ServerState via session and verify it is Running.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task Session002ReadServerStatusAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -82,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Session.SessionId should not be NodeId.Null.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void Session003SessionId()
         {
             Assert.That(Session.SessionId, Is.Not.EqualTo(NodeId.Null),
@@ -92,8 +88,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Session.SessionName should be set.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void Session004SessionName()
         {
             Assert.That(Session.SessionName, Is.Not.Null.And.Not.Empty,
@@ -102,8 +96,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Create an additional session, verify it connects, then close it.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "010")]
         public async Task Session005CreateAndCloseAdditionalSessionAsync()
         {
             ISession additionalSession = null;
@@ -129,8 +121,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Create 3 parallel sessions, verify all work, then close them.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-019")]
         public async Task Session006MultipleParallelSessionsAsync()
         {
             const int sessionCount = 3;
@@ -180,8 +170,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Session timeout should be a positive value.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "001")]
         public void Session007SessionTimeout()
         {
             Assert.That(Session.SessionTimeout, Is.GreaterThan(0),
@@ -190,8 +178,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Server application URI should be set.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void Session008ServerUri()
         {
             string applicationUri = Session.Endpoint.Server.ApplicationUri;
@@ -201,8 +187,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("NamespaceUris should have at least 2 entries.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void Session009NamespaceUris()
         {
             Assert.That(Session.NamespaceUris.Count, Is.GreaterThanOrEqualTo(2),
@@ -211,8 +195,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read MaxNodesPerRead from OperationLimits.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public async Task Session010ReadOperationLimitsAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -239,8 +221,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Endpoint URL should contain the expected server port.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
         public void Session011VerifyEndpointUrl()
         {
             string endpointUrl = Session.Endpoint.EndpointUrl;
@@ -252,8 +232,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Read ServerDiagnostics EnabledFlag.")]
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "003")]
         public async Task Session012ServerDiagnosticsAsync()
         {
             ReadResponse response = await Session.ReadAsync(

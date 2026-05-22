@@ -30,7 +30,9 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session Change User.
@@ -42,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Specify different user credentials when activating an already active session. Call Publish. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Change User")]
-        [Property("Tag", "001")]
         public async Task ChangeUserCredentialsOnActiveSessionAsync()
         {
             Assert.Ignore("Change user requires multiple user configs.");
@@ -52,8 +52,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Specify the same user credentials on a session that the user already owns, using the same channel. */")]
         [Test]
-        [Property("ConformanceUnit", "Session Change User")]
-        [Property("Tag", "002")]
         public async Task ReactivateSessionWithSameCredentialsAsync()
         {
             Assert.Ignore("Change user requires multiple user configs.");
@@ -62,8 +60,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Change the owner of a session but specify invalid/incorrect credentials (e.g. good username, empty password).*/")]
         [Test]
-        [Property("ConformanceUnit", "Session Change User")]
-        [Property("Tag", "004")]
         public async Task ChangeUserWithInvalidCredentialsFailsAsync()
         {
             Assert.Ignore("Change user requires multiple user configs.");
@@ -72,8 +68,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Activate an already active session while specifying different user login credentials.")]
         [Test]
-        [Property("ConformanceUnit", "Session Change User")]
-        [Property("Tag", "006")]
         public async Task ActivateSessionWithDifferentUserCredentialsAsync()
         {
             Assert.Ignore("Change user requires multiple user configs.");

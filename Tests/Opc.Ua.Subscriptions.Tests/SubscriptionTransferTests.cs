@@ -32,7 +32,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for the Subscription Transfer conformance unit.
@@ -62,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
             Assert.That(Session, Is.Not.Null, "Failed to create signed transfer session");
         }
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "002")]
         public async Task TransferAfterSessionCloseWithDeleteSubscriptionsTrueAsync()
         {
             // Close session with deleteSubscriptions=true, then try transfer.
@@ -105,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "014")]
         public async Task TransferMixedValidAndInvalidSubscriptionIdsAsync()
         {
             // Two subscriptions, transfer one valid + one invalid ID.
@@ -158,8 +156,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "017")]
         public async Task TransferWithAnonymousUserTokenSucceedsAsync()
         {
             // Anonymous user token; transfer should succeed between sessions.
@@ -206,8 +202,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "018")]
         public async Task TransferReturnsGoodSubscriptionTransferredOnOldSessionAsync()
         {
             // Transfer should return Good_SubscriptionTransferred status change
@@ -296,8 +290,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Transfer")]
-        [Property("Tag", "019")]
         public async Task TransferWithAnonymousUserDifferentSecurityPoliciesAsync()
         {
             // Anonymous user token over connections; transfer should succeed.

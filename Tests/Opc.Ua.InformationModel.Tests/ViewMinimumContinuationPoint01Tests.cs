@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Minimum Continuation Point 01.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     {
         [Description("Given one node to browse And the node exists And the node has at least three forward references And RequestedMaxReferencesPerNode is 1 And Browse has been called When BrowseNext is")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "006")]
         public async Task BrowseNextWithLowMaxRefsReturnsContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Test 5.7.2-8 prepared by Dale Pope dale.pope@matrikon.com Description: Given one node to browse And the node exists And the node has at least three references of the same Reference")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "010")]
         public async Task BrowseNextWithSameReferenceTypeUsesContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -89,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Test 5.7.2-9 prepared by Dale Pope dale.pope@matrikon.com Description: Given one node to browse And the node exists And the node has at least three references of the same Reference")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "011")]
         public async Task BrowseNextWithSameReferenceTypeReturnsRemainingReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -112,8 +108,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse a (valid) node, specifying a nodeClassMask (other than all or View), requestedMaxReferencesPerNode = 1, and BrowseDirection = Both. The node must have at least two reference")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "012")]
         public async Task BrowseWithNodeClassMaskAndBothDirectionUsesContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -135,8 +129,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given one node to browse And the node exists And the node has at least three references And RequestedMaxReferencesPerNode is 1 And ResultMask is set to include one result field And")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "013")]
         public async Task BrowseWithSelectiveResultMaskUsesContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -158,8 +150,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given one node to browse And the node exists And the node has at least two View references And RequestedMaxReferencesPerNode is 1 And NodeClassMask is set to 128 (View) And Browse")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "015")]
         public async Task BrowseWithViewNodeClassMaskUsesContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -181,8 +171,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given a continuation point And the continuation point does not exist And diagnostic info is requested When BrowseNext is called Then the server returns specified operation diagnost")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "016")]
         public async Task BrowseNextWithUnknownContinuationPointReturnsDiagnosticInfoAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -204,8 +192,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given a continuation point And the continuation point does not exist And diagnostic info is not requested When Browse is called Then the server returns no diagnostic info. */ inclu")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "017")]
         public async Task BrowseWithUnknownContinuationPointOmitsDiagnosticInfoAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -227,8 +213,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given multiple nodes to browse And the nodes exist And the nodes have at least one forward reference And the server limits the maximum number of continuation points And the number")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-001")]
         public async Task BrowseNextRejectsContinuationPointWhenServerLimitExceededAsync()
         {
             BrowseNextResponse response = await Session.BrowseNextAsync(
@@ -240,8 +224,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given a node to browse And the node exists And the requestedMaxReferencesPerNode is 1 And the node has at least two references When Browse is called And the session is disconnected")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-002")]
         public async Task BrowseNextAfterSessionDisconnectFailsAsync()
         {
             BrowseNextResponse response = await Session.BrowseNextAsync(
@@ -251,10 +233,8 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Given an empty/null authenticationToken When BrowseNext is called Then the server returns service error Bad_SecurityChecksFailed. */ include( &quot;./library/ClassBased/UaRequestHeader/")]
+        [Description("Given an empty/null authenticationToken When BrowseNext is called Then the server returns service error Bad_SecurityChecksFailed.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-008")]
         public async Task BrowseNextWithEmptyAuthenticationTokenFailsAsync()
         {
             BrowseNextResponse response = await Session.BrowseNextAsync(
@@ -264,10 +244,8 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Given a non-existent authenticationToken When BrowseNext is called Then the server returns service error Bad_SecurityChecksFailed. */ include( &quot;./library/ClassBased/UaRequestHeader")]
+        [Description("Given a non-existent authenticationToken When BrowseNext is called Then the server returns service error Bad_SecurityChecksFailed.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-009")]
         public async Task BrowseNextWithNonExistentAuthenticationTokenFailsAsync()
         {
             BrowseNextResponse response = await Session.BrowseNextAsync(
@@ -277,10 +255,8 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Given a RequestHeader.Timestamp of 0 When BrowseNext is called Then the server returns service error Bad_InvalidTimestamp. */ include( &quot;./library/ClassBased/UaRequestHeader/5.4-Err")]
+        [Description("Given a RequestHeader.Timestamp of 0 When BrowseNext is called Then the server returns service error Bad_InvalidTimestamp.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-010")]
         public async Task BrowseNextWithZeroTimestampFailsAsync()
         {
             BrowseNextResponse response = await Session.BrowseNextAsync(

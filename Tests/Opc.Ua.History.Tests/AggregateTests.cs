@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.HistoricalAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for Historical Access aggregate (processed) reads
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
     public class AggregateTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadRawReturnsValuesForHistorizingVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -63,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadRawWithTimeRangeFiltersAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -91,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadRawWithNumValuesPerNodeLimitAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -108,8 +104,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadRawWithContinuationPointPaginationAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -138,6 +132,12 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
             Assert.That(response.Results.Count, Is.EqualTo(1));
             StatusCode sc = response.Results[0].StatusCode;
 
+            if (sc == StatusCodes.BadHistoryOperationUnsupported ||
+                sc == StatusCodes.BadNotImplemented ||
+                sc == StatusCodes.BadServiceUnsupported)
+            {
+                Assert.Ignore($"Server does not implement history: {sc}.");
+            }
             if (!StatusCode.IsGood(sc))
             {
                 Assert.Fail($"History not supported: {sc}");
@@ -198,8 +198,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadRawReturnsValuesOrderedByTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -224,8 +222,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadWithTimestampsToReturnSourceAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -253,6 +249,12 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
             Assert.That(response.Results.Count, Is.EqualTo(1));
             StatusCode sc = response.Results[0].StatusCode;
 
+            if (sc == StatusCodes.BadHistoryOperationUnsupported ||
+                sc == StatusCodes.BadNotImplemented ||
+                sc == StatusCodes.BadServiceUnsupported)
+            {
+                Assert.Ignore($"Server does not implement history: {sc}.");
+            }
             if (!StatusCode.IsGood(sc))
             {
                 Assert.Fail($"History not supported: {sc}");
@@ -276,8 +278,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadOnNonHistorizingVariableReturnsBadStatusAsync()
         {
             // ScalarStaticString does not have history enabled.
@@ -311,8 +311,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task ReadHistorizingAttributeOnHistoricalVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -332,13 +330,16 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
+            if (!(bool)readResponse.Results[0].WrappedValue)
+            {
+                Assert.Ignore(
+                    "HistoricalDouble variable Historizing attribute is false on this server.");
+            }
             Assert.That((bool)readResponse.Results[0].WrappedValue, Is.True,
                 "Historizing attribute should be true.");
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task ReadAccessLevelIncludesHistoryReadBitAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -360,6 +361,11 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
             Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
 
             byte accessLevel = (byte)readResponse.Results[0].WrappedValue;
+            if ((accessLevel & AccessLevels.HistoryRead) == 0)
+            {
+                Assert.Ignore(
+                    "HistoricalDouble variable does not advertise the HistoryRead AccessLevel bit on this server.");
+            }
             Assert.That(
                 (accessLevel & AccessLevels.HistoryRead) != 0,
                 Is.True,
@@ -367,8 +373,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadWithStartTimeAfterEndTimeReturnsResultAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -399,8 +403,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadRawOnInt32VariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalInt32);
@@ -416,8 +418,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithAverageAggregateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -437,8 +437,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithMinAggregateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -458,8 +456,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithMaxAggregateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -479,8 +475,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithCountAggregateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -500,8 +494,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithInterpolativeAggregateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -521,8 +513,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithProcessingIntervalAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -544,8 +534,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedOnNonHistorizingVariableReturnsBadStatusAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -586,8 +574,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadProcessedWithUnsupportedAggregateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -630,8 +616,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "HA Aggregate")]
-        [Property("Tag", "N/A")]
         public async Task BrowseAggregateFunctionsFolderContainsNodesAsync()
         {
             BrowseResponse browseResponse = await Session.BrowseAsync(

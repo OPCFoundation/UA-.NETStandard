@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Monitor Complex Value conformance unit.
@@ -72,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Complex Value")]
-        [Property("Tag", "001")]
         public async Task MonitorComplexDataTypeValueAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus;
@@ -101,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Complex Value")]
-        [Property("Tag", "002")]
         public async Task MonitorNestedComplexDataTypeValueAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_BuildInfo;
@@ -130,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Complex Value")]
-        [Property("Tag", "003")]
         public async Task MonitorComplexDataTypeDataEncodingVariationsAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus;

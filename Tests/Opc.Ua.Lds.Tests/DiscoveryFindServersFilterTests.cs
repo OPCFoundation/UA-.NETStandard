@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery Find Servers Filter.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     {
         [Description("Filter the list of servers by server URI. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "001")]
         public async Task FindServersFilteredByServerUriAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -57,8 +57,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Use several serverUris to restrict the list of servers (obtain list with no filter then use the necessary number of servers as the filter). This test is only possible on a discover")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "002")]
         public async Task FindServersFilteredByMultipleServerUrisAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -71,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("List with supported and unsupported locales. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "003")]
         public async Task FindServersWithMixedSupportedAndUnsupportedLocalesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -85,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide a serverUri that does not match any servers provided by previous call to FindServers. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "004")]
         public async Task FindServersFilteredByUnknownServerUriAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -99,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Use unsupported locale id. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "005")]
         public async Task FindServersWithUnsupportedLocaleIdAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -113,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide a list of supported locales. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "006")]
         public async Task FindServersWithSupportedLocalesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -125,10 +115,8 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
             Assert.That(response.Count, Is.GreaterThan(0));
         }
 
-        [Description("Repeats test #8 100 times. Must complete within 10-seconds. */ // include the script that we'll invoke include( &quot;./maintree/Discovery Services/Discovery Find Servers Filter/Test Ca")]
+        [Description("Repeats test #8 100 times. Must complete within 10-seconds.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "007")]
         public async Task FindServersRepeatedHundredTimesWithinTenSecondsAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -139,10 +127,8 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
             Assert.That(response.Count, Is.GreaterThan(0));
         }
 
-        [Description("Repeat test #17, 10 times. (essentially repeats test #4 1000 times) Must complete within 30-seconds. */ // include the script that we'll invoke include( &quot;./maintree/Discovery Servi")]
+        [Description("Repeat test #17, 10 times. (essentially repeats test #4 1000 times) Must complete within 30-seconds.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Filter")]
-        [Property("Tag", "008")]
         public async Task FindServersRepeatedTenTimesWithinThirtySecondsAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);

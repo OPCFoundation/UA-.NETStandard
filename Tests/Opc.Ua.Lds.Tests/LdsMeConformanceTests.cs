@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Discovery
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// Conformance tests for the GDS LDS-ME Connectivity unit. Drives
@@ -52,8 +52,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         private const string ServerUriC = "urn:localhost:opcfoundation.org:ThirdTestServer";
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "000")]
         public async Task LdsMeConnectToLdsMeAsync()
         {
             using DiscoveryClient client = await CreateDiscoveryClientAsync().ConfigureAwait(false);
@@ -66,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "001")]
         public async Task LdsMeRegisterServerWithLdsMeAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -90,8 +86,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "002")]
         public async Task LdsMeUnregisterServerFromLdsMeAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -116,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "003")]
         public async Task LdsMeFindServersOnNetworkAsync()
         {
             // Seed two via direct store (only one cert available for RegisterServer2).
@@ -132,8 +124,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "004")]
         public async Task LdsMeQueryServersOnNetworkAsync()
         {
             // Seed enough records to exercise pagination (startingRecordId / max).
@@ -158,8 +148,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "005")]
         public async Task LdsMePeriodicReregistrationAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -182,8 +170,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "006")]
         public async Task LdsMeServerCapabilitiesOnNetworkAsync()
         {
             SeedRecord(ServerUriA, "instance-A", new[] { "LDS", "LDS-ME" }, "opc.tcp://host-a:48010");
@@ -199,8 +185,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "007")]
         public async Task LdsMeDiscoveryUrlsOnNetworkAsync()
         {
             const string url = "opc.tcp://specific-host:51234/CustomPath";
@@ -215,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "008")]
         [Property("Limitation", "RequiresMulticast")]
         public async Task LdsMeMulticastAnnouncementAsync()
         {
@@ -228,8 +210,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "009")]
         public async Task LdsMeServerOnNetworkTimeoutAsync()
         {
             // Drive the prune timeout deterministically: shrink the multicast
@@ -254,8 +234,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "010")]
         public async Task LdsMeFilterByCapabilitiesAsync()
         {
             SeedRecord(ServerUriA, "alpha", new[] { "DA", "LDS-ME" }, "opc.tcp://a:1");
@@ -283,8 +261,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "011")]
         public async Task LdsMeFilterByServerNameAsync()
         {
             // FindServersOnNetwork has no name filter (only capabilities).
@@ -304,8 +280,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "012")]
         public async Task LdsMeSecureConnectionAsync()
         {
             // Verify a signed (Sign mode + Basic256Sha256) channel can drive
@@ -326,8 +300,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS LDS-ME Connectivity")]
-        [Property("Tag", "013")]
         public async Task LdsMeRecoveryAfterDisconnectAsync()
         {
             using (RegistrationClient registration = await CreateRegistrationClientAsync()

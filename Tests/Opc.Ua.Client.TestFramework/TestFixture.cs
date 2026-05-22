@@ -35,13 +35,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Conformance.Tests.Mock;
-using Opc.Ua.Client.Tests;
-using Opc.Ua.Server.Tests;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Conformance.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Base class for compliance tests. Starts an in-process ReferenceServer
@@ -60,7 +58,7 @@ namespace Opc.Ua.Conformance.Tests
             // are off by default so the standard test fixtures keep a small
             // address space; conformance tests need them.
             ServerFixture = new ServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t) { EnableConformanceNodeManagers = true })
+                t => new ReferenceServer(t) { EnableFileSystemNodeManager = true })
             {
                 AutoAccept = true,
                 SecurityNone = true,
@@ -464,6 +462,8 @@ namespace Opc.Ua.Conformance.Tests
         /// <summary>
         /// Calls Assert.Ignore when a role management method returns a status code
         /// indicating the feature is not (fully) implemented in the test server.
+        /// BadEntryExists / BadAlreadyExists are treated as "server does not
+        /// implement idempotent re-add" — acceptable optional behavior per OPC UA Part 18.
         /// </summary>
         protected static void IgnoreIfRoleMethodNotSupported(StatusCode statusCode)
         {
@@ -471,7 +471,9 @@ namespace Opc.Ua.Conformance.Tests
                 statusCode == StatusCodes.BadServiceUnsupported ||
                 statusCode == StatusCodes.BadInvalidArgument ||
                 statusCode == StatusCodes.BadNotSupported ||
-                statusCode == StatusCodes.BadSecurityModeInsufficient)
+                statusCode == StatusCodes.BadSecurityModeInsufficient ||
+                statusCode == StatusCodes.BadEntryExists ||
+                statusCode == StatusCodes.BadAlreadyExists)
             {
                 Assert.Ignore(
                     "Role management method not fully implemented in test server: " +

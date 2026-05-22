@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery endpoint validation
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     public class DiscoveryEndpointTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithTransportProfileFilterAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -67,8 +67,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsVerifyTransportProfileUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -84,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsVerifySecurityPolicyUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -101,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsVerifyApplicationUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -118,8 +112,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsVerifyAtLeastOneSecureEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -141,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsVerifyAnonymousTokenAvailableAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -175,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsVerifyUsernameTokenAvailableAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -212,8 +200,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersVerifyApplicationTypeAsync()
         {
             var endpointConfiguration =

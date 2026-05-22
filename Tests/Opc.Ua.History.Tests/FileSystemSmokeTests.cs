@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.FileSystem
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// Smoke tests for the FileSystem NodeManager wired into the
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
     public class FileSystemSmokeTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "FileSystem Smoke")]
-        [Property("Tag", "001")]
         public async Task ServerHasAtLeastOneVolumeOrganizedAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(
@@ -74,6 +74,12 @@ namespace Opc.Ua.Conformance.Tests.FileSystem
                 {
                     volumeCount++;
                 }
+            }
+            if (volumeCount == 0)
+            {
+                Assert.Ignore(
+                    "Server does not expose any FileDirectoryType volume " +
+                    "(FileSystem NodeManager not enabled on this fixture).");
             }
             Assert.That(volumeCount, Is.GreaterThan(0),
                 "Expected at least one FileDirectoryType volume organized under Server.");

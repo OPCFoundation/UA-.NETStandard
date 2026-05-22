@@ -33,7 +33,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Subscription Durable covering
@@ -48,8 +50,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
     public class SubscriptionDurableTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "001")]
         public async Task DurableSubscriptionCreatedWithPublishingEnabledAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(Session)
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "004")]
         public async Task DurableSubscriptionSurvivesSessionCloseAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -110,9 +108,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "004")]
-        [Property("Tag", "006")]
         public async Task DurableSubscriptionTransferAfterReconnectAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -168,8 +163,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "000")]
         public async Task DurableSubscriptionNotAvailableIgnoredAsync()
         {
             // Test the ignore path for servers that don't support
@@ -203,8 +196,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "004")]
         public async Task DurableSubscriptionDeleteBeforeReconnectAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -238,8 +229,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "001")]
         public async Task DurableSubSetPublishingModeDisableAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -263,8 +252,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "001")]
         public async Task DurableSubSetPublishingModeReEnableAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -292,8 +279,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "006")]
         public async Task DurableSubPublishingModePreservedAfterTransferAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -348,8 +333,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "001")]
         public async Task DurableSubDisabledNoNotificationsAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -388,8 +371,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "004")]
         public async Task DurableSubReEnableAfterTransferAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -448,9 +429,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "010")]
-        [Property("Tag", "011")]
         public async Task DurableSubModifyIntervalAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -478,9 +456,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "010")]
-        [Property("Tag", "011")]
         public async Task DurableSubModifyKeepAliveCountAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -507,9 +482,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "010")]
-        [Property("Tag", "011")]
         public async Task DurableSubModifyLifetimeCountAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -536,9 +508,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "010")]
-        [Property("Tag", "011")]
         public async Task DurableSubModifyPriorityAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -565,9 +534,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "010")]
-        [Property("Tag", "011")]
         public async Task DurableSubModifyMaxNotificationsAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -594,8 +560,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "005")]
         public async Task DurableSubWithMultipleMonitoredItemsAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -632,8 +596,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "004")]
         public async Task DurableSubTransferWithInitialTrueAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -683,8 +645,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "004")]
         public async Task DurableSubTransferWithInitialFalseAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -736,8 +696,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "010")]
         public async Task DurableSubCreateMultipleSubsAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -760,8 +718,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "008")]
         public async Task DurableSubSeqNumbersPreservedAsync()
         {
             Client.ISession session1 = await CreateSessionAsync()
@@ -910,8 +866,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "002")]
         public async Task DurableSetLifetimeMaxUint32Async()
         {
             // Create durable subscription; set lifetimeInHours to UInt32.MaxValue
@@ -938,8 +892,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "003")]
         public async Task DurableSetLifetimeZeroRevisedGreaterThanZeroAsync()
         {
             // Set lifetimeInHours to 0; revised should be > 0
@@ -960,8 +912,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "009")]
         public async Task DurableSubscriptionWithServerNotifierEventsAsync()
         {
             // Manual test: durable subscription with Server.Notifier events.
@@ -972,8 +922,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "011")]
         public async Task DurableWithZeroMonitoredItemsThenRepeatCallWithDifferentParamsAsync()
         {
             // Create durable sub with 0 monitored items, then repeat call with different params.
@@ -1032,8 +980,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "012")]
         public async Task DurableShortLivedSubscriptionModifyResetsStateAsync()
         {
             // Short-lived sub, durable call changes lifetime;
@@ -1081,8 +1027,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Durable")]
-        [Property("Tag", "013")]
         public async Task DurableDeleteSubscriptionRemovesDurableStateAsync()
         {
             // Delete a durable subscription, verify it is fully removed.

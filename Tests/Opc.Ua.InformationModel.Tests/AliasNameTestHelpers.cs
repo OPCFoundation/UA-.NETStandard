@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.AliasName
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// Shared helpers for the AliasName conformance tests. Provides constants

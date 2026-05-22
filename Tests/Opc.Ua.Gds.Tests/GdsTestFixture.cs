@@ -34,15 +34,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Client.Tests;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Tests;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests.GDS
+
+namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// Base class for GDS compliance tests. Starts an in-process
@@ -198,7 +199,7 @@ namespace Opc.Ua.Conformance.Tests.GDS
         /// GDS admin roles (DiscoveryAdmin, CertificateAuthorityAdmin)
         /// for testing.
         /// </summary>
-        private void GdsImpersonateUser(Server.ISession session, ImpersonateEventArgs args)
+        private void GdsImpersonateUser(Opc.Ua.Server.ISession session, ImpersonateEventArgs args)
         {
             // The ReferenceServer sets SystemConfigurationIdentity for sysadmin.
             // Wrap it with GDS admin roles so GDS methods are authorized.
@@ -282,12 +283,12 @@ namespace Opc.Ua.Conformance.Tests.GDS
         {
             var record = new ApplicationRecordDataType
             {
-                ApplicationUri = $"urn:opcfoundation.org:ctt:test:app:{suffix}",
+                ApplicationUri = $"urn:opcfoundation.org:tests:test:app:{suffix}",
                 ApplicationType = appType,
                 ApplicationNames = new LocalizedText[] {
                     new("en-US", $"Test Application {suffix}")
                 }.ToArrayOf(),
-                ProductUri = $"urn:opcfoundation.org:ctt:test:product:{suffix}"
+                ProductUri = $"urn:opcfoundation.org:tests:test:product:{suffix}"
             };
 
             // GDS rejects DiscoveryUrls for Client type applications

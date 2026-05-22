@@ -33,7 +33,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -42,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     {
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosTokenAdvertisementIgnored()
         {
             Assert.Ignore("Kerberos token advertisement not exercised.");
@@ -51,8 +51,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosConnectionIgnored()
         {
             Assert.Ignore("Kerberos connection not exercised.");
@@ -60,8 +58,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosDelegationIgnored()
         {
             Assert.Ignore("Kerberos delegation not exercised.");
@@ -69,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosTokenRefreshIgnored()
         {
             Assert.Ignore("Kerberos token refresh not exercised.");
@@ -78,8 +72,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosRealmHandlingIgnored()
         {
             Assert.Ignore("Kerberos realm handling not exercised.");
@@ -87,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosMultiAuthIgnored()
         {
             Assert.Ignore("Kerberos multi-authentication not exercised.");
@@ -96,8 +86,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosTimeSkewIgnored()
         {
             Assert.Ignore("Kerberos time skew handling not exercised.");
@@ -105,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosSessionCachingIgnored()
         {
             Assert.Ignore("Kerberos session caching not exercised.");
@@ -114,8 +100,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosCredentialCachingIgnored()
         {
             Assert.Ignore("Kerberos credential caching not exercised.");
@@ -123,8 +107,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosErrorHandlingIgnored()
         {
             Assert.Ignore("Kerberos error handling not exercised.");
@@ -132,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosTokenStructureIgnored()
         {
             Assert.Ignore("Kerberos token structure not exercised.");
@@ -141,8 +121,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosIntegrityCheckIgnored()
         {
             Assert.Ignore("Kerberos integrity check not exercised.");
@@ -150,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosEncryptionIgnored()
         {
             Assert.Ignore("Kerberos encryption not exercised.");
@@ -159,8 +135,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosClaimMappingIgnored()
         {
             Assert.Ignore("Kerberos claim mapping not exercised.");
@@ -168,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosGroupMembershipIgnored()
         {
             Assert.Ignore("Kerberos group membership not exercised.");
@@ -177,8 +149,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosServicePrincipalIgnored()
         {
             Assert.Ignore("Kerberos service principal handling not exercised.");
@@ -186,8 +156,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosAuthorizationDataIgnored()
         {
             Assert.Ignore("Kerberos authorization data not exercised.");
@@ -195,16 +163,12 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Property("Limitation", "RequiresKerberos")]
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public void KerberosPreAuthIgnored()
         {
             Assert.Ignore("Kerberos pre-authentication not exercised.");
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "002")]
         public async Task EndpointsAdvertiseUsernameTokenAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -218,8 +182,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "002")]
         public async Task UsernameTokenHasSecurityPolicyAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -246,8 +208,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "003")]
         public async Task ConnectWithUsernamePasswordAsync()
         {
             try
@@ -272,8 +232,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "004")]
         public async Task ChangeIdentityBetweenSessionsAsync()
         {
             try
@@ -311,8 +269,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "001")]
         public async Task NonceIsUniquePerSessionAsync()
         {
             ISession session1 = await ClientFixture.ConnectAsync(
@@ -335,8 +291,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "001")]
         public async Task SessionTimeoutBehaviorAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(
@@ -354,8 +308,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "001")]
         public async Task AnonymousTokenTypeAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(
@@ -372,8 +324,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "002")]
         public async Task UsernameTokenPolicyIdPresentAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -399,8 +349,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "002")]
         public async Task IssuedTokenTypeForUsernameAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -427,8 +375,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "002")]
         public async Task SecurityLevelValueAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(
@@ -445,8 +391,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "002")]
         public async Task MultipleEndpointsWithDifferentTokensAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -465,8 +409,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "001")]
         public async Task SessionKeepAliveAsync()
         {
             ISession session = await ClientFixture.ConnectAsync(

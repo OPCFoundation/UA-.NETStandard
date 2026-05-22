@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Monitor Basic conformance unit.
@@ -76,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "002")]
         public async Task CreateMonitoredItemsDisabledModeServerTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -97,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "003")]
         public async Task ModifyMonitoredItemChangeClientHandleAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -131,8 +129,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "004")]
         public async Task ModifyMonitoredItemTimestampsToSourceAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -173,8 +169,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "005")]
         public async Task ModifyMonitoredItemTimestampsToServerAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -215,8 +209,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "006")]
         public async Task ModifyMonitoredItemTimestampsToNeitherAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -257,8 +249,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "010")]
         public async Task ModifyMultipleItemsSamplingIntervalsAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();
@@ -306,8 +296,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "011")]
         public async Task ModifyMonitoredItemQueueSizeZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -340,8 +328,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "012")]
         public async Task ModifyMonitoredItemQueueSizeMaxUInt32Async()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -373,8 +359,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "015")]
         public async Task SetMonitoringModeOnDeletedItemReturnsBadIdAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -407,8 +391,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "016")]
         public async Task SetMonitoringModeOnMixDeletedAndValidItemsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -444,8 +426,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "018")]
         public async Task CreateItemSamplingIntervalZeroReportingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -459,8 +439,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "020")]
         public async Task SetMonitoringModeDisabledToDisabledAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -487,8 +465,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "021")]
         public async Task SetMonitoringModeDisabledToSamplingAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -514,8 +490,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "022")]
         public async Task SetMonitoringModeDisabledToReportingAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -540,8 +514,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "023")]
         [Category("LongRunning")]
         public async Task SetMonitoringModeSamplingToDisabledAsync()
         {
@@ -576,8 +548,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "024")]
         [Category("LongRunning")]
         public async Task SetMonitoringModeSamplingToSamplingAsync()
         {
@@ -612,8 +582,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "025")]
         public async Task SetMonitoringModeSamplingToReportingAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -641,8 +609,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "026")]
         public async Task SetMonitoringModeReportingToDisabledAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -670,8 +636,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "027")]
         public async Task SetMonitoringModeReportingToSamplingAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -699,8 +663,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "028")]
         public async Task SetMonitoringModeReportingToReportingAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -730,8 +692,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "034")]
         public async Task CreateMonitoredItemsForAllAttributesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -777,8 +737,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "036")]
         public async Task CreateMonitoredItemDataEncodingVariationsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -836,8 +794,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "037")]
         public async Task CreateMonitoredItemsDisabledModeServerTimestampDuplicateAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -857,8 +813,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "038")]
         public async Task CreateItemSamplingIntervalZeroVerifyRevisedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -874,8 +828,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Basic")]
-        [Property("Tag", "039")]
         public async Task CreateMonitoredItemsMultiDimensionalArrayAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();

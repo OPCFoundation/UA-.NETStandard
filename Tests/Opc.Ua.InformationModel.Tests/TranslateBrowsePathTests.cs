@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Service Set – TranslateBrowsePathsToNodeIds.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     {
         [Description("Translate a single-element path from RootFolder to Objects.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "001")]
         public async Task TranslateBrowsePath001SingleElementPathAsync()
         {
             var paths = new BrowsePath[]
@@ -82,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate a multi-element path from RootFolder → Objects → Server.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "002")]
         public async Task TranslateBrowsePath002MultiElementPathAsync()
         {
             var paths = new BrowsePath[]
@@ -127,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate a path from RootFolder to Types folder.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "002")]
         public async Task TranslateBrowsePath003PathToTypesFolderAsync()
         {
             var paths = new BrowsePath[]
@@ -166,8 +162,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate a path from RootFolder to Views folder.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "001")]
         public async Task TranslateBrowsePath004PathToViewsFolderAsync()
         {
             var paths = new BrowsePath[]
@@ -205,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate two paths in one call: Root→Objects and Root→Types.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "012")]
         public async Task TranslateBrowsePath005MultiplePathsInOneCallAsync()
         {
             var paths = new BrowsePath[]
@@ -260,8 +252,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate a deep path: Root → Objects → Server → ServerStatus.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "003")]
         public async Task TranslateBrowsePath006DeepPathAsync()
         {
             var paths = new BrowsePath[]
@@ -311,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Use an invalid starting node. Expect BadNodeIdUnknown.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "Err-001")]
         public async Task TranslateBrowsePathErr001InvalidStartingNodeAsync()
         {
             var paths = new BrowsePath[]
@@ -346,8 +334,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Use an empty relative path (no elements). Expect a Bad status.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "Err-003")]
         public async Task TranslateBrowsePathErr002EmptyBrowsePathAsync()
         {
             var paths = new BrowsePath[]
@@ -369,8 +355,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate a path with a non-existent target name. Expect BadNoMatch.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "Err-006")]
         public async Task TranslateBrowsePathErr003InvalidTargetNameAsync()
         {
             var paths = new BrowsePath[]
@@ -404,8 +388,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Translate a path from ObjectsFolder to Server.")]
         [Test]
-        [Property("ConformanceUnit", "View TranslateBrowsePath")]
-        [Property("Tag", "001")]
         public async Task TranslateBrowsePath007PathFromObjectsToServerAsync()
         {
             var paths = new BrowsePath[]

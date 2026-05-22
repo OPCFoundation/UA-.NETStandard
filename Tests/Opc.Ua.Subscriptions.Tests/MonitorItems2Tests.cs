@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Monitor Items 2 conformance unit.
@@ -73,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task CreateMonitoredItemDataEncodingVariationsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -134,8 +134,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "004")]
         public async Task ModifyMultipleItemsVaryingParametersAsync()
         {
             int count = System.Math.Min(10, Constants.ScalarStaticNodes.Length);

@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Auditing
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// Extended compliance tests for audit event type hierarchy:
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
     public class AuditingExtendedTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "001")]
         public async Task AuditAddNodesEventTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -55,8 +55,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "007")]
         public async Task AuditDeleteNodesEventTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -65,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "003")]
         public async Task AuditAddReferencesEventTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -75,8 +71,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "009")]
         public async Task AuditDeleteReferencesEventTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -85,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionEventTypeHasMandatoryPropertiesAsync()
         {
             List<ReferenceDescription> refs = await BrowseChildrenAsync(
@@ -101,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditActivateSessionEventTypeHasPropertiesAsync()
         {
             List<ReferenceDescription> refs = await BrowseChildrenAsync(
@@ -115,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionCommentEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -131,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionEnableEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -147,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionAcknowledgeEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -163,8 +147,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing History Services")]
-        [Property("Tag", "001")]
         public async Task AuditHistoryEventUpdateEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(

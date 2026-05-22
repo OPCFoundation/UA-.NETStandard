@@ -35,7 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds;
 
-namespace Opc.Ua.Conformance.Tests.GDS
+namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// compliance tests for GDS QueryApplications service,
@@ -89,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryApplicationsWithNoFilterReturnsAllRegisteredAsync()
         {
             (List<ApplicationDescription> applications, DateTime _, uint _) = await QueryApplicationsAsync(
@@ -107,11 +105,9 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryApplicationsWithApplicationUriFilterAsync()
         {
-            const string targetUri = "urn:opcfoundation.org:ctt:test:app:Query1";
+            const string targetUri = "urn:opcfoundation.org:tests:test:app:Query1";
 
             (List<ApplicationDescription> applications, DateTime _, uint _) = await QueryApplicationsAsync(
                 startingRecordId: 0,
@@ -128,8 +124,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "008")]
         public async Task QueryApplicationsWithApplicationNameFilterAsync()
         {
             (List<ApplicationDescription> applications, DateTime _, uint _) = await QueryApplicationsAsync(
@@ -146,8 +140,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "028")]
         public async Task QueryApplicationsWithApplicationTypeFilterServerAsync()
         {
             // ApplicationType.Server = 0 in the enum, but QueryApplications uses a bitmask:
@@ -172,11 +164,9 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryApplicationsWithProductUriFilterAsync()
         {
-            const string targetProductUri = "urn:opcfoundation.org:ctt:test:product:Query2";
+            const string targetProductUri = "urn:opcfoundation.org:tests:test:product:Query2";
 
             (List<ApplicationDescription> applications, DateTime _, uint _) = await QueryApplicationsAsync(
                 startingRecordId: 0,
@@ -191,8 +181,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryApplicationsWithServerCapabilityFilterAsync()
         {
             (List<ApplicationDescription> applications, DateTime _, uint _) = await QueryApplicationsAsync(
@@ -209,8 +197,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryApplicationsVerifyLastCounterResetTimeAsync()
         {
             (List<ApplicationDescription> _, DateTime lastCounterResetTime, uint _) = await QueryApplicationsAsync(
@@ -228,8 +214,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "004")]
         public async Task QueryApplicationsWithPaginationMaxRecordsAsync()
         {
             (List<ApplicationDescription> applications, _, _) = await QueryApplicationsAsync(
@@ -246,8 +230,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "004")]
         public async Task QueryApplicationsContinuationWithNextRecordIdAsync()
         {
             // First page
@@ -285,8 +267,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task RegisterMultipleAppsThenQueryAllReturnedAsync()
         {
             (List<ApplicationDescription> applications, DateTime _, uint _) = await QueryApplicationsAsync(
@@ -301,7 +281,7 @@ namespace Opc.Ua.Conformance.Tests.GDS
             var registeredUris = new HashSet<string>();
             for (int i = 1; i <= 5; i++)
             {
-                registeredUris.Add($"urn:opcfoundation.org:ctt:test:app:Query{i}");
+                registeredUris.Add($"urn:opcfoundation.org:tests:test:app:Query{i}");
             }
 
             var returnedUris = new HashSet<string>(
@@ -315,8 +295,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryApplicationsAfterUnregisterAppNotInResultsAsync()
         {
             ApplicationRecordDataType appRecord = CreateTestApplicationRecord("QueryUnreg");

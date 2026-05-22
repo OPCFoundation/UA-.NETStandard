@@ -31,9 +31,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using static Opc.Ua.Conformance.Tests.AliasName.AliasNameTestHelpers;
+using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
 
-namespace Opc.Ua.Conformance.Tests.AliasName
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for AliasName Base.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
     {
         [Description("Verify that the type system includes the AliasNameType, the AliasNameCategoryType and the assocated Datatype AliasNameDataType and the AliasFor Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task TypeSystemDefinesAliasNameTypesAsync()
         {
             (NodeId id, string expected)[] cases =
@@ -72,8 +72,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Browse the Objects Folder for 'Aliases'")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "002")]
         public async Task ObjectsFolderContainsAliasesObjectAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -99,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Browse the Hiearchy under object.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "003")]
         public async Task AliasesHierarchyCanBeBrowsedAsync()
         {
             IList<ReferenceDescription> children =
@@ -123,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance. Pass in the AliasFor Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "004")]
         public async Task FindAliasByExactNameAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -145,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, prefaced with a &quot;%&quot;. Pass in the AliasFor Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "005")]
         public async Task FindAliasWithPercentPrefixWildcardAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -164,8 +156,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, with a &quot;%&quot; replacing any character in the name. Pass in the A")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "006")]
         public async Task FindAliasWithPercentMidWildcardAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -183,8 +173,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, replace the first character with a &quot;_&quot;. Pass in the AliasFor")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "007")]
         public async Task FindAliasWithUnderscorePrefixWildcardAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -203,8 +191,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, with a &quot;_&quot; replacing any character in the name. Pass in the A")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "008")]
         public async Task FindAliasWithUnderscoreMidWildcardAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -223,8 +209,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, enclose the first character with &quot;[]&quot;. Pass in the AliasFor R")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "009")]
         public async Task FindAliasWithBracketCharacterClassAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -243,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, enclose the first character with &quot;[]&quot; include the letters ABC")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "010")]
         public async Task FindAliasWithBracketCharacterRangeAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -269,8 +251,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance, enclose the first character with &quot;[^]&quot; (the ^ is before the c")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "011")]
         public async Task FindAliasWithNegatedBracketCharacterClassAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -295,8 +275,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in a &quot;%&quot; for the AliasName instance. Pass in the AliasFor Reference type")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "012")]
         public async Task FindAliasWithPercentMatchesAnyAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -323,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in a string of &quot;A[&quot;. Pass in the AliasFor Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "Err-001")]
         public async Task FindAliasReturnsErrorForUnclosedBracketAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -341,8 +317,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in a string of &quot;A\\&quot;. Pass in the AliasFor Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "Err-002")]
         public async Task FindAliasReturnsErrorForTrailingBackslashAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -357,8 +331,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in a string of &quot;A\\\\\\&quot;. Pass in the AliasFor Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "Err-003")]
         public async Task FindAliasReturnsErrorForInvalidEscapeSequenceAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(
@@ -374,8 +346,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
 
         [Description("Call the FindAlias method on the Aliases object, passing in the string name part of the name of an AliasName instance. Pass in the HasComponent for the Reference type.")]
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "Err-004")]
         public async Task FindAliasReturnsErrorForNonAliasForReferenceTypeAsync()
         {
             (NodeId category, NodeId method) = await FindCategoryAsync(

@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Server.Tests
+namespace Opc.Ua.Server.TestFramework
 {
     /// <summary>
     /// Test workers using test services.

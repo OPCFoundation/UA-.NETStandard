@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DataAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for Data Access Analog, TwoState, and
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
     public class DataAccessAnalogTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "001")]
         public async Task ReadAnalogItemDoubleValueAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Double");
@@ -54,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "003")]
         public async Task ReadAnalogItemEURangeAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Double");
@@ -75,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "002")]
         public async Task ReadAnalogItemEngineeringUnitsAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Double");
@@ -92,8 +88,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "006")]
         public async Task WriteAnalogItemWithinEURangeSucceedsAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Double");
@@ -120,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "002")]
         public async Task ReadAnalogItemInt32ValueAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Int32");
@@ -131,8 +123,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "000")]
         public async Task ReadAnalogItemHasTypeDefinitionAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Double");
@@ -160,8 +150,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task ReadTwoStateDiscreteValueAsync()
         {
             NodeId nodeId =
@@ -179,8 +167,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task ReadTwoStateDiscreteTrueStateAsync()
         {
             NodeId nodeId =
@@ -206,8 +192,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task ReadTwoStateDiscreteFalseStateAsync()
         {
             NodeId nodeId =
@@ -233,8 +217,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task WriteTwoStateDiscreteToggleAsync()
         {
             NodeId nodeId =
@@ -267,8 +249,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task ReadMultiStateDiscreteValueAsync()
         {
             NodeId nodeId =
@@ -283,8 +263,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task ReadMultiStateDiscreteEnumStringsAsync()
         {
             NodeId nodeId =
@@ -310,8 +288,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task WriteMultiStateDiscreteValidIndexAsync()
         {
             NodeId nodeId =
@@ -344,8 +320,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "002")]
         public async Task ReadAnalogItemArrayValueAsync()
         {
             NodeId nodeId =
@@ -356,8 +330,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access Analog")]
-        [Property("Tag", "N/A")]
         public async Task ReadAnalogItemDefinitionPropertyAsync()
         {
             NodeId nodeId = AnalogNodeId("DataAccess_AnalogType_Double");

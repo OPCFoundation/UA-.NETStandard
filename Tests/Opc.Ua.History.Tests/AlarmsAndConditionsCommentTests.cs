@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Comment conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsCommentTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Test_000")]
         public async Task ConditionTypeHasAddCommentMethodAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -55,8 +53,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Test_000")]
         public async Task ConditionTypeHasCommentPropertyAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -66,8 +62,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Test_000")]
         public async Task ConditionTypeHasClientUserIdAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -77,8 +71,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Test_000")]
         public async Task ConditionTypeHasLastSeverityAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -88,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Test_000")]
         public async Task ConditionTypeHasQualityAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -99,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Err_004")]
         public async Task ErrAddCommentWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -115,8 +103,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Err_003")]
         public async Task ErrAddCommentWithInvalidMethodArgsAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -130,8 +116,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Err_002")]
         public async Task ErrAddCommentWithBadEventIdAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -152,8 +136,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Err_006")]
         public async Task ErrAddCommentWithNullEventIdAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -170,8 +152,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "N/A")]
         public async Task ErrAddCommentOnDisabledConditionAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -199,8 +179,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Comment")]
-        [Property("Tag", "Err_005")]
         public async Task ErrAddCommentWithWrongObjectIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(

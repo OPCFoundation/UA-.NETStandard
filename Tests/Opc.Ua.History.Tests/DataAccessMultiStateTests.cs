@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DataAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for MultiState discrete types and
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
     public class DataAccessMultiStateTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "001")]
         public async Task ReadMultiStateDiscreteValueAsync()
         {
             NodeId nodeId =
@@ -63,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "006")]
         public async Task ReadMultiStateDiscreteEnumStringsAsync()
         {
             NodeId nodeId =
@@ -92,8 +90,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "003")]
         public async Task WriteValidMultiStateIndexAsync()
         {
             NodeId nodeId =
@@ -127,8 +123,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "003")]
         public async Task ReadMultiStateValueAfterWriteAsync()
         {
             NodeId nodeId =
@@ -168,8 +162,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "000")]
         public async Task VerifyAnalogItemTypeHasTypeDefinitionAsync()
         {
             NodeId nodeId =
@@ -199,8 +191,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "N/A")]
         public async Task ReadAnalogItemInstrumentRangeAsync()
         {
             NodeId nodeId =
@@ -220,8 +210,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "000")]
         public async Task VerifyMultiStateDiscreteHasTypeDefinitionAsync()
         {
             NodeId nodeId =
@@ -258,8 +246,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "N/A")]
         public async Task ReadDataAccessTwoStateDiscreteValueAsync()
         {
             NodeId nodeId =
@@ -278,8 +264,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "N/A")]
         public async Task ReadTwoStateDiscreteFalseStateAsync()
         {
             NodeId nodeId =
@@ -308,8 +292,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "N/A")]
         public async Task ReadAnalogItemDoubleEURangeHighGreaterThanLowAsync()
         {
             NodeId nodeId =
@@ -331,8 +313,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "N/A")]
         public async Task WriteAndReadBackAnalogItemInt32Async()
         {
             NodeId nodeId =
@@ -367,8 +347,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access MultiState")]
-        [Property("Tag", "000")]
         public async Task VerifyDataAccessVariableTypeExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(

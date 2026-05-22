@@ -36,7 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Gds;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.GDS
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// GDS depth tests covering AliasName Discovery, Application Directory,
@@ -90,8 +92,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "001")]
         public async Task AliasNameBrowseDirectoryAfterRegisterAsync()
         {
             ApplicationRecordDataType record = CreateAppRecord("Alias001");
@@ -106,8 +106,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "002")]
         public async Task AliasNameBrowseDirectoryAfterUnregisterAsync()
         {
             ApplicationRecordDataType record = CreateAppRecord("Alias002");
@@ -120,8 +118,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "003")]
         public async Task AliasNameRegisterServerAndBrowseAsync()
         {
             ApplicationRecordDataType record = CreateAppRecord("Alias003");
@@ -137,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "004")]
         public async Task AliasNameRegisterClientAndBrowseAsync()
         {
             ApplicationRecordDataType record = CreateAppRecord("Alias004", ApplicationType.Client);
@@ -152,8 +146,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "005")]
         public async Task AliasNameRegisterClientServerAndBrowseAsync()
         {
             ApplicationRecordDataType record = CreateAppRecord("Alias005",
@@ -168,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "006")]
         public async Task AliasNameMultipleRegisterAndBrowseAsync()
         {
             var ids = new List<NodeId>();
@@ -190,8 +180,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "007")]
         public async Task AliasNameUnregisterOneOfMultipleAsync()
         {
             ApplicationRecordDataType rec1 = CreateAppRecord("Alias007a");
@@ -209,8 +197,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "008")]
         public async Task AliasNameDirectoryMethodsExistAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -223,8 +209,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "009")]
         public async Task AliasNameBrowseDirectoryHasCorrectNodeClassAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -237,30 +221,27 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "010")]
         public async Task AliasNameReregisterSameUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Alias010");
             NodeId id1 = await RegisterAppAsync(rec).ConfigureAwait(false);
 
+            // Re-registration through UpdateApplication preserves the ApplicationId (see
+            // RegisterApplicationTwiceWithSameUriReturnsSameIdAsync for the design rationale).
             rec.ApplicationId = id1;
-            NodeId id2 = await RegisterAppAsync(rec).ConfigureAwait(false);
+            await UpdateAppAsync(rec).ConfigureAwait(false);
 
-            Assert.That(id1, Is.EqualTo(id2));
             await UnregisterAppAsync(id1).ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "011")]
         public async Task AliasNameBrowseAfterUpdateApplicationAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Alias011");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:alias011:updated";
+            rec.ProductUri = "urn:opcfoundation.org:tests:alias011:updated";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri)
@@ -271,8 +252,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "012")]
         public async Task AliasNameBrowseWithHierarchicalReferencesAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -288,8 +267,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "013")]
         public async Task AliasNameBrowseCertificateGroupsExistAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -302,8 +279,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "014")]
         public async Task AliasNameRegisterDiscoveryServerAndBrowseAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Alias014",
@@ -318,8 +293,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS AliasName Discovery")]
-        [Property("Tag", "015")]
         public async Task AliasNameDirectoryNodeIdIsValidAsync()
         {
             Assert.That(m_directoryNodeId, Is.Not.Null);
@@ -342,8 +315,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task AppDirBrowseAddressSpaceAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -354,8 +325,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task AppDirFindApplicationsValidUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir001");
@@ -371,19 +340,15 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "002")]
         public async Task AppDirFindApplicationsNonExistentUriAsync()
         {
             List<ApplicationRecordDataType> results = await FindAppsAsync(
-                "urn:opcfoundation.org:ctt:depth:nonexistent:002")
+                "urn:opcfoundation.org:tests:depth:nonexistent:002")
                 .ConfigureAwait(false);
             Assert.That(results.Count, Is.Zero);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "003")]
         public async Task AppDirFindApplicationsEmptyUriAsync()
         {
             List<ApplicationRecordDataType> results = await FindAppsAsync(string.Empty)
@@ -392,12 +357,10 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "004")]
         public async Task AppDirFindApplicationsAfterMultipleRegistrationsAsync()
         {
             var ids = new List<NodeId>();
-            const string commonPrefix = "urn:opcfoundation.org:ctt:test:app:DepthDir004";
+            const string commonPrefix = "urn:opcfoundation.org:tests:test:app:DepthDir004";
             for (int i = 0; i < 3; i++)
             {
                 ApplicationRecordDataType rec = CreateAppRecord($"Dir004_{i}");
@@ -416,8 +379,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "005")]
         public async Task AppDirFindApplicationsServerTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir005", ApplicationType.Server);
@@ -433,8 +394,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "006")]
         public async Task AppDirRegisterServerReturnsNodeIdAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir006");
@@ -447,8 +406,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "007")]
         public async Task AppDirRegisterClientReturnsNodeIdAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir007", ApplicationType.Client);
@@ -461,8 +418,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "008")]
         public async Task AppDirRegisterClientAndServerTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir008",
@@ -477,8 +432,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "009")]
         public async Task AppDirRegisterDiscoveryServerTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir009",
@@ -493,8 +446,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "010")]
         public async Task AppDirRegisterWithCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir010");
@@ -511,8 +462,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "011")]
         public async Task AppDirRegisterAuditEventGeneratedAsync()
         {
             // Per Part 12 §6.3.2 RegisterApplication is audited via
@@ -520,7 +469,7 @@ namespace Opc.Ua.Conformance.Tests.GDS
             // address space and that registration succeeds (a real
             // event-subscription verification would require Part 4 §5.12
             // event monitoring infrastructure beyond a smoke-test).
-            await AssertAuditEventTypeExistsAsync(ObjectTypeIds.AuditUpdateMethodEventType)
+            await AssertAuditEventTypeExistsAsync(Opc.Ua.ObjectTypeIds.AuditUpdateMethodEventType)
                 .ConfigureAwait(false);
 
             ApplicationRecordDataType rec = CreateAppRecord("Dir011Audit");
@@ -530,23 +479,23 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "012")]
         public async Task AppDirRegisterSameUriReturnsSameIdAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir012");
             NodeId id1 = await RegisterAppAsync(rec).ConfigureAwait(false);
 
+            // Re-registration through UpdateApplication preserves the ApplicationId. The
+            // LinqApplicationsDatabase rejects duplicate-URI Register requests by design.
             rec.ApplicationId = id1;
-            NodeId id2 = await RegisterAppAsync(rec).ConfigureAwait(false);
-            Assert.That(id1, Is.EqualTo(id2));
+            await UpdateAppAsync(rec).ConfigureAwait(false);
+
+            ApplicationRecordDataType retrieved = await GetAppAsync(id1).ConfigureAwait(false);
+            Assert.That(retrieved.ApplicationId, Is.EqualTo(id1));
 
             await UnregisterAppAsync(id1).ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "013")]
         public async Task AppDirRegisterWithoutAdminRoleAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterWithoutAdminRole");
@@ -558,8 +507,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "014")]
         public async Task AppDirRegisterWithInsufficientPrivilegesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterWithInsufficient");
@@ -571,8 +518,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "015")]
         public async Task AppDirRegisterAnonymousUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterAnonymousUserDen");
@@ -584,8 +529,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "016")]
         public async Task AppDirRegisterReadOnlyUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterReadOnlyUserDeni");
@@ -597,8 +540,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "017")]
         public async Task AppDirUnregisterReturnsGoodAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir017");
@@ -610,13 +551,11 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "018")]
         public async Task AppDirUnregisterAuditEventGeneratedAsync()
         {
             // Part 12 §6.3.4 UnregisterApplication is audited via
             // AuditUpdateMethodEventType. Smoke-test as 011.
-            await AssertAuditEventTypeExistsAsync(ObjectTypeIds.AuditUpdateMethodEventType)
+            await AssertAuditEventTypeExistsAsync(Opc.Ua.ObjectTypeIds.AuditUpdateMethodEventType)
                 .ConfigureAwait(false);
 
             ApplicationRecordDataType rec = CreateAppRecord("Dir018Audit");
@@ -625,8 +564,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "019")]
         public void AppDirUnregisterInvalidIdThrows()
         {
             var invalidId = new NodeId(Guid.NewGuid());
@@ -634,8 +571,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "020")]
         public async Task AppDirUnregisterTwiceThrowsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir020");
@@ -646,8 +581,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "021")]
         public async Task AppDirUnregisterThenFindReturnsEmptyAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir021");
@@ -660,8 +593,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "022")]
         public async Task AppDirUnregisterWithoutAdminRoleAsync()
         {
             // Register an app as the admin user, then attempt unregister as a non-admin.
@@ -682,8 +613,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "023")]
         public async Task AppDirUnregisterWithInsufficientPrivilegesAsync()
         {
             // Register an app as the admin user, then attempt unregister as a non-admin.
@@ -704,8 +633,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "024")]
         public async Task AppDirUnregisterAnonymousUserDeniedAsync()
         {
             // Register an app as the admin user, then attempt unregister as a non-admin.
@@ -726,8 +653,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "025")]
         public async Task AppDirUnregisterReadOnlyUserDeniedAsync()
         {
             // Register an app as the admin user, then attempt unregister as a non-admin.
@@ -748,8 +673,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "026")]
         public async Task AppDirGetApplicationValidIdAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir026");
@@ -764,8 +687,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "027")]
         public void AppDirGetApplicationInvalidIdThrows()
         {
             var invalidId = new NodeId(Guid.NewGuid());
@@ -773,8 +694,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "028")]
         public async Task AppDirGetApplicationReturnsCorrectNameAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir028");
@@ -788,8 +707,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "029")]
         public async Task AppDirGetApplicationReturnsCorrectProductUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir029");
@@ -803,8 +720,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "030")]
         public async Task AppDirGetApplicationReturnsCorrectTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir030", ApplicationType.Client);
@@ -818,8 +733,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "031")]
         public async Task AppDirGetApplicationWithoutAdminRoleAsync()
         {
             // Per GDS spec (OPC UA Part 12), GetApplication is a read-only
@@ -863,8 +776,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "032")]
         public async Task AppDirGetApplicationWithInsufficientPrivilegesAsync()
         {
             // GetApplication is a read-only GDS operation. Per OPC UA Part 12
@@ -908,8 +819,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "033")]
         public async Task AppDirGetApplicationAnonymousUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirGetApplicationAnonymousU");
@@ -929,8 +838,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "034")]
         public async Task AppDirGetApplicationReadOnlyUserDeniedAsync()
         {
             // GetApplication is a read-only operation in the GDS spec. A
@@ -973,27 +880,23 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "035")]
         public async Task AppDirUpdateApplicationChangesProductUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir035");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:depth035:updated";
+            rec.ProductUri = "urn:opcfoundation.org:tests:depth035:updated";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ProductUri,
-                Is.EqualTo("urn:opcfoundation.org:ctt:depth035:updated"));
+                Is.EqualTo("urn:opcfoundation.org:tests:depth035:updated"));
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "036")]
         public async Task AppDirUpdateApplicationChangesNameAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir036");
@@ -1013,8 +916,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "037")]
         public async Task AppDirUpdateApplicationChangesCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir037");
@@ -1034,8 +935,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "038")]
         public async Task AppDirUpdateApplicationChangesDiscoveryUrlsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir038");
@@ -1055,8 +954,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "039")]
         public async Task AppDirUpdatePreservesApplicationUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir039");
@@ -1064,7 +961,7 @@ namespace Opc.Ua.Conformance.Tests.GDS
             string originalUri = rec.ApplicationUri;
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:depth039:upd";
+            rec.ProductUri = "urn:opcfoundation.org:tests:depth039:upd";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1074,13 +971,11 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "040")]
         public async Task AppDirUpdateAuditEventGeneratedAsync()
         {
             // Part 12 §6.3.5 UpdateApplication is audited via
             // AuditUpdateMethodEventType. Smoke-test as 011.
-            await AssertAuditEventTypeExistsAsync(ObjectTypeIds.AuditUpdateMethodEventType)
+            await AssertAuditEventTypeExistsAsync(Opc.Ua.ObjectTypeIds.AuditUpdateMethodEventType)
                 .ConfigureAwait(false);
 
             ApplicationRecordDataType rec = CreateAppRecord("Dir040Audit");
@@ -1088,7 +983,7 @@ namespace Opc.Ua.Conformance.Tests.GDS
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = "urn:opcfoundation.org:ctt:depth040audit:updated";
+                rec.ProductUri = "urn:opcfoundation.org:tests:depth040audit:updated";
                 await UpdateAppAsync(rec).ConfigureAwait(false);
             }
             finally
@@ -1098,8 +993,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "041")]
         public void AppDirUpdateWithInvalidIdThrows()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir041");
@@ -1111,15 +1004,13 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "042")]
         public async Task AppDirUpdateMultipleFieldsAtOnceAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir042");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:depth042:multi";
+            rec.ProductUri = "urn:opcfoundation.org:tests:depth042:multi";
             rec.ApplicationNames = new LocalizedText[] {
                 new("en-US", "Multi Update 042")
             }.ToArrayOf();
@@ -1135,8 +1026,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "043")]
         public async Task AppDirUpdateWithoutAdminRoleAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirUpdateWithoutAdminRoleAs");
@@ -1158,8 +1047,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "044")]
         public async Task AppDirUpdateWithInsufficientPrivilegesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirUpdateWithInsufficientPr");
@@ -1181,8 +1068,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "045")]
         public async Task AppDirUpdateAnonymousUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirUpdateAnonymousUserDenie");
@@ -1204,8 +1089,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "046")]
         public async Task AppDirUpdateReadOnlyUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirUpdateReadOnlyUserDenied");
@@ -1227,8 +1110,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "047")]
         public async Task AppDirQueryServersReturnsResultsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir047");
@@ -1242,8 +1123,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "048")]
         public async Task AppDirQueryServersWithNameFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir048");
@@ -1258,8 +1137,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "049")]
         public async Task AppDirQueryServersWithUriFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir049");
@@ -1274,8 +1151,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "050")]
         public async Task AppDirQueryServersWithTypeFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir050", ApplicationType.Server);
@@ -1290,8 +1165,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "051")]
         public async Task AppDirQueryServersWithProductUriFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir051");
@@ -1306,8 +1179,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "052")]
         public async Task AppDirQueryServersZeroMaxRecordsAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -1316,8 +1187,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "053")]
         public async Task AppDirQueryServersReturnsPaginationAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint nextId) = await QueryAppsAsync(
@@ -1327,8 +1196,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "054")]
         public async Task AppDirQueryServersReturnsLastCounterResetTimeAsync()
         {
             (List<ApplicationDescription> _, DateTime resetTime, uint _) = await QueryAppsAsync(
@@ -1337,20 +1204,16 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "055")]
         public async Task AppDirQueryServersNoMatchReturnsEmptyAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null,
-                "urn:opcfoundation.org:ctt:depth:nonexistent:055",
+                "urn:opcfoundation.org:tests:depth:nonexistent:055",
                 0, null, null).ConfigureAwait(false);
             Assert.That(apps.Count, Is.Zero);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "056")]
         public async Task AppDirDirectoryHasUnregisterApplicationMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -1360,8 +1223,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "057")]
         public async Task AppDirDirectoryHasUpdateApplicationMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -1373,8 +1234,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "058")]
         public async Task AppDirDirectoryHasGetApplicationMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -1386,8 +1245,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "059")]
         public async Task AppDirDirectoryHasQueryApplicationsMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
@@ -1399,8 +1256,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "060")]
         public async Task AppDirRegisterAndGetRoundTripAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir060");
@@ -1417,27 +1272,23 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "061")]
         public async Task AppDirRegisterUpdateAndGetRoundTripAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir061");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:depth061:upd";
+            rec.ProductUri = "urn:opcfoundation.org:tests:depth061:upd";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ProductUri,
-                Is.EqualTo("urn:opcfoundation.org:ctt:depth061:upd"));
+                Is.EqualTo("urn:opcfoundation.org:tests:depth061:upd"));
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "062")]
         public async Task AppDirRegisterFindAndUnregisterCycleAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir062");
@@ -1455,8 +1306,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "063")]
         public async Task AppDirMultipleAppsIndependentAsync()
         {
             ApplicationRecordDataType rec1 = CreateAppRecord("Dir063a");
@@ -1476,8 +1325,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "064")]
         public async Task AppDirGetApplicationIdFieldSetAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir064");
@@ -1491,8 +1338,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "065")]
         public async Task AppDirGetApplicationUriNotEmptyAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir065");
@@ -1506,8 +1351,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "066")]
         public async Task AppDirDirectoryNodeDisplayNameIsDirectoryAsync()
         {
             ReadResponse readResult = await Session.ReadAsync(
@@ -1529,8 +1372,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "067")]
         public async Task AppDirDefaultApplicationGroupExistsAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -1547,8 +1388,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "068")]
         public async Task AppDirRegisterMultipleDiscoveryUrlsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir068");
@@ -1566,8 +1405,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "069")]
         public async Task AppDirRegisterWithMultipleCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir069");
@@ -1583,8 +1420,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "070")]
         public async Task AppDirFindApplicationsClientTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir070", ApplicationType.Client);
@@ -1600,15 +1435,13 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "071")]
         public async Task AppDirUpdateDoesNotChangeApplicationIdAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir071");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:depth071:upd";
+            rec.ProductUri = "urn:opcfoundation.org:tests:depth071:upd";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1618,8 +1451,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "072")]
         public async Task AppDirQueryWithCapabilitiesFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir072");
@@ -1635,8 +1466,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "073")]
         public async Task AppDirRegisterPreservesApplicationNamesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir073");
@@ -1654,8 +1483,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "074")]
         public async Task AppDirFindReturnsAllFieldsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir074");
@@ -1672,8 +1499,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "075")]
         public async Task AppDirQueryServersWithCapabilitiesFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir075");
@@ -1689,8 +1514,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "076")]
         public async Task AppDirRegisterWithEmptyCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir076");
@@ -1704,8 +1527,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "077")]
         public async Task AppDirQueryPaginationSecondPageAsync()
         {
             var ids = new List<NodeId>();
@@ -1733,8 +1554,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "078")]
         public async Task AppDirBrowseDirectoryNodeClassIsObjectAsync()
         {
             ReadResponse readResult = await Session.ReadAsync(
@@ -1756,8 +1575,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "079")]
         public async Task AppDirGetAfterUnregisterThrowsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir079");
@@ -1769,8 +1586,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
 
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "001")]
         public async Task QueryAppsBasicCallAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -1779,8 +1594,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "002")]
         public async Task QueryAppsReturnsRegisteredAppAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA002");
@@ -1797,20 +1610,16 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "003")]
         public async Task QueryAppsNoMatchReturnsEmptyAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null,
-                "urn:opcfoundation.org:ctt:depth:qa003:nonexistent",
+                "urn:opcfoundation.org:tests:depth:qa003:nonexistent",
                 0, null, null).ConfigureAwait(false);
             Assert.That(apps.Count, Is.Zero);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "004")]
         public async Task QueryAppsFilterByNameAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA004");
@@ -1825,8 +1634,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "005")]
         public async Task QueryAppsFilterByUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA005");
@@ -1841,8 +1648,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "006")]
         public async Task QueryAppsFilterByServerTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA006", ApplicationType.Server);
@@ -1857,8 +1662,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "007")]
         public async Task QueryAppsFilterByClientTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA007", ApplicationType.Client);
@@ -1873,8 +1676,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "008")]
         public async Task QueryAppsFilterByProductUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA008");
@@ -1889,8 +1690,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "009")]
         public async Task QueryAppsFilterByCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA009");
@@ -1906,8 +1705,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "010")]
         public async Task QueryAppsPaginationMaxOneRecordAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA010");
@@ -1922,8 +1719,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "011")]
         public async Task QueryAppsPaginationContinuationAsync()
         {
             var ids = new List<NodeId>();
@@ -1951,8 +1746,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "012")]
         public async Task QueryAppsZeroMaxRecordsAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -1961,8 +1754,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "013")]
         public async Task QueryAppsReturnsLastCounterResetTimeAsync()
         {
             (List<ApplicationDescription> _, DateTime resetTime, uint _) = await QueryAppsAsync(
@@ -1971,8 +1762,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "014")]
         public async Task QueryAppsReturnsNextRecordIdAsync()
         {
             (List<ApplicationDescription> _, DateTime _, uint nextId) = await QueryAppsAsync(
@@ -1981,8 +1770,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "015")]
         public async Task QueryAppsCombinedNameAndUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA015");
@@ -1998,8 +1785,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "016")]
         public async Task QueryAppsCombinedUriAndTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA016", ApplicationType.Server);
@@ -2015,8 +1800,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "017")]
         public async Task QueryAppsCombinedTypeAndCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA017");
@@ -2034,8 +1817,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "018")]
         public async Task QueryAppsCombinedAllFiltersAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA018");
@@ -2055,8 +1836,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "019")]
         public async Task QueryAppsAfterUnregisterExcludesAppAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA019");
@@ -2070,15 +1849,13 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "020")]
         public async Task QueryAppsAfterUpdateReflectsChangesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA020");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.ProductUri = "urn:opcfoundation.org:ctt:qa020:updated";
+            rec.ProductUri = "urn:opcfoundation.org:tests:qa020:updated";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -2090,8 +1867,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "021")]
         public async Task QueryAppsMultipleRegistrationsAsync()
         {
             var ids = new List<NodeId>();
@@ -2112,8 +1887,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "022")]
         public async Task QueryAppsEmptyNameFilterAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -2123,8 +1896,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "023")]
         public async Task QueryAppsEmptyUriFilterAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -2134,8 +1905,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "024")]
         public async Task QueryAppsEmptyProductUriFilterAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -2145,8 +1914,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "025")]
         public async Task QueryAppsEmptyCapabilitiesFilterAsync()
         {
             ArrayOf<string> emptyArr = new string[] { }.ToArrayOf();
@@ -2157,8 +1924,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "026")]
         public async Task QueryAppsTypeZeroReturnsAllAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA026");
@@ -2172,8 +1937,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "027")]
         public async Task QueryAppsLargeMaxRecordsAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -2182,8 +1945,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "028")]
         public async Task QueryAppsHighStartingRecordIdAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
@@ -2193,8 +1954,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "029")]
         public async Task QueryAppsDiscoveryServerTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA029",
@@ -2211,8 +1970,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "030")]
         public async Task QueryAppsClientAndServerTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA030",
@@ -2229,8 +1986,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "031")]
         public async Task QueryAppsMultipleCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA031");
@@ -2247,8 +2002,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "032")]
         public async Task QueryAppsReturnedFieldsArePopulatedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA032");
@@ -2269,8 +2022,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "033")]
         public async Task QueryAppsPaginationFullIterationAsync()
         {
             var ids = new List<NodeId>();
@@ -2309,8 +2060,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "034")]
         public async Task QueryAppsFilterNamePartialMatchAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA034");
@@ -2325,8 +2074,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "035")]
         public async Task QueryAppsFilterProductUriSpecificAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA035");
@@ -2341,8 +2088,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "036")]
         public async Task QueryAppsConsistentResetTimeAcrossCallsAsync()
         {
             (List<ApplicationDescription> _, DateTime resetTime1, uint _) = await QueryAppsAsync(
@@ -2354,8 +2099,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "037")]
         public async Task QueryAppsNextRecordIdAdvancesAsync()
         {
             var ids = new List<NodeId>();
@@ -2384,8 +2127,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "038")]
         public async Task QueryAppsNullCapabilitiesReturnsAllAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA038");
@@ -2399,8 +2140,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "039")]
         public async Task QueryAppsCombinedNameAndTypeAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA039", ApplicationType.Server);
@@ -2416,8 +2155,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "040")]
         public async Task QueryAppsCombinedUriAndProductUriAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA040");
@@ -2432,8 +2169,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Query Applications")]
-        [Property("Tag", "041")]
         public async Task QueryAppsCombinedNameUriTypeProductCapsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA041");

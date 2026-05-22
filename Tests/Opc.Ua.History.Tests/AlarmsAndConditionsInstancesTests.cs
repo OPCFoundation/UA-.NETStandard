@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Instances conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsInstancesTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Instances")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeExistsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -56,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Instances")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeHasInputNodeAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -68,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Instances")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeHasActiveStateAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -80,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Instances")]
-        [Property("Tag", "Test_001")]
         public void AlarmInstancesExistInAddressSpace()
         {
             Assert.That(AlarmInstances.Count, Is.GreaterThan(0),
@@ -89,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Instances")]
-        [Property("Tag", "Test_002")]
         public async Task AlarmInstanceHasSourceNodeAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -105,8 +95,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Instances")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmInstanceHasCorrectTypeDefinitionAsync()
         {
             NodeId alarmId = RequireAlarm();

@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for single-CU Base Information checks:
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoSingleCuTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task ConditionTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -55,8 +55,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task DialogConditionTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -65,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Events Capabilities")]
-        [Property("Tag", "001")]
         public async Task ExclusiveLimitAlarmTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -75,8 +71,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Placeholder Modelling Rules")]
-        [Property("Tag", "001")]
         public async Task ModellingRuleMandatoryExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -85,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Placeholder Modelling Rules")]
-        [Property("Tag", "001")]
         public async Task ModellingRuleOptionalExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -95,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Placeholder Modelling Rules")]
-        [Property("Tag", "001")]
         public async Task ModellingRuleMandatoryPlaceholderExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -106,8 +96,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Placeholder Modelling Rules")]
-        [Property("Tag", "001")]
         public async Task ModellingRuleOptionalPlaceholderExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -117,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "000")]
         public async Task RoleSetExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -131,8 +117,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesAnonymousExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -142,8 +126,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesAuthenticatedUserExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -154,8 +136,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesObserverExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -165,8 +145,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesOperatorExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -176,8 +154,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesEngineerExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -187,8 +163,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesSupervisorExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -198,8 +172,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesSecurityAdminExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -209,8 +181,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task WellKnownRolesConfigureAdminExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -220,8 +190,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "002")]
         public async Task RoleHasIdentitiesPropertyAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -243,7 +211,7 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
             // server still exposes it.
             if (!hasIdentities)
             {
-                NodeId fallback = Opc.Ua.Conformance.Tests.Security.WellKnownRoleNodeIds.TryGetChild(
+                NodeId fallback = Opc.Ua.Core.Security.Tests.WellKnownRoleNodeIds.TryGetChild(
                     ObjectIds.WellKnownRole_Anonymous, "Identities");
                 hasIdentities = !fallback.IsNull;
             }
@@ -253,8 +221,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "005")]
         public async Task SubscriptionDiagnosticsArrayExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -270,8 +236,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "004")]
         public async Task SamplingIntervalDiagnosticsArrayExistsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -286,8 +250,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "019")]
         public async Task SessionDiagnosticsArrayExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -303,8 +265,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task BaseDataVariableTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -313,8 +273,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Base Types")]
-        [Property("Tag", "003")]
         public async Task PropertyTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -323,8 +281,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Core Types Folders")]
-        [Property("Tag", "001")]
         public async Task FolderTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -333,8 +289,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Core Types Folders")]
-        [Property("Tag", "001")]
         public async Task FolderTypeHasCorrectReferencesAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -344,8 +298,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "001")]
         public async Task TwoStateDiscreteTypeExistsAsync()
         {
             await AssertTypeExistsAsync(
@@ -354,8 +306,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "001")]
         public async Task TwoStateDiscreteIsSubtypeOfDiscreteItemAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(

@@ -34,7 +34,7 @@ using Microsoft.IO;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Core.Encoders.Tests
 {
     /// <summary>
     /// Common code for encoder/decoder benchmarks.

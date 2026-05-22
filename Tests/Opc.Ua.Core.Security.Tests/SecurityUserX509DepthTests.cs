@@ -34,10 +34,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Conformance.Tests.Security;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -45,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityUserX509DepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "011")]
         public async Task CertificateChainValidationDepthAsync()
         {
             // Build a 3-link chain: root CA -> intermediate CA -> user.
@@ -75,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "010")]
         public async Task RootCertificateTrustNotEstablishedAsync()
         {
             // A user cert signed by a totally unknown CA should be rejected
@@ -97,8 +94,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "013")]
         public async Task IntermediateCertificateHandlingAsync()
         {
             // Trust both root and intermediate. The chain root -> intermediate -> user
@@ -138,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task EndpointsAdvertiseCertificateTokenAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -153,8 +146,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task CertificateTokenHasSecurityPolicyAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -180,8 +171,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task CertificateTokenPolicyUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -208,8 +197,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User X509")]
-        [Property("Tag", "001")]
         public async Task CertificateTokenIssuedTokenTypeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);

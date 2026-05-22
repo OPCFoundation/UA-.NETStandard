@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AttributeServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Attribute Write StatusCode & TimeStamp.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
     {
         [Description("Write to a single valid Node a VTQ by passing the Value and Quality only. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "001")]
         public async Task WriteValueWithStatusCodeOnlySucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -65,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a single valid Node a VTQ by passing the Value, Quality and sourceTimestamp. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "002")]
         public async Task WriteValueWithStatusCodeAndSourceTimestampSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -87,8 +85,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a single valid Node a VTQ by passing the Value, Quality, sourceTimestamp and serverTimestamp. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "003")]
         public async Task WriteValueWithStatusCodeAndBothTimestampsSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -110,8 +106,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a single valid Node a Value and SourceTimestamp. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "004")]
         public async Task WriteValueWithSourceTimestampOnlySucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -131,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a single valid Node a Value only. Do not specify a StatusCode or any Timestamps.*/")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "005")]
         public async Task WriteValueWithoutStatusCodeOrTimestampsSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -149,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to the value attribute a Value, a TimestampServer and TimestampSource, but do not specify a StatusCode. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "006")]
         public async Task WriteValueWithBothTimestampsAndNoStatusCodeSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -171,8 +161,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to the Value attribute a Value, StatusCode and TimestampSource, but do not specify a TimestampServer. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "007")]
         public async Task WriteValueWithStatusCodeAndSourceTimestampNoServerSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -193,8 +181,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a single valid Node a Value and ServerTimestamp only. Expect Good or Bad_WriteNotSupported. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "008")]
         public async Task WriteValueWithServerTimestampOnlySucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -216,8 +202,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Create one monitored item. call Publish(). Write a status code to the Value attribute (don�t change the value of the Value attribute). call Publish(). Write the existing value and")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "009")]
         public async Task WriteStatusCodeAndValueWithMonitoredItemPublishesNotificationsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -239,8 +223,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Create one monitored item with a filter of StatusValueTimestamp.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "010")]
         public async Task WriteVqtWithStatusValueTimestampFilterPublishesNotificationsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -262,8 +244,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("CreateMonitoredItems: filter=VQT; no deadband. Write a VQT. Call Publish. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write StatusCode & TimeStamp")]
-        [Property("Tag", "011")]
         public async Task WriteVqtWithVqtFilterPublishesNotificationsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]

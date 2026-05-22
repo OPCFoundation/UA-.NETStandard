@@ -36,7 +36,7 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// <para>

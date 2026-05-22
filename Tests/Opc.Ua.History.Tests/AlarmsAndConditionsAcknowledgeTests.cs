@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Acknowledge conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsAcknowledgeTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Test_001")]
         public async Task AcknowledgeableConditionTypeHasAcknowledgeMethodAsync()
         {
             BrowseResult result = await BrowseForwardAsync(
@@ -66,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Test_001")]
         public async Task AcknowledgeableConditionTypeHasAckedStateAsync()
         {
             BrowseResult result = await BrowseForwardAsync(
@@ -88,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Test_002")]
         public async Task AcknowledgeConditionSetsAckedStateTrueAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -125,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_005")]
         public async Task ErrAcknowledgeWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -141,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_006")]
         public async Task ErrAcknowledgeWithInvalidMethodArgsAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -157,8 +147,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_007")]
         public async Task ErrAcknowledgeAlreadyAcknowledgedAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -187,8 +175,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_008")]
         public async Task ErrAcknowledgeWithNullEventIdAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -205,8 +191,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_009")]
         public async Task ErrAcknowledgeWithEmptyCommentAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -232,8 +216,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_004")]
         public async Task ErrAcknowledgeOnDisabledConditionAsync()
         {
             NodeId alarmId = RequireAlarm();

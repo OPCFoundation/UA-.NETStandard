@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AttributeServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Attribute Service Set – Write with IndexRange.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
     {
         [Description("Write a single Int32 element at index 0 using IndexRange=\"0\". The server should accept the write and return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "001")]
         public async Task WriteArrayElementAtIndexZeroAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -73,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a single Int32 element at index 2 using IndexRange=\"2\". The server should accept the write and return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "001")]
         public async Task WriteArrayElementAtIndexTwoAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -101,8 +99,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a subset of three elements using IndexRange=\"1:3\". The server should accept the write and return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "002")]
         public async Task WriteArraySubsetWithRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -130,8 +126,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write element[0]=999 via IndexRange=\"0\", then read back the full array and verify element 0 was changed to 999.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "001")]
         public async Task ReadBackAfterIndexWriteVerifyTargetChangedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -160,8 +154,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write element[0]=999 via IndexRange=\"0\", then read back the full array and verify elements 1–4 are unchanged.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "001")]
         public async Task ReadBackAfterIndexWriteVerifyOthersPreservedAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -194,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Attempt to write with an IndexRange on a scalar (non-array) node. The server should return BadIndexRangeNoData.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "Err-001")]
         public async Task WriteWithIndexRangeOnScalarNodeFailsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -223,9 +213,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write with IndexRange=\"999\" which exceeds the array bounds. The server should return BadIndexRangeNoData.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "Err-001")]
-        [Property("Tag", "006")]
         public async Task WriteWithIndexRangeOutOfBoundsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -254,8 +241,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write with an invalid (non-numeric) IndexRange string. The server should return BadIndexRangeInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "Err-003")]
         public async Task WriteWithInvalidIndexRangeFormatAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -283,8 +268,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write with IndexRange on a String array node. Depending on the server implementation this may succeed or return a type mismatch.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "001")]
         public async Task WriteWithIndexRangeOnStringValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayString);
@@ -334,8 +317,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a full Int32 array without IndexRange and verify the entire array is replaced successfully.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "005")]
         public async Task WriteFullArrayWithoutIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -369,9 +350,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write range \"1:2\" with new values, then verify that elements at index 0 and 3 remain unchanged from the original array.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "002")]
-        [Property("Tag", "003")]
         public async Task WriteWithIndexRangeSubsetVerifyPreservationAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -410,8 +388,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a single boolean element at index 0 using IndexRange=\"0\" on the boolean array node. The server should return Good.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "001")]
         public async Task WriteIndexRangeOnBooleanArrayAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayBoolean);
@@ -472,8 +448,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to last 3 elements of array using IndexRange.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "004")]
         public async Task WriteArrayLastThreeElementsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -491,8 +465,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange for single element of a multi-dimensional array.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "007")]
         public async Task WriteMultiDimArraySingleElementAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -510,8 +482,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange writing first element from each dimension.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "008")]
         public async Task WriteMultiDimArrayFirstElementsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -529,8 +499,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange writing first 3 elements of each dimension.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "009")]
         public async Task WriteMultiDimArrayFirstThreeElementsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -548,8 +516,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("IndexRange writing last 3 elements of each dimension.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "010")]
         public async Task WriteMultiDimArrayLastThreeElementsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -567,8 +533,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to subset and verify Timestamps are updated.")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "011")]
         public async Task WriteSubsetVerifyTimestampsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -586,8 +550,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to invalid IndexRange \"2:1\".")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "Err-002")]
         public async Task WriteInvalidIndexRangeReversedAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -606,8 +568,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid IndexRange syntax \"2:2\".")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "Err-004")]
         public async Task WriteInvalidIndexRangeSameValueAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -626,8 +586,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Invalid IndexRange syntax \"-1:0\".")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Index")]
-        [Property("Tag", "Err-005")]
         public async Task WriteInvalidIndexRangeNegativeAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]

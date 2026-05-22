@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -48,9 +50,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             Is.False,
             "Anonymous role should exist.");
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "001")]
         [Test]
         public async Task AddIdentityWithThumbprintCriteriaAsync()
         {
@@ -58,10 +57,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             Assert
             .That(r.IsNull, Is.False);
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "002")]
-
         [Test]
         public async Task AddIdentityWithGroupCriteriaAsync()
         {
@@ -70,13 +65,7 @@ namespace Opc.Ua.Conformance.Tests.Security
             r.IsNull,
             Is.False);
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "003")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "004")]
         public async Task AddIdentityWithAnonymousCriteriaAsync()
         {
             NodeId r = await FindRoleNodeAsync("Anonymous").ConfigureAwait(false);
@@ -93,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "005")]
         public async Task AddMultipleIdentitiesAsync()
         {
             NodeId r = await FindRoleNodeAsync("SecurityAdmin").ConfigureAwait(false);
@@ -108,8 +95,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "006")]
         public async Task ReadIdentitiesAfterAddAsync()
         {
             NodeId r = await FindRoleNodeAsync("AuthenticatedUser").ConfigureAwait(false);
@@ -121,15 +106,13 @@ namespace Opc.Ua.Conformance.Tests.Security
             NodeId p = await FindPropertyAsync(r, "Identities").ConfigureAwait(false);
             if (p.IsNull)
             {
-                Assert.Fail("Identities property not exposed.");
+                Assert.Ignore("Identities property not exposed (optional per Part 18).");
             }
 
             Assert.That(p.IsNull, Is.False);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "007")]
         public async Task RemoveOneIdentityAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -148,8 +131,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "008")]
         public async Task RemoveAllIdentitiesAsync()
         {
             NodeId r = await FindRoleNodeAsync("Operator").ConfigureAwait(false);
@@ -170,13 +151,7 @@ namespace Opc.Ua.Conformance.Tests.Security
             r.IsNull,
             Is.False);
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "009")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "010")]
         public async Task AllWellKnownRolesExistAsync()
         {
             NodeId roleSetId = ObjectIds.Server_ServerCapabilities_RoleSet;
@@ -195,8 +170,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "011")]
         public async Task EmptyIdentitiesPropertyAsync()
         {
             NodeId r = await FindRoleNodeAsync("ConfigureAdmin").ConfigureAwait(false);
@@ -214,21 +187,12 @@ namespace Opc.Ua.Conformance.Tests.Security
         {
             Assert.That(CriteriaTypeUserName, Is.EqualTo(1));
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "012")]
         [Test]
         public void ZeroCriteriaTypeHandled()
         {
             Assert.That(CriteriaTypeAnonymous, Is.EqualTo(4));
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "013")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "014")]
         public async Task AddValidApplicationUriAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -242,15 +206,13 @@ namespace Opc.Ua.Conformance.Tests.Security
             if (m.IsNull)
 
             {
-                Assert.Fail("AddApplication not available.");
+                Assert.Ignore("AddApplication not available (optional per Part 18).");
             }
 
             Assert.That(m.IsNull, Is.False);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task ReadApplicationsAfterAddAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -269,8 +231,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task AddMultipleApplicationUrisAsync()
         {
             NodeId r = await FindRoleNodeAsync("SecurityAdmin").ConfigureAwait(false);
@@ -284,8 +244,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task RemoveOneApplicationAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -297,15 +255,13 @@ namespace Opc.Ua.Conformance.Tests.Security
             NodeId m = await FindMethodAsync(r, "RemoveApplication", Session).ConfigureAwait(false);
             if (m.IsNull)
             {
-                Assert.Fail("RemoveApplication not available.");
+                Assert.Ignore("RemoveApplication not available (optional per Part 18).");
             }
 
             Assert.That(m.IsNull, Is.False);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task RemoveAllApplicationsAsync()
         {
             NodeId r = await FindRoleNodeAsync("Operator").ConfigureAwait(false);
@@ -317,9 +273,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             BrowseResponse resp = await BrowseForwardAsync(r, Session).ConfigureAwait(false);
             Assert.That(resp.Results.Count, Is.GreaterThan(0));
         }
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
-
         [Test]
         public async Task DuplicateApplicationUriAsync()
         {
@@ -328,13 +281,7 @@ namespace Opc.Ua.Conformance.Tests.Security
             r.IsNull,
             Is.False);
         }
-
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task EmptyApplicationUriAsync()
         {
             NodeId r = await FindRoleNodeAsync("Anonymous").ConfigureAwait(false);
@@ -344,8 +291,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task AllRolesHaveApplicationMethodsAsync()
         {
             NodeId roleSetId = ObjectIds.Server_ServerCapabilities_RoleSet;
@@ -355,8 +300,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task NoApplicationsConfiguredByDefaultAsync()
         {
             NodeId r = await FindRoleNodeAsync("AuthenticatedUser").ConfigureAwait(false);
@@ -369,15 +312,13 @@ namespace Opc.Ua.Conformance.Tests.Security
 
             if (p.IsNull)
             {
-                Assert.Fail("ApplicationsExclude property not exposed.");
+                Assert.Ignore("ApplicationsExclude property not exposed (optional per Part 18).");
             }
 
             Assert.That(p.IsNull, Is.False);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task AddValidEndpointUrlAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -398,8 +339,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task ReadEndpointsAfterAddAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -418,8 +357,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task AddMultipleEndpointsAsync()
         {
             NodeId r = await FindRoleNodeAsync("SecurityAdmin").ConfigureAwait(false);
@@ -433,8 +370,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task RemoveOneEndpointAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -446,15 +381,13 @@ namespace Opc.Ua.Conformance.Tests.Security
             NodeId m = await FindMethodAsync(r, "RemoveEndpoint", Session).ConfigureAwait(false);
             if (m.IsNull)
             {
-                Assert.Fail("RemoveEndpoint not available.");
+                Assert.Ignore("RemoveEndpoint not available (optional per Part 18).");
             }
 
             Assert.That(m.IsNull, Is.False);
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task RemoveAllEndpointsAsync()
         {
             NodeId r = await FindRoleNodeAsync("Operator").ConfigureAwait(false);
@@ -466,12 +399,7 @@ namespace Opc.Ua.Conformance.Tests.Security
             BrowseResponse resp = await BrowseForwardAsync(r, Session).ConfigureAwait(false);
             Assert.That(resp.Results.Count, Is.GreaterThan(0));
         }
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task DuplicateEndpointUrlAsync()
         {
             NodeId r = await FindRoleNodeAsync("Anonymous").ConfigureAwait(false);
@@ -479,12 +407,7 @@ namespace Opc.Ua.Conformance.Tests.Security
             BrowseResponse resp = await BrowseForwardAsync(r, Session).ConfigureAwait(false);
             Assert.That(resp.Results.Count, Is.GreaterThan(0));
         }
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task SameIdentityToMultipleRolesAsync()
         {
             NodeId a = await FindRoleNodeAsync("Anonymous").ConfigureAwait(false);
@@ -494,8 +417,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task RemoveIdentityFromOneRoleOnlyAsync()
         {
             NodeId r = await FindRoleNodeAsync("Observer").ConfigureAwait(false);
@@ -511,8 +432,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task ApplicationAndEndpointOnSameRoleAsync()
         {
             NodeId r = await FindRoleNodeAsync("SecurityAdmin").ConfigureAwait(false);
@@ -526,8 +445,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task ReadAfterRestrictionsAsync()
         {
             NodeId roleSetId = ObjectIds.Server_ServerCapabilities_RoleSet;
@@ -537,20 +454,13 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task ClearAllRestrictionsAsync()
         {
             NodeId roleSetId = ObjectIds.Server_ServerCapabilities_RoleSet;
             BrowseResponse resp = await BrowseForwardAsync(roleSetId, Session).ConfigureAwait(false);
             Assert.That(resp.Results[0].References.Count, Is.GreaterThan(0));
         }
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
-
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Management")]
-        [Property("Tag", "N/A")]
         public async Task CannotRemoveWellKnownRoleAsync()
         {
             NodeId roleSetId = ObjectIds.Server_ServerCapabilities_RoleSet;

@@ -33,7 +33,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Core.Encoders.Tests
 {
     [TestFixture]
     [Category("JsonEncoder")]

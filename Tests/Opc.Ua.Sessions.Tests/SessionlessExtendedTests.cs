@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -40,8 +42,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     public class SessionlessExtendedTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "Err-002")]
         public async Task GetEndpointsReturnsServerCertAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -61,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task GetEndpointsReturnsSameAppUriAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -77,8 +75,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsHasSecurityModeNoneAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -98,8 +94,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsHasSignAndEncryptAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -123,8 +117,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServersReturnsDiscoveryUrlsAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -138,9 +130,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "007")]
-
         public async Task ConcurrentGetEndpointsAsync()
         {
             var tasks = new Task<ArrayOf<EndpointDescription>>[5];
@@ -165,9 +154,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "004")]
-
         public async Task ConcurrentFindServersAsync()
         {
             var tasks = new Task<ArrayOf<ApplicationDescription>>[5];
@@ -192,8 +178,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task EndpointSecurityPolicyUriIsValidAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -207,8 +191,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task EndpointTransportProfileUriIsValidAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -222,8 +204,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task EndpointUserTokenPoliciesExistAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -245,8 +225,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task EndpointNoneHasAnonymousTokenAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -273,8 +251,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServersAppNameNotEmptyAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -288,8 +264,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServersProductUriNotEmptyAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -303,8 +277,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "012")]
         public async Task GetEndpointsRepeatedConsistentAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -316,8 +288,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "004")]
         public async Task FindServersRepeatedConsistentAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -329,8 +299,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsAfterFindServersAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -342,8 +310,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServersAfterGetEndpointsAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -355,9 +321,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "007")]
-
         public async Task SessionlessClientNoLeakAsync()
         {
             for (
@@ -373,8 +336,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task GetEndpointsReturnsApplicationUriAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -388,8 +349,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task SessionlessDiscoveryNoAuthAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -400,8 +359,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task EndpointSecurityLevelIsSetAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -415,8 +372,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsServerNameNotEmptyAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -430,8 +385,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersSameAppUriAsEndpointsAsync()
         {
             var ec = EndpointConfiguration.Create(
@@ -443,9 +396,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-004")]
-
         public async Task ServerHandlesEmptyReadListAsync()
         {
             try
@@ -467,9 +417,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
-
         public async Task ServerTimestampIsRecentAsync()
         {
             ReadResponse resp = await Session.ReadAsync(
@@ -482,9 +429,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "004")]
-
         public async Task ServiceResultGoodForValidReadAsync()
         {
             ReadResponse resp = await Session.ReadAsync(
@@ -497,9 +441,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-004")]
-
         public async Task WriteInvalidNodeIdReturnsBadAsync()
         {
             WriteResponse resp = await Session.WriteAsync(null, new WriteValue[] {
@@ -511,9 +452,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-004")]
-
         public async Task ReadInvalidNodeIdReturnsBadAsync()
         {
             ReadResponse resp = await Session.ReadAsync(
@@ -526,8 +464,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Session Base")]
-        [Property("Tag", "Err-004")]
         public async Task BrowseInvalidNodeIdReturnsBadAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(null, null, 0, new BrowseDescription[] { new() {

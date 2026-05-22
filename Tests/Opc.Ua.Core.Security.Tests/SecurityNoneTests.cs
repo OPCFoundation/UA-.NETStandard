@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Security None.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     {
         [Description("Attempt to open an insecure channel while providing certificates and nonces.")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "001")]
         public async Task InsecureEndpointAdvertisedWithCertsAndNoncesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -69,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Attempt to open an insecure channel while providing a ClientNonce, but do not pass any certificates.")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "002")]
         public async Task InsecureEndpointAdvertisedWithNonceOnlyAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -95,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Attempt to open an insecure channel while providing client certificates, but do not pass a ClientNonce.")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "003")]
         public async Task InsecureEndpointAdvertisedWithClientCertOnlyAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -121,8 +117,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Attempt to open an insecure channel, omitting a ClientNonce and client certificates.")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "004")]
         public async Task InsecureEndpointAdvertisedWithoutNonceOrCertAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -147,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("Attempt to open an insecure channel while providing an invalid certificate.")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "005")]
         public async Task InsecureEndpointAdvertisedWithInvalidCertificateAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -173,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("per Errata 1.02.2: attempt a DoS attack on Server by consuming SecureChannels and NOT using them! When creating a valid/real SecureChannel, prior [unused] channels should be clobbe")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "006")]
         public async Task InsecureEndpointAvailableForUnusedChannelDosAttackAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -199,8 +189,6 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         [Description("per Errata 1.02.2: attempt a DoS attack on Server by consuming SecureChannels and using only SOME of them! When creating a valid/real SecureChannel, prior [unused] channels should")]
         [Test]
-        [Property("ConformanceUnit", "Security None")]
-        [Property("Tag", "007")]
         public async Task InsecureEndpointAvailableForPartiallyUsedChannelDosAttackAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);

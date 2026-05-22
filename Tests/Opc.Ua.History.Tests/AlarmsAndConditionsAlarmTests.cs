@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Alarm conformance unit.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsAlarmTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm")]
-        [Property("Tag", "Test_000")]
         public async Task AlarmConditionTypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -56,8 +56,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm")]
-        [Property("Tag", "Test_000")]
         public async Task AlarmConditionIsSubtypeOfAcknowledgeableAsync()
         {
             await VerifySubtypeOfAsync(
@@ -67,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm")]
-        [Property("Tag", "Test_000")]
         public async Task AlarmGroupTypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -78,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm")]
-        [Property("Tag", "Test_000")]
         public async Task AlarmGroupTypeIsSubtypeOfFolderTypeAsync()
         {
             await VerifySubtypeOfAsync(
@@ -88,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm")]
-        [Property("Tag", "Test_000")]
         public async Task AlarmSuppressionGroupTypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(

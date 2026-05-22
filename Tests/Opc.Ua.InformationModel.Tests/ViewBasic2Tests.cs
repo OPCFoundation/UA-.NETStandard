@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Basic 2.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     {
         [Description("Given 13 nodes to browse; And half the nodes exist; And half the nodes result in an operation error of some type And at least one node does not exist; And at least one referenceTyp")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "008")]
         public async Task BrowseMixedValidAndInvalidNodesReturnsPerNodeStatusAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given one node to browse; And the node exists; And the node has references of different types with different parents And a ReferenceTypeId (that matches a reference's parent) is sp")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "016")]
         public async Task BrowseWithParentReferenceTypeReturnsMatchingReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -96,8 +94,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Given one node to browse: And the node exists; And a ReferenceTypeId (that matches a reference's grandparent) is specified in the call And IncludeSubtypes is true; When Browse is c")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "020")]
         public async Task BrowseWithGrandparentReferenceTypeAndSubtypesReturnsMatchingReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -122,8 +118,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Test 5.7.1-Gen-2 prepared by Dale Pope dale.pope@matrikon.com Description: Given one node to browse And the node does not exist And diagnostic info is not requested When Browse is")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "028")]
         public async Task BrowseNonExistentNodeWithoutDiagnosticInfoReturnsErrorAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -146,7 +140,7 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(response.Results[0].References.Count, Is.GreaterThan(0));
         }
         // ===========================================================
-        // Err-001 (variants 01-06): Server-side service-level error
+        // Server-side service-level error
         // injection (BadViewIdUnknown, BadViewTimestampInvalid,
         // BadViewParameterMismatch, BadViewVersionInvalid,
         // BadNothingToDo, BadTooManyOperations). These status codes are
@@ -156,48 +150,36 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         // ===========================================================
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-001-01")]
         public void Err001Variant01ViewIdUnknown()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewIdUnknown);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-001-02")]
         public void Err001Variant02ViewTimestampInvalid()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewTimestampInvalid);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-001-03")]
         public void Err001Variant03ViewParameterMismatch()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewParameterMismatch);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-001-04")]
         public void Err001Variant04ViewVersionInvalid()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewVersionInvalid);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-001-05")]
         public void Err001Variant05NothingToDo()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadNothingToDo);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-001-06")]
         public void Err001Variant06TooManyOperations()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadTooManyOperations);
@@ -228,7 +210,7 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         // ===========================================================
-        // Err-003 (variants 01-07): Per-operation BrowseResult
+        // Per-operation BrowseResult
         // status codes. Variants 01-04 are testable end-to-end against
         // the .NET reference server because the server validates the
         // BrowseDescription fields (NodeId, ReferenceTypeId,
@@ -239,8 +221,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("A NodeId that the server cannot resolve to a real node yields Bad_NodeIdUnknown. The .NET stack does not distinguish Bad_NodeIdInvalid (a wire-syntax error injected by the mock) from Bad_NodeIdUnknown for a structurally valid but unknown NodeId; the spec-relevant outcome here is that the server rejects the operation.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-01")]
         public Task Err003Variant01NodeIdInvalidAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.BadNodeIdInvalid);
@@ -248,8 +228,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browsing an unknown NodeId returns Bad_NodeIdUnknown for that operation.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-02")]
         public async Task BrowseUnknownNodeIdReturnsBadNodeIdUnknownAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -274,8 +252,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Setting ReferenceTypeId to a NodeId that exists but is not a ReferenceType yields Bad_ReferenceTypeIdInvalid for that operation.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-03")]
         public async Task BrowseObjectAsReferenceTypeReturnsBadReferenceTypeIdInvalidAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -301,8 +277,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("A BrowseDirection value outside of the enum range yields Bad_BrowseDirectionInvalid for that operation.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-04")]
         public async Task BrowseInvalidBrowseDirectionReturnsBadBrowseDirectionInvalidAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -326,24 +300,18 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-05")]
         public Task Err003Variant05NodeNotInViewAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.BadNodeNotInView);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-06")]
         public Task Err003Variant06NoContinuationPointsAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.BadNoContinuationPoints);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-003-07")]
         public Task Err003Variant07UncertainNotAllNodesAvailableAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.UncertainNotAllNodesAvailable);
@@ -381,8 +349,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with a non-empty ViewDescription whose ViewId references a node that does not exist. The server returns the service-level error Bad_ViewIdUnknown, which surfaces as a ServiceResultException on the client.")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-004")]
         public void Err004ViewIdUnknown()
         {
             var view = new ViewDescription
@@ -413,8 +379,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Use a ReferenceTypeId that does not exist in the server address space. The .NET reference server returns Bad_ReferenceTypeIdInvalid for that operation. (The JS description mentions Bad_NodeIdUnknown, but the spec-correct status for an unknown ReferenceTypeId is Bad_ReferenceTypeIdInvalid per OPC UA Part 4.)")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-005")]
         public async Task BrowseInvalidReferenceTypeIdSyntaxReturnsBadReferenceTypeIdInvalidAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -438,7 +402,7 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         // ===========================================================
-        // Err-006 (variants 01-03): All three variants manipulate
+        // All three variants manipulate
         // BrowseResult.ContinuationPoint in the response (clear it,
         // empty bytestring, oversized bytestring) via the
         // MockResponseController. The test verifies that the client
@@ -446,24 +410,18 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         // ===========================================================
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-006-01")]
         public Task Err006Variant01ContinuationPointClearedAsync()
         {
             return AssertBrowseContinuationPointMutationAsync(continuationPoint: default);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-006-02")]
         public Task Err006Variant02ContinuationPointEmptyAsync()
         {
             return AssertBrowseContinuationPointMutationAsync(continuationPoint: ByteString.Empty);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-006-03")]
         public Task Err006Variant03ContinuationPointOversizedAsync()
         {
             return AssertBrowseContinuationPointMutationAsync(
@@ -503,29 +461,23 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         // ===========================================================
-        // Err-008 (variants 01-03): Mutate
+        // Mutate
         // ReferenceDescription.IsForward in the response.
         // ===========================================================
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-008-01")]
         public Task Err008Variant01IsForwardForcedFalseAsync()
         {
             return AssertBrowseIsForwardMutationAsync(injectedIsForward: false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-008-02")]
         public Task Err008Variant02IsForwardForcedTrueAsync()
         {
             return AssertBrowseIsForwardMutationAsync(injectedIsForward: true);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-008-03")]
         public Task Err008Variant03IsForwardMixedAsync()
         {
             // Toggle each reference's IsForward to its opposite — at
@@ -576,21 +528,17 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         // ===========================================================
-        // Err-009 (variants 01-02): Mutate
+        // Mutate
         // ReferenceDescription.NodeId in the response.
         // ===========================================================
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-009-01")]
         public Task Err009Variant01ReferenceNodeIdNullAsync()
         {
             return AssertBrowseReferenceNodeIdMutationAsync(ExpandedNodeId.Null);
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-009-02")]
         public Task Err009Variant02ReferenceNodeIdRemoteServerIndexAsync()
         {
             return AssertBrowseReferenceNodeIdMutationAsync(
@@ -636,21 +584,17 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         // ===========================================================
-        // Err-010 (variants 01-02): Mutate
+        // Mutate
         // ReferenceDescription.BrowseName in the response.
         // ===========================================================
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-010-01")]
         public Task Err010Variant01BrowseNameEmptyAsync()
         {
             return AssertBrowseBrowseNameMutationAsync(new QualifiedName(string.Empty, 0));
         }
 
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-010-02")]
         public Task Err010Variant02BrowseNameOversizedAsync()
         {
             return AssertBrowseBrowseNameMutationAsync(
@@ -695,10 +639,8 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             }
         }
 
-        [Description("Given an empty/null authenticationToken. When Browse is called, then the server returns service error Bad_SecurityChecksFailed */ include( &quot;./library/ClassBased/UaRequestHeader/5.4")]
+        [Description("Given an empty/null authenticationToken. When Browse is called, then the server returns service error Bad_SecurityChecksFailed")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-015")]
         public async Task BrowseWithEmptyAuthenticationTokenFailsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -720,10 +662,8 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Given a non-existent authenticationToken When Browse is called Then the server returns service error Bad_SecurityChecksFailed */ include( &quot;./library/ClassBased/UaRequestHeader/5.4-")]
+        [Description("Given a non-existent authenticationToken When Browse is called Then the server returns service error Bad_SecurityChecksFailed")]
         [Test]
-        [Property("ConformanceUnit", "View Basic 2")]
-        [Property("Tag", "Err-016")]
         public async Task BrowseWithNonExistentAuthenticationTokenFailsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -745,10 +685,8 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Injects ServiceResult Bad_ViewIdUnknown into the Browse response. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Injects ServiceResult Bad_ViewIdUnknown into the Browse response. ")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-001-01")]
         public void Err001Variant01ServiceResultBadViewIdUnknown()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewIdUnknown);
@@ -756,8 +694,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_ViewTimestampInvalid into the Browse response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-001-02")]
         public void Err001Variant02ServiceResultBadViewTimestampInvalid()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewTimestampInvalid);
@@ -765,8 +701,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_ViewParameterMismatch into the Browse response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-001-03")]
         public void Err001Variant03ServiceResultBadViewParameterMismatch()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewParameterMismatch);
@@ -774,8 +708,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_ViewVersionInvalid into the Browse response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-001-04")]
         public void Err001Variant04ServiceResultBadViewVersionInvalid()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadViewVersionInvalid);
@@ -783,8 +715,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_NothingToDo into the Browse response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-001-05")]
         public void Err001Variant05ServiceResultBadNothingToDo()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadNothingToDo);
@@ -792,8 +722,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_TooManyOperations into the Browse response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-001-06")]
         public void Err001Variant06ServiceResultBadTooManyOperations()
         {
             AssertBrowseInjectsServiceResult(StatusCodes.BadTooManyOperations);
@@ -801,8 +729,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Operation result Bad_NodeIdInvalid for a syntactically invalid NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-01")]
         public async Task BrowseInvalidNodeIdReturnsPerOperationBadStatusAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -826,8 +752,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Operation result Bad_NodeIdUnknown for a syntactically valid but unknown NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-02")]
         public async Task BrowseUnknownNodeIdReturnsPerOperationBadNodeIdUnknownAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -851,8 +775,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Operation result Bad_ReferenceTypeIdInvalid for an invalid ReferenceType NodeId.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-03")]
         public async Task BrowseInvalidReferenceTypeIdReturnsPerOperationBadStatusAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -876,8 +798,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Operation result Bad_BrowseDirectionInvalid for an out-of-range BrowseDirection.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-04")]
         public async Task BrowseInvalidBrowseDirectionReturnsPerOperationBadStatusAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -899,28 +819,22 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
             Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
         }
 
-        [Description("Operation result Bad_NodeNotInView when the NodeId is not part of the supplied View. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Operation result Bad_NodeNotInView when the NodeId is not part of the supplied View. ")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-05")]
         public Task Err003Variant05OperationResultBadNodeNotInViewAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.BadNodeNotInView);
         }
 
-        [Description("Operation result Bad_NoContinuationPoints when the server cannot allocate one. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Operation result Bad_NoContinuationPoints when the server cannot allocate one. ")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-06")]
         public Task Err003Variant06OperationResultBadNoContinuationPointsAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.BadNoContinuationPoints);
         }
 
-        [Description("Operation result Uncertain_NotAllNodesAvailable. Verified end-to-end via the in-process MockResponseController hook.")]
+        [Description("Operation result Uncertain_NotAllNodesAvailable. ")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-003-07")]
         public Task Err003Variant07OperationResultUncertainNotAllNodesAvailableAsync()
         {
             return AssertBrowseInjectsPerOperationStatusAsync(StatusCodes.UncertainNotAllNodesAvailable);
@@ -928,8 +842,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_NothingToDo into the BrowseNext response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-016-01")]
         public Task Err016Variant01BrowseNextServiceResultBadNothingToDoAsync()
         {
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadNothingToDo);
@@ -937,8 +849,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_TooManyOperations into the BrowseNext response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-016-02")]
         public Task Err016Variant02BrowseNextServiceResultBadTooManyOperationsAsync()
         {
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadTooManyOperations);
@@ -946,8 +856,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_ViewIdUnknown into the BrowseNext response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-016-03")]
         public Task Err016Variant03BrowseNextServiceResultBadViewIdUnknownAsync()
         {
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadViewIdUnknown);
@@ -955,8 +863,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_ViewTimestampInvalid into the BrowseNext response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-016-04")]
         public Task Err016Variant04BrowseNextServiceResultBadViewTimestampInvalidAsync()
         {
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadViewTimestampInvalid);
@@ -964,8 +870,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_ViewParameterMismatch into the BrowseNext response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-016-05")]
         public Task Err016Variant05BrowseNextServiceResultBadViewParameterMismatchAsync()
         {
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadViewParameterMismatch);
@@ -973,8 +877,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Injects ServiceResult Bad_BrowseDirectionInvalid into the BrowseNext response.")]
         [Test]
-        [Property("ConformanceUnit", "View Client Basic Browse")]
-        [Property("Tag", "Err-016-06")]
         public Task Err016Variant06BrowseNextServiceResultBadBrowseDirectionInvalidAsync()
         {
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadBrowseDirectionInvalid);

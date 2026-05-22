@@ -31,7 +31,7 @@ using System;
 using System.Runtime.Serialization;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Namespaces

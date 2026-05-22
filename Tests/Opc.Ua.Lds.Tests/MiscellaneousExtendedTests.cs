@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Miscellaneous
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// Extended compliance tests for miscellaneous server behavior:
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
     public class MiscellaneousExtendedTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Timeouts")]
-        [Property("Tag", "N/A")]
         public async Task VerifyServerHandlesReadWithinAcceptableTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -73,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task VerifyResponseRequestHandleEchoedAsync()
         {
             var requestHeader = new RequestHeader
@@ -100,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task VerifyNoDiagnosticsWhenNotRequestedAsync()
         {
             var requestHeader = new RequestHeader
@@ -143,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ReadWithMaxAgeZeroReturnsDeviceValueAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -166,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.Miscellaneous
         }
 
         [Test]
-        [Property("ConformanceUnit", "Best Practice - Strict Message Handling")]
-        [Property("Tag", "001")]
         public async Task ReadWithMaxAgeMaxReturnsCacheAsync()
         {
             ReadResponse response = await Session.ReadAsync(

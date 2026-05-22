@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.HistoricalAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// depth compliance tests for Historical Access services.
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
     public class HistoricalAccessDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "001")]
         public async Task ReadRaw001ReadWithTimeRangeAndNumValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -85,8 +85,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "002")]
         public async Task ReadRaw002ReadWithStartTimeOnlyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -107,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "003")]
         public async Task ReadRaw003ReadWithEndTimeOnlyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -129,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "004")]
         public async Task ReadRaw004ReadWithNumValuesOnlyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -151,8 +145,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "005")]
         public async Task ReadRaw005ReadWithReturnBoundsTrueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -181,8 +173,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "006")]
         public async Task ReadRaw006ReadWithReturnBoundsFalseAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -211,8 +201,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "007")]
         public async Task ReadRaw007ReadSingleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -241,8 +229,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "008")]
         public async Task ReadRaw008ReadWithContinuationPointAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -277,8 +263,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "009")]
         public async Task ReadRaw009ReadWithStartTimeEqualsEndTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -306,8 +290,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "010")]
         public async Task ReadRaw010ReadWithStartAfterEndAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -320,8 +302,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "011")]
         public async Task ReadRaw011ReadWithLargeNumValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -349,8 +329,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "012")]
         public async Task ReadRaw012ReadWithTimestampsToReturnSourceAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -379,8 +357,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "013")]
         public async Task ReadRaw013ReadWithTimestampsToReturnServerAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -409,8 +385,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "014")]
         public async Task ReadRaw014ReadWithTimestampsToReturnNeitherAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -439,8 +413,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "015")]
         public async Task ReadRaw015ReadWithBoundsAndNumValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -469,8 +441,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "016")]
         public async Task ReadRaw016ReadWithNarrowTimeRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -498,8 +468,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "017")]
         public async Task ReadRaw017ReadWithWideTimeRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -527,8 +495,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "018")]
         public async Task ReadRaw018ReadWithIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -561,8 +527,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "019")]
         public async Task ReadRaw019ReadWithDataEncodingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -595,8 +559,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "020")]
         public async Task ReadRaw020ReadMultipleNodesAsync()
         {
             NodeId nodeId1 = ToNodeId(Constants.HistoricalDouble);
@@ -627,8 +589,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "022")]
         public async Task ReadRaw022ReadWithGoodDataQualityAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -652,8 +612,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "023")]
         public async Task ReadRaw023ReadReleaseContinuationPointAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -688,8 +646,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-001")]
         public async Task ReadRawErr001InvalidNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -722,8 +678,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-002")]
         public async Task ReadRawErr002NullNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -756,8 +710,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-003")]
         public async Task ReadRawErr003InvalidTimestampsToReturnAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -793,8 +745,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-004")]
         public async Task ReadRawErr004EmptyNodesToReadAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -826,8 +776,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-005")]
         public async Task ReadRawErr005NullHistoryReadDetailsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -855,8 +803,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-006")]
         public async Task ReadRawErr006BadIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -889,8 +835,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-007")]
         public async Task ReadRawErr007BadDataEncodingAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -923,8 +867,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-008")]
         public async Task ReadRawErr008NodeIdOfNonHistoricalNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -939,8 +881,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-009")]
         public async Task ReadRawErr009ReleasedContinuationPointReuseAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -992,8 +932,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-010")]
         public async Task ReadRawErr010InvalidContinuationPointAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1026,16 +964,12 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-011")]
-        [Ignore("Err-011 is obsoleted in the upstream CTT script set; placeholder retained for tag continuity.")]
+        [Ignore("Obsoleted scenario; placeholder retained for ordering continuity with neighbouring tests.")]
         public void ReadRawErr011Obsoleted()
         {
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-012")]
         public async Task ReadRawErr012NumericNodeIdInvalidNamespaceAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1068,8 +1002,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-013")]
         public async Task ReadRawErr013StringNodeIdInvalidNamespaceAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1102,8 +1034,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-014")]
         public async Task ReadRawErr014OpaqueNodeIdInvalidNamespaceAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1136,8 +1066,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-015")]
         public async Task ReadRawErr015GuidNodeIdInvalidNamespaceAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1170,8 +1098,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-016")]
         public async Task ReadRawErr016MaxNodesPerHistoryReadExceededAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1206,8 +1132,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-017")]
         public async Task ReadRawErr017MixValidAndInvalidNodesAsync()
         {
             NodeId validNode = ToNodeId(Constants.HistoricalDouble);
@@ -1237,8 +1161,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-018")]
         public async Task ReadRawErr018NoTimeRangeNoNumValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1262,8 +1184,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-019")]
         public async Task ReadRawErr019ObjectNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1293,8 +1213,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-021")]
         public async Task ReadRawErr021ReadWithFutureTimeRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1307,8 +1225,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-022")]
         public async Task ReadRawErr022ReadMethodNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1338,8 +1254,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-023")]
         public async Task ReadRawErr023ReadViewNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1369,8 +1283,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-024")]
         public async Task ReadRawErr024ReadDataTypeNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1400,8 +1312,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-025")]
         public async Task ReadRawErr025ReadReferenceTypeNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1431,8 +1341,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-026")]
         public async Task ReadRawErr026ReadObjectTypeNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1462,8 +1370,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-027")]
         public async Task ReadRawErr027ReadVariableTypeNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1493,8 +1399,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "000")]
         public async Task DeleteValue000DeleteWithTimeRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1514,8 +1418,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "001")]
         public async Task DeleteValue001DeleteNarrowRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1534,8 +1436,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "002")]
         public async Task DeleteValue002DeleteWideRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1554,8 +1454,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "003")]
         public async Task DeleteValue003DeleteEqualStartEndAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1574,8 +1472,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "004")]
         public async Task DeleteValue004DeleteStartAfterEndAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1594,8 +1490,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "005")]
         public async Task DeleteValue005DeleteFutureRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1614,8 +1508,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "006")]
         public async Task DeleteValue006DeleteAndVerifyEmptyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1639,8 +1531,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "007")]
         public async Task DeleteValue007DeleteWithMinStartTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1659,8 +1549,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "008")]
         public async Task DeleteValue008DeleteModifiedFalseAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1692,8 +1580,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "010")]
         public async Task DeleteValue010DeleteModifiedTrueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1725,8 +1611,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-000")]
         public async Task DeleteValueDat000DeleteSingleTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1754,8 +1638,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-001")]
         public async Task DeleteValueDat001DeleteMultipleTimestampsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1783,8 +1665,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-002")]
         public async Task DeleteValueDat002DeleteFutureTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1812,8 +1692,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-003")]
         public async Task DeleteValueDat003DeleteMinTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1841,8 +1719,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-004")]
         public async Task DeleteValueDat004DeleteMaxTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1870,8 +1746,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-005")]
         public async Task DeleteValueDat005DeleteAndReadBackAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1903,8 +1777,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-006")]
         public async Task DeleteValueDat006DeleteEmptyTimestampsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -1932,8 +1804,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "Err-001")]
         public async Task DeleteValueErr001InvalidNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1954,8 +1824,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "Err-002")]
         public async Task DeleteValueErr002NullNodeIdAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1976,8 +1844,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "Err-003")]
         public async Task DeleteValueErr003NonHistoricalNodeAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -1997,8 +1863,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "Err-004")]
         public async Task DeleteValueErr004ObjectNodeAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -2018,8 +1882,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "Err-005")]
         public async Task DeleteValueErr005EmptyExtensionObjectsAsync()
         {
             try
@@ -2037,8 +1899,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-Err-001")]
         public async Task DeleteValueDatErr001InvalidNodeIdAtTimeAsync()
         {
             try
@@ -2065,8 +1925,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-Err-002")]
         public async Task DeleteValueDatErr002NullNodeIdAtTimeAsync()
         {
             try
@@ -2093,8 +1951,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-Err-003")]
         public async Task DeleteValueDatErr003NonHistoricalNodeAtTimeAsync()
         {
             try
@@ -2120,8 +1976,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-Err-004")]
         public async Task DeleteValueDatErr004ObjectNodeAtTimeAsync()
         {
             try
@@ -2147,8 +2001,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Delete Value")]
-        [Property("Tag", "dat-Err-005")]
         public async Task DeleteValueDatErr005EmptyReqTimesAtTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2176,8 +2028,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "000")]
         public async Task InsertValue000InsertSingleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2199,8 +2049,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "001")]
         public async Task InsertValue001InsertMultipleValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2225,8 +2073,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "002")]
         public async Task InsertValue002InsertAndReadBackAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2253,8 +2099,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "003")]
         public async Task InsertValue003InsertWithGoodStatusAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2276,8 +2120,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "004")]
         public async Task InsertValue004InsertWithUncertainStatusAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2299,8 +2141,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "005")]
         public async Task InsertValue005InsertWithBadStatusAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2322,8 +2162,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "006")]
         public async Task InsertValue006InsertFutureTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2345,8 +2183,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "007")]
         public async Task InsertValue007InsertMinTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2368,8 +2204,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "008")]
         public async Task InsertValue008InsertLargeValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2391,8 +2225,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "009")]
         public async Task InsertValue009InsertNegativeValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2414,8 +2246,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "010")]
         public async Task InsertValue010InsertZeroValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2437,8 +2267,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "011")]
         public async Task InsertValue011InsertNaNValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2460,8 +2288,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "012")]
         public async Task InsertValue012InsertInfinityValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2483,8 +2309,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "014")]
         public async Task InsertValue014InsertDuplicateTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2508,8 +2332,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "015")]
         public async Task InsertValue015InsertOutOfOrderTimestampsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2533,8 +2355,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "016")]
         public async Task InsertValue016InsertWithServerTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2558,8 +2378,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "017")]
         public async Task InsertValue017InsertEmptyValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2578,8 +2396,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "019")]
         public async Task InsertValue019InsertMultipleNodesSequentiallyAsync()
         {
             NodeId nodeId1 = ToNodeId(Constants.HistoricalDouble);
@@ -2620,8 +2436,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-001")]
         public async Task InsertValueErr001InvalidNodeIdAsync()
         {
             var values = new DataValue[]
@@ -2644,8 +2458,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-002")]
         public async Task InsertValueErr002NullNodeIdAsync()
         {
             var values = new DataValue[]
@@ -2668,8 +2480,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-005")]
         public async Task InsertValueErr005NonHistoricalNodeAsync()
         {
             var values = new DataValue[]
@@ -2691,8 +2501,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-006")]
         public async Task InsertValueErr006ObjectNodeAsync()
         {
             var values = new DataValue[]
@@ -2714,8 +2522,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-007")]
         public async Task InsertValueErr007MethodNodeAsync()
         {
             var values = new DataValue[]
@@ -2737,8 +2543,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-008")]
         public async Task InsertValueErr008EmptyUpdateDetailsAsync()
         {
             try
@@ -2756,8 +2560,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Insert Value")]
-        [Property("Tag", "Err-009")]
         public async Task InsertValueErr009NullExtensionObjectAsync()
         {
             try
@@ -2779,8 +2581,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Modified Values")]
-        [Property("Tag", "001")]
         public async Task ModifiedValues001ReadModifiedValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2801,8 +2601,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Data Max Nodes Read Continuation Point")]
-        [Property("Tag", "000")]
         public async Task MaxNodesReadCp000ReadSingleNodeWithNumValuesOneAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2817,8 +2615,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Data Max Nodes Read Continuation Point")]
-        [Property("Tag", "001")]
         public async Task MaxNodesReadCp001FollowContinuationPointAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2853,8 +2649,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Data Max Nodes Read Continuation Point")]
-        [Property("Tag", "002")]
         public async Task MaxNodesReadCp002ReleaseContinuationPointAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2889,8 +2683,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access ServerTimestamp")]
-        [Property("Tag", "001")]
         public async Task ServerTimestamp001ReadWithServerTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2920,8 +2712,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access ServerTimestamp")]
-        [Property("Tag", "002")]
         public async Task ServerTimestamp002ReadWithServerTimestampAndBoundsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2951,8 +2741,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Update Value")]
-        [Property("Tag", "001")]
         public async Task UpdateValue001UpdateSingleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
@@ -2975,8 +2763,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Update Value")]
-        [Property("Tag", "002")]
         public async Task UpdateValue002UpdateMultipleValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);

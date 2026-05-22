@@ -33,9 +33,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Conformance.Tests.Discovery;
 
-namespace Opc.Ua.Conformance.Tests.Discovery
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// Conformance tests for the OPC UA Discovery Register conformance unit.
@@ -55,8 +56,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; IsOnline=TRUE.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "001")]
         public async Task RegisterServerWithIsOnlineTrueAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -74,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; IsOnline=FALSE.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "002")]
         public async Task RegisterServerWithIsOnlineFalseAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -99,8 +96,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; gatewayServerUri is specified.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "003")]
         public async Task RegisterServerWithGatewayServerUriAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -119,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple discoveryUrls.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "004")]
         public async Task RegisterServerWithMultipleDiscoveryUrlsAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -146,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; semaphoreFilePath exists; IsOnline=true.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "005")]
         public async Task RegisterServerWithSemaphoreFilePathAndIsOnlineTrueAsync()
         {
             string sem = Path.GetTempFileName();
@@ -174,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; semaphoreFilePath exists; IsOnline=false.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "006")]
         public async Task RegisterServerWithSemaphoreFilePathAndIsOnlineFalseAsync()
         {
             string sem = Path.GetTempFileName();
@@ -206,8 +195,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() IsOnline=true; SemaphoreFilePath does not exist.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "007")]
         public async Task RegisterServerWithMissingSemaphoreFilePathAndIsOnlineTrueAsync()
         {
             string nonexistent = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -229,8 +216,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple times, each from a different secure channel.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "008")]
         public async Task RegisterServerMultipleTimesFromDifferentSecureChannelsAsync()
         {
             for (int i = 0; i < 3; i++)
@@ -250,8 +235,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple servers, mix IsOnline=true/false.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "009")]
         public async Task RegisterServerMultipleServersWithMixedIsOnlineAsync()
         {
             // Without per-test certs we can only register the one server matching
@@ -278,8 +261,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple times, varied semaphoreFilePath.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "010")]
         public async Task RegisterServerMultipleTimesWithVariedSemaphoreFilePathAsync()
         {
             string sem = Path.GetTempFileName();
@@ -310,8 +291,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple times; IsOnline=false.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "011")]
         public async Task RegisterServerMultipleTimesWithIsOnlineFalseAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -331,8 +310,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple times; IsOnline=False (already registered).")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "012")]
         public async Task RegisterServerRepeatedlyWithIsOnlineFalseAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -353,8 +330,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple times, all SemaphorefilePath=null, except 1.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "013")]
         public async Task RegisterServerMultipleWithSingleSemaphoreFilePathAsync()
         {
             string sem = Path.GetTempFileName();
@@ -385,8 +360,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple times, all SemaphorefilePath=null, except 1; repeated.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "014")]
         public async Task RegisterServerMultipleWithSingleSemaphoreFilePathRepeatedAsync()
         {
             string sem = Path.GetTempFileName();
@@ -420,8 +393,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; multiple server names while varying locale.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "017")]
         public async Task RegisterServerWithMultipleServerNamesVaryingLocaleAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -445,8 +416,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("Register multiple Servers, each with a unique URI. Check filter on ServerUri.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "018")]
         public async Task RegisterMultipleServersWithUniqueUrisAndFilterByServerUriAsync()
         {
             // We can only register the cert-matching ServerUri via RegisterServer.
@@ -491,8 +460,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; insecure channel.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-001")]
         public async Task RegisterServerOverInsecureChannelReturnsErrorAsync()
         {
             // Use an unsecured channel — the LDS should reject the call.
@@ -510,8 +477,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; ServerUri=empty; expect Bad_ServerUriInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-002")]
         public async Task RegisterServerWithEmptyServerUriReturnsBadServerUriInvalidAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -530,8 +495,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; ServerNames=empty; expect Bad_ServerNameMissing.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-003")]
         public async Task RegisterServerWithEmptyServerNamesReturnsBadServerNameMissingAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -550,8 +513,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; DiscoveryUrls=empty; expect Bad_DiscoveryUrlMissing.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-004")]
         public async Task RegisterServerWithEmptyDiscoveryUrlsReturnsBadDiscoveryUrlMissingAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -570,8 +531,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; ServerUri != ServerCertificate.ApplicationUri; expect Bad_ServerUriInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-005")]
         public async Task RegisterServerWithMismatchedApplicationUriReturnsBadServerUriInvalidAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -590,8 +549,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; ServerType=CLIENT_1; expect Bad_InvalidArgument.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-006")]
         public async Task RegisterServerWithClientServerTypeReturnsBadInvalidArgumentAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()
@@ -610,8 +567,6 @@ namespace Opc.Ua.Conformance.Tests.Discovery
 
         [Description("RegisterServer() default values; ServerType=invalid; expect Bad_InvalidArgument.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Register")]
-        [Property("Tag", "Err-007")]
         public async Task RegisterServerWithInvalidServerTypeReturnsBadInvalidArgumentAsync()
         {
             using RegistrationClient registration = await CreateRegistrationClientAsync()

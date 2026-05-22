@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.NodeManagement
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Node Management Delete Node.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
     {
         [Description("empty request. Expects BadNothingToDo. */")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Node")]
-        [Property("Tag", "Err-001")]
         public async Task DeleteEmptyRequestReturnsBadNothingToDoAsync()
         {
             try
@@ -65,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("specify more nodes than the server reports as supported. How this test works: Part 1: Add twice as many nodes to the address space, as server claims to support in a single call Par")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Node")]
-        [Property("Tag", "Err-002")]
         public async Task DeleteMoreNodesThanServerSupportsReturnsBadStatusAsync()
         {
             try
@@ -87,8 +85,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Round-trip test: add a node, delete it, and verify deletion succeeds.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Node")]
-        [Property("Tag", "test")]
         public async Task DeleteNodesRoundTripSucceedsAsync()
         {
             var addRequest = new AddNodesItem

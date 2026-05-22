@@ -42,6 +42,8 @@ using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Gds.Tests
 {
     public

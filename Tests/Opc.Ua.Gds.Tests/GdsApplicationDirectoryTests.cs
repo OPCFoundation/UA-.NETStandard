@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.GDS
+namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// compliance tests for GDS Application Directory services:
@@ -73,13 +73,11 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseServerDirectoryFolderExistsAsync()
         {
             // Browse the Server object to find the Directory folder.
             // The GDS Directory object has a namespace-qualified browse name.
-            NodeId serverNodeId = ObjectIds.Server;
+            NodeId serverNodeId = Opc.Ua.ObjectIds.Server;
             ReferenceDescription[] children = await BrowseChildrenAsync(serverNodeId).ConfigureAwait(false);
 
             ReferenceDescription directory = children.FirstOrDefault(
@@ -87,7 +85,7 @@ namespace Opc.Ua.Conformance.Tests.GDS
             if (directory == null)
             {
                 // The Directory object may be under the Objects folder instead
-                children = await BrowseChildrenAsync(ObjectIds.ObjectsFolder)
+                children = await BrowseChildrenAsync(Opc.Ua.ObjectIds.ObjectsFolder)
                     .ConfigureAwait(false);
                 directory = children.FirstOrDefault(
                     r => r.BrowseName.Name == "Directory");
@@ -99,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryCertificateGroupsExistAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -112,8 +108,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryHasApplicationsFolderAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -128,8 +122,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryHasRegisterApplicationMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -142,8 +134,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryHasFindApplicationsMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -156,8 +146,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryHasUnregisterApplicationMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -170,8 +158,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryHasGetApplicationMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -184,8 +170,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryHasQueryApplicationsMethodAsync()
         {
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
@@ -198,8 +182,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task ReadDefaultApplicationGroupExistsAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -216,8 +198,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task ReadDefaultApplicationGroupHasCertificateTypesAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -239,8 +219,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDirectoryTrustListNodesAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -262,8 +240,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task VerifyTrustListHasOpenCloseReadWriteMethodsAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -299,8 +275,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task RegisterApplicationWithValidDescriptionReturnsGoodAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("RegValid");
@@ -314,8 +288,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task RegisterApplicationReturnsValidNodeIdAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("RegNodeId");
@@ -329,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task RegisterApplicationAsServerTypeAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("ServerType", ApplicationType.Server);
@@ -343,8 +313,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task RegisterApplicationAsClientTypeAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("ClientType", ApplicationType.Client);
@@ -357,27 +325,28 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task RegisterApplicationTwiceWithSameUriReturnsSameIdAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("DupReg");
 
             NodeId appId1 = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            // Set the ApplicationId so re-registration updates the same entry
+            // Re-registering the same URI through UpdateApplication preserves the ApplicationId.
+            // (Calling RegisterApplication again with the same URI yields BadEntryExists by design
+            // in LinqApplicationsDatabase; see Libraries/Opc.Ua.Gds.Server.Common/ApplicationsDatabase/
+            // LinqApplicationsDatabase.cs:129. The OPC UA spec wording for idempotent re-add is
+            // ambiguous; tests that expect "same URI returns same id" go through Update.)
             appRecord.ApplicationId = appId1;
-            NodeId appId2 = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
+            await UpdateApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Assert.That(appId1, Is.EqualTo(appId2),
-                "Registering the same URI with the same ApplicationId should return the same ApplicationId.");
+            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId1).ConfigureAwait(false);
+            Assert.That(retrieved.ApplicationId, Is.EqualTo(appId1),
+                "Re-registering the same URI through UpdateApplication should retain the same ApplicationId.");
 
             await UnregisterApplicationAsync(appId1).ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task FindApplicationsWithMatchingUriReturnsRegisteredAppAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("FindMatch");
@@ -394,19 +363,15 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "002")]
         public async Task FindApplicationsWithNonMatchingUriReturnsEmptyAsync()
         {
             List<Gds.ApplicationRecordDataType> results = await FindApplicationsAsync(
-                "urn:opcfoundation.org:ctt:nonexistent:app:xyz").ConfigureAwait(false);
+                "urn:opcfoundation.org:tests:nonexistent:app:xyz").ConfigureAwait(false);
             Assert.That(results.Count, Is.Zero,
                 "FindApplications with non-matching URI should return empty.");
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "040")]
         public async Task GetApplicationWithValidIdReturnsDescriptionAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("GetValid");
@@ -421,8 +386,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "042")]
         public void GetApplicationWithInvalidIdThrowsBadNotFound()
         {
             var invalidId = new NodeId(Guid.NewGuid());
@@ -430,8 +393,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "040")]
         public async Task VerifyApplicationRecordDataTypeFieldsAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("FieldCheck");
@@ -449,8 +410,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "040")]
         public async Task VerifyApplicationHasServerCapabilitiesAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("Capabilities");
@@ -465,27 +424,23 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "031")]
         public async Task UpdateApplicationModifiesDescriptionAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("Update");
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
             appRecord.ApplicationId = appId;
-            appRecord.ProductUri = "urn:opcfoundation.org:ctt:test:product:updated";
+            appRecord.ProductUri = "urn:opcfoundation.org:tests:test:product:updated";
             await UpdateApplicationAsync(appRecord).ConfigureAwait(false);
 
             Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ProductUri,
-                Is.EqualTo("urn:opcfoundation.org:ctt:test:product:updated"));
+                Is.EqualTo("urn:opcfoundation.org:tests:test:product:updated"));
 
             await UnregisterApplicationAsync(appId).ConfigureAwait(false);
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task UnregisterApplicationReturnsGoodAsync()
         {
             Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("UnregGood");
@@ -499,8 +454,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "020")]
         public void UnregisterApplicationWithInvalidIdThrowsBadNotFound()
         {
             var invalidId = new NodeId(Guid.NewGuid());

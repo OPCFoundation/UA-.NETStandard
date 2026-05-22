@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for the server address space structure (OPC UA Part 5).
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
     public class AddressSpaceBaseTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task RootFolderExistsAsync()
         {
             DataValue result = await ReadValueAsync(ObjectIds.RootFolder, Attributes.BrowseName).ConfigureAwait(false);
@@ -55,8 +55,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task ObjectsFolderExistsAsync()
         {
             DataValue result = await ReadValueAsync(ObjectIds.ObjectsFolder, Attributes.BrowseName).ConfigureAwait(false);
@@ -66,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task TypesFolderExistsAsync()
         {
             DataValue result = await ReadValueAsync(ObjectIds.TypesFolder, Attributes.BrowseName).ConfigureAwait(false);
@@ -77,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task ViewsFolderExistsAsync()
         {
             DataValue result = await ReadValueAsync(ObjectIds.ViewsFolder, Attributes.BrowseName).ConfigureAwait(false);
@@ -88,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task ServerObjectExistsAsync()
         {
             DataValue result = await ReadValueAsync(ObjectIds.Server, Attributes.BrowseName).ConfigureAwait(false);
@@ -99,8 +91,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task ServerObjectHasRequiredChildrenAsync()
         {
             BrowseResult browseResult = await BrowseForwardAsync(ObjectIds.Server).ConfigureAwait(false);
@@ -118,8 +108,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task ServerCapabilitiesExistsAsync()
         {
             DataValue result = await ReadValueAsync(
@@ -128,8 +116,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task ServerStatusExistsAsync()
         {
             DataValue result = await ReadValueAsync(
@@ -138,8 +124,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task ServerStatusHasRequiredVariablesAsync()
         {
             BrowseResult browseResult = await BrowseForwardAsync(
@@ -157,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "002")]
         public async Task TypesFolderContainsSubfoldersAsync()
         {
             BrowseResult browseResult = await BrowseForwardAsync(ObjectIds.TypesFolder).ConfigureAwait(false);
@@ -175,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task BaseObjectTypeExistsAsync()
         {
             DataValue result = await ReadValueAsync(ObjectTypeIds.BaseObjectType, Attributes.BrowseName).ConfigureAwait(false);
@@ -186,8 +166,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task BaseVariableTypeExistsAsync()
         {
             DataValue result = await ReadValueAsync(VariableTypeIds.BaseVariableType, Attributes.BrowseName).ConfigureAwait(false);
@@ -197,8 +175,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "003")]
         public async Task DataTypeHierarchyNumberToInt32Async()
         {
             // Verify Int32 → Integer → Number hierarchy via inverse browse
@@ -227,8 +203,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task ReferenceTypeHierarchyExistsAsync()
         {
             // HierarchicalReferences should be a subtype of References
@@ -257,8 +231,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "003")]
         public async Task VariableNodeHasDataTypeAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -268,8 +240,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Base")]
-        [Property("Tag", "001")]
         public async Task VariableNodeHasValueRankAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);

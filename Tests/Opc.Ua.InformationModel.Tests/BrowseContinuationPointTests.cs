@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Service Set – Browse continuation points.
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     {
         [Description("Browse the Server node with MaxReferencesPerNode=1 and verify that a continuation point is returned because Server has multiple forward hierarchical references.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "001")]
         public async Task BrowseServerNodeWithMaxRefsOneGetsContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -83,8 +83,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Server node with MaxReferencesPerNode=1, then call BrowseNext repeatedly until the continuation point is empty, collecting all references along the way.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "007")]
         public async Task BrowseNextUntilDoneCollectsAllReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -129,8 +127,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Verify that the total number of references obtained via paginated BrowseNext matches a single Browse with MaxReferencesPerNode=0 (unlimited).")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task BrowseNextTotalMatchesBrowseAllAsync()
         {
             var browseDesc = new BrowseDescription
@@ -178,8 +174,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Release a continuation point, then attempt to use it with BrowseNext. The server must return BadContinuationPointInvalid.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-003")]
         public async Task BrowseNextReleaseThenUseReturnsErrorAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -223,8 +217,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Objects and Types folders simultaneously with MaxReferencesPerNode=1. Both nodes should produce continuation points.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "001")]
         public async Task BrowseMultipleNodesWithContinuationPointsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -278,8 +270,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Objects folder with MaxReferencesPerNode=2 and verify that at most two references are returned per batch.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "014")]
         public async Task BrowseWithMaxRefsTwoReturnsTwoPerBatchAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -331,8 +321,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse Server node one reference at a time and verify that every reference NodeId is unique across all pages — no duplicates should appear.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "007")]
         public async Task VerifyAllReferencesAreUniqueAcrossPagesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -384,8 +372,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse a node that has few references with a large MaxReferencesPerNode value. No continuation point should be needed because all references fit in the first response.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "009")]
         public async Task BrowseNodeWithFewReferencesNoContinuationNeededAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -413,8 +399,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Call BrowseNext with releaseContinuationPoints=true. The server should return Good status but no references in the result.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "005")]
         public async Task BrowseNextWithReleaseTrueReturnsNoReferencesAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -455,8 +439,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse the Types folder with MaxReferencesPerNode=1 and confirm a continuation point is returned.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "001")]
         public async Task BrowseTypesWithContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -494,8 +476,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse the Root node with MaxReferencesPerNode=1 and verify a continuation point is returned because Root has Objects, Types, and Views as children.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "001")]
         public async Task BrowseRootWithMaxRefsOneAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -533,8 +513,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Obtain continuation points from two different nodes and advance them independently with separate BrowseNext calls to verify the server tracks them separately.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "013")]
         public async Task BrowseNextMultipleContinuationPointsSimultaneouslyAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -631,8 +609,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse with MaxReferencesPerNode=0 which means no limit. All references should be returned in a single response with no continuation point.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "010")]
         public async Task BrowseWithMaxRefsZeroReturnsAllAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -663,8 +639,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Release a continuation point, then release the same one again. The second release should return BadContinuationPointInvalid because it no longer exists.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "Err-006")]
         public async Task ReleaseContinuationPointTwiceReturnsErrorAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -714,8 +688,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
 
         [Description("Browse the Objects folder in the Inverse direction with MaxReferencesPerNode=1 and verify a continuation point is returned when there are multiple inverse references.")]
         [Test]
-        [Property("ConformanceUnit", "View Minimum Continuation Point 01")]
-        [Property("Tag", "009")]
         public async Task BrowseObjectsFolderInverseWithContinuationPointAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(

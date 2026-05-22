@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.NodeManagement
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Node Management services.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
     public class NodeManagementTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "001")]
         public async Task AddNodesHandledGracefullyAsync()
         {
             var request = new AddNodesItem
@@ -95,8 +95,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
         }
 
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Node")]
-        [Property("Tag", "Err-001")]
         public async Task DeleteNodesHandledGracefullyAsync()
         {
             try
@@ -124,8 +122,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
         }
 
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "003")]
         public async Task AddReferencesHandledGracefullyAsync()
         {
             try
@@ -158,8 +154,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
         }
 
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Node")]
-        [Property("Tag", "Err-002")]
         public async Task DeleteReferencesHandledGracefullyAsync()
         {
             try
@@ -192,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
         }
 
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "001")]
         public async Task AddNodeThenDeleteNodeAsync()
         {
             var addRequest = new AddNodesItem
@@ -275,8 +267,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Verify that AddNodes with NodeClass Object is handled gracefully when the server does not support the operation.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "003")]
         public async Task AddObjectNodeHandledGracefullyAsync()
         {
             var request = new AddNodesItem
@@ -349,8 +339,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Add a node and then browse the parent to verify the new node is visible in the address space.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "001")]
         public async Task AddNodeThenBrowseVerifyVisibleAsync()
         {
             const string browseName = "ConformanceTestBrowseVisible";
@@ -472,8 +460,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Verify that adding a node twice with the same BrowseName returns an error on the second attempt.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "Err-008")]
         public async Task AddNodeWithDuplicateBrowseNameAsync()
         {
             const string browseName = "ConformanceTestDuplicate";
@@ -574,8 +560,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Add a reference between two existing nodes and then browse to verify the reference is visible.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Node")]
-        [Property("Tag", "002")]
         public async Task AddReferenceThenBrowseVerifyVisibleAsync()
         {
             NodeId sourceNodeId = ObjectIds.ObjectsFolder;
@@ -655,8 +639,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
 
         [Description("Verify that deleting a truly non-existent node returns BadNodeIdUnknown or an unsupported status.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Delete Node")]
-        [Property("Tag", "Err-001")]
         public async Task DeleteNonExistentNodeReturnsErrorAsync()
         {
             // Use a node ID that is guaranteed not to exist.

@@ -36,7 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for server certificate validation,
@@ -48,8 +50,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityCertificateTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task ServerCertificateHasValidDatesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task ServerCertificateSanContainsApplicationUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -103,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task ServerCertificateSanContainsHostnameAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -144,8 +140,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task ServerHasAtLeastOneSecureEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -164,8 +158,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task EachSecureEndpointHasRecognizedPolicyAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -181,8 +173,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "048")]
         public async Task ConnectWithTrustedCertSucceedsAsync()
         {
             // AutoAccept is true in the fixture, so trusted certs work
@@ -217,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task SecureEndpointCertificateKeyIsAdequateAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -239,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Default ApplicationInstance Certificate")]
-        [Property("Tag", "001")]
         public async Task DefaultCert001CheckInitialCertificateStateAsync()
         {
             // Verify the server's application instance certificate
@@ -262,8 +248,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Default ApplicationInstance Certificate")]
-        [Property("Tag", "002")]
         public async Task DefaultCert002EstablishCommunicationAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -300,8 +284,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Default ApplicationInstance Certificate")]
-        [Property("Tag", "003")]
         public async Task DefaultCert003EnsureCurrentCertIsValidAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);

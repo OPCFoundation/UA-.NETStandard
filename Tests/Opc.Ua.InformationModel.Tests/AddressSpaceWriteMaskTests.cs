@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for WriteMask, AccessLevel, and related
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
     public class AddressSpaceWriteMaskTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "001")]
         public async Task ReadWriteMaskOnVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -55,8 +55,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "001")]
         public async Task ReadUserWriteMaskOnVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -66,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "001")]
         public async Task ReadAccessLevelOnWritableVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -88,8 +84,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "001")]
         public async Task ReadUserAccessLevelOnWritableVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -99,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "002")]
         public async Task ReadAccessLevelOnServerStateVariableAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -117,8 +109,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "001")]
         public async Task ReadMinimumSamplingIntervalOnVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -129,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space WriteMask")]
-        [Property("Tag", "001")]
         public async Task ReadHistorizingOnVariableAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);

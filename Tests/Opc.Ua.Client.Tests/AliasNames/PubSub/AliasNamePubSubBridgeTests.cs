@@ -35,6 +35,8 @@ using NUnit.Framework;
 using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.AliasNames.PubSub;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests.AliasNames.PubSub
 {
     /// <summary>

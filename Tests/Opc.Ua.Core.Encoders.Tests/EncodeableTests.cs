@@ -33,7 +33,9 @@ using System.Linq;
 using System.Text;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+using Opc.Ua.Core.TestFramework;
+
+namespace Opc.Ua.Core.Encoders.Tests
 {
     /// <summary>
     /// Tests for the IEncodeable classes.

@@ -32,10 +32,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Conformance.Tests.Security;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Security None CreateSession ActivateSession 1.0.
@@ -47,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityNoneSession10Tests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession 1.0")]
-        [Property("Tag", "001")]
         public Task NoneSession001ClientSpecifiesCertWithNoSecurity()
         {
             // With SecurityMode.None, client may still specify a certificate
@@ -62,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession 1.0")]
-        [Property("Tag", "002")]
         public Task NoneSession002ClientSpecifiesExpiredCertAsync()
         {
             return AssertNoneChannelAcceptsCertAsync(
@@ -73,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession 1.0")]
-        [Property("Tag", "003")]
         public Task NoneSession003ClientSpecifiesCertForAnotherComputerAsync()
         {
             return AssertNoneChannelAcceptsCertAsync(
@@ -84,8 +79,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession 1.0")]
-        [Property("Tag", "004")]
         public Task NoneSession004ClientSpecifiesCorruptedCertAsync()
         {
             return AssertNoneChannelAcceptsCertAsync(

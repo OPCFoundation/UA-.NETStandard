@@ -30,10 +30,10 @@
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Server.Tests;
+using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     public class ClientTestServerQuotas : ClientTestFramework
     {

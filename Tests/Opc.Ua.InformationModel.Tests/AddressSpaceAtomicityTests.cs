@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Address Space Atomicity.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
     {
         [Description("Atomicity flags in the AccessLevelEx are used.")]
         [Test]
-        [Property("ConformanceUnit", "Address Space Atomicity")]
-        [Property("Tag", "001")]
         public async Task AtomicityFlagsInAccessLevelExAreUsedAsync()
         {
             ReadResponse readResponse = await Session.ReadAsync(

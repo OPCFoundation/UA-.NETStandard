@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests that verify reference types exist and have
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoReferenceTypeTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info AssociatedWith")]
-        [Property("Tag", "001")]
         public async Task AssociatedWithIsSubtypeOfNonHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(
@@ -56,8 +56,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Controls")]
-        [Property("Tag", "001")]
         public async Task ControlsIsSubtypeOfHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(
@@ -67,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info HasAttachedComponent")]
-        [Property("Tag", "001")]
         public async Task HasAttachedComponentIsSubtypeOfHasPhysicalComponentAsync()
         {
             await AssertSupertypeAsync(
@@ -78,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info HasContainedComponent")]
-        [Property("Tag", "001")]
         public async Task HasContainedComponentIsSubtypeOfHasPhysicalComponentAsync()
         {
             await AssertSupertypeAsync(
@@ -89,8 +83,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info HasOrderedComponent")]
-        [Property("Tag", "001")]
         public async Task HasOrderedComponentIsSubtypeOfHasComponentAsync()
         {
             await AssertSupertypeAsync(
@@ -100,8 +92,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info HasPhysicalComponent")]
-        [Property("Tag", "001")]
         public async Task HasPhysicalComponentIsSubtypeOfHasComponentAsync()
         {
             await AssertSupertypeAsync(
@@ -111,8 +101,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info IsExecutableOn")]
-        [Property("Tag", "001")]
         public async Task IsExecutableOnIsSubtypeOfNonHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(
@@ -122,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info IsExecutingOn")]
-        [Property("Tag", "001")]
         public async Task IsExecutingOnIsSubtypeOfUtilizesAsync()
         {
             await AssertSupertypeAsync(
@@ -133,8 +119,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info IsHostedBy")]
-        [Property("Tag", "001")]
         public async Task IsHostedByIsSubtypeOfUtilizesAsync()
         {
             await AssertSupertypeAsync(
@@ -144,8 +128,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info IsPhysicallyConnectedTo")]
-        [Property("Tag", "001")]
         public async Task IsPhysicallyConnectedToIsSubtypeOfNonHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(
@@ -155,8 +137,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info RepresentsSameEntityAs")]
-        [Property("Tag", "001")]
         public async Task RepresentsSameEntityAsIsSubtypeOfNonHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(
@@ -166,8 +146,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info RepresentsSameFunctionalityAs")]
-        [Property("Tag", "001")]
         public async Task RepresentsSameFunctionalityAsIsSubtypeOfRepresentsSameEntityAsAsync()
         {
             await AssertSupertypeAsync(
@@ -177,8 +155,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info RepresentsSameHardwareAs")]
-        [Property("Tag", "001")]
         public async Task RepresentsSameHardwareAsIsSubtypeOfRepresentsSameEntityAsAsync()
         {
             List<ReferenceDescription> refs =
@@ -200,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Requires")]
-        [Property("Tag", "001")]
         public async Task RequiresIsSubtypeOfHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(
@@ -211,8 +185,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Utilizes")]
-        [Property("Tag", "001")]
         public async Task UtilizesIsSubtypeOfNonHierarchicalReferencesAsync()
         {
             await AssertSupertypeAsync(

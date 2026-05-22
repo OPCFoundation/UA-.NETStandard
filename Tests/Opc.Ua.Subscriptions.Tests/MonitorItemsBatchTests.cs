@@ -34,7 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for batch MonitoredItem operations including
@@ -76,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task BatchCreateTenItemsOnDifferentNodesAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();
@@ -102,8 +102,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task BatchCreateTenItemsOnSameNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -127,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "004")]
         public async Task BatchCreateMixOfValidAndInvalidNodesAsync()
         {
             var items = new List<MonitoredItemCreateRequest>
@@ -169,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task BatchCreateWithVaryingSamplingIntervalsAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();
@@ -201,8 +195,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task BatchModifyTenItemsSamplingIntervalAsync()
         {
             // Create 10 items first
@@ -255,8 +247,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task BatchModifyTenItemsQueueSizeAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();
@@ -306,8 +296,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "004")]
         public async Task BatchModifyMixOfValidAndInvalidIdsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -361,8 +349,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "003")]
         public async Task BatchDeleteTenItemsAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();
@@ -395,8 +381,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "004")]
         public async Task BatchDeleteMixOfValidAndInvalidIdsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -425,8 +409,6 @@ namespace Opc.Ua.Conformance.Tests.MonitoredItemServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Monitor Items 2")]
-        [Property("Tag", "001")]
         public async Task BatchDeleteThenVerifyNoMoreNotificationsAsync()
         {
             var items = new List<MonitoredItemCreateRequest>();

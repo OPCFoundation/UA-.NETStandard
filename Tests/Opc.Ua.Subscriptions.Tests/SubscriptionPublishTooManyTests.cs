@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// compliance tests for Subscription Publish Too Many covering
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
     public class SubscriptionPublishTooManyTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Subscription PublishRequest Queue Overflow")]
-        [Property("Tag", "001")]
         public async Task TooManyPublishRequestsHandledGracefullyAsync()
         {
             uint id = await CreateSubWithItemAsync().ConfigureAwait(false);
@@ -74,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription PublishRequest Queue Overflow")]
-        [Property("Tag", "001")]
         public async Task PublishQueueOverflowReturnsGoodOrErrorAsync()
         {
             uint id = await CreateSubWithItemAsync().ConfigureAwait(false);
@@ -102,8 +100,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription PublishRequest Queue Overflow")]
-        [Property("Tag", "001")]
         public async Task PublishCountExceedsSubscriptionCountAsync()
         {
             uint id = await CreateSubWithItemAsync().ConfigureAwait(false);
@@ -131,8 +127,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription PublishRequest Queue Overflow")]
-        [Property("Tag", "002")]
         public async Task PublishOverflowDoesNotAffectExistingSubscriptionsAsync()
         {
             uint id = await CreateSubWithItemAsync().ConfigureAwait(false);
@@ -160,8 +154,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription PublishRequest Queue Overflow")]
-        [Property("Tag", "001")]
         public async Task RapidPublishRequestsAllReturnValidResponsesAsync()
         {
             uint id = await CreateSubWithItemAsync().ConfigureAwait(false);

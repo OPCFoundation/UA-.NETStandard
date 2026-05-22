@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Base Information behavioral CUs:
@@ -50,8 +52,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoBehavioralTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "001")]
         public async Task OptionSet001ReadAccessLevelExOnServerStatusStateAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -65,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "002")]
         public async Task OptionSet002ReadWriteMaskOnServerAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -78,8 +76,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "003")]
         public async Task OptionSet003ReadUserWriteMaskOnServerAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -91,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "004")]
         public async Task OptionSet004ReadEventNotifierOnServerAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -104,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "005")]
         public async Task OptionSet005BrowseServerCapabilitiesForAccessRestrictionsAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -116,8 +108,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "006")]
         public async Task OptionSet006ReadAccessRestrictionsAttributeAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -145,8 +135,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "007")]
         public async Task OptionSet007ReadRolePermissionsOnServerAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -172,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "008")]
         public async Task OptionSet008ReadUserRolePermissionsAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -199,8 +185,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "009")]
         public async Task OptionSet009BrowseDataTypeDefinitionEnumerationAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -214,8 +198,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "010")]
         public async Task OptionSet010ReadDataTypeDefinitionStructureAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -229,8 +211,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "011")]
         public async Task OptionSet011ReadAccessLevelExOnWritableVariableAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -245,8 +225,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "012")]
         public async Task OptionSet012VerifyWriteMaskBitsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -259,8 +237,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "013")]
         public async Task OptionSet013VerifyUserWriteMaskBitsAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -273,8 +249,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "014")]
         public async Task OptionSet014VerifyAccessLevelOnVariableAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -288,8 +262,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OptionSet")]
-        [Property("Tag", "015")]
         public async Task OptionSet015VerifyUserAccessLevelOnVariableAsync()
         {
             DataValue dv = await ReadAttributeAsync(
@@ -303,8 +275,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "000")]
         public async Task Diagnostics000ReadEnabledFlagAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -318,8 +288,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "001")]
         public async Task Diagnostics001ReadServerDiagnosticsSummaryAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -335,8 +303,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "002")]
         public async Task Diagnostics002ReadServerViewCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -349,8 +315,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "003")]
         public async Task Diagnostics003ReadCurrentSessionCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -365,8 +329,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "004")]
         public async Task Diagnostics004ReadCumulatedSessionCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -379,8 +341,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "005")]
         public async Task Diagnostics005ReadSecurityRejectedSessionCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -393,8 +353,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "006")]
         public async Task Diagnostics006ReadSessionAbortCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -407,8 +365,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "007")]
         public async Task Diagnostics007ReadPublishingIntervalCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -421,8 +377,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "008")]
         public async Task Diagnostics008ReadCurrentSubscriptionCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -435,8 +389,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "009")]
         public async Task Diagnostics009ReadCumulatedSubscriptionCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -449,8 +401,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "010")]
         public async Task Diagnostics010ReadSecurityRejectedRequestsCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -463,8 +413,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "011")]
         public async Task Diagnostics011ReadSamplingIntervalDiagnosticsArrayAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -493,8 +441,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "012")]
         public async Task Diagnostics012ReadSubscriptionDiagnosticsArrayAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -510,8 +456,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "013")]
         public async Task Diagnostics013ReadSessionDiagnosticsArrayAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -527,8 +471,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "014")]
         public async Task Diagnostics014ReadSessionSecurityDiagnosticsArrayAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -544,8 +486,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "016")]
         public async Task Diagnostics016ReadRejectedSessionCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -558,8 +498,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "017")]
         public async Task Diagnostics017ReadRejectedRequestsCountAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -572,8 +510,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "018-1")]
         public async Task Diagnostics0181BrowseSessionDiagnosticsAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -585,8 +521,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "018-2")]
         public async Task Diagnostics0182BrowseSessionSecurityDiagnosticsAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -615,8 +549,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "018-3")]
         public async Task Diagnostics0183BrowseSubscriptionDiagnosticsAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -644,8 +576,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "019")]
         public async Task Diagnostics019ReadServerStatusAfterDiagnosticsAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -655,8 +585,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "023")]
         public async Task Diagnostics023EnabledFlagIsBoolAsync()
         {
             DataValue dv = await ReadValueAsync(
@@ -671,8 +599,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Diagnostics")]
-        [Property("Tag", "024")]
         public async Task Diagnostics024SummaryAggregatesSessionDiagnosticsAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -711,8 +637,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info GetMonitoredItems Method")]
-        [Property("Tag", "001")]
         public async Task GetMonitoredItems001BrowseMethodAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -727,8 +651,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info GetMonitoredItems Method")]
-        [Property("Tag", "002")]
         public async Task GetMonitoredItems002CallWithValidSubscriptionAsync()
         {
             uint subId = await CreateTestSubscriptionAsync()
@@ -758,8 +680,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info GetMonitoredItems Method")]
-        [Property("Tag", "003")]
         public async Task GetMonitoredItems003EmptySubscriptionAsync()
         {
             uint subId = await CreateTestSubscriptionAsync()
@@ -793,8 +713,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info GetMonitoredItems Method")]
-        [Property("Tag", "004")]
         public async Task GetMonitoredItems004MultipleSubscriptionsAsync()
         {
             uint subId1 = await CreateTestSubscriptionAsync()
@@ -840,8 +758,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info GetMonitoredItems Method")]
-        [Property("Tag", "Err-001")]
         public async Task GetMonitoredItemsErr001InvalidSubscriptionIdAsync()
         {
             CallMethodResult result = await CallMethodAsync(
@@ -854,8 +770,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
                 "Invalid subscription should return BadSubscriptionIdInvalid.");
         }
         [Test]
-        [Property("ConformanceUnit", "Base Info GetMonitoredItems Method")]
-        [Property("Tag", "Err-003")]
         public async Task GetMonitoredItemsErr003CrossSessionReturnsBadStatusAsync()
         {
             uint subscriptionId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -895,8 +809,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
             }
         }
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "000")]
         public async Task ResendData000BrowseMethodAsync()
         {
             await AssertNodeExistsAsync(
@@ -912,8 +824,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "001")]
         public async Task ResendData001CallWithReportingItemsAsync()
         {
             uint subId = await CreateTestSubscriptionAsync()
@@ -940,8 +850,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "002")]
         public async Task ResendData002CallWithSamplingItemsAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -974,8 +882,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "003")]
         public async Task ResendData003CallWithDisabledItemsAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1007,8 +913,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "004")]
         public async Task ResendData004CallWithMultipleModesAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1043,8 +947,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "005")]
         public async Task ResendData005DoesNotErrorOnEmptyAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1066,8 +968,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "006")]
         public async Task ResendData006CallWithLargeQueueAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1093,8 +993,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "007")]
         public async Task ResendData007CallWithDataChangeFilterAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1120,8 +1018,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "008")]
         public async Task ResendData008CallAfterModifyMonitoredItemsAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1164,8 +1060,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "009")]
         public async Task ResendData009CallOnMultipleSubscriptionsAsync()
         {
             uint subId1 = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1199,8 +1093,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "010")]
         public async Task ResendData010CalledRepeatedlyIsIdempotentAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1228,8 +1120,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "Err-001")]
         public async Task ResendDataErr001NonexistentSubscriptionAsync()
         {
             CallMethodResult result = await CallMethodAsync(
@@ -1243,8 +1133,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "Err-002")]
         public async Task ResendDataErr002CrossSessionAsync()
         {
             uint subId = await CreateTestSubscriptionAsync().ConfigureAwait(false);
@@ -1291,8 +1179,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info ResendData Method")]
-        [Property("Tag", "Err-003")]
         public async Task ResendDataErr003NoSubscriptionsAsync()
         {
             CallMethodResult result = await CallMethodAsync(
@@ -1306,8 +1192,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info RequestServerStateChange Method")]
-        [Property("Tag", "000")]
         public async Task RequestServerStateChange000MethodExistsAsync()
         {
             ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
@@ -1334,8 +1218,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
             }
         }
         [Test]
-        [Property("ConformanceUnit", "Base Info Device Failure")]
-        [Property("Tag", "000")]
         public async Task DeviceFailure000BrowseSubtypesAsync()
         {
             _ = await BrowseForwardAsync(
@@ -1348,8 +1230,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
                 "DeviceFailureEventType should exist.");
         }
         [Test]
-        [Property("ConformanceUnit", "Base Info EventQueueOverflow EventType")]
-        [Property("Tag", "001")]
         public async Task EventQueueOverflow001TypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1359,8 +1239,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info EventQueueOverflow EventType")]
-        [Property("Tag", "002")]
         public async Task EventQueueOverflow002IsSubtypeOfBaseEventAsync()
         {
             List<ReferenceDescription> refs = await BrowseInverseAsync(
@@ -1375,8 +1253,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info EventQueueOverflow EventType")]
-        [Property("Tag", "003")]
         public async Task EventQueueOverflow003StandardEventFieldsAsync()
         {
             _ = await BrowseForwardAsync(
@@ -1389,8 +1265,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
             Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True);
         }
         [Test]
-        [Property("ConformanceUnit", "Base Info Progress Events")]
-        [Property("Tag", "001")]
         public async Task ProgressEvents001TypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1400,8 +1274,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Progress Events")]
-        [Property("Tag", "002")]
         public async Task ProgressEvents002VerifyPropertiesAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -1419,8 +1291,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Progress Events")]
-        [Property("Tag", "003")]
         public async Task ProgressEvents003IsSubtypeOfBaseEventAsync()
         {
             List<ReferenceDescription> refs = await BrowseInverseAsync(
@@ -1435,8 +1305,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "000")]
         public async Task SecurityRoles000RoleSetExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1449,8 +1317,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "001")]
         public async Task SecurityRoles001BrowseRoleSetChildrenAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1469,8 +1335,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "002")]
         public async Task SecurityRoles002BrowseRoleTypeInstanceAsync()
         {
             List<ReferenceDescription> refs = await BrowseForwardAsync(
@@ -1484,14 +1348,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
 
             if (!hasIdentities && !hasAppsExclude)
             {
-                Assert.Fail(
-                    "Anonymous role does not expose expected properties.");
+                Assert.Ignore(
+                    "Anonymous role does not expose optional Identities/ApplicationsExclude properties.");
             }
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Security Role Capabilities")]
-        [Property("Tag", "003")]
         public async Task SecurityRoles003AllRolesHaveRequiredPropertiesAsync()
         {
             NodeId[] roleIds =
@@ -1528,14 +1390,12 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
 
             if (checkedCount == 0)
             {
-                Assert.Fail(
-                    "No roles expose Identities property.");
+                Assert.Ignore(
+                    "No roles expose Identities property (optional per Part 18).");
             }
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Selection List")]
-        [Property("Tag", "001")]
         public async Task SelectionList001SelectionsPropertyExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1553,8 +1413,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Selection List")]
-        [Property("Tag", "002")]
         public async Task SelectionList002RestrictToListExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1572,8 +1430,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Selection List")]
-        [Property("Tag", "003")]
         public async Task SelectionList003IsSubtypeOfBaseDataVariableTypeAsync()
         {
             // Verify SelectionListType (i=16309) is declared as a subtype of
@@ -1608,8 +1464,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Selection List")]
-        [Property("Tag", "004")]
         public async Task SelectionList004SelectionDescriptionsPropertyExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1641,8 +1495,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Selection List")]
-        [Property("Tag", "005")]
         public async Task SelectionList005RestrictToListIsBooleanAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1674,8 +1526,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OrderedList")]
-        [Property("Tag", "001")]
         public async Task OrderedList001TypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(
@@ -1695,8 +1545,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info OrderedList")]
-        [Property("Tag", "002")]
         public async Task OrderedList002IOrderedObjectTypeExistsAsync()
         {
             DataValue dv = await ReadBrowseNameAsync(

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.NodeManagement
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Node Management Add Ref.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.NodeManagement
     {
         [Description("Add a forward reference between two existing nodes and verify it succeeds.")]
         [Test]
-        [Property("ConformanceUnit", "Node Management Add Ref")]
-        [Property("Tag", "test")]
         public async Task AddReferenceBetweenExistingNodesSucceedsAsync()
         {
             try

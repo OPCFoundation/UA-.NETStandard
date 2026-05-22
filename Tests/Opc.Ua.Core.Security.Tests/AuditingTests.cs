@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Auditing
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Auditing and event type existence.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
     public class AuditingTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ReadServerAuditingPropertyAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -57,8 +57,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerObjectSupportsEventsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -75,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task BaseEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -85,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -95,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditSessionEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -106,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditActivateSessionEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -117,8 +107,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditOpenSecureChannelEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -128,8 +116,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditUrlMismatchEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -139,8 +125,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task VerifyAuditEventSourceIsServerAsync()
         {
             // AuditEventType has SourceNode property that should reference Server
@@ -151,8 +135,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Write")]
-        [Property("Tag", "001")]
         public async Task AuditWriteUpdateEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -162,8 +144,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerObjectHasEventNotifierAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -180,8 +160,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditCancelEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -195,8 +173,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditChannelEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -206,8 +182,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditUpdateMethodEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -217,8 +191,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task AuditSecurityEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -228,8 +200,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerAuditingIsBooleanAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -246,8 +216,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Method")]
-        [Property("Tag", "001")]
         public async Task AuditConditionEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(
@@ -261,8 +229,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Secure Communication")]
-        [Property("Tag", "004")]
         public async Task ServerEventNotifierHasSubscribeBitAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -279,8 +245,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing NodeManagement")]
-        [Property("Tag", "001")]
         public async Task AuditNodeManagementEventTypeExistsAsync()
         {
             DataValue result = await ReadBrowseNameAsync(

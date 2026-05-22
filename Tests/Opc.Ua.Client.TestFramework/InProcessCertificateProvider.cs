@@ -35,7 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Test-only <see cref="ICertificateProvider"/> that wraps a single
@@ -45,7 +45,7 @@ namespace Opc.Ua.Client.Tests
     /// <see cref="X509IdentityTokenHandler"/> ctor without persisting it
     /// to a directory store.
     /// </summary>
-    internal sealed class InProcessCertificateProvider : ICertificateProvider, IDisposable
+    public sealed class InProcessCertificateProvider : ICertificateProvider, IDisposable
     {
         private Certificate? m_cert;
 

@@ -35,7 +35,7 @@ using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Core.Encoders.Tests
 {
     /// <summary>
     /// Tests for the EncodeableFactory class.

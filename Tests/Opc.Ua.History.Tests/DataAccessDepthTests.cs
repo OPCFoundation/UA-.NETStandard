@@ -33,7 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DataAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance depth tests for Data Access DataItems, PercentDeadBand,
@@ -45,8 +47,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
     public class DataAccessDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "000")]
         public async Task DataItems000BrowseDataItemTypeDefinitionAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -72,8 +72,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "001")]
         public async Task DataItems001TranslateBrowsePathForInt32Async()
         {
             NodeId startNode = ObjectIds.ObjectsFolder;
@@ -100,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "002")]
         public async Task DataItems002TranslateBrowsePathForDoubleAsync()
         {
             NodeId startNode = ObjectIds.ObjectsFolder;
@@ -144,8 +140,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "003")]
         public async Task DataItems003ReadValueAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -155,8 +149,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "004")]
         public async Task DataItems004ReadDisplayNameAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -167,8 +159,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "005")]
         public async Task DataItems005ReadBrowseNameAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -179,8 +169,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "006")]
         public async Task DataItems006ReadNodeClassAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -192,8 +180,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "007")]
         public async Task DataItems007ReadDataTypeAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -204,8 +190,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "008")]
         public async Task DataItems008ReadAccessLevelAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -215,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "009")]
         public async Task DataItems009ReadValueRankAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -228,8 +210,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "010")]
         public async Task DataItems010WriteInt32ValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -246,8 +226,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "011")]
         public async Task DataItems011WriteDoubleValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -264,8 +242,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "012")]
         public async Task DataItems012WriteStringValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticString);
@@ -282,8 +258,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "013")]
         public async Task DataItems013WriteBooleanValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -300,8 +274,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "014")]
         public async Task DataItems014BatchReadMultipleNodesAsync()
         {
             var readValueIds = Constants.ScalarStaticNodes
@@ -324,8 +296,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "015")]
         public async Task DataItems015BatchWriteMultipleNodesAsync()
         {
             NodeId intNode = ToNodeId(Constants.ScalarStaticInt32);
@@ -354,8 +324,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "016")]
         public async Task DataItems016ReadArrayWithIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -383,8 +351,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "017")]
         public async Task DataItems017WriteArrayWithIndexRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
@@ -416,8 +382,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "018")]
         public async Task DataItems018ReadDefinitionPropertyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -440,8 +404,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "019")]
         public async Task DataItems019ReadValuePrecisionPropertyAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -465,8 +427,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "020")]
         public async Task DataItems020ReadWithDifferentTimestampsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -497,8 +457,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "Err-001")]
         public async Task DataItemsErr001WriteWrongTypeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -520,8 +478,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access DataItems")]
-        [Property("Tag", "Err-002")]
         public async Task DataItemsErr002ReadInvalidNodeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -540,8 +496,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "001")]
         public async Task PercentDeadBand001ReadEuRangeAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -571,8 +525,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "002")]
         public async Task PercentDeadBand002ReadInstrumentRangeAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -603,8 +555,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "003")]
         public async Task PercentDeadBand003ReadEngineeringUnitsAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -636,8 +586,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "004")]
         public async Task PercentDeadBand004CreateSubscriptionForAnalogAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -660,8 +608,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "005")]
         public async Task PercentDeadBand005MonitorWithAbsoluteDeadbandAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -696,8 +642,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "006")]
         public async Task PercentDeadBand006MonitorWithPercentDeadbandAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -732,8 +676,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "007")]
         public async Task PercentDeadBand007PercentDeadbandZeroAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -768,8 +710,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "008")]
         public async Task PercentDeadBand008PercentDeadbandHundredAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -804,8 +744,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "009")]
         public async Task PercentDeadBand009ModifyMonitoredItemDeadbandAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -864,8 +802,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "010")]
         public async Task PercentDeadBand010DeleteMonitoredItemAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -910,8 +846,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "011")]
         public async Task PercentDeadBand011StatusChangeTriggerAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -947,8 +881,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "012")]
         public async Task PercentDeadBand012StatusValueTimestampTriggerAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -984,8 +916,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "013")]
         public async Task PercentDeadBand013MultipleMonitoredItemsAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1027,8 +957,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "014")]
         public async Task PercentDeadBand014AbsoluteDeadbandSmallValueAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1063,8 +991,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "015")]
         public async Task PercentDeadBand015MonitorWithNoDeadbandAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1099,8 +1025,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "016")]
         public async Task PercentDeadBand016ModifySubscriptionIntervalAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1129,8 +1053,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "017")]
         public async Task PercentDeadBand017SetPublishingModeDisableAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1171,8 +1093,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "018")]
         public async Task PercentDeadBand018DeadbandWithQueueSizeOneAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1208,8 +1128,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "Err-001")]
         public async Task PercentDeadBandErr001NegativeDeadbandValueAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1244,8 +1162,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "Err-002")]
         public async Task PercentDeadBandErr002PercentDeadbandExceedsHundredAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1280,8 +1196,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "Err-003")]
         public async Task PercentDeadBandErr003InvalidDeadbandTypeAsync()
         {
             NodeId analogNode = ToNodeId(Constants.AnalogTypeDouble);
@@ -1315,8 +1229,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "Err-004")]
         public async Task PercentDeadBandErr004DeadbandOnNonAnalogNodeAsync()
         {
             NodeId stringNode = ToNodeId(Constants.ScalarStaticString);
@@ -1345,8 +1257,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access PercentDeadBand")]
-        [Property("Tag", "Err-005")]
         public async Task PercentDeadBandErr005MonitorInvalidNodeAsync()
         {
             uint subId = await CreateSubscriptionAsync(250).ConfigureAwait(false);
@@ -1374,8 +1284,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "000")]
         public async Task TwoState000ReadBooleanValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1384,8 +1292,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "001")]
         public async Task TwoState001ReadBooleanDisplayNameAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1396,8 +1302,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "002")]
         public async Task TwoState002ReadBooleanBrowseNameAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1408,8 +1312,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "003")]
         public async Task TwoState003ReadBooleanNodeClassAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1421,8 +1323,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "004")]
         public async Task TwoState004ReadBooleanDataTypeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1434,8 +1334,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "005")]
         public async Task TwoState005WriteTrueValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1453,8 +1351,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "006")]
         public async Task TwoState006WriteFalseValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1472,8 +1368,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "007")]
         public async Task TwoState007ToggleBooleanValueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1497,8 +1391,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "008")]
         public async Task TwoState008ReadAccessLevelAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1508,8 +1400,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "009")]
         public async Task TwoState009ReadValueRankAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1521,8 +1411,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-001")]
         public async Task TwoState66001CreateSubscriptionForBooleanAsync()
         {
             uint subId = await CreateSubscriptionAsync().ConfigureAwait(false);
@@ -1537,8 +1425,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-002")]
         public async Task TwoState66002MonitorBooleanValueChangesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1565,8 +1451,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-003")]
         public async Task TwoState66003MonitorWithStatusTriggerAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1601,8 +1485,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-004")]
         public async Task TwoState66004MonitorWithStatusValueTriggerAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1637,8 +1519,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-005")]
         public async Task TwoState66005ModifyMonitoredItemSamplingIntervalAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1689,8 +1569,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-006")]
         public async Task TwoState66006DeleteMonitoredItemAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1728,8 +1606,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "6.6-007")]
         public async Task TwoState66007DeleteSubscriptionAsync()
         {
             uint subId = await CreateSubscriptionAsync(250).ConfigureAwait(false);
@@ -1757,8 +1633,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-001")]
         public async Task TwoStateErr001WriteWrongTypeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1780,8 +1654,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-002")]
         public async Task TwoStateErr002ReadInvalidNodeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -1801,8 +1673,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-003")]
         public async Task TwoStateErr003WriteInvalidNodeAsync()
         {
             WriteResponse response = await Session.WriteAsync(
@@ -1822,8 +1692,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-004")]
         public async Task TwoStateErr004WriteInvalidAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1846,8 +1714,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-005")]
         public async Task TwoStateErr005ReadInvalidAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1869,8 +1735,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-006")]
         public async Task TwoStateErr006MonitorInvalidNodeAsync()
         {
             uint subId = await CreateSubscriptionAsync(250).ConfigureAwait(false);
@@ -1896,8 +1760,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-007")]
         public async Task TwoStateErr007MonitorInvalidAttributeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1940,8 +1802,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-008")]
         public async Task TwoStateErr008WriteInt32ToBooleanNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1963,8 +1823,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-009")]
         public async Task TwoStateErr009WriteDoubleToBooleanNodeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticBoolean);
@@ -1986,8 +1844,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-010")]
         public async Task TwoStateErr010BatchReadWithOneInvalidAsync()
         {
             NodeId validNode = ToNodeId(Constants.ScalarStaticBoolean);
@@ -2015,8 +1871,6 @@ namespace Opc.Ua.Conformance.Tests.DataAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Data Access TwoState")]
-        [Property("Tag", "Err-011")]
         public async Task TwoStateErr011BatchWriteWithOneInvalidAsync()
         {
             NodeId validNode = ToNodeId(Constants.ScalarStaticBoolean);

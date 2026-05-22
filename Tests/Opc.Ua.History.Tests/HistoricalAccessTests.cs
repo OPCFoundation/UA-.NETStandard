@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.HistoricalAccess
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for Historical Access services.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
     public class HistoricalAccessTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "001")]
         public async Task HistoryReadRawDataReturnsResultAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -80,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "002")]
         public async Task HistoryReadWithTimeRangeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -116,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "016")]
         public async Task HistoryReadWithMaxValuesAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -152,8 +148,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "Err-008")]
         public async Task HistoryReadNonExistentNodeAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -186,8 +180,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadServerCurrentTimeAsync()
         {
             DateTime endTime = DateTime.UtcNow;
@@ -218,8 +210,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryUpdateInsertAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -265,8 +255,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
         }
 
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryUpdateDeleteAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -310,8 +298,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify that HistoryRead with ReadRawModifiedDetails returns a response with the correct number of Results entries.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "001")]
         public async Task HistoryReadWithReadRawModifiedDetailsVerifyStructureAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -353,8 +339,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify that HistoryRead where startTime is after endTime returns a result (may be empty or an error status).")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "002")]
         public async Task HistoryReadWithStartTimeAfterEndTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -386,8 +370,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify HistoryRead with IsReadModified set to true. Servers that do not support modified history should be skipped via Assert.Ignore.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadWithIsReadModifiedTrueAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -423,8 +405,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify that NumValuesPerNode constrains the number of returned data values.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "016")]
         public async Task HistoryReadWithNumValuesPerNodeLimitAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -471,8 +451,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify continuation point handling by requesting one value at a time and releasing the continuation point.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "008")]
         public async Task HistoryReadWithContinuationPointAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -534,8 +512,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify HistoryUpdate with UpdateDataDetails using the Update perform-insert-replace mode.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryUpdateWithUpdateDataDetailsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -582,8 +558,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify HistoryUpdate with DeleteRawModifiedDetails over a time range. Handles servers that do not support deletion.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryUpdateWithDeleteRawModifiedDetailsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
@@ -627,8 +601,6 @@ namespace Opc.Ua.Conformance.Tests.HistoricalAccess
 
         [Description("Verify that HistoryRead can read history for multiple nodes in a single request and returns one result per node.")]
         [Test]
-        [Property("ConformanceUnit", "Historical Access Read Raw")]
-        [Property("Tag", "N/A")]
         public async Task HistoryReadMultipleNodesAtOnceAsync()
         {
             NodeId nodeId1 = ToNodeId(Constants.ScalarStaticDouble);

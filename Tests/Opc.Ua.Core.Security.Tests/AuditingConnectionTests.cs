@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.Auditing
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for auditing connection event type properties.
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
     public class AuditingConnectionTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionHasSecureChannelIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -59,8 +59,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionHasClientCertificateAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -71,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionHasClientCertificateThumbprintAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -84,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionHasRevisedSessionTimeoutAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -97,8 +91,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCreateSessionIsSubtypeOfAuditSessionAsync()
         {
             await VerifySubtypeOfAsync(
@@ -107,8 +99,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditActivateSessionHasSoftwareCertificatesAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -122,8 +112,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditActivateSessionHasUserIdentityTokenAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -135,8 +123,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditActivateSessionHasSecureChannelIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -147,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditOpenSecureChannelHasClientCertificateAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -160,8 +144,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditOpenSecureChannelHasClientCertThumbprintAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -173,8 +155,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditOpenSecureChannelHasRequestTypeAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -185,8 +165,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditOpenSecureChannelHasSecurityPolicyUriAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -198,8 +176,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditOpenSecureChannelHasSecurityModeAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -210,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditOpenSecureChannelHasRequestedLifetimeAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -223,8 +197,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditWriteUpdateHasAttributeIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -235,8 +207,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditWriteUpdateHasIndexRangeAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -247,8 +217,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditWriteUpdateHasOldValueAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -259,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditWriteUpdateHasNewValueAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -271,8 +237,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditWriteUpdateIsSubtypeOfAuditUpdateAsync()
         {
             await VerifySubtypeOfAsync(
@@ -281,8 +245,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditUpdateMethodHasMethodIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -293,8 +255,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditUpdateMethodHasInputArgumentsAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -305,8 +265,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditEventTypeHasActionTimeStampAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -317,8 +275,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditEventTypeHasStatusAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -329,8 +285,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditEventTypeHasServerIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -341,8 +295,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditEventTypeHasClientAuditEntryIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -353,8 +305,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditEventTypeHasClientUserIdAsync()
         {
             bool has = await TypeHasPropertyAsync(
@@ -365,8 +315,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCertificateEventTypeExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -377,8 +325,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCertificateDataMismatchExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -389,8 +335,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCertificateExpiredExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -401,8 +345,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCertificateInvalidExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -413,8 +355,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCertificateUntrustedExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(
@@ -425,8 +365,6 @@ namespace Opc.Ua.Conformance.Tests.Auditing
         }
 
         [Test]
-        [Property("ConformanceUnit", "Auditing Connections")]
-        [Property("Tag", "006")]
         public async Task AuditCertificateRevokedExistsAsync()
         {
             DataValue result = await ReadAttributeAsync(

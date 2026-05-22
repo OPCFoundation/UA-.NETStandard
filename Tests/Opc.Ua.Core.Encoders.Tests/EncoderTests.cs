@@ -36,43 +36,10 @@ using System.IO;
 using System.Xml;
 using NUnit.Framework;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+using Opc.Ua.Core.TestFramework;
+
+namespace Opc.Ua.Core.Encoders.Tests
 {
-    /// <summary>
-    /// A group of encoder types.
-    /// </summary>
-    public class EncodingTypeGroup : IFormattable
-    {
-        public EncodingTypeGroup(
-            EncodingType encoderType,
-            JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose,
-            bool useXmlParser = false)
-        {
-            EncoderType = encoderType;
-            JsonEncodingType = jsonEncodingType;
-            UseXmlParser = useXmlParser;
-        }
-
-        public EncodingType EncoderType { get; }
-
-        public JsonEncodingType JsonEncodingType { get; }
-
-        public bool UseXmlParser { get; }
-
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            if (EncoderType == EncodingType.Json)
-            {
-                return Utils.Format("{0}:{1}", EncoderType, JsonEncodingType);
-            }
-            if (EncoderType == EncodingType.Xml)
-            {
-                return Utils.Format("{0}:{1}", EncoderType, UseXmlParser ? "Parser" : "Reader");
-            }
-            return Utils.Format("{0}", EncoderType);
-        }
-    }
-
     /// <summary>
     /// Tests for the IEncoder and IDecoder class.
     /// </summary>

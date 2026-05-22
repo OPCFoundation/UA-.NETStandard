@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Suppression conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsSuppressionTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Suppression")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeHasSuppressedStateAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -56,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Suppression")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeHasSuppressedOrShelvedAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -68,8 +64,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Suppression")]
-        [Property("Tag", "Test_001")]
         public async Task AlarmConditionTypeHasMaxTimeShelvedAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -80,8 +74,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Suppression")]
-        [Property("Tag", "Test_002")]
         public async Task SuppressionStateTransitionAsync()
         {
             foreach (System.Collections.Generic.KeyValuePair<string, NodeId> kvp

@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery Get Endpoints.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     {
         [Description("Provide a list of supported locales. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "002")]
         public async Task GetEndpointsWithSupportedLocalesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -57,8 +57,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Invoke GetEndpoints with default parameters while specifying a list of transport ProfileUris to filter. How this test works: 1.) call getEndpoints using default parameters only 2.)")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithTransportProfileUrisFilterAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -71,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("List with supported and unsupported locales. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsWithMixedSupportedAndUnsupportedLocalesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -85,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide a list of locales not conforming to RFC 3066. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "005")]
         public async Task GetEndpointsWithNonRfc3066LocalesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -99,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide an endpoint description Url with a hostname not known to the server. Service result = �Good�. Server returns a default EndpointUrl. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "008")]
         public async Task GetEndpointsWithUnknownHostnameReturnsDefaultAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -113,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Multiple hostnames defined on the computer, the certificate contains those hostnames. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "009")]
         public async Task GetEndpointsWithMultipleHostnamesInCertificateAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -127,8 +117,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide an invalid endpoint URL (string, but syntactically not a URL).")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "010")]
         public async Task GetEndpointsWithInvalidEndpointUrlAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -141,8 +129,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Unsupported profile URI. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "011")]
         public async Task GetEndpointsWithUnsupportedProfileUriAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -155,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Set endpointUrl = null.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "Err-001")]
         public async Task GetEndpointsWithNullEndpointUrlAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);

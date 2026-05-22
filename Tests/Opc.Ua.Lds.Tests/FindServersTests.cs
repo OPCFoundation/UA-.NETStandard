@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery Service Set – FindServers.
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     {
         [Description("FindServers with no filters returns at least one server.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServers001NoFilterAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -66,8 +66,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("FindServers with matching server URI returns the server.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServers002MatchingServerUriAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -90,8 +88,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("FindServers with non-matching URI returns empty result. When filtering by a URI that does not match any registered server, the result should contain no applications.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "002")]
         public async Task FindServers003NonMatchingUriAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
@@ -126,8 +122,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify returned ApplicationDescription has valid fields. Each server must have ApplicationUri, ApplicationName, ApplicationType, and DiscoveryUrls.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "001")]
         public async Task FindServers004VerifyApplicationDescriptionAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);

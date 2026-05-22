@@ -35,7 +35,9 @@ using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class UserManagementDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "032")]
         public void AddUserWithMinNameLength()
         {
             EnsureUserDatabase();
@@ -61,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "033")]
         public void AddUserWithMaxNameLength()
         {
             EnsureUserDatabase();
@@ -79,8 +77,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "034")]
         public void AddUserWithUnicodeName()
         {
             EnsureUserDatabase();
@@ -96,8 +92,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "035")]
         public void AddUserWithNullNameThrows()
         {
             EnsureUserDatabase();
@@ -105,8 +99,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "036")]
         public void AddUserWithWhitespaceName()
         {
             EnsureUserDatabase();
@@ -122,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "037")]
         public void VerifyCredentialsAfterCreation()
         {
             EnsureUserDatabase();
@@ -141,8 +131,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "038")]
         public void RemoveNonExistentUserReturnsFalse()
         {
             EnsureUserDatabase();
@@ -150,8 +138,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "039")]
         public void RemoveUserTwiceSecondReturnsFalse()
         {
             EnsureUserDatabase();
@@ -162,8 +148,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "040")]
         public void UpdatePasswordSucceeds()
         {
             EnsureUserDatabase();
@@ -202,8 +186,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "041")]
         public void CheckRolesAfterCreation()
         {
             EnsureUserDatabase();
@@ -223,8 +205,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "042")]
         public void CreateUserWithEmptyRoles()
         {
             EnsureUserDatabase();
@@ -240,8 +220,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "043")]
         public void InvalidRoleFails()
         {
             EnsureUserDatabase();
@@ -257,8 +235,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "044")]
         public void CreateUserDuplicateNameOverwrites()
         {
             EnsureUserDatabase();
@@ -277,8 +253,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "045")]
         public void MinPasswordLengthAccepted()
         {
             EnsureUserDatabase();
@@ -294,8 +268,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "046")]
         public void MaxPasswordLengthAccepted()
         {
             EnsureUserDatabase();
@@ -313,8 +285,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "047")]
         public void UnicodePasswordAccepted()
         {
             EnsureUserDatabase();
@@ -331,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "048")]
         public void SequentialPasswordChanges()
         {
             EnsureUserDatabase();
@@ -351,8 +319,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "049")]
         public void OldPasswordFailsAfterChange()
         {
             EnsureUserDatabase();
@@ -369,8 +335,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             }
         }
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "051")]
         public void AddTenUsersSequentially()
         {
             EnsureUserDatabase();
@@ -396,8 +360,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "052")]
         public void RemoveTenUsersSequentially()
         {
             EnsureUserDatabase();
@@ -416,8 +378,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "053")]
         public void RapidAddRemoveCycle()
         {
             EnsureUserDatabase();
@@ -430,8 +390,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "054")]
         public async Task ThreeSimultaneousSessionsSucceedAsync()
         {
             ISession s1 = null;
@@ -471,8 +429,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "055")]
         public async Task ConnectThenDeleteUserSessionStillActiveAsync()
         {
             EnsureUserDatabase();
@@ -502,8 +458,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "056")]
         public async Task ReconnectAfterDeletionFailsAsync()
         {
             EnsureUserDatabase();
@@ -522,8 +476,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "057")]
         public async Task ChangePasswordActiveSessionAsync()
         {
             EnsureUserDatabase();
@@ -552,8 +504,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "058")]
         public async Task NewSessionNeedsNewPasswordAsync()
         {
             EnsureUserDatabase();
@@ -578,8 +528,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             }
         }
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "060")]
         public void AllRolesAssignableToUser()
         {
             EnsureUserDatabase();
@@ -598,8 +546,6 @@ namespace Opc.Ua.Conformance.Tests.Security
             }
         }
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "062")]
         public void CaseSensitiveUserName()
         {
             EnsureUserDatabase();
@@ -618,8 +564,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "063")]
         public void EmptyPasswordHandled()
         {
             EnsureUserDatabase();
@@ -643,8 +587,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Management Server")]
-        [Property("Tag", "064")]
         public void SpecialCharactersInPassword()
         {
             EnsureUserDatabase();

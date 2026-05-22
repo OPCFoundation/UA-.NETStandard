@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -39,8 +41,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityRoleServerAuthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Authorization")]
-        [Property("Tag", "001")]
         public async Task Auth001RestrictAccessByRoleAsync()
         {
             ISession adminSession = null;
@@ -80,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Authorization")]
-        [Property("Tag", "002")]
         public async Task Auth002UnmappedUserCannotLoginAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync()

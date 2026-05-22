@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AttributeServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Attribute Write Values.
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
     {
         [Description("Write to the Value attribute of a Variable, where the AccessLevel == CurrentWriteService.*/")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "004")]
         public async Task WriteValueWithCurrentWriteAccessSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -63,8 +63,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write the minimum value for each supported data-type. Some items may fail with BadOutOfRange. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "005")]
         public async Task WriteMinimumValueForSupportedDataTypesSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -82,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write the MAXIMUM value for each supported data-type. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "006")]
         public async Task WriteMaximumValueForSupportedDataTypesSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -101,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a localizedText passing in all params, no params, and some params. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "009")]
         public async Task WriteLocalizedTextWithVariousParametersSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -120,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("write to a node of type INTEGER where the data-type of the value is specified as SByte, Int16, Int32, and Int64; where the value is: - Data-type max - Data-type min */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "010")]
         public async Task WriteIntegerWithSignedDataTypeVariantsSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -139,8 +131,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("write to a node of type UINTEGER where the data-type of the value is specified as Byte, UInt16, UInt32, and UInt64; where the value is: - Data-type max - Data-type min */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "011")]
         public async Task WriteUIntegerWithUnsignedDataTypeVariantsSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -158,8 +148,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write() a value of NaN to all configured floating point numbers (Float, Double &amp; Duration). */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "012")]
         public async Task WriteNaNToFloatingPointTypesSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -175,10 +163,8 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
             Assert.That(StatusCode.IsGood(response.Results[0]), Is.True);
         }
 
-        [Description("Write to a string variable; specify a value within the extended code-page */ include( &quot;./library/Information/InfoFactory.js&quot; );")]
+        [Description("Write to a string variable; specify a value within the extended code-page")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "013")]
         public async Task WriteStringWithExtendedCodePageSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -196,8 +182,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to the Value attribute (without statusCode, sourceTimestamp, or serverTimestamp) of several nodes that has a ValueRank of array. Write the entire array. This test should be d")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "019")]
         public async Task WriteEntireArrayValueSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -215,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to the Value attribute (without statusCode, sourceTimestamp, or serverTimestamp) of nodes which have a ValueRank of a multi-dimensional array. Write the entire multi-dimensio")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "020")]
         public async Task WriteEntireMultiDimensionalArraySucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -234,8 +216,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to the Value attribute (without statusCode, sourceTimestamp, or serverTimestamp) of several nodes which have aValueRank of a multi-dimensional array. Write the entire multi-d")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "021")]
         public async Task WriteEntireMultiDimensionalArrayToMultipleNodesSucceedsAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -253,8 +233,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("nodesToWrite array empty; expected service result = BadNothingToDo. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-001")]
         public async Task WriteEmptyArrayReturnsBadNothingToDoAsync()
         {
             ArrayOf<WriteValue> wv = Array.Empty<WriteValue>().ToArrayOf();
@@ -285,8 +263,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to valid attributes of multiple unknown nodes, in a single call. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-004")]
         public async Task WriteToMultipleUnknownNodesReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -330,8 +306,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to an invalid (non-writable) attribute of a valid node. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-005")]
         public async Task WriteToNonWritableAttributeReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -359,8 +333,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to invalid (non-writable) attributes of a valid node, multiple times in the same call. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-006")]
         public async Task WriteToMultipleNonWritableAttributesReturnsBadStatusAsync()
         {
             NodeId target = ToNodeId(Constants.ScalarStaticInt32);
@@ -400,8 +372,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a node whose AccessLevel does not contain write capabilities. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-007")]
         public async Task WriteToReadOnlyNodeReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -428,8 +398,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write a NULL value for each supported data-type. Expect a Bad_TypeMismatch for each operation level result. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-009")]
         public async Task WriteNullValueReturnsBadTypeMismatchAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -447,8 +415,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("write to a node of type UINTEGER where the data-type of the value is specified as SByte, Int16, Int32, and Int64 */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-010")]
         public async Task WriteSignedTypeToUIntegerNodeReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -466,8 +432,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("write to a node of type INTEGER where the data-type of the value is specified as SByte, UInt16, UInt32, and UInt64 */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-011")]
         public async Task WriteUnsignedTypeToIntegerNodeReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -485,8 +449,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a node of type INTEGER where the data-type of the value is specified as float. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-012")]
         public async Task WriteFloatToIntegerNodeReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]
@@ -504,8 +466,6 @@ namespace Opc.Ua.Conformance.Tests.AttributeServices
 
         [Description("Write to a LocalizedText with a valid value, but specify a localeId that is known to not be supported, e g. aardvark. */")]
         [Test]
-        [Property("ConformanceUnit", "Attribute Write Values")]
-        [Property("Tag", "Err-015")]
         public async Task WriteLocalizedTextWithUnsupportedLocaleReturnsBadStatusAsync()
         {
             ArrayOf<WriteValue> wv = new WriteValue[]

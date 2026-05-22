@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Branch conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsBranchTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasBranchIdPropertyAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -55,8 +53,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasRetainAsync()
         {
             bool found = await TypeHasChildAsync(
@@ -66,8 +62,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_002")]
         public async Task BranchCreatedOnStateChangeAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -79,8 +73,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_006")]
         public async Task BranchHasNonNullBranchIdAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -95,8 +87,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_003")]
         public async Task AcknowledgeBranchAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -123,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_007")]
         public async Task ConfirmBranchAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -151,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Branch")]
-        [Property("Tag", "Test_004")]
         public async Task BranchHasRetainPropertyAsync()
         {
             NodeId alarmId = RequireAlarm();

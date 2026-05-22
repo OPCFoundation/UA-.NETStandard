@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -39,8 +41,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityRoleServerBase2Tests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "001")]
         public async Task Base2VerifyNamespacesObject001Async()
         {
             NodeId namespacesId = ToNodeId(
@@ -71,8 +71,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "002")]
         public async Task Base2VerifyNamespaceMetadataInstance002Async()
         {
             NodeId namespacesId = ToNodeId(
@@ -105,8 +103,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "004")]
         public async Task Base2DefaultRolePermissions004Async()
         {
             NodeId namespacesId = ToNodeId(
@@ -143,8 +139,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "005")]
         public async Task Base2DefaultUserRolePermissions005Async()
         {
             NodeId namespacesId = ToNodeId(
@@ -181,8 +175,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "006")]
         public async Task Base2DefaultAccessRestrictions006Async()
         {
             NodeId namespacesId = ToNodeId(
@@ -219,8 +211,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "007")]
         public async Task Base2FindRolePermissions007Async()
         {
             NodeId objectsId = ToNodeId(ObjectIds.ObjectsFolder);
@@ -258,8 +248,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "008")]
         public async Task Base2FindUserRolePermissions008Async()
         {
             NodeId objectsId = ToNodeId(ObjectIds.ObjectsFolder);
@@ -298,8 +286,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Role Server Base 2")]
-        [Property("Tag", "009")]
         public async Task Base2FindAccessRestrictions009Async()
         {
             NodeId objectsId = ToNodeId(ObjectIds.ObjectsFolder);

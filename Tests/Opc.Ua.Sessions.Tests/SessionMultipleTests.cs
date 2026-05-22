@@ -31,7 +31,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.SessionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
     /// compliance tests for Session Multiple.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
     {
         [Description("Create two sessions, activate them, and then close them.")]
         [Test]
-        [Property("ConformanceUnit", "Session Multiple")]
-        [Property("Tag", "001")]
         public async Task TwoActiveSessionsCanBeCreatedAndClosedAsync()
         {
             using ISession session2 = await ClientFixture.ConnectAsync(
@@ -56,8 +56,6 @@ namespace Opc.Ua.Conformance.Tests.SessionServices
 
         [Description("Check that a session can't be closed from a different SecureChannel")]
         [Test]
-        [Property("ConformanceUnit", "Session Multiple")]
-        [Property("Tag", "Err-001")]
         public async Task SessionCannotBeClosedFromDifferentSecureChannelAsync()
         {
             Assert.Ignore("Multiple sessions error requires session limit config.");

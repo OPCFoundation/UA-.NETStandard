@@ -30,7 +30,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
     /// compliance tests for the A and C Enable conformance unit.
@@ -44,8 +44,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
     public class AlarmsAndConditionsEnableTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasEnableAndDisableMethodsAsync()
         {
             BrowseResult result = await BrowseForwardAsync(
@@ -72,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Test_001")]
         public async Task ConditionTypeHasEnabledStateAsync()
         {
             BrowseResult result = await BrowseForwardAsync(
@@ -93,8 +89,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Test_002")]
         public async Task EnableConditionSetsEnabledStateTrueAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -119,8 +113,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Test_002")]
         public async Task DisableConditionSetsEnabledStateFalseAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -149,8 +141,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "N/A")]
         public async Task ErrEnableWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -162,8 +152,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "N/A")]
         public async Task ErrDisableWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -175,8 +163,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Err_005")]
         public async Task ErrEnableAlreadyEnabledAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -196,8 +182,6 @@ namespace Opc.Ua.Conformance.Tests.AlarmsAndConditions
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Err_004")]
         public async Task ErrDisableAlreadyDisabledAsync()
         {
             NodeId alarmId = RequireAlarm();

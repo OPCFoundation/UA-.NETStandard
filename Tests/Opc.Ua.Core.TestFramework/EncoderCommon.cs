@@ -48,7 +48,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Core.Tests.Types.Encoders
+namespace Opc.Ua.Core.TestFramework
 {
     /// <summary>
     /// Supported memory stream types.

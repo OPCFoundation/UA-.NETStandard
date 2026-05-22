@@ -37,7 +37,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
-namespace Opc.Ua.Server.Tests
+namespace Opc.Ua.Server.TestFramework
 {
     /// <summary>
     /// Server fixture for testing.

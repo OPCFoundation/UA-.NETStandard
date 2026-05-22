@@ -36,7 +36,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// Helper that opens an OPC UA session against the in-process

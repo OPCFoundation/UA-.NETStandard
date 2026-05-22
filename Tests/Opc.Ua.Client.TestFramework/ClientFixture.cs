@@ -38,9 +38,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
-using Opc.Ua.Server.Tests;
+using Opc.Ua.Server.TestFramework;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Client fixture for tests.

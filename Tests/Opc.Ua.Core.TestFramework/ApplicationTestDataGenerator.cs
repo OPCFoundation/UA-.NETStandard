@@ -33,7 +33,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Opc.Ua.Test;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.TestFramework
 {
     public
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS

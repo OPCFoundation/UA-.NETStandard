@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds;
 
-namespace Opc.Ua.Conformance.Tests.GDS
+namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// compliance tests for GDS Certificate Group and Trust List management.
@@ -72,8 +72,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseCertificateGroupsOnDirectoryAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -84,8 +82,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseDefaultApplicationGroupExistsAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -101,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task ReadDefaultApplicationGroupCertificateTypesAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -142,8 +136,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task ReadTrustListFromDefaultApplicationGroupAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -165,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task ReadTrustListSizePropertyAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -209,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task VerifyTrustListOpenCloseMethodsExistAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -243,8 +231,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task BrowseCertificateGroupTypeDefinitionAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -263,8 +249,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "000")]
         public async Task VerifyDefaultHttpsGroupExistsIfSupportedAsync()
         {
             ReferenceDescription certGroupsRef = await FindChildAsync(
@@ -285,8 +269,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task GetCertificateGroupsForRegisteredApplicationAsync()
         {
             NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetCertificateGroups);
@@ -319,8 +301,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task GetTrustListForCertificateGroupAsync()
         {
             // First get the certificate groups
@@ -370,8 +350,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task GetCertificateStatusReturnsBooleanAsync()
         {
             // Get certificate groups first
@@ -423,8 +401,6 @@ namespace Opc.Ua.Conformance.Tests.GDS
         }
 
         [Test]
-        [Property("ConformanceUnit", "GDS Application Directory")]
-        [Property("Tag", "001")]
         public async Task StartSigningRequestAndFinishRequestAsync()
         {
             // Get certificate groups first

@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.InformationModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Base Information capabilities, modelling rules,
@@ -44,8 +46,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
     public class BaseInfoCapabilitiesTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "015")]
         public async Task ReadMaxSubscriptionsPerSessionAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -61,8 +61,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "015")]
         public async Task ReadMaxMonitoredItemsPerSubscriptionAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -78,8 +76,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task VerifyModellingRuleMandatoryExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -102,8 +98,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task VerifyModellingRuleOptionalExistsAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -126,8 +120,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadServerNamespacesFolderAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -153,8 +145,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task VerifyServerRedundancyExistsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -190,8 +180,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task ReadRedundancySupportAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -206,8 +194,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task BrowseServerCapabilitiesOperationLimitsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -233,8 +219,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "011")]
         public async Task ReadOperationLimitsMaxNodesPerHistoryReadDataAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -245,8 +229,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "011")]
         public async Task ReadOperationLimitsMaxNodesPerHistoryReadEventsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -257,8 +239,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "012")]
         public async Task ReadOperationLimitsMaxNodesPerHistoryUpdateDataAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -269,8 +249,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "012")]
         public async Task ReadOperationLimitsMaxNodesPerHistoryUpdateEventsAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -281,8 +259,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "011")]
         public async Task ReadOperationLimitsMaxNodesPerNodeManagementAsync()
         {
             DataValue result = await ReadNodeValueAsync(
@@ -293,8 +269,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "001")]
         public async Task VerifyRolesFolderExistsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -324,8 +298,6 @@ namespace Opc.Ua.Conformance.Tests.InformationModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Base Info Server Capabilities 2")]
-        [Property("Tag", "015")]
         public async Task ReadMaxMonitoredItemsQueueSizeAsync()
         {
             DataValue result = await ReadNodeValueAsync(

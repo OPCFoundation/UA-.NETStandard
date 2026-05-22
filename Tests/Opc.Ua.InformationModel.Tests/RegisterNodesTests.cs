@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.ViewServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for View Service Set – RegisterNodes / UnregisterNodes.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
     public class RegisterNodesTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "001")]
         public async Task RegisterSingleNodeReturnsGoodAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -65,8 +65,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "002")]
         public async Task RegisterMultipleNodesReturnsGoodAsync()
         {
             ArrayOf<NodeId> nodeIds = new NodeId[]
@@ -93,8 +91,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "011")]
         public async Task UnregisterNodesReturnsGoodAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -113,8 +109,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "001")]
         public async Task ReadUsingRegisteredNodeIdsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -149,8 +143,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "Err-005")]
         public async Task RegisterNodesWithInvalidNodeIdStillSucceedsAsync()
         {
             // Per spec, RegisterNodes should not validate node existence
@@ -170,8 +162,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "002")]
         public async Task RegisterAndReadMultipleRegisteredNodesAsync()
         {
             ArrayOf<NodeId> nodeIds = new NodeId[]
@@ -209,8 +199,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "006")]
         public async Task RegisterSameNodeTwiceReturnsResultsAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
@@ -231,8 +219,6 @@ namespace Opc.Ua.Conformance.Tests.ViewServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "View RegisterNodes")]
-        [Property("Tag", "001")]
         public async Task WriteUsingRegisteredNodeIdAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);

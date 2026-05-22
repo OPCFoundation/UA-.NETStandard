@@ -31,7 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ISession = Opc.Ua.Client.ISession;
-namespace Opc.Ua.Conformance.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Extension helpers for ISession used by the conformance test suite.
@@ -53,7 +53,7 @@ namespace Opc.Ua.Conformance.Tests
     /// status the underlying channel would eventually surface.
     /// </para>
     /// </remarks>
-    internal static class SessionPublishHelper
+    public static class SessionPublishHelper
     {
         /// <summary>
         /// Default per-call Publish timeout for conformance tests (15 s).

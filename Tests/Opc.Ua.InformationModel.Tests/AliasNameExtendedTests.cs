@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AliasName
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     [TestFixture]
     [Category("Conformance")]
@@ -54,9 +56,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
-
         public async Task AliasCatTypeBrowseNameValidAsync()
         {
             DataValue r = await RdAttr(AliasCatTypeId, Attributes.BrowseName).ConfigureAwait(
@@ -69,8 +68,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task AliasNameTypeBrowseNameValidAsync()
         {
             DataValue r = await RdAttr(AliasNameTypeId, Attributes.BrowseName).ConfigureAwait(
@@ -83,8 +80,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task AliasCatIsSubtypeOfFolderTypeAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(null, null, 0, new BrowseDescription[] { new() {
@@ -102,8 +97,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task AliasNameTypeIsSubtypeOfBaseAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(null, null, 0, new BrowseDescription[] { new() {
@@ -121,8 +114,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task HasAliasIsNonHierarchicalAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(null, null, 0, new BrowseDescription[] { new() {
@@ -142,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "003")]
         public async Task AliasCatBrowseForComponentsAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(null, null, 0, new BrowseDescription[] { new() {
@@ -161,8 +150,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public Task AliasNameFindServersNotRequired()
         {
             Assert.Ignore("AliasName FindServers CU is optional.");
@@ -170,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public Task AliasNameRegisterNotRequired()
         {
             Assert.Ignore("AliasName Register CU is optional.");
@@ -179,8 +164,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "N/A")]
         public Task AliasNameSecurityAdminNotRequired()
         {
             Assert.Ignore("AliasName SecurityAdmin CU is optional.");
@@ -188,9 +171,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
-
         public async Task AliasForRefTypeExistsAsync()
         {
             // Standard nodeset has AliasFor at i=23469, not i=23471.
@@ -205,8 +185,6 @@ namespace Opc.Ua.Conformance.Tests.AliasName
         }
 
         [Test]
-        [Property("ConformanceUnit", "AliasName Base")]
-        [Property("Tag", "001")]
         public async Task AliasCatTranslateFromTypesAsync()
         {
             // Three-step path: ObjectTypesFolder organizes BaseObjectType,

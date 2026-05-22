@@ -34,7 +34,7 @@ using Moq;
 using Opc.Ua.Configuration;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Client.TestFramework
 {
     /// <summary>
     /// Session with channel mock
@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get private field m_serverNonce from base class using reflection
         /// </summary>
-        internal ByteString ServerNonce =>
+        public ByteString ServerNonce =>
             (ByteString)typeof(Session)
                 .GetField(
                     "m_serverNonce",
@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Create the mock
         /// </summary>
-        internal SessionMock(
+        public SessionMock(
             Mock<ITransportChannel> channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.Tests
                     }));
         }
 
-        internal void SetConnected()
+        public void SetConnected()
         {
             SessionCreated(NodeId.Parse("s=connected"), NodeId.Parse("s=auth"));
             RenewUserIdentity += Sut_RenewUserIdentity;

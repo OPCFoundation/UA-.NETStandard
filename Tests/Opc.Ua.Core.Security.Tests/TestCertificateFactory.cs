@@ -32,7 +32,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Conformance.Tests.Security
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// Programmatically generates X.509 application instance

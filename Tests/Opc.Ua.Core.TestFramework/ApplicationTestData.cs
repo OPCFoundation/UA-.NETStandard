@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.Core.TestFramework
 {
     public class ApplicationTestData
     {

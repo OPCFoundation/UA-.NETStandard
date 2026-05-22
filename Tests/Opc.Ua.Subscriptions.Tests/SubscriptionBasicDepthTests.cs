@@ -34,7 +34,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using ISession = Opc.Ua.Client.ISession;
 
-namespace Opc.Ua.Conformance.Tests.SubscriptionServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// Depth compliance tests for Subscription Basic covering publish
@@ -50,8 +52,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
     public class SubscriptionBasicDepthTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishRequestQueuedBeforeSubscriptionHasDataAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishRequestDequeuedInOrderAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -105,8 +103,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishRequestOnePerSubscriptionServicedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -128,8 +124,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-012")]
         public async Task PublishWithZeroSubscriptionsReturnsErrorAsync()
         {
             Client.ISession freshSession = await ClientFixture
@@ -151,8 +145,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-012")]
         public async Task PublishAfterAllSubscriptionsDeletedReturnsErrorAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -170,8 +162,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-012")]
         public async Task PublishAfterSessionRecreatedNoSubscriptionsAsync()
         {
             Client.ISession freshSession = await ClientFixture
@@ -193,8 +183,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "067")]
         public async Task PublishRequestTimeoutBehaviorAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -212,8 +200,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task MultiplePublishRequestsQueuedAndServicedSequentiallyAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -244,8 +230,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-004")]
         public async Task SubscriptionLifetimeExpiryWithNoPublishRequestsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -271,8 +255,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "016")]
         public async Task SubscriptionLifetimeResetByPublishAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -304,8 +286,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "009")]
         public async Task SubscriptionLifetimeCountMustBeThreeTimesKeepAliveAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -320,8 +300,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "007")]
         public async Task SubscriptionLifetimeWithVerySmallValuesAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -336,8 +314,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "012")]
         public async Task SubscriptionLifetimeWithMaxValuesAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -352,8 +328,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "030")]
         public async Task ModifySubscriptionLifetimeCountAcceptedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -373,8 +347,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "039")]
         public async Task ModifySubscriptionLifetimeCountBelowMinRevisedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -395,8 +367,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "029")]
         public async Task SubscriptionLifetimePreservedAcrossModifyAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -426,8 +396,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "015")]
         public async Task KeepAliveReceivedWithinExpectedIntervalAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -448,8 +416,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "005")]
         public async Task KeepAliveCountZeroRevisedToMinimumAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -463,8 +429,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "006")]
         public async Task KeepAliveCountOneMinimumKeepalivesAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -485,8 +449,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task KeepAliveOnlyWhenNoDataChangesAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -512,8 +474,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "015")]
         public async Task KeepAliveHasEmptyNotificationDataAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -533,8 +493,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "015")]
         public async Task KeepAliveSequenceNumberProgressesAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -565,8 +523,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task KeepAliveSubIdMatchesSubscriptionAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -585,8 +541,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "030")]
         public async Task ModifyKeepAliveCountAndVerifyTimingAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -611,8 +565,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "041")]
         public async Task MaxNotificationsZeroMeansNoLimitAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -638,8 +590,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "040")]
         public async Task MaxNotificationsOneOnlyOneItemPerPublishAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -664,8 +614,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "041")]
         public async Task MaxNotificationsLargerThanItemCountAllDeliveredAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -687,8 +635,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "071")]
         public async Task MaxNotificationsWithMultipleSubscriptionsAsync()
         {
             CreateSubscriptionResponse r1 = await CreateSubAsync(
@@ -734,8 +680,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "040")]
         public async Task MoreNotificationsFlagSetWhenLimitedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -762,8 +706,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "041")]
         public async Task MoreNotificationsFlagClearWhenNotLimitedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -785,8 +727,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "040")]
         public async Task ModifyMaxNotificationsPerPublishAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -804,8 +744,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "040")]
         public async Task MaxNotificationsPerPublishWithQueuedItemsAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -829,8 +767,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishResponseTimingRelativeToIntervalAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -851,8 +787,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishResponseForFastSubscriptionIsQuickAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -878,8 +812,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishResponsePublishTimeIsReasonableAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -905,8 +837,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task PublishResponseContainsCorrectSubscriptionIdAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -928,8 +858,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task SequenceNumberStartsAtOneForNewSubscriptionAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -952,8 +880,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task SequenceNumberGapDetectionAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -988,8 +914,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task SequenceNumberWraparoundAsync()
         {
             // Verify sequence numbers don't wrap in typical use
@@ -1025,8 +949,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "049")]
         public async Task AvailableSequenceNumbersAfterUnacknowledgedAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1056,8 +978,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "050")]
         public async Task AcknowledgeReducesAvailableSequenceNumbersAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1089,8 +1009,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-017")]
         public async Task AcknowledgeInvalidSequenceReturnsErrorAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1114,8 +1032,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "056")]
         public async Task RepublishValidSequenceReturnsOriginalMessageAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1149,8 +1065,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-022")]
         public async Task RepublishInvalidSequenceReturnsBadAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1176,8 +1090,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-023")]
         public async Task RepublishAfterAcknowledgeReturnsBadAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1216,8 +1128,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "057")]
         public async Task RepublishMultipleTimesReturnsSameMessageAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1249,8 +1159,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "071")]
         [Category("LongRunning")]
         public async Task ThreeSubsDifferentIntervalsAllServicedAsync()
         {
@@ -1303,8 +1211,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "071")]
         public async Task SubscriptionsWithSameIntervalBothServicedAsync()
         {
             CreateSubscriptionResponse r1 = await CreateSubAsync(
@@ -1342,8 +1248,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "060")]
         public async Task CreateDeleteCreateSubscriptionIdsUniqueAsync()
         {
             CreateSubscriptionResponse r1 = await CreateSubAsync()
@@ -1362,8 +1266,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "072")]
         public async Task TwentySubscriptionsAllCreateSuccessfullyAsync()
         {
             var ids = new List<uint>();
@@ -1385,8 +1287,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "061")]
         public async Task DeleteMultipleSubscriptionsAtOnceAsync()
         {
             var ids = new List<uint>();
@@ -1410,8 +1310,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-028")]
         public async Task DeleteEmptySubscriptionListReturnsErrorAsync()
         {
             try
@@ -1431,8 +1329,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "001")]
         public async Task CreateSubscriptionWithAllDefaultParametersAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -1450,8 +1346,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "003")]
         public async Task CreateSubscriptionPublishingIntervalMaxDoubleAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -1466,8 +1360,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "060")]
         public async Task CreateSubscriptionThenImmediatelyDeleteAsync()
         {
             CreateSubscriptionResponse resp = await CreateSubAsync()
@@ -1483,8 +1375,6 @@ namespace Opc.Ua.Conformance.Tests.SubscriptionServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Subscription Basic")]
-        [Property("Tag", "Err-005")]
         public Task ModifyNonExistentSubscriptionReturnsBad()
         {
             ServiceResultException ex =

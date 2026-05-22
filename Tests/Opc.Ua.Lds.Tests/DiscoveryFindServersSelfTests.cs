@@ -31,7 +31,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery Find Servers Self.
@@ -43,8 +45,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     {
         [Description("Provide an endpoint description Url with a hostname not known to the server.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "002")]
         public async Task FindServersWithUnknownHostnameAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -57,8 +57,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide a list of locales not conforming to RFC 3066. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "005")]
         public async Task FindServersWithNonRfc3066LocalesAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -71,8 +69,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Provide an invalid endpoint URL (string, but syntactically not a URL). */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "008")]
         public async Task FindServersWithInvalidEndpointUrlAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -85,8 +81,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Repeats test 008, 100 times. Must complete within 10-seconds. */")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "009")]
         public async Task FindServersRepeatedHundredTimesWithinTenSecondsAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -99,8 +93,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("The following test-case covers a multi-homed PC. Call FindServers to obtain a list of all endpoints. Identify if the endpoints returned indicate that the Server is on a multi-homed")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "010")]
         public async Task FindServersOnMultiHomedPcAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -113,8 +105,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("EndpointUrl=null")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "Err-001")]
         public async Task FindServersWithNullEndpointUrlAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);
@@ -127,8 +117,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Include authenticationToken in requestHeader.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Find Servers Self")]
-        [Property("Tag", "Err-002")]
         public async Task FindServersWithAuthenticationTokenInRequestHeaderAsync()
         {
             var ec = EndpointConfiguration.Create(ClientFixture.Config);

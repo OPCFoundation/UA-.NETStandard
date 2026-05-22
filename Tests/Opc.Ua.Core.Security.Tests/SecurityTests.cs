@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Conformance.Tests.Security
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
     /// compliance tests for Security – endpoint security
@@ -47,8 +49,6 @@ namespace Opc.Ua.Conformance.Tests.Security
     public class SecurityTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifyServerAdvertisesSecureEndpointsAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifySecurityPolicyUriIsValidAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -93,8 +91,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "001")]
         public async Task VerifyAnonymousUserTokenOnEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -126,8 +122,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "015")]
         public async Task VerifyUsernameUserTokenOnEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -163,8 +157,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession")]
-        [Property("Tag", "001")]
         public void ConnectWithSecurityModeNone()
         {
             Assert.That(Session.Connected, Is.True);
@@ -174,8 +166,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Anonymous")]
-        [Property("Tag", "004")]
         public async Task ActivateWithAnonymousIdentityAsync()
         {
             ISession additionalSession = await ClientFixture
@@ -194,8 +184,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession")]
-        [Property("Tag", "001")]
         public void SessionSecurityModeIsNone()
         {
             Assert.That(
@@ -204,8 +192,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task VerifyEndpointServerCertificateOnSecureEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -225,8 +211,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifyEndpointSecurityLevelOrderingAsync()
         {
             ArrayOf<EndpointDescription> endpoints =
@@ -249,8 +233,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task ConnectSecondSessionVerifyIndependentSecurityAsync()
         {
             ISession second = await ClientFixture
@@ -273,8 +255,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "003")]
         public async Task ConnectWithEmptyUsernameReturnsBadIdentityTokenInvalidAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -326,8 +306,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "007")]
         public async Task ConnectWithWrongPasswordReturnsBadIdentityTokenRejectedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -378,8 +356,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "001")]
         public async Task ConnectWithSysadminCredentialsAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -428,8 +404,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "002")]
         public async Task ConnectWithAppuserCredentialsAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -477,8 +451,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "009")]
         public async Task ConnectWithSpecialCharsUsernameAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -525,8 +497,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifyEndpointListsUserIdentityTokenTypesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -548,8 +518,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task VerifySecureEndpointsHaveNonEmptyServerCertificateAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -568,8 +536,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifySecurityPolicyUriStartsWithOpcFoundationAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -587,8 +553,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifySecurityLevelHigherForMoreSecureAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -620,8 +584,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Signing Required")]
-        [Property("Tag", "001")]
         public async Task ConnectWithSignSecurityModeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -655,8 +617,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Encryption Required")]
-        [Property("Tag", "001")]
         public async Task ConnectWithSignAndEncryptSecurityModeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -690,8 +650,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task VerifyMinimumKeyLengthOnCertificatesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -717,8 +675,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security None CreateSession ActivateSession")]
-        [Property("Tag", "004")]
         public async Task VerifyNoneEndpointHasZeroSecurityLevelAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -733,8 +689,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task VerifyServerCertificateSubjectDNAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -757,8 +711,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security User Name Password 2")]
-        [Property("Tag", "012")]
         public async Task ConnectWithSysadminWriteToNodeAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -832,8 +784,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifySecureEndpointHasUserTokenPoliciesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -860,8 +810,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Default ApplicationInstance Certificate")]
-        [Property("Tag", "003")]
         public async Task VerifyEndpointApplicationUriMatchesServerAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -879,8 +827,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifyTransportProfileUriAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -893,8 +839,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "SecurityPolicy Support")]
-        [Property("Tag", "001")]
         public async Task VerifyEndpointServerDescriptionIsServerAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -909,8 +853,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit", "Security Certificate Validation")]
-        [Property("Tag", "001")]
         public async Task VerifyEndpointsHaveConsistentServerCertificateAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -938,9 +880,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit",
-            "Security None CreateSession ActivateSession")]
-        [Property("Tag", "001")]
         public async Task NoneSession001InsecureWithCertsAndNonces()
         {
             // Connect on an insecure channel (SecurityMode.None)
@@ -983,9 +922,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit",
-            "Security None CreateSession ActivateSession")]
-        [Property("Tag", "002")]
         public async Task NoneSession002InsecureNoCerts()
         {
             // Connect on an insecure channel without a client
@@ -1023,9 +959,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit",
-            "Security None CreateSession ActivateSession")]
-        [Property("Tag", "003")]
         public async Task NoneSession003InsecureWithCertsNoNonce()
         {
             // Connect on an insecure channel with client certificate
@@ -1063,9 +996,6 @@ namespace Opc.Ua.Conformance.Tests.Security
         }
 
         [Test]
-        [Property("ConformanceUnit",
-            "Security None CreateSession ActivateSession")]
-        [Property("Tag", "004")]
         public async Task NoneSession004InsecureNoCertsNoNonce()
         {
             // Connect on an insecure channel with neither client

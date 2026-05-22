@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.DiscoveryServices
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
     /// compliance tests for Discovery Service Set – FindServers Filter
@@ -46,8 +48,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
     {
         [Description("FindServers with matching ServerUri filter returns only matching servers.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersWithServerUriFilterAsync()
         {
             var endpointConfiguration =
@@ -78,8 +78,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("FindServers with non-matching URI returns empty result.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersNonMatchingUriReturnsEmptyAsync()
         {
             var endpointConfiguration =
@@ -112,8 +110,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("FindServers with LocaleId filter returns servers with valid names.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "002")]
         public async Task FindServersWithLocaleIdFilterAsync()
         {
             var endpointConfiguration =
@@ -137,8 +133,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints with ProfileUri filter for UA-TCP should return TCP endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithTcpProfileFilterAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -161,8 +155,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints for HTTPS – may not be available; skip if absent.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithHttpsProfileFilterAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -185,8 +177,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints with multiple LocaleIds still returns endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "002")]
         public async Task GetEndpointsWithMultipleLocaleIdsAsync()
         {
             var endpointConfiguration =
@@ -204,8 +194,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Discovery endpoint should be accessible without session authentication.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task DiscoveryEndpointAccessibleWithoutAuthAsync()
         {
             var endpointConfiguration =
@@ -224,8 +212,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify endpoint SecurityLevel values are consistent – secure endpoints should have SecurityLevel >= None endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task VerifyEndpointSecurityLevelConsistencyAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -262,8 +248,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify that all endpoints have a valid EndpointUrl.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task AllEndpointsHaveValidUrlAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -276,8 +260,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersReturnsServerOrClientAndServerAsync()
         {
             var endpointConfiguration =
@@ -302,8 +284,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "013")]
         public async Task FindServersVerifyDiscoveryUrlsContainPortAsync()
         {
             var endpointConfiguration =
@@ -332,8 +312,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
         }
 
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task GetEndpointsReturnsConsistentUrlAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -352,8 +330,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints and verify all endpoint DisplayNames are not null or empty, confirming English fallback is provided.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "002")]
         public async Task GetEndpointsWithLocaleFilterEnglishAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -370,8 +346,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("GetEndpoints with an unknown locale \"zz\" still returns endpoints, verifying the server falls back to a default locale.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "004")]
         public async Task GetEndpointsWithUnknownLocaleFallsBackToDefaultAsync()
         {
             var endpointConfiguration =
@@ -390,8 +364,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Verify each returned endpoint has at least one UserTokenPolicy.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "001")]
         public async Task VerifyEachEndpointHasUserIdentityTokensAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
@@ -412,8 +384,6 @@ namespace Opc.Ua.Conformance.Tests.DiscoveryServices
 
         [Description("Get endpoints and verify Server.ApplicationDescription.ApplicationUri is consistent across all returned endpoints.")]
         [Test]
-        [Property("ConformanceUnit", "Discovery Get Endpoints")]
-        [Property("Tag", "003")]
         public async Task GetEndpointsWithServerUriFilterAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);

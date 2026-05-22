@@ -32,7 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
+using Opc.Ua.Client.TestFramework;
+
+namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
     /// compliance tests for Method node attributes and structure.
@@ -52,8 +54,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodNodeHasExecutableAttributeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -70,8 +70,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodNodeHasUserExecutableAttributeAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -88,8 +86,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodNodeHasInputArgumentsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -119,8 +115,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodNodeHasOutputArgumentsAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -148,8 +142,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodInputArgumentsHaveCorrectDataTypeAsync()
         {
             // Browse for InputArguments property node
@@ -196,8 +188,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodHasComponentReferenceFromParentAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
@@ -222,8 +212,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodNodeClassIsMethodAsync()
         {
             ReadResponse response = await Session.ReadAsync(
@@ -239,8 +227,6 @@ namespace Opc.Ua.Conformance.Tests.AddressSpaceModel
         }
 
         [Test]
-        [Property("ConformanceUnit", "Address Space Method")]
-        [Property("Tag", "001")]
         public async Task MethodExecutableIsTrueAsync()
         {
             ReadResponse response = await Session.ReadAsync(

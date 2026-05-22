@@ -46,7 +46,7 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
-namespace Opc.Ua.Core.Tests.Security.Certificates
+namespace Opc.Ua.Core.TestFramework
 {
     /// <summary>
     /// Tests for the CertificateValidator class with
