@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -776,7 +775,7 @@ namespace Opc.Ua.Client.FileSystem
 
             // Collect resolved property NodeIds.
             var nodesToReadList = new List<ReadValueId>(kFileTypePropertyNames.Length);
-            var indexToProperty = new int[kFileTypePropertyNames.Length];
+            int[] indexToProperty = new int[kFileTypePropertyNames.Length];
             for (int i = 0; i < kFileTypePropertyNames.Length; i++)
             {
                 BrowsePathResult result = response.Results[i];

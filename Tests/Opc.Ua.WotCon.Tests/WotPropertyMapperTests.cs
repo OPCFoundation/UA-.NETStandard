@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             var property = new WotProperty { Type = "boolean" };
 
-            bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
+            bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
             Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));

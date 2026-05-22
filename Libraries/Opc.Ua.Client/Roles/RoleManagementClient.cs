@@ -69,8 +69,8 @@ namespace Opc.Ua.Client.Roles
             // instances). Each child's NodeId + browse name is returned;
             // properties are then read in a single call per role to keep the
             // round-trip count proportional to the number of roles.
-            BrowseDescription[] browseDescriptions = new[]
-            {
+            BrowseDescription[] browseDescriptions =
+            [
                 new BrowseDescription
                 {
                     NodeId = RoleSetId,
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Roles
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
             BrowseResponse browseResponse = await Session.BrowseAsync(
                 null,
                 null,
@@ -435,14 +435,14 @@ namespace Opc.Ua.Client.Roles
             NodeClass expectedClass,
             CancellationToken cancellationToken)
         {
-            BrowsePath[] browsePaths = new[]
-            {
+            BrowsePath[] browsePaths =
+            [
                 new BrowsePath
                 {
                     StartingNode = parentId,
                     RelativePath = new RelativePath(new QualifiedName(browseName))
                 }
-            };
+            ];
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(
                     null,
@@ -472,15 +472,15 @@ namespace Opc.Ua.Client.Roles
         {
             NodeId propertyId = await ResolveChildAsync(parentId, browseName, NodeClass.Variable, cancellationToken)
                 .ConfigureAwait(false);
-            WriteValue[] writes = new[]
-            {
+            WriteValue[] writes =
+            [
                 new WriteValue
                 {
                     NodeId = propertyId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(value)
                 }
-            };
+            ];
             WriteResponse response = await Session.WriteAsync(
                 null,
                 ArrayOf.Wrapped(writes),

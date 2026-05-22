@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         public void PortableResolverPreservesOpaqueIdentifier()
         {
             ServerPortableNodeIdResolver resolver = NewResolver();
-            var bytes = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+            byte[] bytes = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
             PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1));
 
             Assert.That(portable, Is.Not.Null);

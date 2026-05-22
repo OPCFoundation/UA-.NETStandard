@@ -61,13 +61,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 AliasNameCapabilities.LastChange)
         {
             AliasNameCategoryDescriptor[] subs = withSubCategory
-                ? new[]
-                {
+                ?
+                [
                     new AliasNameCategoryDescriptor(
                         s_child,
                         new QualifiedName("Child", 2),
                         capabilities)
-                }
+                ]
                 : null;
             var root = new AliasNameCategoryDescriptor(
                 s_root,

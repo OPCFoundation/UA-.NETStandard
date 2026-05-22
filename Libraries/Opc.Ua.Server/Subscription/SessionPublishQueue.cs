@@ -631,7 +631,6 @@ namespace Opc.Ua.Server
             int readyToPublishCount = 0;
             int expiredCount = 0;
 
-
             object? sessionId;
             lock (m_lock)
             {

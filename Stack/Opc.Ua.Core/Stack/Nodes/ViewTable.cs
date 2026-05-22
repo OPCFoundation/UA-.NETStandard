@@ -86,7 +86,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_views.TryGetValue(description.ViewId, out ViewNode? view))
+                if (m_views.TryGetValue(description.ViewId, out _))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -114,7 +114,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_views.TryGetValue(description.ViewId, out ViewNode? view))
+                if (m_views.TryGetValue(description.ViewId, out _))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -175,7 +175,7 @@ namespace Opc.Ua
             {
                 // find view.
 
-                if (!m_views.TryGetValue(viewId, out ViewNode? view))
+                if (!m_views.TryGetValue(viewId, out _))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadViewIdUnknown,

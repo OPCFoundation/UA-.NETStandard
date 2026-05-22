@@ -524,7 +524,7 @@ namespace Opc.Ua.Bindings
                 token.SecurityPolicy!,
                 (useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey)!,
                 (useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector)!,
-                (useClientKeys ? token.ClientSigningKey : token.ServerSigningKey),
+                useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
@@ -661,7 +661,7 @@ namespace Opc.Ua.Bindings
                 token.SecurityPolicy!,
                 (useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey)!,
                 (useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector)!,
-                (useClientKeys ? token.ClientSigningKey : token.ServerSigningKey),
+                useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 m_remoteSequenceNumber);

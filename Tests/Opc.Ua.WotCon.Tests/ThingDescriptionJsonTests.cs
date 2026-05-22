@@ -219,7 +219,7 @@ namespace Opc.Ua.WotCon.Tests
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv =>
                 {
-                    var memberFields = kv.Value.Input?.Properties?
+                    string[] memberFields = kv.Value.Input?.Properties?
                         .OrderBy(m => m.Key, StringComparer.Ordinal)
                         .Select(m =>
                             $"{m.Key}:{m.Value.Type}/{m.Value.Minimum}/{m.Value.Maximum}/{m.Value.Unit}/{m.Value.Description}")

@@ -388,7 +388,7 @@ namespace Opc.Ua.Client.AliasNames
                 string key = a.AliasName.Name ?? string.Empty;
                 int count = a.ReferencedNodes.Count;
                 var arr = new ExpandedNodeId[count];
-                var uris = new string?[count];
+                string?[] uris = new string?[count];
                 for (int i = 0; i < count; i++)
                 {
                     arr[i] = a.ReferencedNodes[i];

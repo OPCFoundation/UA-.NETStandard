@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using Opc.Ua.Security.Certificates;
-using TUnit.Core;
 
 namespace Opc.Ua.Aot.Tests
 {

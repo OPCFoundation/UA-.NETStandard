@@ -750,7 +750,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task PersistedThingDescriptionsAreRestoredOnStartup()
         {
             // Round 1: create an asset, materialise it with a TD, persist to disk.
-            (NodeId originalAssetId, string assetName) = (NodeId.Null, "asset-001");
+            (_, string assetName) = (NodeId.Null, "asset-001");
             using (var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory()))
@@ -758,7 +758,7 @@ namespace Opc.Ua.WotCon.Tests
                 await harness.StartAsync().ConfigureAwait(false);
                 (_, NodeId id) = await harness.Registry
                     .CreateAssetAsync(assetName, CancellationToken.None).ConfigureAwait(false);
-                originalAssetId = id;
+                NodeId originalAssetId = id;
                 AssetEntry entry = harness.Registry.FindByNodeId(id)!;
                 await harness.Registry.RebuildAsync(
                     entry,

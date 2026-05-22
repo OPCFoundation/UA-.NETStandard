@@ -215,7 +215,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (m_contexts.TryGetValue(
                     context.RequestId,
-                    out ImpersonationContext? impersonationContext))
+                    out _))
                 {
                     m_contexts.Remove(context.RequestId);
                 }

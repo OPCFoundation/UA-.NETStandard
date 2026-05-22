@@ -1106,7 +1106,7 @@ namespace Opc.Ua.Server
                     // create new node if not found.
                     historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
 
-                    NodeId nodeId = await CreateNodeAsync(
+                    _ = await CreateNodeAsync(
                         SystemContext,
                         default,
                         ReferenceTypeIds.HasComponent,

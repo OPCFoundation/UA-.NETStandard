@@ -544,7 +544,7 @@ namespace Opc.Ua.Server.AliasNames
             List<KeyValuePair<MappingKey, string?>> bucket)
         {
             var targets = new ExpandedNodeId[bucket.Count];
-            var serverUris = new string[bucket.Count];
+            string[] serverUris = new string[bucket.Count];
             for (int i = 0; i < bucket.Count; i++)
             {
                 targets[i] = bucket[i].Key.TargetNode;

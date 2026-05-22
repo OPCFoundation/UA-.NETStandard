@@ -94,14 +94,14 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<CallResponse>(new CallResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[]
-                    {
+                    Results = ArrayOf.Wrapped(
+                    [
                         new CallMethodResult
                         {
                             StatusCode = StatusCodes.Good,
                             OutputArguments = ArrayOf.Wrapped([Variant.From(expectedNew)])
                         }
-                    }),
+                    ]),
                     DiagnosticInfos = []
                 }));
 
@@ -196,17 +196,17 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = methodId }
-                                })
+                                ])
                             }
-                        }),
+                        ]),
                         DiagnosticInfos = []
                     }));
 
@@ -342,17 +342,17 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = propertyId }
-                                })
+                                ])
                             }
-                        }),
+                        ]),
                         DiagnosticInfos = []
                     }));
             m_sessionMock.Setup(s => s.WriteAsync(
@@ -391,17 +391,17 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = methodId }
-                                })
+                                ])
                             }
-                        }),
+                        ]),
                         DiagnosticInfos = []
                     }));
 
@@ -518,17 +518,17 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = propertyId }
-                                })
+                                ])
                             }
-                        }),
+                        ]),
                         DiagnosticInfos = []
                     }));
             ArrayOf<WriteValue> capturedWrites = default;
@@ -587,17 +587,17 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = resolvedNodeId }
-                                })
+                                ])
                             }
-                        }),
+                        ]),
                         DiagnosticInfos = []
                     }));
         }
@@ -615,8 +615,8 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<CallResponse>(new CallResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[]
-                    {
+                    Results = ArrayOf.Wrapped(
+                    [
                         new CallMethodResult
                         {
                             StatusCode = StatusCodes.Good,
@@ -624,7 +624,7 @@ namespace Opc.Ua.Client.Tests.Roles
                                 ? []
                                 : ArrayOf.Wrapped(outputs)
                         }
-                    }),
+                    ]),
                     DiagnosticInfos = []
                 }));
         }

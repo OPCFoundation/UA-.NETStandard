@@ -128,7 +128,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
         public async Task EnumerateAsyncOnEmptyDirectoryYieldsNothingAsync()
         {
             var harness = FileSystemSessionHarness.Create();
-            NodeId empty = harness.RegisterDirectory(harness.Root, new QualifiedName("empty"));
+
+            _ = harness.RegisterDirectory(harness.Root, new QualifiedName("empty"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             int count = 0;

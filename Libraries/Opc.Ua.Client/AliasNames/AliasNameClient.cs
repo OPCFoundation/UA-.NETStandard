@@ -238,9 +238,9 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ArgumentNullException(nameof(requests));
             }
 
-            var names = new string[requests.Count];
+            string[] names = new string[requests.Count];
             var targets = new ExpandedNodeId[requests.Count];
-            var servers = new string[requests.Count];
+            string[] servers = new string[requests.Count];
             NodeId refType = NodeId.Null;
             for (int i = 0; i < requests.Count; i++)
             {
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ArgumentNullException(nameof(requests));
             }
 
-            var names = new string[requests.Count];
+            string[] names = new string[requests.Count];
             var targets = new ExpandedNodeId[requests.Count];
             for (int i = 0; i < requests.Count; i++)
             {

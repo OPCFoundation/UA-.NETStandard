@@ -649,7 +649,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                string browseName = GetBrowseName(root);
+
+                _ = GetBrowseName(root);
                 string nsUri = ResolveNodeBrowseNamespace(root);
                 writer.WriteLine();
                 writer.WriteLine("    /// <inheritdoc/>");
