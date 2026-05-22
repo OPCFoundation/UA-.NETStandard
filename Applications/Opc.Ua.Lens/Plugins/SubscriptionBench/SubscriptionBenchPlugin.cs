@@ -42,12 +42,12 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using UaLens.ViewModels;
 using UaLens.Views;
-using ClassicMonitoredItem = Opc.Ua.Client.MonitoredItem;
-using ClassicMonitoredItemOptions = Opc.Ua.Client.MonitoredItemOptions;
-using ClassicSubscription = Opc.Ua.Client.Subscription;
-using ClassicSubscriptionOptions = Opc.Ua.Client.SubscriptionOptions;
+using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using V2SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
 namespace UaLens.Plugins.SubscriptionBench;
 
@@ -79,18 +79,42 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private readonly object m_poolLock = new();
 
     /// <summary>
-    /// Live subscriptions, in creation order.  Index <c>i</c> here
-    /// corresponds to index <c>i</c> in <see cref="m_liveItems"/> so the
-    /// per-sub item lists track their owning subscription without
-    /// requiring a dictionary lookup on every resize.
+    /// Live subscriptions (V2 <see cref="ISubscription"/>), in creation
+    /// order.  Index <c>i</c> here corresponds to index <c>i</c> in
+    /// <see cref="m_liveItems"/> so the per-sub item lists track their
+    /// owning subscription without requiring a dictionary lookup on
+    /// every resize.
     /// </summary>
-    private readonly List<ClassicSubscription> m_subscriptions = new();
+    private readonly List<ISubscription> m_subscriptions = new();
 
-    /// <summary>Per-subscription monitored items, in their order of
-    /// insertion.  The "shrink" path tears items off the tail; the
-    /// "grow" path appends from the pool round-robin so removed items
-    /// rejoin in the same slot the next time the slider grows.</summary>
-    private readonly List<List<ClassicMonitoredItem>> m_liveItems = new();
+    /// <summary>Per-subscription monitored items + their per-item
+    /// option monitors (one OptionsMonitor per item because each
+    /// carries its own StartNodeId).  The "shrink" path tears items
+    /// off the tail; the "grow" path appends from the pool round-robin
+    /// so removed items rejoin in the same slot the next time the
+    /// slider grows.</summary>
+    private readonly List<List<BenchItem>> m_liveItems = new();
+
+    /// <summary>Single shared options monitor for every live
+    /// subscription.  All subs in a bench tab share the same
+    /// subscription parameters, so one monitor + a single
+    /// CurrentValue update propagates an edit to every sub.</summary>
+    private readonly OptionsMonitor<V2SubscriptionOptions> m_sharedSubOptions =
+        new(new V2SubscriptionOptions
+        {
+            PublishingInterval = TimeSpan.FromMilliseconds(1000),
+            KeepAliveCount = 10,
+            LifetimeCount = 1000,
+            MaxNotificationsPerPublish = 0,
+            Priority = 0,
+            PublishingEnabled = true,
+            Disabled = false,
+            MinLifetimeInterval = TimeSpan.FromMinutes(1)
+        });
+
+    /// <summary>Single shared notification handler for every live
+    /// subscription — keeps counters thread-safe via Interlocked.</summary>
+    private readonly BenchHandler m_handler;
 
     /// <summary>Serialises every <see cref="ConvergeAsync"/> call so
     /// concurrent slider moves (drag) coalesce into one converge wave
@@ -126,7 +150,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private UaLens.Views.MonitoredItemSettings m_itemSettings = new();
 
     /// <summary>Total values delivered since the last clear (incremented
-    /// from <see cref="OnFastDataChange"/> on the publish callback thread).</summary>
+    /// from the V2 notification handler on the publish dispatcher thread).</summary>
     private long m_totalValues;
 
     /// <summary>Total bad-status events observed across all monitored
@@ -223,6 +247,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
+        m_handler = new BenchHandler(this);
         int n;
         lock (s_perKindCounter)
         {
@@ -337,24 +362,23 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     public async ValueTask DisposeAsync()
     {
         m_aggregationTimer?.Stop();
-        List<ClassicSubscription> snapshot;
+        List<ISubscription> snapshot;
         lock (m_liveItems)
         {
-            snapshot = new List<ClassicSubscription>(m_subscriptions);
+            snapshot = new List<ISubscription>(m_subscriptions);
             m_subscriptions.Clear();
             m_liveItems.Clear();
         }
-        foreach (ClassicSubscription sub in snapshot)
+        foreach (ISubscription sub in snapshot)
         {
             try
             {
-                await sub.DeleteAsync(silent: true, CancellationToken.None).ConfigureAwait(false);
+                await sub.DisposeAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 m_log.LogWarning(ex, "Subscription Bench {Title} delete failed during dispose.", Title);
             }
-            sub.Dispose();
         }
         m_resizeLock.Dispose();
     }
@@ -679,7 +703,13 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     /// Open the (same as Subscription tab) settings dialog with the
     /// current <see cref="m_subConfig"/>; on OK, save the new config and
     /// push it to every live subscription via <c>ModifyAsync</c>.
-    /// Subsequent grows pick the new config up automatically.
+    /// <summary>
+    /// Open the (same as Subscription tab) settings dialog with the
+    /// current <see cref="m_subConfig"/>; on OK, save the new config and
+    /// push it via the shared <see cref="m_sharedSubOptions"/> monitor.
+    /// Every live <see cref="ISubscription"/> subscribed to that monitor
+    /// re-applies on the next dispatch cycle.  Subsequent grows pick
+    /// the new config up automatically.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsConnected))]
     private async Task EditSubscriptionAsync()
@@ -697,35 +727,31 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         }
         m_subConfig = result;
 
-        // Push to every live sub.  Share the converge lock so we don't
-        // race with a slider-driven grow / shrink.
+        // Update the shared options monitor; the V2 dispatcher
+        // re-applies every subscribed sub on the next cycle.  Share the
+        // converge lock so we don't race with a slider-driven
+        // grow / shrink.
         await m_resizeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            List<ClassicSubscription> snapshot;
+            int subCount;
             lock (m_liveItems)
             {
-                snapshot = new List<ClassicSubscription>(m_subscriptions);
+                subCount = m_subscriptions.Count;
             }
-            foreach (ClassicSubscription sub in snapshot)
+            m_sharedSubOptions.CurrentValue = new V2SubscriptionOptions
             {
-                sub.PublishingInterval = (int)m_subConfig.PublishingInterval.TotalMilliseconds;
-                sub.KeepAliveCount = m_subConfig.KeepAliveCount;
-                sub.LifetimeCount = m_subConfig.LifetimeCount;
-                sub.MaxNotificationsPerPublish = m_subConfig.MaxNotificationsPerPublish;
-                sub.Priority = m_subConfig.Priority;
-                sub.PublishingEnabled = m_subConfig.PublishingEnabled;
-                try
-                {
-                    await sub.ModifyAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_log.LogWarning(ex, "Subscription Bench: ModifyAsync failed for sub {Id}.", sub.Id);
-                }
-            }
+                PublishingInterval = m_subConfig.PublishingInterval,
+                KeepAliveCount = m_subConfig.KeepAliveCount,
+                LifetimeCount = m_subConfig.LifetimeCount,
+                MaxNotificationsPerPublish = m_subConfig.MaxNotificationsPerPublish,
+                Priority = m_subConfig.Priority,
+                PublishingEnabled = m_subConfig.PublishingEnabled,
+                Disabled = false,
+                MinLifetimeInterval = TimeSpan.FromMinutes(1)
+            };
             Status = string.Format(CultureInfo.InvariantCulture,
-                "● Subscription parameters applied to {0} sub(s).", snapshot.Count);
+                "● Subscription parameters applied to {0} sub(s).", subCount);
         }
         finally
         {
@@ -735,11 +761,10 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
 
     /// <summary>
     /// Open the generic monitored-item settings dialog with the current
-    /// <see cref="m_itemSettings"/>; on OK, save and apply across every
-    /// live item in every sub.  Monitoring mode (if changed) is pushed
-    /// via the dedicated <c>SetMonitoringModeAsync</c>; the rest piggy-
-    /// back on the existing <c>ApplyChangesAsync</c> per sub which
-    /// turns into ModifyMonitoredItems on the wire.
+    /// <see cref="m_itemSettings"/>; on OK, save and walk every live
+    /// item's <see cref="OptionsMonitor{V2MonitoredItemOptions}"/>
+    /// updating CurrentValue with the new sampling / queue / mode /
+    /// filter — the V2 dispatcher modifies the items on the wire.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsConnected))]
     private async Task EditItemSettingsAsync()
@@ -753,61 +778,40 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         {
             return;
         }
-        MonitoringMode oldMode = m_itemSettings.MonitoringMode;
         m_itemSettings = result;
 
         await m_resizeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            List<ClassicSubscription> subs;
-            List<List<ClassicMonitoredItem>> itemsByIndex;
+            List<List<BenchItem>> snapshot;
             lock (m_liveItems)
             {
-                subs = new List<ClassicSubscription>(m_subscriptions);
-                itemsByIndex = new List<List<ClassicMonitoredItem>>(m_liveItems);
+                snapshot = new List<List<BenchItem>>(m_liveItems);
             }
             int totalItems = 0;
-            for (int subIdx = 0; subIdx < subs.Count; subIdx++)
+            foreach (List<BenchItem> bucket in snapshot)
             {
-                ClassicSubscription sub = subs[subIdx];
-                List<ClassicMonitoredItem> items = itemsByIndex[subIdx];
-                if (items.Count == 0)
+                foreach (BenchItem entry in bucket)
                 {
-                    continue;
-                }
-                int samplingMs = (int)m_itemSettings.SamplingInterval.TotalMilliseconds;
-                foreach (ClassicMonitoredItem mi in items)
-                {
-                    mi.SamplingInterval = samplingMs;
-                    mi.QueueSize = m_itemSettings.QueueSize;
-                    mi.DiscardOldest = m_itemSettings.DiscardOldest;
-                    mi.Filter = m_itemSettings.DataChangeFilter;
-                }
-                try
-                {
-                    await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_log.LogWarning(ex, "Subscription Bench: ApplyChangesAsync failed for sub {Id}.", sub.Id);
-                }
-                if (m_itemSettings.MonitoringMode != oldMode)
-                {
-                    try
+                    V2MonitoredItemOptions current = entry.Opts.CurrentValue;
+                    // Preserve the per-item StartNodeId / AttributeId; only
+                    // overwrite the sampling / queue / mode / filter knobs.
+                    entry.Opts.CurrentValue = new V2MonitoredItemOptions
                     {
-                        await sub.SetMonitoringModeAsync(m_itemSettings.MonitoringMode, items, CancellationToken.None)
-                            .ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        m_log.LogWarning(ex, "Subscription Bench: SetMonitoringModeAsync failed for sub {Id}.", sub.Id);
-                    }
+                        StartNodeId = current.StartNodeId,
+                        AttributeId = current.AttributeId,
+                        SamplingInterval = m_itemSettings.SamplingInterval,
+                        QueueSize = m_itemSettings.QueueSize,
+                        DiscardOldest = m_itemSettings.DiscardOldest,
+                        MonitoringMode = m_itemSettings.MonitoringMode,
+                        Filter = m_itemSettings.DataChangeFilter
+                    };
+                    totalItems++;
                 }
-                totalItems += items.Count;
             }
             Status = string.Format(CultureInfo.InvariantCulture,
                 "● Item settings applied to {0} item(s) across {1} sub(s).",
-                totalItems, subs.Count);
+                totalItems, snapshot.Count);
         }
         finally
         {
@@ -884,12 +888,18 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
 
     /// <summary>
     /// Bring <see cref="m_subscriptions"/>.Count to
-    /// <paramref name="targetSubs"/> by creating missing subs (on the
-    /// session, with the bench's classic-engine options) or deleting
-    /// trailing subs.  Per-sub items are managed by
-    /// <see cref="ConvergeItemsAsync"/> afterwards.
+    /// <paramref name="targetSubs"/> by adding fresh V2
+    /// <see cref="ISubscription"/>s via
+    /// <see cref="ISubscriptionManager.Add"/> (which feeds the V2
+    /// publish dispatcher so the bench's <see cref="BenchHandler"/>
+    /// actually receives notifications), or by tearing trailing subs
+    /// off the tail.  All subs share <see cref="m_sharedSubOptions"/>
+    /// so a single CurrentValue update from
+    /// <see cref="EditSubscriptionAsync"/> propagates everywhere.
+    /// Per-sub items are managed by <see cref="ConvergeItemsAsync"/>
+    /// afterwards.
     /// </summary>
-    private async Task ConvergeSubscriptionsAsync(ManagedSession session, int targetSubs)
+    private Task ConvergeSubscriptionsAsync(ManagedSession session, int targetSubs)
     {
         int currentSubs;
         lock (m_liveItems)
@@ -901,51 +911,35 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             int toAdd = targetSubs - currentSubs;
             for (int i = 0; i < toAdd; i++)
             {
-                var sub = new ClassicSubscription(session.MessageContext.Telemetry, new ClassicSubscriptionOptions
-                {
-                    DisplayName = $"UaLens.Bench/{Title}/{currentSubs + i}",
-                    PublishingInterval = (int)m_subConfig.PublishingInterval.TotalMilliseconds,
-                    KeepAliveCount = m_subConfig.KeepAliveCount,
-                    LifetimeCount = m_subConfig.LifetimeCount,
-                    MaxNotificationsPerPublish = m_subConfig.MaxNotificationsPerPublish,
-                    Priority = m_subConfig.Priority,
-                    PublishingEnabled = m_subConfig.PublishingEnabled,
-                    MinLifetimeInterval = 60_000
-                })
-                {
-                    FastDataChangeCallback = OnFastDataChange,
-                    FastKeepAliveCallback = OnFastKeepAlive
-                };
-                if (!session.AddSubscription(sub))
-                {
-                    m_log.LogWarning("Subscription Bench: AddSubscription returned false at sub #{Idx}.", currentSubs + i);
-                    sub.Dispose();
-                    break;
-                }
+                ISubscription sub;
                 try
                 {
-                    await sub.CreateAsync(CancellationToken.None).ConfigureAwait(false);
+                    sub = session.SubscriptionManager.Add(m_handler, m_sharedSubOptions);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    m_log.LogWarning(ex, "Subscription Bench requires the V2 (channel) subscription engine.");
+                    Status = "● Subscription Bench requires the V2 engine — switch via Connection ↻ Engine.";
+                    Dispatcher.UIThread.Post(() => SubsSliderValue = currentSubs + i);
+                    return Task.CompletedTask;
                 }
                 catch (Exception ex)
                 {
-                    m_log.LogWarning(ex, "Subscription Bench: CreateAsync failed at sub #{Idx}.", currentSubs + i);
-                    sub.Dispose();
-                    // Surface the failure via SubsSliderValue rollback
-                    // so the slider matches reality.
+                    m_log.LogWarning(ex, "Subscription Bench: SubscriptionManager.Add failed at sub #{Idx}.", currentSubs + i);
                     Dispatcher.UIThread.Post(() => SubsSliderValue = currentSubs + i);
-                    return;
+                    return Task.CompletedTask;
                 }
                 lock (m_liveItems)
                 {
                     m_subscriptions.Add(sub);
-                    m_liveItems.Add(new List<ClassicMonitoredItem>());
+                    m_liveItems.Add(new List<BenchItem>());
                 }
             }
         }
         else if (targetSubs < currentSubs)
         {
             int toRemove = currentSubs - targetSubs;
-            var doomed = new List<ClassicSubscription>(toRemove);
+            var doomed = new List<ISubscription>(toRemove);
             lock (m_liveItems)
             {
                 int startIdx = m_subscriptions.Count - toRemove;
@@ -956,18 +950,25 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                 m_subscriptions.RemoveRange(startIdx, toRemove);
                 m_liveItems.RemoveRange(startIdx, toRemove);
             }
-            foreach (ClassicSubscription sub in doomed)
+            // V2 subs are IAsyncDisposable; DisposeAsync deletes server-side
+            // state and removes the sub from the SubscriptionManager.
+            foreach (ISubscription sub in doomed)
             {
-                try
-                {
-                    await sub.DeleteAsync(silent: true, CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_log.LogWarning(ex, "Subscription Bench: DeleteAsync failed during shrink.");
-                }
-                sub.Dispose();
+                _ = DisposeSubAsync(sub);
             }
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task DisposeSubAsync(ISubscription sub)
+    {
+        try
+        {
+            await sub.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            m_log.LogWarning(ex, "Subscription Bench: ISubscription.DisposeAsync failed during shrink.");
         }
     }
 
@@ -978,24 +979,24 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     /// subs with the same target end up with the same item set —
     /// the simplest, most predictable layout for a scale test.
     /// </summary>
-    private async Task ConvergeItemsAsync(
+    private Task ConvergeItemsAsync(
         int targetItems,
         List<NodeId> poolSnapshot,
         List<string> poolNames)
     {
         // Snapshot of subs to iterate without holding the lock during
-        // ApplyChangesAsync round-trips.
-        List<ClassicSubscription> subs;
-        List<List<ClassicMonitoredItem>> liveItemsByIndex;
+        // TryAdd / TryRemove operations.
+        List<ISubscription> subs;
+        List<List<BenchItem>> liveItemsByIndex;
         lock (m_liveItems)
         {
-            subs = new List<ClassicSubscription>(m_subscriptions);
-            liveItemsByIndex = new List<List<ClassicMonitoredItem>>(m_liveItems);
+            subs = new List<ISubscription>(m_subscriptions);
+            liveItemsByIndex = new List<List<BenchItem>>(m_liveItems);
         }
         for (int subIdx = 0; subIdx < subs.Count; subIdx++)
         {
-            ClassicSubscription sub = subs[subIdx];
-            List<ClassicMonitoredItem> live = liveItemsByIndex[subIdx];
+            ISubscription sub = subs[subIdx];
+            List<BenchItem> live = liveItemsByIndex[subIdx];
             int currentCount = live.Count;
             if (targetItems == currentCount)
             {
@@ -1008,72 +1009,82 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                     continue;
                 }
                 int toAdd = targetItems - currentCount;
-                var toAddList = new List<ClassicMonitoredItem>(toAdd);
+                var added = new List<BenchItem>(toAdd);
                 for (int i = 0; i < toAdd; i++)
                 {
                     int slot = currentCount + i;
                     int poolIdx = slot % poolSnapshot.Count;
-                    var mi = new ClassicMonitoredItem(
-                        sub.Session?.MessageContext.Telemetry ?? AmbientMessageContext.Telemetry!,
-                        new ClassicMonitoredItemOptions
-                        {
-                            DisplayName = $"bench[{subIdx}.{slot}]/{poolNames[poolIdx]}",
-                            StartNodeId = poolSnapshot[poolIdx],
-                            AttributeId = Attributes.Value,
-                            MonitoringMode = m_itemSettings.MonitoringMode,
-                            SamplingInterval = (int)m_itemSettings.SamplingInterval.TotalMilliseconds,
-                            QueueSize = m_itemSettings.QueueSize,
-                            DiscardOldest = m_itemSettings.DiscardOldest,
-                            Filter = m_itemSettings.DataChangeFilter
-                        });
-                    toAddList.Add(mi);
+                    var opts = new V2MonitoredItemOptions
+                    {
+                        StartNodeId = poolSnapshot[poolIdx],
+                        AttributeId = Attributes.Value,
+                        SamplingInterval = m_itemSettings.SamplingInterval,
+                        QueueSize = m_itemSettings.QueueSize,
+                        DiscardOldest = m_itemSettings.DiscardOldest,
+                        MonitoringMode = m_itemSettings.MonitoringMode,
+                        Filter = m_itemSettings.DataChangeFilter
+                    };
+                    var monitor = new OptionsMonitor<V2MonitoredItemOptions>(opts);
+                    string name = $"bench[{subIdx}.{slot}]";
+                    if (sub.MonitoredItems.TryAdd(name, monitor, out IMonitoredItem? created)
+                        && created is not null)
+                    {
+                        added.Add(new BenchItem(created, monitor));
+                    }
+                    else
+                    {
+                        m_log.LogWarning(
+                            "Subscription Bench: MonitoredItems.TryAdd returned false at sub#{S} slot#{I}.",
+                            subIdx, slot);
+                    }
                 }
-                sub.AddItems(toAddList);
                 lock (m_liveItems)
                 {
-                    live.AddRange(toAddList);
+                    live.AddRange(added);
                 }
             }
             else
             {
                 int toRemove = currentCount - targetItems;
-                var toRemoveList = new List<ClassicMonitoredItem>(toRemove);
+                List<BenchItem> doomed;
                 lock (m_liveItems)
                 {
                     int startIdx = live.Count - toRemove;
+                    doomed = new List<BenchItem>(toRemove);
                     for (int i = startIdx; i < live.Count; i++)
                     {
-                        toRemoveList.Add(live[i]);
+                        doomed.Add(live[i]);
                     }
                     live.RemoveRange(startIdx, toRemove);
                 }
-                sub.RemoveItems(toRemoveList);
-            }
-            try
-            {
-                await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                m_log.LogWarning(ex, "Subscription Bench: ApplyChangesAsync failed on sub {Id}.", sub.Id);
+                foreach (BenchItem item in doomed)
+                {
+                    if (!sub.MonitoredItems.TryRemove(item.Item.ClientHandle))
+                    {
+                        m_log.LogDebug(
+                            "Subscription Bench: TryRemove returned false for handle {H}.",
+                            item.Item.ClientHandle);
+                    }
+                }
             }
         }
+        return Task.CompletedTask;
     }
 
     /// <summary>Recount bad-status items across every live sub.</summary>
     private void RecountErrors()
     {
         long bad = 0;
-        List<ClassicSubscription> subs;
+        List<List<BenchItem>> snapshot;
         lock (m_liveItems)
         {
-            subs = new List<ClassicSubscription>(m_subscriptions);
+            snapshot = new List<List<BenchItem>>(m_liveItems);
         }
-        foreach (ClassicSubscription sub in subs)
+        foreach (List<BenchItem> bucket in snapshot)
         {
-            foreach (ClassicMonitoredItem mi in sub.MonitoredItems)
+            foreach (BenchItem entry in bucket)
             {
-                ServiceResult? err = mi.Status?.Error;
+                ServiceResult? err = entry.Item.Error;
                 if (err is not null && ServiceResult.IsBad(err))
                 {
                     bad++;
@@ -1126,13 +1137,13 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         {
             // Use the first subscription's revised publishing interval
             // as the representative (all subs use the same options).
-            ClassicSubscription rep;
+            ISubscription rep;
             lock (m_liveItems)
             {
                 rep = m_subscriptions[0];
             }
             PublishIntervalText = string.Format(CultureInfo.InvariantCulture,
-                "Publish int.: {0:N0} ms (revised)", rep.CurrentPublishingInterval);
+                "Publish int.: {0:N0} ms (revised)", rep.CurrentPublishingInterval.TotalMilliseconds);
         }
         else
         {
@@ -1185,31 +1196,6 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         var sb = new StringBuilder();
         sb.Append(CultureInfo.InvariantCulture,
             $"Subscriptions     : {subCount} (×{itemCount} items)\n");
-        // List up to 4 sub IDs so the user can correlate with server logs;
-        // beyond that, just show the count and rely on the aggregate metrics.
-        List<ClassicSubscription> subs;
-        lock (m_liveItems)
-        {
-            subs = new List<ClassicSubscription>(m_subscriptions);
-        }
-        int show = Math.Min(subs.Count, 4);
-        if (show > 0)
-        {
-            sb.Append("Sub ids           : ");
-            for (int i = 0; i < show; i++)
-            {
-                if (i > 0)
-                {
-                    sb.Append(", ");
-                }
-                sb.Append(CultureInfo.InvariantCulture, $"{subs[i].Id}");
-            }
-            if (subs.Count > show)
-            {
-                sb.Append(CultureInfo.InvariantCulture, $", … (+{subs.Count - show})");
-            }
-            sb.Append('\n');
-        }
         if (m_host.Connection.Session is { } session)
         {
             sb.Append(CultureInfo.InvariantCulture,
@@ -1247,50 +1233,98 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         return sb.ToString();
     }
 
-    // ---- Subscription callbacks ----
+    // ---- V2 notification handler + per-item bookkeeping ----
 
-    private void OnFastDataChange(
-        ClassicSubscription subscription,
-        DataChangeNotification notification,
-        ArrayOf<string> stringTable)
+    /// <summary>
+    /// Per-monitored-item bookkeeping: the V2 <see cref="IMonitoredItem"/>
+    /// handle returned by <see cref="IMonitoredItemCollection.TryAdd"/>
+    /// plus the per-item <see cref="OptionsMonitor{V2MonitoredItemOptions}"/>
+    /// we kept around so <see cref="EditItemSettingsAsync"/> can push a
+    /// new sampling / queue / mode / filter without recreating the item.
+    /// </summary>
+    private sealed record BenchItem(
+        IMonitoredItem Item,
+        OptionsMonitor<V2MonitoredItemOptions> Opts);
+
+    /// <summary>
+    /// Single notification handler shared by every live
+    /// <see cref="ISubscription"/>.  Increments the bench's atomic
+    /// counters on every data-change notification so the chart and
+    /// the "Cumulative values" stat reflect actual throughput.
+    /// </summary>
+    /// <remarks>
+    /// Lives in the V2 publish dispatcher thread context; everything
+    /// is Interlocked so multiple subs feeding concurrently is safe.
+    /// </remarks>
+    private sealed class BenchHandler : ISubscriptionNotificationHandler
     {
-        int n = notification.MonitoredItems.Count;
-        if (n <= 0)
-        {
-            return;
-        }
-        Interlocked.Add(ref m_totalValues, n);
-        // Read the bucket index atomically — the timer thread only
-        // advances it; we tolerate a single-bucket drift at the rollover
-        // boundary because the contributions to total throughput are
-        // identical either way.
-        int idx = Volatile.Read(ref m_currentBucket);
-        Interlocked.Add(ref m_bucketsPerSec[idx], n);
+        private readonly SubscriptionBenchPlugin m_owner;
 
-        // Capture status errors observed in this notification batch.
-        long bad = 0;
-        for (int i = 0; i < n; i++)
+        public BenchHandler(SubscriptionBenchPlugin owner)
         {
-            MonitoredItemNotification mi = notification.MonitoredItems[i];
-            if (mi.Value is not null && StatusCode.IsBad(mi.Value.StatusCode))
+            m_owner = owner;
+        }
+
+        public ValueTask OnDataChangeNotificationAsync(
+            ISubscription subscription,
+            uint sequenceNumber,
+            DateTime publishTime,
+            ReadOnlyMemory<DataValueChange> notification,
+            PublishState publishStateMask,
+            IReadOnlyList<string> stringTable)
+        {
+            int n = notification.Length;
+            if (n <= 0)
             {
-                bad++;
+                return ValueTask.CompletedTask;
             }
-        }
-        if (bad > 0)
-        {
-            Interlocked.Add(ref m_totalErrors, bad);
-        }
-    }
+            Interlocked.Add(ref m_owner.m_totalValues, n);
+            // Read the bucket index atomically — the timer thread only
+            // advances it; we tolerate a single-bucket drift at the
+            // rollover boundary because the contributions to total
+            // throughput are identical either way.
+            int idx = Volatile.Read(ref m_owner.m_currentBucket);
+            Interlocked.Add(ref m_owner.m_bucketsPerSec[idx], n);
 
-    private void OnFastKeepAlive(
-        ClassicSubscription subscription,
-        NotificationData notification)
-    {
-        // No-op: keep-alives only keep the publish pipeline warm.
-        // The classic engine emits these when no DataChange or Event
-        // notifications are pending so the publish round-trip stays
-        // live; bench throughput maths intentionally ignores them.
+            // Capture status errors observed in this notification batch.
+            long bad = 0;
+            ReadOnlySpan<DataValueChange> span = notification.Span;
+            for (int i = 0; i < span.Length; i++)
+            {
+                if (StatusCode.IsBad(span[i].Value.StatusCode))
+                {
+                    bad++;
+                }
+            }
+            if (bad > 0)
+            {
+                Interlocked.Add(ref m_owner.m_totalErrors, bad);
+            }
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask OnEventDataNotificationAsync(
+            ISubscription subscription,
+            uint sequenceNumber,
+            DateTime publishTime,
+            ReadOnlyMemory<EventNotification> notification,
+            PublishState publishStateMask,
+            IReadOnlyList<string> stringTable)
+        {
+            // The bench only adds value-monitored items; ignore events.
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask OnKeepAliveNotificationAsync(
+            ISubscription subscription,
+            uint sequenceNumber,
+            DateTime publishTime,
+            PublishState publishStateMask)
+        {
+            // Keep-alives only keep the publish pipeline warm and don't
+            // carry data; bench throughput maths intentionally ignores them.
+            return ValueTask.CompletedTask;
+        }
     }
 
     private Window? TopLevelWindow()
