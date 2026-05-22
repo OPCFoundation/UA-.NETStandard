@@ -2267,7 +2267,7 @@ return ReadDataValue(typeName);
                 PushNamespace(m_reader.NamespaceURI);
                 IEncodeable encodeable = ReadEncodeable<IEncodeable>(m_reader.LocalName, typeId);
                 PopNamespace();
-                return new ExtensionObject(encodeable);
+                return new ExtensionObject(typeId, encodeable);
             }
 
             try
