@@ -259,6 +259,8 @@ namespace Opc.Ua
             SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken)
         {
+            IServiceRequest? serviceRequest = null;
+            IServiceResponse? response = null;
             try
             {
                 // check for bad data.
@@ -276,12 +278,12 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }
 
-                IServiceRequest serviceRequest = BinaryDecoder.DecodeMessage<IServiceRequest>(
+                serviceRequest = BinaryDecoder.DecodeMessage<IServiceRequest>(
                     request.InvokeServiceRequest,
                     MessageContext);
 
                 // process the request.
-                IServiceResponse response = await ProcessRequestAsync(
+                response = await ProcessRequestAsync(
                     secureChannelContext,
                     serviceRequest,
                     cancellationToken).ConfigureAwait(false);
@@ -302,6 +304,15 @@ namespace Opc.Ua
                 {
                     InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext)
                 };
+            }
+            finally
+            {
+                // Return decoded request and response to their activator
+                // pools for reuse. Both have been fully consumed: the
+                // request by the service handler and the response by the
+                // binary encoder.
+                (serviceRequest as IPooledEncodeable)?.Reuse();
+                (response as IPooledEncodeable)?.Reuse();
             }
         }
 

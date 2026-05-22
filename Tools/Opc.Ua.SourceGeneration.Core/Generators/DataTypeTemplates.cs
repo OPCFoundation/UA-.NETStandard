@@ -47,6 +47,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 {{Tokens.ListOfTypes}}
 
+                {{Tokens.ListOfPooledExtensions}}
+
                 {{Tokens.ListOfTypeActivators}}
 
                 /// <summary>
@@ -182,6 +184,112 @@ namespace Opc.Ua.SourceGeneration
                 public override global::Opc.Ua.IEncodeable CreateInstance()
                 {
                     return new {{Tokens.ClassName}}();
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Pooled-encodeable activator. Emitted in place of
+        /// <see cref="StructureActivatorClass"/> when the design XML
+        /// marks the complex type with <c>Poolable="true"</c>. Derives
+        /// from <c>PooledEncodeableType&lt;T&gt;</c> so the activator
+        /// itself owns a bounded per-type pool. The
+        /// <c>InitializeRent</c> override clears the per-instance
+        /// pooled sentinel each time an instance is handed out so the
+        /// next <c>Reuse()</c> call does real work instead of being
+        /// no-op'd by the idempotency guard.
+        /// </summary>
+        public static readonly TemplateString PooledStructureActivatorClass = TemplateString.Parse(
+            $$"""
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.PooledEncodeableType<{{Tokens.ClassName}}>
+            {
+                /// <summary>
+                /// The singleton instance of the activator.
+                /// </summary>
+                public static readonly {{Tokens.ClassName}}Activator Instance
+                    = new {{Tokens.ClassName}}Activator();
+
+                /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+
+                /// <inheritdoc/>
+                protected override void InitializeRent({{Tokens.ClassName}} instance)
+                {
+                    instance.ClearPooledSentinel();
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Supplemental partial-class body emitted for complex types
+        /// tagged <c>Poolable="true"</c>. Adds
+        /// <see cref="IPooledEncodeable"/> to the type's base list,
+        /// declares the per-instance pooled sentinel, and implements
+        /// <c>Reuse()</c> as a CAS-guarded idempotent field reset
+        /// that returns the instance to its activator's pool. The
+        /// existing <see cref="Class"/> / <see cref="DerivedClass"/>
+        /// / <see cref="ClassWithOptionalFields"/> /
+        /// <see cref="DerivedClassWithOptionalFields"/> body is
+        /// emitted unchanged; this template is appended after it.
+        /// </summary>
+        public static readonly TemplateString PooledExtensionClass = TemplateString.Parse(
+            $$"""
+            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IPooledEncodeable
+            {
+                private int m_pooledSentinel;
+
+                /// <inheritdoc/>
+                public void Reuse()
+                {
+                    if (global::System.Threading.Interlocked.CompareExchange(
+                        ref m_pooledSentinel, 1, 0) != 0)
+                    {
+                        return;
+                    }
+                    {{Tokens.ListOfFieldResets}}
+                    {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                internal void ClearPooledSentinel()
+                {
+                    global::System.Threading.Volatile.Write(ref m_pooledSentinel, 0);
+                }
+            }
+            """);
+
+        /// <summary>
+        /// Variant of <see cref="PooledExtensionClass"/> for derived
+        /// types whose base class already declares Reuse and
+        /// ClearPooledSentinel. Uses <c>new</c> on the public/internal
+        /// methods to hide the inherited versions so each concrete type
+        /// routes through its own activator's pool. The sentinel field
+        /// is always <c>private</c> (not inherited) so no <c>new</c>
+        /// is needed on it.
+        /// </summary>
+        public static readonly TemplateString DerivedPooledExtensionClass = TemplateString.Parse(
+            $$"""
+            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IPooledEncodeable
+            {
+                private int m_pooledSentinel;
+
+                /// <inheritdoc/>
+                public new void Reuse()
+                {
+                    if (global::System.Threading.Interlocked.CompareExchange(
+                        ref m_pooledSentinel, 1, 0) != 0)
+                    {
+                        return;
+                    }
+                    {{Tokens.ListOfFieldResets}}
+                    {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                internal new void ClearPooledSentinel()
+                {
+                    global::System.Threading.Volatile.Write(ref m_pooledSentinel, 0);
                 }
             }
             """);
