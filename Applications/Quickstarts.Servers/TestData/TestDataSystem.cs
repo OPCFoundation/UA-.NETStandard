@@ -34,6 +34,8 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.Historian.InMemory;
 
 namespace TestData
 {
@@ -75,7 +77,7 @@ namespace TestData
                 NamespaceUris = namespaceUris,
                 ServerUris = serverUris
             };
-            m_historyArchive = new HistoryArchive(telemetry);
+            Historian = new InMemoryHistorianProvider();
         }
 
         /// <summary>
@@ -124,34 +126,77 @@ namespace TestData
         public Opc.Ua.Test.DataGenerator Generator { get; }
 
         /// <summary>
-        /// Creates an archive for the variable.
+        /// The shared <see cref="InMemoryHistorianProvider"/> used by
+        /// historizing variables created by this system.
         /// </summary>
-        public void EnableHistoryArchiving(BaseVariableState variable)
+        public InMemoryHistorianProvider Historian { get; }
+
+        /// <summary>
+        /// Creates an archive for the variable and seeds initial samples.
+        /// </summary>
+        public void EnableHistoryArchiving(ServerSystemContext systemContext, BaseVariableState variable)
         {
+            if (systemContext == null)
+            {
+                throw new ArgumentNullException(nameof(systemContext));
+            }
+
             if (variable == null)
             {
                 return;
             }
 
-            if (variable.ValueRank == ValueRanks.Scalar)
+            if (variable.ValueRank != ValueRanks.Scalar)
             {
-                m_historyArchive.CreateRecord(
-                    variable.NodeId,
-                    TypeInfo.GetBuiltInType(variable.DataType));
+                return;
             }
+
+            BuiltInType dataType = TypeInfo.GetBuiltInType(variable.DataType);
+            Historian.Register(variable.NodeId);
+            SeedHistory(systemContext, variable.NodeId, dataType);
+        }
+
+        private void SeedHistory(ServerSystemContext systemContext, NodeId nodeId, BuiltInType dataType)
+        {
+            // Match the historic behaviour of the previous HistoryArchive
+            // sample: ~1000 samples spaced 10 seconds apart leading up to now.
+            DateTime now = DateTime.UtcNow;
+            var seed = new List<DataValue>(1001);
+            for (int ii = 1000; ii >= 0; ii--)
+            {
+                var dv = new DataValue
+                {
+                    ServerTimestamp = now.AddSeconds(-(ii * 10)),
+                    SourceTimestamp = now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
+                    StatusCode = StatusCodes.Good
+                };
+                if (dataType == BuiltInType.Int32)
+                {
+                    dv.WrappedValue = new Variant(1000 - ii);
+                }
+                seed.Add(dv);
+            }
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
+
+            // The TestDataNodeManager override is synchronous (CreateAddressSpace
+            // runs under a lock), so we bridge the async InsertAsync via Task.Run
+            // to escape any captured SynchronizationContext that could otherwise
+            // deadlock an async provider.
+            _ = System.Threading.Tasks.Task.Run(
+                () => Historian.InsertAsync(historianContext, nodeId, seed, default).AsTask())
+                .GetAwaiter().GetResult();
         }
 
         /// <summary>
-        /// Returns the history file for the variable.
+        /// Returns the historian provider; legacy method retained for
+        /// backwards compatibility with sample-server callers (will be
+        /// removed in a future release).
         /// </summary>
-        public IHistoryDataSource? GetHistoryFile(BaseVariableState variable)
+        [Obsolete("Use the Historian property directly. Will be removed in a future release.")]
+        public IHistorianProvider? GetHistoryFile(BaseVariableState variable)
         {
-            if (variable == null)
-            {
-                return null;
-            }
-
-            return m_historyArchive.GetHistoryFile(variable.NodeId);
+            return variable == null ? null : Historian;
         }
 
         /// <summary>
@@ -892,6 +937,5 @@ namespace TestData
         private IList<BaseVariableState>? m_samplingNodes;
         private Timer? m_timer;
         private StatusCode m_systemStatus;
-        private readonly HistoryArchive m_historyArchive;
     }
 }
