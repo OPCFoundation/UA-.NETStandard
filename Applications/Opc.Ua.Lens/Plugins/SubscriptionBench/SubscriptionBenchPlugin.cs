@@ -105,6 +105,26 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private long m_runStartTicks;
     private bool m_serverLimitsRefreshed;
 
+    /// <summary>Current subscription parameters applied to every live
+    /// sub and used as the template for any sub created by a subsequent
+    /// <see cref="ConvergeAsync"/> grow.  Edited via
+    /// <see cref="EditSubscriptionAsync"/>.</summary>
+    private UaLens.Subscriptions.SubscriptionConfig m_subConfig = new()
+    {
+        PublishingInterval = TimeSpan.FromMilliseconds(1000),
+        KeepAliveCount = 10,
+        LifetimeCount = 1000,
+        MaxNotificationsPerPublish = 0,
+        Priority = 0,
+        PublishingEnabled = true
+    };
+
+    /// <summary>Current monitored-item defaults applied to every live
+    /// item and used as the template for any item created by a
+    /// subsequent <see cref="ConvergeAsync"/> grow.  Edited via
+    /// <see cref="EditItemSettingsAsync"/>.</summary>
+    private UaLens.Views.MonitoredItemSettings m_itemSettings = new();
+
     /// <summary>Total values delivered since the last clear (incremented
     /// from <see cref="OnFastDataChange"/> on the publish callback thread).</summary>
     private long m_totalValues;
@@ -153,6 +173,8 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanResize))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditSubscriptionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditItemSettingsCommand))]
     private bool m_isConnected;
 
     [ObservableProperty]
@@ -227,6 +249,8 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         {
             CreateMenuItem("Pick _Variables…", PickVariablesCommand),
             CreateMenuItem("Pick Sub_tree…",   PickSubtreeCommand),
+            CreateMenuItem("_Subscription…",   EditSubscriptionCommand),
+            CreateMenuItem("_Item settings…",  EditItemSettingsCommand),
             CreateMenuItem("_Stop",            StopCommand),
             CreateMenuItem("_Clear counters",  ClearCommand)
         };
@@ -638,6 +662,148 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         TotalErrorsText = "Errors      : 0";
     }
 
+    // ---- Settings dialogs ----
+
+    /// <summary>
+    /// Open the (same as Subscription tab) settings dialog with the
+    /// current <see cref="m_subConfig"/>; on OK, save the new config and
+    /// push it to every live subscription via <c>ModifyAsync</c>.
+    /// Subsequent grows pick the new config up automatically.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsConnected))]
+    private async Task EditSubscriptionAsync()
+    {
+        Window? owner = TopLevelWindow();
+        bool engineHasWorkerPool =
+            m_host.Connection.Engine == UaLens.Connection.SubscriptionEngineKind.ChannelV2;
+        var dlg = new UaLens.Views.SubscriptionSettingsDialog(m_subConfig, engineHasWorkerPool);
+        UaLens.Subscriptions.SubscriptionConfig? result = owner is null
+            ? await dlg.ShowDialog<UaLens.Subscriptions.SubscriptionConfig?>(new Window()).ConfigureAwait(true)
+            : await dlg.ShowDialog<UaLens.Subscriptions.SubscriptionConfig?>(owner).ConfigureAwait(true);
+        if (result is null)
+        {
+            return;
+        }
+        m_subConfig = result;
+
+        // Push to every live sub.  Share the converge lock so we don't
+        // race with a slider-driven grow / shrink.
+        await m_resizeLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            List<ClassicSubscription> snapshot;
+            lock (m_liveItems)
+            {
+                snapshot = new List<ClassicSubscription>(m_subscriptions);
+            }
+            foreach (ClassicSubscription sub in snapshot)
+            {
+                sub.PublishingInterval = (int)m_subConfig.PublishingInterval.TotalMilliseconds;
+                sub.KeepAliveCount = m_subConfig.KeepAliveCount;
+                sub.LifetimeCount = m_subConfig.LifetimeCount;
+                sub.MaxNotificationsPerPublish = m_subConfig.MaxNotificationsPerPublish;
+                sub.Priority = m_subConfig.Priority;
+                sub.PublishingEnabled = m_subConfig.PublishingEnabled;
+                try
+                {
+                    await sub.ModifyAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_log.LogWarning(ex, "Subscription Bench: ModifyAsync failed for sub {Id}.", sub.Id);
+                }
+            }
+            Status = string.Format(CultureInfo.InvariantCulture,
+                "● Subscription parameters applied to {0} sub(s).", snapshot.Count);
+        }
+        finally
+        {
+            m_resizeLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Open the generic monitored-item settings dialog with the current
+    /// <see cref="m_itemSettings"/>; on OK, save and apply across every
+    /// live item in every sub.  Monitoring mode (if changed) is pushed
+    /// via the dedicated <c>SetMonitoringModeAsync</c>; the rest piggy-
+    /// back on the existing <c>ApplyChangesAsync</c> per sub which
+    /// turns into ModifyMonitoredItems on the wire.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsConnected))]
+    private async Task EditItemSettingsAsync()
+    {
+        Window? owner = TopLevelWindow();
+        var dlg = new UaLens.Views.MonitoredItemSettingsDialog(m_itemSettings);
+        UaLens.Views.MonitoredItemSettings? result = owner is null
+            ? await dlg.ShowDialog<UaLens.Views.MonitoredItemSettings?>(new Window()).ConfigureAwait(true)
+            : await dlg.ShowDialog<UaLens.Views.MonitoredItemSettings?>(owner).ConfigureAwait(true);
+        if (result is null)
+        {
+            return;
+        }
+        MonitoringMode oldMode = m_itemSettings.MonitoringMode;
+        m_itemSettings = result;
+
+        await m_resizeLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            List<ClassicSubscription> subs;
+            List<List<ClassicMonitoredItem>> itemsByIndex;
+            lock (m_liveItems)
+            {
+                subs = new List<ClassicSubscription>(m_subscriptions);
+                itemsByIndex = new List<List<ClassicMonitoredItem>>(m_liveItems);
+            }
+            int totalItems = 0;
+            for (int subIdx = 0; subIdx < subs.Count; subIdx++)
+            {
+                ClassicSubscription sub = subs[subIdx];
+                List<ClassicMonitoredItem> items = itemsByIndex[subIdx];
+                if (items.Count == 0)
+                {
+                    continue;
+                }
+                int samplingMs = (int)m_itemSettings.SamplingInterval.TotalMilliseconds;
+                foreach (ClassicMonitoredItem mi in items)
+                {
+                    mi.SamplingInterval = samplingMs;
+                    mi.QueueSize = m_itemSettings.QueueSize;
+                    mi.DiscardOldest = m_itemSettings.DiscardOldest;
+                    mi.Filter = m_itemSettings.DataChangeFilter;
+                }
+                try
+                {
+                    await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_log.LogWarning(ex, "Subscription Bench: ApplyChangesAsync failed for sub {Id}.", sub.Id);
+                }
+                if (m_itemSettings.MonitoringMode != oldMode)
+                {
+                    try
+                    {
+                        await sub.SetMonitoringModeAsync(m_itemSettings.MonitoringMode, items, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_log.LogWarning(ex, "Subscription Bench: SetMonitoringModeAsync failed for sub {Id}.", sub.Id);
+                    }
+                }
+                totalItems += items.Count;
+            }
+            Status = string.Format(CultureInfo.InvariantCulture,
+                "● Item settings applied to {0} item(s) across {1} sub(s).",
+                totalItems, subs.Count);
+        }
+        finally
+        {
+            m_resizeLock.Release();
+        }
+    }
+
     // ---- Slider-driven converge ----
 
     partial void OnItemsSliderValueChanged(int value)
@@ -727,12 +893,12 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                 var sub = new ClassicSubscription(session.MessageContext.Telemetry, new ClassicSubscriptionOptions
                 {
                     DisplayName = $"UaLens.Bench/{Title}/{currentSubs + i}",
-                    PublishingInterval = 1000,
-                    KeepAliveCount = 10,
-                    LifetimeCount = 1000,
-                    MaxNotificationsPerPublish = 0,
-                    Priority = 0,
-                    PublishingEnabled = true,
+                    PublishingInterval = (int)m_subConfig.PublishingInterval.TotalMilliseconds,
+                    KeepAliveCount = m_subConfig.KeepAliveCount,
+                    LifetimeCount = m_subConfig.LifetimeCount,
+                    MaxNotificationsPerPublish = m_subConfig.MaxNotificationsPerPublish,
+                    Priority = m_subConfig.Priority,
+                    PublishingEnabled = m_subConfig.PublishingEnabled,
                     MinLifetimeInterval = 60_000
                 })
                 {
@@ -843,10 +1009,11 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                             DisplayName = $"bench[{subIdx}.{slot}]/{poolNames[poolIdx]}",
                             StartNodeId = poolSnapshot[poolIdx],
                             AttributeId = Attributes.Value,
-                            MonitoringMode = MonitoringMode.Reporting,
-                            SamplingInterval = 0,
-                            QueueSize = 1,
-                            DiscardOldest = true
+                            MonitoringMode = m_itemSettings.MonitoringMode,
+                            SamplingInterval = (int)m_itemSettings.SamplingInterval.TotalMilliseconds,
+                            QueueSize = m_itemSettings.QueueSize,
+                            DiscardOldest = m_itemSettings.DiscardOldest,
+                            Filter = m_itemSettings.DataChangeFilter
                         });
                     toAddList.Add(mi);
                 }

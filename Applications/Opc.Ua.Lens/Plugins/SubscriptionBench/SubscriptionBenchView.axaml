@@ -98,6 +98,14 @@
                   VerticalAlignment="Center"
                   Command="{CompiledBinding ClearPoolCommand}" />
           <Border Classes="sep" />
+          <Button Classes="tonal" Content="⚙ Subscription…" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Edit the subscription parameters (publishing interval, keep-alive, lifetime, …). Applied to every live subscription."
+                  Command="{CompiledBinding EditSubscriptionCommand}" />
+          <Button Classes="tonal" Content="⚙ Item settings…" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Edit the monitored-item defaults (sampling interval, queue size, mode, …). Applied to every live item across every subscription."
+                  Command="{CompiledBinding EditItemSettingsCommand}" />
           <Button Classes="danger" Content="■ Stop" Margin="0,0,6,0"
                   VerticalAlignment="Center"
                   ToolTip.Tip="Zero both sliders and tear every subscription down."
