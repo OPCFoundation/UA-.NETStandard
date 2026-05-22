@@ -211,27 +211,31 @@ namespace Opc.Ua.Gds.Server
             ISystemContext context,
             bool requireEncryption = false)
         {
-            if (context is SystemContext { OperationContext: OperationContext operationContext })
+            if (context is not SystemContext { OperationContext: OperationContext operationContext })
             {
-                MessageSecurityMode securityMode = operationContext
-                    .ChannelContext
-                    ?.EndpointDescription
-                    ?.SecurityMode
-                    ?? MessageSecurityMode.Invalid;
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    "Unable to verify secure channel requirements.");
+            }
 
-                bool ok = requireEncryption
-                    ? securityMode == MessageSecurityMode.SignAndEncrypt
-                    : securityMode == MessageSecurityMode.Sign ||
-                      securityMode == MessageSecurityMode.SignAndEncrypt;
+            MessageSecurityMode securityMode = operationContext
+                .ChannelContext
+                ?.EndpointDescription
+                ?.SecurityMode
+                ?? MessageSecurityMode.Invalid;
 
-                if (!ok)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityModeInsufficient,
-                        requireEncryption
-                            ? "Method has to be called from an encrypted secure channel."
-                            : "Method has to be called from an authenticated secure channel.");
-                }
+            bool ok = requireEncryption
+                ? securityMode == MessageSecurityMode.SignAndEncrypt
+                : securityMode == MessageSecurityMode.Sign ||
+                  securityMode == MessageSecurityMode.SignAndEncrypt;
+
+            if (!ok)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    requireEncryption
+                        ? "Method has to be called from an encrypted secure channel."
+                        : "Method has to be called from an authenticated secure channel.");
             }
         }
 

@@ -210,22 +210,28 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void HasAuthenticatedSecureChannelDoesNotThrowForNonSystemContext()
+        public void HasAuthenticatedSecureChannelThrowsForNonSystemContext()
         {
             var context = new SessionSystemContext(m_telemetry)
             {
                 NamespaceUris = m_namespaceTable
             };
 
-            Assert.DoesNotThrow(() =>
-                AuthorizationHelper.HasAuthenticatedSecureChannel(context));
+            Assert.That(
+                () => AuthorizationHelper.HasAuthenticatedSecureChannel(context),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
-        public void HasAuthenticatedSecureChannelDoesNotThrowForNullContext()
+        public void HasAuthenticatedSecureChannelThrowsForNullContext()
         {
-            Assert.DoesNotThrow(() =>
-                AuthorizationHelper.HasAuthenticatedSecureChannel(null));
+            Assert.That(
+                () => AuthorizationHelper.HasAuthenticatedSecureChannel(null),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
