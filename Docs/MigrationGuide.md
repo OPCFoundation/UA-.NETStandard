@@ -17,6 +17,7 @@
       - [Variant, DataValue and ExtensionObject](#variant-datavalue-and-extensionobject)
         - [Deprecated boxing behavior](#deprecated-boxing-behavior)
         - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
+      - [DataValue](#datavalue)
       - [XmlElement](#xmlelement)
       - [EnumValue to represent the enumeration built in type](#enumvalue-to-represent-the-enumeration-built-in-type)
       - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
@@ -301,6 +302,54 @@ To migrate, perform the following general replacements in your code:
 - Any pattern matching conversion used must be replaced with the TryGetValue/TryGetStructure pattern of Variant for checked conversions, e.g. `a = Value as uint?` must be replaced with `Value.TryGetValue(out uint a)` which most often produces more concise code and avoids the check for nullable result of the conversion. The same applies to `is` matching.
 - For Variable and VariableType node state classes that provide a narrowed "Value" via generic `<T>` any access to `T Value` incurs a heavy type check.  It is recommended to use `WrappedValue` instead when possible for assignment and access.
 - While most assignments work implicitly, use `TypeInfo.GetDefaultVariantValue` instead of `TypeInfo.GetDefaultValue` to initialize a variant value to a default that is `!= Variant.Null`.
+
+#### DataValue
+
+`DataValue` has been converted from a reference type (class) to a `readonly struct` to relieve GC pressure on hot subscription/encoder paths. The semantics are aligned with the other immutable built-in types (`NodeId`, `ExtensionObject`, etc.).
+
+**What changed:**
+
+1. **You cannot compare a `DataValue` against `null` anymore.** Use the `DataValue.IsNull` instance property, or the `DataValue.Null` static field (equivalent to `default(DataValue)`).
+2. **Property setters were removed.** Use the new `With<Property>()` fluent mutators — each returns a *new* `DataValue` with that field replaced, e.g. `dv = dv.WithStatus(StatusCodes.BadInternalError)`. Chaining a `default` value with `With*` calls is folded by the JIT into a single constructor call.
+3. **`IsGood` / `IsBad` / `IsUncertain` / `IsNotGood` / `IsNotBad` / `IsNotUncertain` are instance properties** on `DataValue` now. The previous static `DataValue.IsGood(dv)` style helpers were removed; they remain as `[Obsolete]` extension methods on `DataValueExtensions` so existing source still compiles, but new code should prefer `dv.IsGood`.
+4. **`Nullable<DataValue>` (`DataValue?`) is redundant** and should be removed from your code. Because `DataValue` is itself nullable via `IsNull`, wrapping it in `Nullable<>` doubles the storage and adds boxing on the `HasValue`/`Value` access pattern. Replace `DataValue?` fields/parameters/locals with `DataValue` and use `dv.IsNull` / `DataValue.Null` instead of `dv == null` / `null`. The compiler will not flag this automatically.
+5. **`IsNull` has sentinel semantics**: `default(DataValue)` reports `IsNull == true`, while any *explicitly* constructed `DataValue` (e.g. `new DataValue(Variant.Null)` with all-default fields) reports `IsNull == false`. This preserves the distinction between "absent" and "explicitly empty" on the wire — the binary, JSON and XML encoders now round-trip both forms without conflation. If you currently rely on "all fields are at default" semantics, replace your check with explicit field comparisons instead of `IsNull`.
+6. **Decoders use the sentinel.** `IDecoder.ReadDataValue` (Binary, Xml, Json) returns `DataValue.Null` when the field is absent (or, for the binary encoder, when the encoding byte is `0`), allowing callers to distinguish "missing" from "present but empty".
+7. **Prefer `in DataValue` for synchronous method parameters.** The struct is large (~64 bytes after the IsNull sentinel) and copying it on every call is wasteful. The server `IDataChangeMonitoredItem.QueueValue(in DataValue, ...)` API has been updated accordingly. Async methods cannot use `in`/`ref` parameters, so leave those by-value.
+8. **`object? GetValue(Type)` and `T? GetValueOrDefault<T>()` are now `[Obsolete]`.** Use `WrappedValue.TryGetValue<T>(out T value)` or `WrappedValue.TryGetStructure<T>(out T value)` for type-safe extraction without throwing. `GetValue<T>(T defaultValue)` remains supported.
+9. **`DataValue.FromStatusCode(StatusCode)` and `FromStatusCode(StatusCode, DateTimeUtc serverTimestamp)`** are the preferred way to construct a `DataValue` that conveys only a status. The `DataValue(StatusCode)` and `DataValue(StatusCode, DateTimeUtc)` constructors are `[Obsolete]` because they conflict with overload resolution against the numeric `Variant` types (`uint`/`int`/`StatusCode` all implicitly convert in different directions).
+
+**Change code as follows:**
+
+```csharp
+// Before
+DataValue dv = ReadValue();
+if (dv == null) { ... }
+dv.Value = 42;                                     // mutating setter — gone
+dv.StatusCode = StatusCodes.Bad;                   // mutating setter — gone
+if (DataValue.IsGood(dv)) { ... }                  // static helper — moved to Obsolete extension
+
+// After
+DataValue dv = ReadValue();
+if (dv.IsNull) { ... }
+dv = dv.WithWrappedValue(new Variant(42));         // returns a new DataValue
+dv = dv.WithStatus(StatusCodes.Bad);
+if (dv.IsGood) { ... }                             // instance property
+
+// And to convey only a status (no value):
+DataValue bad = DataValue.FromStatusCode(StatusCodes.BadInternalError);
+
+// Drop redundant Nullable<DataValue>:
+//   private DataValue? m_lastValue;       ->  private DataValue m_lastValue;
+//   m_lastValue = null;                   ->  m_lastValue = DataValue.Null;
+//   if (m_lastValue != null) { ... }      ->  if (!m_lastValue.IsNull) { ... }
+//   m_lastValue.Value.StatusCode          ->  m_lastValue.StatusCode
+
+// Pass by 'in' on hot paths:
+public void QueueValue(in DataValue value, ServiceResult? error) { ... }
+```
+
+> NOTE: Care must be taken when migrating: a `default(DataValue)` previously satisfied `IsNull == true` only because *all* fields happened to be default. With the new sentinel, an explicitly constructed `new DataValue()` — same field contents — reports `IsNull == false`. If your code constructs an "empty" DataValue at the top of a method and then optionally fills in fields, switch to chaining `With*` calls onto `DataValue.Null` (or, equivalently, `default`) so the receiver can tell whether you populated it.
 
 #### XmlElement
 
