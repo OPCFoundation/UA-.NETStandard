@@ -270,6 +270,32 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Enable activator-level pooling of V2 subscription
+        /// notification payload instances. When enabled, the V2
+        /// subscription dispatcher calls
+        /// <see cref="IPooledEncodeable.Reuse"/> on notification
+        /// payload objects (such as <c>MonitoredItemNotification</c>)
+        /// after each handler dispatch, releasing them back to their
+        /// activator's pool for reuse on the next publish. Handlers
+        /// that retain values past the dispatch call must copy them.
+        /// Disabled by default.
+        /// </summary>
+        /// <remarks>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </remarks>
+        public ManagedSessionBuilder WithPoolNotifications(
+            bool poolNotifications = true)
+        {
+            m_options = m_options with
+            {
+                PoolNotifications = poolNotifications
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific session factory. By default, the builder
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
@@ -346,6 +372,7 @@ namespace Opc.Ua.Client
                 opts.CheckDomain,
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
+                opts.PoolNotifications,
                 ct);
         }
     }

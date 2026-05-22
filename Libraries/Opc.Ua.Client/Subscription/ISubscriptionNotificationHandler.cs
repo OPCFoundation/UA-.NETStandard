@@ -35,7 +35,24 @@ using Opc.Ua.Client.Subscriptions.MonitoredItems;
 namespace Opc.Ua.Client.Subscriptions
 {
     /// <summary>
-    /// Data Value change notification
+    /// <para>
+    /// Data value change observed on a monitored item during the V2
+    /// publish dispatch.
+    /// </para>
+    /// <para>
+    /// Lifetime note (pooled notifications): when the V2 subscription
+    /// manager has <see cref="ISubscriptionManager.PoolNotifications"/>
+    /// enabled, the underlying <c>MonitoredItemNotification</c> that
+    /// supplied this struct's fields is recycled back to its
+    /// activator pool after the handler returns. This struct's
+    /// references (<see cref="Value"/>, <see cref="DiagnosticInfo"/>)
+    /// project the inner <c>DataValue</c> / <c>DiagnosticInfo</c>
+    /// instances directly — those are not themselves pooled (out of
+    /// scope), so a handler may safely copy this struct by value and
+    /// continue using <see cref="Value"/> after the call. Pool-aware
+    /// projection audit: confirmed safe — no reference to a pooled
+    /// instance is surfaced.
+    /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>
     /// <param name="Value"></param>
@@ -44,7 +61,21 @@ namespace Opc.Ua.Client.Subscriptions
         DataValue Value, DiagnosticInfo? DiagnosticInfo);
 
     /// <summary>
-    /// Event notification
+    /// <para>
+    /// Event notification observed during the V2 publish dispatch.
+    /// </para>
+    /// <para>
+    /// Lifetime note (pooled notifications): when the V2 subscription
+    /// manager has <see cref="ISubscriptionManager.PoolNotifications"/>
+    /// enabled, the underlying <c>EventFieldList</c> is recycled back
+    /// to its activator pool after the handler returns. The
+    /// <see cref="Fields"/> property is captured by value as an
+    /// <see cref="ArrayOf{T}"/> wrapping the original event-fields
+    /// array. Arrays are not pooled in this design (out of scope), so
+    /// the captured backing array survives the recycle. Pool-aware
+    /// projection audit: confirmed safe — no reference to a pooled
+    /// instance is surfaced.
+    /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>
     /// <param name="Fields"></param>
