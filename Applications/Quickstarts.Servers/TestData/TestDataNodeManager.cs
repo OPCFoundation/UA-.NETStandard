@@ -284,6 +284,20 @@ namespace TestData
         }
 
         /// <summary>
+        /// Routes HistoryRead / HistoryUpdate dispatch to the in-memory
+        /// historian owned by <see cref="TestDataSystem"/>. Without this
+        /// override the dispatcher's resolution falls through to the
+        /// server-wide registry — and TestData deliberately keeps its
+        /// archive private so it does not compete with other node
+        /// managers (e.g. ReferenceNodeManager) that may also register
+        /// a default provider in the same process.
+        /// </summary>
+        protected override Opc.Ua.Server.Historian.IHistorianProvider? GetHistorianProvider(NodeState node)
+        {
+            return m_system.Historian;
+        }
+
+        /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(
