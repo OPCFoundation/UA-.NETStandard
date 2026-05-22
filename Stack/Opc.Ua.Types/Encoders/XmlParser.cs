@@ -962,25 +962,26 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public DataValue ReadDataValue(string? fieldName)
         {
-            var value = new DataValue();
-
-            if (BeginField(fieldName, true))
+            if (!BeginField(fieldName, true))
             {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                value = value
-                    .WithWrappedValue(ReadVariant("Value"))
-                    .WithStatus(ReadStatusCode("StatusCode"))
-                    .WithSourceTimestamp(ReadDateTime("SourceTimestamp"))
-                    .WithSourcePicoseconds(ReadUInt16("SourcePicoseconds"))
-                    .WithServerTimestamp(ReadDateTime("ServerTimestamp"))
-                    .WithServerPicoseconds(ReadUInt16("ServerPicoseconds"));
-
-                PopNamespace();
-
-                EndField(fieldName);
+                // Field is absent — return the null sentinel so callers can
+                // distinguish "missing" from "present but empty".
+                return DataValue.Null;
             }
 
+            PushNamespace(Namespaces.OpcUaXsd);
+
+            DataValue value = new DataValue()
+                .WithWrappedValue(ReadVariant("Value"))
+                .WithStatus(ReadStatusCode("StatusCode"))
+                .WithSourceTimestamp(ReadDateTime("SourceTimestamp"))
+                .WithSourcePicoseconds(ReadUInt16("SourcePicoseconds"))
+                .WithServerTimestamp(ReadDateTime("ServerTimestamp"))
+                .WithServerPicoseconds(ReadUInt16("ServerPicoseconds"));
+
+            PopNamespace();
+
+            EndField(fieldName);
             return value;
         }
 

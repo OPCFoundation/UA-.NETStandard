@@ -109,6 +109,7 @@ namespace Opc.Ua
             m_statusCode = StatusCodes.Good;
             m_sourceTimestamp = DateTimeUtc.MinValue;
             m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -125,6 +126,7 @@ namespace Opc.Ua
             m_statusCode = StatusCodes.Good;
             m_sourceTimestamp = DateTimeUtc.MinValue;
             m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -138,6 +140,7 @@ namespace Opc.Ua
             m_statusCode = statusCode;
             m_sourceTimestamp = DateTimeUtc.MinValue;
             m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -152,6 +155,7 @@ namespace Opc.Ua
             m_statusCode = statusCode;
             m_serverTimestamp = serverTimestamp;
             m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -165,6 +169,7 @@ namespace Opc.Ua
             m_statusCode = statusCode;
             m_sourceTimestamp = DateTimeUtc.MinValue;
             m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -179,6 +184,7 @@ namespace Opc.Ua
             m_statusCode = statusCode;
             m_sourceTimestamp = sourceTimestamp;
             m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -199,6 +205,7 @@ namespace Opc.Ua
             m_statusCode = statusCode;
             m_sourceTimestamp = sourceTimestamp;
             m_serverTimestamp = serverTimestamp;
+            m_set = true;
         }
 
         /// <summary>
@@ -224,6 +231,7 @@ namespace Opc.Ua
             m_serverTimestamp = serverTimestamp;
             m_sourcePicoseconds = sourcePicoseconds;
             m_serverPicoseconds = serverPicoseconds;
+            m_set = true;
         }
 
         /// <summary>
@@ -252,15 +260,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// True when the struct holds no payload (all-default fields).
+        /// True when the struct holds no payload — that is, when this
+        /// <see cref="DataValue"/> was not produced by any constructor or
+        /// factory and is therefore equal to <c>default(DataValue)</c>.
         /// </summary>
-        public bool IsNull
-            => m_value.IsNull &&
-               m_statusCode.Code == 0 &&
-               m_sourceTimestamp == DateTimeUtc.MinValue &&
-               m_serverTimestamp == DateTimeUtc.MinValue &&
-               m_sourcePicoseconds == 0 &&
-               m_serverPicoseconds == 0;
+        /// <remarks>
+        /// An explicitly constructed DataValue with no value, no timestamps
+        /// and a Good status (e.g. <c>new DataValue(Variant.Null)</c>) is
+        /// <b>not</b> considered null — it represents a real but empty value
+        /// and is encoded on the wire as an empty struct. Only
+        /// <c>default(DataValue)</c> (or the equivalent <see cref="Null"/>
+        /// field) is null. The distinction is preserved by a small sentinel
+        /// flag inside the struct.
+        /// </remarks>
+        public bool IsNull => !m_set;
 
         /// <summary>
         /// The value of data value.
@@ -614,5 +627,11 @@ namespace Opc.Ua
         private readonly DateTimeUtc m_serverTimestamp;
         private readonly ushort m_sourcePicoseconds;
         private readonly ushort m_serverPicoseconds;
+        // Sentinel: true iff the struct was constructed via a public ctor or
+        // factory. default(DataValue) leaves it false, which is what IsNull
+        // reports. Adds ~4 bytes after alignment; this is intentional —
+        // distinguishing "absent" from "explicitly empty" is required to
+        // round-trip the spec-defined wire encoding faithfully.
+        private readonly bool m_set;
     }
 }

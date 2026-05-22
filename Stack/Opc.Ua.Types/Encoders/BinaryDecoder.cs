@@ -617,6 +617,15 @@ namespace Opc.Ua
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
 
+            if (encodingByte == 0)
+            {
+                // BinaryEncoder writes a single zero byte when IsNull is
+                // true (i.e. the value was default(DataValue)). Round-trip
+                // that as DataValue.Null so callers can distinguish
+                // "absent" from "explicitly empty".
+                return DataValue.Null;
+            }
+
             var value = new DataValue();
 
             // read the fields of the DataValue structure.
