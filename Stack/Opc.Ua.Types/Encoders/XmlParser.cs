@@ -971,13 +971,20 @@ namespace Opc.Ua
 
             PushNamespace(Namespaces.OpcUaXsd);
 
-            DataValue value = new DataValue()
-                .WithWrappedValue(ReadVariant("Value"))
-                .WithStatus(ReadStatusCode("StatusCode"))
-                .WithSourceTimestamp(ReadDateTime("SourceTimestamp"))
-                .WithSourcePicoseconds(ReadUInt16("SourcePicoseconds"))
-                .WithServerTimestamp(ReadDateTime("ServerTimestamp"))
-                .WithServerPicoseconds(ReadUInt16("ServerPicoseconds"));
+            Variant variant = ReadVariant("Value");
+            StatusCode statusCode = ReadStatusCode("StatusCode");
+            DateTimeUtc sourceTimestamp = ReadDateTime("SourceTimestamp");
+            ushort sourcePicoseconds = ReadUInt16("SourcePicoseconds");
+            DateTimeUtc serverTimestamp = ReadDateTime("ServerTimestamp");
+            ushort serverPicoseconds = ReadUInt16("ServerPicoseconds");
+
+            DataValue value = new DataValue(
+                variant,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                sourcePicoseconds,
+                serverPicoseconds);
 
             PopNamespace();
 

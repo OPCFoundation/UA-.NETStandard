@@ -1593,7 +1593,7 @@ namespace Opc.Ua.Server
         /// Applies the filter to value to determine if the new value should be kept.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="value"/> is the default/null DataValue.</exception>
-        protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
+        protected virtual bool ApplyFilter(in DataValue value, ServiceResult error)
         {
             if (value.IsNull)
             {
@@ -1614,9 +1614,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>.</exception>
         public static bool ValueChanged(
-            DataValue value,
+            in DataValue value,
             ServiceResult error,
-            DataValue lastValue,
+            in DataValue lastValue,
             ServiceResult lastError,
             DataChangeFilter filter,
             double range)

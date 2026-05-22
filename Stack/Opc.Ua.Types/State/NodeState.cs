@@ -3657,9 +3657,9 @@ namespace Opc.Ua
                 finalValue,
                 finalStatus,
                 sourceTimestamp,
-                value.ServerTimestamp)
-                .WithSourcePicoseconds(sourcePicoseconds)
-                .WithServerPicoseconds(value.ServerPicoseconds);
+                value.ServerTimestamp,
+                sourcePicoseconds,
+                value.ServerPicoseconds);
 
             // return result.
             return result!;

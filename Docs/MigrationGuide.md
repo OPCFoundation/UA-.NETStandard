@@ -349,8 +349,6 @@ DataValue bad = DataValue.FromStatusCode(StatusCodes.BadInternalError);
 public void QueueValue(in DataValue value, ServiceResult? error) { ... }
 ```
 
-> NOTE: Care must be taken when migrating: a `default(DataValue)` previously satisfied `IsNull == true` only because *all* fields happened to be default. With the new sentinel, an explicitly constructed `new DataValue()` — same field contents — reports `IsNull == false`. If your code constructs an "empty" DataValue at the top of a method and then optionally fills in fields, switch to chaining `With*` calls onto `DataValue.Null` (or, equivalently, `default`) so the receiver can tell whether you populated it.
-
 #### XmlElement
 
 Previously the `XmlElement` built in type was represented by the `System.Xml.XmlElement` system type. While officially a deprecated, there is now a value type `XmlElement` that merely wraps a string but provides conversion operations to `System.Xml.XmlElement` and `System.Linq.Xml.XNode` as well as validation and equality/hashing operations. Normally you just need to remove `using System.Xml` and code continues working as is.  If you need to have access to the `System.Xml.XmlElement` cast or use the `ToXmlElement` method.

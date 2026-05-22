@@ -1351,9 +1351,9 @@ namespace Opc.Ua
                             variant,
                             statusCode,
                             sourceTimestamp,
-                            serverTimestamp)
-                            .WithSourcePicoseconds(sourcePicoseconds)
-                            .WithServerPicoseconds(serverPicoseconds);
+                            serverTimestamp,
+                            sourcePicoseconds,
+                            serverPicoseconds);
                         return true;
                     }
                     finally
