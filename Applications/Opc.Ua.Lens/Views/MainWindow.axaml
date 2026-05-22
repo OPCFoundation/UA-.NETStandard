@@ -352,9 +352,13 @@
                    ``IsEnabled=IsConnected`` Grid; otherwise its Connect
                    button would be greyed out exactly when we need it. -->
               <Grid>
-              <!-- Whole tab body is disabled while disconnected so users see
-                   the tab strip but can't interact with the active plugin. -->
-              <Grid IsEnabled="{CompiledBinding IsConnected}">
+              <!-- Whole tab body is hidden while disconnected so the
+                   Connect placeholder isn't overlaid on top of a
+                   half-rendered plug-in view.  When connected, the
+                   body is enabled and the placeholder is hidden via
+                   IsVisible bindings on opposite sides of IsConnected. -->
+              <Grid IsVisible="{CompiledBinding IsConnected}"
+                    IsEnabled="{CompiledBinding IsConnected}">
                 <!-- Subscription chart panel — visible only when a Subscription tab is active. -->
                 <Grid IsVisible="{CompiledBinding IsSubscriptionTabActive}"
                       RowDefinitions="Auto,*">
