@@ -618,6 +618,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(string),
                         typeof(uint),
                         typeof(bool),
+                        typeof(bool),
                         typeof(bool)
                     ],
                     null);
@@ -635,6 +636,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     default(ArrayOf<string>),
                     "TestManagedSession",
                     60000u,
+                    false,
                     false,
                     false
                 ]);

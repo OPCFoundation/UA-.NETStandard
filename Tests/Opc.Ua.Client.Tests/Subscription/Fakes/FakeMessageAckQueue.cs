@@ -77,5 +77,13 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         {
             UpdateCalls++;
         }
+
+        /// <summary>
+        /// Test-controlled value for the
+        /// <see cref="IMessageAckQueue.PoolNotifications"/> setter the
+        /// subscription dispatcher reads to decide whether to perform the
+        /// pooled-notification reuse walk.
+        /// </summary>
+        public bool PoolNotifications { get; set; }
     }
 }

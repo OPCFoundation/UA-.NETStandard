@@ -62,5 +62,15 @@ namespace Opc.Ua.Client.Subscriptions
         /// should re-evaluate worker counts and resume publishing.
         /// </summary>
         void Update();
+
+        /// <summary>
+        /// Whether the V2 subscription dispatcher should call
+        /// <see cref="IPooledEncodeable.Reuse"/> on notification payload
+        /// instances after the handler returns. The value reflects the
+        /// current <see cref="ISubscriptionManager.PoolNotifications"/>
+        /// setting; toggling it on the manager takes effect on the next
+        /// dispatch.
+        /// </summary>
+        bool PoolNotifications { get; }
     }
 }

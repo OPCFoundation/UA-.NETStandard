@@ -65,6 +65,16 @@ namespace Opc.Ua.Client.Subscriptions
         protected ITelemetryContext Observability { get; }
 
         /// <summary>
+        /// Whether the message processor should release pooled notification
+        /// payload instances back to their activator pools after the handler
+        /// dispatch completes. Reflects the current
+        /// <see cref="IMessageAckQueue.PoolNotifications"/> setting on the
+        /// subscription manager; toggling the manager-level setting takes
+        /// effect on the next dispatch.
+        /// </summary>
+        protected bool PoolNotifications => m_completion.PoolNotifications;
+
+        /// <summary>
         /// Create subscription
         /// </summary>
         /// <param name="services"></param>

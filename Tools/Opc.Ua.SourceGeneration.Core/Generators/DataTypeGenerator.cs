@@ -82,6 +82,11 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_ListOfTypes,
                 WriteTemplate_ListOfTypes);
             template.AddReplacement(
+                Tokens.ListOfPooledExtensions,
+                datatypes,
+                LoadTemplate_ListOfPooledExtensions,
+                WriteTemplate_ListOfTypes);
+            template.AddReplacement(
                 Tokens.ListOfDataTypeDefinitions,
                 datatypes,
                 LoadTemplate_ListOfDataTypeDefinitions,
@@ -117,7 +122,14 @@ namespace Opc.Ua.SourceGeneration
                 datatype.IsStructure &&
                 !datatype.IsAbstract)
             {
-                return DataTypeTemplates.StructureActivatorClass;
+                // Types that live in the Opc.Ua.Types library don't get
+                // the IPooledEncodeable partial emitted (they're not
+                // generated in this assembly) so they can't satisfy the
+                // PooledEncodeableType<T> constraint. Use the plain
+                // EncodeableType<T> for them.
+                return datatype.IsPartOfOpcUaTypesLibrary()
+                    ? DataTypeTemplates.StructureActivatorClass
+                    : DataTypeTemplates.PooledStructureActivatorClass;
             }
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
                 datatype.IsEnumeration)
@@ -125,6 +137,64 @@ namespace Opc.Ua.SourceGeneration
                 return DataTypeTemplates.EnumerationActivatorClass;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Selector for the supplemental <c>partial class</c> body that
+        /// implements <see cref="IPooledEncodeable"/> on concrete
+        /// structure types. All concrete non-abstract structures are
+        /// poolable — this includes service request/response types and
+        /// notification payload types.
+        /// </summary>
+        private TemplateString LoadTemplate_ListOfPooledExtensions(ILoadContext context)
+        {
+            if (context.Target is not DataTypeDesign datatype ||
+                datatype.IsPartOfOpcUaTypesLibrary())
+            {
+                return null;
+            }
+            if (datatype.BasicDataType == BasicDataType.UserDefined &&
+                datatype.IsStructure &&
+                !datatype.IsAbstract)
+            {
+                return HasPoolableBase(datatype)
+                    ? DataTypeTemplates.DerivedPooledExtensionClass
+                    : DataTypeTemplates.PooledExtensionClass;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Returns true when the data type derives from another
+        /// concrete structure type that will itself receive a pooled
+        /// extension in this compilation — meaning the sentinel field,
+        /// <c>Reuse()</c> and <c>ClearPooledSentinel()</c> are
+        /// inherited from that base and the derived type must use
+        /// <c>new</c> to hide them. Walks up the inheritance chain
+        /// to find the first non-abstract ancestor that is a
+        /// generated structure (not in the Opc.Ua.Types library).
+        /// </summary>
+        private static bool HasPoolableBase(DataTypeDesign datatype)
+        {
+            DataTypeDesign current = datatype.BaseTypeNode as DataTypeDesign;
+            while (current is not null)
+            {
+                if (current.BasicDataType == BasicDataType.Structure)
+                {
+                    return false;
+                }
+
+                if (current.BasicDataType == BasicDataType.UserDefined &&
+                    current.IsStructure &&
+                    !current.IsAbstract &&
+                    !current.IsPartOfOpcUaTypesLibrary())
+                {
+                    return true;
+                }
+
+                current = current.BaseTypeNode as DataTypeDesign;
+            }
+            return false;
         }
 
         private TemplateString LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
@@ -635,6 +705,11 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfFieldInitializers,
                 fields,
                 LoadTemplate_ListOfFieldInitializers);
+
+            context.Template.AddReplacement(
+                Tokens.ListOfFieldResets,
+                fields,
+                LoadTemplate_ListOfFieldResets);
 
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
@@ -1153,6 +1228,26 @@ namespace Opc.Ua.SourceGeneration
                     field.DefaultValue));
 
             context.Out.WriteLine("{0} = {1};", field.GetChildFieldName(), value);
+            return null;
+        }
+
+        /// <summary>
+        /// Emits one assignment per declared field in the form
+        /// <c>m_field = default;</c>. Used by the
+        /// <c>PooledExtensionClass</c> template to reset all fields
+        /// before returning the instance to its activator's pool.
+        /// <c>default</c> covers reference types (assigns <c>null</c>),
+        /// value types (zero), and <see cref="ArrayOf{T}"/> /
+        /// <c>ReadOnlyMemory&lt;T&gt;</c>-backed structs (drops the
+        /// backing reference).
+        /// </summary>
+        private TemplateString LoadTemplate_ListOfFieldResets(ILoadContext context)
+        {
+            if (context.Target is not Parameter field)
+            {
+                return null;
+            }
+            context.Out.WriteLine("{0} = default;", field.GetChildFieldName());
             return null;
         }
 
