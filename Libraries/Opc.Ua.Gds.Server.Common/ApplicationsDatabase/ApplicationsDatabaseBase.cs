@@ -145,9 +145,7 @@ namespace Opc.Ua.Gds.Server.Database
                 foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
                     if (!string.IsNullOrEmpty(discoveryUrl) &&
-                        discoveryUrl.StartsWith(
-                            s_reverseConnectPrefix,
-                            StringComparison.Ordinal))
+                        discoveryUrl.StartsWith(s_reverseConnectPrefix, StringComparison.Ordinal))
                     {
                         throw new ArgumentException(
                             discoveryUrl +
@@ -183,9 +181,7 @@ namespace Opc.Ua.Gds.Server.Database
                     {
                         continue;
                     }
-                    if (discoveryUrl.StartsWith(
-                        s_reverseConnectPrefix,
-                        StringComparison.Ordinal))
+                    if (discoveryUrl.StartsWith(s_reverseConnectPrefix, StringComparison.Ordinal))
                     {
                         hasReverseUrl = true;
                     }
@@ -225,9 +221,7 @@ namespace Opc.Ua.Gds.Server.Database
                             continue;
                         }
 
-                        if (!discoveryUrl.StartsWith(
-                            s_reverseConnectPrefix,
-                            StringComparison.Ordinal))
+                        if (!discoveryUrl.StartsWith(s_reverseConnectPrefix, StringComparison.Ordinal))
                         {
                             throw new ArgumentException(
                                 "Clients can only register DiscoveryUrls when they support reverse connect; " +
