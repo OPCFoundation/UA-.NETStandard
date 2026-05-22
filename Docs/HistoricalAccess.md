@@ -146,6 +146,72 @@ InMemoryHistorianProvider historian = Server
 
 Resolution precedence is deterministic — see [Provider resolution order](#provider-resolution-order) below.
 
+### Fluent server API integration (`builder.Variable<T>(...).Historize()`)
+
+The historian surface is also reachable from the standard `Opc.Ua.Server.Fluent` builder used by source-generated node managers — historization fits in the same `Configure(INodeManagerBuilder)` chain as `OnRead` / `OnWrite` / `OnCall` / `Publish<TEvent>`:
+
+```csharp
+using Opc.Ua.Server.Fluent;       // exposes UseHistorian/Historize/WithHistorian
+using Opc.Ua.Server.Historian;
+
+[NodeManager(NamespaceUri = "http://example.com/Plant/")]
+public partial class PlantNodeManager
+{
+    partial void Configure(INodeManagerBuilder builder)
+    {
+        // Provision once: in-memory engine, registered as the default.
+        HistorianBuilder hist = builder.UseHistorian();
+        hist.UseInMemory();
+        hist.RegisterAsDefault();
+
+        // Variable-typed Historize() — most common form.
+        builder.Variable<double>("Temperature")
+               .OnRead(GetTemperature)
+               .Historize();
+    }
+}
+```
+
+The fluent surface ships three entry points (extension methods on the standard builder interfaces):
+
+| Method | Use case |
+| --- | --- |
+| `builder.UseHistorian()` | Returns a per-manager `HistorianBuilder` cached in a `ConditionalWeakTable` keyed by the `INodeManagerBuilder`. Subsequent `Historize()` calls inherit this default. Calling it more than once on the same manager returns the same instance. |
+| `variable.Historize(...)` | Opts the variable in to historization. Without a prior `UseHistorian()` call (and without a per-call `provider` argument), the call lazily creates an in-memory provider and registers it as the server-wide default — the "just works" path. Returns the same builder so the chain can continue. |
+| `variable.WithHistorian(provider)` | Binds a specific `IHistorianProvider` to the variable's `NodeId`. Per-node bindings take precedence over the default, so this is the right knob for per-signal storage routing. |
+
+Per-call overrides on `Historize(...)`:
+
+```csharp
+// Per-call provider — bypasses the cached default for this one variable.
+builder.Variable<int>("AuditLog")
+       .OnRead(GetAuditValue)
+       .Historize(provider: mySqliteProvider);
+
+// Per-call capabilities — the same HistorianNodeCapabilities POCO the
+// HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
+builder.Variable<double>("ReadOnlySensor")
+       .OnRead(GetReading)
+       .Historize(capabilities: new HistorianNodeCapabilities
+       {
+           InsertData = false, ReplaceData = false,
+           DeleteRaw = false, DeleteAtTime = false,
+       });
+```
+
+Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
+
+```csharp
+partial void Configure(IBoilerNodeManagerBuilder builder)
+{
+    builder.Boilers.Boiler__1.LCX001.Measurement
+           .OnRead(GenerateLevelControlMeasurement)
+           .Historize();
+}
+```
+
+No `GetHistorianProvider(...)` override is required on the manager — the fluent path writes into the server-wide `IHistorianProviderRegistry` so the dispatcher's normal precedence (per-NM override → registry NodeId → namespace → default) picks the provider automatically.
+
 ### Per-NodeManager `GetHistorianProvider` override
 
 Both `AsyncCustomNodeManager` and `CustomNodeManager2` expose a virtual hook that lets a node manager veto / customise provider resolution for nodes it owns:
