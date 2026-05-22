@@ -150,6 +150,30 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     public void OnActivated() { }
     public void OnDeactivated() { }
 
+    /// <summary>
+    /// On connect, lazily attach the Server.FileSystem root if the tab
+    /// was opened while disconnected (the ctor's normal init path was
+    /// skipped because Session was null). On disconnect, drop every
+    /// attached root because the <see cref="FileSystemClient"/> handles
+    /// hang off the dead session and any further operation would throw.
+    /// </summary>
+    public void OnConnectionStateChanged()
+    {
+        if (m_host.Connection.Session is { } session)
+        {
+            if (Roots.Count == 0)
+            {
+                TryAttachServerFileSystem(session);
+            }
+        }
+        else
+        {
+            Roots.Clear();
+            SelectedNode = null;
+            UpdateStatus();
+        }
+    }
+
     public IReadOnlyList<MenuItem> ContributeMenuItems()
     {
         var pickRoot = new MenuItem { Header = "_Pick Root\u2026" };

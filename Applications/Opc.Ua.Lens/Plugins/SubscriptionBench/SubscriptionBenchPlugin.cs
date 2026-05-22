@@ -214,6 +214,21 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     public void OnActivated() { }
     public void OnDeactivated() { }
 
+    /// <summary>
+    /// Re-evaluate Run / Stop CanExecute when the host transitions
+    /// between connected and disconnected — both predicates pivot on
+    /// <c>m_host.Connection.Session</c> which is captured fresh, but
+    /// the generated commands cache their last-seen result until
+    /// <c>NotifyCanExecuteChanged()</c> is called.
+    /// </summary>
+    public void OnConnectionStateChanged()
+    {
+        RunCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
+        PickVariablesCommand.NotifyCanExecuteChanged();
+        PickSubtreeCommand.NotifyCanExecuteChanged();
+    }
+
     public async ValueTask DisposeAsync()
     {
         m_aggregationTimer?.Stop();

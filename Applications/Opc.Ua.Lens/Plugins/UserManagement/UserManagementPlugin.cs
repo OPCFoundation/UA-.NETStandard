@@ -100,13 +100,10 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         }
         m_title = string.Create(CultureInfo.InvariantCulture, $"User Management {n}");
 
-        // Subscribe to outer-session state changes so we auto-refresh
-        // whenever the user connects (or re-connects). Refresh fires
-        // on the UI thread via Dispatcher.UIThread.Post.
-        m_host.Connection.StateChanged += OnConnectionStateChanged;
-
         // If a session is already live at construction time, kick off
         // an initial refresh so the user lands on a populated grid.
+        // Subsequent connect / disconnect transitions are fanned out
+        // through the central IPlugin.OnConnectionStateChanged hook.
         if (m_host.Connection.Session is not null)
         {
             _ = Dispatcher.UIThread.InvokeAsync(async () =>
@@ -147,32 +144,26 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
 
     public ValueTask DisposeAsync()
     {
-        try
-        {
-            m_host.Connection.StateChanged -= OnConnectionStateChanged;
-        }
-        catch
-        {
-            // tolerate detach failures
-        }
         return ValueTask.CompletedTask;
     }
 
-    private void OnConnectionStateChanged()
+    /// <summary>
+    /// Refresh the grid whenever the host's connection state flips —
+    /// invoked on the UI thread by the central
+    /// <see cref="MainViewModel"/> fan-out, so no additional dispatch
+    /// is required here.
+    /// </summary>
+    public void OnConnectionStateChanged()
     {
-        // The event fires from a background worker thread — hop to UI.
-        Dispatcher.UIThread.Post(async () =>
+        if (m_host.Connection.Session is null)
         {
-            if (m_host.Connection.Session is null)
-            {
-                Users.Clear();
-                SelectedUser = null;
-                PasswordRestrictionsText = "(unknown — connect and refresh)";
-                Status = "● Not connected";
-                return;
-            }
-            await RefreshAsync().ConfigureAwait(true);
-        });
+            Users.Clear();
+            SelectedUser = null;
+            PasswordRestrictionsText = "(unknown — connect and refresh)";
+            Status = "● Not connected";
+            return;
+        }
+        _ = RefreshAsync();
     }
 
     // ----- Commands -----

@@ -110,8 +110,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         m_title = string.Create(CultureInfo.InvariantCulture, $"Role Management {n}");
 
-        m_host.Connection.StateChanged += OnConnectionStateChanged;
         // Auto-refresh once if we are already connected at construction time.
+        // Subsequent connect / disconnect transitions are fanned out through
+        // the central IPlugin.OnConnectionStateChanged hook.
         if (IsConnected)
         {
             _ = Dispatcher.UIThread.InvokeAsync(RefreshAsync);
@@ -152,35 +153,29 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
 
     public ValueTask DisposeAsync()
     {
-        try
-        {
-            m_host.Connection.StateChanged -= OnConnectionStateChanged;
-        }
-        catch
-        {
-            // tolerate detach failures
-        }
         return ValueTask.CompletedTask;
     }
 
     // ----- Connection-state plumbing -----
 
-    private void OnConnectionStateChanged()
+    /// <summary>
+    /// Refresh / clear roles when the host connection state flips.
+    /// Always runs on the UI thread via the central
+    /// <see cref="MainViewModel"/> fan-out.
+    /// </summary>
+    public void OnConnectionStateChanged()
     {
-        Dispatcher.UIThread.Post(() =>
+        OnPropertyChanged(nameof(IsConnected));
+        UpdateStatus();
+        if (IsConnected && Roles.Count == 0)
         {
-            OnPropertyChanged(nameof(IsConnected));
-            UpdateStatus();
-            if (IsConnected && Roles.Count == 0)
-            {
-                _ = RefreshAsync();
-            }
-            else if (!IsConnected)
-            {
-                Roles.Clear();
-                SelectedRole = null;
-            }
-        });
+            _ = RefreshAsync();
+        }
+        else if (!IsConnected)
+        {
+            Roles.Clear();
+            SelectedRole = null;
+        }
     }
 
     partial void OnSelectedRoleChanged(RoleVm? value)

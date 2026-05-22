@@ -218,6 +218,29 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     public void OnActivated() { }
     public void OnDeactivated() { }
 
+    /// <summary>
+    /// On connect, if the tab was opened while disconnected and never
+    /// got its event subscription created, kick off the deferred
+    /// initialisation now so subsequent <c>AddSource</c> calls don't
+    /// stall on <see cref="m_subscriptionReady"/>.
+    /// </summary>
+    /// <remarks>
+    /// Mid-session reconnect (subscription survives is null but
+    /// <see cref="m_subscriptionReady"/> has already completed) is a
+    /// pre-existing limitation tracked separately — re-binding to a
+    /// fresh session requires resetting the TaskCompletionSource which
+    /// would be a larger refactor.
+    /// </remarks>
+    public void OnConnectionStateChanged()
+    {
+        if (m_host.Connection.Session is { } session
+            && m_subscription is null
+            && !m_subscriptionReady.Task.IsCompleted)
+        {
+            _ = InitializeSubscriptionAsync(session);
+        }
+    }
+
     public IReadOnlyList<MenuItem> ContributeMenuItems()
     {
         var addSrc = new MenuItem { Header = "_Add Source\u2026" };

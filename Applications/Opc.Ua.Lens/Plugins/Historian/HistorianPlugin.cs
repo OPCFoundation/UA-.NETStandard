@@ -427,6 +427,18 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     public void OnActivated() { }
     public void OnDeactivated() { }
 
+    /// <summary>
+    /// Re-evaluate Read CanExecute when the host connects or
+    /// disconnects — <see cref="CanRead"/> pivots on
+    /// <c>m_host.Main.Connection.Session</c>.  Cached read results are
+    /// intentionally preserved so the user can still inspect the last
+    /// successful read after a disconnect.
+    /// </summary>
+    public void OnConnectionStateChanged()
+    {
+        ReadCommand.NotifyCanExecuteChanged();
+    }
+
     public ValueTask DisposeAsync()
     {
         try

@@ -196,19 +196,19 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         }
         m_title = $"GDS Management {n}";
         m_endpointUrl = host.Main.EndpointUrl ?? string.Empty;
-        // Outer session changes: re-evaluate computed status props.
-        m_host.Connection.StateChanged += OnOuterStateChanged;
     }
 
-    private void OnOuterStateChanged()
+    /// <summary>
+    /// Re-evaluate computed connection-status properties when the host
+    /// transitions between connected and disconnected.  Always runs on
+    /// the UI thread via the central <see cref="MainViewModel"/> fan-out.
+    /// </summary>
+    public void OnConnectionStateChanged()
     {
-        Dispatcher.UIThread.Post(() =>
-        {
-            OnPropertyChanged(nameof(IsConnected));
-            OnPropertyChanged(nameof(HasSecondarySession));
-            OnPropertyChanged(nameof(ConnectButtonText));
-            UpdateStatus();
-        });
+        OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(HasSecondarySession));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        UpdateStatus();
     }
 
     private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
@@ -271,14 +271,6 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
 
     public async ValueTask DisposeAsync()
     {
-        try
-        {
-            m_host.Connection.StateChanged -= OnOuterStateChanged;
-        }
-        catch
-        {
-            // tolerate detach failures
-        }
         if (m_client is not null)
         {
             try

@@ -255,21 +255,20 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 OnPropertyChanged(nameof(EndpointUrl));
             }
         };
-        // Outer session changes: re-evaluate computed status props so
-        // the GDS panel reflects the main Connection panel's state.
-        m_host.Connection.StateChanged += OnOuterStateChanged;
     }
 
-    private void OnOuterStateChanged()
+    /// <summary>
+    /// Re-evaluate computed connection-status properties when the host
+    /// transitions between connected and disconnected so the GDS panel
+    /// reflects the main Connection panel's state.  Always runs on the
+    /// UI thread via the central <see cref="MainViewModel"/> fan-out.
+    /// </summary>
+    public void OnConnectionStateChanged()
     {
-        // Marshal to UI thread; StateChanged may fire from a worker.
-        Dispatcher.UIThread.Post(() =>
-        {
-            OnPropertyChanged(nameof(IsConnected));
-            OnPropertyChanged(nameof(HasSecondarySession));
-            OnPropertyChanged(nameof(ConnectButtonText));
-            UpdateStatus();
-        });
+        OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(HasSecondarySession));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        UpdateStatus();
     }
 
     private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
@@ -328,14 +327,6 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
     public async ValueTask DisposeAsync()
     {
-        try
-        {
-            m_host.Connection.StateChanged -= OnOuterStateChanged;
-        }
-        catch
-        {
-            // tolerate detach failures
-        }
         try
         {
             m_busyCts?.Cancel();

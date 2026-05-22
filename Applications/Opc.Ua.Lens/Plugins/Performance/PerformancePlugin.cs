@@ -282,6 +282,17 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     public void OnActivated() { }
     public void OnDeactivated() { }
 
+    /// <summary>
+    /// Re-evaluate Run / Stop CanExecute when the host connects or
+    /// disconnects — <see cref="CanRun"/> pivots on
+    /// <c>m_host.Main.Connection.Session</c>.
+    /// </summary>
+    public void OnConnectionStateChanged()
+    {
+        RunCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (m_runner is { } r)

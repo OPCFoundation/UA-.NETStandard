@@ -121,4 +121,22 @@ internal interface IPlugin : INotifyPropertyChanged, IAsyncDisposable
 
     /// <summary>Called when this tab is no longer the active selection.</summary>
     void OnDeactivated();
+
+    /// <summary>
+    /// Called by the host on the UI thread whenever the underlying
+    /// <see cref="UaLens.Connection.ConnectionService"/> reports a
+    /// connect / disconnect / reconnect transition.  Default
+    /// implementation is a no-op — override only if the plug-in caches
+    /// session-dependent state that must be refreshed on connect or
+    /// cleared on disconnect, or has <c>[RelayCommand]</c> predicates
+    /// that key off <c>m_host.Connection.Session</c> and therefore need
+    /// their <c>NotifyCanExecuteChanged()</c> called.
+    /// </summary>
+    /// <remarks>
+    /// The host snapshots <c>Tabs</c> before iterating and swallows any
+    /// exception thrown by an individual plug-in, so an override may
+    /// freely mutate <c>Tabs</c> (e.g. close itself) or throw without
+    /// affecting siblings.
+    /// </remarks>
+    void OnConnectionStateChanged() { }
 }

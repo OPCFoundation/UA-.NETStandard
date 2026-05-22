@@ -234,6 +234,7 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         References = new ReferencesViewModel(Telemetry, Connection);
 
         Connection.StateChanged += () => Dispatcher.UIThread.Post(SyncFromConnection);
+        Connection.StateChanged += () => Dispatcher.UIThread.Post(NotifyPluginsOfConnectionChange);
 
         m_logPump = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => PumpLog());
         m_logPump.Start();
@@ -886,6 +887,38 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             References.Clear();
         }
         EngineButtonText = $"↻ Engine: {Engine}";
+    }
+
+    /// <summary>
+    /// Fan out <see cref="ConnectionService.StateChanged"/> to every open
+    /// plug-in via <see cref="IPlugin.OnConnectionStateChanged"/> so each
+    /// can refresh its own command CanExecute / cached state without
+    /// having to subscribe to the event individually (avoids the
+    /// subscribe / unsubscribe-on-Dispose boilerplate and the risk of
+    /// leaking handlers).
+    /// </summary>
+    /// <remarks>
+    /// Always runs on the UI thread via <c>Dispatcher.UIThread.Post</c>.
+    /// We snapshot <see cref="Tabs"/> before iterating because an
+    /// override may mutate the collection (e.g. close itself), and
+    /// swallow per-tab exceptions so a single misbehaving plug-in
+    /// can't break the others' notification.
+    /// </remarks>
+    private void NotifyPluginsOfConnectionChange()
+    {
+        foreach (IPlugin tab in Tabs.ToArray())
+        {
+            try
+            {
+                tab.OnConnectionStateChanged();
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex,
+                    "Plug-in {Kind} threw from OnConnectionStateChanged — continuing with the next tab.",
+                    tab.Kind);
+            }
+        }
     }
 
     /// <summary>
