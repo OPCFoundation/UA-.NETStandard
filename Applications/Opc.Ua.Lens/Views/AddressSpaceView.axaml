@@ -66,6 +66,7 @@
             <MenuItem x:Name="MenuReadHistory" Header="Read history…" />
             <MenuItem x:Name="MenuShowEvents" Header="Show Events…" />
             <MenuItem x:Name="MenuPerf" Header="Perf…" />
+            <MenuItem x:Name="MenuAddToBench" Header="Add to Subscription Bench…" />
             <MenuItem x:Name="MenuExportValue" Header="Export value to file…" />
             <Separator />
             <MenuItem x:Name="MenuFindByPath" Header="Find by path…" />

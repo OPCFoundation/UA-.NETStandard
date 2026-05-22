@@ -54,6 +54,7 @@ internal sealed record ContextMenuVisibility(
     bool CanReadHistory,
     bool CanShowEvents,
     bool CanPerf,
+    bool CanAddToBench,
     bool CanExportValue);
 
 internal sealed partial class AddressSpaceView : UserControl
@@ -66,6 +67,7 @@ internal sealed partial class AddressSpaceView : UserControl
     public event Action<NodeViewModel>? ReadHistoryRequested;
     public event Action<NodeViewModel>? ShowEventsRequested;
     public event Action<NodeViewModel>? PerfRequested;
+    public event Action<NodeViewModel>? AddToBenchRequested;
     public event Action<NodeViewModel>? ExportValueRequested;
     public event Action<NodeViewModel?>? FindByPathRequested;
     public event Action<NodeViewModel>? ViewNodeStateRequested;
@@ -91,6 +93,7 @@ internal sealed partial class AddressSpaceView : UserControl
         var miReadHistory = this.FindControl<MenuItem>("MenuReadHistory");
         var miShowEvents = this.FindControl<MenuItem>("MenuShowEvents");
         var miPerf = this.FindControl<MenuItem>("MenuPerf");
+        var miAddToBench = this.FindControl<MenuItem>("MenuAddToBench");
         var miExportValue = this.FindControl<MenuItem>("MenuExportValue");
         var miFindByPath = this.FindControl<MenuItem>("MenuFindByPath");
         var miViewNodeState = this.FindControl<MenuItem>("MenuViewNodeState");
@@ -99,6 +102,7 @@ internal sealed partial class AddressSpaceView : UserControl
         if (tree is null || menu is null || miAdd is null || miAddRec is null
             || miCall is null || miWrite is null
             || miReadHistory is null || miShowEvents is null || miPerf is null
+            || miAddToBench is null
             || miExportValue is null || miFindByPath is null || miViewNodeState is null
             || search is null || viewKindCombo is null)
         {
@@ -123,6 +127,7 @@ internal sealed partial class AddressSpaceView : UserControl
             {
                 miAdd.IsVisible = miAddRec.IsVisible = miCall.IsVisible = miWrite.IsVisible = false;
                 miReadHistory.IsVisible = miShowEvents.IsVisible = miPerf.IsVisible = false;
+                miAddToBench.IsVisible = false;
                 miExportValue.IsVisible = false;
                 miFindByPath.IsVisible = true;
                 miViewNodeState.IsVisible = false;
@@ -136,6 +141,7 @@ internal sealed partial class AddressSpaceView : UserControl
             miReadHistory.IsVisible = v.CanReadHistory;
             miShowEvents.IsVisible = v.CanShowEvents;
             miPerf.IsVisible = v.CanPerf;
+            miAddToBench.IsVisible = v.CanAddToBench;
             miExportValue.IsVisible = v.CanExportValue;
             miFindByPath.IsVisible = true;
             miViewNodeState.IsVisible = true;
@@ -188,6 +194,13 @@ internal sealed partial class AddressSpaceView : UserControl
             if (tree.SelectedItem is NodeViewModel n)
             {
                 PerfRequested?.Invoke(n);
+            }
+        };
+        miAddToBench.Click += (_, _) =>
+        {
+            if (tree.SelectedItem is NodeViewModel n)
+            {
+                AddToBenchRequested?.Invoke(n);
             }
         };
         miExportValue.Click += (_, _) =>

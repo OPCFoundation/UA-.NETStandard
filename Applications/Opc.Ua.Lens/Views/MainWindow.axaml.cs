@@ -481,6 +481,8 @@ internal sealed partial class MainWindow : Window, IDisposable
             await m_vm.AddPluginAsync(PluginKind.EventView, seedEventSource: n).ConfigureAwait(true);
         liveTree.PerfRequested += async _ =>
             await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(true);
+        liveTree.AddToBenchRequested += async n =>
+            await m_vm.AddPluginAsync(PluginKind.SubscriptionBench, seedBenchNode: n).ConfigureAwait(true);
         liveTree.ExportValueRequested += async n => await OnExportValueAsync(n).ConfigureAwait(true);
         liveTree.FindByPathRequested += n => OnFindByPath(n);
         liveTree.ViewNodeStateRequested += n => OnViewNodeState(n);
@@ -2668,6 +2670,16 @@ internal sealed class ContextMenuPolicy : IContextMenuPolicy
         bool canShowEvents = m_vm.IsConnected && m_vm.SelectionHasEvents;
         bool canPerf = m_vm.IsConnected
             && (m_vm.CanCallMethod || m_vm.CanWriteVariable);
+        // Subscription Bench accepts a single Variable directly, and walks
+        // any container kind (Object/View/ObjectType) to collect its variable
+        // descendants — so reuse the same "could plausibly contain variables"
+        // test as recursive-add.
+        bool canAddToBench = m_vm.IsConnected
+            && node.NodeClass is Opc.Ua.NodeClass.Variable
+                or Opc.Ua.NodeClass.Object
+                or Opc.Ua.NodeClass.View
+                or Opc.Ua.NodeClass.ObjectType
+                or Opc.Ua.NodeClass.VariableType;
         bool canExportValue = m_vm.IsConnected
             && node.NodeClass == Opc.Ua.NodeClass.Variable;
         return new ContextMenuVisibility(
@@ -2678,6 +2690,7 @@ internal sealed class ContextMenuPolicy : IContextMenuPolicy
             CanReadHistory: canReadHistory,
             CanShowEvents: canShowEvents,
             CanPerf: canPerf,
+            CanAddToBench: canAddToBench,
             CanExportValue: canExportValue);
     }
 }

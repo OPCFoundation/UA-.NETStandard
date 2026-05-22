@@ -423,6 +423,60 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             "● Added {0} variable(s) to the pool (skipped duplicates).", added);
     }
 
+    /// <summary>
+    /// Seed the pool from the address-space context menu.  If <paramref name="nodeClass"/>
+    /// is <see cref="NodeClass.Variable"/> the node itself is added; otherwise the subtree
+    /// rooted at <paramref name="nodeId"/> is walked and every variable descendant is
+    /// appended (mirrors the behaviour of the in-plugin "Pick Subtree…" command).
+    /// </summary>
+    /// <remarks>
+    /// Never auto-starts the run — the user still controls Run/Stop via the toolbar so
+    /// the pool can grow across several context-menu invocations before the bench
+    /// starts streaming.
+    /// </remarks>
+    public async Task SeedFromNodeAsync(NodeId nodeId, NodeClass nodeClass, string? displayName)
+    {
+        if (nodeId.IsNull)
+        {
+            return;
+        }
+        string name = string.IsNullOrWhiteSpace(displayName) ? nodeId.ToString() : displayName!;
+        if (nodeClass == NodeClass.Variable)
+        {
+            AppendPool(new[] { (nodeId, name) });
+            return;
+        }
+        if (m_host.Connection.Session is not { } session)
+        {
+            Status = "● Connect to a server before seeding the pool.";
+            return;
+        }
+        var collected = new List<(NodeId NodeId, string DisplayName)>();
+        try
+        {
+            await WalkVariablesAsync(session, nodeId, collected, CancellationToken.None)
+                .ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Status = "● Subtree walk failed: " + ex.Message;
+            return;
+        }
+        if (collected.Count == 0)
+        {
+            Status = "● No variables found beneath '" + name + "'.";
+            return;
+        }
+        // Prepend the root name to each path so the user can tell which
+        // seed produced which entry once several have been added.
+        var prefixed = new List<(NodeId NodeId, string DisplayName)>(collected.Count);
+        foreach ((NodeId childId, string childPath) in collected)
+        {
+            prefixed.Add((childId, name + childPath));
+        }
+        AppendPool(prefixed);
+    }
+
     [RelayCommand]
     private void ClearPool()
     {

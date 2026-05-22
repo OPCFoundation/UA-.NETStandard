@@ -271,7 +271,8 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         NodeViewModel? seedEventSource = null,
         bool seedPickTarget = false,
         UaLens.Plugins.Gds.RegisteredApplicationContext? seedRegisteredApp = null,
-        EndpointDescription? seedDiscoveryEndpoint = null)
+        EndpointDescription? seedDiscoveryEndpoint = null,
+        NodeViewModel? seedBenchNode = null)
     {
         if (kind == PluginKind.Subscription)
         {
@@ -285,13 +286,32 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             CurrentRegisteredApp = seedRegisteredApp;
         }
-        PluginRegistration reg = PluginRegistry.For(kind);
-        IPlugin tab = reg.Factory(this);
-        Dispatcher.UIThread.Post(() =>
+
+        // Subscription Bench reuses an existing tab when present so the
+        // user can stream additional pool entries into one running bench
+        // instead of spawning many parallel tabs.  Spawn a fresh tab only
+        // when the user explicitly asks for one (no seed) or none exists.
+        IPlugin? tab = null;
+        if (kind == PluginKind.SubscriptionBench && seedBenchNode is not null)
         {
-            Tabs.Add(tab);
-            SelectedTab = tab;
-        });
+            tab = Tabs.OfType<UaLens.Plugins.SubscriptionBench.SubscriptionBenchPlugin>()
+                .LastOrDefault();
+            if (tab is not null)
+            {
+                SelectedTab = tab;
+            }
+        }
+        if (tab is null)
+        {
+            PluginRegistration reg = PluginRegistry.For(kind);
+            tab = reg.Factory(this);
+            IPlugin newTab = tab;
+            Dispatcher.UIThread.Post(() =>
+            {
+                Tabs.Add(newTab);
+                SelectedTab = newTab;
+            });
+        }
 
         // Post-creation seeding:
         if (seedEventSource is not null
@@ -311,6 +331,14 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     perf.PickTargetCommand.Execute(null);
                 }
             });
+        }
+        if (seedBenchNode is not null
+            && tab is UaLens.Plugins.SubscriptionBench.SubscriptionBenchPlugin bench)
+        {
+            _ = bench.SeedFromNodeAsync(
+                seedBenchNode.NodeId,
+                seedBenchNode.NodeClass,
+                seedBenchNode.Text);
         }
         // seedDiscoveryEndpoint is consumed by the (future)
         // GdsDiscoveryPlugin via a dedicated SeedEndpointAsync hook —
