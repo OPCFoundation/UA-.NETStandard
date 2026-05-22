@@ -1028,11 +1028,6 @@ namespace Opc.Ua
         /// <param name="value"></param>
         private void WriteDataValue(DataValue value)
         {
-            if (value.IsNull)
-            {
-                m_writer.WriteNullValue();
-                return;
-            }
             StartObject();
             // The DataValue is an encoded variant with extra fields in essence.
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.2.18

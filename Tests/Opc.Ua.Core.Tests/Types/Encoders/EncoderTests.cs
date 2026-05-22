@@ -170,7 +170,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 result = decoder.ReadDataValue("DataValue");
             }
 
-            Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
             // see: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17
             if ((expected.SourcePicoseconds != 0 && expected.SourceTimestamp == DateTimeUtc.MinValue) ||
                 (expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue))
@@ -180,6 +179,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             else
             {
+                Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
                 Assert.That(expected, Is.EqualTo(result), encodeInfo);
                 Assert.That(
                     Utils.IsEqual(expected, result),

@@ -7675,6 +7675,14 @@ namespace Opc.Ua
                             return m_union.UInt64 == 0;
                         case BuiltInType.Guid:
                             return GetGuid() == Uuid.Empty;
+                        case BuiltInType.DataValue:
+                            // A Variant carrying a DataValue value is always
+                            // meaningful: even a DataValue with all-default
+                            // fields is encoded as an empty object "{}" rather
+                            // than being elided. Preserves behaviour from when
+                            // DataValue was a reference type and did not
+                            // implement INullable.
+                            return false;
                     }
                 }
                 if (m_value is INullable nullable)
