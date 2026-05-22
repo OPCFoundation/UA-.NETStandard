@@ -84,18 +84,14 @@ namespace Opc.Ua.Client.Subscriptions
             var rented = (MonitoredItemNotification)
                 MonitoredItemNotificationActivator.Instance.CreateInstance();
             rented.ClientHandle = 42;
-            rented.Value = new DataValue
-            {
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            rented.Value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.Now);
 
             rented.Reuse();
 
             // Fields reset to default.
             Assert.That(rented.ClientHandle, Is.EqualTo(0u),
                 "Reuse should reset ClientHandle to default(uint)");
-            Assert.That(rented.Value, Is.Null,
+            Assert.That(rented.Value.IsNull, Is.True,
                 "Reuse should reset Value to default (null)");
 
             // Pool should now hand the same reference back.
