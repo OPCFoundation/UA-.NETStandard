@@ -5386,8 +5386,6 @@ namespace Quickstarts.ReferenceServer
 
         private InMemoryHistorianProvider? m_historian;
 
-        #region Historical Access
-
         /// <summary>
         /// Identifiers of the nodes that support history archiving.
         /// </summary>
@@ -5471,8 +5469,6 @@ namespace Quickstarts.ReferenceServer
             var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
             _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);
         }
-
-        #endregion
 
 
         private static readonly ArrayOf<double> s_doubleArray =

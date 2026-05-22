@@ -269,17 +269,17 @@ namespace Opc.Ua.Client.Historian
 
             return new HistoryServerCapabilitiesInfo
             {
-                AccessHistoryData = ValueOrDefault<bool>(values[0]),
-                AccessHistoryEvents = ValueOrDefault<bool>(values[1]),
-                MaxReturnDataValues = ValueOrDefault<uint>(values[2]),
-                MaxReturnEventValues = ValueOrDefault<uint>(values[3]),
-                InsertData = ValueOrDefault<bool>(values[4]),
-                ReplaceData = ValueOrDefault<bool>(values[5]),
-                UpdateData = ValueOrDefault<bool>(values[6]),
-                DeleteRaw = ValueOrDefault<bool>(values[7]),
-                DeleteAtTime = ValueOrDefault<bool>(values[8]),
-                InsertAnnotation = ValueOrDefault<bool>(values[9]),
-                ServerTimestampSupported = ValueOrDefault<bool>(values[10]),
+                AccessHistoryData = ReadBool(values[0]),
+                AccessHistoryEvents = ReadBool(values[1]),
+                MaxReturnDataValues = ReadUInt(values[2]),
+                MaxReturnEventValues = ReadUInt(values[3]),
+                InsertData = ReadBool(values[4]),
+                ReplaceData = ReadBool(values[5]),
+                UpdateData = ReadBool(values[6]),
+                DeleteRaw = ReadBool(values[7]),
+                DeleteAtTime = ReadBool(values[8]),
+                InsertAnnotation = ReadBool(values[9]),
+                ServerTimestampSupported = ReadBool(values[10]),
             };
         }
 
@@ -328,16 +328,16 @@ namespace Opc.Ua.Client.Historian
             return new HistoricalDataConfigurationInfo
             {
                 HasConfiguration = true,
-                Stepped = !childNodes[0].IsNull ? (bool?)ValueOrDefault<bool>(values[0]) : null,
-                Definition = !childNodes[1].IsNull ? ValueOrDefault<string>(values[1]) : null,
-                MaxTimeInterval = !childNodes[2].IsNull ? (double?)ValueOrDefault<double>(values[2]) : null,
-                MinTimeInterval = !childNodes[3].IsNull ? (double?)ValueOrDefault<double>(values[3]) : null,
-                ExceptionDeviation = !childNodes[4].IsNull ? (double?)ValueOrDefault<double>(values[4]) : null,
+                Stepped = !childNodes[0].IsNull ? (bool?)ReadBool(values[0]) : null,
+                Definition = !childNodes[1].IsNull ? ReadString(values[1]) : null,
+                MaxTimeInterval = !childNodes[2].IsNull ? (double?)ReadDouble(values[2]) : null,
+                MinTimeInterval = !childNodes[3].IsNull ? (double?)ReadDouble(values[3]) : null,
+                ExceptionDeviation = !childNodes[4].IsNull ? (double?)ReadDouble(values[4]) : null,
                 StartOfArchive = !childNodes[5].IsNull
-                    ? (DateTime?)ValueOrDefault<DateTimeUtc>(values[5]).ToDateTime()
+                    ? (DateTime?)ReadDateTimeUtc(values[5]).ToDateTime()
                     : null,
                 StartOfOnlineArchive = !childNodes[6].IsNull
-                    ? (DateTime?)ValueOrDefault<DateTimeUtc>(values[6]).ToDateTime()
+                    ? (DateTime?)ReadDateTimeUtc(values[6]).ToDateTime()
                     : null,
             };
         }
@@ -515,8 +515,8 @@ namespace Opc.Ua.Client.Historian
             {
                 return NodeId.Null;
             }
-            NodeId? resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
-            return resolved ?? NodeId.Null;
+            NodeId resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
+            return resolved.IsNull ? NodeId.Null : resolved;
         }
 
         private async ValueTask<DataValue[]> BatchReadValueAsync(
@@ -549,17 +549,49 @@ namespace Opc.Ua.Client.Historian
             return values;
         }
 
-        private static T ValueOrDefault<T>(DataValue? value)
+        private static bool ReadBool(DataValue? value)
         {
             if (value == null || StatusCode.IsBad(value.StatusCode))
             {
-                return default!;
+                return false;
             }
-            if (value.WrappedValue.AsBoxedObject() is T typed)
+            return value.WrappedValue.TryGetValue(out bool v) && v;
+        }
+
+        private static uint ReadUInt(DataValue? value)
+        {
+            if (value == null || StatusCode.IsBad(value.StatusCode))
             {
-                return typed;
+                return 0u;
             }
-            return default!;
+            return value.WrappedValue.TryGetValue(out uint v) ? v : 0u;
+        }
+
+        private static double ReadDouble(DataValue? value)
+        {
+            if (value == null || StatusCode.IsBad(value.StatusCode))
+            {
+                return 0d;
+            }
+            return value.WrappedValue.TryGetValue(out double v) ? v : 0d;
+        }
+
+        private static DateTimeUtc ReadDateTimeUtc(DataValue? value)
+        {
+            if (value == null || StatusCode.IsBad(value.StatusCode))
+            {
+                return DateTimeUtc.MinValue;
+            }
+            return value.WrappedValue.TryGetValue(out DateTimeUtc v) ? v : DateTimeUtc.MinValue;
+        }
+
+        private static string? ReadString(DataValue? value)
+        {
+            if (value == null || StatusCode.IsBad(value.StatusCode))
+            {
+                return null;
+            }
+            return value.WrappedValue.TryGetValue(out string s) ? s : null;
         }
     }
 }

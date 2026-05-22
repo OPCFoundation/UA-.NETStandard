@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Aot.Tests
-{
 #nullable enable
 
+namespace Opc.Ua.Aot.Tests
+{
     /// <summary>
     /// AOT integration tests for history read operations.
     /// </summary>
