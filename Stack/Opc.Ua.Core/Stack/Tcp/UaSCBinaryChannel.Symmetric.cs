@@ -316,7 +316,7 @@ namespace Opc.Ua.Bindings
                 int signatureSize = SymmetricSignatureSize;
                 // token.SecurityPolicy is set in ComputeKeys before the channel sends messages.
                 int paddingCountSize =
-                    (SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy!.NoSymmetricEncryptionPadding)
+                    SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy!.NoSymmetricEncryptionPadding
                     ? 0
                     : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
 

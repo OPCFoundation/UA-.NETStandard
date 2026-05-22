@@ -460,7 +460,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
+            public override void Flush()
+            {
+            }
 
             public override int Read(byte[] buffer, int offset, int count)
             {
@@ -506,7 +508,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
+            public override void Flush()
+            {
+            }
 
             public override int Read(byte[] buffer, int offset, int count)
             {
@@ -523,7 +527,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 throw new NotSupportedException();
             }
 
-            public override void Write(byte[] buffer, int offset, int count) { }
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+            }
         }
 
         private sealed class ReadOnlyStream : Stream
@@ -544,7 +550,10 @@ namespace Opc.Ua.WotCon.Tests.Client
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
+            public override void Flush()
+            {
+            }
+
             public override int Read(byte[] buffer, int offset, int count)
             {
                 return 0;

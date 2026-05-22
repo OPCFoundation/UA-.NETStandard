@@ -85,7 +85,9 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     Directory.Delete(_tempFolder, recursive: true);
                 }
-                catch { /* swallow */ }
+                catch
+                { /* swallow */
+                }
             }
         }
 

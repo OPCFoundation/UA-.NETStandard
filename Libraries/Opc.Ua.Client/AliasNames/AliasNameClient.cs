@@ -334,8 +334,8 @@ namespace Opc.Ua.Client.AliasNames
 
         /// <summary>
         /// Resolves the category's <c>LastChange</c> property NodeId
-        /// (Part 17 §6.3.1). For the standard well-known <c>Aliases
-        /// (i=23470)</c> category the hardcoded <c>i=32852</c> instance
+        /// (Part 17 §6.3.1). For the standard well-known <code>Aliases
+        /// (i=23470)</code> category the hardcoded <c>i=32852</c> instance
         /// is returned without a round-trip; other categories fall back
         /// to a <c>TranslateBrowsePathsToNodeIds</c> probe. Returns
         /// <see cref="NodeId.Null"/> when the category does not expose

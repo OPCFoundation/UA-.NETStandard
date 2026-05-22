@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.UserManagement
             m_state.PasswordLength?.Value = m_userManagement.PasswordLength;
             m_state.PasswordOptions?.Value = (uint)m_userManagement.PasswordOptions;
             m_state.PasswordRestrictions?.Value = m_userManagement.PasswordRestrictions
-                    ?? LocalizedText.Null;
+                ?? LocalizedText.Null;
         }
 
         private async ValueTask<AddUserMethodStateResult> OnAddUserAsync(

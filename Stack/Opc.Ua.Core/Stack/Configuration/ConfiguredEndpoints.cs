@@ -749,7 +749,7 @@ namespace Opc.Ua
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                     servers.TryAdd(server.ApplicationUri!, server);
 #else
-                    System.Collections.Generic.Polyfills.TryAdd(servers, server.ApplicationUri!, server);
+                    servers.TryAdd(server.ApplicationUri!, server);
 #endif
                 }
             }

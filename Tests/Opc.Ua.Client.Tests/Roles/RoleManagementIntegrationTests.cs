@@ -276,10 +276,7 @@ namespace Opc.Ua.Client.Tests.Roles
             // Applications is an ArrayOf<string> snapshot; convert to a
             // local list for assertion clarity.
             var apps = new List<string>();
-            foreach (string app in refreshed.Applications)
-            {
-                apps.Add(app);
-            }
+            apps.AddRange(refreshed.Applications);
             Assert.That(apps, Has.Member("urn:test:role-management:app"),
                 "The added ApplicationUri should be visible on subsequent reads.");
         }

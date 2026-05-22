@@ -351,7 +351,6 @@ namespace Opc.Ua.Client.AliasNames
                             PublishingIntervalMs = options.PublishingIntervalMs,
                             SamplingIntervalMs = options.LastChangeSamplingIntervalMs
                         });
-                case AliasNameResolverRefreshMode.Manual:
                 default:
                     return new ManualAliasNameRefreshStrategy();
             }

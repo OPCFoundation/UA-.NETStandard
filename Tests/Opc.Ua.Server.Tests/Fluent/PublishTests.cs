@@ -51,6 +51,7 @@ namespace Opc.Ua.Server.Tests.Fluent
     {
         private const ushort kNs = 2;
         private const string kNamespaceUri = "http://test.org/UA/Publish/";
+
         /// <summary>
         /// Generous timeout: reconcile/worker tasks run on the thread pool which
         /// can be starved when the broader test suite (e.g. AsyncCustomNodeManager

@@ -857,9 +857,8 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
             try
             {
-                ApplicationRecordDataType? foundApplication = m_database.GetApplication(applicationId)
+                application = m_database.GetApplication(applicationId)
                     ?? throw new ServiceResultException(StatusCodes.BadNotFound);
-                application = foundApplication;
             }
             catch (ArgumentException ex)
             {

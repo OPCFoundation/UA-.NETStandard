@@ -253,8 +253,7 @@ namespace Opc.Ua
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, default);
                         }
-#pragma warning restore CS8602
-#pragma warning restore CS8600
+#pragma warning restore CS8602, CS8600
                         value = dataTypeDefinition;
                     }
 

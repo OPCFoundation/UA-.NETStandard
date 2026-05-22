@@ -206,8 +206,6 @@ namespace Opc.Ua.Gds.Tests
             };
         }
 
-        private sealed class TestApplicationsDatabase : ApplicationsDatabaseBase
-        {
-        }
+        private sealed class TestApplicationsDatabase : ApplicationsDatabaseBase;
     }
 }

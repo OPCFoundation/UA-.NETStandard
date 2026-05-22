@@ -107,10 +107,9 @@ namespace Opc.Ua.Server.FileSystem
                 Directory.CreateDirectory(m_rootDirectory);
             }
 
-            string resolvedMount = !string.IsNullOrEmpty(mountName)
+            MountName = !string.IsNullOrEmpty(mountName)
                 ? mountName!
                 : new DirectoryInfo(m_rootDirectory).Name;
-            MountName = resolvedMount;
             IsWritable = isWritable;
         }
 

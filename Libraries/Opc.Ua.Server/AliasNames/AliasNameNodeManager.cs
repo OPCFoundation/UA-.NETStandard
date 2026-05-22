@@ -427,6 +427,7 @@ namespace Opc.Ua.Server.AliasNames
 
         private readonly ILogger m_aliasLogger;
         private readonly IAliasNameStoreRegistry? m_registry;
+
         /// <summary>
         /// Always-available dispatcher that wraps just this manager's
         /// store so the standalone manager works even when the host

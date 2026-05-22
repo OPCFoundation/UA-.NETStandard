@@ -958,8 +958,7 @@ namespace Opc.Ua
                     targetNamespaceUris);
                 return new ExtensionObject(argument);
             }
-#pragma warning restore CS8602
-#pragma warning restore CS8600
+#pragma warning restore CS8602, CS8600
 
             return extensionObject;
         }

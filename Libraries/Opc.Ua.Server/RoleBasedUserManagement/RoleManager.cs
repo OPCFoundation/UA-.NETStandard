@@ -498,13 +498,12 @@ namespace Opc.Ua.Server
 
                 // Per §4.2.2: initial values of ApplicationsExclude/EndpointsExclude
                 // shall be TRUE on newly created roles when the properties exist.
-                var role = new MutableRole(allocated, roleName, namespaceIndex,
+                m_roles[allocated] = new MutableRole(allocated, roleName, namespaceIndex,
                     isReserved: false, isWellKnown: isWellKnown)
                 {
                     ApplicationsExclude = true,
                     EndpointsExclude = true
                 };
-                m_roles[allocated] = role;
                 m_browseNameIndex[roleName] = allocated;
                 newRoleId = allocated;
             }

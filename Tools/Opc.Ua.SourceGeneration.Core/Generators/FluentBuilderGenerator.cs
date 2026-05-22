@@ -428,7 +428,7 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, method);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
-            var wrapper = new MethodWrapper
+            m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
@@ -437,7 +437,6 @@ namespace Opc.Ua.SourceGeneration
                 Inputs = method.InputArguments ?? [],
                 Outputs = method.OutputArguments ?? []
             };
-            m_methodWrappers[key] = wrapper;
         }
 
         // ============================================================
@@ -1016,26 +1015,23 @@ namespace Opc.Ua.SourceGeneration
                         returnTypeAnnotation);
                 }
             }
+            else if (inputs.Length == 0 && outputs.Length == 0)
+            {
+                handlerType = "global::System.Action";
+            }
+            else if (outputs.Length == 0)
+            {
+                handlerType = CoreUtils.Format(
+                    "global::System.Action<{0}>",
+                    FormatInputTypeList(inputs, targetNamespace, namespaces));
+            }
             else
             {
-                if (inputs.Length == 0 && outputs.Length == 0)
-                {
-                    handlerType = "global::System.Action";
-                }
-                else if (outputs.Length == 0)
-                {
-                    handlerType = CoreUtils.Format(
-                        "global::System.Action<{0}>",
-                        FormatInputTypeList(inputs, targetNamespace, namespaces));
-                }
-                else
-                {
-                    handlerType = CoreUtils.Format(
-                        "global::System.Func<{0}{1}{2}>",
-                        FormatInputTypeList(inputs, targetNamespace, namespaces),
-                        inputs.Length == 0 ? string.Empty : ", ",
-                        StripAngleBrackets(returnTypeAnnotation, defaultIfEmpty: "void"));
-                }
+                handlerType = CoreUtils.Format(
+                    "global::System.Func<{0}{1}{2}>",
+                    FormatInputTypeList(inputs, targetNamespace, namespaces),
+                    inputs.Length == 0 ? string.Empty : ", ",
+                    StripAngleBrackets(returnTypeAnnotation, defaultIfEmpty: "void"));
             }
 
             writer.WriteLine();
@@ -1099,20 +1095,17 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine(").ConfigureAwait(false);");
                 }
             }
+            else if (outputs.Length == 0)
+            {
+                writer.Write("{0}handler(", lambdaIndent);
+                EmitInputArgPassThrough(writer, inputs, withCt: false);
+                writer.WriteLine(");");
+            }
             else
             {
-                if (outputs.Length == 0)
-                {
-                    writer.Write("{0}handler(", lambdaIndent);
-                    EmitInputArgPassThrough(writer, inputs, withCt: false);
-                    writer.WriteLine(");");
-                }
-                else
-                {
-                    writer.Write("{0}var __r = handler(", lambdaIndent);
-                    EmitInputArgPassThrough(writer, inputs, withCt: false);
-                    writer.WriteLine(");");
-                }
+                writer.Write("{0}var __r = handler(", lambdaIndent);
+                EmitInputArgPassThrough(writer, inputs, withCt: false);
+                writer.WriteLine(");");
             }
 
             // Marshal outputs.
@@ -1282,8 +1275,8 @@ namespace Opc.Ua.SourceGeneration
                     outputs[ii].ValueRank,
                     targetNamespace,
                     namespaces,
-                    outputs[ii].IsOptional));
-                sb.Append(" Item" + (ii + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    outputs[ii].IsOptional))
+                    .Append(" Item" + (ii + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
             sb.Append(")>");
             return sb.ToString();
@@ -1595,12 +1588,16 @@ namespace Opc.Ua.SourceGeneration
             public string BrowseName;
             public string BrowseNamespaceUri;
             public ChildKind Kind;
+
             /// <summary>CLR type name of the variable's value.</summary>
             public string ValueClrType;
+
             /// <summary>Generated wrapper class name for a method or object child.</summary>
             public string WrapperClassName;
+
             /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
             public string ChildKey;
+
             /// <summary>Node state type for object children.</summary>
             public string ChildStateType;
         }
