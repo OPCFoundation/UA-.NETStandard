@@ -826,16 +826,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
-        public virtual void QueueValue(DataValue value, ServiceResult? error)
+        public virtual void QueueValue(in DataValue value, ServiceResult? error)
         {
-            QueueValue(value, error, false);
+            QueueValue(in value, error, false);
         }
 
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void QueueValue(DataValue value, ServiceResult? error, bool ignoreFilters)
+        public virtual void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -851,8 +851,10 @@ namespace Opc.Ua.Server
                     return;
                 }
 
+                DataValue current = value;
+
                 // make a shallow copy of the value.
-                if (!value.IsNull)
+                if (!current.IsNull)
                 {
                     if (m_logger.IsEnabled(LogLevel.Trace))
                     {
@@ -860,22 +862,22 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.OperationDetail,
                             "RECEIVED VALUE[{MonitoredItemId}] Value={Value}",
                             Id,
-                            value.WrappedValue);
+                            current.WrappedValue);
                     }
 
-                    value = value.Copy();
+                    current = current.Copy();
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
                     {
-                        value = value.WithStatus(error.StatusCode);
+                        current = current.WithStatus(error.StatusCode);
                     }
                 }
 
                 // create empty value if none provided.
-                if (ServiceResult.IsBad(error) && value.IsNull)
+                if (ServiceResult.IsBad(error) && current.IsNull)
                 {
-                    value = new DataValue(
+                    current = new DataValue(
                         Variant.Null,
                         error!.StatusCode,
                         DateTime.UtcNow,
@@ -883,7 +885,7 @@ namespace Opc.Ua.Server
                 }
 
                 // this should never happen.
-                if (value.IsNull)
+                if (current.IsNull)
                 {
                     return;
                 }
@@ -891,11 +893,11 @@ namespace Opc.Ua.Server
                 // apply aggregate filter.
                 if (m_calculator != null)
                 {
-                    if (!m_calculator.QueueRawValue(value))
+                    if (!m_calculator.QueueRawValue(current))
                     {
                         m_logger.LogTrace(
                             "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}",
-                            value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                            current.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
                             Id);
                     }
 
@@ -908,16 +910,16 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter to incoming item.
-                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(value, error!))
+                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(current, error!))
                 {
-                    ServerUtils.ReportFilteredValue(NodeId, Id, value);
+                    ServerUtils.ReportFilteredValue(NodeId, Id, current);
                     return;
                 }
 
-                ServerUtils.ReportQueuedValue(NodeId, Id, value);
+                ServerUtils.ReportQueuedValue(NodeId, Id, current);
 
                 // add the value to the queue.
-                AddValueToQueue(value, error!);
+                AddValueToQueue(current, error!);
             }
         }
 

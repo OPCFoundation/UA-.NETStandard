@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
         /// <param name="value">the dataValue</param>
         /// <param name="error">the error</param>
         /// <returns>true of overflow occured</returns>
-        bool QueueValue(DataValue value, ServiceResult error);
+        bool QueueValue(in DataValue value, ServiceResult error);
 
         /// <summary>
         /// Dequeues the last item
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
         /// <param name="value">the dataValue</param>
         /// <param name="error">the error</param>
         /// <returns>true of overflow occured</returns>
-        public bool QueueValue(DataValue value, ServiceResult error)
+        public bool QueueValue(in DataValue value, ServiceResult error)
         {
             long now = HiResClock.TickCount64;
 
