@@ -211,7 +211,18 @@ namespace Opc.Ua.Gds.Server
             ISystemContext context,
             bool requireEncryption = false)
         {
-            if (context is not SystemContext { OperationContext: OperationContext operationContext })
+            // Extract the OperationContext from whichever concrete
+            // system context type is in use. ServerSystemContext
+            // extends SessionSystemContext (server path); SystemContext
+            // is the standalone variant (Opc.Ua.Types).
+            OperationContext? operationContext = context switch
+            {
+                SessionSystemContext sc => sc.OperationContext as OperationContext,
+                SystemContext sc => sc.OperationContext as OperationContext,
+                _ => null
+            };
+
+            if (operationContext == null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityModeInsufficient,
