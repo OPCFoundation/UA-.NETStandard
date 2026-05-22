@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
                     itemToCreate.RequestedParameters.ClientHandle,
                     filter,
                     filter,
-                    null!,
+                    null,
                     samplingInterval,
                     revisedQueueSize,
                     itemToCreate.RequestedParameters.DiscardOldest,

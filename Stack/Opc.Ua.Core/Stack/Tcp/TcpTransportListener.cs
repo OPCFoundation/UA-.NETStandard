@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Bindings
                 {
                     var context = new SecureChannelContext(
                         channel.GlobalChannelId,
-                        channel.EndpointDescription!,
+                        channel.EndpointDescription,
                         RequestEncoding.Binary,
                         channel.ClientCertificate?.RawData,
                         channel.ServerCertificate?.RawData,

@@ -574,12 +574,12 @@ namespace Opc.Ua.Bindings
 
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
-                    ServerCertificate!,
+                    ServerCertificate,
                     out channelId,
                     out clientCertificate,
                     out requestId,
                     out sequenceNumber,
-                    null!,
+                    null,
                     out byte[] signature);
 
                 // don't keep signature if secure channel enhancements are not used.
@@ -599,7 +599,7 @@ namespace Opc.Ua.Bindings
                 m_logger.LogError(e, errorSecurityChecksFailed);
 
                 // report the audit event for open secure channel
-                ReportAuditOpenSecureChannelEvent?.Invoke(this, null!, clientCertificate!, e);
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, null!, clientCertificate, e);
 
                 // report the audit event for open certificate error
                 ReportAuditCertificateEvent?.Invoke(clientCertificate!, e);
@@ -690,7 +690,7 @@ namespace Opc.Ua.Bindings
                 // create a new token.
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce(ServerCertificate!);
+                token.ServerNonce = CreateNonce(ServerCertificate);
                 token.PreviousSecret = CurrentToken?.Secret;
 
                 // check the client nonce.
@@ -777,9 +777,9 @@ namespace Opc.Ua.Bindings
                         s_implementationString,
                         Listener.EndpointUrl.ToString(),
                         Utils.Format("{0}", ChannelId),
-                        EndpointDescription!,
+                        EndpointDescription,
                         ClientCertificate,
-                        ServerCertificate!,
+                        ServerCertificate,
                         BinaryEncodingSupport.Required);
                 }
                 else
@@ -824,7 +824,7 @@ namespace Opc.Ua.Bindings
                         this,
                         request,
                         ClientCertificate,
-                        null!);
+                        null);
                 }
 
                 return false;
@@ -832,7 +832,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 // report the audit event for open secure channel
-                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, ClientCertificate!, e);
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, ClientCertificate, e);
 
                 SendServiceFault(
                     requestId,
@@ -915,9 +915,9 @@ namespace Opc.Ua.Bindings
                 chunksToSend = WriteAsymmetricMessage(
                     TcpMessageType.Open,
                     requestId,
-                    ServerCertificate!,
+                    ServerCertificate,
                     senderCertificateChain: null,
-                    ClientCertificate!,
+                    ClientCertificate,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
                     out byte[] signature);
@@ -979,9 +979,9 @@ namespace Opc.Ua.Bindings
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 requestId,
-                ServerCertificate!,
-                ServerCertificateChain!,
-                ClientCertificate!,
+                ServerCertificate,
+                ServerCertificateChain,
+                ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
                 out byte[] signature);

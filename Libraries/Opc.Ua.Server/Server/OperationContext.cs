@@ -170,7 +170,7 @@ namespace Opc.Ua.Server
         /// The context for the secure channel used to send the request.
         /// </summary>
         /// <value>The channel context.</value>
-        public SecureChannelContext? ChannelContext { get; } = null!;
+        public SecureChannelContext? ChannelContext { get; }
 
         /// <summary>
         /// The session associated with the context.

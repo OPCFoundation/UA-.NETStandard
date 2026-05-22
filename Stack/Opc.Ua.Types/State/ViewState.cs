@@ -335,7 +335,7 @@ namespace Opc.Ua
                         result = onReadEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = eventNotifier;
                     }
@@ -351,7 +351,7 @@ namespace Opc.Ua
                         result = onReadContainsNoLoops(context, this, ref containsNoLoops);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = containsNoLoops;
                     }
@@ -392,7 +392,7 @@ namespace Opc.Ua
                         result = onWriteEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         EventNotifier = eventNotifier;
                     }
@@ -416,7 +416,7 @@ namespace Opc.Ua
                         result = onWriteContainsNoLoops(context, this, ref containsNoLoops);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         ContainsNoLoops = containsNoLoops;
                     }

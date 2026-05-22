@@ -70,7 +70,7 @@ namespace Opc.Ua
             }
 
             if (node is not null &&
-                EqualityComparer<object>.Default.Equals(Handle!, node.Handle!) &&
+                EqualityComparer<object>.Default.Equals(Handle, node.Handle) &&
                 ChangeMasks == node.ChangeMasks &&
                 SymbolicName == node.SymbolicName &&
                 NodeId == node.NodeId &&
@@ -89,9 +89,9 @@ namespace Opc.Ua
 
                 // TODO: Remove below as not needed during runtime
                 EqualityComparer<XmlElement[]>.Default.Equals(
-                    Extensions!, node.Extensions!) &&
+                    Extensions, node.Extensions) &&
                 EqualityComparer<IList<string>>.Default.Equals(
-                    Categories!, node.Categories!) &&
+                    Categories, node.Categories) &&
                 ReleaseStatus == node.ReleaseStatus &&
                 Specification == node.Specification &&
                 NodeSetDocumentation == node.NodeSetDocumentation &&
@@ -1942,7 +1942,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = new LocalizedText(browseName.Name!);
+                displayName = new LocalizedText(browseName.Name);
             }
 
             if ((attributesToLoad & AttributesToSave.Description) != 0)
@@ -2186,7 +2186,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = new LocalizedText(browseName.Name!);
+                displayName = new LocalizedText(browseName.Name);
             }
 
             LocalizedText description = default;
@@ -2863,7 +2863,7 @@ namespace Opc.Ua
             {
                 SymbolicName = browseName.Name!;
                 BrowseName = browseName;
-                DisplayName = new LocalizedText(browseName.Name!);
+                DisplayName = new LocalizedText(browseName.Name);
             }
 
             // override display name.
@@ -5244,7 +5244,7 @@ namespace Opc.Ua
             /// <summary>
             /// The node state.
             /// </summary>
-            public NodeState? Node = null!;
+            public NodeState? Node;
 
             /// <summary>
             /// The reference type id.

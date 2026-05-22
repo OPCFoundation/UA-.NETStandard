@@ -984,11 +984,11 @@ namespace Opc.Ua.Export
                     BaseVariableState value;
                     if (typeDefinitionId == VariableTypeIds.PropertyType)
                     {
-                        value = new PropertyState(null!);
+                        value = new PropertyState(null);
                     }
                     else
                     {
-                        value = new BaseDataVariableState(null!);
+                        value = new BaseDataVariableState(null);
                     }
 
                     value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
@@ -1350,7 +1350,7 @@ namespace Opc.Ua.Export
                     namespaceUri = namespaceUris.GetString(namespaceIndex);
                 }
 
-                return nodeId.WithNamespaceUri(namespaceUri!).WithServerIndex(serverIndex);
+                return nodeId.WithNamespaceUri(namespaceUri).WithServerIndex(serverIndex);
             }
 
             return nodeId.WithNamespaceIndex(namespaceIndex).WithServerIndex(0);
@@ -1773,7 +1773,7 @@ namespace Opc.Ua.Export
             {
                 if (input[ii] != null)
                 {
-                    return new Ua.LocalizedText(input[ii].Locale!, input[ii].Value!);
+                    return new Ua.LocalizedText(input[ii].Locale, input[ii].Value);
                 }
             }
 

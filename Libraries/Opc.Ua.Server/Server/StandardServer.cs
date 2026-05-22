@@ -3571,7 +3571,7 @@ namespace Opc.Ua.Server
                 asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
             }
 
-            return new MasterNodeManager(server, configuration, null!, asyncNodeManagers, nodeManagers);
+            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
         /// <summary>

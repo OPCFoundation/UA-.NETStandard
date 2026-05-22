@@ -176,7 +176,7 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[] secret = localNonce.GenerateSecret(remoteNonce, null!) ?? throw new InvalidOperationException("Failed to generate secret.");
+            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ?? throw new InvalidOperationException("Failed to generate secret.");
             byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
 
             byte[] salt = Utils.Append(

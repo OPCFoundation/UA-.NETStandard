@@ -2736,7 +2736,7 @@ namespace Opc.Ua.Sample
             }
 
             // report the initial value.
-            datachangeItem.QueueValue(initialValue, null!, true);
+            datachangeItem.QueueValue(initialValue, null, true);
 
             // do any post processing.
             OnCreateMonitoredItem(context, itemToCreate, monitoredNode, datachangeItem);

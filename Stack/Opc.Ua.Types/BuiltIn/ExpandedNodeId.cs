@@ -1343,7 +1343,7 @@ namespace Opc.Ua
             }
 
             // Create the result using the constructor
-            value = new ExpandedNodeId(innerNodeId, namespaceUri!, serverIndex);
+            value = new ExpandedNodeId(innerNodeId, namespaceUri, serverIndex);
 
             return true;
         }
@@ -1465,12 +1465,12 @@ namespace Opc.Ua
             {
                 value = new ExpandedNodeId(
                     nodeId.WithNamespaceIndex((ushort)namespaceIndex),
-                    null!,
+                    null,
                     (uint)serverIndex);
             }
             else
             {
-                value = new ExpandedNodeId(nodeId, namespaceUri!, (uint)serverIndex);
+                value = new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
             }
 
             return true;

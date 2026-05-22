@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Server
             ContinuationPoint continuationPoint,
             NodeState node)
         {
-            if (continuationPoint == null || ViewDescription.IsDefault(continuationPoint.View!))
+            if (continuationPoint == null || ViewDescription.IsDefault(continuationPoint.View))
             {
                 return true;
             }

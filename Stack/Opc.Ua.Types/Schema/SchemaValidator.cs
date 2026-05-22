@@ -151,8 +151,8 @@ namespace Opc.Ua.Schema
             {
                 throw Exception(
                     "Cannot import namespace '{0}' from '{1}'.",
-                    namespaceUri!,
-                    path!);
+                    namespaceUri,
+                    path);
             }
             return Load<T>(path!);
         }

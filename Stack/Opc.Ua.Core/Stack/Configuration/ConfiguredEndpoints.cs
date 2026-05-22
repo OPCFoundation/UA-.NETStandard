@@ -1244,7 +1244,7 @@ namespace Opc.Ua
             }
             else
             {
-                endpointUrl = Utils.ParseUri(m_description.EndpointUrl!)!;
+                endpointUrl = Utils.ParseUri(m_description.EndpointUrl)!;
             }
 
             // get the know discovery URLs.

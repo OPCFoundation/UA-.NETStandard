@@ -215,7 +215,7 @@ namespace Opc.Ua
 
             // Cold path: async load through the registry/store.
             using Certificate loaded = await m_provider
-                .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider!, applicationUri: null, ct)
+                .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider, applicationUri: null, ct)
                 .ConfigureAwait(false) ??
                 throw new ServiceResultException(
                     StatusCodes.BadIdentityTokenInvalid,

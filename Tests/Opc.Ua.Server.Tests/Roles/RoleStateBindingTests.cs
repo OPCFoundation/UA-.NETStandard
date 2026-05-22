@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.Roles
                     CriteriaType = IdentityCriteriaType.UserName,
                     Criteria = "alice"
                 }).ConfigureAwait(false);
-            Assert.That(ServiceResult.IsGood(result!), Is.True);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
 
             RoleEntry? entry = m_roleManager.GetRole(ObjectIds.WellKnownRole_Observer);
             Assert.That(entry, Is.Not.Null);

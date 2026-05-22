@@ -437,7 +437,7 @@ namespace Opc.Ua
 
                 string? locale = LookupString(stringTable, diagnosticInfo.Locale);
                 string? localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
-                LocalizedText = new LocalizedText(locale!, localizedText!);
+                LocalizedText = new LocalizedText(locale, localizedText);
 
                 AdditionalInfo = diagnosticInfo.AdditionalInfo;
 
@@ -473,7 +473,7 @@ namespace Opc.Ua
 
                     string? locale = LookupString(stringTable, diagnosticInfo.Locale);
                     string? localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
-                    LocalizedText = new LocalizedText(locale!, localizedText!);
+                    LocalizedText = new LocalizedText(locale, localizedText);
 
                     AdditionalInfo = diagnosticInfo.AdditionalInfo;
 
@@ -575,7 +575,7 @@ namespace Opc.Ua
 
             if (args == null || args.Length == 0)
             {
-                return new ServiceResult(defaultCode, new LocalizedText(format!), e);
+                return new ServiceResult(defaultCode, new LocalizedText(format), e);
             }
 
             return new ServiceResult(defaultCode, new LocalizedText(CoreUtils.Format(format!, args)), e);

@@ -433,7 +433,7 @@ namespace Opc.Ua
                     .Append(ackState);
             }
 
-            var effectiveState = new LocalizedText(locale!, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
+            var effectiveState = new LocalizedText(locale, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }
