@@ -1002,12 +1002,11 @@ namespace Opc.Ua.Server
                     eventFieldValues.Add(Variant.Null);
                 }
             }
-            return new EventFieldList
-            {
-                ClientHandle = ClientHandle,
-                Handle = instance,
-                EventFields = eventFieldValues
-            };
+            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
+            result.ClientHandle = ClientHandle;
+            result.Handle = instance;
+            result.EventFields = eventFieldValues;
+            return result;
         }
 
         /// <summary>
@@ -1474,7 +1473,9 @@ namespace Opc.Ua.Server
             }
 
             // copy data value.
-            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = value! };
+            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
+            item.ClientHandle = ClientHandle;
+            item.Value = value!;
 
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
