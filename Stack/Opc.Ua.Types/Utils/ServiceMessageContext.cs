@@ -150,7 +150,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris
         {
-            get => field;
+            get;
             set
             {
                 if (value == null)
@@ -165,7 +165,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public StringTable ServerUris
         {
-            get => field;
+            get;
             set
             {
                 if (value == null)
