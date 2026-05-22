@@ -231,6 +231,17 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             s_perKindCounter[PluginKind.SubscriptionBench] = n;
         }
         m_title = $"Subscription Bench {n}";
+
+        // Mirror the current host connection state into our IsConnected
+        // flag so the sliders are usable from the moment the tab opens.
+        // Without this call IsConnected stays false (the field default)
+        // until the next connect / disconnect transition, leaving the
+        // bench inoperable when the user opens it on an already-connected
+        // session.  Subsequent transitions arrive via the central
+        // IPlugin.OnConnectionStateChanged hook; the body is idempotent
+        // (RefreshServerLimits + StartAggregationTimer guard against
+        // re-running) so calling it twice is harmless.
+        OnConnectionStateChanged();
     }
 
     // ---- IPlugin members ----
