@@ -98,13 +98,9 @@
                   VerticalAlignment="Center"
                   Command="{CompiledBinding ClearPoolCommand}" />
           <Border Classes="sep" />
-          <Button Classes="primary" Content="▶ Run" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Create the per-tab subscription on the connected session."
-                  Command="{CompiledBinding RunCommand}" />
           <Button Classes="danger" Content="■ Stop" Margin="0,0,6,0"
                   VerticalAlignment="Center"
-                  ToolTip.Tip="Delete the subscription and reset the slider."
+                  ToolTip.Tip="Zero both sliders and tear every subscription down."
                   Command="{CompiledBinding StopCommand}" />
           <Button Classes="tonal" Content="🗑 Clear counters" Margin="0,0,6,0"
                   VerticalAlignment="Center"
@@ -112,23 +108,47 @@
         </WrapPanel>
       </Border>
 
-      <!-- Slider row -->
+      <!-- Subscriptions slider row -->
       <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
               Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
               BorderThickness="1" CornerRadius="4">
         <Grid ColumnDefinitions="Auto,*,Auto">
           <TextBlock Grid.Column="0" Classes="h"
-                     Text="Monitored items:"
+                     Text="Subscriptions:"
                      VerticalAlignment="Center"
                      Margin="0,0,8,0" />
           <Slider Grid.Column="1"
                   Minimum="0"
-                  Maximum="{CompiledBinding SliderMax}"
-                  Value="{CompiledBinding SliderValue, Mode=TwoWay}"
-                  IsEnabled="{CompiledBinding IsRunning}"
-                  TickFrequency="100" />
+                  Maximum="{CompiledBinding SubsSliderMax}"
+                  Value="{CompiledBinding SubsSliderValue, Mode=TwoWay}"
+                  IsEnabled="{CompiledBinding CanResize}"
+                  TickFrequency="1"
+                  ToolTip.Tip="Number of subscriptions created on the session. Subscriptions are torn down when reduced." />
           <TextBlock Grid.Column="2" Classes="stat"
-                     Text="{CompiledBinding SizeText}"
+                     Text="{CompiledBinding SubsSizeText}"
+                     VerticalAlignment="Center"
+                     Margin="12,0,0,0" />
+        </Grid>
+      </Border>
+
+      <!-- Items-per-subscription slider row -->
+      <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Column="0" Classes="h"
+                     Text="Items per sub:"
+                     VerticalAlignment="Center"
+                     Margin="0,0,8,0" />
+          <Slider Grid.Column="1"
+                  Minimum="0"
+                  Maximum="{CompiledBinding ItemsSliderMax}"
+                  Value="{CompiledBinding ItemsSliderValue, Mode=TwoWay}"
+                  IsEnabled="{CompiledBinding CanResize}"
+                  TickFrequency="100"
+                  ToolTip.Tip="Monitored items per subscription. Each sub fills slots 0..N-1 from the pool round-robin." />
+          <TextBlock Grid.Column="2" Classes="stat"
+                     Text="{CompiledBinding ItemsSizeText}"
                      VerticalAlignment="Center"
                      Margin="12,0,0,0" />
         </Grid>

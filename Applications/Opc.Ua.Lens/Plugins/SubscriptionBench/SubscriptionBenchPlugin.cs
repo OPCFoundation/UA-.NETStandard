@@ -78,24 +78,32 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private readonly List<string> m_poolNames = new();
     private readonly object m_poolLock = new();
 
-    /// <summary>Live monitored items in their order of insertion. The
-    /// slider's "shrink" path tears items off the tail; the "grow" path
-    /// appends from the pool round-robin so removed items rejoin in the
-    /// same slot the next time the slider grows.</summary>
-    private readonly List<ClassicMonitoredItem> m_liveItems = new();
+    /// <summary>
+    /// Live subscriptions, in creation order.  Index <c>i</c> here
+    /// corresponds to index <c>i</c> in <see cref="m_liveItems"/> so the
+    /// per-sub item lists track their owning subscription without
+    /// requiring a dictionary lookup on every resize.
+    /// </summary>
+    private readonly List<ClassicSubscription> m_subscriptions = new();
+
+    /// <summary>Per-subscription monitored items, in their order of
+    /// insertion.  The "shrink" path tears items off the tail; the
+    /// "grow" path appends from the pool round-robin so removed items
+    /// rejoin in the same slot the next time the slider grows.</summary>
+    private readonly List<List<ClassicMonitoredItem>> m_liveItems = new();
+
+    /// <summary>Serialises every <see cref="ConvergeAsync"/> call so
+    /// concurrent slider moves (drag) coalesce into one converge wave
+    /// at a time; the converge body always re-reads
+    /// <see cref="SubsSliderValue"/> + <see cref="ItemsSliderValue"/>
+    /// inside the lock so the *latest* targets are always honoured.</summary>
     private readonly SemaphoreSlim m_resizeLock = new(1, 1);
 
     private readonly ConcurrentQueue<ChartSample> m_chartQueue = new();
 
-    // CA2213: m_subscription is awaited+disposed in DisposeAsync but the
-    // analyzer can't track lifecycle through Interlocked.Exchange.
-#pragma warning disable CA2213
-    private ClassicSubscription? m_subscription;
-#pragma warning restore CA2213
-
     private DispatcherTimer? m_aggregationTimer;
     private long m_runStartTicks;
-    private bool m_applyInFlight;
+    private bool m_serverLimitsRefreshed;
 
     /// <summary>Total values delivered since the last clear (incremented
     /// from <see cref="OnFastDataChange"/> on the publish callback thread).</summary>
@@ -123,20 +131,29 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private string m_status = "● Not connected";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanResize))]
     private string m_poolDescription = "0 variables in pool";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SizeText))]
-    private int m_sliderMax = 1000;
+    [NotifyPropertyChangedFor(nameof(ItemsSizeText))]
+    private int m_itemsSliderMax = 1000;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SizeText))]
-    private int m_sliderValue;
+    [NotifyPropertyChangedFor(nameof(ItemsSizeText))]
+    private int m_itemsSliderValue;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RunCommand))]
+    [NotifyPropertyChangedFor(nameof(SubsSizeText))]
+    private int m_subsSliderMax = 10;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubsSizeText))]
+    private int m_subsSliderValue;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanResize))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
-    private bool m_isRunning;
+    private bool m_isConnected;
 
     [ObservableProperty]
     private string m_stats1sText = "1s   :       0 val/s";
@@ -160,15 +177,25 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private string m_publishIntervalText = "Publish int.: —";
 
     [ObservableProperty]
-    private string m_engineMetricsText = "(no engine metrics — start the subscription to populate)";
+    private string m_engineMetricsText = "(no engine metrics — connect and move the sliders to populate)";
 
     /// <summary>Flag the view consumes to clear its DataLoggers after a
     /// counter reset.  Set by <see cref="Clear"/>, cleared by the view.</summary>
     public bool WasReset { get; set; }
 
-    /// <summary>Formatted slider readout — "<current> / <max>".</summary>
-    public string SizeText => string.Format(CultureInfo.InvariantCulture,
-        "{0:N0} / {1:N0}", SliderValue, SliderMax);
+    /// <summary>Formatted items-slider readout — "<current> / <max>".</summary>
+    public string ItemsSizeText => string.Format(CultureInfo.InvariantCulture,
+        "{0:N0} / {1:N0}", ItemsSliderValue, ItemsSliderMax);
+
+    /// <summary>Formatted subscriptions-slider readout — "<current> / <max>".</summary>
+    public string SubsSizeText => string.Format(CultureInfo.InvariantCulture,
+        "{0:N0} / {1:N0}", SubsSliderValue, SubsSliderMax);
+
+    /// <summary>True when the user can move the sliders to (re)shape
+    /// the bench — connected to a server and at least one variable
+    /// available in the pool to draw from.</summary>
+    public bool CanResize =>
+        IsConnected && m_poolNodeIds.Count > 0;
 
     public SubscriptionBenchPlugin(PluginHost host)
     {
@@ -200,7 +227,6 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         {
             CreateMenuItem("Pick _Variables…", PickVariablesCommand),
             CreateMenuItem("Pick Sub_tree…",   PickSubtreeCommand),
-            CreateMenuItem("_Run",             RunCommand),
             CreateMenuItem("_Stop",            StopCommand),
             CreateMenuItem("_Clear counters",  ClearCommand)
         };
@@ -215,25 +241,75 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     public void OnDeactivated() { }
 
     /// <summary>
-    /// Re-evaluate Run / Stop CanExecute when the host transitions
-    /// between connected and disconnected — both predicates pivot on
-    /// <c>m_host.Connection.Session</c> which is captured fresh, but
-    /// the generated commands cache their last-seen result until
-    /// <c>NotifyCanExecuteChanged()</c> is called.
+    /// Mirror the host's connection state onto our own
+    /// <see cref="IsConnected"/> flag (drives <see cref="CanResize"/>
+    /// and the Pick / Stop CanExecute), refresh server capability
+    /// limits on the first connect of each session, and start / stop
+    /// the 1 Hz aggregation timer so the chart shows a live "0 val/s"
+    /// line before the user touches a slider.  On disconnect the live
+    /// subscriptions are torn down because their server-side handles
+    /// die with the session.
     /// </summary>
     public void OnConnectionStateChanged()
     {
-        RunCommand.NotifyCanExecuteChanged();
-        StopCommand.NotifyCanExecuteChanged();
+        bool connected = m_host.Connection.Session is not null;
+        IsConnected = connected;
         PickVariablesCommand.NotifyCanExecuteChanged();
         PickSubtreeCommand.NotifyCanExecuteChanged();
+
+        if (connected)
+        {
+            if (!m_serverLimitsRefreshed)
+            {
+                RefreshServerLimits();
+                m_serverLimitsRefreshed = true;
+            }
+            StartAggregationTimer();
+        }
+        else
+        {
+            m_serverLimitsRefreshed = false;
+            m_aggregationTimer?.Stop();
+            // Drop every sub from our local state; the server-side
+            // handles are gone with the session.  Zero the sliders too
+            // so the user has a clean slate when they reconnect.
+            lock (m_liveItems)
+            {
+                m_subscriptions.Clear();
+                m_liveItems.Clear();
+            }
+            SubsSliderValue = 0;
+            ItemsSliderValue = 0;
+            Status = "● Disconnected — connect to resume.";
+        }
+    }
+
+    private void RefreshServerLimits()
+    {
+        if (m_host.Connection.Session is not { } session)
+        {
+            return;
+        }
+        ServerCapabilities? caps = session.ServerCapabilities;
+        uint mi = caps?.MaxMonitoredItemsPerSubscription ?? 0;
+        uint subs = caps?.MaxSubscriptionsPerSession ?? 0;
+        // Clamp to int.MaxValue (slider type) and fall back to
+        // sensible defaults when the server reports 0 / max-uint.
+        ItemsSliderMax = mi > 0 && mi < int.MaxValue ? (int)mi : 1000;
+        SubsSliderMax = subs > 0 && subs < int.MaxValue ? (int)subs : 100;
     }
 
     public async ValueTask DisposeAsync()
     {
         m_aggregationTimer?.Stop();
-        ClassicSubscription? sub = Interlocked.Exchange(ref m_subscription, null);
-        if (sub is not null)
+        List<ClassicSubscription> snapshot;
+        lock (m_liveItems)
+        {
+            snapshot = new List<ClassicSubscription>(m_subscriptions);
+            m_subscriptions.Clear();
+            m_liveItems.Clear();
+        }
+        foreach (ClassicSubscription sub in snapshot)
         {
             try
             {
@@ -434,6 +510,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             }
         }
         RefreshPoolDescription();
+        OnPropertyChanged(nameof(CanResize));
         Status = string.Format(CultureInfo.InvariantCulture,
             "● Added {0} variable(s) to the pool (skipped duplicates).", added);
     }
@@ -501,6 +578,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             m_poolNames.Clear();
         }
         RefreshPoolDescription();
+        OnPropertyChanged(nameof(CanResize));
         Status = "● Pool cleared.";
     }
 
@@ -519,110 +597,20 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
 
     // ---- Subscription lifecycle ----
 
-    private bool CanRun() =>
-        !IsRunning && m_host.Connection.Session is not null;
-
-    [RelayCommand(CanExecute = nameof(CanRun))]
-    private async Task RunAsync()
-    {
-        if (m_host.Connection.Session is not { } session)
-        {
-            Status = "● Not connected — connect first.";
-            return;
-        }
-        int poolCount;
-        lock (m_poolLock)
-        {
-            poolCount = m_poolNodeIds.Count;
-        }
-        if (poolCount == 0)
-        {
-            Status = "● Pool is empty — pick variables before running.";
-            return;
-        }
-
-        try
-        {
-            var sub = new ClassicSubscription(session.MessageContext.Telemetry, new ClassicSubscriptionOptions
-            {
-                DisplayName = $"UaLens.Bench/{Title}",
-                PublishingInterval = 1000,
-                KeepAliveCount = 10,
-                LifetimeCount = 1000,
-                MaxNotificationsPerPublish = 0,
-                Priority = 0,
-                PublishingEnabled = true,
-                MinLifetimeInterval = 60_000
-            })
-            {
-                FastDataChangeCallback = OnFastDataChange,
-                FastKeepAliveCallback = OnFastKeepAlive
-            };
-            if (!session.AddSubscription(sub))
-            {
-                m_log.LogWarning("Subscription Bench: AddSubscription returned false.");
-                sub.Dispose();
-                Status = "● Failed to register subscription.";
-                return;
-            }
-            await sub.CreateAsync(CancellationToken.None).ConfigureAwait(true);
-            m_subscription = sub;
-
-            // Read the server's max-items-per-subscription ceiling
-            // (lives on ServerCapabilities, not OperationLimits).  Fall
-            // back to a sensible default when the server doesn't
-            // advertise one.
-            uint serverMax = session.ServerCapabilities?.MaxMonitoredItemsPerSubscription ?? 0;
-            SliderMax = serverMax > 0 && serverMax < int.MaxValue
-                ? (int)serverMax
-                : Math.Max(1000, poolCount);
-            SliderValue = 0;
-
-            Clear();
-            IsRunning = true;
-            m_runStartTicks = Stopwatch.GetTimestamp();
-            StartAggregationTimer();
-
-            Status = string.Format(CultureInfo.InvariantCulture,
-                "● Subscription created · 0 / {0} items · 0 val/s", SliderMax);
-            m_log.LogInformation(
-                "Subscription Bench run started: id={Id}, max={Max}, publishInterval={Pi}ms",
-                sub.Id, SliderMax, sub.CurrentPublishingInterval);
-        }
-        catch (Exception ex)
-        {
-            m_log.LogError(ex, "Subscription Bench run failed.");
-            Status = $"● Run failed: {ex.Message}";
-        }
-    }
-
-    private bool CanStop() => IsRunning;
-
-    [RelayCommand(CanExecute = nameof(CanStop))]
+    /// <summary>
+    /// Emergency reset: zero both sliders so the next
+    /// <see cref="ConvergeAsync"/> tears every subscription down (and
+    /// frees server-side state), then clear the local counters so the
+    /// chart restarts from zero.  Always available while connected.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsConnected))]
     private async Task StopAsync()
     {
-        m_aggregationTimer?.Stop();
-        ClassicSubscription? sub = Interlocked.Exchange(ref m_subscription, null);
-        if (sub is not null)
-        {
-            try
-            {
-                await sub.DeleteAsync(silent: true, CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (Exception ex)
-            {
-                m_log.LogWarning(ex, "Subscription Bench stop: DeleteAsync failed.");
-            }
-            sub.Dispose();
-        }
-        lock (m_liveItems)
-        {
-            m_liveItems.Clear();
-        }
-        IsRunning = false;
-        SliderValue = 0;
-        SliderMax = 1000;
-        Status = "● Stopped.";
+        SubsSliderValue = 0;
+        ItemsSliderValue = 0;
+        await ConvergeAsync().ConfigureAwait(true);
+        Clear();
+        Status = "● Stopped — sliders reset.";
         m_log.LogInformation("Subscription Bench {Title} stopped.", Title);
     }
 
@@ -650,61 +638,199 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         TotalErrorsText = "Errors      : 0";
     }
 
-    // ---- Slider resize ----
+    // ---- Slider-driven converge ----
 
-    partial void OnSliderValueChanged(int value)
+    partial void OnItemsSliderValueChanged(int value)
     {
-        if (!IsRunning || m_subscription is null)
-        {
-            return;
-        }
-        if (m_applyInFlight)
-        {
-            return;
-        }
-        // Schedule the resize on the dispatcher so consecutive slider
-        // commits (drag) coalesce: by the time the task runs we read
-        // SliderValue again.
-        _ = ResizeAsync(value);
+        _ = ConvergeAsync();
     }
 
-    private async Task ResizeAsync(int targetCount)
+    partial void OnSubsSliderValueChanged(int value)
     {
-        m_applyInFlight = true;
+        _ = ConvergeAsync();
+    }
+
+    /// <summary>
+    /// Idempotent converge: brings the live topology
+    /// (<see cref="m_subscriptions"/>, <see cref="m_liveItems"/>) in
+    /// line with the current slider targets.  Serialised on
+    /// <see cref="m_resizeLock"/> so concurrent slider moves coalesce;
+    /// reads the targets *inside* the lock so the latest values are
+    /// always honoured (fixes the previous m_applyInFlight-swallow that
+    /// could drop mid-drag updates).
+    /// </summary>
+    private async Task ConvergeAsync()
+    {
+        if (m_host.Connection.Session is not { } session)
+        {
+            return;
+        }
         await m_resizeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            ClassicSubscription? sub = m_subscription;
-            if (sub is null)
-            {
-                return;
-            }
-            int target = Math.Clamp(SliderValue, 0, SliderMax);
+            // Re-read targets inside the lock so we always converge to
+            // the latest slider values, even if several changes coalesced
+            // while a previous converge was in flight.
+            int targetSubs = Math.Clamp(SubsSliderValue, 0, SubsSliderMax);
+            int targetItems = Math.Clamp(ItemsSliderValue, 0, ItemsSliderMax);
+
             List<NodeId> poolSnapshot;
             List<string> poolNames;
             lock (m_poolLock)
             {
-                if (m_poolNodeIds.Count == 0)
-                {
-                    return;
-                }
                 poolSnapshot = new List<NodeId>(m_poolNodeIds);
                 poolNames = new List<string>(m_poolNames);
             }
+            // Pool may legitimately be empty (user cleared it).  Without
+            // items we can still tear subs down to zero; we just can't
+            // grow.  Cap the target item count at zero in that case so
+            // the rest of the body becomes a no-op grow / a clean shrink.
+            if (poolSnapshot.Count == 0)
+            {
+                targetItems = 0;
+            }
 
-            int currentCount;
+            await ConvergeSubscriptionsAsync(session, targetSubs).ConfigureAwait(false);
+            await ConvergeItemsAsync(targetItems, poolSnapshot, poolNames).ConfigureAwait(false);
+            RecountErrors();
+        }
+        catch (Exception ex)
+        {
+            m_log.LogWarning(ex, "Subscription Bench converge failed.");
+            Status = $"● Converge failed: {ex.Message}";
+        }
+        finally
+        {
+            m_resizeLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Bring <see cref="m_subscriptions"/>.Count to
+    /// <paramref name="targetSubs"/> by creating missing subs (on the
+    /// session, with the bench's classic-engine options) or deleting
+    /// trailing subs.  Per-sub items are managed by
+    /// <see cref="ConvergeItemsAsync"/> afterwards.
+    /// </summary>
+    private async Task ConvergeSubscriptionsAsync(ManagedSession session, int targetSubs)
+    {
+        int currentSubs;
+        lock (m_liveItems)
+        {
+            currentSubs = m_subscriptions.Count;
+        }
+        if (targetSubs > currentSubs)
+        {
+            int toAdd = targetSubs - currentSubs;
+            for (int i = 0; i < toAdd; i++)
+            {
+                var sub = new ClassicSubscription(session.MessageContext.Telemetry, new ClassicSubscriptionOptions
+                {
+                    DisplayName = $"UaLens.Bench/{Title}/{currentSubs + i}",
+                    PublishingInterval = 1000,
+                    KeepAliveCount = 10,
+                    LifetimeCount = 1000,
+                    MaxNotificationsPerPublish = 0,
+                    Priority = 0,
+                    PublishingEnabled = true,
+                    MinLifetimeInterval = 60_000
+                })
+                {
+                    FastDataChangeCallback = OnFastDataChange,
+                    FastKeepAliveCallback = OnFastKeepAlive
+                };
+                if (!session.AddSubscription(sub))
+                {
+                    m_log.LogWarning("Subscription Bench: AddSubscription returned false at sub #{Idx}.", currentSubs + i);
+                    sub.Dispose();
+                    break;
+                }
+                try
+                {
+                    await sub.CreateAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_log.LogWarning(ex, "Subscription Bench: CreateAsync failed at sub #{Idx}.", currentSubs + i);
+                    sub.Dispose();
+                    // Surface the failure via SubsSliderValue rollback
+                    // so the slider matches reality.
+                    Dispatcher.UIThread.Post(() => SubsSliderValue = currentSubs + i);
+                    return;
+                }
+                lock (m_liveItems)
+                {
+                    m_subscriptions.Add(sub);
+                    m_liveItems.Add(new List<ClassicMonitoredItem>());
+                }
+            }
+        }
+        else if (targetSubs < currentSubs)
+        {
+            int toRemove = currentSubs - targetSubs;
+            var doomed = new List<ClassicSubscription>(toRemove);
             lock (m_liveItems)
             {
-                currentCount = m_liveItems.Count;
+                int startIdx = m_subscriptions.Count - toRemove;
+                for (int i = startIdx; i < m_subscriptions.Count; i++)
+                {
+                    doomed.Add(m_subscriptions[i]);
+                }
+                m_subscriptions.RemoveRange(startIdx, toRemove);
+                m_liveItems.RemoveRange(startIdx, toRemove);
             }
-            if (target == currentCount)
+            foreach (ClassicSubscription sub in doomed)
             {
-                return;
+                try
+                {
+                    await sub.DeleteAsync(silent: true, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_log.LogWarning(ex, "Subscription Bench: DeleteAsync failed during shrink.");
+                }
+                sub.Dispose();
             }
+        }
+    }
 
-            if (target > currentCount)
+    /// <summary>
+    /// For each live subscription, grow / shrink its item list to
+    /// <paramref name="targetItems"/>.  Each sub fills slots
+    /// <c>0..N-1</c> from <c>pool[i % pool.Count]</c> independently so
+    /// subs with the same target end up with the same item set —
+    /// the simplest, most predictable layout for a scale test.
+    /// </summary>
+    private async Task ConvergeItemsAsync(
+        int targetItems,
+        List<NodeId> poolSnapshot,
+        List<string> poolNames)
+    {
+        // Snapshot of subs to iterate without holding the lock during
+        // ApplyChangesAsync round-trips.
+        List<ClassicSubscription> subs;
+        List<List<ClassicMonitoredItem>> liveItemsByIndex;
+        lock (m_liveItems)
+        {
+            subs = new List<ClassicSubscription>(m_subscriptions);
+            liveItemsByIndex = new List<List<ClassicMonitoredItem>>(m_liveItems);
+        }
+        for (int subIdx = 0; subIdx < subs.Count; subIdx++)
+        {
+            ClassicSubscription sub = subs[subIdx];
+            List<ClassicMonitoredItem> live = liveItemsByIndex[subIdx];
+            int currentCount = live.Count;
+            if (targetItems == currentCount)
             {
-                int toAdd = target - currentCount;
+                continue;
+            }
+            if (targetItems > currentCount)
+            {
+                if (poolSnapshot.Count == 0)
+                {
+                    continue;
+                }
+                int toAdd = targetItems - currentCount;
                 var toAddList = new List<ClassicMonitoredItem>(toAdd);
                 for (int i = 0; i < toAdd; i++)
                 {
@@ -714,7 +840,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                         sub.Session?.MessageContext.Telemetry ?? AmbientMessageContext.Telemetry!,
                         new ClassicMonitoredItemOptions
                         {
-                            DisplayName = $"bench[{slot}]/{poolNames[poolIdx]}",
+                            DisplayName = $"bench[{subIdx}.{slot}]/{poolNames[poolIdx]}",
                             StartNodeId = poolSnapshot[poolIdx],
                             AttributeId = Attributes.Value,
                             MonitoringMode = MonitoringMode.Reporting,
@@ -727,29 +853,46 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                 sub.AddItems(toAddList);
                 lock (m_liveItems)
                 {
-                    m_liveItems.AddRange(toAddList);
+                    live.AddRange(toAddList);
                 }
             }
             else
             {
-                int toRemove = currentCount - target;
+                int toRemove = currentCount - targetItems;
                 var toRemoveList = new List<ClassicMonitoredItem>(toRemove);
                 lock (m_liveItems)
                 {
-                    int startIdx = m_liveItems.Count - toRemove;
-                    for (int i = startIdx; i < m_liveItems.Count; i++)
+                    int startIdx = live.Count - toRemove;
+                    for (int i = startIdx; i < live.Count; i++)
                     {
-                        toRemoveList.Add(m_liveItems[i]);
+                        toRemoveList.Add(live[i]);
                     }
-                    m_liveItems.RemoveRange(startIdx, toRemove);
+                    live.RemoveRange(startIdx, toRemove);
                 }
                 sub.RemoveItems(toRemoveList);
             }
+            try
+            {
+                await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_log.LogWarning(ex, "Subscription Bench: ApplyChangesAsync failed on sub {Id}.", sub.Id);
+            }
+        }
+    }
 
-            await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
-
-            // Recount bad-status items after the round-trip.
-            long bad = 0;
+    /// <summary>Recount bad-status items across every live sub.</summary>
+    private void RecountErrors()
+    {
+        long bad = 0;
+        List<ClassicSubscription> subs;
+        lock (m_liveItems)
+        {
+            subs = new List<ClassicSubscription>(m_subscriptions);
+        }
+        foreach (ClassicSubscription sub in subs)
+        {
             foreach (ClassicMonitoredItem mi in sub.MonitoredItems)
             {
                 ServiceResult? err = mi.Status?.Error;
@@ -758,24 +901,15 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
                     bad++;
                 }
             }
-            Interlocked.Exchange(ref m_totalErrors, bad);
         }
-        catch (Exception ex)
-        {
-            m_log.LogWarning(ex, "Subscription Bench resize to {Target} failed.", targetCount);
-            Status = $"● Resize failed: {ex.Message}";
-        }
-        finally
-        {
-            m_resizeLock.Release();
-            m_applyInFlight = false;
-        }
+        Interlocked.Exchange(ref m_totalErrors, bad);
     }
 
     // ---- Aggregation ----
 
     private void StartAggregationTimer()
     {
+        m_runStartTicks = Stopwatch.GetTimestamp();
         m_aggregationTimer?.Stop();
         m_aggregationTimer = new DispatcherTimer(
             TimeSpan.FromSeconds(1),
@@ -810,10 +944,21 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             "Total values: {0:N0}", total);
         TotalErrorsText = string.Format(CultureInfo.InvariantCulture,
             "Errors      : {0:N0}", errors);
-        if (m_subscription is { } sub)
+        if (m_subscriptions.Count > 0)
         {
+            // Use the first subscription's revised publishing interval
+            // as the representative (all subs use the same options).
+            ClassicSubscription rep;
+            lock (m_liveItems)
+            {
+                rep = m_subscriptions[0];
+            }
             PublishIntervalText = string.Format(CultureInfo.InvariantCulture,
-                "Publish int.: {0:N0} ms (revised)", sub.CurrentPublishingInterval);
+                "Publish int.: {0:N0} ms (revised)", rep.CurrentPublishingInterval);
+        }
+        else
+        {
+            PublishIntervalText = "Publish int.: —";
         }
 
         (double cpu, double mem) = m_host.Main.ResourceMonitor?.SampleNumeric() ?? (double.NaN, 0);
@@ -824,16 +969,22 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             secondsSinceStart, last1, avg10, avg30, avg60, cpu, mem));
 
         // Status line + engine metrics.
-        int liveCount;
+        int subCount;
+        int itemCount;
         lock (m_liveItems)
         {
-            liveCount = m_liveItems.Count;
+            subCount = m_subscriptions.Count;
+            itemCount = 0;
+            for (int i = 0; i < m_liveItems.Count; i++)
+            {
+                itemCount += m_liveItems[i].Count;
+            }
         }
         Status = string.Format(CultureInfo.InvariantCulture,
-            "● {0:N0} items / {1:N0} max · {2:N0} val/s",
-            liveCount, SliderMax, last1);
+            "● {0} sub(s) · {1:N0} items · {2:N0} val/s",
+            subCount, itemCount, last1);
 
-        EngineMetricsText = BuildEngineMetricsText(total);
+        EngineMetricsText = BuildEngineMetricsText(total, subCount, itemCount);
     }
 
     private double AverageOver(int latestBucket, int window)
@@ -851,19 +1002,35 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         return sum / (double)window;
     }
 
-    private string BuildEngineMetricsText(long total)
+    private string BuildEngineMetricsText(long total, int subCount, int itemCount)
     {
         var sb = new StringBuilder();
-        if (m_subscription is { } sub)
+        sb.Append(CultureInfo.InvariantCulture,
+            $"Subscriptions     : {subCount} (×{itemCount} items)\n");
+        // List up to 4 sub IDs so the user can correlate with server logs;
+        // beyond that, just show the count and rely on the aggregate metrics.
+        List<ClassicSubscription> subs;
+        lock (m_liveItems)
         {
-            sb.Append(CultureInfo.InvariantCulture,
-                $"Subscription id   : {sub.Id}\n");
-            sb.Append(CultureInfo.InvariantCulture,
-                $"Keep-alive count  : {sub.CurrentKeepAliveCount}\n");
-            sb.Append(CultureInfo.InvariantCulture,
-                $"Lifetime count    : {sub.CurrentLifetimeCount}\n");
-            sb.Append(CultureInfo.InvariantCulture,
-                $"Sequence number   : {sub.SequenceNumber}\n");
+            subs = new List<ClassicSubscription>(m_subscriptions);
+        }
+        int show = Math.Min(subs.Count, 4);
+        if (show > 0)
+        {
+            sb.Append("Sub ids           : ");
+            for (int i = 0; i < show; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(", ");
+                }
+                sb.Append(CultureInfo.InvariantCulture, $"{subs[i].Id}");
+            }
+            if (subs.Count > show)
+            {
+                sb.Append(CultureInfo.InvariantCulture, $", … (+{subs.Count - show})");
+            }
+            sb.Append('\n');
         }
         if (m_host.Connection.Session is { } session)
         {
