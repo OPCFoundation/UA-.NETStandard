@@ -53,7 +53,8 @@ internal enum PluginKind
     FileSystem,
     CertificateManager,
     RoleManagement,
-    UserManagement
+    UserManagement,
+    SubscriptionBench
 }
 
 /// <summary>

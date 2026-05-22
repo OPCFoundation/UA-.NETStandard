@@ -174,6 +174,17 @@ internal static class PluginRegistry
             MenuHeader = "_User Management",
             InputGesture = "Ctrl+Shift+U",
             Factory = vm => new UaLens.Plugins.UserManagement.UserManagementPlugin(vm.CreatePluginHost())
+        },
+        new PluginRegistration
+        {
+            Kind = PluginKind.SubscriptionBench,
+            DisplayName = "Subscription Bench",
+            Glyph = "📐",
+            Description = "Scale-test the server's subscription pipeline: fill a subscription with N monitored "
+                + "items and observe throughput, CPU/memory, and engine metrics.",
+            MenuHeader = "Subscription _Bench",
+            InputGesture = "Ctrl+Shift+T",
+            Factory = vm => new UaLens.Plugins.SubscriptionBench.SubscriptionBenchPlugin(vm.CreatePluginHost())
         }
     ];
 

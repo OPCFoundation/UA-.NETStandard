@@ -1,0 +1,175 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             xmlns:vm="using:UaLens.Plugins.SubscriptionBench"
+             x:Class="UaLens.Plugins.SubscriptionBench.SubscriptionBenchView"
+             x:DataType="vm:SubscriptionBenchPlugin">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="Margin" Value="0,4,0,2" />
+    </Style>
+    <Style Selector="TextBlock.stat">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.statDim">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="120" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.sep">
+      <Setter Property="Width" Value="1" />
+      <Setter Property="Margin" Value="6,4" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{DynamicResource AppBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="10">
+    <DockPanel>
+
+      <!-- Top: action toolbar -->
+      <Border DockPanel.Dock="Top" Padding="10"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4">
+        <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+          <Button Classes="tonal" Content="🔎 Pick variables…" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Open a flat browser, multi-pick Variable nodes to add to the pool."
+                  Command="{CompiledBinding PickVariablesCommand}" />
+          <Button Classes="tonal" Content="🌲 Pick subtree…" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Pick a starting node; every Variable below it is appended to the pool."
+                  Command="{CompiledBinding PickSubtreeCommand}" />
+          <TextBlock VerticalAlignment="Center" Classes="statDim" Margin="6,0"
+                     Text="{CompiledBinding PoolDescription}" />
+          <Button Classes="tonal" Content="🗑 Clear pool" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  Command="{CompiledBinding ClearPoolCommand}" />
+          <Border Classes="sep" />
+          <Button Classes="primary" Content="▶ Run" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Create the per-tab subscription on the connected session."
+                  Command="{CompiledBinding RunCommand}" />
+          <Button Classes="danger" Content="■ Stop" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Delete the subscription and reset the slider."
+                  Command="{CompiledBinding StopCommand}" />
+          <Button Classes="tonal" Content="🗑 Clear counters" Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  Command="{CompiledBinding ClearCommand}" />
+        </WrapPanel>
+      </Border>
+
+      <!-- Slider row -->
+      <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="4">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Column="0" Classes="h"
+                     Text="Monitored items:"
+                     VerticalAlignment="Center"
+                     Margin="0,0,8,0" />
+          <Slider Grid.Column="1"
+                  Minimum="0"
+                  Maximum="{CompiledBinding SliderMax}"
+                  Value="{CompiledBinding SliderValue, Mode=TwoWay}"
+                  IsEnabled="{CompiledBinding IsRunning}"
+                  TickFrequency="100" />
+          <TextBlock Grid.Column="2" Classes="stat"
+                     Text="{CompiledBinding SizeText}"
+                     VerticalAlignment="Center"
+                     Margin="12,0,0,0" />
+        </Grid>
+      </Border>
+
+      <!-- Body: chart left, stats right -->
+      <Grid Margin="0,8,0,0" ColumnDefinitions="*,5,360">
+        <Border Grid.Column="0"
+                Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+                BorderThickness="1" CornerRadius="4">
+          <ScottPlot:AvaPlot x:Name="Chart" />
+        </Border>
+        <GridSplitter Grid.Column="1"
+                      Background="{DynamicResource SeparatorBrush}"
+                      ResizeDirection="Columns" />
+        <Border Grid.Column="2" Padding="8"
+                Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+                BorderThickness="1" CornerRadius="4">
+          <ScrollViewer>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h" Text="THROUGHPUT" />
+              <TextBlock Classes="stat" Text="{CompiledBinding Stats1sText}" />
+              <TextBlock Classes="stat" Text="{CompiledBinding Stats10sText}" />
+              <TextBlock Classes="stat" Text="{CompiledBinding Stats30sText}" />
+              <TextBlock Classes="stat" Text="{CompiledBinding Stats60sText}" />
+
+              <TextBlock Classes="h" Text="TOTALS" />
+              <TextBlock Classes="stat" Text="{CompiledBinding TotalValuesText}" />
+              <TextBlock Classes="stat" Text="{CompiledBinding TotalErrorsText}" />
+              <TextBlock Classes="stat" Text="{CompiledBinding PublishIntervalText}" />
+
+              <TextBlock Classes="h" Text="ENGINE" />
+              <TextBlock Foreground="{DynamicResource TextPrimary}"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         FontSize="11"
+                         Text="{CompiledBinding EngineMetricsText}" />
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+    </DockPanel>
+  </Border>
+</UserControl>
