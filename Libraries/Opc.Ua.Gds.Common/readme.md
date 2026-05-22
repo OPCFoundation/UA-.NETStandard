@@ -1,4 +1,404 @@
-# OPC 10000-12 Part 12 Conformance Matrix
+# OPC UA Global Discovery Server (GDS) — Developer Guide
+
+This package implements the OPC UA Global Discovery Server (GDS) as
+defined in OPC 10000-12 (Part 12). It provides application
+registration, certificate lifecycle management (pull and push models),
+KeyCredentialService, AuthorizationService, and role-based access
+control.
+
+## Quick Links
+
+| Topic | Document |
+|-------|----------|
+| GDS core (this file) | Directory, certificates, push management, roles |
+| [KeyCredentialService](KeyCredentialService.md) | Credential issuance for non-UA services |
+| [AuthorizationService](AuthorizationService.md) | OAuth2-style access token issuance |
+
+## Packages
+
+| NuGet Package | Contents |
+|---------------|----------|
+| `Opc.Ua.Gds.Common` | Model types, encodeable types, design files |
+| `Opc.Ua.Gds.Server.Common` | Server-side node managers, providers, authorization |
+| `Opc.Ua.Gds.Client.Common` | Client proxies for GDS, push, KeyCredential, AuthorizationService |
+
+---
+
+## 1. Client API
+
+### GlobalDiscoveryServerClient
+
+The primary client for interacting with a GDS. Manages its own
+session and exposes the full GDS directory and certificate
+management API.
+
+```csharp
+using Opc.Ua.Gds.Client;
+
+// Create and connect
+var gdsClient = new GlobalDiscoveryServerClient(appConfig);
+gdsClient.AdminCredentials = new UserIdentity("admin", "password");
+await gdsClient.ConnectAsync("opc.tcp://gds-host:4840");
+
+// Register an application
+var appRecord = new ApplicationRecordDataType
+{
+    ApplicationUri = "urn:my-app",
+    ApplicationType = ApplicationType.Server,
+    ApplicationNames = new[] { new LocalizedText("My App") }.ToArrayOf(),
+    DiscoveryUrls = new[] { "opc.tcp://my-app:4850" }.ToArrayOf()
+};
+NodeId appId = await gdsClient.RegisterApplicationAsync(appRecord);
+
+// Request a new certificate (pull model)
+NodeId requestId = await gdsClient.StartNewKeyPairRequestAsync(
+    appId, default, ObjectTypeIds.RsaSha256ApplicationCertificateType,
+    "CN=My App", domainNames, "PFX", null);
+
+// Poll for completion
+ByteString cert, privateKey;
+ArrayOf<ByteString> issuerCerts;
+do
+{
+    await Task.Delay(2000);
+    (cert, privateKey, issuerCerts) =
+        await gdsClient.FinishRequestAsync(requestId, default);
+} while (cert.IsEmpty);
+
+// Clean up
+await gdsClient.DisconnectAsync();
+```
+
+### ServerPushConfigurationClient
+
+Client for OPC 10000-12 §7.10 push certificate management on a
+target server:
+
+```csharp
+var pushClient = new ServerPushConfigurationClient(appConfig);
+await pushClient.ConnectAsync(serverEndpoint);
+
+// Push a new certificate
+bool restartNeeded = await pushClient.UpdateCertificateAsync(
+    pushClient.DefaultApplicationGroup,
+    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+    newCertBlob, "PFX", privateKeyBlob, issuerCerts);
+
+if (restartNeeded)
+{
+    await pushClient.ApplyChangesAsync();
+}
+
+// Create a self-signed certificate on the server
+await pushClient.CreateSelfSignedCertificateAsync(
+    pushClient.DefaultApplicationGroup,
+    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+    "CN=NewSubject", domainNames);
+```
+
+---
+
+## 2. Server-Side: Building a GDS
+
+### Minimal GDS Server
+
+Use `GlobalDiscoverySampleServer` with dependency injection of
+your storage backends:
+
+```csharp
+// 1. Create storage backends
+IApplicationsDatabase database = JsonApplicationsDatabase.Load(
+    "gds-applications.json", telemetry);
+ICertificateGroup certGroup = new CertificateGroup(
+    gdsConfig.AuthoritiesStorePath, gdsConfig.CertificateGroups);
+IUserDatabase userDb = JsonUserDatabase.Load(
+    "gds-users.json", telemetry);
+
+// 2. Create the GDS server
+// (database implements both IApplicationsDatabase and ICertificateRequest)
+var gdsServer = new GlobalDiscoverySampleServer(
+    database, database, certGroup, userDb, telemetry,
+    autoApprove: true);
+
+// 3. Start via ApplicationInstance
+var app = new ApplicationInstance(telemetry)
+{
+    ApplicationName = "My GDS",
+    ApplicationType = ApplicationType.Server,
+    ConfigSectionName = "Opc.Ua.GlobalDiscoveryServer"
+};
+var config = await app.LoadAsync("MyGds.Config.xml");
+await app.CheckApplicationInstanceCertificatesAsync(false);
+await app.StartAsync(gdsServer);
+```
+
+### Using GdsNodeManagerFactory
+
+For embedding GDS into an existing server:
+
+```csharp
+// In your server's CreateMasterNodeManager:
+var gdsConfig = configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
+var factory = new GdsNodeManagerFactory(gdsConfig);
+additionalNodeManagers.Add(factory.Create(server, configuration));
+```
+
+### Extension Points
+
+Every pluggable interface and its purpose:
+
+| Interface | Purpose | Default |
+|-----------|---------|---------|
+| `IApplicationsDatabase` | Application registration store | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
+| `ICertificateRequest` | Certificate request lifecycle | `LinqApplicationsDatabase` |
+| `ICertificateGroup` | CA operations (sign, revoke) | `CertificateGroup` |
+| `IGdsUserDatabase` | User store + ApplicationAdmin bindings | Implement over `LinqUserDatabase` |
+| `IKeyCredentialRequestStore` | KeyCredential lifecycle | `InMemoryKeyCredentialRequestStore` |
+| `ISecretStore` | Secret storage for credentials | `InMemorySecretStore` |
+| `IAccessTokenProvider` | Token issuance (AuthorizationService) | `null` (Bad_NotSupported) |
+| `IConfigurationDataStore` | ManagedApplications config persistence | `InMemoryConfigurationDataStore` |
+| `IManagedApplicationsNodeManager` | ManagedApplications folder | `StubManagedApplicationsNodeManager` |
+
+---
+
+## 3. Implementing Providers
+
+### IApplicationsDatabase
+
+Stores registered application records. Must also implement
+`ICertificateRequest` for certificate request lifecycle (or provide
+a separate implementation):
+
+```csharp
+public class SqlApplicationsDatabase
+    : ApplicationsDatabaseBase, ICertificateRequest
+{
+    // ApplicationsDatabaseBase provides Match() and ValidateApplication()
+    // Override the abstract CRUD methods:
+
+    public override NodeId RegisterApplication(
+        ApplicationRecordDataType application)
+    {
+        ValidateApplication(application); // call base validation
+        return _db.InsertApplication(application);
+    }
+
+    public override void UpdateApplication(
+        ApplicationRecordDataType application)
+    {
+        ValidateApplication(application);
+        _db.UpdateApplication(application);
+    }
+    // ... implement remaining abstract methods
+}
+```
+
+### ICertificateGroup
+
+Implement to use an external CA (EST, ACME, EJBCA, etc.):
+
+```csharp
+public class EstCertificateGroup : ICertificateGroup
+{
+    public async Task<(Certificate, byte[], CertificateCollection)>
+        NewKeyPairRequestAsync(
+            ApplicationRecordDataType application,
+            string subjectName,
+            string[] domainNames,
+            string privateKeyFormat,
+            string privateKeyPassword)
+    {
+        // Call your EST server's /simpleenroll endpoint
+        // Return (signedCert, privateKey, issuerChain)
+    }
+    // ... implement remaining interface methods
+}
+```
+
+### IGdsUserDatabase
+
+Extend `IUserDatabase` to support the `ApplicationAdmin` role
+(OPC 10000-12 §7.2). The GDS sample server automatically detects
+`IGdsUserDatabase` at impersonation time:
+
+```csharp
+public class MyGdsUserDatabase : LinqUserDatabase, IGdsUserDatabase
+{
+    private readonly Dictionary<string, List<NodeId>> _appAdminMap = new();
+
+    public IReadOnlyList<NodeId>? GetAdministeredApplicationIds(
+        string userName)
+    {
+        return _appAdminMap.TryGetValue(userName, out var ids)
+            ? ids : null;
+    }
+
+    // Admin API to grant ApplicationAdmin for specific apps:
+    public void GrantApplicationAdmin(
+        string userName, IEnumerable<NodeId> applicationIds)
+    {
+        _appAdminMap[userName] = applicationIds.ToList();
+    }
+}
+```
+
+### IConfigurationDataStore
+
+Persistence backend for ManagedApplications (§7.10.16). The
+`DefaultManagedApplicationsNodeManager` uses this to populate
+`ApplicationConfigurationState` nodes:
+
+```csharp
+public class FileConfigurationDataStore : IConfigurationDataStore
+{
+    public async ValueTask<IReadOnlyList<ManagedApplicationInfo>>
+        GetManagedApplicationsAsync(CancellationToken ct)
+    {
+        // Read from config file / database
+    }
+
+    public async ValueTask<uint> WriteConfigurationAsync(
+        string applicationUri, byte[] data,
+        uint currentVersion, CancellationToken ct)
+    {
+        // Persist with optimistic concurrency check
+    }
+
+    public async ValueTask ConfirmUpdateAsync(
+        string applicationUri, uint configVersion,
+        CancellationToken ct)
+    {
+        // Mark the configuration as applied
+    }
+}
+```
+
+---
+
+## 4. Roles and Authorization
+
+### GDS Roles (OPC 10000-12 §7.2)
+
+| Role | Purpose |
+|------|---------|
+| `DiscoveryAdmin` | Register/update/unregister any application |
+| `CertificateAuthorityAdmin` | Manage certificate requests and trust lists |
+| `RegistrationAuthorityAdmin` | Approve/reject certificate requests |
+| `ApplicationSelfAdmin` | Manage own application's registration |
+| `ApplicationAdmin` | Manage a configured set of applications |
+
+### ApplicationAdmin Privilege
+
+The `ApplicationAdmin` role allows a user to administer a specific
+set of applications (not all applications like `DiscoveryAdmin`).
+
+**How it works:**
+
+1. Assign the `GdsRole.ApplicationAdmin` role to the user via
+   `IUserDatabase.CreateUser()`
+2. Implement `IGdsUserDatabase.GetAdministeredApplicationIds()` to
+   return the `ApplicationId`s the user may administer
+3. During impersonation, `GlobalDiscoverySampleServer` constructs a
+   `GdsRoleBasedIdentity` with `AdministeredApplicationIds` populated
+4. `AuthorizationHelper.CheckApplicationAdminPrivilege()` verifies
+   the target application is in the user's administered set
+
+```csharp
+// Setup: create a user with ApplicationAdmin role
+userDb.CreateUser("app-admin", passwordBytes,
+    [GdsRole.ApplicationAdmin]);
+
+// If using IGdsUserDatabase:
+((MyGdsUserDatabase)userDb).GrantApplicationAdmin(
+    "app-admin",
+    [registeredAppId1, registeredAppId2]);
+```
+
+### Security: Fail-Closed Channel Validation
+
+`AuthorizationHelper.HasAuthenticatedSecureChannel()` enforces that
+all GDS methods are called over a signed (or encrypted) secure
+channel. The check **fails closed** — if the system context cannot
+be validated, the method throws `BadSecurityModeInsufficient`.
+
+---
+
+## 5. End-to-End Example
+
+Complete example: register an application, get a certificate, push
+it to the server.
+
+```csharp
+// ── 1. Start the GDS Server ─────────────────────────
+
+var database = JsonApplicationsDatabase.Load("apps.json", telemetry);
+var certGroup = new CertificateGroup(authStorePath, certGroupConfigs);
+var userDb = JsonUserDatabase.Load("users.json", telemetry);
+
+var gds = new GlobalDiscoverySampleServer(
+    database, database, certGroup, userDb, telemetry);
+
+var app = new ApplicationInstance(telemetry) { ... };
+await app.StartAsync(gds);
+
+// ── 2. Client: Register and Get Certificate ─────────
+
+var gdsClient = new GlobalDiscoveryServerClient(clientConfig);
+gdsClient.AdminCredentials = new UserIdentity("admin", "password");
+await gdsClient.ConnectAsync("opc.tcp://localhost:58810");
+
+// Register
+var record = new ApplicationRecordDataType
+{
+    ApplicationUri = "urn:my-server",
+    ApplicationType = ApplicationType.Server,
+    ApplicationNames = new[] { new LocalizedText("My Server") }.ToArrayOf(),
+    DiscoveryUrls = new[] { "opc.tcp://my-server:4840" }.ToArrayOf()
+};
+NodeId appId = await gdsClient.RegisterApplicationAsync(record);
+
+// Request certificate
+NodeId reqId = await gdsClient.StartNewKeyPairRequestAsync(
+    appId, default,
+    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+    "CN=My Server,O=My Org",
+    new[] { "my-server", "localhost" }.ToArrayOf(),
+    "PFX", null);
+
+// Wait for completion
+ByteString cert, key;
+ArrayOf<ByteString> issuers;
+do
+{
+    await Task.Delay(2000);
+    (cert, key, issuers) =
+        await gdsClient.FinishRequestAsync(reqId, default);
+} while (cert.IsEmpty);
+
+// ── 3. Push Certificate to Target Server ────────────
+
+var pushClient = new ServerPushConfigurationClient(clientConfig);
+await pushClient.ConnectAsync(serverEndpoint);
+
+bool needsRestart = await pushClient.UpdateCertificateAsync(
+    pushClient.DefaultApplicationGroup,
+    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+    cert, "PFX", key, issuers);
+
+if (needsRestart)
+{
+    await pushClient.ApplyChangesAsync();
+}
+
+// ── 4. Clean Up ─────────────────────────────────────
+
+await pushClient.DisconnectAsync();
+await gdsClient.DisconnectAsync();
+```
+
+---
+
+## Conformance Matrix
 
 Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not applicable
 
