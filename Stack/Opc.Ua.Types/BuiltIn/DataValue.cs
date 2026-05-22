@@ -35,7 +35,7 @@ using Opc.Ua.Types;
 namespace Opc.Ua
 {
     /// <summary>
-    /// A class that stores the value of variable with an optional status code and timestamps.
+    /// A struct that stores the value of variable with an optional status code and timestamps.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -50,6 +50,24 @@ namespace Opc.Ua
     ///     <item><see cref="DateTimeUtc"/> for the Servers Timestamp</item>
     /// </list>
     /// <br/></para>
+    /// <para>
+    /// <b>With&lt;Property&gt;() fluent mutators</b>: because <see cref="DataValue"/>
+    /// is a <c>readonly struct</c> the legacy pattern of mutating individual
+    /// properties after construction is no longer available. Each <c>With*</c>
+    /// mutator returns a new <see cref="DataValue"/> with the named field
+    /// overwritten and every other field carried through unchanged. Decoders,
+    /// NodeState read paths, and any other code that historically built a
+    /// <see cref="DataValue"/> by mutating its properties migrate to chained
+    /// <c>With*</c> calls:
+    /// <code lang="C#">
+    /// DataValue v = new DataValue();
+    /// v = v.WithWrappedValue(ReadVariant(null));
+    /// v = v.WithStatus(ReadStatusCode(null));
+    /// return v;
+    /// </code>
+    /// The JIT folds a <c>default</c> + <c>With</c>-chain into a single
+    /// constructor call.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code lang="C#">
@@ -233,24 +251,85 @@ namespace Opc.Ua
                 serverTimestamp);
         }
 
-        // ----------------------------------------------------------------
-        // With<Property>() fluent mutators.
-        //
-        // Each mutator returns a new DataValue with the named field
-        // overwritten and every other field carried through unchanged.
-        // Decoders, NodeState read paths, and any other code that
-        // historically built a DataValue by mutating its properties
-        // after construction migrate to chained With* calls:
-        //
-        //   DataValue v = new DataValue();
-        //   v = v.WithWrappedValue(ReadVariant(null));
-        //   v = v.WithStatus(ReadStatusCode(null));
-        //   return v;
-        //
-        // Once DataValue is flipped to a `readonly struct` in a follow-up
-        // step the JIT folds a default+With-chain into a single ctor
-        // call.
-        // ----------------------------------------------------------------
+        /// <summary>
+        /// True when the struct holds no payload (all-default fields).
+        /// </summary>
+        public bool IsNull
+            => m_value.IsNull &&
+               m_statusCode.Code == 0 &&
+               m_sourceTimestamp == DateTimeUtc.MinValue &&
+               m_serverTimestamp == DateTimeUtc.MinValue &&
+               m_sourcePicoseconds == 0 &&
+               m_serverPicoseconds == 0;
+
+        /// <summary>
+        /// The value of data value.
+        /// </summary>
+        [Obsolete("Use WrappedValue to access The value.")]
+        public object? Value
+        {
+            get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+        }
+
+        /// <summary>
+        /// The value of data value.
+        /// </summary>
+        public Variant WrappedValue => m_value;
+
+        /// <summary>
+        /// The status code associated with the value.
+        /// </summary>
+        public StatusCode StatusCode => m_statusCode;
+
+        /// <summary>
+        /// The source timestamp associated with the value.
+        /// </summary>
+        public DateTimeUtc SourceTimestamp => m_sourceTimestamp;
+
+        /// <summary>
+        /// Additional resolution for the source timestamp.
+        /// </summary>
+        public ushort SourcePicoseconds => m_sourcePicoseconds;
+
+        /// <summary>
+        /// The server timestamp associated with the value.
+        /// </summary>
+        public DateTimeUtc ServerTimestamp => m_serverTimestamp;
+
+        /// <summary>
+        /// Additional resolution for the server timestamp.
+        /// </summary>
+        public ushort ServerPicoseconds => m_serverPicoseconds;
+
+        /// <summary>
+        /// Returns true if the status code is good.
+        /// </summary>
+        public bool IsGood => StatusCode.IsGood(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
+        public bool IsNotGood => StatusCode.IsNotGood(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
+        public bool IsUncertain => StatusCode.IsUncertain(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status is good or bad.
+        /// </summary>
+        public bool IsNotUncertain => StatusCode.IsNotUncertain(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status code is bad.
+        /// </summary>
+        public bool IsBad => StatusCode.IsBad(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        public bool IsNotBad => StatusCode.IsNotBad(m_statusCode);
 
         /// <summary>
         /// Returns a copy of this <see cref="DataValue"/> with
@@ -407,86 +486,6 @@ namespace Opc.Ua
                 m_sourcePicoseconds,
                 m_serverPicoseconds);
         }
-
-        /// <summary>
-        /// True when the struct holds no payload (all-default fields).
-        /// </summary>
-        public bool IsNull
-            => m_value.IsNull &&
-               m_statusCode.Code == 0 &&
-               m_sourceTimestamp == DateTimeUtc.MinValue &&
-               m_serverTimestamp == DateTimeUtc.MinValue &&
-               m_sourcePicoseconds == 0 &&
-               m_serverPicoseconds == 0;
-
-        /// <summary>
-        /// The value of data value.
-        /// </summary>
-        [Obsolete("Use WrappedValue to access The value.")]
-        public object? Value
-        {
-            get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-        }
-
-        /// <summary>
-        /// The value of data value.
-        /// </summary>
-        public Variant WrappedValue => m_value;
-
-        /// <summary>
-        /// The status code associated with the value.
-        /// </summary>
-        public StatusCode StatusCode => m_statusCode;
-
-        /// <summary>
-        /// The source timestamp associated with the value.
-        /// </summary>
-        public DateTimeUtc SourceTimestamp => m_sourceTimestamp;
-
-        /// <summary>
-        /// Additional resolution for the source timestamp.
-        /// </summary>
-        public ushort SourcePicoseconds => m_sourcePicoseconds;
-
-        /// <summary>
-        /// The server timestamp associated with the value.
-        /// </summary>
-        public DateTimeUtc ServerTimestamp => m_serverTimestamp;
-
-        /// <summary>
-        /// Additional resolution for the server timestamp.
-        /// </summary>
-        public ushort ServerPicoseconds => m_serverPicoseconds;
-
-        /// <summary>
-        /// Returns true if the status code is good.
-        /// </summary>
-        public bool IsGood => StatusCode.IsGood(m_statusCode);
-
-        /// <summary>
-        /// Returns true if the status is bad or uncertain.
-        /// </summary>
-        public bool IsNotGood => StatusCode.IsNotGood(m_statusCode);
-
-        /// <summary>
-        /// Returns true if the status code is uncertain.
-        /// </summary>
-        public bool IsUncertain => StatusCode.IsUncertain(m_statusCode);
-
-        /// <summary>
-        /// Returns true if the status is good or bad.
-        /// </summary>
-        public bool IsNotUncertain => StatusCode.IsNotUncertain(m_statusCode);
-
-        /// <summary>
-        /// Returns true if the status code is bad.
-        /// </summary>
-        public bool IsBad => StatusCode.IsBad(m_statusCode);
-
-        /// <summary>
-        /// Returns true if the status is good or uncertain.
-        /// </summary>
-        public bool IsNotBad => StatusCode.IsNotBad(m_statusCode);
 
         /// <summary>
         /// Ensures the data value contains a value with the specified type.
