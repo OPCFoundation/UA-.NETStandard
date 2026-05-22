@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Roles
                 BrowseNames.ApplicationsExclude,
                 BrowseNames.Endpoints,
                 BrowseNames.EndpointsExclude,
-                BrowseNames.CustomConfiguration,
+                BrowseNames.CustomConfiguration
             ];
             var browsePaths = new List<BrowsePath>(propertyNames.Length);
             foreach (string name in propertyNames)

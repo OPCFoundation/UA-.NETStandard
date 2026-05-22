@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                     RefreshMode = AliasNameResolverRefreshMode
                         .AutoOnLastChangeMonitoredItem,
                     PublishingIntervalMs = 500,
-                    LastChangeSamplingIntervalMs = 500,
+                    LastChangeSamplingIntervalMs = 500
                 });
             try
             {
@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             {
                 DisplayName = "shared-by-test",
                 PublishingEnabled = true,
-                PublishingInterval = 500,
+                PublishingInterval = 500
             };
             m_session.AddSubscription(sharedSubscription);
             await sharedSubscription.CreateAsync().ConfigureAwait(false);
@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                         new MonitoredItemAliasNameRefreshStrategyOptions
                         {
                             SharedSubscription = sharedSubscription,
-                            SamplingIntervalMs = 500,
+                            SamplingIntervalMs = 500
                         })
                 });
             try

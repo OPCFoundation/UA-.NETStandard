@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                     AliasName = new QualifiedName(aliases[i].name),
                     ReferencedNodes = new[] { aliases[i].target }.ToArrayOf(),
                     ServerUris = new[] { aliases[i].serverUri ?? string.Empty }.ToArrayOf(),
-                    AliasNameCategoryId = ObjectIds.Aliases,
+                    AliasNameCategoryId = ObjectIds.Aliases
                 };
             }
             return new CallMethodResult

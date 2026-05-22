@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.AliasNames
         /// (wrap-safe). Requires a server that supports subscriptions
         /// and exposes <c>LastChange</c>.
         /// </summary>
-        AutoOnLastChangeMonitoredItem = 2,
+        AutoOnLastChangeMonitoredItem = 2
     }
 
     /// <summary>

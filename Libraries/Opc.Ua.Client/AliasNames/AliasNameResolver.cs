@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -349,7 +349,7 @@ namespace Opc.Ua.Client.AliasNames
                         new MonitoredItemAliasNameRefreshStrategyOptions
                         {
                             PublishingIntervalMs = options.PublishingIntervalMs,
-                            SamplingIntervalMs = options.LastChangeSamplingIntervalMs,
+                            SamplingIntervalMs = options.LastChangeSamplingIntervalMs
                         });
                 case AliasNameResolverRefreshMode.Manual:
                 default:

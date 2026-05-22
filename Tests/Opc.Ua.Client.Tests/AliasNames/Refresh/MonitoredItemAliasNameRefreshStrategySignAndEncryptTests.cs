@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -163,7 +163,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                     RefreshMode = AliasNameResolverRefreshMode
                         .AutoOnLastChangeMonitoredItem,
                     PublishingIntervalMs = 200,
-                    LastChangeSamplingIntervalMs = 200,
+                    LastChangeSamplingIntervalMs = 200
                 });
 
             await resolver.EnsureLoadedAsync().ConfigureAwait(false);

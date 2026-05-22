@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -53,21 +53,21 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
             var reader = new AliasNamePubSubReader(
                 new AliasNamePubSubReaderOptions
                 {
-                    ExpectedApplicationUri = "urn:expected",
+                    ExpectedApplicationUri = "urn:expected"
                 });
             int received = 0;
             reader.AliasUpdateReceived += (_, _) => received++;
 
             bool accepted = reader.Submit(new AliasUpdateDataType
             {
-                ApplicationUri = "urn:other",
+                ApplicationUri = "urn:other"
             });
             Assert.That(accepted, Is.False);
             Assert.That(received, Is.Zero);
 
             accepted = reader.Submit(new AliasUpdateDataType
             {
-                ApplicationUri = "urn:expected",
+                ApplicationUri = "urn:expected"
             });
             Assert.That(accepted, Is.True);
             Assert.That(received, Is.EqualTo(1));
@@ -104,11 +104,11 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
                             Category = new PortableNodeId
                             {
                                 NamespaceUri = "http://test.example/",
-                                Identifier = NodeId.Parse("s=MyCategory"),
+                                Identifier = NodeId.Parse("s=MyCategory")
                             },
-                            LastChange = 1,
+                            LastChange = 1
                         }
-                    }.ToArrayOf(),
+                    }.ToArrayOf()
                 });
                 Assert.That(invalidations, Is.EqualTo(1));
 
@@ -123,11 +123,11 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
                             Category = new PortableNodeId
                             {
                                 NamespaceUri = "http://test.example/",
-                                Identifier = NodeId.Parse("s=MyCategory"),
+                                Identifier = NodeId.Parse("s=MyCategory")
                             },
-                            LastChange = 1,
+                            LastChange = 1
                         }
-                    }.ToArrayOf(),
+                    }.ToArrayOf()
                 });
                 Assert.That(invalidations, Is.EqualTo(1));
 
@@ -142,11 +142,11 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
                             Category = new PortableNodeId
                             {
                                 NamespaceUri = "http://test.example/",
-                                Identifier = NodeId.Parse("s=MyCategory"),
+                                Identifier = NodeId.Parse("s=MyCategory")
                             },
-                            LastChange = 0,
+                            LastChange = 0
                         }
-                    }.ToArrayOf(),
+                    }.ToArrayOf()
                 });
                 Assert.That(invalidations, Is.EqualTo(2));
 
@@ -161,11 +161,11 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
                             Category = new PortableNodeId
                             {
                                 NamespaceUri = "http://other.example/",
-                                Identifier = NodeId.Parse("s=MyCategory"),
+                                Identifier = NodeId.Parse("s=MyCategory")
                             },
-                            LastChange = 99,
+                            LastChange = 99
                         }
-                    }.ToArrayOf(),
+                    }.ToArrayOf()
                 });
                 Assert.That(invalidations, Is.EqualTo(2));
             }

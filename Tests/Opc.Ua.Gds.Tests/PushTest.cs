@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -1540,7 +1540,7 @@ namespace Opc.Ua.Gds.Tests
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IncludeSubtypes = true,
                 NodeClassMask = (uint)NodeClass.Object,
-                ResultMask = (uint)BrowseResultMask.All,
+                ResultMask = (uint)BrowseResultMask.All
             };
 
             BrowseResponse results = await m_pushClient.PushClient.Session.BrowseAsync(

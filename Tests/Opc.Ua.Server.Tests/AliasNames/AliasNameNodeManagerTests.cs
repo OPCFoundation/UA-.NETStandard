@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -386,7 +386,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 {
                     NamespaceUri = c_namespaceUri,
                     RegisterWithServerRegistry = false,
-                    RequireSecurityAdminForMutations = true,
+                    RequireSecurityAdminForMutations = true
                 });
             await manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);

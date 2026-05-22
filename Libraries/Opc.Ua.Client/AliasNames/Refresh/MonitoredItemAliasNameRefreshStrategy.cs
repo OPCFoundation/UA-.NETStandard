@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 {
                     DisplayName = Options.SubscriptionDisplayName,
                     PublishingEnabled = true,
-                    PublishingInterval = (int)Options.PublishingIntervalMs,
+                    PublishingInterval = (int)Options.PublishingIntervalMs
                 };
                 client.Session.AddSubscription(subscription);
                 await subscription.CreateAsync(ct).ConfigureAwait(false);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 SamplingInterval = (int)Options.SamplingIntervalMs,
                 QueueSize = 1,
                 DiscardOldest = true,
-                MonitoringMode = MonitoringMode.Reporting,
+                MonitoringMode = MonitoringMode.Reporting
             };
             item.Notification += OnNotification;
             subscription.AddItem(item);

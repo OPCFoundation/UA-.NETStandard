@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                          ObjectIds.WellKnownRole_Engineer,
                          ObjectIds.WellKnownRole_Supervisor,
                          ObjectIds.WellKnownRole_ConfigureAdmin,
-                         ObjectIds.WellKnownRole_SecurityAdmin,
+                         ObjectIds.WellKnownRole_SecurityAdmin
                      })
             {
                 RoleEntry? entry = manager.GetRole(roleId);
