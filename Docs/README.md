@@ -18,7 +18,7 @@ Here is a list of available documentation for different topics:
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 * Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
 * Source generated [NodeManagers](SourceGeneratedNodeManagers.md) - Emit an `AsyncCustomNodeManager` from a model design XML and wire callbacks via the fluent `INodeManagerBuilder` API; supports NativeAOT single-file servers (sample: [MinimalBoilerServer](../Applications/MinimalBoilerServer)).
-* [Part 17 — Alias Names](Part17AliasNames.md) - Full server + client support for the OPC UA Part 17 alias-name model (`AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`, `LastChange`).
+* [Alias Names](AliasNames.md) - Full server + client support for the OPC UA Part 17 alias-name model (`AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`, `LastChange`).
 
 ## Reference application related
 
@@ -34,3 +34,9 @@ Starting with version 1.5.375.XX the Windows Forms reference client & reference 
 * The [PubSub](PubSub.md) library with samples.
 * The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation.
 * The [ConsoleReferenceSubscriber](../Applications/ConsoleReferenceSubscriber/README.md) documentation.
+
+## Global Discovery Server (GDS)
+
+* [GDS Developer Guide](GDS.md) — Application registration, certificate management (pull & push models), roles and authorization, provider implementation, end-to-end examples.
+* [KeyCredentialService](KeyCredentialService.md) — Credential issuance for non-OPC UA services (MQTT, REST), IKeyCredentialRequestStore provider guide, ISecretStore integration.
+* [AuthorizationService](AuthorizationService.md) — OAuth2-style access token issuance, IAccessTokenProvider implementation guide.
