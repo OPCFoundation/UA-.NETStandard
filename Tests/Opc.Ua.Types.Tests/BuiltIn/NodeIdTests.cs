@@ -289,11 +289,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var nodeIdBasedDataValue = new DataValue(new Variant(nodeId));
 
-            var dataValue = new DataValue(Attributes.NodeClass)
-            {
-                WrappedValue = new Variant((int)Attributes.NodeClass), // without this cast the second and third asserts evaluate correctly.
-                StatusCode = nodeIdBasedDataValue.StatusCode
-            };
+            // without this cast the second and third asserts evaluate correctly.
+            var dataValue = new DataValue(
+                new Variant((int)Attributes.NodeClass),
+                nodeIdBasedDataValue.StatusCode);
 
             bool comparisonResult1b = dataValue.Equals(nodeIdBasedDataValue);
             Assert.That(comparisonResult1b, Is.False); // assert succeeds

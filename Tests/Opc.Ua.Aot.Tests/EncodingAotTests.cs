@@ -38,10 +38,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task BinaryEncodeDecodeDataValueAsync()
         {
-            var original = new DataValue(Variant.From(42))
-            {
-                StatusCode = StatusCodes.Good
-            };
+            var original = new DataValue(Variant.From(42), StatusCodes.Good);
 
             using var stream = new MemoryStream();
             using (var encoder = new BinaryEncoder(
@@ -55,7 +52,7 @@ namespace Opc.Ua.Aot.Tests
                 stream, fixture.Session.MessageContext, true);
             DataValue decoded = decoder.ReadDataValue("Value");
 
-            await Assert.That(decoded).IsNotNull();
+            await Assert.That(decoded.IsNull).IsFalse();
             await Assert.That(StatusCode.IsGood(decoded.StatusCode)).IsTrue();
         }
 
@@ -119,10 +116,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task JsonEncodeDecodeDataValueAsync()
         {
-            var original = new DataValue(Variant.From(42))
-            {
-                StatusCode = StatusCodes.Good
-            };
+            var original = new DataValue(Variant.From(42), StatusCodes.Good);
 
             string json;
             using (var encoder = new JsonEncoder(
@@ -139,7 +133,7 @@ namespace Opc.Ua.Aot.Tests
                 json, fixture.Session.MessageContext);
             DataValue decoded = decoder.ReadDataValue("Value");
 
-            await Assert.That(decoded).IsNotNull();
+            await Assert.That(decoded.IsNull).IsFalse();
             await Assert.That(StatusCode.IsGood(decoded.StatusCode)).IsTrue();
         }
 

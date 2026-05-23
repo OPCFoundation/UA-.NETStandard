@@ -310,26 +310,24 @@ namespace Opc.Ua.Server
             NodeState node,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            var value = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.Good
-            };
+            var value = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.MinValue,
+                DateTime.UtcNow);
             ServiceResult error = node.ReadAttribute(
                 context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                value);
+                ref value);
 
             if (ServiceResult.IsBad(error))
             {
-                value = null;
+                value = default;
             }
 
-            monitoredItem.QueueValue(value!, error);
+            monitoredItem.QueueValue(value, error);
         }
 
         /// <summary>

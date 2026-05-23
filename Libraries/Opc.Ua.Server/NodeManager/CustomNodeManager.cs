@@ -1685,13 +1685,10 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     nodeToRead.Processed = true;
 
-                    // create an initial value.
+                    // create an initial value (default ctor already sets
+                    // WrappedValue = Variant.Null, ServerTimestamp /
+                    // SourceTimestamp = DateTimeUtc.MinValue, StatusCode = Good).
                     DataValue value = values[ii] = new DataValue();
-
-                    value.WrappedValue = default;
-                    value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
-                    value.SourceTimestamp = DateTime.MinValue;
-                    value.StatusCode = StatusCodes.Good;
 
                     // check if the node is a area in memory.
                     if (handle.Node == null)
@@ -1711,27 +1708,31 @@ namespace Opc.Ua.Server
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
 
                     // Set timestamps after ReadAttribute to ensure consistency
                     // For Value attributes, match ServerTimestamp to SourceTimestamp
                     // For other attributes, just ensure ServerTimestamp is set
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
-                        if (value.SourceTimestamp == DateTime.MinValue)
+                        if (value.SourceTimestamp == DateTimeUtc.MinValue)
                         {
-                            value.SourceTimestamp = DateTime.UtcNow;
+                            value = value.WithSourceTimestamp(DateTimeUtc.Now);
                         }
-                        value.ServerTimestamp = value.SourceTimestamp;
+                        value = value.WithServerTimestamp(value.SourceTimestamp);
                     }
                     else
                     {
                         // For non-value attributes, only ServerTimestamp is relevant
-                        if (value.ServerTimestamp == DateTime.MinValue)
+                        if (value.ServerTimestamp == DateTimeUtc.MinValue)
                         {
-                            value.ServerTimestamp = DateTime.UtcNow;
+                            value = value.WithServerTimestamp(DateTimeUtc.Now);
                         }
                     }
+
+                    // Commit any With-chain rebindings back into the
+                    // results array.
+                    values[ii] = value;
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
@@ -1891,7 +1892,8 @@ namespace Opc.Ua.Server
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
+                    values[handle.Index] = value;
                 }
             }
         }
@@ -2009,19 +2011,17 @@ namespace Opc.Ua.Server
                     var propertyState = handle.Node as PropertyState;
                     Variant previousPropertyValue = propertyState?.Value ?? default;
 
-                    DataValue? oldValue = null;
+                    DataValue oldValue = default;
 
                     if (Server?.Auditing == true)
                     {
-                        //current server supports auditing
-                        oldValue = new DataValue();
                         // read the old value for the purpose of auditing
                         handle.Node.ReadAttribute(
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
                             default,
-                            oldValue);
+                            ref oldValue);
                     }
 
                     // write the attribute value.
@@ -2035,7 +2035,7 @@ namespace Opc.Ua.Server
                     Server.ReportAuditWriteUpdateEvent(
                         systemContext,
                         nodeToWrite,
-                        oldValue!,
+                        oldValue.WrappedValue,
                         errors[ii]?.StatusCode ?? StatusCodes.Good,
                         m_logger);
 
@@ -2187,14 +2187,14 @@ namespace Opc.Ua.Server
                     {
                         monitoredItem.SetSemanticsChanged();
 
-                        var value = new DataValue { ServerTimestamp = DateTime.UtcNow };
+                        var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
                         node.ReadAttribute(
                             systemContext,
                             Attributes.Value,
                             monitoredItem.IndexRange,
                             default,
-                            value);
+                            ref value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
 
@@ -4088,20 +4088,18 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = handle.Node.ReadAttribute(
                 context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, true);
 

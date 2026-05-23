@@ -713,8 +713,8 @@ namespace Opc.Ua
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
-            // check for null.
-            if (value == null)
+            // check for null/default.
+            if (value.IsNull)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadUnexpectedError,

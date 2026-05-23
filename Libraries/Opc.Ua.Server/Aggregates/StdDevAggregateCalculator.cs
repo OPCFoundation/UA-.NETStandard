@@ -207,20 +207,19 @@ namespace Opc.Ua.Server
                     break;
             }
 
-            // set the timestamp and status.
-            var value = new DataValue
-            {
-                WrappedValue = Variant.From(result),
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+// set the timestamp and status.
+            var value = new DataValue(
+                Variant.From(result),
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             if (nonGoodDataExists)
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // return result.
             return value;
@@ -320,20 +319,19 @@ namespace Opc.Ua.Server
                     break;
             }
 
-            // set the timestamp and status.
-            var value = new DataValue
-            {
-                WrappedValue = Variant.From(result),
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+// set the timestamp and status.
+            var value = new DataValue(
+                Variant.From(result),
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             if (nonGoodDataExists)
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // return result.
             return value;

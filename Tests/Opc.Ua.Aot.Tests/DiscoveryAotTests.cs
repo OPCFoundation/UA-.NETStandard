@@ -98,7 +98,7 @@ namespace Opc.Ua.Aot.Tests
                 VariableIds.Server_ServerStatus,
                 CancellationToken.None).ConfigureAwait(false);
 
-            await Assert.That(serverStatus).IsNotNull();
+            await Assert.That(serverStatus.IsNull).IsFalse();
             await Assert.That(StatusCode.IsGood(serverStatus.StatusCode))
                 .IsTrue();
 

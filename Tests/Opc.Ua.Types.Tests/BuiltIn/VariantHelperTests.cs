@@ -272,7 +272,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var v = Variant.From(dv);
             bool result = v.TryCastTo(out DataValue value);
             Assert.That(result, Is.True);
-            Assert.That(value, Is.Not.Null);
+            Assert.That(value.IsNull, Is.False);
         }
 
         [Test]

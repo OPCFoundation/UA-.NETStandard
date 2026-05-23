@@ -366,14 +366,14 @@ namespace Opc.Ua.Sample
             var value = new DataValue();
 
             ServiceResult error = m_source.Node
-                .ReadAttribute(context, AttributeId, default, default, value);
+                .ReadAttribute(context, AttributeId, default, default, ref value);
 
             if (ServiceResult.IsBad(error))
             {
                 value = new DataValue(error.StatusCode);
             }
 
-            value.ServerTimestamp = DateTime.UtcNow;
+            value = value.WithServerTimestamp(DateTimeUtc.Now);
 
             QueueValue(value, error, false);
         }
@@ -602,7 +602,7 @@ namespace Opc.Ua.Sample
                 FilterToUse = DataChangeFilter!,
                 Id = Id,
                 LastError = m_lastError!,
-                LastValue = m_lastValue!,
+                LastValue = m_lastValue,
                 MonitoringMode = MonitoringMode,
                 NodeId = m_source.Node.NodeId,
                 OriginalFilter = DataChangeFilter!,
@@ -613,13 +613,13 @@ namespace Opc.Ua.Sample
         }
 
         /// <inheritdoc/>
-        public void QueueValue(DataValue value, ServiceResult? error)
+        public void QueueValue(in DataValue value, ServiceResult? error)
         {
-            QueueValue(value, error, false);
+            QueueValue(in value, error, false);
         }
 
         /// <inheritdoc/>
-        public void QueueValue(DataValue? value, ServiceResult? error, bool ignoreFilters)
+        public void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -627,9 +627,9 @@ namespace Opc.Ua.Sample
                 if (!AlwaysReportUpdates &&
                     !ignoreFilters &&
                     !MonitoredItem.ValueChanged(
-                        value!,
+                        value,
                         error!,
-                        m_lastValue!,
+                        m_lastValue,
                         m_lastError!,
                         DataChangeFilter!,
                         m_range))
@@ -637,31 +637,31 @@ namespace Opc.Ua.Sample
                     return;
                 }
 
+                DataValue current = value;
+
                 // make a shallow copy of the value.
-                if (value != null)
+                if (!current.IsNull)
                 {
-                    value = new DataValue
-                    {
-                        WrappedValue = value.WrappedValue,
-                        StatusCode = value.StatusCode,
-                        SourceTimestamp = value.SourceTimestamp,
-                        SourcePicoseconds = value.SourcePicoseconds,
-                        ServerTimestamp = value.ServerTimestamp,
-                        ServerPicoseconds = value.ServerPicoseconds
-                    };
+                    current = new DataValue(
+                        current.WrappedValue,
+                        current.StatusCode,
+                        current.SourceTimestamp,
+                        current.ServerTimestamp,
+                        current.SourcePicoseconds,
+                        current.ServerPicoseconds);
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
                     {
-                        value.StatusCode = error.StatusCode;
+                        current = current.WithStatus(error.StatusCode);
                     }
                 }
 
-                m_lastValue = value;
+                m_lastValue = current;
                 m_lastError = error;
 
                 // queue value.
-                m_queue?.QueueValue(value!, error!);
+                m_queue?.QueueValue(current, error!);
 
                 // flag the item as ready to publish.
                 m_readyToPublish = true;
@@ -715,7 +715,7 @@ namespace Opc.Ua.Sample
                 {
                     m_nextSampleTime = DateTime.UtcNow.Ticks;
                     m_lastError = null;
-                    m_lastValue = null;
+                    m_lastValue = DataValue.Null;
                 }
 
                 MonitoringMode = monitoringMode;
@@ -828,16 +828,21 @@ namespace Opc.Ua.Sample
         /// </summary>
         private void Publish(
             OperationContext context,
-            DataValue? value,
+            in DataValue value,
             ServiceResult? error,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
             ILogger logger)
         {
+            DataValue current = value;
+
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
+                if (!current.IsNull)
+                {
+                    current = current.WithStatus(current.StatusCode.SetSemanticsChanged(true));
+                }
 
                 m_semanticsChanged = false;
             }
@@ -845,23 +850,26 @@ namespace Opc.Ua.Sample
             // set structure changed bit.
             if (m_structureChanged)
             {
-                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
+                if (!current.IsNull)
+                {
+                    current = current.WithStatus(current.StatusCode.SetStructureChanged(true));
+                }
 
                 m_structureChanged = false;
             }
 
             // copy data value.
-            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = value! };
+            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = current };
 
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item.Value!.ServerTimestamp = DateTime.MinValue;
+                item.Value = item.Value.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item.Value!.SourceTimestamp = DateTime.MinValue;
+                item.Value = item.Value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
             notifications.Enqueue(item);
@@ -902,7 +910,7 @@ namespace Opc.Ua.Sample
         private readonly Lock m_lock = new();
         private readonly IMonitoredItemQueueFactory? m_monitoredItemQueueFactory;
         private readonly MonitoredNode m_source;
-        private DataValue? m_lastValue;
+        private DataValue m_lastValue;
         private ServiceResult? m_lastError;
         private TimestampsToReturn m_timestampsToReturn;
         private DiagnosticsMasks m_diagnosticsMasks;

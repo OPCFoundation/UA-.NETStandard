@@ -130,13 +130,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue
-            {
-                WrappedValue = Variant.From(duration),
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            var value = new DataValue(
+                Variant.From(duration),
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // return result.
             return value;
@@ -199,19 +198,18 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue
-            {
-                WrappedValue = Variant.From(worstQuality),
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            var value = new DataValue(
+                Variant.From(worstQuality),
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
                 (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
             {
-                value.StatusCode = value.StatusCode.WithAggregateBits(
-                    value.StatusCode.AggregateBits | AggregateBits.MultipleValues);
+                value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                    value.StatusCode.AggregateBits | AggregateBits.MultipleValues));
             }
 
             // return result.

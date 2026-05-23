@@ -27,52 +27,75 @@ activator pooling feature added in support of `ManagedSessionBuilder.WithPoolNot
 | CPU | Intel Xeon W-2235 @ 3.80 GHz, 6 physical / 12 logical cores |
 | SDK | .NET SDK 10.0.300 |
 | Host runtime | .NET 10.0.8 (RyuJIT, x86-64-v4) |
-| Config | Release, `c Release -f net10.0` |
+| Config | Release, `-c Release -f net10.0` |
 
 ## Results
 
+Results measured after the `DataValue` readonly-struct change. `DataValue`
+is now a `readonly struct` that lives inline in
+`MonitoredItemNotification.Value`, eliminating one heap allocation per
+notification item compared to the previous class-based `DataValue`.
+
 | Method | Mean | Allocated/op | Allocation ratio | Gen0/1000 ops |
 |---|---:|---:|---:|---:|
-| `new MonitoredItemNotification()` *(baseline)* | 33.890 µs | 128,408 B | 1.000 | 29.75 |
-| `MonitoredItemNotificationActivator + Reuse` | **22.134 µs** | **408 B** | **0.003** | **0.092** |
-| `new DataChangeNotification()` | 58.490 µs | 232,344 B | 1.809 | 53.83 |
-| `DataChangeNotificationActivator + Reuse` | **56.175 µs** | **32,344 B** | **0.252** | **7.45** |
-| `new EventFieldList()` | 9.407 µs | 48,408 B | 0.377 | 11.22 |
-| `EventFieldListActivator + Reuse` | **22.537 µs** | **408 B** | **0.003** | **0.092** |
+| `new MonitoredItemNotification()` *(baseline)* | 34.874 µs | 104,408 B | 1.000 | 24.17 |
+| `MonitoredItemNotificationActivator + Reuse` | **23.323 µs** | **408 B** | **0.004** | **0.092** |
+| `new DataChangeNotification()` | 66.759 µs | 216,344 B | 2.072 | 50.05 |
+| `DataChangeNotificationActivator + Reuse` | **54.812 µs** | **32,344 B** | **0.310** | **7.45** |
+| `new EventFieldList()` | 8.967 µs | 48,408 B | 0.464 | 11.22 |
+| `EventFieldListActivator + Reuse` | **22.280 µs** | **408 B** | **0.004** | **0.092** |
 
-Notes:
-- `MonitoredItemNotification` baseline allocates ~125 KB / 1000 ops; pooled
-  reduces that to **0.3% of baseline** (408 B per 1000 ops — only the
-  `int sum` capture).
-- `DataChangeNotification` baseline includes the inner `MonitoredItemNotification`
-  + the `MonitoredItemNotification[]` backing array. Pooling both the container
-  and the item brings allocation down to **25% of baseline** — the residual is
-  the `MonitoredItemNotification[]` itself (array pooling is explicitly out of
-  scope for this phase; see `Docs/Sessions.md` and Section 9 of the design plan).
-- `EventFieldList` is a degenerate case: the baseline `new` path is already
-  cheap (10 µs) because the struct's empty `EventFields` `ArrayOf<Variant>` does
-  not allocate; the pooled path adds the `Interlocked.CompareExchange` + pool
-  round-trip and ends up slightly slower (22 µs) for this microbench shape.
-  Under the realistic dispatch scenario where each `EventFieldList` carries a
-  non-empty `EventFields`, the allocation savings dominate (similar shape to
-  `MonitoredItemNotification`).
-- `Gen0/1000 ops` drops by orders of magnitude in every pooled case — this is
-  the direct GC-reduction headline.
+### Comparison: DataValue as class vs readonly struct
+
+| Metric (MonitoredItemNotification, 1000 ops) | DataValue = class | DataValue = readonly struct | Change |
+|---|---:|---:|---|
+| Baseline allocated/op | 128,408 B | 104,408 B | **−24 KB** (−19%) — `DataValue` heap object eliminated |
+| Pooled allocated/op | 408 B | 408 B | unchanged — pool already recycled the whole notification |
+| Baseline Gen0/1000 ops | 29.75 | 24.17 | **−19%** — fewer heap objects to collect |
+| Pooled Gen0/1000 ops | 0.092 | 0.092 | unchanged |
+| Pooled allocation reduction | 315× | 256× | ratio lower because baseline is now cheaper |
 
 ## Interpretation
 
 For the dominant publish-payload allocator (`MonitoredItemNotification`,
 which arrives in arrays of arbitrary length on every data-change publish):
 
-- Mean time per item drops from ~34 µs/1000 to ~22 µs/1000 (a 35% throughput
-  improvement on the synthetic benchmark, with the gap widening as the inner
-  loop cache-warms).
-- Allocations per 1000 ops drop from 128 KB to 408 B — **~315× reduction**.
-- Gen-0 collections per 1000 ops drop from 29.75 to 0.09 — **~320× reduction**.
+- Mean time per item drops from ~35 µs/1000 to ~23 µs/1000 — a **33%
+  throughput improvement** on the synthetic benchmark.
+- Allocations per 1000 ops drop from 104 KB to 408 B — **~256× reduction**.
+- Gen-0 collections per 1000 ops drop from 24.17 to 0.09 — **~263× reduction**.
 
-The realistic V2 publish workload (1k–10k monitored-item updates per second
-sustained) translates these numbers directly to fewer GC pauses and reduced
-managed-heap churn.
+For `DataChangeNotification` (container + inner items + backing array):
+
+- Pooling both the container and the inner `MonitoredItemNotification`
+  items brings allocation down to **31% of baseline**. The residual
+  32 KB is the `MonitoredItemNotification[]` backing array itself
+  (array pooling is out of scope for this phase).
+
+For `EventFieldList`:
+
+- The baseline `new` path is already cheap (~9 µs) because the empty
+  `EventFields` `ArrayOf<Variant>` is a zero-allocation default. The
+  pooled path adds `Interlocked.CompareExchange` + pool round-trip
+  overhead (~22 µs). Under realistic dispatch where each `EventFieldList`
+  carries a non-empty `EventFields` array, the allocation savings
+  dominate and the pooled path wins.
+
+### How the two optimizations stack
+
+The `DataValue` readonly-struct change and activator pooling are
+**complementary**:
+
+- **Struct `DataValue`** helps all paths — Read, Browse, Call, and
+  unpooled publish. Every `DataValue` that was previously a separate
+  heap allocation is now inline in its parent (−24 B per notification
+  item, −19% baseline allocation).
+- **Activator pooling** helps the publish path specifically — it
+  recycles the notification wrapper objects (`MonitoredItemNotification`,
+  `DataChangeNotification`, `EventFieldList`, `EventNotificationList`)
+  that the struct change does not address.
+- Combined: the pooled publish path allocates **256× less** than a
+  baseline that is itself **19% cheaper** than before.
 
 ## Reproducing
 
@@ -90,15 +113,14 @@ Artifacts (markdown, csv, html) are written to
 
 ## Out of scope
 
-The following payloads are not pooled in this phase (per the design plan,
-`plans/24-subscription-v2-gc-reduction.md` Section 9 "Out of scope") and
-remain attributable to the residual baseline-shaped allocation in the pooled
+The following payloads are not pooled in this phase and remain
+attributable to the residual allocation in the pooled
 `DataChangeNotification` numbers above:
 
-- `DataValue` (built-in, not `IEncodeable`)
-- `Variant` value payload
+- `Variant` value payload (arbitrary user data inside `DataValue.Value`)
 - Dispatch backing arrays (`DataValueChange[]`, `EventNotification[]`,
   `MonitoredItemNotification[]`)
 
-Revisit if a measurement of a full publish loop against the reference server
-shows these as remaining hot spots after the current pooling work lands.
+`DataValue` is now a readonly struct and no longer allocates on the
+heap. It is not an `IEncodeable` and does not participate in the
+activator pool system.
