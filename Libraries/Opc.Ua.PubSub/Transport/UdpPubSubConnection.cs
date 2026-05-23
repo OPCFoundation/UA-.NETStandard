@@ -640,14 +640,14 @@ namespace Opc.Ua.PubSub.Transport
             // get the actual message and fill out the source:
             try
             {
-                byte[] message = socket.EndReceive(result, ref source);
+                byte[] message = socket.EndReceive(result, ref source!);
 
                 if (message != null)
                 {
                     m_logger.LogInformation(
                         "OnUadpReceive received message with length {Length} from {Address}",
                         message.Length,
-                        source.Address);
+                        source!.Address);
 
                     if (message.Length > 1)
                     {

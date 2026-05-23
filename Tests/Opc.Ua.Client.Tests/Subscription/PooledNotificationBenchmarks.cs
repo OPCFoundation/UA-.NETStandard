@@ -70,6 +70,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// project rebuild (which times out for a test assembly that
         /// transitively pulls hundreds of references).
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Instantiated by BenchmarkDotNet via reflection")]
         private sealed class InProcessConfig : ManualConfig
         {
             public InProcessConfig()
