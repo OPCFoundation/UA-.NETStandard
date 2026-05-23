@@ -42,6 +42,9 @@ using Opc.Ua.Tests;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
 
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
     /// <summary>

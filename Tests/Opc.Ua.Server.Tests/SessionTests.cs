@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]

@@ -42,6 +42,8 @@ using Opc.Ua.Tests;
 
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
     /// <summary>
