@@ -1952,12 +1952,12 @@ namespace Opc.Ua.Server
                 // apply the timestamp filters.
                 if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
                 {
-                    value = value.WithServerTimestamp(DateTimeUtc.MinValue);
+                    value = values[ii] = value.WithServerTimestamp(DateTimeUtc.MinValue);
                 }
 
                 if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
                 {
-                    value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
+                    value = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
                 }
             }
 
