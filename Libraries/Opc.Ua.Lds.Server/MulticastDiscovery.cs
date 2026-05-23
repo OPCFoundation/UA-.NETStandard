@@ -53,6 +53,24 @@ namespace Opc.Ua.Lds.Server
         /// </summary>
         public const string OpcUaServiceType = "_opcua-tcp._tcp";
 
+        /// <summary>
+        /// OPC 10000-12 §6.5.5 reverse-connect URL prefix: when a Client or
+        /// ClientAndServer announces reverse-connect support its
+        /// DiscoveryUrl is prefixed with <c>rcp+</c> (e.g.
+        /// <c>rcp+opc.tcp://host:port/path</c>). The prefix is transported
+        /// via the mDNS TXT record (key <see cref="ReverseConnectTxtKey"/>)
+        /// so peers can reconstruct it after discovery.
+        /// </summary>
+        public const string ReverseConnectScheme = "rcp+";
+
+        /// <summary>
+        /// TXT-record key that carries the reverse-connect prefix when a
+        /// Client / ClientAndServer announces an <c>rcp+</c> DiscoveryUrl.
+        /// Presence of the key (any non-empty value) indicates the URL
+        /// should be reconstructed with the <see cref="ReverseConnectScheme"/>.
+        /// </summary>
+        public const string ReverseConnectTxtKey = "rc";
+
         private readonly RegisteredServerStore m_store;
         private readonly ILogger m_logger;
         private readonly bool m_loopbackOnly;
@@ -249,6 +267,7 @@ namespace Opc.Ua.Lds.Server
 
                 string path = "/";
                 List<string> caps = [];
+                bool reverseConnect = false;
                 if (txt != null)
                 {
                     foreach (string str in txt.Strings)
@@ -269,10 +288,24 @@ namespace Opc.Ua.Lds.Server
                                 }
                             }
                         }
+                        else if (str.StartsWith(
+                                ReverseConnectTxtKey + "=",
+                                StringComparison.Ordinal))
+                        {
+                            // OPC 10000-12 §6.5.5: any non-empty value
+                            // indicates the announced DiscoveryUrl is a
+                            // reverse-connect (rcp+) URL.
+                            string value = str.Substring(
+                                ReverseConnectTxtKey.Length + 1);
+                            reverseConnect = !string.IsNullOrEmpty(value) &&
+                                value != "0";
+                        }
                     }
                 }
 
-                string discoveryUrl = $"opc.tcp://{address}:{srv.Port}{path}";
+                string discoveryUrl = reverseConnect
+                    ? $"{ReverseConnectScheme}opc.tcp://{address}:{srv.Port}{path}"
+                    : $"opc.tcp://{address}:{srv.Port}{path}";
 
                 m_store.UpsertMulticastRecord(
                     serverUri: null,
@@ -293,7 +326,19 @@ namespace Opc.Ua.Lds.Server
         {
             try
             {
-                Uri parsed = new(discoveryUrl, UriKind.Absolute);
+                // Preserve the rcp+ reverse-connect prefix (OPC 10000-12
+                // §6.5.5). Reverse-connect URLs are emitted on the mDNS
+                // SRV record using the underlying transport's host/port,
+                // with the prefix captured in a dedicated TXT key so
+                // discovery peers can reconstruct it verbatim.
+                bool reverseConnect = discoveryUrl.StartsWith(
+                    ReverseConnectScheme,
+                    StringComparison.Ordinal);
+                string transportUrl = reverseConnect
+                    ? discoveryUrl[ReverseConnectScheme.Length..]
+                    : discoveryUrl;
+
+                Uri parsed = new(transportUrl, UriKind.Absolute);
                 if (parsed.Port <= 0)
                 {
                     return null;
@@ -313,6 +358,10 @@ namespace Opc.Ua.Lds.Server
                 if (capabilities.Count > 0)
                 {
                     profile.AddProperty("caps", string.Join(",", capabilities));
+                }
+                if (reverseConnect)
+                {
+                    profile.AddProperty(ReverseConnectTxtKey, "1");
                 }
 
                 return profile;

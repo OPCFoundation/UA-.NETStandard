@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests
                 DataValue value2 = await session2
                     .ReadValueAsync(VariableIds.Server_ServerStatus)
                     .ConfigureAwait(false);
-                Assert.That(value2, Is.Not.Null);
+                Assert.That(value2.IsNull, Is.False);
 
                 for (ii = 0; ii < kTestSubscriptions; ii++)
                 {

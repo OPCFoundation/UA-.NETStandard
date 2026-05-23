@@ -1679,64 +1679,54 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
-        public void WriteDataValue(string? fieldName, DataValue? value)
+        public void WriteDataValue(string? fieldName, DataValue value)
         {
-            bool isNull = value == null;
-
-            if (fieldName != null && isNull && !IncludeDefaultValues)
-            {
-                return;
-            }
-
             PushStructure(fieldName);
 
-            if (!isNull)
+            if (!value.WrappedValue.TypeInfo.IsUnknown &&
+                value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
             {
-                if (!value!.WrappedValue.TypeInfo.IsUnknown &&
-                    value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
+                if (EncodingToUse is not PubSubJsonEncoding.Compact and not PubSubJsonEncoding.Verbose)
                 {
-                    if (EncodingToUse is not PubSubJsonEncoding.Compact and not PubSubJsonEncoding.Verbose)
-                    {
-                        WriteVariant("Value", value.WrappedValue);
-                    }
-                    else
-                    {
-                        WriteVariantIntoObject("Value", value.WrappedValue);
-                    }
+                    WriteVariant("Value", value.WrappedValue);
                 }
-
-                if (value.StatusCode != StatusCodes.Good)
+                else
                 {
-                    WriteStatusCode(
-                        "StatusCode",
-                        value.StatusCode,
-                        EscapeOptions.NoFieldNameEscape);
+                    WriteVariantIntoObject("Value", value.WrappedValue);
                 }
+            }
 
-                if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            if (value.StatusCode != StatusCodes.Good)
+            {
+                WriteStatusCode(
+                    "StatusCode",
+                    value.StatusCode,
+                    EscapeOptions.NoFieldNameEscape);
+            }
+
+            if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            {
+                WriteDateTime(
+                    "SourceTimestamp",
+                    value.SourceTimestamp,
+                    EscapeOptions.NoFieldNameEscape);
+
+                if (value.SourcePicoseconds != 0)
                 {
-                    WriteDateTime(
-                        "SourceTimestamp",
-                        value.SourceTimestamp,
-                        EscapeOptions.NoFieldNameEscape);
-
-                    if (value.SourcePicoseconds != 0)
-                    {
-                        WriteUInt16("SourcePicoseconds", value.SourcePicoseconds);
-                    }
+                    WriteUInt16("SourcePicoseconds", value.SourcePicoseconds);
                 }
+            }
 
-                if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            {
+                WriteDateTime(
+                    "ServerTimestamp",
+                    value.ServerTimestamp,
+                    EscapeOptions.NoFieldNameEscape);
+
+                if (value.ServerPicoseconds != 0)
                 {
-                    WriteDateTime(
-                        "ServerTimestamp",
-                        value.ServerTimestamp,
-                        EscapeOptions.NoFieldNameEscape);
-
-                    if (value.ServerPicoseconds != 0)
-                    {
-                        WriteUInt16("ServerPicoseconds", value.ServerPicoseconds);
-                    }
+                    WriteUInt16("ServerPicoseconds", value.ServerPicoseconds);
                 }
             }
 
@@ -2926,7 +2916,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
                 {
-                    dv = new DataValue { WrappedValue = dv.StatusCode };
+                    dv = new DataValue(new Variant(dv.StatusCode));
                 }
 
                 WriteRawValueContents(field, dv, dimensionsInline);

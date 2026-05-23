@@ -223,7 +223,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body($"[1, true, {kExtremeValue}]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -231,7 +231,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body($"[{kExtremeValue}, {kExtremeValue}, {kExtremeValue}]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -239,7 +239,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body($"[{kExtremeValue}]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -247,7 +247,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("[]"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -271,7 +271,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("null"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -279,7 +279,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body("123"));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -287,7 +287,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(kExtremeValue));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -295,7 +295,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""value"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -303,7 +303,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -311,7 +311,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { ServerPicoseconds = 123 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithServerPicoseconds(123)));
         }
 
         [Test]
@@ -319,7 +319,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { ServerPicoseconds = 0 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithServerPicoseconds(0)));
         }
 
         [Test]
@@ -327,7 +327,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "ServerTimestamp": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -335,7 +335,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -343,7 +343,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { SourcePicoseconds = 123 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithSourcePicoseconds(123)));
         }
 
         [Test]
@@ -351,7 +351,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { SourcePicoseconds = 0 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithSourcePicoseconds(0)));
         }
 
         [Test]
@@ -359,7 +359,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "SourceTimestamp": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -367,7 +367,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -385,7 +385,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             string json = /*lang=json,strict*/ $$"""{"UaType":15, "Value":["{{Convert.ToBase64String(buffer)}}"], "Dimensions": [0]}""";
             using JsonDecoder reader = NewDecoder(Body(json));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]

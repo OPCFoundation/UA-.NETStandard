@@ -629,13 +629,11 @@ namespace MemoryBuffer
 
                     if (monitoredItems != null)
                     {
-                        var value = new DataValue
-                        {
-                            WrappedValue = GetValueAtOffset(offset),
-                            StatusCode = StatusCodes.Good,
-                            ServerTimestamp = DateTimeUtc.Now,
-                            SourceTimestamp = m_lastScanTime
-                        };
+                        var value = new DataValue(
+                            GetValueAtOffset(offset),
+                            StatusCodes.Good,
+                            m_lastScanTime,
+                            DateTimeUtc.Now);
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
                         {

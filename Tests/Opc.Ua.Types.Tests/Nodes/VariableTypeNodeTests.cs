@@ -610,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             VariableTypeNode node = CreatePopulatedNode();
             var dataValue = new DataValue();
-            ServiceResult result = node.Read(null, Attributes.Value, dataValue);
+            ServiceResult result = node.Read(null, Attributes.Value, ref dataValue);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That((int)dataValue.WrappedValue, Is.EqualTo(100));
@@ -637,7 +637,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var node = new VariableTypeNode { Value = Variant.Null };
             var dataValue = new DataValue();
-            ServiceResult result = node.Read(null, Attributes.Value, dataValue);
+            ServiceResult result = node.Read(null, Attributes.Value, ref dataValue);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }

@@ -217,32 +217,36 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public DataValue? PeekLastValue()
+        public bool TryPeekLastValue(out DataValue value)
         {
             if (ItemsInQueue == 0)
             {
-                return null;
+                value = default;
+                return false;
             }
 
             if (m_enqueueBatch.Values.Count > 0)
             {
-                return m_enqueueBatch.Values[^1].Item1;
+                value = m_enqueueBatch.Values[^1].Item1;
+                return true;
             }
             else if (m_dataChangeBatches.Count > 0)
             {
                 DataChangeBatch batch = m_dataChangeBatches[^1];
-                return batch.Values[^1].Item1;
+                value = batch.Values[^1].Item1;
+                return true;
             }
             else
             {
-                return m_dequeueBatch.Values[^1].Item1;
+                value = m_dequeueBatch.Values[^1].Item1;
+                return true;
             }
         }
 
         /// <inheritdoc/>
         public bool Dequeue(out DataValue value, out ServiceResult error)
         {
-            value = null!;
+            value = default;
             error = null!;
 
             // check for empty queue.
@@ -310,15 +314,17 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public DataValue? PeekOldestValue()
+        public bool TryPeekOldestValue(out DataValue value)
         {
             // check for empty queue.
             if (ItemsInQueue == 0)
             {
-                return null;
+                value = default;
+                return false;
             }
 
-            return m_dequeueBatch.Values[0].Item1;
+            value = m_dequeueBatch.Values[0].Item1;
+            return true;
         }
 
         /// <inheritdoc/>

@@ -72,7 +72,7 @@ namespace Opc.Ua.Tests
             get
             {
                 yield return new TestCaseData(
-                    (DataValue)null);
+                    default(DataValue));
                 yield return new TestCaseData(
                     new DataValue(Variant.From(1), 0, DateTimeUtc.Now, DateTimeUtc.Now));
                 yield return new TestCaseData(

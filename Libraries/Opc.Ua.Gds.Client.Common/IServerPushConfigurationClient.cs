@@ -209,5 +209,20 @@ namespace Opc.Ua.Gds.Client
         ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default);
+
+        /// <summary>Creates a self-signed certificate on the server.</summary>
+        /// <remarks>Calls the <c>CreateSelfSignedCertificate</c> method on
+        /// <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.6). The method
+        /// is optional; servers that do not support it return
+        /// <c>Bad_NotSupported</c>.</remarks>
+        ValueTask<ByteString> CreateSelfSignedCertificateAsync(
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> dnsNames,
+            ArrayOf<string> ipAddresses,
+            ushort lifetimeInDays,
+            ushort keySizeInBits,
+            CancellationToken ct = default);
     }
 }
