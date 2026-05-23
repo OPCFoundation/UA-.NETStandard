@@ -29,13 +29,13 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
+using System.Runtime.InteropServices;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// A class that stores the value of variable with an optional status code and timestamps.
+    /// A struct that stores the value of variable with an optional status code and timestamps.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -50,6 +50,24 @@ namespace Opc.Ua
     ///     <item><see cref="DateTimeUtc"/> for the Servers Timestamp</item>
     /// </list>
     /// <br/></para>
+    /// <para>
+    /// <b>With&lt;Property&gt;() fluent mutators</b>: because <see cref="DataValue"/>
+    /// is a <c>readonly struct</c> the legacy pattern of mutating individual
+    /// properties after construction is no longer available. Each <c>With*</c>
+    /// mutator returns a new <see cref="DataValue"/> with the named field
+    /// overwritten and every other field carried through unchanged. Decoders,
+    /// NodeState read paths, and any other code that historically built a
+    /// <see cref="DataValue"/> by mutating its properties migrate to chained
+    /// <c>With*</c> calls:
+    /// <code lang="C#">
+    /// DataValue v = new DataValue();
+    /// v = v.WithWrappedValue(ReadVariant(null));
+    /// v = v.WithStatus(ReadStatusCode(null));
+    /// return v;
+    /// </code>
+    /// The JIT folds a <c>default</c> + <c>With</c>-chain into a single
+    /// constructor call.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code lang="C#">
@@ -73,18 +91,25 @@ namespace Opc.Ua
     /// </example>
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
-    public class DataValue : ICloneable, IFormattable, IEquatable<DataValue>
+    [StructLayout(LayoutKind.Auto)]
+    public readonly struct DataValue : INullable, IFormattable, IEquatable<DataValue>
     {
+        /// <summary>
+        /// Returns an instance of a null DataValue. This is the same as
+        /// <c>default(DataValue)</c>.
+        /// </summary>
+        public static readonly DataValue Null;
+
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public DataValue()
         {
             m_value = Variant.Null;
-            StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = StatusCodes.Good;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -98,9 +123,10 @@ namespace Opc.Ua
         public DataValue(Variant value)
         {
             m_value = value;
-            StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = StatusCodes.Good;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -111,9 +137,10 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode)
         {
             m_value = Variant.Null;
-            StatusCode = statusCode;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -125,9 +152,10 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
             m_value = Variant.Null;
-            StatusCode = statusCode;
-            ServerTimestamp = serverTimestamp;
-            SourceTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_serverTimestamp = serverTimestamp;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -138,9 +166,10 @@ namespace Opc.Ua
         public DataValue(Variant value, StatusCode statusCode)
         {
             m_value = value;
-            StatusCode = statusCode;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -152,9 +181,10 @@ namespace Opc.Ua
         public DataValue(Variant value, StatusCode statusCode, DateTimeUtc sourceTimestamp)
         {
             m_value = value;
-            StatusCode = statusCode;
-            SourceTimestamp = sourceTimestamp;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = sourceTimestamp;
+            m_serverTimestamp = DateTimeUtc.MinValue;
+            m_set = true;
         }
 
         /// <summary>
@@ -172,9 +202,36 @@ namespace Opc.Ua
             DateTimeUtc serverTimestamp)
         {
             m_value = value;
-            StatusCode = statusCode;
-            SourceTimestamp = sourceTimestamp;
-            ServerTimestamp = serverTimestamp;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = sourceTimestamp;
+            m_serverTimestamp = serverTimestamp;
+            m_set = true;
+        }
+
+        /// <summary>
+        /// Initializes the object with all fields including picosecond resolution.
+        /// </summary>
+        /// <param name="value">The variant value to set</param>
+        /// <param name="statusCode">The status code to set</param>
+        /// <param name="sourceTimestamp">The source timestamp to set</param>
+        /// <param name="serverTimestamp">The servers timestamp to set</param>
+        /// <param name="sourcePicoseconds">Additional resolution for the source timestamp</param>
+        /// <param name="serverPicoseconds">Additional resolution for the server timestamp</param>
+        public DataValue(
+            Variant value,
+            StatusCode statusCode,
+            DateTimeUtc sourceTimestamp,
+            DateTimeUtc serverTimestamp,
+            ushort sourcePicoseconds,
+            ushort serverPicoseconds)
+        {
+            m_value = value;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = sourceTimestamp;
+            m_serverTimestamp = serverTimestamp;
+            m_sourcePicoseconds = sourcePicoseconds;
+            m_serverPicoseconds = serverPicoseconds;
+            m_set = true;
         }
 
         /// <summary>
@@ -184,10 +241,7 @@ namespace Opc.Ua
         /// <returns>A new <see cref="DataValue"/> with the specified status code.</returns>
         public static DataValue FromStatusCode(StatusCode statusCode)
         {
-            return new DataValue
-            {
-                StatusCode = statusCode
-            };
+            return new DataValue(Variant.Null, statusCode);
         }
 
         /// <summary>
@@ -198,81 +252,208 @@ namespace Opc.Ua
         /// <returns>A new <see cref="DataValue"/> with the specified status code and server timestamp.</returns>
         public static DataValue FromStatusCode(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
-            return new DataValue
-            {
-                StatusCode = statusCode,
-                ServerTimestamp = serverTimestamp
-            };
+            return new DataValue(
+                Variant.Null,
+                statusCode,
+                DateTimeUtc.MinValue,
+                serverTimestamp);
+        }
+
+        /// <summary>
+        /// True when the struct holds no payload — that is, when this
+        /// <see cref="DataValue"/> was not produced by any constructor or
+        /// factory and is therefore equal to <c>default(DataValue)</c>.
+        /// </summary>
+        /// <remarks>
+        /// An explicitly constructed DataValue with no value, no timestamps
+        /// and a Good status (e.g. <c>new DataValue(Variant.Null)</c>) is
+        /// <b>not</b> considered null — it represents a real but empty value
+        /// and is encoded on the wire as an empty struct. Only
+        /// <c>default(DataValue)</c> (or the equivalent <see cref="Null"/>
+        /// field) is null. The distinction is preserved by a small sentinel
+        /// flag inside the struct.
+        /// </remarks>
+        public bool IsNull => !m_set;
+
+        /// <summary>
+        /// The value of data value.
+        /// </summary>
+        [Obsolete("Use WrappedValue to access The value.")]
+        public object? Value
+        {
+            get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+        }
+
+        /// <summary>
+        /// The value of data value.
+        /// </summary>
+        public Variant WrappedValue => m_value;
+
+        /// <summary>
+        /// The status code associated with the value.
+        /// </summary>
+        public StatusCode StatusCode => m_statusCode;
+
+        /// <summary>
+        /// The source timestamp associated with the value.
+        /// </summary>
+        public DateTimeUtc SourceTimestamp => m_sourceTimestamp;
+
+        /// <summary>
+        /// Additional resolution for the source timestamp.
+        /// </summary>
+        public ushort SourcePicoseconds => m_sourcePicoseconds;
+
+        /// <summary>
+        /// The server timestamp associated with the value.
+        /// </summary>
+        public DateTimeUtc ServerTimestamp => m_serverTimestamp;
+
+        /// <summary>
+        /// Additional resolution for the server timestamp.
+        /// </summary>
+        public ushort ServerPicoseconds => m_serverPicoseconds;
+
+        /// <summary>
+        /// Returns true if the status code is good.
+        /// </summary>
+        public bool IsGood => StatusCode.IsGood(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
+        public bool IsNotGood => StatusCode.IsNotGood(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
+        public bool IsUncertain => StatusCode.IsUncertain(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status is good or bad.
+        /// </summary>
+        public bool IsNotUncertain => StatusCode.IsNotUncertain(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status code is bad.
+        /// </summary>
+        public bool IsBad => StatusCode.IsBad(m_statusCode);
+
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
+        public bool IsNotBad => StatusCode.IsNotBad(m_statusCode);
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="WrappedValue"/> replaced.
+        /// </summary>
+        public DataValue WithWrappedValue(Variant value)
+        {
+            return new DataValue(
+                value,
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="StatusCode"/> replaced.
+        /// </summary>
+        public DataValue WithStatus(StatusCode statusCode)
+        {
+            return new DataValue(
+                m_value,
+                statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="SourceTimestamp"/> replaced.
+        /// </summary>
+        public DataValue WithSourceTimestamp(DateTimeUtc sourceTimestamp)
+        {
+            return new DataValue(
+                m_value,
+                m_statusCode,
+                sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="SourcePicoseconds"/> replaced.
+        /// </summary>
+        public DataValue WithSourcePicoseconds(ushort sourcePicoseconds)
+        {
+            return new DataValue(
+                m_value,
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                sourcePicoseconds,
+                m_serverPicoseconds);
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="ServerTimestamp"/> replaced.
+        /// </summary>
+        public DataValue WithServerTimestamp(DateTimeUtc serverTimestamp)
+        {
+            return new DataValue(
+                m_value,
+                m_statusCode,
+                m_sourceTimestamp,
+                serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="ServerPicoseconds"/> replaced.
+        /// </summary>
+        public DataValue WithServerPicoseconds(ushort serverPicoseconds)
+        {
+            return new DataValue(
+                m_value,
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                serverPicoseconds);
         }
 
         /// <inheritdoc/>
         public override bool Equals(object? obj)
+            => obj is DataValue other && Equals(other);
+
+        /// <inheritdoc/>
+        public bool Equals(DataValue other)
         {
-            return obj switch
-            {
-                null => false,
-                DataValue value => Equals(value),
-                _ => base.Equals(obj)
-            };
+            return StatusCode == other.StatusCode &&
+                ServerTimestamp == other.ServerTimestamp &&
+                SourceTimestamp == other.SourceTimestamp &&
+                ServerPicoseconds == other.ServerPicoseconds &&
+                SourcePicoseconds == other.SourcePicoseconds &&
+                m_value == other.m_value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataValue? other)
-        {
-            if (ReferenceEquals(this, other))
-            {
-                return true;
-            }
-
-            if (other is null)
-            {
-                return false;
-            }
-
-            if (StatusCode != other.StatusCode)
-            {
-                return false;
-            }
-
-            if (ServerTimestamp != other.ServerTimestamp)
-            {
-                return false;
-            }
-
-            if (SourceTimestamp != other.SourceTimestamp)
-            {
-                return false;
-            }
-
-            if (ServerPicoseconds != other.ServerPicoseconds)
-            {
-                return false;
-            }
-
-            if (SourcePicoseconds != other.SourcePicoseconds)
-            {
-                return false;
-            }
-
-            if (m_value != other.m_value)
-            {
-                return false;
-            }
-
-            return true;
-        }
+        public static bool operator ==(DataValue a, DataValue b) => a.Equals(b);
 
         /// <inheritdoc/>
-        public static bool operator ==(DataValue? a, DataValue? b)
-        {
-            return a is null ? b is null : a.Equals(b);
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(DataValue? a, DataValue? b)
-        {
-            return !(a == b);
-        }
+        public static bool operator !=(DataValue a, DataValue b) => !a.Equals(b);
 
         /// <inheritdoc/>
         public override int GetHashCode()
@@ -302,163 +483,21 @@ namespace Opc.Ua
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return Copy();
-        }
-
         /// <summary>
-        /// Creates a deep copy of the DataValue.
+        /// Creates a deep copy of the DataValue, deep-copying the
+        /// Variant payload so that reference-type bodies (e.g.
+        /// ExtensionObject) are not shared with the source.
         /// </summary>
         /// <returns>A new <see cref="DataValue"/> that is a deep copy of this instance.</returns>
         public DataValue Copy()
         {
-            var copy = (DataValue)base.MemberwiseClone();
-            copy.m_value = m_value.Copy();
-            return copy;
-        }
-
-        /// <summary>
-        /// Makes a deep copy of the object.
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            return Copy();
-        }
-
-        /// <summary>
-        /// The value of data value.
-        /// </summary>
-        [Obsolete("Use WrappedValue to access The value.")]
-        public object? Value
-        {
-            get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-            set => VariantHelper.TryCastFrom(value, out m_value);
-        }
-
-        /// <summary>
-        /// The value of data value.
-        /// </summary>
-        [DataMember(Name = "Value", Order = 1, IsRequired = false)]
-        public Variant WrappedValue
-        {
-            get => m_value;
-            set => m_value = value;
-        }
-
-        /// <summary>
-        /// The status code associated with the value.
-        /// </summary>
-        [DataMember(Order = 2, IsRequired = false)]
-        public StatusCode StatusCode { get; set; }
-
-        /// <summary>
-        /// The source timestamp associated with the value.
-        /// </summary>
-        [DataMember(Order = 3, IsRequired = false)]
-        public DateTimeUtc SourceTimestamp { get; set; }
-
-        /// <summary>
-        /// Additional resolution for the source timestamp.
-        /// </summary>
-        [DataMember(Order = 4, IsRequired = false)]
-        public ushort SourcePicoseconds { get; set; }
-
-        /// <summary>
-        /// The server timestamp associated with the value.
-        /// </summary>
-        [DataMember(Order = 5, IsRequired = false)]
-        public DateTimeUtc ServerTimestamp { get; set; }
-
-        /// <summary>
-        /// Additional resolution for the server timestamp.
-        /// </summary>
-        [DataMember(Order = 6, IsRequired = false)]
-        public ushort ServerPicoseconds { get; set; }
-
-        /// <summary>
-        /// Returns true if the status code is good.
-        /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsGood(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsGood(value.StatusCode);
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns true if the status is bad or uncertain.
-        /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotGood(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsNotGood(value.StatusCode);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Returns true if the status code is uncertain.
-        /// </summary>
-        /// <param name="value">The value to checck the quality of</param>
-        public static bool IsUncertain(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsUncertain(value.StatusCode);
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns true if the status is good or uncertain.
-        /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotUncertain(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsNotUncertain(value.StatusCode);
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns true if the status code is bad.
-        /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsBad(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsBad(value.StatusCode);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Returns true if the status is good or uncertain.
-        /// </summary>
-        /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotBad(DataValue? value)
-        {
-            if (value != null)
-            {
-                return StatusCode.IsNotBad(value.StatusCode);
-            }
-
-            return false;
+            return new DataValue(
+                m_value.Copy(),
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
@@ -582,6 +621,17 @@ namespace Opc.Ua
             return defaultValue;
         }
 
-        private Variant m_value;
+        private readonly Variant m_value;
+        private readonly StatusCode m_statusCode;
+        private readonly DateTimeUtc m_sourceTimestamp;
+        private readonly DateTimeUtc m_serverTimestamp;
+        private readonly ushort m_sourcePicoseconds;
+        private readonly ushort m_serverPicoseconds;
+        // Sentinel: true iff the struct was constructed via a public ctor or
+        // factory. default(DataValue) leaves it false, which is what IsNull
+        // reports. Adds ~4 bytes after alignment; this is intentional —
+        // distinguishing "absent" from "explicitly empty" is required to
+        // round-trip the spec-defined wire encoding faithfully.
+        private readonly bool m_set;
     }
 }

@@ -189,7 +189,9 @@ namespace Opc.Ua.Client.ComplexTypes
                             namespaces[(NodeId)referenceNodeIds[ii]] = ns;
                             continue;
                         }
-                        nameSpaceValues[ii].StatusCode = StatusCodes.BadEncodingError;
+                        nameSpaceValues = nameSpaceValues.ReplaceItem(
+                            nameSpaceValues[ii].WithStatus(StatusCodes.BadEncodingError),
+                            ii);
                     }
                 }
                 m_logger.LogWarning(
@@ -448,7 +450,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // read the enum type array
                 DataValue value = await GetValueAsync(property.NodeId, ct).ConfigureAwait(false);
-                return value?.WrappedValue ?? default;
+                return value.IsNull ? default : value.WrappedValue;
             }
             return default;
         }

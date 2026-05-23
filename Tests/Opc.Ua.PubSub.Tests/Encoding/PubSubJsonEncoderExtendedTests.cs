@@ -501,10 +501,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(42.0))
-                {
-                    StatusCode = StatusCodes.BadOutOfRange
-                }
+                Value = new DataValue(new Variant(42.0), StatusCodes.BadOutOfRange)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -529,10 +526,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(99))
-                {
-                    StatusCode = StatusCodes.BadTypeMismatch
-                }
+                Value = new DataValue(new Variant(99), StatusCodes.BadTypeMismatch)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -558,14 +552,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(77.7))
-                {
-                    StatusCode = StatusCodes.GoodOverload,
-                    SourceTimestamp = now,
-                    SourcePicoseconds = 1000,
-                    ServerTimestamp = now.AddSeconds(1),
-                    ServerPicoseconds = 2000
-                }
+                Value = new DataValue(
+                    new Variant(77.7),
+                    StatusCodes.GoodOverload,
+                    now,
+                    now.AddSeconds(1),
+                    1000,
+                    2000)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -1319,11 +1312,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeDataSetFieldWithDataValueType()
         {
-            var innerDv = new DataValue(new Variant(42.0))
-            {
-                SourceTimestamp = DateTime.UtcNow,
-                StatusCode = StatusCodes.Good
-            };
+            var innerDv = new DataValue(
+                new Variant(42.0),
+                StatusCodes.Good,
+                DateTime.UtcNow);
             var field = new Field
             {
                 FieldMetaData = new FieldMetaData
@@ -1491,7 +1483,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncoderWriteDataValueProducesOutput()
         {
             using var encoder = new PubSubJsonEncoder(m_context, PubSubJsonEncoding.NonReversible);
-            var dv = new DataValue(new Variant(42)) { StatusCode = StatusCodes.Good };
+            var dv = new DataValue(new Variant(42), StatusCodes.Good);
             encoder.WriteDataValue("DV", dv);
             string json = encoder.CloseAndReturnText();
 

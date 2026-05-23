@@ -122,11 +122,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             {
                 Assert.That(read.NodeId,
                     Is.EqualTo(VariableIds.Aliases_LastChange));
-                return new DataValue
-                {
-                    WrappedValue = new Variant((uint)42),
-                    StatusCode = StatusCodes.Good
-                };
+                return new DataValue(new Variant((uint)42), StatusCodes.Good);
             };
             AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
             uint? lastChange = await client.ReadLastChangeAsync().ConfigureAwait(false);

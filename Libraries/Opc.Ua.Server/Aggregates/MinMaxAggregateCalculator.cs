@@ -260,21 +260,21 @@ namespace Opc.Ua.Server
             processedValue = processedValue.ConvertTo(processedType.BuiltInType);
 
             // create processed value.
-            var value = new DataValue
-            {
-                WrappedValue = processedValue,
-                StatusCode = statusCode
-            };
+            var value = new DataValue(processedValue, statusCode);
 
             if (returnActualTime)
             {
-                value.SourceTimestamp = processedTimestamp;
-                value.ServerTimestamp = processedTimestamp;
+                DateTimeUtc minMaxStamp = processedTimestamp;
+                value = value
+                    .WithSourceTimestamp(minMaxStamp)
+                    .WithServerTimestamp(minMaxStamp);
             }
             else
             {
-                value.SourceTimestamp = GetTimestamp(slice);
-                value.ServerTimestamp = GetTimestamp(slice);
+                DateTimeUtc sliceStamp = GetTimestamp(slice);
+                value = value
+                    .WithSourceTimestamp(sliceStamp)
+                    .WithServerTimestamp(sliceStamp);
             }
 
             return value;
@@ -378,8 +378,8 @@ namespace Opc.Ua.Server
                 // check if interval is partial and set the flag accordingly
                 if (slice.Partial)
                 {
-                    noDataValue.StatusCode =
-                        noDataValue.StatusCode.WithAggregateBits(AggregateBits.Partial);
+                    noDataValue = noDataValue.WithStatus(
+                        noDataValue.StatusCode.WithAggregateBits(AggregateBits.Partial));
                 }
                 return noDataValue;
             }
@@ -440,16 +440,14 @@ namespace Opc.Ua.Server
             // convert back to original datatype.
             processedValue = processedValue.ConvertTo(processedType.BuiltInType);
             // create processed value.
-            var value = new DataValue
-            {
-                WrappedValue = processedValue,
-                StatusCode = GetTimeBasedStatusCode(slice, values, statusCode)
-            };
+            var value = new DataValue(
+                processedValue,
+                GetTimeBasedStatusCode(slice, values, statusCode));
 
             // zero value if status is bad.
             if (StatusCode.IsBad(value.StatusCode))
             {
-                value.WrappedValue = Variant.Null;
+                value = value.WithWrappedValue(Variant.Null);
             }
 
             if (returnActualTime)
@@ -460,24 +458,27 @@ namespace Opc.Ua.Server
                     if (processedTimestamp == slice.StartTime)
                     {
                         processedTimestamp = processedTimestamp.AddMilliseconds(+1);
-                        value.StatusCode = value.StatusCode.WithAggregateBits(
-                            value.StatusCode.AggregateBits | AggregateBits.Interpolated);
+                        value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                            value.StatusCode.AggregateBits | AggregateBits.Interpolated));
                     }
                 }
                 else if (processedTimestamp == slice.EndTime)
                 {
                     processedTimestamp = processedTimestamp.AddMilliseconds(-1);
-                    value.StatusCode = value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Interpolated);
+                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Interpolated));
                 }
 
-                value.SourceTimestamp = processedTimestamp;
-                value.ServerTimestamp = processedTimestamp;
+                value = value
+                    .WithSourceTimestamp(processedTimestamp)
+                    .WithServerTimestamp(processedTimestamp);
             }
             else
             {
-                value.SourceTimestamp = GetTimestamp(slice);
-                value.ServerTimestamp = GetTimestamp(slice);
+                DateTimeUtc sliceStamp = GetTimestamp(slice);
+                value = value
+                    .WithSourceTimestamp(sliceStamp)
+                    .WithServerTimestamp(sliceStamp);
             }
 
             return value;

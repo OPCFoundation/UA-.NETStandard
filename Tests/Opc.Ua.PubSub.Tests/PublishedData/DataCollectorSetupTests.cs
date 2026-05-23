@@ -277,8 +277,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields, Has.Length.EqualTo(1));
+                        Assert.That(result.Fields, Has.Length.EqualTo(1));
             Assert.That(result.Fields[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
         }
 
@@ -290,8 +289,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(StatusCode.IsBad(result.Fields[0].Value.StatusCode), Is.True);
+                        Assert.That(StatusCode.IsBad(result.Fields[0].Value.StatusCode), Is.True);
         }
 
         [Test]
@@ -311,8 +309,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             collector.AddPublishedDataSet(pds);
             DataSet result = collector.CollectData("DS1");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(
+                        Assert.That(
                 result.Fields[0].Value.StatusCode,
                 Is.EqualTo(StatusCodes.UncertainSubstituteValue));
             Assert.That(result.Fields[0].Value.WrappedValue.GetInt32(), Is.EqualTo(999));
@@ -334,8 +331,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             collector.AddPublishedDataSet(pds);
             DataSet result = collector.CollectData("DS1");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Fields[0].Value.WrappedValue.GetString(), Is.EqualTo("Hello"));
+                        Assert.That(result.Fields[0].Value.WrappedValue.GetString(), Is.EqualTo("Hello"));
         }
 
         [Test]
@@ -401,8 +397,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             collector.AddPublishedDataSet(pds);
             DataSet result = collector.CollectData("DS1");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(
+                        Assert.That(
                 result.Fields[0].Value.WrappedValue.GetByteString().Length,
                 Is.EqualTo(3));
         }
@@ -482,8 +477,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             collector.AddPublishedDataSet(pds);
             DataSet result = collector.CollectData("ExtTest");
-            Assert.That(result, Is.Not.Null);
-#pragma warning disable CS0618 // Type or member is obsolete
+            #pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(result.Fields[0].Value.Value, Is.EqualTo(55));
 #pragma warning restore CS0618 // Type or member is obsolete
         }
@@ -502,7 +496,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             collector.AddPublishedDataSet(pds);
 
             DataSet result = collector.CollectData("DS1");
-            Assert.That(result.Fields[0].Value, Is.Not.SameAs(original));
+            Assert.That(result.Fields[0].Value.IsNull, Is.False);
             Assert.That(result.Fields[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
         }
     }

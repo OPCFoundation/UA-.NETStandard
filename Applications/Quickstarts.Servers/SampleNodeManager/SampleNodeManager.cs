@@ -1299,13 +1299,9 @@ namespace Opc.Ua.Sample
                     // owned by this node manager.
                     nodeToRead.Processed = true;
 
-                    // create an initial value.
-                    DataValue value = values[ii] = new DataValue();
-
-                    value.WrappedValue = default;
-                    value.ServerTimestamp = DateTime.UtcNow;
-                    value.SourceTimestamp = DateTime.MinValue;
-                    value.StatusCode = StatusCodes.Good;
+                    // create an initial value with the current server timestamp.
+                    DataValue value = values[ii] = DataValue.Null
+                        .WithServerTimestamp(DateTimeUtc.Now);
 
                     // check if the node is ready for reading.
                     if (source.ValidationRequired)
@@ -1326,7 +1322,8 @@ namespace Opc.Ua.Sample
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
+                    values[ii] = value;
                 }
 
                 // check for nothing to do.
@@ -1354,7 +1351,7 @@ namespace Opc.Ua.Sample
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
                 }
             }
         }
@@ -2463,20 +2460,18 @@ namespace Opc.Ua.Sample
             IDataChangeMonitoredItem2 monitoredItem,
             bool ignoreFilters)
         {
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = node.Node.ReadAttribute(
                 context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, ignoreFilters);
 
@@ -2632,20 +2627,18 @@ namespace Opc.Ua.Sample
             monitoredItem = null!;
 
             // read initial value.
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = source.ReadAttribute(
                 context,
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -2656,7 +2649,7 @@ namespace Opc.Ua.Sample
                     return error;
                 }
 
-                initialValue.StatusCode = error.StatusCode;
+                initialValue = initialValue.WithStatus(error.StatusCode);
                 _ = ServiceResult.Good;
             }
 

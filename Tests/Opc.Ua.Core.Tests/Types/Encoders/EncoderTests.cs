@@ -103,32 +103,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             "If the Server timestamp is missing the Picoseconds are ignored.")]
         public void EncodeDataValueWithoutValueProperty()
         {
-            var dataValue = new DataValue { SourcePicoseconds = 1 };
+            var dataValue = new DataValue(Variant.Null).WithSourcePicoseconds(1);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { SourceTimestamp = new DateTime(2001, 01, 01).ToUniversalTime() };
+            dataValue = new DataValue(Variant.Null, StatusCodes.Good, new DateTime(2001, 01, 01).ToUniversalTime());
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { ServerTimestamp = new DateTime(2001, 01, 02).ToUniversalTime() };
+            dataValue = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, new DateTime(2001, 01, 02).ToUniversalTime());
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { ServerPicoseconds = 2 };
+            dataValue = new DataValue(Variant.Null).WithServerPicoseconds(2);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { StatusCode = StatusCodes.BadNotImplemented };
+            dataValue = DataValue.FromStatusCode(StatusCodes.BadNotImplemented);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { SourceTimestamp = new DateTime(2001, 01, 03).ToUniversalTime(), SourcePicoseconds = 3 };
+            dataValue = new DataValue(Variant.Null, StatusCodes.Good, new DateTime(2001, 01, 03).ToUniversalTime(), DateTimeUtc.MinValue, 3, 0);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { SourceTimestamp = new DateTime(2001, 01, 04).ToUniversalTime(), ServerPicoseconds = 4 };
+            dataValue = new DataValue(Variant.Null, StatusCodes.Good, new DateTime(2001, 01, 04).ToUniversalTime(), DateTimeUtc.MinValue, 0, 4);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { ServerTimestamp = new DateTime(2001, 01, 05).ToUniversalTime(), ServerPicoseconds = 5 };
+            dataValue = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, new DateTime(2001, 01, 05).ToUniversalTime(), 0, 5);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue { ServerTimestamp = new DateTime(2001, 01, 06).ToUniversalTime(), SourcePicoseconds = 6 };
+            dataValue = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, new DateTime(2001, 01, 06).ToUniversalTime(), 6, 0);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue
-            {
-                ServerTimestamp = new DateTime(2001, 01, 07).ToUniversalTime(),
-                ServerPicoseconds = 7,
-                SourceTimestamp = new DateTime(2001, 01, 08).ToUniversalTime(),
-                SourcePicoseconds = 8,
-                StatusCode = StatusCodes.BadNotFound
-            };
+            dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadNotFound,
+                new DateTime(2001, 01, 08).ToUniversalTime(),
+                new DateTime(2001, 01, 07).ToUniversalTime(),
+                8,
+                7);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
         }
 
@@ -141,9 +140,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             TestContext.Out.WriteLine(encodeInfo);
             DataValue expected = dataValue;
-            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
 
-            DataValue result = null;
+            DataValue result = default;
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
@@ -171,7 +170,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 result = decoder.ReadDataValue("DataValue");
             }
 
-            Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
             // see: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17
             if ((expected.SourcePicoseconds != 0 && expected.SourceTimestamp == DateTimeUtc.MinValue) ||
                 (expected.ServerPicoseconds != 0 && expected.ServerTimestamp == DateTimeUtc.MinValue))
@@ -181,6 +179,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             else
             {
+                Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
                 Assert.That(expected, Is.EqualTo(result), encodeInfo);
                 Assert.That(
                     Utils.IsEqual(expected, result),

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -197,7 +197,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an DataValue from the stream.
         /// </summary>
-        DataValue? ReadDataValue(string? fieldName);
+        DataValue ReadDataValue(string? fieldName);
 
         /// <summary>
         /// Reads an ExtensionObject from the stream.
@@ -368,7 +368,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an DataValue array from the stream.
         /// </summary>
-        ArrayOf<DataValue?> ReadDataValueArray(string? fieldName);
+        ArrayOf<DataValue> ReadDataValueArray(string? fieldName);
 
         /// <summary>
         /// Reads an extension object array from the stream.

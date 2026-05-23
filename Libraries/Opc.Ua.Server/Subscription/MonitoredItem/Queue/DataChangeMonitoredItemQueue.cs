@@ -206,11 +206,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public DataValue? PeekLastValue()
+        public bool TryPeekLastValue(out DataValue value)
         {
             if (m_start < 0)
             {
-                return null;
+                value = default;
+                return false;
             }
 
             int last = m_end - 1;
@@ -220,13 +221,14 @@ namespace Opc.Ua.Server
                 last = m_values!.Length - 1;
             }
 
-            return m_values![last];
+            value = m_values![last];
+            return true;
         }
 
         /// <inheritdoc/>
         public bool Dequeue(out DataValue value, out ServiceResult error)
         {
-            value = null!;
+            value = default;
             error = null!;
 
             // check for empty queue.
@@ -236,7 +238,7 @@ namespace Opc.Ua.Server
             }
 
             value = m_values![m_start];
-            m_values[m_start] = null!;
+            m_values[m_start] = default;
 
             if (m_errors != null)
             {
@@ -262,15 +264,17 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public DataValue? PeekOldestValue()
+        public bool TryPeekOldestValue(out DataValue value)
         {
             // check for empty queue.
             if (m_start < 0)
             {
-                return null;
+                value = default;
+                return false;
             }
 
-            return m_values![m_start];
+            value = m_values![m_start];
+            return true;
         }
 
         /// <summary>
