@@ -63,13 +63,11 @@ namespace Opc.Ua.Server.Tests
             var dataValues = new List<DataValue>();
             for (int i = 0; i < values.Length; i++)
             {
-                dataValues.Add(new DataValue
-                {
-                    WrappedValue = values[i],
-                    SourceTimestamp = startTime.AddMilliseconds(i * intervalMs),
-                    ServerTimestamp = startTime.AddMilliseconds(i * intervalMs),
-                    StatusCode = StatusCodes.Good
-                });
+                dataValues.Add(new DataValue(
+                    new Variant(values[i]),
+                    StatusCodes.Good,
+                    startTime.AddMilliseconds(i * intervalMs),
+                    startTime.AddMilliseconds(i * intervalMs)));
             }
             return dataValues;
         }
@@ -93,8 +91,8 @@ namespace Opc.Ua.Server.Tests
             bool hasData = true;
             while (hasData)
             {
-                DataValue result = calculator.GetProcessedValue(true);
-                if (result != null)
+                bool _hasresult = calculator.TryGetProcessedValue(true, out DataValue result);
+                if (_hasresult)
                 {
                     results.Add(result);
                 }
@@ -104,7 +102,7 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
-            return results.Count > 0 ? results[0] : null;
+            return results.Count > 0 ? results[0] : default;
         }
 
         [Test]
@@ -120,7 +118,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(stdDev, Is.GreaterThan(10));
@@ -138,7 +136,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationSample,
                 dataValues, startTime, endTime, 10000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(stdDev, Is.GreaterThan(10));
@@ -157,7 +155,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_VariancePopulation,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double variance = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(variance, Is.GreaterThanOrEqualTo(0));
@@ -175,7 +173,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_VarianceSample,
                 dataValues, startTime, endTime, 10000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double variance = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(variance, Is.GreaterThanOrEqualTo(0));
@@ -194,7 +192,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -210,7 +208,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationSample,
                 dataValues, startTime, endTime, 10000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -227,7 +225,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_VariancePopulation,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -243,7 +241,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_VarianceSample,
                 dataValues, startTime, endTime, 10000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.StatusCode.AggregateBits.HasFlag(AggregateBits.Calculated), Is.True);
         }
 
@@ -260,7 +258,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(stdDev, Is.GreaterThanOrEqualTo(0));
@@ -278,7 +276,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationSample,
                 dataValues, startTime, endTime, 10000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double stdDev = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(stdDev, Is.GreaterThanOrEqualTo(0));
@@ -300,8 +298,8 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_StandardDeviationSample,
                 dataValues, startTime, endTime, 10000);
 
-            Assert.That(popResult, Is.Not.Null);
-            Assert.That(sampleResult, Is.Not.Null);
+            Assert.That(popResult.IsNull, Is.False);
+            Assert.That(sampleResult.IsNull, Is.False);
             double popStdDev = (double)popResult.WrappedValue.ConvertToDouble();
             double sampleStdDev = (double)sampleResult.WrappedValue.ConvertToDouble();
             Assert.That(popStdDev, Is.LessThanOrEqualTo(sampleStdDev + 0.0001));
@@ -320,7 +318,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_VariancePopulation,
                 dataValues, startTime, endTime, 9500);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double variance = (double)result.WrappedValue.ConvertToDouble();
             Assert.That(variance, Is.GreaterThan(0));
@@ -343,8 +341,8 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_VariancePopulation,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(stdDevResult, Is.Not.Null);
-            Assert.That(varianceResult, Is.Not.Null);
+            Assert.That(stdDevResult.IsNull, Is.False);
+            Assert.That(varianceResult.IsNull, Is.False);
             double stdDev = (double)stdDevResult.WrappedValue.ConvertToDouble();
             double variance = (double)varianceResult.WrappedValue.ConvertToDouble();
             Assert.That(stdDev, Is.EqualTo(Math.Sqrt(variance)).Within(0.001));

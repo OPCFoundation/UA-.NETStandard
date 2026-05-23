@@ -82,7 +82,7 @@ namespace Opc.Ua.Aot.Tests
             DataValue namespaceArray = await session.ReadValueAsync(
                 VariableIds.Server_NamespaceArray, CancellationToken.None).ConfigureAwait(false);
 
-            await Assert.That(namespaceArray).IsNotNull();
+            await Assert.That(namespaceArray.IsNull).IsFalse();
             await Assert.That(StatusCode.IsGood(namespaceArray.StatusCode)).IsTrue();
         }
 

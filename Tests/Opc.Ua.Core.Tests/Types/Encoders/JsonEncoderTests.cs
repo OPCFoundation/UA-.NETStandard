@@ -1770,12 +1770,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCodeVariant,
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
         {
-            var dataValue = new DataValue
-            {
-                WrappedValue = new Variant(statusCodeVariant),
-                ServerTimestamp = DateTime.UtcNow,
-                StatusCode = statusCode
-            };
+            var dataValue = new DataValue(
+                new Variant(statusCodeVariant),
+                statusCode,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow);
             using var jsonEncoder = new JsonEncoder(
                 m_context,
                 jsonEncodingType == JsonEncodingType.Verbose ?

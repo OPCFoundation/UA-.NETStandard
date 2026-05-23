@@ -225,11 +225,11 @@ namespace Opc.Ua.Server
                     newValue = oldValue;
                     writeValue.ParsedIndexRange.UpdateRange(
                         ref newValue,
-                        writeValue.Value?.WrappedValue ?? default);
+                        writeValue.Value.WrappedValue);
                 }
                 else
                 {
-                    newValue = writeValue.Value?.WrappedValue ?? default;
+                    newValue = writeValue.Value.WrappedValue;
                 }
 
                 e.SetChildValue(systemContext, BrowseNames.NewValue, newValue, false);

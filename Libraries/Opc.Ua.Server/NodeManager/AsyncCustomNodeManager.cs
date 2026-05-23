@@ -1812,13 +1812,10 @@ namespace Opc.Ua.Server
                 // owned by this node manager.
                 nodeToRead.Processed = true;
 
-                // create an initial value.
+                // create an initial value (default ctor already sets
+                // WrappedValue = Variant.Null, ServerTimestamp /
+                // SourceTimestamp = DateTimeUtc.MinValue, StatusCode = Good).
                 DataValue value = values[ii] = new DataValue();
-
-                value.WrappedValue = default;
-                value.ServerTimestamp = DateTimeUtc.MinValue; // Will be set after ReadAttribute
-                value.SourceTimestamp = DateTimeUtc.MinValue;
-                value.StatusCode = StatusCodes.Good;
 
                 // check if the node is a area in memory.
                 if (handle.Node == null)
@@ -1833,7 +1830,7 @@ namespace Opc.Ua.Server
                 }
 
                 // read the attribute value.
-                errors[ii] = await handle.Node.ReadAttributeAsync(
+                (errors[ii], value) = await handle.Node.ReadAttributeAsync(
                     systemContext,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
@@ -1848,18 +1845,21 @@ namespace Opc.Ua.Server
                 {
                     if (value.SourceTimestamp == DateTimeUtc.MinValue)
                     {
-                        value.SourceTimestamp = DateTime.UtcNow;
+                        value = value.WithSourceTimestamp(DateTimeUtc.Now);
                     }
-                    value.ServerTimestamp = value.SourceTimestamp;
+                    value = value.WithServerTimestamp(value.SourceTimestamp);
                 }
                 else
                 {
                     // For non-value attributes, only ServerTimestamp is relevant
                     if (value.ServerTimestamp == DateTimeUtc.MinValue)
                     {
-                        value.ServerTimestamp = DateTime.UtcNow;
+                        value = value.WithServerTimestamp(DateTimeUtc.Now);
                     }
                 }
+
+                // Commit any With-chain rebindings back into the results array.
+                values[ii] = value;
 #if DEBUG
                 if (nodeToRead.AttributeId == Attributes.Value)
                 {
@@ -2025,13 +2025,14 @@ namespace Opc.Ua.Server
                 // hook is set, so behaviour is preserved bit-for-bit. When a
                 // BaseVariableState async hook is set the lock is dropped on
                 // the await, allowing true async I/O.
-                errors[handle.Index] = await source.ReadAttributeAsync(
+                (errors[handle.Index], value) = await source.ReadAttributeAsync(
                     context,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
                     value,
                     cancellationToken).ConfigureAwait(false);
+                values[handle.Index] = value;
             }
         }
 
@@ -2156,7 +2157,7 @@ namespace Opc.Ua.Server
                         //current server supports auditing
                         // read the old value for the purpose of auditing
                         var oldDataValue = new DataValue();
-                        await handle.Node.ReadAttributeAsync(
+                        (_, oldDataValue) = await handle.Node.ReadAttributeAsync(
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
@@ -2340,7 +2341,7 @@ namespace Opc.Ua.Server
                     {
                         monitoredItem.SetSemanticsChanged();
 
-                        var value = new DataValue { ServerTimestamp = DateTime.UtcNow };
+                        var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
                         lock (node)
                         {
@@ -2349,7 +2350,7 @@ namespace Opc.Ua.Server
                                 Attributes.Value,
                                 monitoredItem.IndexRange,
                                 default,
-                                value);
+                                ref value);
                         }
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
@@ -4230,20 +4231,18 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTimeUtc.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = handle.Node.ReadAttribute(
                 context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, true);
 

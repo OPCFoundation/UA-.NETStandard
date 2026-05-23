@@ -408,11 +408,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Float,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant((float)101.3))
-                {
-                    SourceTimestamp = DateTime.UtcNow,
-                    StatusCode = StatusCodes.Good
-                }
+                Value = new DataValue(
+                    new Variant((float)101.3),
+                    StatusCodes.Good,
+                    DateTime.UtcNow)
             };
 #pragma warning restore CS0618 // Type or member is obsolete
 

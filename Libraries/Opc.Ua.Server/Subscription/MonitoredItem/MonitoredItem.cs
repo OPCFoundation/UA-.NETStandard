@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
             QueueSize = 0;
             m_discardOldest = true;
             Filter = null!;
-            m_lastValue = null;
+            m_lastValue = default;
             m_lastError = null;
             m_readyToPublish = false;
             m_readyToTrigger = false;
@@ -795,7 +795,7 @@ namespace Opc.Ua.Server
                 {
                     m_nextSamplingTime = HiResClock.TickCount64;
                     m_lastError = null;
-                    m_lastValue = null;
+                    m_lastValue = default;
                 }
 
                 MonitoringMode = monitoringMode;
@@ -826,16 +826,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
-        public virtual void QueueValue(DataValue value, ServiceResult? error)
+        public virtual void QueueValue(in DataValue value, ServiceResult? error)
         {
-            QueueValue(value, error, false);
+            QueueValue(in value, error, false);
         }
 
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void QueueValue(DataValue value, ServiceResult? error, bool ignoreFilters)
+        public virtual void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -851,8 +851,10 @@ namespace Opc.Ua.Server
                     return;
                 }
 
+                DataValue current = value;
+
                 // make a shallow copy of the value.
-                if (value != null)
+                if (!current.IsNull)
                 {
                     if (m_logger.IsEnabled(LogLevel.Trace))
                     {
@@ -860,31 +862,30 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.OperationDetail,
                             "RECEIVED VALUE[{MonitoredItemId}] Value={Value}",
                             Id,
-                            value.WrappedValue);
+                            current.WrappedValue);
                     }
 
-                    value = value.Copy();
+                    current = current.Copy();
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
                     {
-                        value.StatusCode = error.StatusCode;
+                        current = current.WithStatus(error.StatusCode);
                     }
                 }
 
                 // create empty value if none provided.
-                if (ServiceResult.IsBad(error) && value == null)
+                if (ServiceResult.IsBad(error) && current.IsNull)
                 {
-                    value = new DataValue
-                    {
-                        StatusCode = error!.StatusCode,
-                        SourceTimestamp = DateTime.UtcNow,
-                        ServerTimestamp = DateTime.UtcNow
-                    };
+                    current = new DataValue(
+                        Variant.Null,
+                        error!.StatusCode,
+                        DateTime.UtcNow,
+                        DateTime.UtcNow);
                 }
 
                 // this should never happen.
-                if (value == null)
+                if (current.IsNull)
                 {
                     return;
                 }
@@ -892,36 +893,33 @@ namespace Opc.Ua.Server
                 // apply aggregate filter.
                 if (m_calculator != null)
                 {
-                    if (!m_calculator.QueueRawValue(value))
+                    if (!m_calculator.QueueRawValue(current))
                     {
                         m_logger.LogTrace(
                             "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}",
-                            value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                            current.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
                             Id);
                     }
 
-                    DataValue? processedValue = m_calculator.GetProcessedValue(false);
-
-                    while (processedValue != null)
+                    while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
                     {
                         AddValueToQueue(processedValue, null!);
-                        processedValue = m_calculator.GetProcessedValue(false);
                     }
 
                     return;
                 }
 
                 // apply filter to incoming item.
-                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(value, error!))
+                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(current, error!))
                 {
-                    ServerUtils.ReportFilteredValue(NodeId, Id, value);
+                    ServerUtils.ReportFilteredValue(NodeId, Id, current);
                     return;
                 }
 
-                ServerUtils.ReportQueuedValue(NodeId, Id, value);
+                ServerUtils.ReportQueuedValue(NodeId, Id, current);
 
                 // add the value to the queue.
-                AddValueToQueue(value, error!);
+                AddValueToQueue(current, error!);
             }
         }
 
@@ -936,7 +934,7 @@ namespace Opc.Ua.Server
                 overflow = m_dataChangeQueueHandler!.QueueValue(value, error);
             }
 
-            if (m_lastValue != null)
+            if (!m_lastValue.IsNull)
             {
                 m_readyToTrigger = true;
             }
@@ -1365,15 +1363,15 @@ namespace Opc.Ua.Server
                     // pull any unprocessed data.
                     if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
-                        DataValue? processedValue = m_calculator.GetProcessedValue(false);
-
-                        while (processedValue != null)
+                        while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
                         {
                             AddValueToQueue(processedValue, null!);
                         }
 
-                        processedValue = m_calculator.GetProcessedValue(true);
-                        AddValueToQueue(processedValue!, null!);
+                        if (m_calculator.TryGetProcessedValue(true, out DataValue partialValue))
+                        {
+                            AddValueToQueue(partialValue, null!);
+                        }
                     }
 
                     IncrementSampleTime();
@@ -1406,12 +1404,12 @@ namespace Opc.Ua.Server
                     {
                         m_logger.LogTrace(
                             "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                            m_lastValue!.WrappedValue,
+                            m_lastValue.WrappedValue,
                             m_lastValue.StatusCode.Code,
                             m_lastValue.StatusCode.Code,
                             m_lastValue.StatusCode.Overflow);
                     }
-                    Publish(context, notifications, diagnostics, m_lastValue!, m_lastError!);
+                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -1439,7 +1437,7 @@ namespace Opc.Ua.Server
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
+                value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
 
                 if (error != null)
                 {
@@ -1457,7 +1455,7 @@ namespace Opc.Ua.Server
             // set structure changed bit.
             if (m_structureChanged)
             {
-                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
+                value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
 
                 if (error != null)
                 {
@@ -1480,12 +1478,12 @@ namespace Opc.Ua.Server
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item!.Value.ServerTimestamp = DateTime.MinValue;
+                item.Value = item.Value!.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item!.Value.SourceTimestamp = DateTime.MinValue;
+                item.Value = item.Value!.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
             ServerUtils.ReportPublishValue(NodeId, Id, item.Value!);
@@ -1580,7 +1578,7 @@ namespace Opc.Ua.Server
                 Id = Id,
                 IndexRange = m_indexRange!,
                 LastError = m_lastError!,
-                LastValue = m_lastValue!,
+                LastValue = m_lastValue,
                 MonitoringMode = MonitoringMode,
                 NodeId = NodeId,
                 OriginalFilter = Filter!,
@@ -1594,18 +1592,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Applies the filter to value to determine if the new value should be kept.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>.</exception>
-        protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
+        /// <exception cref="ArgumentException"><paramref name="value"/> is the default/null DataValue.</exception>
+        protected virtual bool ApplyFilter(in DataValue value, ServiceResult error)
         {
-            if (value == null)
+            if (value.IsNull)
             {
-                throw new ArgumentNullException(nameof(value));
+                throw new ArgumentException("value cannot be null/default", nameof(value));
             }
 
             return ValueChanged(
                 value,
                 error,
-                m_lastValue!,
+                m_lastValue,
                 m_lastError!,
                 m_cachedDataChangeFilter!,
                 m_range);
@@ -1616,16 +1614,16 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="value"/> is <c>null</c>.</exception>
         public static bool ValueChanged(
-            DataValue value,
+            in DataValue value,
             ServiceResult error,
-            DataValue lastValue,
+            in DataValue lastValue,
             ServiceResult lastError,
             DataChangeFilter filter,
             double range)
         {
-            if (value == null)
+            if (value.IsNull)
             {
-                throw new ArgumentNullException(nameof(value));
+                throw new ArgumentException("value cannot be null/default", nameof(value));
             }
 
             // select default data change filters.
@@ -1663,7 +1661,7 @@ namespace Opc.Ua.Server
             {
                 status = error.StatusCode;
             }
-            else if (lastValue != null)
+            else if (!lastValue.IsNull)
             {
                 status = value.StatusCode;
             }
@@ -1675,7 +1673,7 @@ namespace Opc.Ua.Server
             {
                 lastStatus = lastError.StatusCode;
             }
-            else if (lastValue != null)
+            else if (!lastValue.IsNull)
             {
                 lastStatus = lastValue.StatusCode;
             }
@@ -1687,7 +1685,7 @@ namespace Opc.Ua.Server
             }
 
             // value changed if only one is null.
-            if (lastValue == null)
+            if (lastValue.IsNull)
             {
                 return true;
             }
@@ -1768,7 +1766,7 @@ namespace Opc.Ua.Server
                             DiagnosticsMasks);
                         m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
 
-                        if (queueLastValue && m_lastValue != null)
+                        if (queueLastValue && !m_lastValue.IsNull)
                         {
                             m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
                         }
@@ -1948,7 +1946,7 @@ namespace Opc.Ua.Server
         private double m_samplingInterval;
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
-        private DataValue? m_lastValue;
+        private DataValue m_lastValue;
         private ServiceResult? m_lastError;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
