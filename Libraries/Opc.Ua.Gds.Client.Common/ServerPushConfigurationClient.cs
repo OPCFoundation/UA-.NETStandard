@@ -85,9 +85,21 @@ namespace Opc.Ua.Gds.Client
         public NodeId DefaultHttpsGroup { get; private set; }
         public NodeId DefaultUserTokenGroup { get; private set; }
 
-        // TODO: currently only sha256 cert is supported
-        public NodeId ApplicationCertificateType
-            => Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+        /// <summary>
+        /// Gets or sets the application certificate type used when a caller
+        /// does not supply one explicitly to certificate-management methods.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to <see cref="Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType"/>
+        /// to preserve backwards compatibility. Callers that need to manage
+        /// ECC or HTTPS certificates should set this property before
+        /// invoking certificate-management methods, or pass an explicit
+        /// certificate type to those methods (e.g.
+        /// <see cref="CreateSigningRequestAsync"/>,
+        /// <see cref="UpdateCertificateAsync"/>).
+        /// </remarks>
+        public NodeId ApplicationCertificateType { get; set; }
+            = Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
 
         /// <inheritdoc/>
         public ApplicationConfiguration Configuration { get; }
@@ -658,6 +670,38 @@ namespace Opc.Ua.Gds.Client
             await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             await m_serverConfiguration!.ApplyChangesAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ByteString> CreateSelfSignedCertificateAsync(
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> dnsNames,
+            ArrayOf<string> ipAddresses,
+            ushort lifetimeInDays,
+            ushort keySizeInBits,
+            CancellationToken ct = default)
+        {
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+
+            try
+            {
+                return await m_serverConfiguration!.CreateSelfSignedCertificateAsync(
+                    certificateGroupId,
+                    certificateTypeId,
+                    subjectName,
+                    dnsNames,
+                    ipAddresses,
+                    lifetimeInDays,
+                    keySizeInBits,
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
+            }
         }
 
 
