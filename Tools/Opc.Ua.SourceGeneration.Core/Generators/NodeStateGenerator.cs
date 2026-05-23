@@ -1487,11 +1487,14 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
-
+            // Factory methods use the instance's own modelling rule for the
+            // mandatory/optional list classification so that children the
+            // instance explicitly marks Mandatory are always created.  The
+            // effective (type-definition) rule is used elsewhere for the
+            // type-class structure (fields, properties, optional init).
             if (context.Token == Tokens.ListOfOptionalChildNodeStates)
             {
-                if (effectiveRule == ModellingRule.Mandatory)
+                if (instance.ModellingRule == ModellingRule.Mandatory)
                 {
                     return null;
                 }
@@ -1505,7 +1508,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Otherwise only add mandatory children - all others are created on demand
-            else if (effectiveRule != ModellingRule.Mandatory)
+            else if (instance.ModellingRule != ModellingRule.Mandatory)
             {
                 // Exception: real instance children of a top-level (non-typed) parent.
                 if (!(node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null))
@@ -1531,7 +1534,7 @@ namespace Opc.Ua.SourceGeneration
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
-                            switch (effectiveRule)
+                            switch (instance.ModellingRule)
                             {
                                 case ModellingRule.Mandatory:
                                 case ModellingRule.Optional:
