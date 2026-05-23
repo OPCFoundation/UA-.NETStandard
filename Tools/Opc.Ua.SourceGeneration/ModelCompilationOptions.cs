@@ -83,6 +83,15 @@ namespace Opc.Ua.SourceGeneration
         public string ObjectTypeProxyNamespace { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the generator uses the modelling rules
+        /// from the referenced type definition rather than the overridden
+        /// rules on instance definitions for structural code generation
+        /// decisions. Off by default. Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorUseTypeDefinitionModellingRules</c> property.
+        /// </summary>
+        public bool UseTypeDefinitionModellingRules { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         /// <param name="provider"></param>
@@ -112,7 +121,9 @@ namespace Opc.Ua.SourceGeneration
                 OmitObjectTypeProxies = provider.GlobalOptions.GetBool(
                     nameof(OmitObjectTypeProxies)),
                 ObjectTypeProxyNamespace = provider.GlobalOptions.GetString(
-                    nameof(ObjectTypeProxyNamespace))
+                    nameof(ObjectTypeProxyNamespace)),
+                UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
+                    nameof(UseTypeDefinitionModellingRules))
             };
         }
     }

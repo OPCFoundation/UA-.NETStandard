@@ -138,6 +138,7 @@ the consuming project:
 | -------- | ----------- |
 | `ModelSourceGeneratorOmitObjectTypeProxies` | Set to `true` to suppress emission of `*TypeClient` proxies. By default proxies are emitted for every `ObjectType` in the model alongside the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
 | `ModelSourceGeneratorObjectTypeProxyNamespace` | Optional. Overrides the C# namespace used for the emitted proxy classes. Defaults to the model's own namespace. |
+| `ModelSourceGeneratorUseTypeDefinitionModellingRules` | Set to `true` to make instance code generation use the modelling rules from the referenced type definition rather than the overridden rules on the instance. Off by default. Enabled by default for stack generation. |
 
 Example (suppress proxy emission for a model that does not need them):
 
