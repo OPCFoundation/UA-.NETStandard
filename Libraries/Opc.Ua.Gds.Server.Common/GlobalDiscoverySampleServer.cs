@@ -234,9 +234,18 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
+                // When the user database implements IGdsUserDatabase,
+                // look up the ApplicationIds the user may administer
+                // so that the ApplicationAdmin privilege is active.
+                IReadOnlyList<NodeId>? administeredAppIds =
+                    (m_userDatabase as IGdsUserDatabase)
+                        ?.GetAdministeredApplicationIds(userNameToken.UserName);
+
                 args.Identity = new GdsRoleBasedIdentity(
                     new UserIdentity(userNameToken),
                     roles,
+                    default,
+                    administeredAppIds,
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
             }

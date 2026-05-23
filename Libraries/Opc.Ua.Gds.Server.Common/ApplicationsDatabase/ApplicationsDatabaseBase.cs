@@ -106,7 +106,15 @@ namespace Opc.Ua.Gds.Server.Database
                     continue;
                 }
 
-                if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
+                // Reverse-connect URLs use the "rcp+" prefix per OPC 10000-12
+                // §6.5.5; the underlying scheme is otherwise a normal URI.
+                string urlForValidation = discoveryUrl.StartsWith(
+                    s_reverseConnectPrefix,
+                    StringComparison.Ordinal)
+                    ? discoveryUrl[s_reverseConnectPrefix.Length..]
+                    : discoveryUrl;
+
+                if (!Uri.IsWellFormedUriString(urlForValidation, UriKind.Absolute))
                 {
                     throw new ArgumentException(
                         discoveryUrl + " is not a valid URL.",
@@ -114,7 +122,7 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            if (application.ApplicationType != ApplicationType.Client)
+            if (application.ApplicationType is ApplicationType.Server or ApplicationType.DiscoveryServer)
             {
                 if (application.DiscoveryUrls.IsEmpty)
                 {
@@ -129,16 +137,113 @@ namespace Opc.Ua.Gds.Server.Database
                         "At least one ServerCapability must be provided.",
                        nameof(application));
                 }
+
+                // Servers do not register reverse-connect listening URLs
+                // here; those belong to a Client or ClientAndServer entry.
+                foreach (string discoveryUrl in application.DiscoveryUrls)
+                {
+                    if (!string.IsNullOrEmpty(discoveryUrl) &&
+                        discoveryUrl.StartsWith(s_reverseConnectPrefix, StringComparison.Ordinal))
+                    {
+                        throw new ArgumentException(
+                            discoveryUrl +
+                            $" uses the '{s_reverseConnectPrefix}' prefix which is only valid for Clients or ClientAndServer applications.",
+                            nameof(application));
+                    }
+                }
             }
-            else if (!application.DiscoveryUrls.IsEmpty)
+            else if (application.ApplicationType == ApplicationType.ClientAndServer)
             {
-                throw new ArgumentException(
-                    "DiscoveryUrls must not be specified for clients.",
-                    nameof(application));
+                // ClientAndServer must always expose at least one
+                // non-reverse-connect DiscoveryUrl and one ServerCapability
+                // for its Server side.
+                if (application.DiscoveryUrls.IsEmpty)
+                {
+                    throw new ArgumentException(
+                        "At least one DiscoveryUrl must be provided.",
+                        nameof(application));
+                }
+
+                if (application.ServerCapabilities.IsEmpty)
+                {
+                    throw new ArgumentException(
+                        "At least one ServerCapability must be provided.",
+                       nameof(application));
+                }
+
+                bool hasServerUrl = false;
+                bool hasReverseUrl = false;
+                foreach (string discoveryUrl in application.DiscoveryUrls)
+                {
+                    if (string.IsNullOrEmpty(discoveryUrl))
+                    {
+                        continue;
+                    }
+                    if (discoveryUrl.StartsWith(s_reverseConnectPrefix, StringComparison.Ordinal))
+                    {
+                        hasReverseUrl = true;
+                    }
+                    else
+                    {
+                        hasServerUrl = true;
+                    }
+                }
+
+                if (!hasServerUrl)
+                {
+                    throw new ArgumentException(
+                        "A ClientAndServer must register at least one Server (non reverse-connect) DiscoveryUrl.",
+                        nameof(application));
+                }
+
+                if (hasReverseUrl &&
+                    !application.ServerCapabilities.Contains(s_reverseConnectCapability))
+                {
+                    throw new ArgumentException(
+                        $"A ClientAndServer with reverse-connect DiscoveryUrls shall include the '{s_reverseConnectCapability}' ServerCapability.",
+                        nameof(application));
+                }
+            }
+            else if (application.ApplicationType == ApplicationType.Client)
+            {
+                // Per OPC 10000-12 §6.5.5 a Client may register
+                // DiscoveryUrls when it supports reverse connect. In that
+                // case all DiscoveryUrls shall begin with the rcp+ prefix
+                // and ServerCapabilities shall include the RCP identifier.
+                if (!application.DiscoveryUrls.IsEmpty)
+                {
+                    foreach (string discoveryUrl in application.DiscoveryUrls)
+                    {
+                        if (string.IsNullOrEmpty(discoveryUrl))
+                        {
+                            continue;
+                        }
+
+                        if (!discoveryUrl.StartsWith(s_reverseConnectPrefix, StringComparison.Ordinal))
+                        {
+                            throw new ArgumentException(
+                                "Clients can only register DiscoveryUrls when they support reverse connect; " +
+                                $"all URLs must start with the '{s_reverseConnectPrefix}' prefix.",
+                                nameof(application));
+                        }
+                    }
+
+                    if (!application.ServerCapabilities.Contains(s_reverseConnectCapability))
+                    {
+                        throw new ArgumentException(
+                            $"Clients with reverse-connect DiscoveryUrls shall include the '{s_reverseConnectCapability}' ServerCapability.",
+                            nameof(application));
+                    }
+                }
             }
 
             return default;
         }
+
+        // OPC 10000-12 §6.5.5: reverse-connect DiscoveryUrls are prefixed
+        // with "rcp+"; reverse-connect capability identifier is "RCP".
+        private const string s_reverseConnectPrefix = "rcp+";
+        private const string s_reverseConnectCapability = "RCP";
 
         public virtual void UnregisterApplication(NodeId applicationId)
         {

@@ -71,12 +71,10 @@ namespace Opc.Ua.PubSub
 
             lock (m_lock)
             {
-                var dv = new DataValue
-                {
-                    WrappedValue = value,
-                    StatusCode = status ?? StatusCodes.Good,
-                    SourceTimestamp = timestamp ?? DateTimeUtc.Now
-                };
+                var dv = new DataValue(
+                    value,
+                    status ?? StatusCodes.Good,
+                    timestamp ?? DateTimeUtc.Now);
 
                 if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? dictionary))
                 {
@@ -99,7 +97,7 @@ namespace Opc.Ua.PubSub
         public void WritePublishedDataItem(
             NodeId nodeId,
             uint attributeId = Attributes.Value,
-            DataValue? dataValue = null)
+            DataValue dataValue = default)
         {
             if (nodeId.IsNull)
             {
@@ -117,25 +115,29 @@ namespace Opc.Ua.PubSub
             {
                 if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? value))
                 {
-                    value[attributeId] = dataValue!;
+                    value[attributeId] = dataValue;
                 }
                 else
                 {
-                    var dictionary = new Dictionary<uint, DataValue> { { attributeId, dataValue! } };
+                    var dictionary = new Dictionary<uint, DataValue>
+                    {
+                        { attributeId, dataValue }
+                    };
                     m_store.Add(nodeId, dictionary);
                 }
             }
         }
 
         /// <summary>
-        /// Read the DataValue stored for a specific NodeId and Attribute.
+        /// Try to read the DataValue stored for a specific NodeId and Attribute.
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
+        /// <param name="dataValue">The stored DataValue when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a DataValue is stored for the given NodeId and Attribute; otherwise <c>false</c>.</returns>
         /// <exception cref="ArgumentException"><paramref name="nodeId"/></exception>
-        public DataValue? ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
+        public bool TryReadPublishedDataItem(NodeId nodeId, uint attributeId, out DataValue dataValue)
         {
-            // todo find out why the deltaFrame parameter is not used
             if (nodeId.IsNull)
             {
                 throw new ArgumentException(null, nameof(nodeId));
@@ -151,12 +153,14 @@ namespace Opc.Ua.PubSub
             lock (m_lock)
             {
                 if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? dictionary) &&
-                    dictionary.TryGetValue(attributeId, out DataValue? value))
+                    dictionary.TryGetValue(attributeId, out DataValue value))
                 {
-                    return value;
+                    dataValue = value;
+                    return true;
                 }
             }
-            return null;
+            dataValue = default;
+            return false;
         }
 
         /// <summary>

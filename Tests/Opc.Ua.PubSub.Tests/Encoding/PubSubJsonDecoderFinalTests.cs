@@ -260,14 +260,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(25.5))
-                {
-                    StatusCode = StatusCodes.Good,
-                    SourceTimestamp = sourceTime,
-                    SourcePicoseconds = 100,
-                    ServerTimestamp = serverTime,
-                    ServerPicoseconds = 200
-                }
+                Value = new DataValue(
+                    new Variant(25.5),
+                    StatusCodes.Good,
+                    sourceTime,
+                    serverTime,
+                    100,
+                    200)
             };
 
             DataSet result = EncodeDecodeRoundTrip(
@@ -295,10 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(42))
-                {
-                    StatusCode = StatusCodes.BadTimeout
-                }
+                Value = new DataValue(new Variant(42), StatusCodes.BadTimeout)
             };
 
             DataSet result = EncodeDecodeRoundTrip(

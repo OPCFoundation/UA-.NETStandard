@@ -53,24 +53,24 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             await using var strategy = new ManualAliasNameRefreshStrategy();
             int invalidations = 0;
-            var harness = AliasNameSessionHarness.Create();
-            var client = AliasNameClient.OpenStandardAliases(harness.Session);
+            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
 
             await strategy.StartAsync(
                 client,
                 () => invalidations++,
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None);
 
-            await Task.Delay(50).ConfigureAwait(false);
-            Assert.That(invalidations, Is.Zero);
+            await Task.Delay(50);
+            Assert.That(invalidations, Is.EqualTo(0));
         }
 
         [Test]
         public async Task DisposeAsyncIsIdempotentAsync()
         {
             var strategy = new ManualAliasNameRefreshStrategy();
-            await strategy.DisposeAsync().ConfigureAwait(false);
-            await strategy.DisposeAsync().ConfigureAwait(false);
+            await strategy.DisposeAsync();
+            await strategy.DisposeAsync();
             Assert.Pass();
         }
     }
@@ -98,55 +98,47 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         [Test]
         public async Task FiresOnValueDifferenceAndWrapAroundAsync()
         {
-            var harness = AliasNameSessionHarness.Create();
-            var client = AliasNameClient.OpenStandardAliases(harness.Session);
+            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
 
             uint nextReturn = 5;
-            harness.ReadHandler = _ => new DataValue
-            {
-                WrappedValue = new Variant(nextReturn),
-                StatusCode = StatusCodes.Good
-            };
+            harness.ReadHandler = _ => new DataValue(new Variant(nextReturn), StatusCodes.Good);
 
             int invalidations = 0;
             await using var strategy = new PollingAliasNameRefreshStrategy(
                 TimeSpan.FromMilliseconds(120));
             await strategy.StartAsync(client, () => invalidations++,
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None);
 
-            await WaitForAsync(() => invalidations >= 1).ConfigureAwait(false);
+            await WaitForAsync(() => invalidations >= 1);
             int firstInvalidations = invalidations;
 
             // Same value — must NOT bump.
-            await Task.Delay(300).ConfigureAwait(false);
+            await Task.Delay(300);
             Assert.That(invalidations, Is.EqualTo(firstInvalidations));
 
             // Wraparound — must bump.
             nextReturn = 0;
-            await WaitForAsync(() => invalidations > firstInvalidations).ConfigureAwait(false);
+            await WaitForAsync(() => invalidations > firstInvalidations);
             Assert.That(invalidations, Is.GreaterThan(firstInvalidations));
         }
 
         [Test]
         public async Task DisposeAsyncStopsTimerAsync()
         {
-            var harness = AliasNameSessionHarness.Create();
-            var client = AliasNameClient.OpenStandardAliases(harness.Session);
-            harness.ReadHandler = _ => new DataValue
-            {
-                WrappedValue = new Variant((uint)1),
-                StatusCode = StatusCodes.Good
-            };
+            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            harness.ReadHandler = _ => new DataValue(new Variant((uint)1), StatusCodes.Good);
 
             int invalidations = 0;
             var strategy = new PollingAliasNameRefreshStrategy(
                 TimeSpan.FromMilliseconds(100));
             await strategy.StartAsync(client, () => invalidations++,
-                CancellationToken.None).ConfigureAwait(false);
-            await Task.Delay(200).ConfigureAwait(false);
-            await strategy.DisposeAsync().ConfigureAwait(false);
+                CancellationToken.None);
+            await Task.Delay(200);
+            await strategy.DisposeAsync();
             int snapshot = invalidations;
-            await Task.Delay(300).ConfigureAwait(false);
+            await Task.Delay(300);
             Assert.That(invalidations, Is.EqualTo(snapshot));
         }
 
@@ -154,7 +146,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             for (int i = 0; i < 50 && !predicate(); i++)
             {
-                await Task.Delay(50).ConfigureAwait(false);
+                await Task.Delay(50);
             }
             Assert.That(predicate(), Is.True, "Predicate did not become true within 2.5s.");
         }

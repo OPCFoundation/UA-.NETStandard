@@ -398,11 +398,11 @@ namespace Quickstarts.Servers
             var values = new List<(DataValue, ServiceResult?)>(count);
             for (int i = 0; i < count; i++)
             {
-                DataValue? dv = decoder.ReadDataValue(null);
+                DataValue dv = decoder.ReadDataValue(null);
                 StatusCode sc = decoder.ReadStatusCode(null);
                 ServiceResult? sr = sc == StatusCodes.Good
                     ? null : new ServiceResult(sc);
-                values.Add((dv!, sr));
+                values.Add((dv, sr));
             }
 
             var batch = new DataChangeBatch(values, batchSize, monItemId);

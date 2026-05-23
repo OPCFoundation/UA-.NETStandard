@@ -343,9 +343,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue? value)
+        public void WriteDataValue(string? fieldName, DataValue value)
         {
-            if (value == null)
+            if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
@@ -1026,13 +1026,17 @@ namespace Opc.Ua
         /// Write data value
         /// </summary>
         /// <param name="value"></param>
-        private void WriteDataValue(DataValue? value)
+        private void WriteDataValue(DataValue value)
         {
-            if (value == null)
+            if (value.IsNull)
             {
+                // No payload (default(DataValue)) — write JSON null. An
+                // explicitly constructed empty DataValue (IsNull == false,
+                // all fields default) still writes "{}" below.
                 m_writer.WriteNullValue();
                 return;
             }
+
             StartObject();
             // The DataValue is an encoded variant with extra fields in essence.
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.2.18

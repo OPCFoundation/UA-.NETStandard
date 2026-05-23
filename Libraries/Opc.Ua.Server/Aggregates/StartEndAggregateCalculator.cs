@@ -182,19 +182,19 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue
-            {
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+            var value = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             // set status code.
             if (badDataSkipped)
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // calculate delta.
             double delta = endValue - startValue;
@@ -203,7 +203,7 @@ namespace Opc.Ua.Server
                 originalType = TypeInfo.Scalars.Double;
             }
 
-            value.WrappedValue = new Variant(delta).ConvertTo(originalType.BuiltInType);
+            value = value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
 
             // return result.
             return value;
@@ -238,17 +238,20 @@ namespace Opc.Ua.Server
 
             if (!IsGood(value))
             {
-                value.StatusCode = StatusCodes.BadNoData;
+                value = value.WithStatus(StatusCodes.BadNoData);
             }
 
             if (returnEnd)
             {
-                value.SourceTimestamp = GetTimestamp(slice);
-                value.ServerTimestamp = GetTimestamp(slice);
+                DateTimeUtc sliceStamp = GetTimestamp(slice);
+                value = value
+                    .WithSourceTimestamp(sliceStamp)
+                    .WithServerTimestamp(sliceStamp);
 
                 if (StatusCode.IsNotBad(value.StatusCode))
                 {
-                    value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+                    value = value.WithStatus(
+                        value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
                 }
             }
 
@@ -308,18 +311,18 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue
-            {
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+            var value = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             if (!IsGood(start) || !IsGood(end))
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // calculate delta.
             double delta = endValue - startValue;
@@ -329,7 +332,7 @@ namespace Opc.Ua.Server
                 originalType = TypeInfo.Scalars.Double;
             }
 
-            value.WrappedValue = new Variant(delta).ConvertTo(originalType.BuiltInType);
+            value = value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
 
             // return result.
             return value;

@@ -3157,10 +3157,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 foreach (Field field in datasetMessage.DataSet.Fields)
                 {
                     var fieldNodeId = new NodeId(field.FieldMetaData.Name, namespaceIndexAllTypes);
-                    DataValue fieldDataValue = pubSubApplication.DataStore.ReadPublishedDataItem(
-                        fieldNodeId,
-                        Attributes.Value);
-                    if (fieldDataValue != null && !dataSetsData.ContainsKey(fieldNodeId))
+                    pubSubApplication.DataStore.TryReadPublishedDataItem(fieldNodeId, Attributes.Value, out DataValue fieldDataValue);
+                    if (!fieldDataValue.IsNull && !dataSetsData.ContainsKey(fieldNodeId))
                     {
                         dataSetsData.Add(fieldNodeId, fieldDataValue);
                     }
@@ -3180,37 +3178,28 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var snapshotData = new Dictionary<NodeId, DataValue>();
 
             var boolNodeId = new NodeId("BoolToggle", namespaceIndexAllTypes);
-            DataValue boolToggle = pubSubApplication.DataStore
-                .ReadPublishedDataItem(boolNodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(boolNodeId, Attributes.Value, out DataValue boolToggle);
             snapshotData.Add(boolNodeId, CoreUtils.Clone(boolToggle));
             var byteNodeId = new NodeId("Byte", namespaceIndexAllTypes);
-            DataValue byteValue = pubSubApplication.DataStore
-                .ReadPublishedDataItem(byteNodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(byteNodeId, Attributes.Value, out DataValue byteValue);
             snapshotData.Add(byteNodeId, CoreUtils.Clone(byteValue));
             var int16NodeId = new NodeId("Int16", namespaceIndexAllTypes);
-            DataValue int16Value = pubSubApplication.DataStore
-                .ReadPublishedDataItem(int16NodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(int16NodeId, Attributes.Value, out DataValue int16Value);
             snapshotData.Add(int16NodeId, CoreUtils.Clone(int16Value));
             var int32NodeId = new NodeId("Int32", namespaceIndexAllTypes);
-            DataValue int32Value = pubSubApplication.DataStore
-                .ReadPublishedDataItem(int32NodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(int32NodeId, Attributes.Value, out DataValue int32Value);
             snapshotData.Add(int32NodeId, CoreUtils.Clone(int32Value));
             var uint16NodeId = new NodeId("UInt16", namespaceIndexAllTypes);
-            DataValue uInt16Value = pubSubApplication.DataStore
-                .ReadPublishedDataItem(uint16NodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(uint16NodeId, Attributes.Value, out DataValue uInt16Value);
             snapshotData.Add(uint16NodeId, CoreUtils.Clone(uInt16Value));
             var uint32NodeId = new NodeId("UInt32", namespaceIndexAllTypes);
-            DataValue uInt32Value = pubSubApplication.DataStore
-                .ReadPublishedDataItem(uint32NodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(uint32NodeId, Attributes.Value, out DataValue uInt32Value);
             snapshotData.Add(uint32NodeId, CoreUtils.Clone(uInt32Value));
             var doubleNodeId = new NodeId("Double", namespaceIndexAllTypes);
-            DataValue doubleValue = pubSubApplication.DataStore
-                .ReadPublishedDataItem(doubleNodeId, Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(doubleNodeId, Attributes.Value, out DataValue doubleValue);
             snapshotData.Add(doubleNodeId, CoreUtils.Clone(doubleValue));
             var dateTimeNodeId = new NodeId("DateTime", namespaceIndexAllTypes);
-            DataValue dateTimeValue = pubSubApplication.DataStore.ReadPublishedDataItem(
-                dateTimeNodeId,
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(dateTimeNodeId, Attributes.Value, out DataValue dateTimeValue);
             snapshotData.Add(dateTimeNodeId, CoreUtils.Clone(dateTimeValue));
 
             return snapshotData;
@@ -3224,9 +3213,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort namespaceIndexAllTypes)
         {
             // DataSet update with primitive data
-            DataValue boolToggle = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("BoolToggle", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value, out DataValue boolToggle);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (boolToggle.Value is bool)
             {
@@ -3234,7 +3221,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 bool boolVal = Convert.ToBoolean(boolToggle.Value, CultureInfo.InvariantCulture);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                boolToggle.Value = !boolVal;
+                boolToggle = boolToggle.WithWrappedValue(Variant.From(!boolVal));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("BoolToggle", namespaceIndexAllTypes),
@@ -3242,9 +3229,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     boolToggle);
             }
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue byteValue = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("Byte", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value, out DataValue byteValue);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (byteValue.Value is byte)
             {
@@ -3252,7 +3237,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 byte byteVal = Convert.ToByte(byteValue.Value, CultureInfo.InvariantCulture);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                byteValue.Value = ++byteVal;
+                byteValue = byteValue.WithWrappedValue(Variant.From(++byteVal));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Byte", namespaceIndexAllTypes),
@@ -3260,9 +3245,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     byteValue);
             }
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("Int16", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value, out DataValue int16Value);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (int16Value.Value is short)
             {
@@ -3271,7 +3254,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                int16Value.Value = (short)Interlocked.Increment(ref intIdentifier);
+                int16Value = int16Value.WithWrappedValue(Variant.From((short)Interlocked.Increment(ref intIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int16", namespaceIndexAllTypes),
@@ -3279,9 +3262,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     int16Value);
             }
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("Int32", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value, out DataValue int32Value);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (int32Value.Value is int)
             {
@@ -3290,7 +3271,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, int.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                int32Value.Value = Interlocked.Increment(ref intIdentifier);
+                int32Value = int32Value.WithWrappedValue(Variant.From(Interlocked.Increment(ref intIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int32", namespaceIndexAllTypes),
@@ -3298,9 +3279,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     int32Value);
             }
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("UInt16", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value, out DataValue uInt16Value);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (uInt16Value.Value is ushort)
             {
@@ -3311,7 +3290,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                uInt16Value.Value = (ushort)Interlocked.Increment(ref intIdentifier);
+                uInt16Value = uInt16Value.WithWrappedValue(Variant.From((ushort)Interlocked.Increment(ref intIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt16", namespaceIndexAllTypes),
@@ -3319,9 +3298,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uInt16Value);
             }
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("UInt32", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value, out DataValue uInt32Value);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (uInt32Value.Value is uint)
             {
@@ -3332,7 +3309,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                uInt32Value.Value = (uint)Interlocked.Increment(ref longIdentifier);
+                uInt32Value = uInt32Value.WithWrappedValue(Variant.From((uint)Interlocked.Increment(ref longIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt32", namespaceIndexAllTypes),
@@ -3340,9 +3317,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uInt32Value);
             }
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(
-                new NodeId("Double", namespaceIndexAllTypes),
-                Attributes.Value);
+            pubSubApplication.DataStore.TryReadPublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value, out DataValue doubleValue);
 #pragma warning disable CS0618 // Type or member is obsolete
             if (doubleValue.Value is double)
             {
@@ -3353,7 +3328,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref doubleVal, 0, double.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                doubleValue.Value = ++doubleVal;
+                doubleValue = doubleValue.WithWrappedValue(Variant.From(++doubleVal));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Double", namespaceIndexAllTypes),

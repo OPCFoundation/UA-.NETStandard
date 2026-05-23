@@ -62,13 +62,11 @@ namespace Opc.Ua.Server.Tests
             var dataValues = new List<DataValue>();
             for (int i = 0; i < values.Length; i++)
             {
-                dataValues.Add(new DataValue
-                {
-                    WrappedValue = values[i],
-                    SourceTimestamp = startTime.AddMilliseconds(i * intervalMs),
-                    ServerTimestamp = startTime.AddMilliseconds(i * intervalMs),
-                    StatusCode = StatusCodes.Good
-                });
+                dataValues.Add(new DataValue(
+                    new Variant(values[i]),
+                    StatusCodes.Good,
+                    startTime.AddMilliseconds(i * intervalMs),
+                    startTime.AddMilliseconds(i * intervalMs)));
             }
             return dataValues;
         }
@@ -92,8 +90,8 @@ namespace Opc.Ua.Server.Tests
             bool hasData = true;
             while (hasData)
             {
-                DataValue result = calculator.GetProcessedValue(true);
-                if (result != null)
+                bool _hasresult = calculator.TryGetProcessedValue(true, out DataValue result);
+                if (_hasresult)
                 {
                     results.Add(result);
                 }
@@ -103,7 +101,7 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
-            return results.Count > 0 ? results[0] : null;
+            return results.Count > 0 ? results[0] : default;
         }
 
         [Test]
@@ -119,7 +117,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Minimum,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(3.0).Within(0.0001));
         }
@@ -137,7 +135,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Maximum,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(50.0).Within(0.0001));
         }
@@ -155,7 +153,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Range,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(40.0).Within(0.0001));
         }
@@ -173,7 +171,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_MinimumActualTime,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
         }
 
@@ -190,7 +188,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_MaximumActualTime,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
         }
 
@@ -207,7 +205,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Minimum,
                 dataValues, startTime, endTime, 4000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(42.0).Within(0.0001));
         }
@@ -225,7 +223,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Maximum,
                 dataValues, startTime, endTime, 12000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(-3.0).Within(0.0001));
         }
@@ -243,7 +241,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_Range,
                 dataValues, startTime, endTime, 8000);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.Zero.Within(0.0001));
         }

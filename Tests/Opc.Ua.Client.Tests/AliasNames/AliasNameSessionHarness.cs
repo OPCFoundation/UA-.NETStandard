@@ -140,10 +140,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                             harness.ReadRequests.Add(r);
                             results[i] = harness.ReadHandler != null
                                 ? harness.ReadHandler(r)
-                                : new DataValue
-                                {
-                                    StatusCode = StatusCodes.BadNotFound
-                                };
+                                : DataValue.FromStatusCode(StatusCodes.BadNotFound);
                         }
                         return new ValueTask<ReadResponse>(new ReadResponse
                         {

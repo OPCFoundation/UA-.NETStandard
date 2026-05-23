@@ -344,6 +344,11 @@ sites.
 |-----------|-----------|
 | Trust determination (Part 4 §6.1.3) | `ICertificateValidatorEx` with `TrustListIdentifier` |
 | Certificate groups (Part 12) | `ICertificateTrustListManager` named trust-lists |
+| ApplicationAdmin privilege (Part 12 §7.2) | `GdsRole.ApplicationAdmin` + `GdsRoleBasedIdentity.AdministeredApplicationIds` |
+| KeyCredential management (Part 12 §8) | `IKeyCredentialRequestStore` / `InMemoryKeyCredentialRequestStore` |
+| Authorization services (Part 12 §9) | `AuthorizationServiceState` with `GetServiceDescription` / `RequestAccessToken` |
+| CreateSelfSignedCertificate (Part 12 §7.10.6) | `ConfigurationNodeManager.CreateSelfSignedCertificateAsync` |
+| Audit event redaction | `AuditEvents.RedactedPrivateKeyPassword` / `RedactedPrivateKey` — secrets never appear in audit payloads |
 | Push/Pull management (Part 12 §7.7) | `ICertificateLifecycle.UpdateApplicationCertificateAsync` |
 | TrustListType (Part 12 §7.5) | `ITrustListFileAccess` |
 | Expiry monitoring (Part 9 §5.8.17) | `CertificateLifecycleMonitor` → `CertificateExpiring` events |

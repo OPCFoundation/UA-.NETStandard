@@ -353,7 +353,7 @@ namespace Opc.Ua
                 relativePath,
                 0,
                 attributeId,
-                dataValue);
+                ref dataValue);
 
             if (ServiceResult.IsBad(result))
             {

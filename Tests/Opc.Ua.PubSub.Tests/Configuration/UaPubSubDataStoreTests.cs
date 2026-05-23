@@ -63,12 +63,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Attributes.Value,
                 new DataValue(new Variant(value)));
 #pragma warning restore CS0618 // Type or member is obsolete
-            DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
+            dataStore.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue readDataValue);
 
             //Assert
             Assert.That(
-                readDataValue,
-                Is.Not.Null,
+                readDataValue.IsNull,
+                Is.False,
                 "Returned DataValue for written nodeId and attribute is null");
 #pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(
@@ -110,12 +110,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var nodeId = NodeId.Parse("ns=1;i=1");
 
             //Act
-            DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
+            dataStore.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue readDataValue);
 
             //Assert
             Assert.That(
-                readDataValue,
-                Is.Null,
+                readDataValue.IsNull,
+                Is.True,
                 "Returned DataValue for written nodeId and attribute is NOT null");
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             //Assert
             Assert
-                .Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(default));
+                .Throws<ArgumentException>(() => dataStore.TryReadPublishedDataItem(default, Attributes.Value, out _));
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call with invalid Attribute")]
@@ -137,9 +137,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
             //Assert
             Assert.Throws<ArgumentException>(() =>
-                dataStore.ReadPublishedDataItem(
+                dataStore.TryReadPublishedDataItem(
                     NodeId.Parse("ns=0;i=2253"),
-                    Attributes.AccessLevelEx + 1));
+                    Attributes.AccessLevelEx + 1, out _));
         }
     }
 }

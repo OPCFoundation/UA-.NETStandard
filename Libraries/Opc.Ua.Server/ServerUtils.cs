@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             public EventType EventType;
             public NodeId NodeId;
             public uint ServerHandle;
-            public DataValue? Value;
+            public DataValue Value;
             public MonitoringParameters? Parameters;
             public MonitoringMode MonitoringMode;
         }
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
 
                 if (StatusCode.IsBad(error))
                 {
-                    e.Value = new DataValue(error) { WrappedValue = value.WrappedValue };
+                    e.Value = new DataValue(value.WrappedValue, error);
                 }
 
                 s_events.Enqueue(e);
@@ -244,7 +244,7 @@ namespace Opc.Ua.Server
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
                     Timestamp = HiResClock.UtcNow,
-                    Value = null,
+                    Value = default,
                     Parameters = new MonitoringParameters
                     {
                         SamplingInterval = samplingInterval,
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
                     Timestamp = HiResClock.UtcNow,
-                    Value = null,
+                    Value = default,
                     Parameters = new MonitoringParameters
                     {
                         SamplingInterval = samplingInterval,

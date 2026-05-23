@@ -131,14 +131,13 @@ namespace Opc.Ua.Server
             double result = total / count;
 
             // set the timestamp and status.
-            var value = new DataValue
-            {
-                WrappedValue = Variant.From(result),
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
-            value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
+            var value = new DataValue(
+                Variant.From(result),
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+            value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode));
 
             // return result.
             return value;
@@ -212,28 +211,27 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue
-            {
-                WrappedValue = Variant.From(result),
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+            var value = new DataValue(
+                Variant.From(result),
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             if (useSimpleBounds)
             {
-                value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
+                value = value.WithStatus(GetTimeBasedStatusCode(regions, value.StatusCode));
             }
             else
             {
-                value.StatusCode = StatusCodes.Good;
+                value = value.WithStatus(StatusCodes.Good);
 
                 if (nonGoodRegionsExists)
                 {
-                    value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                    value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
                 }
             }
 
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // return result.
             return value;

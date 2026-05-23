@@ -251,10 +251,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)builtInType,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(value))
-                {
-                    SourceTimestamp = DateTime.UtcNow
-                }
+                Value = new DataValue(new Variant(value), StatusCodes.Good, DateTime.UtcNow)
             };
 #pragma warning restore CS0618 // Type or member is obsolete
         }

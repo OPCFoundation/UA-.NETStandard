@@ -38,6 +38,12 @@ namespace Quickstarts.ReferenceServer
 {
     /// <summary>
     /// Factory that creates the GDS ApplicationsNodeManager for the reference server.
+    /// The node manager automatically wires handlers for:
+    /// <list type="bullet">
+    /// <item><description>CertificateDirectoryType (Part 12 §7.6)</description></item>
+    /// <item><description>KeyCredentialServiceType (Part 12 §8)</description></item>
+    /// <item><description>AuthorizationServiceType (Part 12 §9)</description></item>
+    /// </list>
     /// </summary>
     public sealed class GdsNodeManagerFactory : INodeManagerFactory
     {

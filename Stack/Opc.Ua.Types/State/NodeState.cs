@@ -70,7 +70,7 @@ namespace Opc.Ua
             }
 
             if (node is not null &&
-                EqualityComparer<object>.Default.Equals(Handle, node.Handle) &&
+                EqualityComparer<object>.Default.Equals(Handle!, node.Handle!) &&
                 ChangeMasks == node.ChangeMasks &&
                 SymbolicName == node.SymbolicName &&
                 NodeId == node.NodeId &&
@@ -89,9 +89,9 @@ namespace Opc.Ua
 
                 // TODO: Remove below as not needed during runtime
                 EqualityComparer<XmlElement[]>.Default.Equals(
-                    Extensions, node.Extensions) &&
+                    Extensions!, node.Extensions!) &&
                 EqualityComparer<IList<string>>.Default.Equals(
-                    Categories, node.Categories) &&
+                    Categories!, node.Categories!) &&
                 ReleaseStatus == node.ReleaseStatus &&
                 Specification == node.Specification &&
                 NodeSetDocumentation == node.NodeSetDocumentation &&
@@ -1435,7 +1435,7 @@ namespace Opc.Ua
 
             using var decoder = new XmlDecoder(null, reader, messageContext);
             // check if a namespace table was provided.
-            var namespaceUris = new NamespaceTable();
+            NamespaceTable? namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
             {
@@ -1942,7 +1942,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = new LocalizedText(browseName.Name);
+                displayName = new LocalizedText(browseName.Name!);
             }
 
             if ((attributesToLoad & AttributesToSave.Description) != 0)
@@ -2186,7 +2186,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = new LocalizedText(browseName.Name);
+                displayName = new LocalizedText(browseName.Name!);
             }
 
             LocalizedText description = default;
@@ -2260,142 +2260,114 @@ namespace Opc.Ua
         /// Called when the Validate method is called
         /// </summary>
         public NodeStateValidateHandler? OnValidate;
-
         /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateChangedHandler? OnStateChanged;
-
         /// <summary>
         /// Called when a reference gets added to the node
         /// </summary>
         public NodeStateReferenceAdded? OnReferenceAdded;
-
         /// <summary>
         /// Called when a reference gets removed from the node
         /// </summary>
         public NodeStateReferenceRemoved? OnReferenceRemoved;
-
         /// <summary>
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
         public NodeStateReportEventHandler? OnReportEvent;
-
         /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateConditionRefreshEventHandler? OnConditionRefresh;
-
         /// <summary>
         /// Called after the CreateBrowser method is called.
         /// </summary>
         public NodeStateCreateBrowserEventHandler? OnCreateBrowser;
-
         /// <summary>
         /// Called after the PopulateBrowser method is called.
         /// </summary>
         public NodeStatePopulateBrowserEventHandler? OnPopulateBrowser;
-
         /// <summary>
         /// Called when the NodeId attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<NodeId>? OnReadNodeId;
-
         /// <summary>
         /// Called when the NodeId attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<NodeId>? OnWriteNodeId;
-
         /// <summary>
         /// Called when the NodeClass attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<NodeClass>? OnReadNodeClass;
-
         /// <summary>
         /// Called when the NodeClass attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<NodeClass>? OnWriteNodeClass;
-
         /// <summary>
         /// Called when the BrowseName attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<QualifiedName>? OnReadBrowseName;
-
         /// <summary>
         /// Called when the BrowseName attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<QualifiedName>? OnWriteBrowseName;
-
         /// <summary>
         /// Called when the DisplayName attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnReadDisplayName;
-
         /// <summary>
         /// Called when the DisplayName attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnWriteDisplayName;
-
         /// <summary>
         /// Called when the Description attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnReadDescription;
-
         /// <summary>
         /// Called when the Description attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnWriteDescription;
-
         /// <summary>
         /// Called when the WriteMask attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnReadWriteMask;
-
         /// <summary>
         /// Called when the WriteMask attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnWriteWriteMask;
-
         /// <summary>
         /// Called when the UserWriteMask attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnReadUserWriteMask;
-
         /// <summary>
         /// Called when the UserWriteMask attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnWriteUserWriteMask;
-
         /// <summary>
         /// Called when the RolePermissions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnReadRolePermissions;
-
         /// <summary>
         /// Called when the RolePermissions attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnWriteRolePermissions;
-
         /// <summary>
         /// Called when the UserRolePermissions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnReadUserRolePermissions;
-
         /// <summary>
         /// Called when the UserRolePermissions attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnWriteUserRolePermissions;
-
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AccessRestrictionType?>? OnReadAccessRestrictions;
-
         /// <summary>
         /// Called when the AccessRestrictions attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AccessRestrictionType?>? OnWriteAccessRestrictions;
-
         /// <summary>
         /// Returns the root node if the node is part of an instance hierarchy.
         /// </summary>
@@ -2413,11 +2385,13 @@ namespace Opc.Ua
 
             while (true)
             {
+                BaseInstanceState? next = root as BaseInstanceState;
+
                 // CA1508: `next` can legitimately be null when `root` is a NodeState that does
                 // not derive from BaseInstanceState (e.g. an ObjectTypeState root). The
                 // analyzer's flow tracking misses this entry-time possibility.
 #pragma warning disable CA1508
-                if (root is not BaseInstanceState next || next.Parent == null)
+                if (next == null || next.Parent == null)
 #pragma warning restore CA1508
                 {
                     return root;
@@ -2863,7 +2837,7 @@ namespace Opc.Ua
             {
                 SymbolicName = browseName.Name!;
                 BrowseName = browseName;
-                DisplayName = new LocalizedText(browseName.Name);
+                DisplayName = new LocalizedText(browseName.Name!);
             }
 
             // override display name.
@@ -3493,14 +3467,14 @@ namespace Opc.Ua
             {
                 // Reset the reusable DataValue so ReadNonValueAttribute sees Variant.Null
                 // as the initial valueToRead (required for !value.IsNull guard logic).
-                scratch.WrappedValue = Variant.Null;
+                scratch = scratch.WithWrappedValue(Variant.Null);
 
                 ServiceResult result = ReadAttribute(
                     context,
                     attributeIds[ii],
                     default,
                     default,
-                    scratch);
+                    ref scratch);
 
                 values.Add(ServiceResult.IsBad(result) ? default : scratch.WrappedValue);
             }
@@ -3626,26 +3600,17 @@ namespace Opc.Ua
             uint attributeId,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValue value)
+            ref DataValue value)
         {
-            // check for bad parameter.
-            if (value == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
-                    "DataValue missing");
-            }
-
             Variant valueToRead = value.WrappedValue;
 
-            _ = ServiceResult.Good;
+            ServiceResult result = ServiceResult.Good;
+            DateTimeUtc sourceTimestamp = value.SourceTimestamp;
+            ushort sourcePicoseconds = value.SourcePicoseconds;
 
-            ServiceResult result;
             // read value attribute.
             if (attributeId == Attributes.Value)
             {
-                DateTimeUtc sourceTimestamp = value.SourceTimestamp;
-
                 try
                 {
                     result = ReadValueAttribute(
@@ -3655,8 +3620,7 @@ namespace Opc.Ua
                         ref valueToRead,
                         ref sourceTimestamp);
 
-                    value.SourceTimestamp = sourceTimestamp;
-                    value.SourcePicoseconds = 0;
+                    sourcePicoseconds = 0;
                 }
                 catch (Exception e)
                 {
@@ -3682,25 +3646,20 @@ namespace Opc.Ua
                 }
             }
 
-            // ensure status code matches result.
-            if (result != null && result != ServiceResult.Good)
-            {
-                value.StatusCode = result.StatusCode;
-            }
-            else
-            {
-                value.StatusCode = StatusCodes.Good;
-            }
+            // Compute final status and value in one rebind to avoid
+            // intermediate With-chain allocations.
+            StatusCode finalStatus = (result != null && result != ServiceResult.Good)
+                ? result.StatusCode
+                : (StatusCode)StatusCodes.Good;
+            Variant finalValue = StatusCode.IsBad(finalStatus) ? Variant.Null : valueToRead;
 
-            // update value.
-            if (StatusCode.IsBad(value.StatusCode))
-            {
-                value.WrappedValue = Variant.Null;
-            }
-            else
-            {
-                value.WrappedValue = valueToRead;
-            }
+            value = new DataValue(
+                finalValue,
+                finalStatus,
+                sourceTimestamp,
+                value.ServerTimestamp,
+                sourcePicoseconds,
+                value.ServerPicoseconds);
 
             // return result.
             return result!;
@@ -3708,7 +3667,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Asynchronous sibling of
-        /// <see cref="ReadAttribute(ISystemContext, uint, NumericRange, QualifiedName, DataValue)"/>.
+        /// <see cref="ReadAttribute(ISystemContext, uint, NumericRange, QualifiedName, ref DataValue)"/>.
         /// The default implementation simply wraps the synchronous call
         /// inside a <c>lock(this)</c> so behaviour is bit-identical for
         /// every <see cref="NodeState"/> that does not override it. Derived
@@ -3720,21 +3679,25 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="indexRange">The index range.</param>
         /// <param name="dataEncoding">The data encoding.</param>
-        /// <param name="value">The value to populate.</param>
+        /// <param name="seed">Seed DataValue carrying any pre-populated fields
+        /// (e.g. ServerTimestamp). The async return tuple carries the
+        /// populated result.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>
-        /// An instance of the <see cref="ServiceResult"/> containing the
-        /// status code and diagnostic info for the operation.
+        /// A tuple of <see cref="ServiceResult"/> and <see cref="DataValue"/>:
+        /// the service result conveys status / diagnostic info, the data value
+        /// carries the populated attribute value.
         /// </returns>
-        public virtual ValueTask<ServiceResult> ReadAttributeAsync(
+        public virtual ValueTask<(ServiceResult Result, DataValue Value)> ReadAttributeAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValue value,
+            DataValue seed,
             CancellationToken cancellationToken = default)
         {
             ServiceResult result;
+            DataValue value = seed;
             // TODO: introduce a dedicated private lock object on NodeState —
             // today's sync flow synchronises through `lock(source)` taken by
             // external callers (e.g. CustomNodeManager2.Read), so the async
@@ -3745,9 +3708,9 @@ namespace Opc.Ua
             lock (this)
 #pragma warning restore CA2002
             {
-                result = ReadAttribute(context, attributeId, indexRange, dataEncoding, value);
+                result = ReadAttribute(context, attributeId, indexRange, dataEncoding, ref value);
             }
-            return new ValueTask<ServiceResult>(result);
+            return new ValueTask<(ServiceResult, DataValue)>((result, value));
         }
 
         /// <summary>
@@ -3983,14 +3946,6 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
-            // check for bad parameter.
-            if (value == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
-                    "DataValue missing");
-            }
-
             Variant valueToWrite = value.WrappedValue;
 
             if (attributeId == Attributes.Value)
@@ -4851,12 +4806,12 @@ namespace Opc.Ua
             ArrayOf<QualifiedName> relativePath,
             int index,
             uint attributeId,
-            DataValue dataValue)
+            ref DataValue dataValue)
         {
             // check if reading attributes of current node.
             if (index >= relativePath.Count)
             {
-                return ReadAttribute(context, attributeId, default, default, dataValue);
+                return ReadAttribute(context, attributeId, default, default, ref dataValue);
             }
 
             // find the child at the current level.
@@ -4873,7 +4828,7 @@ namespace Opc.Ua
                 relativePath,
                 index + 1,
                 attributeId,
-                dataValue);
+                ref dataValue);
 
             if (ServiceResult.IsBad(result))
             {
@@ -5246,7 +5201,7 @@ namespace Opc.Ua
             /// <summary>
             /// The node state.
             /// </summary>
-            public NodeState? Node;
+            public NodeState? Node = null!;
 
             /// <summary>
             /// The reference type id.

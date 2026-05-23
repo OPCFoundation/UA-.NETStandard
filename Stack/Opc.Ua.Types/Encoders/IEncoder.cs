@@ -218,7 +218,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a DataValue to the stream.
         /// </summary>
-        void WriteDataValue(string? fieldName, DataValue? value);
+        void WriteDataValue(string? fieldName, DataValue value);
 
         /// <summary>
         /// Writes an ExtensionObject to the stream.

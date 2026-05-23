@@ -787,21 +787,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue? value)
+        public void WriteDataValue(string? fieldName, DataValue value)
         {
-            if (BeginField(fieldName, value == null, true))
+            if (BeginField(fieldName, value.IsNull, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-
-                if (value != null)
-                {
-                    WriteVariant("Value", value.WrappedValue);
+                    WriteVariant("Value", value.WrappedValue);
                     WriteStatusCode("StatusCode", value.StatusCode);
                     WriteDateTime("SourceTimestamp", value.SourceTimestamp);
                     WriteUInt16("SourcePicoseconds", value.SourcePicoseconds);
                     WriteDateTime("ServerTimestamp", value.ServerTimestamp);
                     WriteUInt16("ServerPicoseconds", value.ServerPicoseconds);
-                }
 
                 PopNamespace();
 
@@ -1789,7 +1785,7 @@ namespace Opc.Ua
                 else if (extensionObject.TryGetValue(out IEncodeable? encodeable))
                 {
                     // encode extension object in xml.
-                    XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable, Context);
+                    XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable!, Context);
                     m_writer.WriteStartElement(xmlName!.Name, xmlName.Namespace);
                     encodeable!.Encode(this);
                     m_writer.WriteEndElement();
