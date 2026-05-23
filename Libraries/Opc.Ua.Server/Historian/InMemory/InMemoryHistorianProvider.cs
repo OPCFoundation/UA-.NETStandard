@@ -76,6 +76,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         IHistorianModifiedProvider,
         IHistorianAnnotationProvider,
         IHistorianTransactionalProvider,
+        IHistorianBulkInsertProvider,
         IHistorianEventProvider,
         IDisposable
     {
@@ -215,6 +216,64 @@ namespace Opc.Ua.Server.Historian.InMemory
         {
             return new ValueTask<IList<StatusCode>>(
                 ApplyUpdate(context, nodeId, values, HistoryUpdateType.Insert));
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Bulk path used by the framework's auto-capture pipeline: acquires
+        /// <see cref="m_lock"/> once for the entire <paramref name="batch"/>
+        /// rather than once per <see cref="InsertAsync"/> call. Status
+        /// semantics match the per-node <see cref="InsertAsync"/> contract.
+        /// </remarks>
+        public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+            HistorianOperationContext context,
+            IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+            CancellationToken ct)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (batch == null)
+            {
+                throw new ArgumentNullException(nameof(batch));
+            }
+
+            var result = new Dictionary<NodeId, IList<StatusCode>>(batch.Count);
+            lock (m_lock)
+            {
+                foreach (KeyValuePair<NodeId, IList<DataValue>> entry in batch)
+                {
+                    if (entry.Value == null)
+                    {
+                        result[entry.Key] = [];
+                        continue;
+                    }
+                    NodeArchive archive = GetOrCreateArchive(entry.Key);
+                    var statuses = new StatusCode[entry.Value.Count];
+                    for (int i = 0; i < entry.Value.Count; i++)
+                    {
+                        DataValue value = entry.Value[i];
+                        if (value == null)
+                        {
+                            statuses[i] = StatusCodes.BadInvalidArgument;
+                            continue;
+                        }
+
+                        DateTime key = value.SourceTimestamp.ToDateTime();
+                        if (archive.Raw.ContainsKey(key))
+                        {
+                            statuses[i] = StatusCodes.BadEntryExists;
+                            continue;
+                        }
+                        archive.Raw[key] = CloneValue(value);
+                        statuses[i] = StatusCodes.GoodEntryInserted;
+                        EvictIfNeeded(archive);
+                    }
+                    result[entry.Key] = statuses;
+                }
+            }
+            return new ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>>(result);
         }
 
         /// <inheritdoc/>

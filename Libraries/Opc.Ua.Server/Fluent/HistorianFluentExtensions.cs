@@ -129,12 +129,31 @@ namespace Opc.Ua.Server.Fluent
         /// <c>RegisterForNode</c>; the cached per-manager builder is left
         /// untouched.
         /// </param>
+        /// <param name="autoCapture">
+        /// When <c>true</c> (the default), the call wires a
+        /// <see cref="NodeState.StateChanged"/> handler that forwards
+        /// every <c>Value</c>-mask change on the variable into a
+        /// per-manager <see cref="HistorianCaptureSink"/>, which batches
+        /// samples and flushes them to the historian. Pass <c>false</c>
+        /// to disable automatic capture — only explicit
+        /// <c>HistoryUpdate</c> Insert calls will populate the archive
+        /// in that case.
+        /// </param>
+        /// <param name="captureOptions">
+        /// Optional buffering / batching tuning for the per-manager
+        /// capture sink. Only the first <c>Historize(autoCapture: true)</c>
+        /// call on a builder takes effect; subsequent calls share the
+        /// same sink with its original options. <c>null</c> uses the
+        /// defaults in <see cref="HistorianCaptureOptions"/>.
+        /// </param>
         public static IVariableBuilder<TValue> Historize<TValue>(
             this IVariableBuilder<TValue> variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
             bool installConfigurationOnBrowse = false,
             HistorianNodeCapabilities? capabilities = null,
-            IHistorianProvider? provider = null)
+            IHistorianProvider? provider = null,
+            bool autoCapture = true,
+            HistorianCaptureOptions? captureOptions = null)
         {
             if (variable == null)
             {
@@ -146,13 +165,15 @@ namespace Opc.Ua.Server.Fluent
                 historyAccessLevel,
                 installConfigurationOnBrowse,
                 capabilities,
-                provider);
+                provider,
+                autoCapture,
+                captureOptions);
             return variable;
         }
 
         /// <summary>
         /// Untyped overload of
-        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, bool, HistorianNodeCapabilities, IHistorianProvider)"/>
+        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, bool, HistorianNodeCapabilities, IHistorianProvider, bool, HistorianCaptureOptions)"/>
         /// for callers that already hold an
         /// <see cref="INodeBuilder{TState}"/> view of a
         /// <see cref="BaseVariableState"/>.
@@ -162,7 +183,9 @@ namespace Opc.Ua.Server.Fluent
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
             bool installConfigurationOnBrowse = false,
             HistorianNodeCapabilities? capabilities = null,
-            IHistorianProvider? provider = null)
+            IHistorianProvider? provider = null,
+            bool autoCapture = true,
+            HistorianCaptureOptions? captureOptions = null)
         {
             if (variable == null)
             {
@@ -174,14 +197,16 @@ namespace Opc.Ua.Server.Fluent
                 historyAccessLevel,
                 installConfigurationOnBrowse,
                 capabilities,
-                provider);
+                provider,
+                autoCapture,
+                captureOptions);
             return variable;
         }
 
         /// <summary>
         /// Binds <paramref name="provider"/> to the wrapped variable's
         /// <c>NodeId</c> in the server-wide registry. The next
-        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, bool, HistorianNodeCapabilities, IHistorianProvider)"/>
+        /// <see cref="Historize{TValue}(IVariableBuilder{TValue}, byte, bool, HistorianNodeCapabilities, IHistorianProvider, bool, HistorianCaptureOptions)"/>
         /// call without an explicit <c>provider</c> argument will dispatch
         /// through this binding instead of the per-manager default.
         /// </summary>
@@ -214,7 +239,9 @@ namespace Opc.Ua.Server.Fluent
             byte historyAccessLevel,
             bool installConfigurationOnBrowse,
             HistorianNodeCapabilities? capabilities,
-            IHistorianProvider? perCallProvider)
+            IHistorianProvider? perCallProvider,
+            bool autoCapture,
+            HistorianCaptureOptions? captureOptions)
         {
             if (perCallProvider != null)
             {
@@ -232,11 +259,14 @@ namespace Opc.Ua.Server.Fluent
                 RegisterVariableOnProvider(perCallProvider, variable.NodeId, capabilities);
                 registryHost.HistorianRegistry.RegisterForNode(variable.NodeId, perCallProvider);
 
-                if (installConfigurationOnBrowse)
+                if (installConfigurationOnBrowse || autoCapture)
                 {
-                    // Reuse the lazy-install hook on the cached per-manager
-                    // builder (creating one if necessary) — but bind it to
-                    // the per-call provider, not the manager default.
+                    // Reuse the cached per-manager builder so the
+                    // configuration-install hook and the auto-capture
+                    // sink share infrastructure. Bind the per-call
+                    // provider into the builder if it has no provider
+                    // yet so auto-capture flows samples to the right
+                    // engine.
                     HistorianBuilder manager = GetOrCreateBuilder(nodeManagerBuilder);
                     HistorianBuilder scope = manager.Provider != null ? manager : manager.UseProvider(perCallProvider);
                     scope.Historize(
@@ -244,9 +274,11 @@ namespace Opc.Ua.Server.Fluent
                         historyAccessLevel: 0,
                         setHistorizing: false,
                         installConfigurationNode: false,
-                        installConfigurationOnBrowse: true,
+                        installConfigurationOnBrowse: installConfigurationOnBrowse,
                         systemContext: nodeManagerBuilder.Context,
-                        capabilities: capabilities);
+                        capabilities: capabilities,
+                        autoCapture: autoCapture,
+                        captureOptions: captureOptions);
                 }
                 return;
             }
@@ -268,7 +300,9 @@ namespace Opc.Ua.Server.Fluent
                 installConfigurationNode: false,
                 installConfigurationOnBrowse: installConfigurationOnBrowse,
                 systemContext: nodeManagerBuilder.Context,
-                capabilities: capabilities);
+                capabilities: capabilities,
+                autoCapture: autoCapture,
+                captureOptions: captureOptions);
         }
 
         private static void RegisterVariableOnProvider(

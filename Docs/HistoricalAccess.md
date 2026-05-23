@@ -692,6 +692,107 @@ if (cfg.HasConfiguration)
 
 `HasConfiguration = false` simply means the variable does not expose a `HistoricalDataConfigurationType` companion object (typical for read-only archives).
 
+## Automatic value capture
+
+`Historize(...)` is **opt-out**: live updates to a historized variable are automatically captured into the archive. The capture pipeline is driven by `NodeState.StateChanged`, batched through a bounded `System.Threading.Channels.Channel<T>`, and flushed by a single per-historian-builder consumer task.
+
+### Pipeline
+
+```
+  variable.Value = sample;
+  variable.Timestamp = now;
+  variable.ClearChangeMasks(systemContext, false);   ← fires StateChanged(Value)
+                            │
+                            ▼
+   StateChanged handler  (O(1), lock-free)
+                            │
+                            ▼
+   bounded Channel<CaptureEvent>   ← MaxQueuedSamples (default 4096)
+                            │
+                            ▼
+   HistorianCaptureSink consumer task
+       • drain up to BatchTarget samples (default 64)
+       • or wait BatchWindow (default 25 ms) for more
+       • group by NodeId
+       • flush:
+            provider is IHistorianBulkInsertProvider  → InsertBatchAsync
+            else                                      → per-node InsertAsync
+       • exceptions logged, never propagated
+```
+
+The capture path is **best-effort**. When the queue is full, the default `CaptureFullMode.DropOldest` keeps the freshest data; switch to `Wait` if losing samples is unacceptable (back-pressures the value-setting thread). Providers that need durable persistence guarantees should also expose the explicit `HistoryUpdate` Insert path to callers — this captures via `HistorianDispatcher.DispatchUpdateDataAsync` with full per-value status feedback.
+
+### What triggers a capture
+
+Auto-capture observes the **Value** bit of `NodeStateChangeMasks`. It fires when:
+
+- Server code sets `variable.Value` and calls `variable.ClearChangeMasks(ctx, includeChildren: false)` — the standard simulation pattern in `ReferenceNodeManager.DoSimulation`.
+- A client writes the variable via the `Write` service (the framework path also walks `ClearChangeMasks`).
+
+It does **not** fire when:
+
+- The variable uses an `OnRead` callback that returns a fresh value to a client read without ever storing it on `variable.Value`. Use the explicit `HistoryUpdate` Insert path, or store the value on the variable before returning.
+- Only non-value attributes change (e.g. `DisplayName`).
+
+### Opting out
+
+Disable capture per variable:
+
+```csharp
+builder.Variable<double>("ExternalSink")
+       .OnRead(GetReading)
+       .Historize(autoCapture: false);
+```
+
+### Tuning
+
+Pass a `HistorianCaptureOptions` to override the defaults (per builder — the first opt-in call wins; subsequent calls share the same sink):
+
+```csharp
+builder.Variable<double>("FastSignal")
+       .Historize(captureOptions: new HistorianCaptureOptions
+       {
+           MaxQueuedSamples = 16_384,
+           BatchTarget = 256,
+           BatchWindow = TimeSpan.FromMilliseconds(10),
+           FullMode = CaptureFullMode.Wait,   // back-pressure, no drops
+       });
+```
+
+| Knob | Default | Effect |
+| --- | --- | --- |
+| `MaxQueuedSamples` | 4096 | Queue depth before `FullMode` kicks in. |
+| `BatchTarget` | 64 | Sample count per flush. Bigger → fewer provider calls. |
+| `BatchWindow` | 25 ms | Max wait for a partial batch. Bigger → fewer flushes; smaller → lower capture latency. |
+| `FullMode` | `DropOldest` | `DropOldest` / `DropNewest` / `Wait`. |
+
+### Implementing `IHistorianBulkInsertProvider`
+
+Custom providers should implement `IHistorianBulkInsertProvider` to amortise per-batch overhead (database round-trips, lock acquisition, transaction setup):
+
+```csharp
+public sealed class MyTsdbProvider :
+    HistorianProviderBase,
+    IHistorianDataProvider,
+    IHistorianBulkInsertProvider
+{
+    public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+        HistorianOperationContext context,
+        IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+        CancellationToken ct)
+    {
+        // One transaction, one round-trip — far cheaper than N InsertAsync calls.
+        // Apply per-value semantics (BadEntryExists when the SourceTimestamp
+        // already exists, GoodEntryInserted on success), then return the
+        // map keyed by the same NodeIds as the input batch.
+    }
+
+    // ... per-node InsertAsync / Replace / Update fallback ...
+}
+```
+
+The bundled `InMemoryHistorianProvider` implements the interface and acquires its single lock once per flush instead of once per node.
+
 ## Capability discovery
 
 When at least one provider is registered, `Server.ServerCapabilities.HistoryServerCapabilities` is populated as the union of every provider's `GetCapabilitiesAsync(NodeId.Null, …)`. Clients can read this through normal `Read` requests or via `session.Historian().Session.ReadValueAsync(...)`.
