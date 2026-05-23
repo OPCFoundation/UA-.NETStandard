@@ -63,6 +63,14 @@ namespace Opc.Ua.Server
     public static class AuditEvents
     {
         /// <summary>
+        /// Placeholder used in audit event <c>InputArguments</c> to indicate
+        /// a private key byte string has been redacted before the event was
+        /// raised. Used by <c>UpdateCertificate</c> per OPC 10000-12 §7.10.3
+        /// to avoid leaking private-key material into audit payloads.
+        /// </summary>
+        public static readonly ByteString RedactedPrivateKey = ByteString.Empty;
+
+        /// <summary>
         /// Report Audit event
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
@@ -1375,7 +1383,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Raise CertificateUpdateRequestedAudit event
+        /// Raise CertificateUpdateRequestedAudit event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
         /// <param name="systemContext">The current system context.</param>
@@ -1383,24 +1391,41 @@ namespace Opc.Ua.Server
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="exception">
+        /// If non-null, indicates the UpdateCertificate operation failed;
+        /// the audit event is raised with <c>Status=false</c> and the
+        /// exception message is embedded in the localized text.
+        /// </param>
         public static void ReportCertificateUpdateRequestedAuditEvent(
             this IAuditEventServer? server,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
             ArrayOf<Variant> inputArguments,
-            ILogger logger)
+            ILogger logger,
+            Exception? exception = null)
         {
             try
             {
                 var e = new CertificateUpdateRequestedAuditEventState(null);
 
-                var message = new TranslationInfo(
-                    "CertificateUpdateRequestedAuditEvent",
-                    "en-US",
-                    "CertificateUpdateRequestedAuditEvent.");
+                TranslationInfo message = exception == null
+                    ? new TranslationInfo(
+                        "CertificateUpdateRequestedAuditEvent",
+                        "en-US",
+                        "CertificateUpdateRequestedAuditEvent.")
+                    : new TranslationInfo(
+                        "CertificateUpdateRequestedAuditEvent",
+                        "en-US",
+                        $"CertificateUpdateRequestedAuditEvent - Exception: {exception.Message}.");
 
-                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    exception == null,
+                    DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(

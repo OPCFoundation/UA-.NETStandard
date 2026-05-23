@@ -1209,6 +1209,48 @@ The `SubscriptionOptions` and `MonitoredItemOptions` records used by this API li
 
 The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed for the time being, but this will change in future releases; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
 
+**Opt-in V2 notification pooling (`WithPoolNotifications`):**
+
+The V2 subscription engine supports activator-level pooling of decoded
+notification payload instances (`DataChangeNotification`,
+`MonitoredItemNotification`, `EventNotificationList`, `EventFieldList`) to
+reduce GC pressure on high-throughput publish loops. Pooling is **opt-in**
+and disabled by default. Enable it on the builder, in
+`ManagedSessionOptions`, or directly on the V2 manager:
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithPoolNotifications()        // opt in
+    .ConnectAsync(ct);
+```
+
+When pooling is enabled, the V2 dispatcher walks each decoded notification
+after the handler `await` completes and calls
+`IPooledEncodeable.Reuse()` on every payload item, returning instances to
+their static activator pools. The recorded benchmarks show ~315× fewer
+allocations per `MonitoredItemNotification` and a corresponding drop in
+gen-0 GC pressure
+(see [`Docs/perf/PooledNotificationBenchmarks.md`](perf/PooledNotificationBenchmarks.md)).
+
+**Handler contract change (only when `WithPoolNotifications` is enabled):**
+Handlers must **not** retain references to notification objects past the
+`await` of the dispatch call. The pool may re-rent those instances to the
+next publish immediately after `Reuse()` runs. Handlers that need to keep
+values must **copy** them out of the dispatched struct before returning.
+The `DataValueChange` / `EventNotification` projection structs are
+designed not to surface pooled instances directly — copy-by-value of the
+struct itself is safe and is the recommended pattern. See
+[`Docs/Sessions.md`](Sessions.md#v2-notification-pooling-opt-in) for full
+detail and a code example.
+
+This affects only the V2 engine; the classic subscription engine is
+unaffected. There is no breaking change to `IEncodeable`,
+`IDecoder`, `IServiceMessageContext`, or
+`ISubscriptionNotificationHandler` — pooling is opt-in via the new
+`IPooledEncodeable` sub-interface, which only the source-generated
+publish-payload types implement today.
+
 **Dependency Injection:**
 
 `AddOpcUaClient` registers a `ManagedSession` factory delegate that lazily connects on first use:

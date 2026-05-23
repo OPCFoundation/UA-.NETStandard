@@ -368,7 +368,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case XmlElement x:
                     return new ExtensionObject(nodeId, x);
                 case IEncodeable e:
-                    return new ExtensionObject(e, true);
+                    return new ExtensionObject(nodeId, e, true);
                 default:
                     throw new ArgumentException(
                         $"Unsupported data type {data.GetType()}" +

@@ -33,8 +33,31 @@ using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server.Diagnostics
 {
+    /// <summary>
+    /// Helpers that raise the GDS-specific audit events defined in
+    /// OPC 10000-12.
+    /// </summary>
+    /// <remarks>
+    /// Argument arrays passed to these helpers <b>must not</b> contain
+    /// sensitive values such as private key passwords or private key bytes.
+    /// Use <see cref="RedactedPrivateKeyPassword"/> and
+    /// <see cref="RedactedPrivateKey"/> in place of those values so the
+    /// resulting audit payload remains safe to persist.
+    /// </remarks>
     public static class AuditEvents
     {
+        /// <summary>
+        /// Placeholder used in audit event <c>InputArguments</c> to indicate
+        /// a private key password has been redacted.
+        /// </summary>
+        public const string RedactedPrivateKeyPassword = "<redacted>";
+
+        /// <summary>
+        /// Placeholder used in audit event <c>InputArguments</c> to indicate
+        /// a private key byte string has been redacted.
+        /// </summary>
+        public static readonly ByteString RedactedPrivateKey = ByteString.Empty;
+
         /// <summary>
         /// Raise CertificateDeliveredAudit event
         /// </summary>
@@ -42,7 +65,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="systemContext">The current system context.</param>
         /// <param name="objectId">The id of the object used for the method</param>
         /// <param name="method">The method that triggered the audit event.</param>
-        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
+        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event. Must not contain private key material.</param>
         /// <param name="logger">A contextual logger to log to</param>
         internal static void ReportCertificateDeliveredAuditEvent(
             this IAuditEventServer server,
@@ -93,13 +116,14 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         }
 
         /// <summary>
-        /// Raise CertificateDeliveredAudit event
+        /// Raise CertificateRequestedAudit event for
+        /// <c>StartSigningRequest</c> / <c>StartNewKeyPairRequest</c>.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
         /// <param name="systemContext">The current system context.</param>
         /// <param name="objectId">The id of the object used for the method</param>
         /// <param name="method">The method that triggered the audit event.</param>
-        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
+        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event. Must not contain private key passwords.</param>
         /// <param name="certificateGroupId">The id of the certificate group</param>
         /// <param name="certificateTypeId">the certificate type id</param>
         /// <param name="logger">A contextual logger to log to</param>
@@ -185,6 +209,82 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         }
 
         /// <summary>
+        /// Raise CertificateRevokedAudit event for
+        /// <c>RevokeCertificate</c> (OPC 10000-12 §7.6.9).
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="objectId">
+        /// The id of the object on which the method was called.
+        /// </param>
+        /// <param name="method">The method that triggered the audit event.</param>
+        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
+        /// <param name="logger">A contextual logger to log to.</param>
+        /// <param name="exception">
+        /// If non-null, indicates the revoke operation failed; the audit
+        /// event is raised with <c>Status=false</c>.
+        /// </param>
+        internal static void ReportCertificateRevokedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            try
+            {
+                var e = new CertificateRevokedAuditEventState(null);
+
+                TranslationInfo message = exception == null
+                    ? new TranslationInfo(
+                        "CertificateRevokedAuditEvent",
+                        "en-US",
+                        "CertificateRevokedAuditEvent.")
+                    : new TranslationInfo(
+                        "CertificateRevokedAuditEvent",
+                        "en-US",
+                        $"CertificateRevokedAuditEvent - Exception: {exception.Message}.");
+
+                e.Initialize(
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    exception == null,
+                    DateTime.UtcNow);
+
+                e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.SourceName,
+                    "Attribute/Call",
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.LocalTime,
+                    TimeZoneDataType.Local,
+                    false);
+
+                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.InputArguments,
+                    inputArguments,
+                    false);
+
+                server?.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Error while reporting CertificateRevokedAuditEventState event.");
+            }
+        }
+
+        /// <summary>
         /// Raise ApplicationRegistrationChanged event
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
@@ -239,6 +339,124 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 logger.LogError(
                     ex,
                     "Error while reporting ApplicationRegistrationChangedAuditEventState event.");
+            }
+        }
+
+        /// <summary>
+        /// Raise KeyCredentialRequestedAudit event (OPC 10000-12 §8).
+        /// </summary>
+        internal static void ReportKeyCredentialRequestedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "KeyCredentialRequestedAuditEvent",
+                static () => new KeyCredentialRequestedAuditEventState(null),
+                logger, exception);
+        }
+
+        /// <summary>
+        /// Raise KeyCredentialDeliveredAudit event (OPC 10000-12 §8).
+        /// </summary>
+        internal static void ReportKeyCredentialDeliveredAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "KeyCredentialDeliveredAuditEvent",
+                static () => new KeyCredentialDeliveredAuditEventState(null),
+                logger, null);
+        }
+
+        /// <summary>
+        /// Raise KeyCredentialRevokedAudit event (OPC 10000-12 §8).
+        /// </summary>
+        internal static void ReportKeyCredentialRevokedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "KeyCredentialRevokedAuditEvent",
+                static () => new KeyCredentialRevokedAuditEventState(null),
+                logger, exception);
+        }
+
+        /// <summary>
+        /// Raise AccessTokenIssuedAudit event (OPC 10000-12 §9).
+        /// </summary>
+        internal static void ReportAccessTokenIssuedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            ILogger logger,
+            Exception? exception = null)
+        {
+            ReportSimpleAuditEvent(
+                server, systemContext, objectId, method, inputArguments,
+                "AccessTokenIssuedAuditEvent",
+                static () => new AccessTokenIssuedAuditEventState(null),
+                logger, exception);
+        }
+
+        /// <summary>
+        /// Generic helper that raises a simple audit event derived from
+        /// <see cref="Ua.AuditUpdateMethodEventState"/>.
+        /// </summary>
+        private static void ReportSimpleAuditEvent(
+            IAuditEventServer? server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState? method,
+            ArrayOf<Variant> inputArguments,
+            string eventName,
+            Func<Ua.AuditUpdateMethodEventState> factory,
+            ILogger logger,
+            Exception? exception)
+        {
+            try
+            {
+                Ua.AuditUpdateMethodEventState e = factory();
+
+                TranslationInfo message = exception == null
+                    ? new TranslationInfo(eventName, "en-US", $"{eventName}.")
+                    : new TranslationInfo(eventName, "en-US",
+                        $"{eventName} - Exception: {exception.Message}.");
+
+                e.Initialize(
+                    systemContext, null, EventSeverity.Min,
+                    new LocalizedText(message), exception == null,
+                    DateTime.UtcNow);
+
+                e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Attribute/Call", false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.LocalTime, TimeZoneDataType.Local, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.InputArguments, inputArguments, false);
+
+                server?.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error while reporting {EventName} event.", eventName);
             }
         }
     }

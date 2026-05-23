@@ -933,7 +933,8 @@ namespace Opc.Ua.Gds.Tests
                     .CreateApplicationCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
-                        m_selfSignedServerCert.Subject + "1")
+                        m_selfSignedServerCert.Subject + "1",
+                        m_domainNames)
                     .SetECCurve(curve.Value)
                     .CreateForECDsa();
             }
@@ -944,7 +945,8 @@ namespace Opc.Ua.Gds.Tests
                     .CreateApplicationCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
-                        m_selfSignedServerCert.Subject + "1")
+                        m_selfSignedServerCert.Subject + "1",
+                        m_domainNames)
                     .CreateForRSA();
             }
 

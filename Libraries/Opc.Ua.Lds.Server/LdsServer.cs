@@ -93,18 +93,80 @@ namespace Opc.Ua.Lds.Server
             m_log = m_telemetry?.CreateLogger<LdsServer>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<LdsServer>.Instance;
 
-            // mark capabilities so this server self-advertises as an LDS / LDS-ME.
-            if (ServerCapabilities.IsNull || ServerCapabilities.Count == 0)
-            {
-                ServerCapabilities = new[] { "LDS" };
-            }
-
-            // wire up the optional multicast layer.
+            // wire up the optional multicast layer first so the capability
+            // computation below can reflect whether LDS-ME is available.
             if (MulticastFactory != null)
             {
                 m_multicast = MulticastFactory(this);
             }
+
+            // Mark capabilities so this server self-advertises as an LDS or
+            // LDS-ME per OPC 10000-12 Annex D. The "LDS-ME" identifier is
+            // added when the MulticastExtension is configured so peers
+            // searching via FindServersOnNetwork can identify multicast-
+            // capable LDS instances.
+            ServerCapabilities = ComputeServerCapabilities(
+                ServerCapabilities,
+                m_multicast != null);
         }
+
+        /// <summary>
+        /// Computes the capability set self-advertised by this LDS per
+        /// OPC 10000-12 Annex D.
+        /// </summary>
+        /// <remarks>
+        /// Always includes <c>LDS</c>; adds <c>LDS-ME</c> when the
+        /// MulticastExtension is available. Preserves any caller-provided
+        /// extra capabilities so applications can still surface custom
+        /// identifiers.
+        /// </remarks>
+        /// <param name="existing">Capabilities seeded prior to startup.</param>
+        /// <param name="hasMulticast">
+        /// <c>true</c> if the LDS-ME multicast layer is configured.
+        /// </param>
+        public static ArrayOf<string> ComputeServerCapabilities(
+            ArrayOf<string> existing,
+            bool hasMulticast)
+        {
+            if (existing.IsNull || existing.Count == 0)
+            {
+                return hasMulticast
+                    ? [s_ldsCapability, s_ldsMeCapability]
+                    : [s_ldsCapability];
+            }
+
+            bool hasLds = false;
+            bool hasLdsMe = false;
+            foreach (string capability in existing)
+            {
+                if (string.Equals(capability, s_ldsCapability, StringComparison.Ordinal))
+                {
+                    hasLds = true;
+                }
+                else if (string.Equals(capability, s_ldsMeCapability, StringComparison.Ordinal))
+                {
+                    hasLdsMe = true;
+                }
+            }
+
+            var additions = new List<string>(2);
+            if (!hasLds)
+            {
+                additions.Add(s_ldsCapability);
+            }
+            if (hasMulticast && !hasLdsMe)
+            {
+                additions.Add(s_ldsMeCapability);
+            }
+
+            return additions.Count == 0
+                ? existing
+                : ArrayOf.Combine(existing, [.. additions]);
+        }
+
+        // OPC 10000-12 Annex D capability identifiers exposed by an LDS.
+        private const string s_ldsCapability = "LDS";
+        private const string s_ldsMeCapability = "LDS-ME";
 
         /// <inheritdoc />
         protected override async ValueTask StartApplicationAsync(

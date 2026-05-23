@@ -196,6 +196,88 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(result, Is.EqualTo(expected));
         }
 
+        [Test]
+        public void RegisterApplicationClientWithRcpDiscoveryUrlsAndRcpCapabilityDoesNotThrow()
+        {
+            // Per OPC 10000-12 §6.5.5 a Client that supports reverse-connect
+            // may register DiscoveryUrls beginning with the rcp+ prefix and
+            // must list the RCP ServerCapability.
+            var database = new TestApplicationsDatabase();
+            ApplicationRecordDataType application = CreateValidServerApplication();
+            application.ApplicationType = ApplicationType.Client;
+            application.DiscoveryUrls = ["rcp+opc.tcp://localhost:4840"];
+            application.ServerCapabilities = ["RCP"];
+
+            Assert.That(
+                () => database.RegisterApplication(application),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void RegisterApplicationClientWithRcpDiscoveryUrlsAndMissingCapabilityThrows()
+        {
+            var database = new TestApplicationsDatabase();
+            ApplicationRecordDataType application = CreateValidServerApplication();
+            application.ApplicationType = ApplicationType.Client;
+            application.DiscoveryUrls = ["rcp+opc.tcp://localhost:4840"];
+            application.ServerCapabilities = [];
+
+            Assert.That(
+                () => database.RegisterApplication(application),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        public void RegisterApplicationServerWithRcpDiscoveryUrlThrows()
+        {
+            // Servers must not register reverse-connect listening URLs; the
+            // rcp+ prefix is reserved for Clients / ClientAndServer.
+            var database = new TestApplicationsDatabase();
+            ApplicationRecordDataType application = CreateValidServerApplication();
+            application.DiscoveryUrls = ["rcp+opc.tcp://localhost:4840"];
+
+            Assert.That(
+                () => database.RegisterApplication(application),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        public void RegisterApplicationClientAndServerWithMixedUrlsDoesNotThrow()
+        {
+            // ClientAndServer may include both regular Server DiscoveryUrls
+            // and reverse-connect URLs; the RCP ServerCapability is required
+            // when reverse-connect URLs are present.
+            var database = new TestApplicationsDatabase();
+            ApplicationRecordDataType application = CreateValidServerApplication();
+            application.ApplicationType = ApplicationType.ClientAndServer;
+            application.DiscoveryUrls =
+            [
+                "opc.tcp://localhost:4840",
+                "rcp+opc.tcp://localhost:4841"
+            ];
+            application.ServerCapabilities = ["LDS", "RCP"];
+
+            Assert.That(
+                () => database.RegisterApplication(application),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void RegisterApplicationClientAndServerWithOnlyRcpDiscoveryUrlsThrows()
+        {
+            // ClientAndServer must always expose at least one non-rcp+
+            // Server DiscoveryUrl.
+            var database = new TestApplicationsDatabase();
+            ApplicationRecordDataType application = CreateValidServerApplication();
+            application.ApplicationType = ApplicationType.ClientAndServer;
+            application.DiscoveryUrls = ["rcp+opc.tcp://localhost:4841"];
+            application.ServerCapabilities = ["LDS", "RCP"];
+
+            Assert.That(
+                () => database.RegisterApplication(application),
+                Throws.TypeOf<ArgumentException>());
+        }
+
         private static ApplicationRecordDataType CreateValidServerApplication()
         {
             return new ApplicationRecordDataType
