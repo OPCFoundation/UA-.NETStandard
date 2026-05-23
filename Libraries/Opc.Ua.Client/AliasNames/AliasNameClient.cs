@@ -414,9 +414,10 @@ namespace Opc.Ua.Client.AliasNames
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 IncludeSubtypes = true,
                 NodeClassMask = (uint)NodeClass.Object,
-                ResultMask = (uint)(BrowseResultMask.BrowseName |
-                    BrowseResultMask.DisplayName |
-                    BrowseResultMask.TypeDefinition)
+                ResultMask =
+                    (uint)BrowseResultMask.BrowseName |
+                    (uint)BrowseResultMask.DisplayName |
+                    (uint)BrowseResultMask.TypeDefinition
             };
             ArrayOf<BrowseDescription> requests = [description];
             BrowseResponse response = await Session.BrowseAsync(
@@ -520,7 +521,7 @@ namespace Opc.Ua.Client.AliasNames
             var result = new List<T>(arr.Count);
             for (int i = 0; i < arr.Count; i++)
             {
-                if (arr[i] != null)
+                if (!EqualityComparer<T?>.Default.Equals(arr[i], default))
                 {
                     result.Add(arr[i]);
                 }

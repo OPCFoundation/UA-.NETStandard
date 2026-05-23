@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         [Test]
         public async Task UploadAndUpdateStreamRoundTripsTdAndCallsCloseAndUpdateAsync()
         {
-            const string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"Test\"}";
+            const string td = /*lang=json,strict*/ "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"Test\"}";
             byte[] tdBytes = Encoding.UTF8.GetBytes(td);
 
             var mock = new WotAssetFileTypeSessionMock();
@@ -179,7 +179,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             // The byte-array overload must keep its existing semantics
             // alongside the new Stream overload.
-            byte[] payload = Encoding.UTF8.GetBytes("{\"title\":\"x\"}");
+            byte[] payload = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"title\":\"x\"}");
             var mock = new WotAssetFileTypeSessionMock();
             byte[] writtenSoFar = [];
             bool closeAndUpdateCalled = false;

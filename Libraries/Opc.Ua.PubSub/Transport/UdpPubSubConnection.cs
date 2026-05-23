@@ -640,7 +640,7 @@ namespace Opc.Ua.PubSub.Transport
             // get the actual message and fill out the source:
             try
             {
-                byte[] message = socket.EndReceive(result, ref source!);
+                byte[] message = socket.EndReceive(result, ref source);
 
                 if (message != null)
                 {

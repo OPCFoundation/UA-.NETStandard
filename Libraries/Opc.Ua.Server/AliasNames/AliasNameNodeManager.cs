@@ -437,6 +437,6 @@ namespace Opc.Ua.Server.AliasNames
         private readonly Dictionary<NodeId, AliasNameCategoryState> m_rootCategoryStates = [];
         private bool m_registeredWithServer;
         private uint m_nextNodeId;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
     }
 }

@@ -1953,7 +1953,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var results = new List<StatusCode>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null!;
+            List<DiagnosticInfo>? diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {

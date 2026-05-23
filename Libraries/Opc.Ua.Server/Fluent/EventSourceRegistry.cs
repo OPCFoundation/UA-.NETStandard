@@ -649,7 +649,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly SemaphoreSlim m_reconcileSignal;
         private readonly CancellationTokenSource m_managerCts;
         private readonly Task m_reconcileTask;
-        private readonly object m_sourcesLock = new();
+        private readonly Lock m_sourcesLock = new();
         private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private int m_disposed;
     }

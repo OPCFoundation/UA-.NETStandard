@@ -543,7 +543,7 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotConnectivityServerOptions m_options;
         private readonly AssetRegistry m_registry;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
-        private readonly object m_changeLock = new();
+        private readonly Lock m_changeLock = new();
         private WoTAssetConnectionManagementState? m_managementObject;
         private long m_nextDynamicId = 1_000_000;
     }

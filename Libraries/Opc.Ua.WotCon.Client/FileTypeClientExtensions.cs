@@ -281,7 +281,7 @@ namespace Opc.Ua.WotCon.Client
         /// <see cref="ArrayPool{T}.Shared"/>.
         /// </summary>
         internal static async ValueTask CopyStreamInChunksAsync(
-            Stream source,
+            this Stream source,
             int chunkSize,
             Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask> writeChunk,
             CancellationToken ct)
@@ -321,7 +321,7 @@ namespace Opc.Ua.WotCon.Client
         /// into <paramref name="destination"/>.
         /// </summary>
         internal static async ValueTask CopyChunksToStreamAsync(
-            Stream destination,
+            this Stream destination,
             int chunkSize,
             Func<int, CancellationToken, ValueTask<ReadOnlyMemory<byte>>> readChunk,
             CancellationToken ct)

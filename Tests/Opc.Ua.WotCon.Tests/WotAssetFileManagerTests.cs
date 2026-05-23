@@ -297,7 +297,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CloseAndUpdateWithValidTdInvokesMaterialiseCallbackAndPersistsContent()
         {
             using var harness = new Harness();
-            byte[] tdBytes = Encoding.UTF8.GetBytes("""
+            byte[] tdBytes = Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
                 {"name":"asset-001","base":"sim://example/asset/1"}
                 """);
 
@@ -355,7 +355,7 @@ namespace Opc.Ua.WotCon.Tests
                     (ServiceResult)StatusCodes.BadConfigurationError));
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
-            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes("""{"name":"x"}""")));
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """{"name":"x"}""")));
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,

@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Dictionary<uint, Stream> m_reads = [];
         private readonly IFileSystemProvider m_provider;
         private uint m_nextHandle = 1;

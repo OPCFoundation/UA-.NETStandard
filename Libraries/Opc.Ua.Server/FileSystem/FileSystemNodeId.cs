@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public NodeId ToNodeId(string? componentName)
         {
-            var buffer = new StringBuilder()
+            StringBuilder buffer = new StringBuilder()
                 .Append(RootType).Append(':');
 
             for (int ii = 0; ii < ProviderPath.Length; ii++)
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server.FileSystem
                 return component.NodeId;
             }
 
-            var buffer = new StringBuilder()
+            StringBuilder buffer = new StringBuilder()
                 .Append(parentId)
                 .Append(parentId.IndexOf('?', StringComparison.Ordinal) < 0 ? '?' : '/')
                 .Append(component.SymbolicName);
