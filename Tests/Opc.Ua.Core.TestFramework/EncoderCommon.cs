@@ -218,7 +218,7 @@ namespace Opc.Ua.Core.TestFramework
             DataValue expected = CreateDataValue(data);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
-            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
             using MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType);
             using (IEncoder encoder = CreateEncoder(
                 encoderType,
@@ -249,10 +249,10 @@ namespace Opc.Ua.Core.TestFramework
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine(data);
             DataValue expected = CreateDataValue(data);
-            Assert.That(expected, Is.Not.Null, "Expected DataValue is Null, " + encodeInfo);
+            Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
 
             string formatted = null;
-            DataValue result = null;
+            DataValue result = default;
             try
             {
                 byte[] buffer;
@@ -292,7 +292,7 @@ namespace Opc.Ua.Core.TestFramework
                     result = decoder.ReadDataValue("DataValue");
                 }
 
-                Assert.That(result, Is.Not.Null, "Resulting DataValue is Null, " + encodeInfo);
+                Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
                 Assert.That(result, Is.EqualTo(expected), encodeInfo);
                 Assert.That(
                     Utils.IsEqual(expected, result),
@@ -310,7 +310,7 @@ namespace Opc.Ua.Core.TestFramework
                 }
 
                 TestContext.Out.WriteLine("Result:");
-                if (result != null)
+                if (!result.IsNull)
                 {
                     TestContext.Out.WriteLine(result);
                 }

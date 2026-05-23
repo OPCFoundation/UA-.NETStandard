@@ -1873,7 +1873,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 // add default value to values collection
-                values.Add(null!);
+                values.Add(default);
                 // add placeholder for diagnostics
                 diagnosticInfos.Add(null!);
 
@@ -1931,9 +1931,12 @@ namespace Opc.Ua.Server
                 // update the diagnostic info and ensure the status code in the data value is the same as the error code.
                 if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
                 {
-                    value ??= values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
+                    if (value.IsNull)
+                    {
+                        value = values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
+                    }
 
-                    value.StatusCode = errors[ii].Code;
+                    value = values[ii] = value.WithStatus(errors[ii].Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
@@ -1949,12 +1952,12 @@ namespace Opc.Ua.Server
                 // apply the timestamp filters.
                 if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
                 {
-                    value.ServerTimestamp = DateTime.MinValue;
+                    value = value.WithServerTimestamp(DateTimeUtc.MinValue);
                 }
 
                 if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
                 {
-                    value.SourceTimestamp = DateTime.MinValue;
+                    value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
                 }
             }
 

@@ -129,6 +129,75 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Obsolete static helpers for <see cref="DataValue"/>.
+    /// </summary>
+    public static class DataValueObsolete
+    {
+        extension(ExtensionObject)
+        {
+            /// <summary>
+            /// Returns true if the status code is good.
+            /// </summary>
+            /// <param name="value">The value to check the quality of</param>
+            [Obsolete("Use the DataValue.IsGood instance property.")]
+            public static bool IsGood(DataValue value)
+            {
+                return value.IsGood;
+            }
+
+            /// <summary>
+            /// Returns true if the status is bad or uncertain.
+            /// </summary>
+            /// <param name="value">The value to check the quality of</param>
+            [Obsolete("Use the DataValue.IsNotGood instance property.")]
+            public static bool IsNotGood(DataValue value)
+            {
+                return value.IsNotGood;
+            }
+
+            /// <summary>
+            /// Returns true if the status code is uncertain.
+            /// </summary>
+            /// <param name="value">The value to check the quality of</param>
+            [Obsolete("Use the DataValue.IsUncertain instance property.")]
+            public static bool IsUncertain(DataValue value)
+            {
+                return value.IsUncertain;
+            }
+
+            /// <summary>
+            /// Returns true if the status is good or bad.
+            /// </summary>
+            /// <param name="value">The value to check the quality of</param>
+            [Obsolete("Use the DataValue.IsNotUncertain instance property.")]
+            public static bool IsNotUncertain(DataValue value)
+            {
+                return value.IsNotUncertain;
+            }
+
+            /// <summary>
+            /// Returns true if the status code is bad.
+            /// </summary>
+            /// <param name="value">The value to check the quality of</param>
+            [Obsolete("Use the DataValue.IsBad instance property.")]
+            public static bool IsBad(DataValue value)
+            {
+                return value.IsBad;
+            }
+
+            /// <summary>
+            /// Returns true if the status is good or uncertain.
+            /// </summary>
+            /// <param name="value">The value to check the quality of</param>
+            [Obsolete("Use the DataValue.IsNotBad instance property.")]
+            public static bool IsNotBad(DataValue value)
+            {
+                return value.IsNotBad;
+            }
+        }
+    }
+
+    /// <summary>
     /// Extension object extensions
     /// </summary>
     public static class ExtensionObjectObsolete

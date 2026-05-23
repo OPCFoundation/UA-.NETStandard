@@ -416,7 +416,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             Assert.That(node, Is.Not.Null);
             Assert.That(node, Is.InstanceOf<VariableNode>());
             DataValue dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
-            Assert.That(dataValue, Is.Not.Null);
+            Assert.That(dataValue.IsNull, Is.False);
 
             // test the accessor to the complex types
             Assert.That(dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject), Is.True);
@@ -442,10 +442,10 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             complexType["IntegerValue"] = new Variant((long)54321);
             complexType["UIntegerValue"] = new Variant((ulong)12345);
 
-            var dataWriteValue = new DataValue(dataValue.WrappedValue)
-            {
-                SourceTimestamp = DateTime.UtcNow
-            };
+            var dataWriteValue = new DataValue(
+                dataValue.WrappedValue,
+                StatusCodes.Good,
+                DateTime.UtcNow);
 
             // write value back
             ArrayOf<WriteValue> writeValues =
@@ -469,7 +469,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
 
             // read back written values
             dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
-            Assert.That(dataValue, Is.Not.Null);
+            Assert.That(dataValue.IsNull, Is.False);
 
             Assert.That(dataValue.WrappedValue.TryGetValue(out extensionObject), Is.True);
             Assert.That(extensionObject.TryGetValue(out encodeable), Is.True);

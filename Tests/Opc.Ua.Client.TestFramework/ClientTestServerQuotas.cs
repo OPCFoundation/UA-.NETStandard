@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.TestFramework
             {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue { WrappedValue = new Variant(chunk) },
+                Value = new DataValue(new Variant(chunk)),
                 IndexRange = null
             };
             ArrayOf<WriteValue> writeValues = [writeValue];

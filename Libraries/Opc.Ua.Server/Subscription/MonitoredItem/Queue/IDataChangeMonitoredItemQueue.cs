@@ -83,9 +83,11 @@ namespace Opc.Ua.Server
         bool Dequeue(out DataValue value, out ServiceResult error);
 
         /// <summary>
-        /// returns the oldest value in the queue without dequeueing. Null if queue is empty
+        /// Returns the oldest value in the queue without dequeueing.
         /// </summary>
-        DataValue? PeekOldestValue();
+        /// <param name="value">The oldest value, when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a value was peeked; <c>false</c> when the queue is empty.</returns>
+        bool TryPeekOldestValue(out DataValue value);
 
         /// <summary>
         /// Replace the last (newest) value in the queue with the provided Value. Used when values are provided faster than the sampling interval
@@ -95,9 +97,10 @@ namespace Opc.Ua.Server
         void OverwriteLastValue(DataValue value, ServiceResult error);
 
         /// <summary>
-        /// Returns the last (newest) value in the queue without dequeuing
+        /// Returns the last (newest) value in the queue without dequeuing.
         /// </summary>
-        /// <returns>the last value, null if queue is empty</returns>
-        DataValue? PeekLastValue();
+        /// <param name="value">The newest value, when this method returns <c>true</c>.</param>
+        /// <returns><c>true</c> if a value was peeked; <c>false</c> when the queue is empty.</returns>
+        bool TryPeekLastValue(out DataValue value);
     }
 }

@@ -2140,14 +2140,14 @@ namespace Opc.Ua.Server
                             monitoredItem.AttributeId,
                             monitoredItem.IndexRange,
                             monitoredItem.DataEncoding,
-                            value);
+                            ref value);
 
                         if (ServiceResult.IsBad(error))
                         {
                             value = new DataValue(error.StatusCode);
                         }
 
-                        value.ServerTimestamp = DateTime.UtcNow;
+                        value = value.WithServerTimestamp(DateTime.UtcNow);
 
                         // queue the value.
                         monitoredItem.QueueValue(value, error);

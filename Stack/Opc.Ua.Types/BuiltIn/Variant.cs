@@ -5951,7 +5951,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataValue? value)
+        public bool Equals(DataValue value)
         {
             return TryGetValue(out DataValue v) && v == value;
         }

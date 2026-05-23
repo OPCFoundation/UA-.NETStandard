@@ -138,10 +138,7 @@ namespace Opc.Ua.History.Tests
                 conditionId, stateName, "Id").ConfigureAwait(false);
             if (stateId.IsNull)
             {
-                return new DataValue
-                {
-                    StatusCode = StatusCodes.BadNodeIdUnknown
-                };
+                return DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
             }
             return await ReadAttributeAsync(stateId, Attributes.Value)
                 .ConfigureAwait(false);
@@ -157,10 +154,7 @@ namespace Opc.Ua.History.Tests
                 parent, path).ConfigureAwait(false);
             if (targetId.IsNull)
             {
-                return new DataValue
-                {
-                    StatusCode = StatusCodes.BadNodeIdUnknown
-                };
+                return DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
             }
             return await ReadAttributeAsync(targetId, Attributes.Value)
                 .ConfigureAwait(false);

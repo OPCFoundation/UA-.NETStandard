@@ -284,11 +284,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void WriteAndReadDataValueWithPicoseconds()
         {
-            var expected = new DataValue(new Variant(12345), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
-            {
-                ServerPicoseconds = 323,
-                SourcePicoseconds = 232
-            };
+            var expected = new DataValue(
+                new Variant(12345),
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTime.UtcNow,
+                232,
+                323);
             TestWriteAndReadDataValue(in expected);
         }
 

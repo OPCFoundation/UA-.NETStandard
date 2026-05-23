@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.Zero);
             Assert.That(queue.IsDurable, Is.False);
             Assert.That(queue.Dequeue(out _, out _), Is.False);
-            Assert.That(queue.PeekLastValue(), Is.Null);
+            Assert.That(queue.TryPeekLastValue(out _), Is.False);
             Assert.Throws<InvalidOperationException>(
                 () => queue.OverwriteLastValue(new DataValue(), null));
             Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new DataValue(), null));
@@ -71,7 +71,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked1), Is.True);
+            Assert.That(peeked1, Is.EqualTo(dataValue));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             var dataValue2 = new DataValue(new Variant(false));
@@ -80,7 +81,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue2));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked2), Is.True);
+            Assert.That(peeked2, Is.EqualTo(dataValue2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
             bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
@@ -100,7 +102,7 @@ namespace Opc.Ua.Server.Tests
             bool status3 = queue.Dequeue(out DataValue result3, out ServiceResult resultError3);
 
             Assert.That(status3, Is.False);
-            Assert.That(result3, Is.Null);
+            Assert.That(result3.IsNull, Is.True);
             Assert.That(resultError3, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -121,7 +123,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked3), Is.True);
+            Assert.That(peeked3, Is.EqualTo(dataValue));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             var dataValue2 = new DataValue(new Variant(false));
@@ -165,7 +168,7 @@ namespace Opc.Ua.Server.Tests
             bool status4 = queue.Dequeue(out DataValue result4, out ServiceResult resultError4);
 
             Assert.That(status4, Is.False);
-            Assert.That(result4, Is.Null);
+            Assert.That(result4.IsNull, Is.True);
             Assert.That(resultError4, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -189,7 +192,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked4), Is.True);
+            Assert.That(peeked4, Is.EqualTo(dataValue));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             var dataValue2 = new DataValue(new Variant(false));
@@ -198,7 +202,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            Assert.That(queue.PeekLastValue(), Is.EqualTo(dataValue2));
+            Assert.That(queue.TryPeekLastValue(out DataValue peeked5), Is.True);
+            Assert.That(peeked5, Is.EqualTo(dataValue2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
             bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
@@ -211,7 +216,7 @@ namespace Opc.Ua.Server.Tests
             bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -252,7 +257,7 @@ namespace Opc.Ua.Server.Tests
             bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -910,7 +915,7 @@ namespace Opc.Ua.Server.Tests
                 out ServiceResult resultError2);
 
             Assert.That(success2, Is.True);
-            Assert.That(result2, Is.EqualTo(dataValue2));
+            Assert.That(result2.WrappedValue, Is.EqualTo(dataValue2.WrappedValue));
             Assert.That(result2.StatusCode.Overflow, Is.True);
             Assert.That(resultError2.StatusCode.Overflow, Is.True);
         }
@@ -1044,7 +1049,7 @@ namespace Opc.Ua.Server.Tests
                     out ServiceResult resultError);
 
                 Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(dataValue));
+                Assert.That(result.WrappedValue, Is.EqualTo(dataValue.WrappedValue));
             }
 
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
@@ -1054,7 +1059,7 @@ namespace Opc.Ua.Server.Tests
                 out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
         }
@@ -1108,7 +1113,7 @@ namespace Opc.Ua.Server.Tests
                     out ServiceResult resultError);
 
                 Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(dataValue2));
+                Assert.That(result.WrappedValue, Is.EqualTo(dataValue2.WrappedValue));
                 //Assert.That(resultError, Is.EqualTo(statuscode).Or.Property(nameof(result.StatusCode)).Property(nameof(result.StatusCode.Overflow)).True);
             }
 
@@ -1119,7 +1124,7 @@ namespace Opc.Ua.Server.Tests
                 out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
+            Assert.That(result2.IsNull, Is.True);
             Assert.That(resultError2, Is.Null);
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
         }
@@ -1143,10 +1148,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
 
-            var dataValue = new DataValue(new Variant(true))
-            {
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var dataValue = new DataValue(new Variant(true), StatusCodes.BadWaitingForInitialData);
 
             for (int i = 0; i < 5; i++)
             {

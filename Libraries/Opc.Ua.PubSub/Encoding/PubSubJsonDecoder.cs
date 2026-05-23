@@ -1355,16 +1355,16 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string? fieldName)
+        public DataValue ReadDataValue(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
-                return null;
+                return default;
             }
 
             if (token is not Dictionary<string, object> value)
             {
-                return null;
+                return default;
             }
 
             var dv = new DataValue();
@@ -1376,24 +1376,24 @@ namespace Opc.Ua.PubSub.Encoding
                 if (value.ContainsKey("UaType"))
                 {
                     var builtInType = (BuiltInType)ReadByte("UaType");
-                    dv.WrappedValue = ReadVariantFromObject("Value", builtInType, value);
+                    dv = dv.WithWrappedValue(ReadVariantFromObject("Value", builtInType, value));
                 }
                 else
                 {
-                    dv.WrappedValue = ReadVariant("Value");
+                    dv = dv.WithWrappedValue(ReadVariant("Value"));
                 }
 
-                dv.StatusCode = ReadStatusCode("StatusCode");
-                dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                dv.SourcePicoseconds =
+                dv = dv.WithStatus(ReadStatusCode("StatusCode"));
+                dv = dv.WithSourceTimestamp(ReadDateTime("SourceTimestamp"));
+                dv = dv.WithSourcePicoseconds(
                     dv.SourceTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("SourcePicoseconds")
-                        : (ushort)0;
-                dv.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                dv.ServerPicoseconds =
+                        : (ushort)0);
+                dv = dv.WithServerTimestamp(ReadDateTime("ServerTimestamp"));
+                dv = dv.WithServerPicoseconds(
                     dv.ServerTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("ServerPicoseconds")
-                        : (ushort)0;
+                        : (ushort)0);
             }
             finally
             {
@@ -2227,9 +2227,9 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
-            var values = new List<DataValue?>();
+            var values = new List<DataValue>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2241,7 +2241,7 @@ namespace Opc.Ua.PubSub.Encoding
                 try
                 {
                     m_stack.Push(token[ii]);
-                    DataValue? element = ReadDataValue(null);
+                    DataValue element = ReadDataValue(null);
                     values.Add(element);
                 }
                 finally
@@ -3267,7 +3267,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case BuiltInType.Variant:
                     return new Variant(ReadVariant(fieldName));
                 case BuiltInType.DataValue:
-                    return new Variant(ReadDataValue(fieldName)!);
+                    return new Variant(ReadDataValue(fieldName));
                 case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Null:
                 case BuiltInType.Number:
@@ -3335,7 +3335,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case BuiltInType.Variant:
                     return new Variant(ReadVariantArray(fieldName));
                 case BuiltInType.DataValue:
-                    return new Variant((ArrayOf<DataValue>)ReadDataValueArray(fieldName)!);
+                    return new Variant(ReadDataValueArray(fieldName));
                 case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Null:
                 case BuiltInType.Number:

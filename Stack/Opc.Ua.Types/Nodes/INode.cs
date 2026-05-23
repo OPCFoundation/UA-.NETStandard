@@ -151,7 +151,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute identifier.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of read operation.</returns>
-        ServiceResult Read(IOperationContext context, uint attributeId, DataValue value);
+        ServiceResult Read(IOperationContext context, uint attributeId, ref DataValue value);
 
         /// <summary>
         /// Writes the value of an attribute.

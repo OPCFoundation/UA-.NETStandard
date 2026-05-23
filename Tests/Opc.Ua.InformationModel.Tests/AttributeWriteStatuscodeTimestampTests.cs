@@ -53,10 +53,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -72,11 +69,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -92,12 +85,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        ServerTimestamp = DateTime.UtcNow,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -113,10 +101,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -148,11 +133,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        ServerTimestamp = DateTime.UtcNow,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -168,11 +149,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -188,12 +165,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        ServerTimestamp = DateTime.UtcNow,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -209,12 +181,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        ServerTimestamp = DateTime.UtcNow,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -230,12 +197,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        ServerTimestamp = DateTime.UtcNow,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -251,12 +213,7 @@ namespace Opc.Ua.InformationModel.Tests
                 new() {
                     NodeId = ToNodeId(Constants.ScalarStaticInt32),
                     AttributeId = Attributes.Value,
-                    Value = new DataValue(new Variant(42))
-                    {
-                        StatusCode = StatusCodes.Good,
-                        ServerTimestamp = DateTime.UtcNow,
-                        SourceTimestamp = DateTime.UtcNow
-                    }
+                    Value = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow, DateTime.UtcNow)
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);

@@ -558,19 +558,20 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of read operation.</returns>
-        public ServiceResult Read(IOperationContext context, uint attributeId, DataValue value)
+        public ServiceResult Read(IOperationContext context, uint attributeId, ref DataValue value)
         {
             if (!SupportsAttribute(attributeId))
             {
                 return StatusCodes.BadAttributeIdInvalid;
             }
 
-            value.WrappedValue = Read(attributeId);
-            value.StatusCode = StatusCodes.Good;
+            value = value
+                .WithWrappedValue(Read(attributeId))
+                .WithStatus(StatusCodes.Good);
 
             if (attributeId == Attributes.Value)
             {
-                value.SourceTimestamp = DateTimeUtc.Now;
+                value = value.WithSourceTimestamp(DateTimeUtc.Now);
             }
 
             return ServiceResult.Good;

@@ -1249,7 +1249,7 @@ namespace Opc.Ua.Server.Tests
                 TypeInfo typeInfo = dataValue.WrappedValue.TypeInfo;
                 Assert.That(typeInfo.IsUnknown, Is.False);
                 Variant value = m_generator.GetRandomScalar(typeInfo.BuiltInType);
-                modifiedValues.Add(new DataValue { WrappedValue = value });
+                modifiedValues.Add(new DataValue(value));
             }
 
             int ii = 0;
@@ -1689,7 +1689,7 @@ namespace Opc.Ua.Server.Tests
                 // Verify the data values have proper timestamps
                 foreach (DataValue dataValue in historyData.DataValues)
                 {
-                    Assert.That(dataValue, Is.Not.Null, "DataValue should not be null");
+                    Assert.That(dataValue.IsNull, Is.False, "DataValue should not be null");
                     Assert.That(dataValue.ServerTimestamp,
                         Is.Not.EqualTo(DateTimeUtc.MinValue),
                         "DataValue should have a valid ServerTimestamp");
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue { WrappedValue = new Variant(42) }
+                        Value = new DataValue(new Variant(42))
                     }
                 ];
                 WriteResponse writeResponse = await m_server.WriteAsync(

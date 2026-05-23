@@ -71,34 +71,27 @@ namespace Opc.Ua.Fuzzing
             {
                 Results =
                 [
-                    new DataValue
-                    {
-                        WrappedValue = Variant.From("Hello World"),
-                        ServerTimestamp = now,
-                        SourceTimestamp = now.AddMilliseconds(60000),
-                        ServerPicoseconds = 100,
-                        SourcePicoseconds = 10,
-                        StatusCode = StatusCodes.Good
-                    },
-                    new DataValue
-                    {
-                        WrappedValue = Variant.From((uint)12345678),
-                        ServerTimestamp = now,
-                        SourceTimestamp = now.AddMilliseconds(60000),
-                        StatusCode = StatusCodes.BadDataLost
-                    },
-                    new DataValue
-                    {
-                        WrappedValue = Variant.From(ByteString.From([0, 1, 2, 3, 4, 5, 6])),
-                        ServerTimestamp = now,
-                        SourceTimestamp = now.AddMilliseconds(60000),
-                        StatusCode = StatusCodes.Good
-                    },
-                    new DataValue
-                    {
-                        WrappedValue = Variant.From((byte)42),
-                        SourceTimestamp = now
-                    }
+                    new DataValue(
+                        Variant.From("Hello World"),
+                        StatusCodes.Good,
+                        now.AddMilliseconds(60000),
+                        now,
+                        10,
+                        100),
+                    new DataValue(
+                        Variant.From((uint)12345678),
+                        StatusCodes.BadDataLost,
+                        now.AddMilliseconds(60000),
+                        now),
+                    new DataValue(
+                        Variant.From(ByteString.From([0, 1, 2, 3, 4, 5, 6])),
+                        StatusCodes.Good,
+                        now.AddMilliseconds(60000),
+                        now),
+                    new DataValue(
+                        Variant.From((byte)42),
+                        StatusCodes.Good,
+                        now)
                 ],
                 DiagnosticInfos =
                 [

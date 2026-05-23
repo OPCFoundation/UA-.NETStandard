@@ -2359,10 +2359,7 @@ namespace Opc.Ua.History.Tests
         {
             NodeId nodeId = ToNodeId(Constants.HistoricalDouble);
             DateTime insertTs = DateTime.UtcNow.AddHours(-14);
-            var dv = new DataValue(new Variant(77.0), StatusCodes.Good, insertTs)
-            {
-                ServerTimestamp = insertTs
-            };
+            var dv = new DataValue(new Variant(77.0), StatusCodes.Good, insertTs, insertTs);
 
             try
             {

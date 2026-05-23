@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 DataValue value = await session
                     .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
                     .ConfigureAwait(false);
-                Assert.That(value, Is.Not.Null);
+                Assert.That(value.IsNull, Is.False);
 
                 TestContext.Out.WriteLine(
                     "Closing transport channel to force reconnect…");
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 DataValue valueAfter = await session
                     .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
                     .ConfigureAwait(false);
-                Assert.That(valueAfter, Is.Not.Null);
+                Assert.That(valueAfter.IsNull, Is.False);
 
                 // We must have observed the Reconnecting state.
                 Assert.That(states, Has.Member(ConnectionState.Reconnecting));
@@ -253,7 +253,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                         .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
                         .ConfigureAwait(false);
 
-                    Assert.That(valueAfter, Is.Not.Null);
+                    Assert.That(valueAfter.IsNull, Is.False);
                     Assert.That(
                         StatusCode.IsGood(valueAfter.StatusCode),
                         Is.True,
@@ -514,7 +514,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 DataValue valueAfter = await session
                     .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
                     .ConfigureAwait(false);
-                Assert.That(valueAfter, Is.Not.Null);
+                Assert.That(valueAfter.IsNull, Is.False);
 
                 // We must have observed Reconnecting → Failover → Connected.
                 Assert.That(states, Has.Member(ConnectionState.Reconnecting));

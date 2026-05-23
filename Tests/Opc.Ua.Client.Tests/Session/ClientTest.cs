@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Client.Tests
             foreach (NodeId nodeId in testSet)
             {
                 DataValue dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
-                Assert.That(dataValue, Is.Not.Null);
+                Assert.That(dataValue.IsNull, Is.False);
                 Assert.That(dataValue.WrappedValue.IsNull, Is.False);
                 Assert.That(dataValue.SourceTimestamp, Is.Not.EqualTo(DateTime.MinValue));
                 Assert.That(dataValue.ServerTimestamp, Is.Not.EqualTo(DateTime.MinValue));
@@ -1441,7 +1441,7 @@ namespace Opc.Ua.Client.Tests
                     try
                     {
                         DataValue value = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
-                        Assert.That(value, Is.Not.Null);
+                        Assert.That(value.IsNull, Is.False);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
                     catch (ServiceResultException sre)
@@ -1473,7 +1473,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         DataValue value = await Session.ReadValueAsync(nodeId)
                             .ConfigureAwait(false);
-                        Assert.That(value, Is.Not.Null);
+                        Assert.That(value.IsNull, Is.False);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
                     catch (ServiceResultException sre)
@@ -1530,7 +1530,7 @@ namespace Opc.Ua.Client.Tests
                         variableNodes.Add(node.NodeId);
                         DataValue value =
                             await Session.ReadValueAsync(node.NodeId).ConfigureAwait(false);
-                        Assert.That(value, Is.Not.Null);
+                        Assert.That(value.IsNull, Is.False);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
                     catch (ServiceResultException sre)
@@ -1605,7 +1605,7 @@ namespace Opc.Ua.Client.Tests
                         variableNodes.Add(node.NodeId);
                         DataValue value = await Session.ReadValueAsync(node.NodeId)
                             .ConfigureAwait(false);
-                        Assert.That(value, Is.Not.Null);
+                        Assert.That(value.IsNull, Is.False);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
                     catch (ServiceResultException sre)

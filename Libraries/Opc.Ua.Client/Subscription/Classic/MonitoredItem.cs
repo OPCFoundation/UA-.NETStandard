@@ -553,7 +553,7 @@ namespace Opc.Ua.Client
 
                 if (m_dataCache != null && newValue is MonitoredItemNotification datachange)
                 {
-                    if (datachange.Value != null)
+                    if (!datachange.Value.IsNull)
                     {
                         if (validateTimestamp)
                         {
@@ -1146,7 +1146,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The last value received from the server.
         /// </summary>
-        public DataValue? LastValue { get; private set; }
+        public DataValue LastValue { get; private set; }
 
         /// <summary>
         /// Returns all values in the queue.
@@ -1157,12 +1157,12 @@ namespace Opc.Ua.Client
             if (m_values != null)
             {
                 values = new List<DataValue>(m_values.Count);
-                while (m_values.TryDequeue(out DataValue? dequeued))
+                while (m_values.TryDequeue(out DataValue dequeued))
                 {
                     values.Add(dequeued);
                 }
             }
-            else if (LastValue == null)
+            else if (LastValue.IsNull)
             {
                 values = [];
             }
@@ -1201,7 +1201,7 @@ namespace Opc.Ua.Client
                 m_values.Enqueue(notification.Value);
                 while (m_values.Count > QueueSize)
                 {
-                    if (!m_values.TryDequeue(out DataValue? dropped))
+                    if (!m_values.TryDequeue(out DataValue dropped))
                     {
                         break;
                     }
@@ -1245,7 +1245,7 @@ namespace Opc.Ua.Client
             }
             while (m_values.Count > QueueSize)
             {
-                if (!m_values.TryDequeue(out DataValue? dropped))
+                if (!m_values.TryDequeue(out DataValue dropped))
                 {
                     break;
                 }

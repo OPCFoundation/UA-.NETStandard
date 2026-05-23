@@ -207,8 +207,8 @@ namespace Opc.Ua.Client.Tests
             Dictionary<string, object> modifiedValues =
                 await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
-            var maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
-            Assert.That(maxLifetimeCountValue, Is.Not.Null);
+            Assert.That(modifiedValues["MaxLifetimeCount"], Is.InstanceOf<DataValue>());
+            var maxLifetimeCountValue = (DataValue)modifiedValues["MaxLifetimeCount"];
             Assert.That(maxLifetimeCountValue.WrappedValue.IsNull, Is.False);
             Assert.That(
                 maxLifetimeCountValue.WrappedValue.ConvertToUInt32(),
@@ -609,8 +609,8 @@ namespace Opc.Ua.Client.Tests
             Dictionary<string, object> modifiedValues =
                 await GetValuesAsync(nodeIds).ConfigureAwait(false);
 
-            var dataValue = modifiedValues[desiredValue] as DataValue;
-            Assert.That(dataValue, Is.Not.Null);
+            Assert.That(modifiedValues[desiredValue], Is.InstanceOf<DataValue>());
+            var dataValue = (DataValue)modifiedValues[desiredValue];
             Assert.That(dataValue.WrappedValue.IsNull, Is.False);
             Assert.That(
                 dataValue.WrappedValue.ConvertToUInt32(),

@@ -363,7 +363,7 @@ namespace Opc.Ua.Server.Tests
                 AttributeId = Attributes.Value
             };
             var nodesToRead = new List<ReadValueId> { readValueId, readValueId2 };
-            var values = new List<DataValue> { null };
+            var values = new List<DataValue> { default };
             var errors = new List<ServiceResult> { null };
 
             // Act
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server.Tests
                     AttributeId = Attributes.Value
                 }
             };
-            var values = new List<DataValue> { null };
+            var values = new List<DataValue> { default };
             var errors = new List<ServiceResult> { null };
 
             await manager.ReadAsync(
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server.Tests
                 values,
                 errors).ConfigureAwait(false);
 
-            Assert.That(values[0], Is.Not.Null);
+            Assert.That(values[0].IsNull, Is.False);
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(asyncCallbackCalled, Is.True);
@@ -3705,7 +3705,7 @@ namespace Opc.Ua.Server.Tests
                                 {
                                     new() { NodeId = node.NodeId, AttributeId = Attributes.Value }
                                 };
-                                var values = new List<DataValue> { null };
+                                var values = new List<DataValue> { default };
                                 var errors = new List<ServiceResult> { null };
                                 await manager.ReadAsync(
                                     new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),

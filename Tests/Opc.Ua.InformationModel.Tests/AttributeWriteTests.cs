@@ -679,10 +679,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteWithSourceTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(99))
-            {
-                SourceTimestamp = DateTime.UtcNow
-            };
+            var dv = new DataValue(new Variant(99), StatusCodes.Good, DateTime.UtcNow);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -709,10 +706,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteWithServerTimestampAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(100))
-            {
-                ServerTimestamp = DateTime.UtcNow
-            };
+            var dv = new DataValue(new Variant(100), StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -740,11 +734,7 @@ namespace Opc.Ua.InformationModel.Tests
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
             DateTime now = DateTime.UtcNow;
-            var dv = new DataValue(new Variant(101))
-            {
-                SourceTimestamp = now,
-                ServerTimestamp = now
-            };
+            var dv = new DataValue(new Variant(101), StatusCodes.Good, now, now);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -771,10 +761,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteWithStatusCodeGoodAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(101))
-            {
-                StatusCode = StatusCodes.Good
-            };
+            var dv = new DataValue(new Variant(101), StatusCodes.Good);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -801,10 +788,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteWithStatusCodeBadAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(102))
-            {
-                StatusCode = StatusCodes.Bad
-            };
+            var dv = new DataValue(new Variant(102), StatusCodes.Bad);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -831,10 +815,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteWithSourceTimestampInPastAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(103))
-            {
-                SourceTimestamp = DateTime.UtcNow.AddYears(-1)
-            };
+            var dv = new DataValue(new Variant(103), StatusCodes.Good, DateTime.UtcNow.AddYears(-1));
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -861,10 +842,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteWithSourceTimestampInFutureAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(104))
-            {
-                SourceTimestamp = DateTime.UtcNow.AddHours(1)
-            };
+            var dv = new DataValue(new Variant(104), StatusCodes.Good, DateTime.UtcNow.AddHours(1));
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -892,10 +870,7 @@ namespace Opc.Ua.InformationModel.Tests
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
             DateTime sourceTs = DateTime.UtcNow;
-            var dv = new DataValue(new Variant(200))
-            {
-                SourceTimestamp = sourceTs
-            };
+            var dv = new DataValue(new Variant(200), StatusCodes.Good, sourceTs);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -942,10 +917,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteStatusCodeOverrideToUncertainAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(105))
-            {
-                StatusCode = StatusCodes.Uncertain
-            };
+            var dv = new DataValue(new Variant(105), StatusCodes.Uncertain);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -972,10 +944,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AttributeWriteValueWithMinDateTimeAsync()
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticInt32);
-            var dv = new DataValue(new Variant(106))
-            {
-                SourceTimestamp = DateTime.MinValue
-            };
+            var dv = new DataValue(new Variant(106), StatusCodes.Good, DateTime.MinValue);
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,

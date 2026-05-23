@@ -108,7 +108,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             // second determine attributes to read per nodeclass
-            var attributesPerNodeId = new List<IDictionary<uint, DataValue?>?>(nodeIds.Count);
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>?>(nodeIds.Count);
             var serviceResults = new List<ServiceResult>(nodeIds.Count);
             var attributesToRead = new List<ReadValueId>();
 
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client
 
             var nodeCollection = new List<Node>(nodeIds.Count);
             // determine attributes to read for nodeclass
-            var attributesPerNodeId = new List<IDictionary<uint, DataValue?>?>(nodeIds.Count);
+            var attributesPerNodeId = new List<IDictionary<uint, DataValue>?>(nodeIds.Count);
             var attributesToRead = new List<ReadValueId>();
 
             CreateNodeClassAttributesReadNodesRequest(
@@ -224,7 +224,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             // build list of attributes.
-            IDictionary<uint, DataValue?> attributes = CreateAttributes(
+            IDictionary<uint, DataValue> attributes = CreateAttributes(
                 nodeClass,
                 skipOptionalAttributes);
 
@@ -364,7 +364,7 @@ namespace Opc.Ua.Client
             ArrayOf<DataValue> nodeClassValues,
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             List<ReadValueId> attributesToRead,
-            List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
+            List<IDictionary<uint, DataValue>?> attributesPerNodeId,
             List<Node> nodeCollection,
             List<ServiceResult> errors,
             bool skipOptionalAttributes)
@@ -372,7 +372,7 @@ namespace Opc.Ua.Client
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
                 var node = new Node { NodeId = itemsToRead[ii].NodeId };
-                if (!DataValue.IsGood(nodeClassValues[ii]))
+                if (!nodeClassValues[ii].IsGood)
                 {
                     nodeCollection.Add(node);
                     errors.Add(
@@ -406,7 +406,7 @@ namespace Opc.Ua.Client
                 }
 
                 node.NodeClass = nodeClass;
-                Dictionary<uint, DataValue?> attributes = CreateAttributes(
+                Dictionary<uint, DataValue> attributes = CreateAttributes(
                     node.NodeClass,
                     skipOptionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
@@ -438,7 +438,7 @@ namespace Opc.Ua.Client
         private static void ProcessAttributesReadNodesResponse(
             ResponseHeader responseHeader,
             ArrayOf<ReadValueId> attributesToRead,
-            List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
+            List<IDictionary<uint, DataValue>?> attributesPerNodeId,
             ArrayOf<DataValue> values,
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             List<Node> nodeCollection,
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client
             int readIndex = 0;
             for (int ii = 0; ii < nodeCollection.Count; ii++)
             {
-                IDictionary<uint, DataValue?>? attributes = attributesPerNodeId[ii];
+                IDictionary<uint, DataValue>? attributes = attributesPerNodeId[ii];
                 if (attributes == null)
                 {
                     continue;
@@ -484,7 +484,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         private static Node ProcessReadResponse(
             ResponseHeader responseHeader,
-            IDictionary<uint, DataValue?> attributes,
+            IDictionary<uint, DataValue> attributes,
             ArrayOf<ReadValueId> itemsToRead,
             ArrayOf<DataValue> values,
             ArrayOf<DiagnosticInfo> diagnosticInfos)
@@ -499,7 +499,7 @@ namespace Opc.Ua.Client
                 // the node probably does not exist if the node class is not found.
                 if (attributeId == Attributes.NodeClass)
                 {
-                    if (!DataValue.IsGood(values[ii]))
+                    if (!values[ii].IsGood)
                     {
                         throw ServiceResultException.Create(
                             values[ii].StatusCode,
@@ -516,7 +516,7 @@ namespace Opc.Ua.Client
                             values[ii]);
                     }
                 }
-                else if (!DataValue.IsGood(values[ii]))
+                else if (!values[ii].IsGood)
                 {
                     // check for unsupported attributes.
                     if (values[ii].StatusCode == StatusCodes.BadAttributeIdInvalid)
@@ -557,15 +557,18 @@ namespace Opc.Ua.Client
             }
 
             Node node;
-            DataValue? value;
+            DataValue value;
             switch (nodeClass)
             {
                 case NodeClass.Object:
                     var objectNode = new ObjectNode();
 
-                    value = attributes[Attributes.EventNotifier]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.EventNotifier];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Object does not support the EventNotifier attribute.");
+                    }
 
                     objectNode.EventNotifier = value.WrappedValue.GetByte();
                     node = objectNode;
@@ -573,9 +576,12 @@ namespace Opc.Ua.Client
                 case NodeClass.ObjectType:
                     var objectTypeNode = new ObjectTypeNode();
 
-                    value = attributes[Attributes.IsAbstract]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.IsAbstract];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "ObjectType does not support the IsAbstract attribute.");
+                    }
 
                     objectTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
                     node = objectTypeNode;
@@ -584,23 +590,29 @@ namespace Opc.Ua.Client
                     var variableNode = new VariableNode();
 
                     // DataType Attribute
-                    value = attributes[Attributes.DataType]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.DataType];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the DataType attribute.");
+                    }
 
                     variableNode.DataType = value.WrappedValue.GetNodeId();
 
                     // ValueRank Attribute
-                    value = attributes[Attributes.ValueRank]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.ValueRank];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the ValueRank attribute.");
+                    }
 
                     variableNode.ValueRank = value.WrappedValue.GetInt32();
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
 
-                    if (value != null)
+                    if (!value.IsNull)
                     {
                         if (!value.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions1))
                         {
@@ -613,29 +625,38 @@ namespace Opc.Ua.Client
                     }
 
                     // AccessLevel Attribute
-                    value = attributes[Attributes.AccessLevel]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.AccessLevel];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the AccessLevel attribute.");
+                    }
 
                     variableNode.AccessLevel = value.WrappedValue.GetByte();
 
                     // UserAccessLevel Attribute
-                    value = attributes[Attributes.UserAccessLevel]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.UserAccessLevel];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the UserAccessLevel attribute.");
+                    }
 
                     variableNode.UserAccessLevel = value.WrappedValue.GetByte();
 
                     // Historizing Attribute
-                    value = attributes[Attributes.Historizing]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.Historizing];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Variable does not support the Historizing attribute.");
+                    }
 
                     variableNode.Historizing = value.WrappedValue.GetBoolean();
 
                     // MinimumSamplingInterval Attribute
                     value = attributes[Attributes.MinimumSamplingInterval];
-                    if (value != null)
+                    if (!value.IsNull)
                     {
                         variableNode.MinimumSamplingInterval =
                             (double)value.WrappedValue.ConvertToDouble();
@@ -643,7 +664,7 @@ namespace Opc.Ua.Client
 
                     // AccessLevelEx Attribute
                     value = attributes[Attributes.AccessLevelEx];
-                    if (value != null)
+                    if (!value.IsNull)
                     {
                         variableNode.AccessLevelEx = value.WrappedValue.GetUInt32();
                     }
@@ -654,30 +675,39 @@ namespace Opc.Ua.Client
                     var variableTypeNode = new VariableTypeNode();
 
                     // IsAbstract Attribute
-                    value = attributes[Attributes.IsAbstract]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.IsAbstract];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "VariableType does not support the IsAbstract attribute.");
+                    }
 
                     variableTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // DataType Attribute
-                    value = attributes[Attributes.DataType]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.DataType];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "VariableType does not support the DataType attribute.");
+                    }
 
                     variableTypeNode.DataType = value.WrappedValue.GetNodeId();
 
                     // ValueRank Attribute
-                    value = attributes[Attributes.ValueRank]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.ValueRank];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "VariableType does not support the ValueRank attribute.");
+                    }
 
                     variableTypeNode.ValueRank = value.WrappedValue.GetInt32();
 
                     // ArrayDimensions Attribute
                     value = attributes[Attributes.ArrayDimensions];
 
-                    if (value != null &&
+                    if (!value.IsNull &&
                         value.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions2))
                     {
                         variableTypeNode.ArrayDimensions = arrayDimensions2;
@@ -689,16 +719,22 @@ namespace Opc.Ua.Client
                     var methodNode = new MethodNode();
 
                     // Executable Attribute
-                    value = attributes[Attributes.Executable]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.Executable];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Method does not support the Executable attribute.");
+                    }
 
                     methodNode.Executable = value.WrappedValue.GetBoolean();
 
                     // UserExecutable Attribute
-                    value = attributes[Attributes.UserExecutable]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.UserExecutable];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "Method does not support the UserExecutable attribute.");
+                    }
 
                     methodNode.UserExecutable = value.WrappedValue.GetBoolean();
 
@@ -708,16 +744,19 @@ namespace Opc.Ua.Client
                     var dataTypeNode = new DataTypeNode();
 
                     // IsAbstract Attribute
-                    value = attributes[Attributes.IsAbstract]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.IsAbstract];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "DataType does not support the IsAbstract attribute.");
+                    }
 
                     dataTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // DataTypeDefinition Attribute
                     value = attributes[Attributes.DataTypeDefinition];
 
-                    if (value != null)
+                    if (!value.IsNull)
                     {
                         dataTypeNode.DataTypeDefinition =
                             value.WrappedValue.TryGetValue(out ExtensionObject eo) ? eo : default;
@@ -729,23 +768,29 @@ namespace Opc.Ua.Client
                     var referenceTypeNode = new ReferenceTypeNode();
 
                     // IsAbstract Attribute
-                    value = attributes[Attributes.IsAbstract]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.IsAbstract];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "ReferenceType does not support the IsAbstract attribute.");
+                    }
 
                     referenceTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // Symmetric Attribute
-                    value = attributes[Attributes.Symmetric]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.Symmetric];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "ReferenceType does not support the Symmetric attribute.");
+                    }
 
                     referenceTypeNode.Symmetric = value.WrappedValue.GetBoolean();
 
                     // InverseName Attribute
                     value = attributes[Attributes.InverseName];
 
-                    if (value != null &&
+                    if (!value.IsNull &&
                         value.WrappedValue.TryGetValue(out LocalizedText inverseName))
                     {
                         referenceTypeNode.InverseName = inverseName;
@@ -757,16 +802,22 @@ namespace Opc.Ua.Client
                     var viewNode = new ViewNode();
 
                     // EventNotifier Attribute
-                    value = attributes[Attributes.EventNotifier]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.EventNotifier];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "View does not support the EventNotifier attribute.");
+                    }
 
                     viewNode.EventNotifier = value.WrappedValue.GetByte();
 
                     // ContainsNoLoops Attribute
-                    value = attributes[Attributes.ContainsNoLoops]
-                        ?? throw ServiceResultException.Unexpected(
+                    value = attributes[Attributes.ContainsNoLoops];
+                    if (value.IsNull)
+                    {
+                        throw ServiceResultException.Unexpected(
                             "View does not support the ContainsNoLoops attribute.");
+                    }
 
                     viewNode.ContainsNoLoops = value.WrappedValue.GetBoolean();
 
@@ -782,24 +833,33 @@ namespace Opc.Ua.Client
             }
 
             // NodeId Attribute
-            value = attributes[Attributes.NodeId]
-                ?? throw ServiceResultException.Unexpected(
+            value = attributes[Attributes.NodeId];
+            if (value.IsNull)
+            {
+                throw ServiceResultException.Unexpected(
                     "Node does not support the NodeId attribute.");
+            }
 
             node.NodeId = value.WrappedValue.GetNodeId();
             node.NodeClass = nodeClass;
 
             // BrowseName Attribute
-            value = attributes[Attributes.BrowseName]
-                ?? throw ServiceResultException.Unexpected(
+            value = attributes[Attributes.BrowseName];
+            if (value.IsNull)
+            {
+                throw ServiceResultException.Unexpected(
                     "Node does not support the BrowseName attribute.");
+            }
 
             node.BrowseName = value.WrappedValue.GetQualifiedName();
 
             // DisplayName Attribute
-            value = attributes[Attributes.DisplayName]
-                ?? throw ServiceResultException.Unexpected(
+            value = attributes[Attributes.DisplayName];
+            if (value.IsNull)
+            {
+                throw ServiceResultException.Unexpected(
                     "Node does not support the DisplayName attribute.");
+            }
 
             node.DisplayName = value.WrappedValue.GetLocalizedText();
 
@@ -807,7 +867,7 @@ namespace Opc.Ua.Client
 
             // Description Attribute
             if (attributes.TryGetValue(Attributes.Description, out value) &&
-                value != null &&
+                !value.IsNull &&
                 !value.WrappedValue.IsNull)
             {
                 node.Description = value.WrappedValue.GetLocalizedText();
@@ -815,21 +875,21 @@ namespace Opc.Ua.Client
 
             // WriteMask Attribute
             if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
-                value != null)
+                !value.IsNull)
             {
                 node.WriteMask = value.WrappedValue.GetUInt32();
             }
 
             // UserWriteMask Attribute
             if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
-                value != null)
+                !value.IsNull)
             {
                 node.UserWriteMask = value.WrappedValue.GetUInt32();
             }
 
             // RolePermissions Attribute
             if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
-                value != null)
+                !value.IsNull)
             {
                 if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> rolePermissions))
                 {
@@ -849,7 +909,7 @@ namespace Opc.Ua.Client
 
             // UserRolePermissions Attribute
             if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
-                value != null)
+                !value.IsNull)
             {
                 if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> userRolePermissions))
                 {
@@ -866,7 +926,7 @@ namespace Opc.Ua.Client
 
             // AccessRestrictions Attribute
             if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
-                value != null)
+                !value.IsNull)
             {
                 node.AccessRestrictions = value.WrappedValue.GetUInt16();
             }
@@ -878,78 +938,78 @@ namespace Opc.Ua.Client
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static Dictionary<uint, DataValue?> CreateAttributes(
+        private static Dictionary<uint, DataValue> CreateAttributes(
             NodeClass nodeClass,
             bool skipOptionalAttributes)
         {
             // Attributes to read for all types of nodes
-            var attributes = new Dictionary<uint, DataValue?>(Attributes.MaxAttributes)
+            var attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes)
             {
-                { Attributes.NodeId, null },
-                { Attributes.NodeClass, null },
-                { Attributes.BrowseName, null },
-                { Attributes.DisplayName, null }
+                { Attributes.NodeId, default },
+                { Attributes.NodeClass, default },
+                { Attributes.BrowseName, default },
+                { Attributes.DisplayName, default }
             };
 
             switch (nodeClass)
             {
                 case NodeClass.Object:
-                    attributes.Add(Attributes.EventNotifier, null);
+                    attributes.Add(Attributes.EventNotifier, default);
                     break;
                 case NodeClass.Variable:
-                    attributes.Add(Attributes.DataType, null);
-                    attributes.Add(Attributes.ValueRank, null);
-                    attributes.Add(Attributes.ArrayDimensions, null);
-                    attributes.Add(Attributes.AccessLevel, null);
-                    attributes.Add(Attributes.UserAccessLevel, null);
-                    attributes.Add(Attributes.Historizing, null);
-                    attributes.Add(Attributes.MinimumSamplingInterval, null);
-                    attributes.Add(Attributes.AccessLevelEx, null);
+                    attributes.Add(Attributes.DataType, default);
+                    attributes.Add(Attributes.ValueRank, default);
+                    attributes.Add(Attributes.ArrayDimensions, default);
+                    attributes.Add(Attributes.AccessLevel, default);
+                    attributes.Add(Attributes.UserAccessLevel, default);
+                    attributes.Add(Attributes.Historizing, default);
+                    attributes.Add(Attributes.MinimumSamplingInterval, default);
+                    attributes.Add(Attributes.AccessLevelEx, default);
                     break;
                 case NodeClass.Method:
-                    attributes.Add(Attributes.Executable, null);
-                    attributes.Add(Attributes.UserExecutable, null);
+                    attributes.Add(Attributes.Executable, default);
+                    attributes.Add(Attributes.UserExecutable, default);
                     break;
                 case NodeClass.ObjectType:
-                    attributes.Add(Attributes.IsAbstract, null);
+                    attributes.Add(Attributes.IsAbstract, default);
                     break;
                 case NodeClass.VariableType:
-                    attributes.Add(Attributes.IsAbstract, null);
-                    attributes.Add(Attributes.DataType, null);
-                    attributes.Add(Attributes.ValueRank, null);
-                    attributes.Add(Attributes.ArrayDimensions, null);
+                    attributes.Add(Attributes.IsAbstract, default);
+                    attributes.Add(Attributes.DataType, default);
+                    attributes.Add(Attributes.ValueRank, default);
+                    attributes.Add(Attributes.ArrayDimensions, default);
                     break;
                 case NodeClass.ReferenceType:
-                    attributes.Add(Attributes.IsAbstract, null);
-                    attributes.Add(Attributes.Symmetric, null);
-                    attributes.Add(Attributes.InverseName, null);
+                    attributes.Add(Attributes.IsAbstract, default);
+                    attributes.Add(Attributes.Symmetric, default);
+                    attributes.Add(Attributes.InverseName, default);
                     break;
                 case NodeClass.DataType:
-                    attributes.Add(Attributes.IsAbstract, null);
-                    attributes.Add(Attributes.DataTypeDefinition, null);
+                    attributes.Add(Attributes.IsAbstract, default);
+                    attributes.Add(Attributes.DataTypeDefinition, default);
                     break;
                 case NodeClass.View:
-                    attributes.Add(Attributes.EventNotifier, null);
-                    attributes.Add(Attributes.ContainsNoLoops, null);
+                    attributes.Add(Attributes.EventNotifier, default);
+                    attributes.Add(Attributes.ContainsNoLoops, default);
                     break;
                 case NodeClass.Unspecified:
                     // build complete list of attributes.
-                    attributes.Add(Attributes.DataType, null);
-                    attributes.Add(Attributes.ValueRank, null);
-                    attributes.Add(Attributes.ArrayDimensions, null);
-                    attributes.Add(Attributes.AccessLevel, null);
-                    attributes.Add(Attributes.UserAccessLevel, null);
-                    attributes.Add(Attributes.MinimumSamplingInterval, null);
-                    attributes.Add(Attributes.Historizing, null);
-                    attributes.Add(Attributes.EventNotifier, null);
-                    attributes.Add(Attributes.Executable, null);
-                    attributes.Add(Attributes.UserExecutable, null);
-                    attributes.Add(Attributes.IsAbstract, null);
-                    attributes.Add(Attributes.InverseName, null);
-                    attributes.Add(Attributes.Symmetric, null);
-                    attributes.Add(Attributes.ContainsNoLoops, null);
-                    attributes.Add(Attributes.DataTypeDefinition, null);
-                    attributes.Add(Attributes.AccessLevelEx, null);
+                    attributes.Add(Attributes.DataType, default);
+                    attributes.Add(Attributes.ValueRank, default);
+                    attributes.Add(Attributes.ArrayDimensions, default);
+                    attributes.Add(Attributes.AccessLevel, default);
+                    attributes.Add(Attributes.UserAccessLevel, default);
+                    attributes.Add(Attributes.MinimumSamplingInterval, default);
+                    attributes.Add(Attributes.Historizing, default);
+                    attributes.Add(Attributes.EventNotifier, default);
+                    attributes.Add(Attributes.Executable, default);
+                    attributes.Add(Attributes.UserExecutable, default);
+                    attributes.Add(Attributes.IsAbstract, default);
+                    attributes.Add(Attributes.InverseName, default);
+                    attributes.Add(Attributes.Symmetric, default);
+                    attributes.Add(Attributes.ContainsNoLoops, default);
+                    attributes.Add(Attributes.DataTypeDefinition, default);
+                    attributes.Add(Attributes.AccessLevelEx, default);
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
@@ -958,12 +1018,12 @@ namespace Opc.Ua.Client
 
             if (!skipOptionalAttributes)
             {
-                attributes.Add(Attributes.Description, null);
-                attributes.Add(Attributes.WriteMask, null);
-                attributes.Add(Attributes.UserWriteMask, null);
-                attributes.Add(Attributes.RolePermissions, null);
-                attributes.Add(Attributes.UserRolePermissions, null);
-                attributes.Add(Attributes.AccessRestrictions, null);
+                attributes.Add(Attributes.Description, default);
+                attributes.Add(Attributes.WriteMask, default);
+                attributes.Add(Attributes.UserWriteMask, default);
+                attributes.Add(Attributes.RolePermissions, default);
+                attributes.Add(Attributes.UserRolePermissions, default);
+                attributes.Add(Attributes.AccessRestrictions, default);
             }
 
             return attributes;
@@ -976,7 +1036,7 @@ namespace Opc.Ua.Client
             ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             List<ReadValueId> attributesToRead,
-            List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
+            List<IDictionary<uint, DataValue>?> attributesPerNodeId,
             List<Node> nodeCollection,
             bool skipOptionalAttributes)
         {
@@ -984,7 +1044,7 @@ namespace Opc.Ua.Client
             {
                 var node = new Node { NodeId = nodeIds[ii], NodeClass = nodeClass };
 
-                Dictionary<uint, DataValue?> attributes = CreateAttributes(
+                Dictionary<uint, DataValue> attributes = CreateAttributes(
                     node.NodeClass,
                     skipOptionalAttributes);
                 foreach (uint attributeId in attributes.Keys)

@@ -970,8 +970,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Field dataSetFieldEncoded = uadpDataSetMessageEncode.DataSet.Fields[index];
                 Field dataSetFieldDecoded = dataSetDecoded.Fields[index];
 
-                Assert.That(dataSetFieldEncoded.Value, Is.Not.Null, "DataSetFieldEncoded.Value is null");
-                Assert.That(dataSetFieldDecoded.Value, Is.Not.Null, "DataSetFieldDecoded.Value is null");
+                Assert.That(dataSetFieldEncoded.Value.IsNull, Is.False, "DataSetFieldEncoded.Value is null");
+                Assert.That(dataSetFieldDecoded.Value.IsNull, Is.False, "DataSetFieldDecoded.Value is null");
 #pragma warning disable CS0618 // Type or member is obsolete
                 object encodedValue = dataSetFieldEncoded.Value.Value;
 #pragma warning restore CS0618 // Type or member is obsolete
