@@ -89,6 +89,27 @@ namespace Opc.Ua.Client.Subscriptions
         int Count { get; }
 
         /// <summary>
+        /// <para>
+        /// When <c>true</c>, the V2 subscription dispatcher calls
+        /// <see cref="IPooledEncodeable.Reuse"/> on notification payload
+        /// instances (such as <c>MonitoredItemNotification</c>) after
+        /// the handler returns, releasing them back to their
+        /// activator-level pools for reuse.
+        /// </para>
+        /// <para>
+        /// When <c>false</c> (default), instances are simply released
+        /// to the GC as before.
+        /// </para>
+        /// <para>
+        /// Setting this property takes effect on the next publish
+        /// dispatch. Handlers that retain notification values past the
+        /// dispatch call must not enable this option, or must copy the
+        /// retained values before returning from the handler.
+        /// </para>
+        /// </summary>
+        bool PoolNotifications { get; set; }
+
+        /// <summary>
         /// Subscriptions
         /// </summary>
         IEnumerable<ISubscription> Items { get; }

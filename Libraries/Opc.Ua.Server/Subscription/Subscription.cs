@@ -258,6 +258,10 @@ namespace Opc.Ua.Server
                     }
 
                     m_monitoredItems.Clear();
+                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
+                    {
+                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                    }
                     m_sentMessages.Clear();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
@@ -717,7 +721,9 @@ namespace Opc.Ua.Server
                             m_lastSentMessage--;
                         }
 
+                        NotificationMessage removed = m_sentMessages[ii];
                         m_sentMessages.RemoveAt(ii);
+                        ReuseNotificationPayloads(removed);
                         return null;
                     }
                 }
@@ -806,11 +812,9 @@ namespace Opc.Ua.Server
             {
                 m_expired = true;
 
-                message = new NotificationMessage
-                {
-                    SequenceNumber = m_sequenceNumber,
-                    PublishTime = DateTimeUtc.Now
-                };
+                message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
+                message.SequenceNumber = m_sequenceNumber;
+                message.PublishTime = DateTimeUtc.Now;
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
 
@@ -819,10 +823,8 @@ namespace Opc.Ua.Server
                     Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
-                var notification = new StatusChangeNotification
-                {
-                    Status = StatusCodes.BadTimeout
-                };
+                var notification = (StatusChangeNotification)StatusChangeNotificationActivator.Instance.CreateInstance();
+                notification.Status = StatusCodes.BadTimeout;
                 message.NotificationData = message.NotificationData.AddItem(
                     new ExtensionObject(notification));
             }
@@ -839,11 +841,9 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                message = new NotificationMessage
-                {
-                    SequenceNumber = m_sequenceNumber,
-                    PublishTime = DateTimeUtc.Now
-                };
+                message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
+                message.SequenceNumber = m_sequenceNumber;
+                message.PublishTime = DateTimeUtc.Now;
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
 
@@ -852,10 +852,8 @@ namespace Opc.Ua.Server
                     Diagnostics.NextSequenceNumber = m_sequenceNumber;
                 }
 
-                var notification = new StatusChangeNotification
-                {
-                    Status = StatusCodes.GoodSubscriptionTransferred
-                };
+                var notification = (StatusChangeNotification)StatusChangeNotificationActivator.Instance.CreateInstance();
+                notification.Status = StatusCodes.GoodSubscriptionTransferred;
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));
             }
@@ -1042,12 +1040,9 @@ namespace Opc.Ua.Server
             if (messages.Count == 0)
             {
                 // create a keep alive message.
-                var message = new NotificationMessage
-                {
-                    // use the sequence number for the next message.
-                    SequenceNumber = m_sequenceNumber,
-                    PublishTime = DateTimeUtc.Now
-                };
+                var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
+                message.SequenceNumber = m_sequenceNumber;
+                message.PublishTime = DateTimeUtc.Now;
 
                 // return the available sequence numbers.
                 for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
@@ -1069,6 +1064,10 @@ namespace Opc.Ua.Server
                     overflowCount,
                     Id,
                     m_maxMessageCount);
+                for (int ii = 0; ii < overflowCount; ii++)
+                {
+                    ReuseNotificationPayloads(messages[ii]);
+                }
                 messages.RemoveRange(0, overflowCount);
             }
 
@@ -1082,10 +1081,18 @@ namespace Opc.Ua.Server
 
                 if (m_maxMessageCount <= messages.Count)
                 {
+                    for (int ii = 0; ii < m_sentMessages.Count; ii++)
+                    {
+                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                    }
                     m_sentMessages.Clear();
                 }
                 else
                 {
+                    for (int ii = 0; ii < messages.Count; ii++)
+                    {
+                        ReuseNotificationPayloads(m_sentMessages[ii]);
+                    }
                     m_sentMessages.RemoveRange(0, messages.Count);
                 }
             }
@@ -1136,11 +1143,9 @@ namespace Opc.Ua.Server
         {
             notificationCount = 0;
 
-            var message = new NotificationMessage
-            {
-                SequenceNumber = m_sequenceNumber,
-                PublishTime = DateTimeUtc.Now
-            };
+            var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
+            message.SequenceNumber = m_sequenceNumber;
+            message.PublishTime = DateTimeUtc.Now;
 
             Utils.IncrementIdentifier(ref m_sequenceNumber);
 
@@ -1158,10 +1163,8 @@ namespace Opc.Ua.Server
                     eventList.Add(events.Dequeue());
                     notificationCount++;
                 }
-                var notification = new EventNotificationList
-                {
-                    Events = eventList
-                };
+                var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
+                notification.Events = eventList;
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));
             }
@@ -1189,11 +1192,9 @@ namespace Opc.Ua.Server
                     notificationCount++;
                 }
 
-                var notification = new DataChangeNotification
-                {
-                    MonitoredItems = dataChangeList,
-                    DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default!
-                };
+                var notification = (DataChangeNotification)DataChangeNotificationActivator.Instance.CreateInstance();
+                notification.MonitoredItems = dataChangeList;
+                notification.DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default!;
 
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));
@@ -2766,5 +2767,39 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Walk a <see cref="NotificationMessage"/> that is being
+        /// discarded (acknowledged or evicted from the retransmission
+        /// queue) and return every pooled notification payload to its
+        /// activator's pool via <see cref="IPooledEncodeable.Reuse"/>.
+        /// </summary>
+        private static void ReuseNotificationPayloads(NotificationMessage message)
+        {
+            ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (data[i].TryGetValue(out DataChangeNotification? dcn))
+                {
+                    ReadOnlySpan<MonitoredItemNotification> items =
+                        dcn.MonitoredItems.Span;
+                    for (int j = 0; j < items.Length; j++)
+                    {
+                        (items[j] as IPooledEncodeable)?.Reuse();
+                    }
+                    (dcn as IPooledEncodeable)?.Reuse();
+                }
+                else if (data[i].TryGetValue(out EventNotificationList? enl))
+                {
+                    ReadOnlySpan<EventFieldList> events = enl.Events.Span;
+                    for (int j = 0; j < events.Length; j++)
+                    {
+                        (events[j] as IPooledEncodeable)?.Reuse();
+                    }
+                    (enl as IPooledEncodeable)?.Reuse();
+                }
+            }
+            (message as IPooledEncodeable)?.Reuse();
+        }
     }
 }

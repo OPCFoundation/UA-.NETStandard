@@ -321,6 +321,118 @@ subscription.TryAddMonitoredItem(
     out IMonitoredItem _);
 ```
 
+### V2 notification pooling (opt-in)
+
+The V2 subscription engine supports activator-level pooling of
+notification payload instances to reduce GC pressure on
+high-throughput publish loops. Pooling is **opt-in** and disabled by
+default. Enable it via `ManagedSessionBuilder.WithPoolNotifications()`,
+the `ManagedSessionOptions.PoolNotifications` init property, or by
+setting `ISubscriptionManager.PoolNotifications = true` directly on
+the V2 manager:
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithPoolNotifications()        // opt in
+    .ConnectAsync(ct);
+```
+
+How it works:
+
+- Types that opt in to pooling implement `IPooledEncodeable`
+  (a subinterface of `IEncodeable`) and provide a `Reuse()` method
+  that resets fields and returns the instance to its activator's
+  pool. The activator derives from `PooledEncodeableType<T>` instead
+  of `EncodeableType<T>` and owns a bounded, lock-free pool.
+- When `PoolNotifications` is `true`, the V2 subscription
+  dispatcher walks each `DataChangeNotification` /
+  `EventNotificationList` in a `finally` block after the handler
+  await completes, calling `Reuse()` on every payload item that
+  implements `IPooledEncodeable`. Types that do not implement the
+  interface are skipped silently — the walk is universally safe.
+- The walk runs on the subscription's single-reader
+  `ProcessMessageAsync` loop, so it never races the channel decode
+  that produced the payload.
+
+#### Handler contract — retain by copy
+
+When `PoolNotifications` is enabled, handlers **must not** retain a
+reference to a `DataChangeNotification` / `EventNotificationList` /
+`MonitoredItemNotification` / `EventFieldList` past the await of
+the dispatch call. The pool may re-rent those instances to the next
+publish immediately after `Reuse()` runs. Handlers that need to
+keep values must **copy** them out before returning:
+
+```csharp
+public ValueTask OnDataChangeNotificationAsync(
+    ISubscription subscription, uint sequenceNumber,
+    DateTime publishTime,
+    ReadOnlyMemory<DataValueChange> notification,
+    PublishState publishStateMask, IReadOnlyList<string> stringTable)
+{
+    foreach (DataValueChange change in notification.Span)
+    {
+        // OK: DataValueChange is a struct, captured by value.
+        // Value (DataValue) and DiagnosticInfo are not themselves
+        // pooled in this design, so storing them past the call is
+        // safe.
+        m_history.Add(new MyHistoryEntry(
+            change.MonitoredItem?.NodeId,
+            change.Value,           // safe to retain
+            change.DiagnosticInfo));
+    }
+
+    return default;
+}
+```
+
+The `DataValueChange` and `EventNotification` projection structs
+are designed not to surface a reference to a pooled instance —
+they project the inner `DataValue` / `ArrayOf<Variant>` directly,
+which are not themselves pooled. Handlers can safely copy
+`DataValueChange` / `EventNotification` by value and continue to
+use them after the await.
+
+What is **not** safe under pooled mode:
+
+- Retaining the outer `DataChangeNotification` /
+  `EventNotificationList` reference past the await.
+- Retaining individual `MonitoredItemNotification` /
+  `EventFieldList` references past the await.
+- Calling `Reuse()` on a retained reference after the framework
+  has already done so — `Reuse()` is idempotent against accidental
+  double-call (it uses a per-instance sentinel), but the pool may
+  have already re-rented the instance, in which case the late
+  `Reuse()` steals it from its current consumer.
+
+The dispatcher is the only framework-initiated `Reuse()` caller.
+Handler code that follows the retain-by-copy rule never reaches
+the unsafe pattern.
+
+### Server-side request/response pooling
+
+On the server side, decoded `IServiceRequest` and `IServiceResponse`
+objects are automatically returned to their activator pools after the
+service handler completes and the response is encoded to the wire.
+This is **unconditional** — no opt-in flag is required — because the
+server framework owns the full lifecycle of both objects:
+
+- The request is decoded by the channel, consumed by the service
+  handler, and never exposed to application code by reference.
+- The response is constructed by the handler, encoded by the channel's
+  `WriteSymmetricMessage` / `BinaryEncoder.EncodeMessage` path, and
+  then has no further consumers.
+
+The reuse calls are placed in `finally` blocks in
+`TcpTransportListener.OnRequestReceivedAsync` (UA-TCP transport) and
+`EndpointBase.InvokeServiceAsync` (HTTPS transport), ensuring both
+objects are released regardless of success or failure.
+
+Server-side node managers and service handlers do not need any code
+changes to benefit from this pooling — it is transparent at the
+channel/transport layer.
+
 ### Choosing an engine
 
 | Scenario | Engine |

@@ -95,12 +95,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId">Alternative type id</param>
         /// <param name="body">Encodeable body</param>
-        internal ExtensionObject(ExpandedNodeId typeId, IEncodeable body)
+        /// <param name="copy">Clone the encodeable</param>
+        public ExtensionObject(ExpandedNodeId typeId, IEncodeable body, bool copy = false)
         {
             if (body != null)
             {
                 TypeId = typeId.IsNull ? body.TypeId : typeId;
-                m_body = body;
+                m_body = copy ? body.Clone() : body;
             }
         }
 

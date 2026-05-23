@@ -187,6 +187,10 @@ namespace Opc.Ua.Client
                 {
                     builder.WithTransferSubscriptionsOnRecreate();
                 }
+                if (options.Session.PoolNotifications)
+                {
+                    builder.WithPoolNotifications();
+                }
 
                 return builder.ConnectAsync(ct);
             }

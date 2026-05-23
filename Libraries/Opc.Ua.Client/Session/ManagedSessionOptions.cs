@@ -109,5 +109,29 @@ namespace Opc.Ua.Client
         /// V2 manager.
         /// </remarks>
         public bool TransferSubscriptionsOnRecreate { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// When <c>true</c>, opt the V2 subscription engine into
+        /// activator-level pooling of notification payload instances.
+        /// After each publish dispatch the subscription calls
+        /// <see cref="IPooledEncodeable.Reuse"/> on notification objects
+        /// (such as <c>MonitoredItemNotification</c>), releasing them
+        /// back to their activator's pool for reuse on the next decode.
+        /// </para>
+        /// <para>
+        /// Handlers that retain references to notification values past
+        /// the dispatch call must copy the retained values before
+        /// returning from the handler — the pool may re-rent those
+        /// instances to other consumers immediately after the handler
+        /// returns. Default: <c>false</c> (opt-in).
+        /// </para>
+        /// <para>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </para>
+        /// </summary>
+        public bool PoolNotifications { get; init; }
     }
 }
