@@ -142,20 +142,20 @@ internal static class DataValueCodec
             case EncodingFormat.Binary:
             {
                 using var dec = new BinaryDecoder(data, ctx);
-                return dec.ReadDataValue(FieldName) ?? new DataValue();
+                return dec.ReadDataValue(FieldName);
             }
             case EncodingFormat.Xml:
             {
                 using var stream = new MemoryStream(data);
                 using var reader = XmlReader.Create(stream);
                 using var dec = new XmlDecoder(reader, ctx);
-                return dec.ReadDataValue(FieldName) ?? new DataValue();
+                return dec.ReadDataValue(FieldName);
             }
             case EncodingFormat.Json:
             {
                 string json = Encoding.UTF8.GetString(data);
                 using var dec = new JsonDecoder(json, ctx);
-                return dec.ReadDataValue(FieldName) ?? new DataValue();
+                return dec.ReadDataValue(FieldName);
             }
             default:
                 throw new ArgumentOutOfRangeException(nameof(fmt));

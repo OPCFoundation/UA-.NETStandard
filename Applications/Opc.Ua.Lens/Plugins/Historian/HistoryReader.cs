@@ -202,7 +202,7 @@ internal sealed class HistoryReader
         }
         foreach (DataValue dv in annotationValues)
         {
-            if (dv is null || dv.WrappedValue.IsNull)
+            if (dv.WrappedValue.IsNull)
             {
                 continue;
             }
@@ -312,10 +312,7 @@ internal sealed class HistoryReader
             {
                 foreach (DataValue dv in hd.DataValues)
                 {
-                    if (dv is not null)
-                    {
-                        results.Add(dv);
-                    }
+                    results.Add(dv);
                 }
             }
             ByteString cp = r.ContinuationPoint;
@@ -397,11 +394,6 @@ internal sealed class HistoryReader
                 {
                     foreach (DataValue dv in hd.DataValues)
                     {
-                        if (dv is null)
-                        {
-                            continue;
-                        }
-
                         rows.Add(new HistoryRow(
                             (DateTime)dv.SourceTimestamp,
                             (DateTime)dv.ServerTimestamp,
@@ -413,11 +405,6 @@ internal sealed class HistoryReader
                 {
                     foreach (DataValue dv in hmd.DataValues)
                     {
-                        if (dv is null)
-                        {
-                            continue;
-                        }
-
                         rows.Add(new HistoryRow(
                             (DateTime)dv.SourceTimestamp,
                             (DateTime)dv.ServerTimestamp,

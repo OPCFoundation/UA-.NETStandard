@@ -283,7 +283,7 @@ internal sealed partial class WriteValueDialog : Window
         var sourceTime = this.RequiredControl<UtcDateTimePicker>("SourceTimePicker");
         var serverTime = this.RequiredControl<UtcDateTimePicker>("ServerTimePicker");
 
-        dataValue = new DataValue { WrappedValue = parsed };
+        dataValue = new DataValue(parsed);
         error = null;
 
         if (statusOverride.IsChecked == true)
@@ -293,17 +293,17 @@ internal sealed partial class WriteValueDialog : Window
                 error = $"Status code '{statusText.Text}' is not a recognised numeric or symbolic StatusCode.";
                 return false;
             }
-            dataValue.StatusCode = sc;
+            dataValue = dataValue.WithStatus(sc);
         }
 
         if (sourceOverride.IsChecked == true)
         {
-            dataValue.SourceTimestamp = ToUtc(sourceTime.Value);
+            dataValue = dataValue.WithSourceTimestamp(ToUtc(sourceTime.Value));
         }
 
         if (serverOverride.IsChecked == true)
         {
-            dataValue.ServerTimestamp = ToUtc(serverTime.Value);
+            dataValue = dataValue.WithServerTimestamp(ToUtc(serverTime.Value));
         }
 
         return true;

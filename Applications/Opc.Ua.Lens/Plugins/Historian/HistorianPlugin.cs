@@ -1254,13 +1254,11 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             throw new FormatException($"Update value '{UpdateValueText}' is not a valid double.");
         }
         DateTime ts = ToUtc(UpdateTimestamp);
-        return new DataValue
-        {
-            WrappedValue = new Variant(parsed),
-            StatusCode = StatusCodes.Good,
-            SourceTimestamp = ts,
-            ServerTimestamp = ts
-        };
+        return new DataValue(
+            new Variant(parsed),
+            StatusCodes.Good,
+            ts,
+            ts);
     }
 
     private List<DateTime> CollectUpdateTimestamps()

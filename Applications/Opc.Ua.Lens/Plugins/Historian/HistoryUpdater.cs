@@ -148,13 +148,7 @@ internal sealed class HistoryUpdater
         StatusCode status,
         CancellationToken ct)
     {
-        var dv = new DataValue
-        {
-            WrappedValue = value,
-            StatusCode = status,
-            SourceTimestamp = timestamp,
-            ServerTimestamp = timestamp
-        };
+        var dv = new DataValue(value, status, timestamp, timestamp);
         HistoryUpdateOutcome outcome = await UpdateDataAsync(nodeId, action, dv, ct).ConfigureAwait(false);
         ThrowIfFailed(outcome);
     }
@@ -274,13 +268,11 @@ internal sealed class HistoryUpdater
         DateTime ts = sourceTimestamp.Kind == DateTimeKind.Utc
             ? sourceTimestamp
             : sourceTimestamp.ToUniversalTime();
-        var dv = new DataValue
-        {
-            WrappedValue = new Variant(new ExtensionObject(annotation)),
-            StatusCode = StatusCodes.Good,
-            SourceTimestamp = ts,
-            ServerTimestamp = ts
-        };
+        var dv = new DataValue(
+            new Variant(new ExtensionObject(annotation)),
+            StatusCodes.Good,
+            ts,
+            ts);
         return await UpdateDataAsync(
             annNode, PerformUpdateType.Update, dv, ct).ConfigureAwait(false);
     }

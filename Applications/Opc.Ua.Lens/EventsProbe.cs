@@ -200,7 +200,7 @@ internal static class EventsProbe
                     {
                         NodeId = VariableIds.Server_Auditing,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue { WrappedValue = new Variant(true) }
+                        Value = new DataValue(new Variant(true))
                     };
                     ArrayOf<WriteValue> writes = new WriteValue[] { wv };
                     WriteResponse wresp = await session.WriteAsync(null, writes, CancellationToken.None).ConfigureAwait(false);
@@ -220,7 +220,7 @@ internal static class EventsProbe
                     {
                         NodeId = triggerId,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue { WrappedValue = new Variant(42) }
+                        Value = new DataValue(new Variant(42))
                     };
                     ArrayOf<WriteValue> nodesToWrite = new WriteValue[] { wv };
                     WriteResponse wr = await session.WriteAsync(null, nodesToWrite, CancellationToken.None).ConfigureAwait(false);
