@@ -162,13 +162,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(m_session);
             DateTime ts = DateTime.UtcNow.AddSeconds(7); // unique future timestamp; no seed conflict
 
-            var insertValue = new DataValue
-            {
-                WrappedValue = new Variant(12345),
-                SourceTimestamp = ts,
-                ServerTimestamp = ts,
-                StatusCode = StatusCodes.Good,
-            };
+            var insertValue = new DataValue(new Variant(12345), StatusCodes.Good, sourceTimestamp: ts, serverTimestamp: ts);
 
             IList<StatusCode> insertStatuses = await client.InsertAsync(
                 m_int32NodeId, new[] { insertValue });
@@ -189,13 +183,7 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(actual, Is.EqualTo(12345));
 
             // Replace the value at the same timestamp.
-            var replaceValue = new DataValue
-            {
-                WrappedValue = new Variant(99999),
-                SourceTimestamp = ts,
-                ServerTimestamp = ts,
-                StatusCode = StatusCodes.Good,
-            };
+            var replaceValue = new DataValue(new Variant(99999), StatusCodes.Good, sourceTimestamp: ts, serverTimestamp: ts);
             IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
                 m_int32NodeId, new[] { replaceValue });
             Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);

@@ -1394,7 +1394,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(5);
             var v = new Variant(dv);
             var result = (DataValue)v;
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]

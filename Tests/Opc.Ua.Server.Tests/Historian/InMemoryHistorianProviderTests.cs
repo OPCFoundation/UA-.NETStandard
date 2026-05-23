@@ -299,13 +299,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
         private static DataValue MakeValue(DateTime sourceTimestamp, double value)
         {
-            return new DataValue
-            {
-                WrappedValue = new Variant(value),
-                SourceTimestamp = sourceTimestamp,
-                ServerTimestamp = sourceTimestamp,
-                StatusCode = StatusCodes.Good,
-            };
+            return new DataValue(new Variant(value), StatusCodes.Good, sourceTimestamp: sourceTimestamp, serverTimestamp: sourceTimestamp);
         }
 
         private static HistorianOperationContext CreateContext()

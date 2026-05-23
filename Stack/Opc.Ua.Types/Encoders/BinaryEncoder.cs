@@ -757,10 +757,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string? fieldName, DataValue? value)
+        public void WriteDataValue(string? fieldName, DataValue value)
         {
-            // check for null.
-            if (value == null)
+            // check for null/default.
+            if (value.IsNull)
             {
                 WriteByte(null, 0);
                 return;

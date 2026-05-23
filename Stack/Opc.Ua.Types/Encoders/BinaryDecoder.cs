@@ -612,22 +612,31 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string? fieldName)
+        public DataValue ReadDataValue(string? fieldName)
         {
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
+
+            if (encodingByte == 0)
+            {
+                // BinaryEncoder writes a single zero byte when IsNull is
+                // true (i.e. the value was default(DataValue)). Round-trip
+                // that as DataValue.Null so callers can distinguish
+                // "absent" from "explicitly empty".
+                return DataValue.Null;
+            }
 
             var value = new DataValue();
 
             // read the fields of the DataValue structure.
             if ((encodingByte & (byte)DataValueEncodingBits.Value) != 0)
             {
-                value.WrappedValue = ReadVariant(null);
+                value = value.WithWrappedValue(ReadVariant(null));
             }
 
             if ((encodingByte & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                value.StatusCode = ReadStatusCode(null);
+                value = value.WithStatus(ReadStatusCode(null));
             }
 
             ushort sourcePicoseconds = 0;
@@ -635,7 +644,7 @@ namespace Opc.Ua
                 (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
-                value.SourceTimestamp = ReadDateTime(null);
+                value = value.WithSourceTimestamp(ReadDateTime(null));
                 if (hasPicoseconds)
                 {
                     sourcePicoseconds = ReadUInt16(null);
@@ -645,13 +654,13 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            value.SourcePicoseconds = sourcePicoseconds;
+            value = value.WithSourcePicoseconds(sourcePicoseconds);
 
             ushort serverPicoseconds = 0;
             hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
-                value.ServerTimestamp = ReadDateTime(null);
+                value = value.WithServerTimestamp(ReadDateTime(null));
                 if (hasPicoseconds)
                 {
                     serverPicoseconds = ReadUInt16(null);
@@ -661,7 +670,7 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            value.ServerPicoseconds = serverPicoseconds;
+            value = value.WithServerPicoseconds(serverPicoseconds);
 
             return value;
         }
@@ -1413,7 +1422,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
             int length = ReadArrayLength();
 
@@ -1422,7 +1431,7 @@ namespace Opc.Ua
                 return default;
             }
 
-            var values = new DataValue?[length];
+            var values = new DataValue[length];
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1659,9 +1668,7 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return Variant.From(ReadExtensionObject(null));
                     case BuiltInType.DataValue:
-#pragma warning disable CS8604 // Possible null reference argument
-                        return Variant.From(ReadDataValue(null));
-#pragma warning restore CS8604
+return Variant.From(ReadDataValue(null));
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:

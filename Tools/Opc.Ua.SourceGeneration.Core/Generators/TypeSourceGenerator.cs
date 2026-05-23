@@ -817,7 +817,7 @@ namespace Opc.Ua.SourceGeneration
                 ["QualifiedName"] = "!{0}.IsNull",
                 ["LocalizedText"] = "!{0}.IsNull",
                 ["ExtensionObject"] = "!{0}.IsNull",
-                ["DataValue"] = "!({0} is null)",
+                ["DataValue"] = "!{0}.IsNull",
                 ["Variant"] = "!{0}.IsNull",
                 ["DiagnosticInfo"] = "!({0} is null)",
                 ["XmlElement"] = "!{0}.IsNull"

@@ -152,12 +152,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Insert,
                 UpdateValues = new DataValue[]
                 {
-                    new()
-                    {
-                        WrappedValue = new Variant(new ExtensionObject(annotation)),
-                        SourceTimestamp = when,
-                        StatusCode = StatusCodes.Good,
-                    },
+                    new DataValue(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
                 },
             };
 
@@ -181,12 +176,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Remove,
                 UpdateValues = new DataValue[]
                 {
-                    new()
-                    {
-                        WrappedValue = new Variant(new ExtensionObject(annotation)),
-                        SourceTimestamp = when,
-                        StatusCode = StatusCodes.Good,
-                    },
+                    new DataValue(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
                 },
             };
 
@@ -330,13 +320,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 var values = new List<DataValue>(count);
                 for (int i = 0; i < count; i++)
                 {
-                    values.Add(new DataValue
-                    {
-                        WrappedValue = new Variant(i),
-                        SourceTimestamp = BaseTime.AddSeconds(i),
-                        ServerTimestamp = BaseTime.AddSeconds(i),
-                        StatusCode = StatusCodes.Good,
-                    });
+                    values.Add(new DataValue(
+                        new Variant(i),
+                        StatusCodes.Good,
+                        sourceTimestamp: BaseTime.AddSeconds(i),
+                        serverTimestamp: BaseTime.AddSeconds(i)));
                 }
                 HistorianOperationContext context = CreateContext(SystemContext);
                 _ = Provider.InsertAsync(context, nodeId, values, CancellationToken.None)

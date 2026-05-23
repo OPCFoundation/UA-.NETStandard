@@ -54,14 +54,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeDataValueWithAllPicosecondsFields()
         {
             Field field = CreateField("TestField", BuiltInType.Int32, 42);
-            field.Value = new DataValue(new Variant(42))
-            {
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTime.UtcNow,
-                ServerTimestamp = DateTime.UtcNow,
-                SourcePicoseconds = 100,
-                ServerPicoseconds = 200
-            };
+            field.Value = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTime.UtcNow,
+                100,
+                200);
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(
                 DataSetFieldContentMask.StatusCode |
@@ -111,10 +110,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeBadStatusCodeReplacesValueInVariantMode()
         {
             Field field = CreateField("TestField", BuiltInType.Int32, 42);
-            field.Value = new DataValue(new Variant(42))
-            {
-                StatusCode = StatusCodes.BadInvalidArgument
-            };
+            field.Value = new DataValue(new Variant(42), StatusCodes.BadInvalidArgument);
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.None);
 
@@ -131,10 +127,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeBadStatusCodeInRawDataMode()
         {
             Field field = CreateField("TestField", BuiltInType.Int32, 42);
-            field.Value = new DataValue(new Variant(42))
-            {
-                StatusCode = StatusCodes.BadOutOfRange
-            };
+            field.Value = new DataValue(new Variant(42), StatusCodes.BadOutOfRange);
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.RawData);
 
@@ -221,14 +214,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void RoundTripDataValueEncoding()
         {
             Field field = CreateField("TestField", BuiltInType.Int32, 42);
-            field.Value = new DataValue(new Variant(42))
-            {
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                ServerTimestamp = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-                SourcePicoseconds = 10,
-                ServerPicoseconds = 20
-            };
+            field.Value = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                10,
+                20);
             const DataSetFieldContentMask mask =
                 DataSetFieldContentMask.StatusCode |
                 DataSetFieldContentMask.SourceTimestamp |
@@ -400,10 +392,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)builtInType,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(value))
-                {
-                    SourceTimestamp = DateTime.UtcNow
-                }
+                Value = new DataValue(new Variant(value), StatusCodes.Good, DateTime.UtcNow)
             };
 #pragma warning restore CS0618 // Type or member is obsolete
         }

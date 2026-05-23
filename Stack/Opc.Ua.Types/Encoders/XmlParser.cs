@@ -960,26 +960,35 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string? fieldName)
+        public DataValue ReadDataValue(string? fieldName)
         {
-            var value = new DataValue();
-
-            if (BeginField(fieldName, true))
+            if (!BeginField(fieldName, true))
             {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                value.WrappedValue = ReadVariant("Value");
-                value.StatusCode = ReadStatusCode("StatusCode");
-                value.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                value.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
-                value.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                value.ServerPicoseconds = ReadUInt16("ServerPicoseconds");
-
-                PopNamespace();
-
-                EndField(fieldName);
+                // Field is absent — return the null sentinel so callers can
+                // distinguish "missing" from "present but empty".
+                return DataValue.Null;
             }
 
+            PushNamespace(Namespaces.OpcUaXsd);
+
+            Variant variant = ReadVariant("Value");
+            StatusCode statusCode = ReadStatusCode("StatusCode");
+            DateTimeUtc sourceTimestamp = ReadDateTime("SourceTimestamp");
+            ushort sourcePicoseconds = ReadUInt16("SourcePicoseconds");
+            DateTimeUtc serverTimestamp = ReadDateTime("ServerTimestamp");
+            ushort serverPicoseconds = ReadUInt16("ServerPicoseconds");
+
+            DataValue value = new DataValue(
+                variant,
+                statusCode,
+                sourceTimestamp,
+                serverTimestamp,
+                sourcePicoseconds,
+                serverPicoseconds);
+
+            PopNamespace();
+
+            EndField(fieldName);
             return value;
         }
 
@@ -1804,11 +1813,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                var values = new List<DataValue?>();
+                var values = new List<DataValue>();
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 while (MoveToElement("DataValue"))
@@ -2208,9 +2217,7 @@ namespace Opc.Ua
                         case "ExtensionObject":
                             return ReadExtensionObject(typeName);
                         case "DataValue":
-#pragma warning disable CS8604 // Possible null reference argument
-                            return ReadDataValue(typeName);
-#pragma warning restore CS8604
+return ReadDataValue(typeName);
                         case "Matrix":
                             return ReadMatrix(typeName);
                         default:

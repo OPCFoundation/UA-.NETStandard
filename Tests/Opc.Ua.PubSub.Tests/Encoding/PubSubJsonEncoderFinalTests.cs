@@ -425,14 +425,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(25.5))
-                {
-                    StatusCode = StatusCodes.Good,
-                    SourceTimestamp = sourceTime,
-                    SourcePicoseconds = 100,
-                    ServerTimestamp = serverTime,
-                    ServerPicoseconds = 200
-                }
+                Value = new DataValue(
+                    new Variant(25.5),
+                    StatusCodes.Good,
+                    sourceTime,
+                    serverTime,
+                    100,
+                    200)
             };
 
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("DVTest")
@@ -476,10 +475,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(42))
-                {
-                    StatusCode = StatusCodes.BadTimeout
-                }
+                Value = new DataValue(new Variant(42), StatusCodes.BadTimeout)
             };
 
             var dsMsg = new PubSubEncoding.JsonDataSetMessage(new DataSet("StatusDV")
@@ -546,10 +542,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(42))
-                {
-                    StatusCode = StatusCodes.BadTimeout
-                }
+                Value = new DataValue(new Variant(42), StatusCodes.BadTimeout)
             };
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -916,11 +909,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(100))
-                {
-                    SourceTimestamp = sourceTime,
-                    SourcePicoseconds = 50
-                }
+                Value = new DataValue(
+                    new Variant(100),
+                    StatusCodes.Good,
+                    sourceTime,
+                    DateTimeUtc.MinValue,
+                    50,
+                    0)
             };
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -954,11 +949,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(3.14))
-                {
-                    ServerTimestamp = serverTime,
-                    ServerPicoseconds = 75
-                }
+                Value = new DataValue(
+                    new Variant(3.14),
+                    StatusCodes.Good,
+                    DateTimeUtc.MinValue,
+                    serverTime,
+                    0,
+                    75)
             };
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(
@@ -1120,10 +1117,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.String,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant("original"))
-                {
-                    StatusCode = StatusCodes.BadCommunicationError
-                }
+                Value = new DataValue(new Variant("original"), StatusCodes.BadCommunicationError)
             };
 
             PubSubEncoding.JsonDataSetMessage dsMsg = CreateDataSetMessageFromFields(

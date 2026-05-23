@@ -5448,21 +5448,19 @@ namespace Quickstarts.ReferenceServer
             var seed = new List<DataValue>(1001);
             for (int ii = 1000; ii >= 0; ii--)
             {
-                var dv = new DataValue
-                {
-                    ServerTimestamp = now.AddSeconds(-(ii * 10)),
-                    SourceTimestamp = now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
-                    StatusCode = StatusCodes.Good
-                };
                 int value = 1000 - ii;
-                dv.WrappedValue = dataType switch
+                Variant variant = dataType switch
                 {
                     BuiltInType.Int32 => new Variant(value),
                     BuiltInType.Float => new Variant((float)value),
                     BuiltInType.Double => new Variant((double)value),
                     _ => new Variant(value),
                 };
-                seed.Add(dv);
+                seed.Add(new DataValue(
+                    variant,
+                    StatusCodes.Good,
+                    sourceTimestamp: now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
+                    serverTimestamp: now.AddSeconds(-(ii * 10))));
             }
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var systemContext = new ServerSystemContext(Server, opContext);

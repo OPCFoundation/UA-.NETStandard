@@ -363,8 +363,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             Is.True,
                             $"field name: '{field.FieldMetaData.Name}' should be exists in partial received dataset");
                         Assert.That(
-                            dataStoreData[targetNodeId],
-                            Is.Not.Null,
+                            dataStoreData[targetNodeId].IsNull,
+                            Is.False,
                             $"field: '{field.FieldMetaData.Name}' should not be null");
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -405,8 +405,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                             Is.True,
                             $"field name: {field.FieldMetaData.Name} should be exists in partial received dataset");
                         Assert.That(
-                            dataStoreData[targetNodeId],
-                            Is.Not.Null,
+                            dataStoreData[targetNodeId].IsNull,
+                            Is.False,
                             $"field {field.FieldMetaData.Name}: should not be null");
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete

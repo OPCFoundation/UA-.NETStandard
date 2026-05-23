@@ -732,13 +732,11 @@ namespace Opc.Ua.Server.Historian
             var dataValues = new List<DataValue>(page.Values.Count);
             foreach (Annotation a in page.Values)
             {
-                dataValues.Add(new DataValue
-                {
-                    WrappedValue = new Variant(new ExtensionObject(a)),
-                    SourceTimestamp = a.AnnotationTime,
-                    ServerTimestamp = DateTimeUtc.MinValue,
-                    StatusCode = StatusCodes.Good,
-                });
+                dataValues.Add(new DataValue(
+                    new Variant(new ExtensionObject(a)),
+                    StatusCodes.Good,
+                    sourceTimestamp: a.AnnotationTime,
+                    serverTimestamp: DateTimeUtc.MinValue));
             }
             FillHistoryData(result, dataValues, nodeToRead, timestampsToReturn);
 
@@ -802,7 +800,7 @@ namespace Opc.Ua.Server.Historian
             for (int i = 0; i < updateValues.Count; i++)
             {
                 DataValue dv = updateValues[i];
-                if (dv == null)
+                if (dv.IsNull)
                 {
                     annotationList.Add(null!);
                     times.Add(DateTimeUtc.MinValue);
@@ -1607,24 +1605,23 @@ namespace Opc.Ua.Server.Historian
 
         private static DataValue ApplyTimestampFilter(DataValue source, TimestampsToReturn timestampsToReturn)
         {
-            DataValue clone = new()
-            {
-                WrappedValue = source.WrappedValue,
-                StatusCode = source.StatusCode,
-                SourceTimestamp = source.SourceTimestamp,
-                ServerTimestamp = source.ServerTimestamp,
-                SourcePicoseconds = source.SourcePicoseconds,
-                ServerPicoseconds = source.ServerPicoseconds,
-            };
+            DateTimeUtc sourceTs = source.SourceTimestamp;
+            DateTimeUtc serverTs = source.ServerTimestamp;
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Server)
             {
-                clone.SourceTimestamp = DateTimeUtc.MinValue;
+                sourceTs = DateTimeUtc.MinValue;
             }
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Source)
             {
-                clone.ServerTimestamp = DateTimeUtc.MinValue;
+                serverTs = DateTimeUtc.MinValue;
             }
-            return clone;
+            return new DataValue(
+                source.WrappedValue,
+                source.StatusCode,
+                sourceTs,
+                serverTs,
+                source.SourcePicoseconds,
+                source.ServerPicoseconds);
         }
 
         private static DataValue ApplyIndexRange(DataValue value, NumericRange indexRange)
@@ -1637,22 +1634,18 @@ namespace Opc.Ua.Server.Historian
             StatusCode err = indexRange.ApplyRange(ref variant);
             if (StatusCode.IsBad(err))
             {
-                value.WrappedValue = default;
-                value.StatusCode = err;
+                return value.WithWrappedValue(default).WithStatus(err);
             }
-            else
-            {
-                value.WrappedValue = variant;
-            }
-            return value;
+            return value.WithWrappedValue(variant);
         }
 
         private static DataValue ApplyEncoding(DataValue value, QualifiedName dataEncoding)
         {
             if (!dataEncoding.IsNull && StatusCode.IsGood(value.StatusCode))
             {
-                value.WrappedValue = default;
-                value.StatusCode = StatusCodes.BadDataEncodingUnsupported;
+                return value
+                    .WithWrappedValue(default)
+                    .WithStatus(StatusCodes.BadDataEncodingUnsupported);
             }
             return value;
         }
@@ -1681,11 +1674,9 @@ namespace Opc.Ua.Server.Historian
 
         private static void FlushCalculator(IAggregateCalculator calculator, List<DataValue> output, bool partial)
         {
-            DataValue? computed = calculator.GetProcessedValue(partial);
-            while (computed != null)
+            while (calculator.TryGetProcessedValue(partial, out DataValue computed))
             {
                 output.Add(computed);
-                computed = calculator.GetProcessedValue(partial);
             }
         }
 
@@ -1747,21 +1738,19 @@ namespace Opc.Ua.Server.Historian
 
         private static DataValue InterpolateAtTime(IList<DataValue> samples, DateTimeUtc requestedTime, bool useSimpleBounds)
         {
-            DataValue? before = null;
-            DataValue? after = null;
+            DataValue before = DataValue.Null;
+            DataValue after = DataValue.Null;
             for (int i = 0; i < samples.Count; i++)
             {
                 DataValue v = samples[i];
                 int cmp = v.SourceTimestamp.CompareTo(requestedTime);
                 if (cmp == 0)
                 {
-                    return new DataValue
-                    {
-                        WrappedValue = v.WrappedValue,
-                        StatusCode = v.StatusCode,
-                        SourceTimestamp = requestedTime,
-                        ServerTimestamp = v.ServerTimestamp,
-                    };
+                    return new DataValue(
+                        v.WrappedValue,
+                        v.StatusCode,
+                        sourceTimestamp: requestedTime,
+                        serverTimestamp: v.ServerTimestamp);
                 }
                 if (cmp < 0)
                 {
@@ -1774,19 +1763,22 @@ namespace Opc.Ua.Server.Historian
                 }
             }
 
-            if (useSimpleBounds || before == null || after == null)
+            if (useSimpleBounds || before.IsNull || after.IsNull)
             {
-                DataValue? closest = before ?? after;
-                if (closest == null)
+                DataValue closest = !before.IsNull ? before : after;
+                if (closest.IsNull)
                 {
-                    return new DataValue { StatusCode = StatusCodes.BadNoData, SourceTimestamp = requestedTime };
+                    return new DataValue(
+                        Variant.Null,
+                        StatusCodes.BadNoData,
+                        sourceTimestamp: requestedTime,
+                        serverTimestamp: DateTimeUtc.MinValue);
                 }
-                return new DataValue
-                {
-                    WrappedValue = closest.WrappedValue,
-                    StatusCode = StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    SourceTimestamp = requestedTime,
-                };
+                return new DataValue(
+                    closest.WrappedValue,
+                    StatusCodes.UncertainNoCommunicationLastUsableValue,
+                    sourceTimestamp: requestedTime,
+                    serverTimestamp: DateTimeUtc.MinValue);
             }
 
             try
@@ -1798,30 +1790,27 @@ namespace Opc.Ua.Server.Historian
                 double t = requestedTime.ToDateTime().Ticks;
                 double ratio = (t - t0) / (t1 - t0);
                 double y = y0 + (y1 - y0) * ratio;
-                return new DataValue
-                {
-                    WrappedValue = new Variant(y),
-                    StatusCode = StatusCodes.UncertainDataSubNormal,
-                    SourceTimestamp = requestedTime,
-                };
+                return new DataValue(
+                    new Variant(y),
+                    StatusCodes.UncertainDataSubNormal,
+                    sourceTimestamp: requestedTime,
+                    serverTimestamp: DateTimeUtc.MinValue);
             }
             catch (InvalidCastException)
             {
-                return new DataValue
-                {
-                    WrappedValue = before.WrappedValue,
-                    StatusCode = StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    SourceTimestamp = requestedTime,
-                };
+                return new DataValue(
+                    before.WrappedValue,
+                    StatusCodes.UncertainNoCommunicationLastUsableValue,
+                    sourceTimestamp: requestedTime,
+                    serverTimestamp: DateTimeUtc.MinValue);
             }
             catch (FormatException)
             {
-                return new DataValue
-                {
-                    WrappedValue = before.WrappedValue,
-                    StatusCode = StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    SourceTimestamp = requestedTime,
-                };
+                return new DataValue(
+                    before.WrappedValue,
+                    StatusCodes.UncertainNoCommunicationLastUsableValue,
+                    sourceTimestamp: requestedTime,
+                    serverTimestamp: DateTimeUtc.MinValue);
             }
         }
 

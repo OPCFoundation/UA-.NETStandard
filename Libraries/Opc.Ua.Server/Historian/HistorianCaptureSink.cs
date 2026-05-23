@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public void Enqueue(NodeId nodeId, DataValue value)
         {
-            if (nodeId.IsNull || value == null)
+            if (nodeId.IsNull || value.IsNull)
             {
                 return;
             }

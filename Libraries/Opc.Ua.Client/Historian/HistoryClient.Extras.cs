@@ -194,12 +194,11 @@ namespace Opc.Ua.Client.Historian
                 AnnotationTime = annotationTime,
             };
 
-            var dataValue = new DataValue
-            {
-                WrappedValue = new Variant(new ExtensionObject(annotation)),
-                SourceTimestamp = annotationTime,
-                StatusCode = StatusCodes.Good,
-            };
+            var dataValue = new DataValue(
+                new Variant(new ExtensionObject(annotation)),
+                StatusCodes.Good,
+                sourceTimestamp: annotationTime,
+                serverTimestamp: DateTimeUtc.MinValue);
 
             var details = new UpdateStructureDataDetails
             {
@@ -537,57 +536,58 @@ namespace Opc.Ua.Client.Historian
                 cancellationToken).ConfigureAwait(false);
 
             DataValue[] values = response.Results.ToArray() ?? new DataValue[requests.Length];
-            // Defensive: if response.Results was short, fill the rest with defaults.
+            // Defensive: if response.Results was short, fill the rest with BadNoData.
             if (values.Length < requests.Length)
             {
+                int original = values.Length;
                 Array.Resize(ref values, requests.Length);
-                for (int i = 0; i < values.Length; i++)
+                for (int i = original; i < values.Length; i++)
                 {
-                    values[i] ??= new DataValue { StatusCode = StatusCodes.BadNoData };
+                    values[i] = DataValue.FromStatusCode(StatusCodes.BadNoData);
                 }
             }
             return values;
         }
 
-        private static bool ReadBool(DataValue? value)
+        private static bool ReadBool(DataValue value)
         {
-            if (value == null || StatusCode.IsBad(value.StatusCode))
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
             {
                 return false;
             }
             return value.WrappedValue.TryGetValue(out bool v) && v;
         }
 
-        private static uint ReadUInt(DataValue? value)
+        private static uint ReadUInt(DataValue value)
         {
-            if (value == null || StatusCode.IsBad(value.StatusCode))
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
             {
                 return 0u;
             }
             return value.WrappedValue.TryGetValue(out uint v) ? v : 0u;
         }
 
-        private static double ReadDouble(DataValue? value)
+        private static double ReadDouble(DataValue value)
         {
-            if (value == null || StatusCode.IsBad(value.StatusCode))
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
             {
                 return 0d;
             }
             return value.WrappedValue.TryGetValue(out double v) ? v : 0d;
         }
 
-        private static DateTimeUtc ReadDateTimeUtc(DataValue? value)
+        private static DateTimeUtc ReadDateTimeUtc(DataValue value)
         {
-            if (value == null || StatusCode.IsBad(value.StatusCode))
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
             {
                 return DateTimeUtc.MinValue;
             }
             return value.WrappedValue.TryGetValue(out DateTimeUtc v) ? v : DateTimeUtc.MinValue;
         }
 
-        private static string? ReadString(DataValue? value)
+        private static string? ReadString(DataValue value)
         {
-            if (value == null || StatusCode.IsBad(value.StatusCode))
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
             {
                 return null;
             }

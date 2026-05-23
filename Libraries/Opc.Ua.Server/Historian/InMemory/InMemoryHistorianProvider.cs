@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                     for (int i = 0; i < entry.Value.Count; i++)
                     {
                         DataValue value = entry.Value[i];
-                        if (value == null)
+                        if (value.IsNull)
                         {
                             statuses[i] = StatusCodes.BadInvalidArgument;
                             continue;
@@ -415,7 +415,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < timestamps.Count; i++)
                 {
                     DateTime key = timestamps[i].ToDateTime();
-                    if (archive.Raw.TryGetValue(key, out DataValue? prior))
+                    if (archive.Raw.TryGetValue(key, out DataValue prior))
                     {
                         archive.Raw.Remove(key);
                         LogModification(archive, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
@@ -793,14 +793,14 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < values.Count; i++)
                 {
                     DataValue value = values[i];
-                    if (value == null)
+                    if (value.IsNull)
                     {
                         statuses[i] = StatusCodes.BadInvalidArgument;
                         continue;
                     }
 
                     DateTime key = value.SourceTimestamp.ToDateTime();
-                    bool exists = archive.Raw.TryGetValue(key, out DataValue? prior);
+                    bool exists = archive.Raw.TryGetValue(key, out DataValue prior);
 
                     switch (updateType)
                     {
@@ -823,7 +823,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                             }
                             else
                             {
-                                LogModification(archive, prior!, HistoryUpdateType.Replace, context.DefaultModificationInfo);
+                                LogModification(archive, prior, HistoryUpdateType.Replace, context.DefaultModificationInfo);
                                 archive.Raw[key] = CloneValue(value);
                                 statuses[i] = StatusCodes.GoodEntryReplaced;
                             }
@@ -831,7 +831,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         case HistoryUpdateType.Update:
                             if (exists)
                             {
-                                LogModification(archive, prior!, HistoryUpdateType.Update, context.DefaultModificationInfo);
+                                LogModification(archive, prior, HistoryUpdateType.Update, context.DefaultModificationInfo);
                                 archive.Raw[key] = CloneValue(value);
                                 statuses[i] = StatusCodes.GoodEntryReplaced;
                             }
@@ -880,7 +880,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < values.Count; i++)
                 {
                     DataValue value = values[i];
-                    if (value == null)
+                    if (value.IsNull)
                     {
                         statuses[i] = StatusCodes.BadInvalidArgument;
                         FillRollback(statuses, i, StatusCodes.BadInvalidArgument);
@@ -922,7 +922,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 {
                     DataValue value = values[i];
                     DateTime key = value.SourceTimestamp.ToDateTime();
-                    if (archive.Raw.TryGetValue(key, out DataValue? prior))
+                    if (archive.Raw.TryGetValue(key, out DataValue prior))
                     {
                         LogModification(archive, prior, updateType, context.DefaultModificationInfo);
                     }
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         {
             if (isForward)
             {
-                DataValue? candidate = null;
+                DataValue candidate = DataValue.Null;
                 foreach (KeyValuePair<DateTime, DataValue> entry in archive.Raw)
                 {
                     if (entry.Key >= windowMin)
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                     candidate = entry.Value;
                 }
-                return candidate != null
+                return !candidate.IsNull
                     ? new HistoricalDataValue(CloneValue(candidate), IsBound: true)
                     : null;
             }
@@ -1296,15 +1296,8 @@ namespace Opc.Ua.Server.Historian.InMemory
 
         private static DataValue CloneValue(DataValue source)
         {
-            return new DataValue
-            {
-                WrappedValue = source.WrappedValue,
-                SourceTimestamp = source.SourceTimestamp,
-                ServerTimestamp = source.ServerTimestamp,
-                StatusCode = source.StatusCode,
-                SourcePicoseconds = source.SourcePicoseconds,
-                ServerPicoseconds = source.ServerPicoseconds,
-            };
+            // DataValue is a readonly struct; copy is by value.
+            return source;
         }
 
         private static Annotation CloneAnnotation(Annotation source)

@@ -215,13 +215,11 @@ namespace Opc.Ua.Server.Historian
                 {
                     return;
                 }
-                sink.Enqueue(v.NodeId, new DataValue
-                {
-                    WrappedValue = v.WrappedValue,
-                    SourceTimestamp = v.Timestamp,
-                    ServerTimestamp = DateTime.UtcNow,
-                    StatusCode = v.StatusCode,
-                });
+                sink.Enqueue(v.NodeId, new DataValue(
+                    v.WrappedValue,
+                    v.StatusCode,
+                    sourceTimestamp: v.Timestamp,
+                    serverTimestamp: DateTime.UtcNow));
             };
             variable.StateChanged += handler;
             lock (m_captureSinkLock)
