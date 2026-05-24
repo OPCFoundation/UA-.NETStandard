@@ -245,7 +245,10 @@ namespace Opc.Ua.Server.Tests.Historian
                         Inserts.Add((kv.Key, kv.Value));
                         batchTotal += kv.Value.Count;
                         var statuses = new StatusCode[kv.Value.Count];
-                        Array.Fill(statuses, StatusCodes.Good);
+                        for (int i = 0; i < statuses.Length; i++)
+                        {
+                            statuses[i] = StatusCodes.Good;
+                        }
                         result[kv.Key] = statuses;
                     }
 
@@ -299,7 +302,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 foreach (KeyValuePair<NodeId, IList<DataValue>> kv in batch)
                 {
                     var statuses = new StatusCode[kv.Value.Count];
-                    Array.Fill(statuses, StatusCodes.Good);
+                    for (int i = 0; i < statuses.Length; i++)
+                    {
+                        statuses[i] = StatusCodes.Good;
+                    }
                     result[kv.Key] = statuses;
                 }
 
@@ -339,7 +345,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     Interlocked.Add(ref m_totalInsertedSamples, kv.Value.Count);
                     var statuses = new StatusCode[kv.Value.Count];
-                    Array.Fill(statuses, StatusCodes.Good);
+                    for (int i = 0; i < statuses.Length; i++)
+                    {
+                        statuses[i] = StatusCodes.Good;
+                    }
                     result[kv.Key] = statuses;
                 }
 
