@@ -270,5 +270,5 @@ testEnvironments.json
 !/Fuzzing/**/Testcases/*.bin
 **/Properties/launchSettings.json
 
-aot-publish-full.txt
+aot-publish*.txt
 aot.binlog
