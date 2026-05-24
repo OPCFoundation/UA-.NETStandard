@@ -664,6 +664,12 @@ namespace Opc.Ua.Schema.Model
         public bool Inherited { get; set; }
 
         /// <summary>
+        /// The modelling rule defined on the type definition for this node,
+        /// before any instance-level overrides are applied.
+        /// </summary>
+        public ModellingRule? TypeDefinitionModellingRule { get; set; }
+
+        /// <summary>
         /// Identifier
         /// </summary>
         public object Identifier { get; set; }
