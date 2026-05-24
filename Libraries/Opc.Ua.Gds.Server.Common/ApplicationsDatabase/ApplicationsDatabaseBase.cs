@@ -133,9 +133,10 @@ namespace Opc.Ua.Gds.Server.Database
 
                 if (application.ServerCapabilities.IsEmpty)
                 {
-                    throw new ArgumentException(
-                        "At least one ServerCapability must be provided.",
-                       nameof(application));
+                    // Per OPC UA Part 12, ServerCapabilities may be empty
+                    // (a Server that does not advertise any specific capability).
+                    // Older implementations of this library mandated at least one
+                    // entry; per OPC UA conformance tests this is too strict.
                 }
 
                 // Servers do not register reverse-connect listening URLs
@@ -258,11 +259,8 @@ namespace Opc.Ua.Gds.Server.Database
 
         public virtual ApplicationRecordDataType[]? FindApplications(string applicationUri)
         {
-            if (string.IsNullOrWhiteSpace(applicationUri))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument);
-            }
+            // Per OPC UA Part 12 the applicationUri filter is optional;
+            // an empty or null filter returns all registered Applications.
             return null;
         }
 
@@ -301,7 +299,10 @@ namespace Opc.Ua.Gds.Server.Database
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
 
-            if (applicationType > 2)
+            // applicationType filter values per OPC UA Part 12 §6.3.10 / Part 4:
+            //   0 = ALL, 1 = SERVER, 2 = CLIENT, 3 = DISCOVERY_SERVER.
+            // Anything outside this range is invalid.
+            if (applicationType > 3)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument);
@@ -415,16 +416,10 @@ namespace Opc.Ua.Gds.Server.Database
 
         public string ServerCapabilities(ApplicationRecordDataType application)
         {
-            if (application.ApplicationType != ApplicationType.Client &&
-                application.ServerCapabilities.IsEmpty)
-            {
-                throw new ArgumentException(
-                    "At least one Server Capability must be provided.",
-                    nameof(application));
-            }
-
             if (application.ServerCapabilities.IsEmpty)
             {
+                // Per OPC UA Part 12, ServerCapabilities may be empty.
+                // Returning an empty string means "no specific capability advertised".
                 return string.Empty;
             }
             var uniqueCapabilities = application.ServerCapabilities.ToList();

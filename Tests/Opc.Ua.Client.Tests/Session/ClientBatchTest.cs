@@ -38,6 +38,9 @@ using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -126,7 +129,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void AddNodesAsyncThrows()
+        public async Task AddNodesAsyncThrowsAsync()
         {
             var nodesToAdd = new List<AddNodesItem>();
             var addNodesItem = new AddNodesItem();
@@ -136,29 +139,22 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = Assert
-                .ThrowsAsync<ServiceResultException>(async () =>
-                    {
-                        AddNodesResponse response = await Session
-                            .AddNodesAsync(requestHeader, nodesToAdd, CancellationToken.None)
-                            .ConfigureAwait(false);
+            AddNodesResponse response = await Session
+                .AddNodesAsync(requestHeader, nodesToAdd, CancellationToken.None)
+                .ConfigureAwait(false);
 
-                        Assert.That(response, Is.Not.Null);
-                        ArrayOf<AddNodesResult> results = response.Results;
-                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            Assert.That(response, Is.Not.Null);
+            ArrayOf<AddNodesResult> results = response.Results;
 
-                        Assert.That(results.Count, Is.EqualTo(nodesToAdd.Count));
-                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
-                    });
-
-            Assert.That(
-                sre.StatusCode,
-                Is.EqualTo(StatusCodes.BadServiceUnsupported),
-                sre.ToString());
+            Assert.That(results.Count, Is.EqualTo(nodesToAdd.Count));
+            foreach (AddNodesResult result in results)
+            {
+                Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
+            }
         }
 
         [Test]
-        public void AddReferencesAsyncThrows()
+        public async Task AddReferencesAsyncThrowsAsync()
         {
             var referencesToAdd = new List<AddReferencesItem>();
             var addReferencesItem = new AddReferencesItem();
@@ -168,31 +164,22 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = Assert
-                .ThrowsAsync<ServiceResultException>(async () =>
-                    {
-                        AddReferencesResponse response = await Session
-                            .AddReferencesAsync(
-                                requestHeader,
-                                referencesToAdd,
-                                CancellationToken.None)
-                            .ConfigureAwait(false);
+            AddReferencesResponse response = await Session
+                .AddReferencesAsync(requestHeader, referencesToAdd, CancellationToken.None)
+                .ConfigureAwait(false);
 
-                        Assert.That(response, Is.Not.Null);
-                        ArrayOf<StatusCode> results = response.Results;
-                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            Assert.That(response, Is.Not.Null);
+            ArrayOf<StatusCode> results = response.Results;
 
-                        Assert.That(results.Count, Is.EqualTo(referencesToAdd.Count));
-                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
-                    });
-
-            Assert.That(
-                sre.StatusCode,
-                Is.EqualTo(StatusCodes.BadServiceUnsupported));
+            Assert.That(results.Count, Is.EqualTo(referencesToAdd.Count));
+            foreach (StatusCode statusCode in results)
+            {
+                Assert.That(StatusCode.IsBad(statusCode), Is.True);
+            }
         }
 
         [Test]
-        public void DeleteNodesAsyncThrows()
+        public async Task DeleteNodesAsyncThrowsAsync()
         {
             var nodesTDelete = new List<DeleteNodesItem>();
             var deleteNodesItem = new DeleteNodesItem();
@@ -202,28 +189,22 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = Assert
-                .ThrowsAsync<ServiceResultException>(async () =>
-                    {
-                        DeleteNodesResponse response = await Session
-                            .DeleteNodesAsync(requestHeader, nodesTDelete, CancellationToken.None)
-                            .ConfigureAwait(false);
+            DeleteNodesResponse response = await Session
+                .DeleteNodesAsync(requestHeader, nodesTDelete, CancellationToken.None)
+                .ConfigureAwait(false);
 
-                        ArrayOf<StatusCode> results = response.Results;
-                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            Assert.That(response.ResponseHeader, Is.Not.Null);
+            ArrayOf<StatusCode> results = response.Results;
 
-                        Assert.That(response.ResponseHeader, Is.Not.Null);
-                        Assert.That(results.Count, Is.EqualTo(nodesTDelete.Count));
-                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
-                    });
-
-            Assert.That(
-                sre.StatusCode,
-                Is.EqualTo(StatusCodes.BadServiceUnsupported));
+            Assert.That(results.Count, Is.EqualTo(nodesTDelete.Count));
+            foreach (StatusCode statusCode in results)
+            {
+                Assert.That(StatusCode.IsBad(statusCode), Is.True);
+            }
         }
 
         [Test]
-        public void DeleteReferencesAsyncThrows()
+        public async Task DeleteReferencesAsyncThrowsAsync()
         {
             var referencesToDelete = new List<DeleteReferencesItem>();
             var deleteReferencesItem = new DeleteReferencesItem();
@@ -233,27 +214,21 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = Assert
-                .ThrowsAsync<ServiceResultException>(async () =>
-                    {
-                        DeleteReferencesResponse response = await Session
-                            .DeleteReferencesAsync(
-                        requestHeader,
-                        referencesToDelete,
-                        CancellationToken.None)
-                            .ConfigureAwait(false);
+            DeleteReferencesResponse response = await Session
+                .DeleteReferencesAsync(
+                    requestHeader,
+                    referencesToDelete,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
 
-                        ArrayOf<StatusCode> results = response.Results;
-                        ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            Assert.That(response.ResponseHeader, Is.Not.Null);
+            ArrayOf<StatusCode> results = response.Results;
 
-                        Assert.That(response.ResponseHeader, Is.Not.Null);
-                        Assert.That(results.Count, Is.EqualTo(referencesToDelete.Count));
-                        Assert.That(diagnosticInfos.Count, Is.EqualTo(results.Count));
-                    });
-
-            Assert.That(
-                sre.StatusCode,
-                Is.EqualTo(StatusCodes.BadServiceUnsupported));
+            Assert.That(results.Count, Is.EqualTo(referencesToDelete.Count));
+            foreach (StatusCode statusCode in results)
+            {
+                Assert.That(StatusCode.IsBad(statusCode), Is.True);
+            }
         }
 
         [Test]

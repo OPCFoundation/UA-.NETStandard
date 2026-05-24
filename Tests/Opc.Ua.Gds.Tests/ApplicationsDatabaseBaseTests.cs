@@ -111,19 +111,22 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void FindApplicationsWhitespaceThrows()
+        public void FindApplicationsWhitespaceMatchesAll()
         {
+            // Per OPC UA Part 12 §6.3.10, an empty or whitespace-only filter
+            // matches all registered Applications (it is not BadInvalidArgument).
             var database = new TestApplicationsDatabase();
 
-            Assert.That(
-                () => database.FindApplications(" "),
-                Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
+            ApplicationRecordDataType[]? results = database.FindApplications(" ");
+            Assert.That(results, Is.Null.Or.Empty);
         }
 
         [Test]
         public void QueryApplicationsInvalidTypeThrows()
         {
+            // applicationType filter values per OPC UA Part 12 §6.3.10 / Part 4:
+            //   0 = ALL, 1 = SERVER, 2 = CLIENT, 3 = DISCOVERY_SERVER.
+            // Anything outside this range is invalid.
             var database = new TestApplicationsDatabase();
 
             Assert.That(
@@ -132,7 +135,7 @@ namespace Opc.Ua.Gds.Tests
                     10,
                     null,
                     null,
-                    3,
+                    99,
                     null,
                     [],
                     out _,

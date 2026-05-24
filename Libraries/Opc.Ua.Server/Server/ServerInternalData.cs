@@ -698,6 +698,19 @@ namespace Opc.Ua.Server
             serverCapabilities.MaxSubscriptions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
+            // Expose MaxSubscriptionsPerSession (optional property
+            // on ServerCapabilitiesType per Part 5 §6.3) so clients that
+            // enumerate per-session limits get a defined value instead of a
+            // missing-attribute response. Use the configured global
+            // MaxSubscriptionCount as the per-session ceiling — the SDK
+            // doesn't track per-session limits separately at this layer.
+            if (serverCapabilities.MaxSubscriptionsPerSession == null)
+            {
+                serverCapabilities.AddMaxSubscriptionsPerSession(DefaultSystemContext);
+            }
+            serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
+                m_configuration.ServerConfiguration.MaxSubscriptionCount);
+
             // Any operational limits Property that is provided shall have a non zero value.
             OperationLimitsState? operationLimits = serverCapabilities.OperationLimits;
             OperationLimits configOperationLimits = m_configuration.ServerConfiguration
@@ -870,23 +883,6 @@ namespace Opc.Ua.Server
             auditing!.OnSimpleWriteValue += OnWriteAuditing;
             auditing.OnSimpleReadValue += OnReadAuditing;
             auditing.Value = Auditing;
-            auditing.RolePermissions =
-            [
-                new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
-                    },
-                    new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                        Permissions = (uint)(
-                            PermissionType.Browse |
-                            PermissionType.Write |
-                            PermissionType.ReadRolePermissions |
-                            PermissionType.Read)
-                    }
-            ];
             auditing.AccessLevel = AccessLevels.CurrentRead;
             auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             auditing.MinimumSamplingInterval = 1000;

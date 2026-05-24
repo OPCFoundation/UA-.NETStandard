@@ -44,6 +44,8 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>

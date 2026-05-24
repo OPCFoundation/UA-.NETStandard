@@ -40,6 +40,7 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
+
 namespace Opc.Ua.Gds.Tests
 {
     public static class X509TestUtils
@@ -95,7 +96,7 @@ namespace Opc.Ua.Gds.Tests
                 Directory.CreateDirectory(trustedPath);
                 Directory.CreateDirectory(issuerPath);
 
-                // Phase 1: issuer certificates only in the issuer store.
+                // First, place issuer certificates only in the issuer store.
                 using (var issuerStoreOnly = new DirectoryCertificateStore(telemetry))
                 {
                     issuerStoreOnly.Open(issuerPath, true);
@@ -132,7 +133,7 @@ namespace Opc.Ua.Gds.Tests
                         "Expected validation to fail when no peer/CA in the trusted store.");
                 }
 
-                // Phase 2: also place the issuer certificates in the trusted
+                // Now also place the issuer certificates in the trusted
                 // store so the chain root is trusted.
                 using (var trustedStore = new DirectoryCertificateStore(telemetry))
                 {

@@ -36,6 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>

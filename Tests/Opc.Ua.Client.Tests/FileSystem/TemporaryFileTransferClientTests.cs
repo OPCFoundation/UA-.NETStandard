@@ -36,6 +36,8 @@ using NUnit.Framework;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests.FileSystem
 {
     /// <summary>

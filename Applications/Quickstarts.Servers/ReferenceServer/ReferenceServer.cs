@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
@@ -53,7 +55,7 @@ namespace Quickstarts.ReferenceServer
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
     /// </para>
     /// </remarks>
-    public class ReferenceServer : ReverseConnectServer
+    public partial class ReferenceServer : ReverseConnectServer
     {
         /// <summary>
         /// Create reference server
@@ -101,6 +103,11 @@ namespace Quickstarts.ReferenceServer
         /// and requires authenticated user access for certificate provisioning
         /// </summary>
         public bool ProvisioningMode { get; set; }
+
+        /// <summary>
+        /// The user database used for credential verification and user management.
+        /// </summary>
+        public IUserDatabase UserDatabase => m_userDatabase;
 
         /// <summary>
         /// If true, the server creates the FileSystem node manager that
@@ -161,6 +168,7 @@ namespace Quickstarts.ReferenceServer
                         UseSamplingGroupsInReferenceNodeManager);
 #pragma warning restore CA2000
                     asyncNodeManagers = [referenceNodeManager];
+                    m_referenceNodeManager = referenceNodeManager;
                     referenceNodeManager = null;
                 }
                 finally
@@ -296,6 +304,21 @@ namespace Quickstarts.ReferenceServer
                     serverUri: null,
                     referenceTypeId: ReferenceTypeIds.AliasFor);
             }
+        }
+
+        /// <summary>
+        /// Overrides the SDK default factory to plug in a
+        /// reference-server-specific <see cref="ConfigurationNodeManager"/>
+        /// that applies a few CTT-only address-space tweaks (Server-node
+        /// RolePermissions, HasAddIn instance, optional EngineeringUnits
+        /// on AnalogItemType). Keeping these out of the SDK avoids
+        /// polluting the standard nodeset for non-CTT hosts.
+        /// </summary>
+        protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new ReferenceServerMainNodeManagerFactory(configuration, server);
         }
 
         /// <summary>
@@ -579,29 +602,42 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            if (m_userDatabase.CheckCredentials(userName, password))
+            if (!m_userDatabase.CheckCredentials(userName, password))
             {
-                var userIdentity = new UserIdentity(userTokenHandler);
-                ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
-                return new RoleBasedIdentity(
-                    userIdentity,
-                    roles,
-                    ServerInternal.MessageContext.NamespaceUris);
+                // construct translation object with default text.
+                var info = new TranslationInfo(
+                    "InvalidPassword",
+                    "en-US",
+                    "Invalid username or password.",
+                    userName);
+
+                // create an exception with a vendor defined sub-code.
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        LoadServerProperties().ProductUri,
+                        new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
+                        new LocalizedText(info)));
             }
 
-            // construct translation object with default text.
-            var info = new TranslationInfo(
-                "InvalidPassword",
-                "en-US",
-                "Invalid username or password.",
-                userName);
+            ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
+            var identity = new UserIdentity(userTokenHandler);
+            try
+            {
+                if (roles != null && roles.Contains(Role.SecurityAdmin))
+                {
+                    return new SystemConfigurationIdentity(identity);
+                }
 
-            // create an exception with a vendor defined sub-code.
-            throw new ServiceResultException(
-                new ServiceResult(
-                    LoadServerProperties().ProductUri,
-                    new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
-                    new LocalizedText(info)));
+                return new RoleBasedIdentity(
+                    identity,
+                    roles ?? [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
+            }
+            catch
+            {
+                // UserIdentity is no longer IDisposable; nothing to release.
+                throw;
+            }
         }
 
         /// <summary>
@@ -740,5 +776,6 @@ namespace Quickstarts.ReferenceServer
 
         private CertificateManager? m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
+        private ReferenceNodeManager? m_referenceNodeManager;
     }
 }

@@ -266,7 +266,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
 
                     m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
 
@@ -278,7 +278,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(
                         mandatoryNonExclusiveLevel.AlarmNodeName,
                         mandatoryNonExclusiveLevel);
@@ -291,7 +291,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(offNormal.AlarmNodeName, offNormal);
 
                     AlarmHolder alarmCondition = new AlarmConditionHolder(
@@ -302,7 +302,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(alarmCondition.AlarmNodeName, alarmCondition);
 
                     AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
@@ -314,7 +314,7 @@ namespace Alarms
                         alarmControllerType,
                         interval,
                         discrepancyTargetSource.NodeId,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(discrepancyAlarm.AlarmNodeName, discrepancyAlarm);
 
                     AlarmHolder limitAlarm = new LimitAlarmHolder(
@@ -325,7 +325,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(limitAlarm.AlarmNodeName, limitAlarm);
 
                     AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
@@ -336,7 +336,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(exclusiveLimitAlarm.AlarmNodeName, exclusiveLimitAlarm);
 
                     AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
@@ -348,7 +348,7 @@ namespace Alarms
                         alarmControllerType,
                         interval,
                         setpointSource.NodeId,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(exclusiveDeviationAlarm.AlarmNodeName, exclusiveDeviationAlarm);
 
                     AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
@@ -359,7 +359,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(exclusiveRateOfChangeAlarm.AlarmNodeName, exclusiveRateOfChangeAlarm);
 
                     AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
@@ -370,7 +370,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(nonExclusiveLimitAlarm.AlarmNodeName, nonExclusiveLimitAlarm);
 
                     AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
@@ -382,7 +382,7 @@ namespace Alarms
                         alarmControllerType,
                         interval,
                         setpointSource.NodeId,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(nonExclusiveDeviationAlarm.AlarmNodeName, nonExclusiveDeviationAlarm);
 
                     AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
@@ -393,7 +393,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(
                         nonExclusiveRateOfChangeAlarm.AlarmNodeName,
                         nonExclusiveRateOfChangeAlarm);
@@ -406,7 +406,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(discreteAlarm.AlarmNodeName, discreteAlarm);
 
                     AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
@@ -417,7 +417,7 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: true);
                     m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
 
                     AddPredefinedNode(SystemContext, alarmsFolder);
