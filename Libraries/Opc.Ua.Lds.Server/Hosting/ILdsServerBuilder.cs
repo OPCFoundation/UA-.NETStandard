@@ -28,26 +28,28 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua.Lds.Server.Hosting
+{
+    /// <summary>
+    /// Fluent helper returned by
+    /// <see cref="OpcUaLdsServerBuilderExtensions.AddLdsServer(IOpcUaBuilder, System.Action{LdsServerOptions})"/>;
+    /// exposes the underlying <see cref="IServiceCollection"/> so callers can
+    /// register additional services that the hosted Local Discovery Server
+    /// may need (custom telemetry, certificate password providers, etc.).
+    /// </summary>
+    /// <remarks>
+    /// Unlike <c>IOpcUaServerBuilder</c>, an LDS has no node-manager surface
+    /// to attach. This interface intentionally exposes only
+    /// <see cref="Services"/>; future LDS-specific extensions can be added
+    /// as extension methods without breaking existing consumers.
+    /// </remarks>
+    public interface ILdsServerBuilder
     {
-        o.ApplicationName = "MinimalBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Underlying service collection. Use it to register additional
+        /// services the hosted LDS may need.
+        /// </summary>
+        IServiceCollection Services { get; }
+    }
+}

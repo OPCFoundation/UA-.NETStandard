@@ -29,15 +29,17 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
 
 #nullable enable
 
-namespace Opc.Ua.Server.Hosting
+namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>
-    /// Options for an OPC UA server hosted by the .NET Generic Host via
-    /// <see cref="M:Microsoft.Extensions.DependencyInjection.OpcUaServerBuilderExtensions.AddServer(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Server.Hosting.OpcUaServerOptions})"/>.
+    /// Options for an OPC UA Local Discovery Server (LDS / LDS-ME) hosted
+    /// by the .NET Generic Host via
+    /// <see cref="OpcUaLdsServerBuilderExtensions.AddLdsServer(IOpcUaBuilder, Action{LdsServerOptions})"/>.
     /// </summary>
     /// <remarks>
     /// Only the most common knobs are exposed directly. Use
@@ -45,21 +47,23 @@ namespace Opc.Ua.Server.Hosting
     /// <see cref="IApplicationConfigurationBuilder"/> chain (security policies,
     /// transport quotas, custom security stores, etc.).
     /// </remarks>
-    public sealed class OpcUaServerOptions
+    public sealed class LdsServerOptions
     {
         /// <summary>
         /// Application name. Used as the default for the certificate subject
         /// common-name and the PKI root path when those are not set explicitly.
         /// </summary>
-        public string ApplicationName { get; set; } = "OpcUaServer";
+        public string ApplicationName { get; set; } = "LdsServer";
 
         /// <summary>
-        /// Application URI (e.g. <c>urn:localhost:Org:Product</c>).
+        /// Application URI (e.g. <c>urn:localhost:UA:LocalDiscoveryServer</c>).
+        /// Required.
         /// </summary>
         public string ApplicationUri { get; set; } = string.Empty;
 
         /// <summary>
-        /// Product URI (e.g. <c>uri:org:product</c>).
+        /// Product URI (e.g. <c>uri:opcfoundation.org:LocalDiscoveryServer</c>).
+        /// Required.
         /// </summary>
         public string ProductUri { get; set; } = string.Empty;
 
@@ -70,7 +74,9 @@ namespace Opc.Ua.Server.Hosting
         public string SubjectName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Listen URLs. Mutated in place by <c>options.EndpointUrls.Add(...)</c>.
+        /// Listen URLs. Per OPC 10000-12 the canonical LDS endpoint is
+        /// <c>opc.tcp://{host}:4840</c>; tests typically use ephemeral ports.
+        /// Mutated in place by <c>options.EndpointUrls.Add(...)</c>.
         /// </summary>
         public IList<string> EndpointUrls { get; } = [];
 
@@ -87,33 +93,12 @@ namespace Opc.Ua.Server.Hosting
         public bool AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
-        /// Toggle the OPC UA server diagnostics node manager.
+        /// When <c>true</c> (the default) and the platform supports it, the
+        /// hosted LDS announces itself via mDNS (LDS-ME, OPC 10000-12 §6.4.6)
+        /// using <see cref="MulticastDiscovery"/>. Disable on platforms
+        /// without multicast support or in test environments.
         /// </summary>
-        public bool DiagnosticsEnabled { get; set; } = true;
-
-        /// <summary>
-        /// Maximum byte-string length advertised on the transport. Defaults to
-        /// 4 MiB.
-        /// </summary>
-        public uint MaxByteStringLength { get; set; } = 4 * 1024 * 1024;
-
-        /// <summary>
-        /// Maximum array length advertised on the transport. Defaults to 1 Mi
-        /// elements.
-        /// </summary>
-        public uint MaxArrayLength { get; set; } = 1024 * 1024;
-
-        /// <summary>
-        /// When true (default), <c>AddSignAndEncryptPolicies()</c> is applied to
-        /// the configuration builder.
-        /// </summary>
-        public bool IncludeSignAndEncryptPolicies { get; set; } = true;
-
-        /// <summary>
-        /// When true, <c>AddUnsecurePolicyNone()</c> is applied to the
-        /// configuration builder. Off by default.
-        /// </summary>
-        public bool IncludeUnsecurePolicyNone { get; set; }
+        public bool EnableMulticast { get; set; } = true;
 
         /// <summary>
         /// Optional escape hatch invoked after the standard configuration steps

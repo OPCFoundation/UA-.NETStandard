@@ -28,26 +28,19 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua.Client
+{
+    /// <summary>
+    /// Builder returned by
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder, System.Action{OpcUaClientOptions})"/>
+    /// for further configuration of the OPC UA client services.
+    /// </summary>
+    public interface IOpcUaClientBuilder
     {
-        o.ApplicationName = "MinimalBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// The underlying <see cref="IServiceCollection"/>.
+        /// </summary>
+        IServiceCollection Services { get; }
+    }
+}

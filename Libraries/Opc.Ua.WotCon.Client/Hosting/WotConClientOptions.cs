@@ -27,27 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua.WotCon.Client.Hosting
+{
+    /// <summary>
+    /// Top-level options for
+    /// <c>Microsoft.Extensions.DependencyInjection.OpcUaWotConClientBuilderExtensions.AddWotConClient</c>.
+    /// </summary>
+    /// <remarks>
+    /// Configurable client-side knobs for the WoT Connectivity client
+    /// surface. Today this is intentionally minimal: the connection
+    /// itself is owned by the regular <c>.AddClient(...)</c> session
+    /// factory and the WoT Connectivity client only composes on top of
+    /// an established <see cref="Opc.Ua.Client.ISession"/>.
+    /// </remarks>
+    public sealed class WotConClientOptions
     {
-        o.ApplicationName = "MinimalBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// When <c>true</c> (the default), the WoT Connectivity client
+        /// factory delegate registered with DI lazily connects the
+        /// underlying <see cref="Opc.Ua.Client.ManagedSession"/> the
+        /// first time it is awaited. Set to <c>false</c> when callers
+        /// supply their own session lifecycle and only want a typed
+        /// wrapper.
+        /// </summary>
+        public bool LazyConnect { get; set; } = true;
+    }
+}

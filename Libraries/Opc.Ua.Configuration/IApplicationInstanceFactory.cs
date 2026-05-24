@@ -27,27 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua.Configuration
+{
+    /// <summary>
+    /// Creates fresh <see cref="IApplicationInstance"/> objects for a given
+    /// hosted OPC UA server. Registered as a singleton by
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaConfigurationServiceCollectionExtensions.AddApplicationInstance(Opc.Ua.IOpcUaBuilder)"/>.
+    /// </summary>
+    /// <remarks>
+    /// Each hosted server requires its own
+    /// <see cref="IApplicationInstance"/> with distinct PKI roots,
+    /// endpoint URLs, and certificate stores. A process-wide singleton
+    /// would cause configuration overwrite and lifecycle conflicts;
+    /// this factory keeps a single registered service that produces
+    /// per-host instances on demand.
+    /// </remarks>
+    public interface IApplicationInstanceFactory
     {
-        o.ApplicationName = "MinimalBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Creates a new <see cref="IApplicationInstance"/> using the
+        /// supplied <paramref name="telemetry"/> for logging / tracing.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context the new
+        /// application instance should use.</param>
+        IApplicationInstance Create(ITelemetryContext telemetry);
+    }
+}

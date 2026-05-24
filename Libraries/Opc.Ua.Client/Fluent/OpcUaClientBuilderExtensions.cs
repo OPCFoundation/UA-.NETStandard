@@ -28,30 +28,36 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Opc.Ua;
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client
+namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// <see cref="IServiceCollection"/> extensions to register OPC UA client
-    /// services (telemetry, session factory, ManagedSession factory) for
+    /// <see cref="IOpcUaBuilder"/> extensions provided by
+    /// <c>Opc.Ua.Client</c>: register OPC UA client services (telemetry,
+    /// session factory, <see cref="ManagedSession"/> factory) for
     /// dependency-injected applications.
     /// </summary>
     /// <remarks>
-    /// Mirrors the server-side
-    /// <c>OpcUaServerServiceCollectionExtensions.AddOpcUaServer</c> pattern.
-    /// The returned <see cref="IClientBuilder"/> can be extended with
+    /// Mirrors the server-side <c>.AddServer(...)</c> pattern. The
+    /// returned <see cref="IOpcUaClientBuilder"/> can be extended with
     /// further registrations.
     /// </remarks>
-    public static class ServiceCollectionExtensions
+    public static class OpcUaClientBuilderExtensions
     {
+        /// <summary>
+        /// Default <see cref="IConfiguration"/> section name used by the
+        /// <see cref="AddClient(IOpcUaBuilder, IConfiguration)"/> overload.
+        /// </summary>
+        public const string DefaultConfigurationSection = "OpcUa:Client";
+
         /// <summary>
         /// Registers OPC UA client services and a lazy
         /// <see cref="Func{T, TResult}"/> factory for
@@ -59,36 +65,118 @@ namespace Opc.Ua.Client
         /// connects and caches the session; subsequent calls return the
         /// cached instance.
         /// </summary>
-        /// <param name="services">The service collection.</param>
+        /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">Configuration delegate for
         /// <see cref="OpcUaClientOptions"/>. Must set
         /// <see cref="OpcUaClientOptions.Configuration"/> and
         /// <see cref="ManagedSessionOptions.Endpoint"/>.</param>
-        /// <returns>An <see cref="IClientBuilder"/> for chaining.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
-        public static IClientBuilder AddOpcUaClient(
-            this IServiceCollection services,
+        /// <returns>An <see cref="IOpcUaClientBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IOpcUaClientBuilder AddClient(
+            this IOpcUaBuilder builder,
             Action<OpcUaClientOptions> configure)
         {
-            if (services == null)
+            if (builder is null)
             {
-                throw new ArgumentNullException(nameof(services));
+                throw new ArgumentNullException(nameof(builder));
             }
-            if (configure == null)
+            if (configure is null)
             {
                 throw new ArgumentNullException(nameof(configure));
             }
 
             var options = new OpcUaClientOptions();
             configure(options);
-            services.TryAddSingleton(options);
+            builder.Services.TryAddSingleton(options);
 
+            RegisterCoreServices(builder.Services);
+
+            return new OpcUaClientBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers OPC UA client services with options bound from the
+        /// supplied <paramref name="configuration"/> section
+        /// <see cref="DefaultConfigurationSection"/> (<c>OpcUa:Client</c>).
+        /// </summary>
+        /// <remarks>
+        /// Uses reflection-based configuration binding. AOT consumers
+        /// should prefer
+        /// <see cref="AddClient(IOpcUaBuilder, Action{OpcUaClientOptions})"/>.
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configuration">Configuration root containing
+        /// the <c>OpcUa:Client</c> section.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configuration"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Binds OpcUaClientOptions using reflection-based configuration binding. " +
+            "Use the Action<OpcUaClientOptions> overload for trim/AOT consumers.")]
+        [RequiresDynamicCode(
+            "Binds OpcUaClientOptions using reflection-based configuration binding. " +
+            "Use the Action<OpcUaClientOptions> overload for AOT consumers.")]
+        public static IOpcUaClientBuilder AddClient(
+            this IOpcUaBuilder builder,
+            IConfiguration configuration)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            return builder.AddClient(configuration.GetSection(DefaultConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers OPC UA client services with options bound from the
+        /// supplied <paramref name="section"/>.
+        /// </summary>
+        /// <remarks>
+        /// Uses reflection-based configuration binding. AOT consumers
+        /// should prefer
+        /// <see cref="AddClient(IOpcUaBuilder, Action{OpcUaClientOptions})"/>.
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="section">Configuration section to bind.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        [RequiresUnreferencedCode(
+            "Binds OpcUaClientOptions using reflection-based configuration binding. " +
+            "Use the Action<OpcUaClientOptions> overload for trim/AOT consumers.")]
+        [RequiresDynamicCode(
+            "Binds OpcUaClientOptions using reflection-based configuration binding. " +
+            "Use the Action<OpcUaClientOptions> overload for AOT consumers.")]
+        public static IOpcUaClientBuilder AddClient(
+            this IOpcUaBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            var options = new OpcUaClientOptions();
+            section.Bind(options);
+            builder.Services.TryAddSingleton(options);
+
+            RegisterCoreServices(builder.Services);
+
+            return new OpcUaClientBuilder(builder.Services);
+        }
+
+        private static void RegisterCoreServices(IServiceCollection services)
+        {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
 
             services.TryAddSingleton<ISessionFactory>(sp =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
                 return new DefaultSessionFactory(telemetry)
                 {
                     SubscriptionEngineFactory =
@@ -106,10 +194,10 @@ namespace Opc.Ua.Client
             services.TryAddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 sp => new ManagedSessionAccessor(sp).ConnectAsync);
 
-            return new OpcUaClientBuilder(services);
+            OpcUaServiceCollectionExtensions.AddOpcUa(services);
         }
 
-        private sealed class OpcUaClientBuilder : IClientBuilder
+        private sealed class OpcUaClientBuilder : IOpcUaClientBuilder
         {
             public OpcUaClientBuilder(IServiceCollection services)
             {
@@ -198,38 +286,6 @@ namespace Opc.Ua.Client
             private readonly IServiceProvider m_sp;
             private Task<ManagedSession>? m_connectTask;
             private readonly Lock m_gate = new();
-        }
-
-        /// <summary>
-        /// <see cref="ITelemetryContext"/> implementation that obtains the
-        /// host's <see cref="ILoggerFactory"/> from DI when available,
-        /// otherwise a no-op logger factory.
-        /// </summary>
-        private sealed class ServiceProviderTelemetryContext :
-            ITelemetryContext, IDisposable
-        {
-            public ServiceProviderTelemetryContext(IServiceProvider sp)
-            {
-                m_sp = sp;
-            }
-
-            public ILoggerFactory LoggerFactory =>
-                m_sp.GetService<ILoggerFactory>()
-                ?? NullLoggerFactory.Instance;
-
-            public ActivitySource ActivitySource { get; } = new("Opc.Ua.Client");
-
-            public Meter CreateMeter()
-            {
-                return new Meter("Opc.Ua.Client");
-            }
-
-            public void Dispose()
-            {
-                ActivitySource.Dispose();
-            }
-
-            private readonly IServiceProvider m_sp;
         }
     }
 }

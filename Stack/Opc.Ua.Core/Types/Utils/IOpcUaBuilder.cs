@@ -27,27 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua
+{
+    /// <summary>
+    /// Root builder returned by
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServiceCollectionExtensions.AddOpcUa(Microsoft.Extensions.DependencyInjection.IServiceCollection)"/>.
+    /// Feature libraries hang their own <c>.AddXxx(...)</c> extension methods
+    /// off this interface so the OPC UA DI surface is fluent and uniform.
+    /// </summary>
+    /// <remarks>
+    /// Derives from the original <see cref="IDependencyInjectionBuilder"/> to
+    /// preserve binary compatibility for any existing
+    /// <c>AddLogging(this IDependencyInjectionBuilder)</c> /
+    /// <c>AddMetrics(this IDependencyInjectionBuilder)</c> callers. Newer
+    /// fluent overloads accept and return <see cref="IOpcUaBuilder"/> so
+    /// chaining into feature methods works.
+    /// </remarks>
+    public interface IOpcUaBuilder : IDependencyInjectionBuilder
     {
-        o.ApplicationName = "MinimalBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+    }
+}

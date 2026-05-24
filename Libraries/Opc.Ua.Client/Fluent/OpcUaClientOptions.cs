@@ -31,7 +31,7 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Top-level options for
-    /// <see cref="ServiceCollectionExtensions.AddOpcUaClient"/>.
+    /// <see cref="M:Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
     /// </summary>
     public sealed class OpcUaClientOptions
     {

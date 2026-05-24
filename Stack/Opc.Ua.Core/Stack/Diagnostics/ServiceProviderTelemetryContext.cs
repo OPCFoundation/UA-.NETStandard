@@ -27,27 +27,34 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+namespace Opc.Ua
+{
+    /// <summary>
+    /// Canonical <see cref="ITelemetryContext"/> adapter used by
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServiceCollectionExtensions.AddOpcUa(IServiceCollection)"/>.
+    /// Resolves the host's <see cref="ILoggerFactory"/> from DI at first
+    /// access; falls back to <see cref="NullLoggerFactory"/> when no logger
+    /// factory is registered. Activity sources and meters are derived from
+    /// the calling assembly through the base implementation.
+    /// </summary>
+    public sealed class ServiceProviderTelemetryContext : TelemetryContextBase
     {
-        o.ApplicationName = "MinimalBoilerServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
-    })
-    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Creates a new adapter bound to the supplied service provider.
+        /// </summary>
+        /// <param name="serviceProvider">The host's service provider.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <c>null</c>.</exception>
+        public ServiceProviderTelemetryContext(IServiceProvider serviceProvider)
+            : base(serviceProvider is null
+                ? throw new ArgumentNullException(nameof(serviceProvider))
+                : serviceProvider.GetService<ILoggerFactory>()
+                  ?? NullLoggerFactory.Instance)
+        {
+        }
+    }
+}

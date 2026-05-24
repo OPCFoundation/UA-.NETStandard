@@ -29,45 +29,50 @@
 
 using System;
 
-namespace Opc.Ua.Gds.Client
+namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
-    /// Configuration options for <see cref="GlobalDiscoveryServerClient"/> and
-    /// <see cref="ServerPushConfigurationClient"/>. Bound by
-    /// <see cref="Microsoft.Extensions.Options.IOptions{TOptions}"/> when the
-    /// clients are resolved from the dependency injection container via
-    /// <c>builder.AddGdsClient(...)</c>.
+    /// Wrapper carrying a node-manager factory registered under the
+    /// "regular" OPC UA server feature
+    /// (<see cref="IOpcUaServerBuilder.AddNodeManager{TFactory}"/> /
+    /// <see cref="IOpcUaServerBuilder.AddSyncNodeManager{TFactory}"/>).
     /// </summary>
-    public sealed class GdsClientOptions
+    /// <remarks>
+    /// The hosted service resolves <c>IEnumerable&lt;OpcUaServerNodeManagerRegistration&gt;</c>
+    /// — never the bare <see cref="IAsyncNodeManagerFactory"/> /
+    /// <see cref="INodeManagerFactory"/> services — so node managers
+    /// registered under the regular server feature do not bleed into
+    /// other server features (GDS, LDS, WotCon) hosted in the same
+    /// container.
+    /// </remarks>
+    public sealed class OpcUaServerNodeManagerRegistration
     {
         /// <summary>
-        /// Session lifetime requested when establishing a new session with the
-        /// server. Defaults to one minute.
+        /// Creates a registration carrying an asynchronous factory.
         /// </summary>
-        public TimeSpan SessionTimeout { get; set; } = TimeSpan.FromMinutes(1);
+        public OpcUaServerNodeManagerRegistration(IAsyncNodeManagerFactory factory)
+        {
+            AsyncFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+        }
 
         /// <summary>
-        /// Maximum number of connect attempts before connecting
-        /// gives up and rethrows the last <see cref="ServiceResultException"/>.
-        /// Must be greater than zero. Defaults to <c>5</c>.
+        /// Creates a registration carrying a synchronous factory.
         /// </summary>
-        public int MaxConnectAttempts { get; set; } = 5;
+        public OpcUaServerNodeManagerRegistration(INodeManagerFactory factory)
+        {
+            SyncFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+        }
 
         /// <summary>
-        /// Delay between connect retries. Defaults to one second.
+        /// The asynchronous factory, if this is an async registration;
+        /// otherwise <c>null</c>.
         /// </summary>
-        public TimeSpan ConnectBackoff { get; set; } = TimeSpan.FromSeconds(1);
+        public IAsyncNodeManagerFactory? AsyncFactory { get; }
 
         /// <summary>
-        /// Maximum trust list size accepted on read or sent on update, in
-        /// bytes. Defaults to one megabyte.
+        /// The synchronous factory, if this is a sync registration;
+        /// otherwise <c>null</c>.
         /// </summary>
-        public long MaxTrustListSize { get; set; } = 1 * 1024 * 1024;
-
-        /// <summary>
-        /// Chunk size used for the trust-list file transfer. Must be greater
-        /// than zero. Defaults to <c>256</c> bytes.
-        /// </summary>
-        public int FileTransferChunkSize { get; set; } = 256;
+        public INodeManagerFactory? SyncFactory { get; }
     }
 }

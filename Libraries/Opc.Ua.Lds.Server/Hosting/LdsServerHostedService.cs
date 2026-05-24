@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,36 +38,36 @@ using Opc.Ua.Configuration;
 
 #nullable enable
 
-namespace Opc.Ua.Server.Hosting
+namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>
     /// <see cref="BackgroundService"/> that hosts an OPC UA
-    /// <see cref="StandardServer"/> within a .NET Generic Host. Owns the
-    /// <see cref="ApplicationInstance"/> lifetime, builds the configuration
-    /// from <see cref="OpcUaServerOptions"/>, and attaches every
-    /// <see cref="OpcUaServerNodeManagerRegistration"/> resolved from DI
-    /// before starting the server.
+    /// <see cref="LdsServer"/> within a .NET Generic Host. Owns the
+    /// <see cref="IApplicationInstance"/> lifetime, builds the configuration
+    /// from <see cref="LdsServerOptions"/>, and starts an LDS that derives
+    /// from <c>DiscoveryServerBase</c>. When
+    /// <see cref="LdsServerOptions.EnableMulticast"/> is set, the LDS-ME
+    /// multicast layer is attached via <see cref="LdsServer.MulticastFactory"/>
+    /// so it starts and stops with the server.
     /// </summary>
-    internal sealed class OpcUaServerHostedService : BackgroundService
+    internal sealed class LdsServerHostedService : BackgroundService
     {
-        private readonly OpcUaServerOptions m_options;
+        private readonly LdsServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
-        private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
-        private readonly ILogger<OpcUaServerHostedService> m_logger;
+        private readonly ILogger<LdsServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
         // managed via the async StopAsync override which calls m_application.StopAsync.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
-        private StandardServer? m_server;
+        private LdsServer? m_server;
 
-        public OpcUaServerHostedService(
-            IOptions<OpcUaServerOptions> options,
+        public LdsServerHostedService(
+            IOptions<LdsServerOptions> options,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
-            IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
-            ILogger<OpcUaServerHostedService> logger)
+            ILogger<LdsServerHostedService> logger)
         {
             if (options is null)
             {
@@ -77,14 +76,13 @@ namespace Opc.Ua.Server.Hosting
             m_options = options.Value ?? throw new ArgumentNullException(nameof(options));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
-            m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             string appName = string.IsNullOrEmpty(m_options.ApplicationName)
-                ? "OpcUaServer"
+                ? "LdsServer"
                 : m_options.ApplicationName;
 
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
@@ -97,6 +95,10 @@ namespace Opc.Ua.Server.Hosting
 
             m_application = m_applicationFactory.Create(m_telemetry);
             m_application.ApplicationName = appName;
+            // Build the configuration as a regular Server (the
+            // ApplicationConfigurationBuilder rejects DiscoveryServer in
+            // AsServer); we promote to DiscoveryServer after CreateAsync
+            // so the LDS is correctly advertised per OPC 10000-12.
             m_application.ApplicationType = ApplicationType.Server;
 
             ArrayOf<CertificateIdentifier> certs =
@@ -108,30 +110,20 @@ namespace Opc.Ua.Server.Hosting
 
             IApplicationConfigurationBuilderServerSelected serverBuilder = m_application
                 .Build(m_options.ApplicationUri, m_options.ProductUri)
-                .SetMaxByteStringLength((int)m_options.MaxByteStringLength)
-                .SetMaxArrayLength((int)m_options.MaxArrayLength)
                 .AsServer(urls);
-
-            if (m_options.IncludeSignAndEncryptPolicies)
-            {
-                serverBuilder = serverBuilder.AddSignAndEncryptPolicies();
-            }
-
-            if (m_options.IncludeUnsecurePolicyNone)
-            {
-                serverBuilder = serverBuilder.AddUnsecurePolicyNone();
-            }
-
-            IApplicationConfigurationBuilderServerOptions optionsBuilder =
-                serverBuilder.SetDiagnosticsEnabled(m_options.DiagnosticsEnabled);
 
             m_options.ConfigureBuilder?.Invoke(serverBuilder);
 
-            await optionsBuilder
+            ApplicationConfiguration configuration = await serverBuilder
                 .AddSecurityConfiguration(certs, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates)
                 .CreateAsync(stoppingToken)
                 .ConfigureAwait(false);
+
+            // Promote to DiscoveryServer per OPC 10000-12 Part 12 so the
+            // LDS self-describes correctly to peers (FindServers, mDNS).
+            configuration.ApplicationType = ApplicationType.DiscoveryServer;
+            m_application.ApplicationType = ApplicationType.DiscoveryServer;
 
             bool haveCert = await m_application
                 .CheckApplicationInstanceCertificatesAsync(
@@ -143,24 +135,24 @@ namespace Opc.Ua.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
-            m_server = new StandardServer(m_telemetry);
-            foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
+            m_server = new LdsServer(m_telemetry);
+
+            if (m_options.EnableMulticast)
             {
-                if (reg.AsyncFactory is not null)
-                {
-                    m_server.AddNodeManager(reg.AsyncFactory);
-                }
-                if (reg.SyncFactory is not null)
-                {
-                    m_server.AddNodeManager(reg.SyncFactory);
-                }
+                ILogger multicastLogger = m_telemetry.CreateLogger<MulticastDiscovery>();
+                m_server.MulticastFactory = lds => new MulticastDiscovery(
+                    lds.Store,
+                    loopbackOnly: false,
+                    logger: multicastLogger);
             }
+
+            m_server.Store.StartPruneTimer();
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
 
             foreach (string url in urls)
             {
-                m_logger.LogInformation("OPC UA server listening at {Endpoint}.", url);
+                m_logger.LogInformation("OPC UA LDS listening at {Endpoint}.", url);
             }
 
             try
@@ -179,14 +171,14 @@ namespace Opc.Ua.Server.Hosting
 
             if (m_application != null)
             {
-                m_logger.LogInformation("Stopping OPC UA server...");
+                m_logger.LogInformation("Stopping OPC UA LDS...");
                 try
                 {
                     await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    m_logger.LogWarning(ex, "Error while stopping OPC UA server.");
+                    m_logger.LogWarning(ex, "Error while stopping OPC UA LDS.");
                 }
             }
         }
