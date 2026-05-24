@@ -1047,7 +1047,7 @@ queueSize: 1, discardOldest: true))
                 .Where(r => StatusCode.IsGood(r.StatusCode))
                 .Select(r => r.MonitoredItemId)];
 
-            Assert.That(monIds.Length, Is.EqualTo(20));
+            Assert.That(monIds, Has.Length.EqualTo(20));
 
             // Delete all at once
             DeleteMonitoredItemsResponse delResp = await Session.DeleteMonitoredItemsAsync(

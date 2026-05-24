@@ -703,8 +703,8 @@ namespace Opc.Ua.InformationModel.Tests
                     result.OutputArguments[1]);
                 Assert.That(serverHandles, Is.Not.Null);
                 Assert.That(clientHandles, Is.Not.Null);
-                Assert.That(serverHandles.Length, Is.Zero);
-                Assert.That(clientHandles.Length, Is.Zero);
+                Assert.That(serverHandles, Has.Length.Zero);
+                Assert.That(clientHandles, Has.Length.Zero);
             }
             finally
             {
@@ -746,7 +746,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.That(handles1, Is.Not.Null);
                 Assert.That(handles2, Is.Not.Null);
                 Assert.That(handles1, Is.Not.Empty);
-                Assert.That(handles2.Length, Is.Zero);
+                Assert.That(handles2, Has.Length.Zero);
             }
             finally
             {

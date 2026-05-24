@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Tests
 
             List<ApplicationRecordDataType> results = await FindAppsAsync(record.ApplicationUri)
                 .ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero);
+            Assert.That(results, Has.Count.Zero);
         }
 
         [Test]
@@ -345,7 +345,7 @@ namespace Opc.Ua.Gds.Tests
             List<ApplicationRecordDataType> results = await FindAppsAsync(
                 "urn:opcfoundation.org:tests:depth:nonexistent:002")
                 .ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero);
+            Assert.That(results, Has.Count.Zero);
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace Opc.Ua.Gds.Tests
 
             List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
                 .ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero);
+            Assert.That(results, Has.Count.Zero);
         }
 
         [Test]
@@ -1210,7 +1210,7 @@ namespace Opc.Ua.Gds.Tests
                 0, 100, null,
                 "urn:opcfoundation.org:tests:depth:nonexistent:055",
                 0, null, null).ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]
@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Gds.Tests
 
             List<ApplicationRecordDataType> afterUnreg = await FindAppsAsync(rec.ApplicationUri)
                 .ConfigureAwait(false);
-            Assert.That(afterUnreg.Count, Is.Zero);
+            Assert.That(afterUnreg, Has.Count.Zero);
         }
 
         [Test]
@@ -1616,7 +1616,7 @@ namespace Opc.Ua.Gds.Tests
                 0, 100, null,
                 "urn:opcfoundation.org:tests:depth:qa003:nonexistent",
                 0, null, null).ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]
@@ -1845,7 +1845,7 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, rec.ApplicationUri, 0, null, null)
                 .ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]
@@ -1950,7 +1950,7 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 999999, 10, null, null, 0, null, null)
                 .ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]

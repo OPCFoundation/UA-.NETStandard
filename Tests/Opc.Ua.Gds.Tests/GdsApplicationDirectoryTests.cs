@@ -367,7 +367,7 @@ namespace Opc.Ua.Gds.Tests
         {
             List<Gds.ApplicationRecordDataType> results = await FindApplicationsAsync(
                 "urn:opcfoundation.org:tests:nonexistent:app:xyz").ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero,
+            Assert.That(results, Has.Count.Zero,
                 "FindApplications with non-matching URI should return empty.");
         }
 

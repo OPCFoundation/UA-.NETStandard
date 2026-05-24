@@ -106,7 +106,7 @@ namespace Opc.Ua.Lds.Tests
                 .ConfigureAwait(false);
 
             (ArrayOf<ServerOnNetwork> after2, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
-            Assert.That(NumRecordsForUri(after2, ServerUriA), Is.EqualTo(0));
+            Assert.That(NumRecordsForUri(after2, ServerUriA), Is.Zero);
         }
 
         [Test]
@@ -229,7 +229,7 @@ namespace Opc.Ua.Lds.Tests
             Lds.Store.Prune(DateTime.UtcNow + TimeSpan.FromSeconds(5));
 
             (ArrayOf<ServerOnNetwork> after, _) = await FindServersOnNetworkAsync().ConfigureAwait(false);
-            Assert.That(after.Count, Is.EqualTo(0),
+            Assert.That(after, Has.Count.EqualTo(0),
                 "Stale multicast records should have been pruned.");
         }
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.Lds.Tests
             (ArrayOf<ServerOnNetwork> none, _) =
                 await FindServersOnNetworkAsync(serverCapabilityFilter: new[] { "NoSuchCap" })
                     .ConfigureAwait(false);
-            Assert.That(none.Count, Is.EqualTo(0));
+            Assert.That(none, Has.Count.EqualTo(0));
         }
 
         [Test]
