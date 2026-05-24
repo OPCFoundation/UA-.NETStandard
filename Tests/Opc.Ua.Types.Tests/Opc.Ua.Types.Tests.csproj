@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -41,9 +41,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
-    <Compile Include="..\Common\Logging.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>

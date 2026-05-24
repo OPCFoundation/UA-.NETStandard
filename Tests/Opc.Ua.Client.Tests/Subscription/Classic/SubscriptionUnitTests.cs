@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Tests
                     MaxMessageCount = messagesToProcess.Length
                 })
             {
-                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].SetResult(true)
+                FastDataChangeCallback = (_, message, _) => messageAwaiters[message.SequenceNumber].TrySetResult(true)
             };
             subscription.Session = BuildSessionMock((subscriptionId, sequenceNumber) =>
             {

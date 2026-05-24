@@ -135,6 +135,13 @@
     <Project Path="Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Lds.Tests/Opc.Ua.Lds.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
@@ -144,5 +151,11 @@
     <Project Path="Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Tests/TestFramework/">
+    <Project Path="Tests/Opc.Ua.Test.Common/Opc.Ua.Test.Common.csproj" />
+    <Project Path="Tests/Opc.Ua.Server.TestFramework/Opc.Ua.Server.TestFramework.csproj" />
+    <Project Path="Tests/Opc.Ua.Client.TestFramework/Opc.Ua.Client.TestFramework.csproj" />
+    <Project Path="Tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
 </Solution>
