@@ -985,9 +985,12 @@ namespace Opc.Ua.Core.Security.Tests
             // ReplaceDCLocalhost call doesn't change the subject (which would
             // otherwise trigger an ArgumentException on SubjectName setter).
             string subject = "CN=" + slug + ", O=OPC Foundation";
+            // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).
+#pragma warning disable CA2000
             Certificate cert = expired
                 ? TestCertificateFactory.CreateExpiredAppInstanceCert(subject, appUri)
                 : TestCertificateFactory.CreateNotYetValidAppInstanceCert(subject, appUri);
+#pragma warning restore CA2000
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenSessionWithClientCertAsync(cert, appUri).ConfigureAwait(false));
@@ -1027,8 +1030,11 @@ namespace Opc.Ua.Core.Security.Tests
             string slug = "corrupted010";
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
-            Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
+            using Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
+            // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).
+#pragma warning disable CA2000
             Certificate corrupted = TestCertificateFactory.CorruptCertSignature(valid);
+#pragma warning restore CA2000
             // The corrupted DER may not even round-trip through the
             // application configuration loader (the loader tries to
             // re-parse it). Either way the server cannot accept it,
@@ -1312,8 +1318,11 @@ namespace Opc.Ua.Core.Security.Tests
         {
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
+            // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).
+#pragma warning disable CA2000
             Certificate cert = TestCertificateFactory.CreateValidAppInstanceCert(
                 subject, appUri, rsaKeySize, HashAlgorithmName.SHA256);
+#pragma warning restore CA2000
 
             // Modern crypto should connect cleanly. The connection
             // may still fail for unrelated reasons (untrusted cert
@@ -1473,14 +1482,16 @@ namespace Opc.Ua.Core.Security.Tests
                 ?? FindEndpoint(endpoints, MessageSecurityMode.Sign, policyUri);
             Assert.That(ep, Is.Not.Null, "No suitable secure endpoint found.");
 
-            await using CertSessionContext ctx = await CertSessionContext.CreateAsync(
+            CertSessionContext ctx = await CertSessionContext.CreateAsync(
                 clientCert, applicationUri, Telemetry).ConfigureAwait(false);
+            await using (ctx.ConfigureAwait(false))
+            {
+                var endpointConfig = EndpointConfiguration.Create(ctx.ClientConfig);
+                endpointConfig.OperationTimeout = 10000;
+                var configured = new ConfiguredEndpoint(null, ep, endpointConfig);
 
-            var endpointConfig = EndpointConfiguration.Create(ctx.ClientConfig);
-            endpointConfig.OperationTimeout = 10000;
-            var configured = new ConfiguredEndpoint(null, ep, endpointConfig);
-
-            return await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
+                return await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
+            }
         }
 
         private static string NewTestApplicationUri(string slug)

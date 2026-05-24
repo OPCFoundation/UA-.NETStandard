@@ -737,7 +737,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TransferSubscriptionsResponse xfer =
                         await session2.TransferSubscriptionsAsync(
                             null,
-                            new uint[0].ToArrayOf(),
+                            Array.Empty<uint>().ToArrayOf(),
                             false,
                             CancellationToken.None).ConfigureAwait(false);
 
@@ -1190,7 +1190,7 @@ namespace Opc.Ua.Subscriptions.Tests
                             NodeId = nodeId,
                             AttributeId = Attributes.Value,
                             Value = new DataValue(
-                                Variant.From(new Random().Next()))
+                                Variant.From(UnsecureRandom.Shared.Next()))
                         }
                     }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);

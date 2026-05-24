@@ -120,7 +120,11 @@ namespace Opc.Ua.InformationModel.Tests
                 serverStatus.StartTime, Is.Not.EqualTo(DateTime.MinValue),
                 "StartTime should be set.");
             Assert.That(
+#if NET5_0_OR_GREATER
+                Enum.IsDefined(serverStatus.State),
+#else
                 Enum.IsDefined(typeof(ServerState), serverStatus.State),
+#endif
                 Is.True,
                 "State should be a valid ServerState enum value.");
         }

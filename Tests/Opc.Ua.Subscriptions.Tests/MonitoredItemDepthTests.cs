@@ -503,7 +503,7 @@ queueSize: 1, discardOldest: true))
             Assert.That(StatusCode.IsGood(delResp.Results[0]), Is.True);
 
             // Write to second node
-            await WriteValueAsync(node2, new Random().Next(1, 10000)).ConfigureAwait(false);
+            await WriteValueAsync(node2, UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
 
@@ -827,7 +827,7 @@ queueSize: 1, discardOldest: true))
                 await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 // Write to the linked (sampling) node only
-                await WriteValueAsync(linkedNode, new Random().Next(1, 10000)).ConfigureAwait(false);
+                await WriteValueAsync(linkedNode, UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 // Wait for trigger node (CurrentTime) to change and produce notification
                 await Task.Delay(300).ConfigureAwait(false);

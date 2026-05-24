@@ -34,6 +34,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 
+// Conformance tests use inline literal arrays as expected-value
+// assertions; the per-call allocation cost is irrelevant for tests
+// and keeping the literal adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
 namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
@@ -395,7 +400,7 @@ namespace Opc.Ua.Lds.Tests
             {
                 // RecordId on the wire doesn't carry the ServerUri; we infer
                 // by ServerName which we control via MdnsServerName.
-                if (r.DiscoveryUrl != null && r.DiscoveryUrl.Contains(serverUri))
+                if (r.DiscoveryUrl != null && r.DiscoveryUrl.Contains(serverUri, StringComparison.Ordinal))
                 {
                     count++;
                 }

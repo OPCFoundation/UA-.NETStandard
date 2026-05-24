@@ -1539,7 +1539,7 @@ namespace Opc.Ua.InformationModel.Tests
                 OrderedListTypeId).ConfigureAwait(false);
             bool hasOrderedRef = refs.Any(
                 r => r.ReferenceTypeId == ReferenceTypeIds.HasOrderedComponent ||
-                    r.BrowseName.Name.Contains("Ordered"));
+                    r.BrowseName.Name.Contains("Ordered", StringComparison.Ordinal));
             Assert.That(dv.GetValue<QualifiedName>(default).Name,
                 Is.EqualTo("OrderedListType"));
         }

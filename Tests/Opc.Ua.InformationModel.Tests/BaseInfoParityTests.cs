@@ -1138,7 +1138,6 @@ namespace Opc.Ua.InformationModel.Tests
         private static readonly NodeId SelectionListTypeId = new(16309);
         private static readonly NodeId CartesianCoordinatesTypeId = VariableTypeIds.CartesianCoordinatesType;
         private static readonly NodeId ThreeDCartesianCoordinatesTypeId = VariableTypeIds.ThreeDCartesianCoordinatesType;
-        private static readonly NodeId MultiStateDiscreteTypeId = new(2688);
         private static readonly NodeId SemanticChangeEventTypeId = new(2738);
         private static readonly NodeId TrimmedStringId = DataTypeIds.TrimmedString;
         private static readonly NodeId SemanticVersionStringId = new(24263);

@@ -38,6 +38,11 @@ using ISession = Opc.Ua.Client.ISession;
 
 using Opc.Ua.Client.TestFramework;
 
+// Conformance tests use inline literal arrays as expected-value
+// assertions; the per-call allocation cost is irrelevant for tests
+// and keeping the literal adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
@@ -1517,7 +1522,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterWithEmptyCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir076");
-            rec.ServerCapabilities = new string[] { }.ToArrayOf();
+            rec.ServerCapabilities = Array.Empty<string>().ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1916,7 +1921,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task QueryAppsEmptyCapabilitiesFilterAsync()
         {
-            ArrayOf<string> emptyArr = new string[] { }.ToArrayOf();
+            ArrayOf<string> emptyArr = Array.Empty<string>().ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null, 0, null, emptyArr)
                 .ConfigureAwait(false);

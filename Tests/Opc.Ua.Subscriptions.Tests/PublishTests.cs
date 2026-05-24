@@ -139,7 +139,7 @@ namespace Opc.Ua.Subscriptions.Tests
             await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Write to trigger notification
-            await WriteValueAsync(nodeId, new Random().Next(1, 10000)).ConfigureAwait(false);
+            await WriteValueAsync(nodeId, UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
 
