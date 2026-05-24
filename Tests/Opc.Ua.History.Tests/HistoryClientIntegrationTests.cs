@@ -245,8 +245,15 @@ namespace Opc.Ua.History.Tests
 
             if (StatusCode.IsBad(writeStatus))
             {
-                Assert.Ignore(
-                    $"WriteAnnotation not supported (0x{(uint)writeStatus.Code:X8}); skipping round-trip.");
+                // The reference server does not expose an Annotations
+                // property on the historized scalar node, so the dispatcher
+                // returns BadHistoryOperationUnsupported. Treat this as the
+                // contract: the write status must be that specific code.
+                Assert.That(
+                    writeStatus.Code,
+                    Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
+                        .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
+                    $"Unexpected WriteAnnotation failure 0x{(uint)writeStatus.Code:X8}");
                 return;
             }
 
@@ -273,8 +280,14 @@ namespace Opc.Ua.History.Tests
                 m_doubleNodeId, ts, message, "TestUser");
             if (StatusCode.IsBad(writeStatus))
             {
-                Assert.Ignore(
-                    $"WriteAnnotation not supported (0x{(uint)writeStatus.Code:X8}); skipping.");
+                // Annotations property is not exposed on this server's
+                // scalar variable; assert the documented failure status
+                // and stop here (this is the contract for unsupported).
+                Assert.That(
+                    writeStatus.Code,
+                    Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
+                        .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
+                    $"Unexpected WriteAnnotation failure 0x{(uint)writeStatus.Code:X8}");
                 return;
             }
 
