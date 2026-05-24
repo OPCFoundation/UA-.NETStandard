@@ -1631,6 +1631,13 @@ namespace Opc.Ua
                     return Scalars.Enumeration;
                 }
 
+                // check for encodeable object.
+                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
+                    name == "IEncodeable")
+                {
+                    return Scalars.ExtensionObject;
+                }
+
                 // check for collection.
                 if (name.EndsWith("Collection", StringComparison.Ordinal))
                 {
@@ -1674,13 +1681,6 @@ namespace Opc.Ua
                     }
 
                     return Unknown;
-                }
-
-                // check for encodeable object.
-                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
-                    name == "IEncodeable")
-                {
-                    return Scalars.ExtensionObject;
                 }
 
                 return Unknown;
