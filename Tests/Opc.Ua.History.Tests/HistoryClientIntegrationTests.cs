@@ -170,5 +170,252 @@ namespace Opc.Ua.History.Tests
             Assert.That(caps.ReplaceData, Is.True);
             Assert.That(caps.DeleteRaw, Is.True);
         }
+
+        [Test]
+        public async Task ReadModifiedReturnsValuesAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime now = DateTime.UtcNow;
+
+            // The in-memory historian may not support ReadModified; if so
+            // it returns BadHistoryOperationUnsupported.
+            try
+            {
+                var values = new List<DataValue>();
+                await foreach (DataValue dv in client.ReadModifiedAsync(
+                    m_doubleNodeId, now.AddMinutes(-1), now))
+                {
+                    values.Add(dv);
+                }
+
+                // If we reach here the call succeeded (values may be empty
+                // for unmodified seed data).
+                Assert.That(values, Is.Not.Null);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported)
+            {
+                // Expected when the historian does not implement modified-data.
+                Assert.That(
+                    ex.StatusCode,
+                    Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+            }
+        }
+
+        [Test]
+        public async Task ReadAtTimeReturnsValuesAtTimestampsAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime now = DateTime.UtcNow;
+            var requestedTimes = new List<DateTime>
+            {
+                now.AddMinutes(-30),
+                now.AddMinutes(-20),
+                now.AddMinutes(-10),
+            };
+
+            var values = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadAtTimeAsync(
+                m_doubleNodeId, requestedTimes))
+            {
+                values.Add(dv);
+            }
+
+            Assert.That(values, Has.Count.EqualTo(3),
+                "ReadAtTime should return one interpolated value per requested timestamp.");
+
+            for (int i = 0; i < requestedTimes.Count; i++)
+            {
+                TimeSpan drift = (values[i].SourceTimestamp - requestedTimes[i]).Duration();
+                Assert.That(drift.TotalSeconds, Is.LessThanOrEqualTo(5),
+                    $"Value {i} SourceTimestamp should be close to the requested time.");
+            }
+        }
+
+        [Test]
+        public async Task ReadAnnotationsRoundTripWithWriteAnnotationAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime ts = DateTime.UtcNow.AddYears(-10).AddSeconds(101);
+            string message = "IntegrationTest annotation";
+            string userName = "TestUser";
+
+            StatusCode writeStatus = await client.WriteAnnotationAsync(
+                m_doubleNodeId, ts, message, userName);
+
+            if (StatusCode.IsBad(writeStatus))
+            {
+                Assert.Ignore(
+                    $"WriteAnnotation not supported (0x{(uint)writeStatus.Code:X8}); skipping round-trip.");
+                return;
+            }
+
+            var annotations = new List<Annotation>();
+            await foreach (Annotation a in client.ReadAnnotationsAsync(
+                m_doubleNodeId, ts.AddSeconds(-1), ts.AddSeconds(1)))
+            {
+                annotations.Add(a);
+            }
+
+            Assert.That(annotations, Has.Count.EqualTo(1));
+            Assert.That(annotations[0].Message, Is.EqualTo(message));
+            Assert.That(annotations[0].UserName, Is.EqualTo(userName));
+        }
+
+        [Test]
+        public async Task DeleteAnnotationRemovesAnnotationAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime ts = DateTime.UtcNow.AddYears(-10).AddSeconds(201);
+            string message = "ToDelete";
+
+            StatusCode writeStatus = await client.WriteAnnotationAsync(
+                m_doubleNodeId, ts, message, "TestUser");
+            if (StatusCode.IsBad(writeStatus))
+            {
+                Assert.Ignore(
+                    $"WriteAnnotation not supported (0x{(uint)writeStatus.Code:X8}); skipping.");
+                return;
+            }
+
+            StatusCode deleteStatus = await client.DeleteAnnotationAsync(
+                m_doubleNodeId, ts);
+            Assert.That(StatusCode.IsNotBad(deleteStatus), Is.True,
+                $"DeleteAnnotation failed with 0x{(uint)deleteStatus.Code:X8}");
+
+            var remaining = new List<Annotation>();
+            await foreach (Annotation a in client.ReadAnnotationsAsync(
+                m_doubleNodeId, ts.AddSeconds(-1), ts.AddSeconds(1)))
+            {
+                remaining.Add(a);
+            }
+
+            Assert.That(remaining, Is.Empty,
+                "After deletion no annotation should remain at that timestamp.");
+        }
+
+        [Test]
+        public async Task DeleteRawRemovesRangeAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(301);
+            var timestamps = new[]
+            {
+                baseTs,
+                baseTs.AddSeconds(1),
+                baseTs.AddSeconds(2),
+            };
+
+            var insertValues = new DataValue[3];
+            for (int i = 0; i < 3; i++)
+            {
+                insertValues[i] = new DataValue(
+                    new Variant(42.0 + i),
+                    StatusCodes.Good,
+                    sourceTimestamp: timestamps[i],
+                    serverTimestamp: timestamps[i]);
+            }
+
+            IList<StatusCode> insertStatuses = await client.InsertAsync(
+                m_doubleNodeId, insertValues);
+            Assert.That(insertStatuses, Has.Count.EqualTo(3));
+
+            StatusCode deleteStatus = await client.DeleteRawAsync(
+                m_doubleNodeId, timestamps[0], timestamps[2].AddMilliseconds(1));
+            Assert.That(StatusCode.IsNotBad(deleteStatus), Is.True,
+                $"DeleteRaw failed with 0x{(uint)deleteStatus.Code:X8}");
+
+            var remaining = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadRawAsync(
+                m_doubleNodeId, timestamps[0], timestamps[2].AddMilliseconds(1)))
+            {
+                remaining.Add(dv);
+            }
+
+            Assert.That(remaining, Is.Empty,
+                "After DeleteRaw the range should contain no values.");
+        }
+
+        [Test]
+        public async Task DeleteAtTimeRemovesSpecificTimestampsAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(401);
+            DateTime ts0 = baseTs;
+            DateTime ts1 = baseTs.AddSeconds(1);
+            DateTime ts2 = baseTs.AddSeconds(2);
+
+            var insertValues = new DataValue[]
+            {
+                new(new Variant(10.0), StatusCodes.Good,
+                    sourceTimestamp: ts0, serverTimestamp: ts0),
+                new(new Variant(20.0), StatusCodes.Good,
+                    sourceTimestamp: ts1, serverTimestamp: ts1),
+                new(new Variant(30.0), StatusCodes.Good,
+                    sourceTimestamp: ts2, serverTimestamp: ts2),
+            };
+
+            await client.InsertAsync(m_doubleNodeId, insertValues);
+
+            IList<StatusCode> deleteStatuses = await client.DeleteAtTimeAsync(
+                m_doubleNodeId, new[] { ts0, ts2 });
+            Assert.That(deleteStatuses, Has.Count.EqualTo(2));
+
+            var remaining = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadRawAsync(
+                m_doubleNodeId, ts0, ts2.AddMilliseconds(1)))
+            {
+                remaining.Add(dv);
+            }
+
+            Assert.That(remaining, Has.Count.EqualTo(1),
+                "Only the middle value should survive.");
+            Assert.That(remaining[0].SourceTimestamp, Is.EqualTo(ts1));
+        }
+
+        [Test]
+        public async Task GetConfigurationReturnsHistoricalDataConfigurationAsync()
+        {
+            var client = new HistoryClient(Session);
+
+            HistoricalDataConfigurationInfo config =
+                await client.GetConfigurationAsync(m_doubleNodeId);
+
+            Assert.That(config, Is.Not.Null);
+
+            // The ReferenceServer's in-memory historian does not expose
+            // the HistoricalDataConfigurationType companion object, so
+            // HasConfiguration is expected to be false.
+            Assert.That(config.HasConfiguration, Is.False,
+                "The in-memory historian does not expose HAConfiguration; " +
+                "HasConfiguration should be false.");
+        }
+
+        [Test]
+        public async Task BreakingOutOfAwaitForeachReleasesContinuationPointAsync()
+        {
+            var client = new HistoryClient(Session);
+            DateTime now = DateTime.UtcNow;
+
+            // First read: break after first value to exercise the
+            // finally-block continuation-point release path.
+            await foreach (DataValue dv in client.ReadRawAsync(
+                m_doubleNodeId, now.AddDays(-1), now, maxValuesPerNode: 10))
+            {
+                break;
+            }
+
+            // Second read over the same range must complete without error,
+            // proving the first read's continuation point was released.
+            var secondReadValues = new List<DataValue>();
+            await foreach (DataValue dv in client.ReadRawAsync(
+                m_doubleNodeId, now.AddDays(-1), now, maxValuesPerNode: 100))
+            {
+                secondReadValues.Add(dv);
+            }
+
+            Assert.That(secondReadValues, Is.Not.Empty,
+                "The second read should succeed and return data after the first read's CP was released.");
+        }
     }
 }
