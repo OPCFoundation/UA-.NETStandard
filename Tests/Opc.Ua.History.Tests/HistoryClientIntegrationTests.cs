@@ -27,123 +27,74 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
-#pragma warning disable CA2000 // Dispose of fixture lifetimes via TearDown
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Historian;
-using Opc.Ua.Server.Tests;
-using Opc.Ua.Tests;
-using Quickstarts.ReferenceServer;
+using Opc.Ua.Client.TestFramework;
 
-namespace Opc.Ua.Client.Tests.Historian
+namespace Opc.Ua.History.Tests
 {
     /// <summary>
-    /// End-to-end integration tests that drive <see cref="HistoryClient"/>
-    /// over the wire against the live <c>ReferenceServer</c>. The reference
-    /// server historizes <c>Scalar_Static_Int32</c>, <c>Scalar_Static_Float</c>,
-    /// and <c>Scalar_Static_Double</c> with 1001 seed samples each.
+    /// End-to-end integration tests that drive the
+    /// <see cref="HistoryClient"/> fluent client over the wire against the
+    /// live in-process <c>ReferenceServer</c> hosted by
+    /// <see cref="TestFixture"/>. The reference server historizes
+    /// <c>Scalar_Static_Int32</c>, <c>Scalar_Static_Float</c>, and
+    /// <c>Scalar_Static_Double</c> with 1001 seed samples each via the
+    /// fluent <c>HistorianBuilder</c>.
     /// </summary>
     [TestFixture]
-    [Category("Client")]
     [Category("Historian")]
+    [Category("Integration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public class HistoryClientIntegrationTests
+    public class HistoryClientIntegrationTests : TestFixture
     {
-        private ServerFixture<ReferenceServer> m_serverFixture;
-#pragma warning disable NUnit1032
-        private ClientFixture m_clientFixture;
-#pragma warning restore NUnit1032
-        private ReferenceServer m_server;
-        private ISession m_session;
-        private string m_pkiRoot;
-        private Uri m_url;
-        private NodeId m_int32NodeId;
+        // Use Scalar_Static_Double for history. Scalar_Static_Int32 has explicit
+        // RolePermissions that grant anonymous Browse|Read|Write but NOT
+        // ReadHistory/InsertHistory, so anonymous sessions get
+        // BadUserAccessDenied on its history endpoints. Double has no
+        // RolePermissions set, so the role-permission gate doesn't run.
+        private NodeId m_doubleNodeId;
 
         [OneTimeSetUp]
-        public async Task OneTimeSetUpAsync()
+        public void ResolveHistorizedNode()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-
-            m_serverFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
-            {
-                UriScheme = Utils.UriSchemeOpcTcp,
-                SecurityNone = true,
-                AutoAccept = true,
-                AllNodeManagers = true,
-                OperationLimits = true,
-            };
-            m_server = await m_serverFixture.StartAsync(m_pkiRoot);
-
-            m_clientFixture = new ClientFixture(telemetry);
-            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
-
-            try
-            {
-                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.None);
-            }
-            catch (Exception e)
-            {
-                Assert.Ignore("Historian integration setup failed: " + e.Message);
-            }
-
-            ushort ns = (ushort)m_session.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
-            m_int32NodeId = new NodeId("Scalar_Static_Int32", ns);
-        }
-
-        [OneTimeTearDown]
-        public async Task OneTimeTearDownAsync()
-        {
-            if (m_session != null)
-            {
-                await m_session.CloseAsync();
-                m_session.Dispose();
-                m_session = null;
-            }
-            if (m_serverFixture != null)
-            {
-                await m_serverFixture.StopAsync();
-            }
-            m_clientFixture?.Dispose();
-            m_server?.Dispose();
+            ushort ns = (ushort)Session.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            m_doubleNodeId = new NodeId("Scalar_Static_Double", ns);
         }
 
         [Test]
         public async Task ReadRawReturnsSeededValuesAsync()
         {
-            var client = new HistoryClient(m_session);
+            var client = new HistoryClient(Session);
             DateTime now = DateTime.UtcNow;
             var values = new List<DataValue>();
             await foreach (DataValue dv in client.ReadRawAsync(
-                m_int32NodeId, now.AddDays(-1), now, maxValuesPerNode: 100))
+                m_doubleNodeId, now.AddDays(-1), now, maxValuesPerNode: 100))
             {
                 values.Add(dv);
             }
 
             Assert.That(values, Is.Not.Empty,
-                "ReferenceServer historizes Scalar_Static_Int32 with 1001 seed samples; raw read must return at least some.");
+                "ReferenceServer historizes Scalar_Static_Double with 1001 seed samples; raw read must return at least some.");
         }
 
         [Test]
         public async Task ReadProcessedAverageReturnsBucketsAsync()
         {
-            var client = new HistoryClient(m_session);
+            var client = new HistoryClient(Session);
             DateTime now = DateTime.UtcNow;
             var values = new List<DataValue>();
             await foreach (DataValue dv in client.ReadProcessedAsync(
-                m_int32NodeId,
+                m_doubleNodeId,
                 ObjectIds.AggregateFunction_Average,
                 now.AddHours(-1),
                 now,
@@ -159,13 +110,17 @@ namespace Opc.Ua.Client.Tests.Historian
         [Test]
         public async Task InsertReplaceRoundTripAsync()
         {
-            var client = new HistoryClient(m_session);
+            var client = new HistoryClient(Session);
             DateTime ts = DateTime.UtcNow.AddSeconds(7); // unique future timestamp; no seed conflict
 
-            var insertValue = new DataValue(new Variant(12345), StatusCodes.Good, sourceTimestamp: ts, serverTimestamp: ts);
+            var insertValue = new DataValue(
+                new Variant(123.45),
+                StatusCodes.Good,
+                sourceTimestamp: ts,
+                serverTimestamp: ts);
 
             IList<StatusCode> insertStatuses = await client.InsertAsync(
-                m_int32NodeId, new[] { insertValue });
+                m_doubleNodeId, new[] { insertValue });
             Assert.That(insertStatuses, Has.Count.EqualTo(1));
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True,
                 $"Insert failed with status 0x{(uint)insertStatuses[0].Code:X8}");
@@ -173,36 +128,40 @@ namespace Opc.Ua.Client.Tests.Historian
             // Read back from a tight window around the inserted timestamp.
             var roundTrip = new List<DataValue>();
             await foreach (DataValue dv in client.ReadRawAsync(
-                m_int32NodeId, ts.AddSeconds(-1), ts.AddSeconds(1)))
+                m_doubleNodeId, ts.AddSeconds(-1), ts.AddSeconds(1)))
             {
                 roundTrip.Add(dv);
             }
             Assert.That(roundTrip, Is.Not.Empty);
             DataValue echoed = roundTrip.First(v => v.SourceTimestamp == ts);
-            int actual = Convert.ToInt32(echoed.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
-            Assert.That(actual, Is.EqualTo(12345));
+            double actual = Convert.ToDouble(echoed.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
+            Assert.That(actual, Is.EqualTo(123.45));
 
             // Replace the value at the same timestamp.
-            var replaceValue = new DataValue(new Variant(99999), StatusCodes.Good, sourceTimestamp: ts, serverTimestamp: ts);
+            var replaceValue = new DataValue(
+                new Variant(999.99),
+                StatusCodes.Good,
+                sourceTimestamp: ts,
+                serverTimestamp: ts);
             IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
-                m_int32NodeId, new[] { replaceValue });
+                m_doubleNodeId, new[] { replaceValue });
             Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
 
             roundTrip.Clear();
             await foreach (DataValue dv in client.ReadRawAsync(
-                m_int32NodeId, ts.AddSeconds(-1), ts.AddSeconds(1)))
+                m_doubleNodeId, ts.AddSeconds(-1), ts.AddSeconds(1)))
             {
                 roundTrip.Add(dv);
             }
             DataValue replaced = roundTrip.First(v => v.SourceTimestamp == ts);
-            int replacedValue = Convert.ToInt32(replaced.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
-            Assert.That(replacedValue, Is.EqualTo(99999));
+            double replacedValue = Convert.ToDouble(replaced.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
+            Assert.That(replacedValue, Is.EqualTo(999.99));
         }
 
         [Test]
         public async Task GetServerCapabilitiesReportsHistoricalAccessAsync()
         {
-            var client = new HistoryClient(m_session);
+            var client = new HistoryClient(Session);
             HistoryServerCapabilitiesInfo caps = await client.GetServerCapabilitiesAsync();
 
             Assert.That(caps.AccessHistoryData, Is.True,
