@@ -14,6 +14,9 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Client.TestFramework" />
+    <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

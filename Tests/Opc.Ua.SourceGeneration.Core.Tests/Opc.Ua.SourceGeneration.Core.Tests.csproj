@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -34,7 +34,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
-    <Compile Include="..\Common\Logging.cs" />
+    <!--
+      Cross-compile Logging.cs as a source file rather than taking a
+      project reference on Opc.Ua.Test.Common. The project reference
+      drags Opc.Ua.Test.Common.dll AND its transitive Opc.Ua.* deps
+      (notably Opc.Ua.Core.Types.dll) into the test host, where they
+      end up in TRUSTED_PLATFORM_ASSEMBLIES. CompilerUtils.TrustedReferences
+      then adds them to the compilation under test, which collides with
+      the freshly source-generated types (CS0436 / CS0121).
+    -->
+    <Compile Include="..\Opc.Ua.Test.Common\Logging.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\*">

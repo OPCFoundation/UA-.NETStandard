@@ -117,6 +117,18 @@ namespace Opc.Ua
                     {
                         ServiceDefinition service = m_endpoint.FindService(Request.TypeId);
                         IServiceResponse response = await service.InvokeAsync(Request, SecureChannelContext, requestLifetime).ConfigureAwait(false);
+
+                        // Allow tests / diagnostics to mutate the
+                        // response before dispatch via the optional
+                        // ResponseMutator hook on the server.
+                        IServiceResponseMutator? mutator = m_endpoint.ServerForContext?.ResponseMutator;
+                        if (mutator != null)
+                        {
+                            response = await mutator.MutateResponseAsync(
+                                Request, response, requestLifetime.CancellationToken)
+                                .ConfigureAwait(false);
+                        }
+
                         m_vts.SetResult(response);
                     }
                 }

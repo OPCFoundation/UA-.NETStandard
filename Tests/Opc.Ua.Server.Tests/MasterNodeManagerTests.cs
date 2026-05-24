@@ -36,6 +36,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>

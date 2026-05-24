@@ -145,11 +145,17 @@ namespace Opc.Ua.Server
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-            // sampling interval diagnostics not supported by the server.
+            // SamplingIntervalDiagnosticsArray is part of the
+            // standard nodeset; rather than deleting the node (which makes
+            // reads return BadNodeIdUnknown), leave it in place with a
+            // default empty value. Per Part 5 §6.4.7 the array is optional
+            // and an empty array is a valid representation of "no per-
+            // sampling-interval diagnostics tracked".
             ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
                 ObjectIds.Server_ServerDiagnostics);
 
-            if (serverDiagnosticsNode != null)
+            if (serverDiagnosticsNode != null
+                && serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
             {
                 NodeState? samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
                     SystemContext,
@@ -164,6 +170,29 @@ namespace Opc.Ua.Server
                     serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
                 }
             }
+
+            // Issue #3720: the standard NodeSet shipped at Stack/Opc.Ua.Core/
+            // Schema/Opc.Ua.NodeSet2.xml omits the GeneratesEvent reference on
+            // StateMachineType (i=2299) and FiniteStateMachineType (i=2771)
+            // even though Part 5 §6.4.2 requires instances to surface the
+            // events emitted on state changes (TransitionEventType i=2311).
+            // Inject the missing forward reference at load time so subtype
+            // instances inherit it via the type chain.
+            //
+            // Idempotent: NodeState.AddReference dedupes on (refType, isInverse,
+            // targetId) so re-running this on a hot-reload is a no-op.
+            BaseObjectTypeState stateMachineType = FindPredefinedNode<BaseObjectTypeState>(
+                ObjectTypeIds.StateMachineType);
+            stateMachineType?.AddReference(
+                ReferenceTypeIds.GeneratesEvent,
+                isInverse: false,
+                ObjectTypeIds.TransitionEventType);
+            BaseObjectTypeState finiteStateMachineType = FindPredefinedNode<BaseObjectTypeState>(
+                ObjectTypeIds.FiniteStateMachineType);
+            finiteStateMachineType?.AddReference(
+                ReferenceTypeIds.GeneratesEvent,
+                isInverse: false,
+                ObjectTypeIds.TransitionEventType);
 
             // The nodes are now loaded by the DiagnosticsNodeManager from the file
             // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
