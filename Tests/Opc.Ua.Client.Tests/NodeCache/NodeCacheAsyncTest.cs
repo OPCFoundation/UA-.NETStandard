@@ -35,6 +35,9 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>

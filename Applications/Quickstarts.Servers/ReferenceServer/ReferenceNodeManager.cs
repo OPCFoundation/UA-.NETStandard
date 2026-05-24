@@ -76,11 +76,21 @@ namespace Quickstarts.ReferenceServer
         {
             if (disposing)
             {
-                m_semaphore?.Dispose();
+                // Dispose the simulation timer first so the threadpool stops
+                // scheduling DoSimulation callbacks before the semaphore is
+                // disposed. DoSimulation's own try/catch swallows the racy
+                // ObjectDisposedException on m_semaphore if a callback was
+                // already in-flight when Timer.Dispose() returned — that's
+                // an acceptable trade-off versus blocking Dispose on a
+                // Timer.Dispose(WaitHandle) which itself can throw a worse
+                // unhandled ObjectDisposedException when the supplied
+                // WaitHandle is collected before the runtime signals it.
                 m_simulationTimer?.Dispose();
                 m_simulationTimer = null;
                 m_historian?.Dispose();
                 m_historian = null;
+
+                m_semaphore?.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -100,6 +110,58 @@ namespace Quickstarts.ReferenceServer
             }
 
             return node.NodeId;
+        }
+
+        /// <summary>
+        /// Adds a new instance node to the address space under a parent that may
+        /// belong to a different node manager. Used by the AddNodes service
+        /// implementation in <see cref="ReferenceServer"/> to allow the test
+        /// fixture to exercise the Node Management service set.
+        /// </summary>
+        /// <remarks>
+        /// The node is registered in this manager's namespace, an inverse
+        /// reference back to the parent is attached, and a forward reference
+        /// from the parent to the new node is added through the master node
+        /// manager so the parent's node manager records the link as well.
+        /// </remarks>
+        public async ValueTask<NodeId> AddInstanceNodeAsync(
+            ServerSystemContext context,
+            NodeId parentNodeId,
+            NodeId referenceTypeId,
+            BaseInstanceState instance,
+            CancellationToken cancellationToken = default)
+        {
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+
+            ServerSystemContext contextToUse = SystemContext.Copy(context);
+
+            if (instance.NodeId.IsNull)
+            {
+                instance.NodeId = new NodeId(
+                    Guid.NewGuid().ToString(),
+                    NamespaceIndexes[0]);
+            }
+
+            instance.ReferenceTypeId = referenceTypeId;
+            instance.AddReference(referenceTypeId, true, parentNodeId);
+
+            await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken)
+                .ConfigureAwait(false);
+
+            var references = new List<IReference>
+            {
+                new NodeStateReference(referenceTypeId, false, instance.NodeId)
+            };
+
+            await Server.NodeManager.AddReferencesAsync(
+                parentNodeId,
+                references,
+                cancellationToken).ConfigureAwait(false);
+
+            return instance.NodeId;
         }
 
         private static bool IsAnalogType(BuiltInType builtInType)
@@ -272,13 +334,36 @@ namespace Quickstarts.ReferenceServer
                             "Int16",
                             DataTypeIds.Int16,
                             ValueRanks.Scalar));
-                    variables.Add(
-                        CreateVariable(
-                            staticFolder,
-                            scalarStatic + "Int32",
-                            "Int32",
-                            DataTypeIds.Int32,
-                            ValueRanks.Scalar));
+                    BaseDataVariableState int32Static = CreateVariable(
+                        staticFolder,
+                        scalarStatic + "Int32",
+                        "Int32",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    // Expose RolePermissions / UserRolePermissions
+                    // on the Int32 static scalar so the conformance attribute
+                    // tests (AttributeReadComplexTests RolePermissions /
+                    // UserRolePermissions read) return Good rather than
+                    // BadAttributeIdInvalid. Anonymous users are granted
+                    // Browse + Read + ReadRolePermissions; SecurityAdmin gets
+                    // full permissions for write-attribute scenarios.
+                    var anonPerms = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions =
+                            (uint)PermissionType.Browse |
+                            (uint)PermissionType.Read |
+                            (uint)PermissionType.Write |
+                            (uint)PermissionType.ReadRolePermissions
+                    };
+                    var adminPerms = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = 0xFFFF
+                    };
+                    int32Static.RolePermissions = new[] { anonPerms, adminPerms }.ToArrayOf();
+                    int32Static.UserRolePermissions = new[] { anonPerms }.ToArrayOf();
+                    variables.Add(int32Static);
                     variables.Add(
                         CreateVariable(
                             staticFolder,
@@ -4144,7 +4229,6 @@ namespace Quickstarts.ReferenceServer
         {
             var variable = new TwoStateDiscreteState(parent)
             {
-                NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.None,
@@ -4187,7 +4271,6 @@ namespace Quickstarts.ReferenceServer
         {
             var variable = new MultiStateDiscreteState(parent)
             {
-                NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.None,
@@ -4247,7 +4330,6 @@ namespace Quickstarts.ReferenceServer
         {
             var variable = new MultiStateValueDiscreteState(parent)
             {
-                NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.None,

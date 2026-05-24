@@ -43,6 +43,8 @@ using NUnit.Framework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using V2 = Opc.Ua.Client.Subscriptions;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
     /// <summary>

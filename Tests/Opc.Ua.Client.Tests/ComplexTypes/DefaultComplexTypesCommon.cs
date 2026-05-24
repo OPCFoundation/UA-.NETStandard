@@ -35,10 +35,12 @@ using System.Threading;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Client.ComplexTypes;
-using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Test;
 
 using ComplexStructure = Opc.Ua.Encoders.Structure;
+
+using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Client.Tests.ComplexTypes
 {

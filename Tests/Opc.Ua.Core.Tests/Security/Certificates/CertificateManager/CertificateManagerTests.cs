@@ -491,13 +491,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         [Test]
         [NonParallelizable]
-        // Uses process-wide Certificate.InstancesCreated /
-        // InstancesDisposed counters to verify caller-owned disposal.
-        // The fixture is [Parallelizable], so without this attribute
-        // any other test in the assembly that allocates a Certificate
-        // during the snapshot window inflates createdDelta without a
-        // matching disposedDelta. [NonParallelizable] grants the test
-        // exclusive access to the counters for its ~267 ms run.
         public async Task GetIssuersAsyncReturnedReferencesAreCallerOwnedAndDisposable()
         {
             using Certificate rootCa = CertificateBuilder
