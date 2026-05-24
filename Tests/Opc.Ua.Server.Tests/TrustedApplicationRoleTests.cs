@@ -35,6 +35,8 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>

@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests
 {
     public class TraceableRequestHeaderTest : ClientTestFramework
