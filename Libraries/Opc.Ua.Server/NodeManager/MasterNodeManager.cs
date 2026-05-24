@@ -1952,12 +1952,12 @@ namespace Opc.Ua.Server
                 // apply the timestamp filters.
                 if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
                 {
-                    value = value.WithServerTimestamp(DateTimeUtc.MinValue);
+                    value = values[ii] = value.WithServerTimestamp(DateTimeUtc.MinValue);
                 }
 
                 if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
                 {
-                    value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
+                    value = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
                 }
             }
 
@@ -3522,7 +3522,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                _ = ValidateMonitoringFilter(attributes.Filter);
+                error = ValidateMonitoringFilter(attributes.Filter);
 
                 if (ServiceResult.IsBad(error))
                 {
@@ -3557,7 +3557,7 @@ namespace Opc.Ua.Server
             }
 
             // validate monitoring filter.
-            _ = ValidateMonitoringFilter(attributes.Filter);
+            error = ValidateMonitoringFilter(attributes.Filter);
 
             if (ServiceResult.IsBad(error))
             {

@@ -34,6 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>

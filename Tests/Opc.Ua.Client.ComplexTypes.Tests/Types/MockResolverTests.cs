@@ -36,8 +36,10 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Tests;
+
+using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
