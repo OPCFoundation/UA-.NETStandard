@@ -1393,13 +1393,13 @@ namespace Opc.Ua.SourceGeneration
                     AddDataTypeStateFactoryReplacements(context, dataType);
                     break;
                 case ObjectDesign objectDesign:
-                    AddObjectReplacements(context, objectDesign, references);
+                    AddObjectReplacements(context, node, objectDesign, references);
                     break;
                 case VariableDesign variableDesign:
-                    AddVariableStateFactoryReplacements(context, variableDesign, references);
+                    AddVariableStateFactoryReplacements(context, node, variableDesign, references);
                     break;
                 case MethodDesign methodDesign:
-                    AddMethodStateFactoryReplacements(context, methodDesign);
+                    AddMethodStateFactoryReplacements(context, node, methodDesign);
                     break;
                 case ViewDesign viewDesign:
                     AddViewStateFactoryReplacements(context, viewDesign);
@@ -1972,6 +1972,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddVariableStateFactoryReplacements(
             IWriteContext context,
+            NodeToGenerate nodeToGenerate,
             VariableDesign node,
             HashSet<ReferenceToGenerate> references)
         {
@@ -1999,7 +2000,8 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
-                GetModellingRuleReplacement(node.ModellingRule));
+                GetModellingRuleReplacement(
+                    GetEffectiveModellingRule(nodeToGenerate, node)));
             context.Template.AddReplacement(
                 Tokens.DataTypeIdConstant,
                 GetNodeIdConstantForDataType(node, m_context.ModelDesign.Namespaces));
@@ -2134,6 +2136,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddObjectReplacements(
             IWriteContext context,
+            NodeToGenerate nodeToGenerate,
             ObjectDesign node,
             HashSet<ReferenceToGenerate> references)
         {
@@ -2161,7 +2164,8 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
-                GetModellingRuleReplacement(node.ModellingRule));
+                GetModellingRuleReplacement(
+                    GetEffectiveModellingRule(nodeToGenerate, node)));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
                 node.SupportsEvents || HasForwardEventReferences(references)
@@ -2171,6 +2175,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddMethodStateFactoryReplacements(
             IWriteContext context,
+            NodeToGenerate nodeToGenerate,
             MethodDesign node)
         {
             context.Template.AddReplacement(
@@ -2192,7 +2197,8 @@ namespace Opc.Ua.SourceGeneration
                     asFactory: true));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
-                GetModellingRuleReplacement(node.ModellingRule));
+                GetModellingRuleReplacement(
+                    GetEffectiveModellingRule(nodeToGenerate, node)));
             bool executable = !node.NonExecutable;
             context.Template.AddReplacement(Tokens.ExecutableValue, executable);
 
@@ -2533,17 +2539,32 @@ namespace Opc.Ua.SourceGeneration
         /// When <see cref="GeneratorOptions.UseTypeDefinitionModellingRules"/>
         /// is enabled and the node belongs to an instance hierarchy, the
         /// type definition's modelling rule is used; otherwise the instance's
-        /// own modelling rule is returned.
+        /// own modelling rule is returned.  Regardless of the option, the
+        /// effective rule never downgrades from a type-definition
+        /// <see cref="ModellingRule.Mandatory"/> to Optional or any
+        /// placeholder variant.
         /// </summary>
         private ModellingRule GetEffectiveModellingRule(
             NodeToGenerate node,
             InstanceDesign instance)
         {
-            if (m_context.Options.UseTypeDefinitionModellingRules &&
-                !node.RootIsTypeDefinition &&
+            if (!node.RootIsTypeDefinition &&
                 node.TypeDefinitionModellingRule.HasValue)
             {
-                return node.TypeDefinitionModellingRule.Value;
+                ModellingRule typeDefRule = node.TypeDefinitionModellingRule.Value;
+
+                if (m_context.Options.UseTypeDefinitionModellingRules)
+                {
+                    return typeDefRule;
+                }
+
+                // Even when the option is off, never downgrade a
+                // type-definition Mandatory to Optional or placeholder.
+                if (typeDefRule == ModellingRule.Mandatory &&
+                    instance.ModellingRule != ModellingRule.Mandatory)
+                {
+                    return ModellingRule.Mandatory;
+                }
             }
 
             return instance.ModellingRule;
@@ -2559,11 +2580,24 @@ namespace Opc.Ua.SourceGeneration
             InstanceDesign child,
             bool rootIsTypeDefinition)
         {
-            if (m_context.Options.UseTypeDefinitionModellingRules &&
-                !rootIsTypeDefinition &&
+            if (!rootIsTypeDefinition &&
                 hierarchyNode.TypeDefinitionModellingRule.HasValue)
             {
-                return hierarchyNode.TypeDefinitionModellingRule.Value;
+                ModellingRule typeDefRule =
+                    hierarchyNode.TypeDefinitionModellingRule.Value;
+
+                if (m_context.Options.UseTypeDefinitionModellingRules)
+                {
+                    return typeDefRule;
+                }
+
+                // Even when the option is off, never downgrade a
+                // type-definition Mandatory to Optional or placeholder.
+                if (typeDefRule == ModellingRule.Mandatory &&
+                    child.ModellingRule != ModellingRule.Mandatory)
+                {
+                    return ModellingRule.Mandatory;
+                }
             }
 
             return child.ModellingRule;
