@@ -2864,24 +2864,43 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
 
+            // If any node-to-read carries a continuation point the dispatcher
+            // will restore the saved request (including its original
+            // timestamps and NumValuesPerNode). Continuation-point reads
+            // therefore commonly arrive with MinValue/MinValue timestamps
+            // and NumValuesPerNode = 0 — skip the timestamp validation in
+            // that case so subsequent pages aren't rejected.
+            bool hasContinuationPoint = false;
+            for (int idx = 0; idx < nodesToRead.Count; idx++)
+            {
+                if (!nodesToRead[idx].ContinuationPoint.IsEmpty)
+                {
+                    hasContinuationPoint = true;
+                    break;
+                }
+            }
+
             // handle raw data request.
 
             if (details is ReadRawModifiedDetails readRawModifiedDetails)
             {
-                // at least one must be provided.
-                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
-                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
+                if (!hasContinuationPoint)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
-                }
-
-                // if one is null the num values must be provided.
-                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue ||
-                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
-                {
-                    if (readRawModifiedDetails.NumValuesPerNode == 0)
+                    // at least one must be provided.
+                    if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
+                        readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    }
+
+                    // if one is null the num values must be provided.
+                    if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue ||
+                        readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
+                    {
+                        if (readRawModifiedDetails.NumValuesPerNode == 0)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        }
                     }
                 }
 
@@ -2909,11 +2928,14 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadAggregateListMismatch);
                 }
 
-                // check start/end time.
-                if (readProcessedDetails.StartTime == DateTimeUtc.MinValue ||
-                    readProcessedDetails.EndTime == DateTimeUtc.MinValue)
+                if (!hasContinuationPoint)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    // check start/end time.
+                    if (readProcessedDetails.StartTime == DateTimeUtc.MinValue ||
+                        readProcessedDetails.EndTime == DateTimeUtc.MinValue)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    }
                 }
 
                 await HistoryReadProcessedAsync(
@@ -2952,28 +2974,31 @@ namespace Opc.Ua.Server
 
             if (details is ReadEventDetails readEventDetails)
             {
-                // check start/end time and max values.
-                if (readEventDetails.NumValuesPerNode == 0)
+                if (!hasContinuationPoint)
                 {
-                    if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
+                    // check start/end time and max values.
+                    if (readEventDetails.NumValuesPerNode == 0)
+                    {
+                        if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
+                            readEventDetails.EndTime == DateTimeUtc.MinValue)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        }
+                    }
+                    else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
                         readEventDetails.EndTime == DateTimeUtc.MinValue)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                     }
-                }
-                else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
-                    readEventDetails.EndTime == DateTimeUtc.MinValue)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
-                }
 
-                // validate the event filter.
-                EventFilter.Result result = readEventDetails.Filter.Validate(
-                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
+                    // validate the event filter.
+                    EventFilter.Result result = readEventDetails.Filter.Validate(
+                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
-                if (ServiceResult.IsBad(result.Status))
-                {
-                    throw new ServiceResultException(result.Status);
+                    if (ServiceResult.IsBad(result.Status))
+                    {
+                        throw new ServiceResultException(result.Status);
+                    }
                 }
 
                 // read the event history.

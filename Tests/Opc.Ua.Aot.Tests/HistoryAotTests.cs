@@ -46,7 +46,7 @@ namespace Opc.Ua.Aot.Tests
     public class HistoryAotTests(AotTestFixture fixture)
     {
         private static readonly NodeId s_historizedNodeId
-            = NodeId.Parse("ns=2;s=Scalar_Static_Int32");
+            = NodeId.Parse("ns=2;s=Scalar_Static_Double");
 
         [Test]
         public async Task HistoryReadRawAsync()
