@@ -2537,12 +2537,17 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Returns the effective modelling rule for a <see cref="NodeToGenerate"/>.
         /// When <see cref="GeneratorOptions.UseTypeDefinitionModellingRules"/>
-        /// is enabled and the node belongs to an instance hierarchy, the
-        /// type definition's modelling rule is used; otherwise the instance's
-        /// own modelling rule is returned.  Regardless of the option, the
-        /// effective rule never downgrades from a type-definition
-        /// <see cref="ModellingRule.Mandatory"/> to Optional or any
-        /// placeholder variant.
+        /// is enabled (opt-in) and the node belongs to an instance hierarchy,
+        /// the type definition's modelling rule is used unconditionally.
+        /// When the option is off (default), the instance may only
+        /// <em>promote</em> the type-definition rule per OPC UA rules:
+        /// <list type="bullet">
+        ///   <item><c>Optional → Mandatory</c></item>
+        ///   <item><c>OptionalPlaceholder → Mandatory | MandatoryPlaceholder</c></item>
+        ///   <item><c>MandatoryPlaceholder → Mandatory</c></item>
+        /// </list>
+        /// Any other instance override (demotion) is ignored and the
+        /// type-definition rule is returned instead.
         /// </summary>
         private ModellingRule GetEffectiveModellingRule(
             NodeToGenerate node,
@@ -2558,12 +2563,11 @@ namespace Opc.Ua.SourceGeneration
                     return typeDefRule;
                 }
 
-                // Even when the option is off, never downgrade a
-                // type-definition Mandatory to Optional or placeholder.
-                if (typeDefRule == ModellingRule.Mandatory &&
-                    instance.ModellingRule != ModellingRule.Mandatory)
+                // When not opt-in, only allow valid promotions per
+                // the OPC UA modelling rule standard.
+                if (!IsValidPromotion(typeDefRule, instance.ModellingRule))
                 {
-                    return ModellingRule.Mandatory;
+                    return typeDefRule;
                 }
             }
 
@@ -2591,16 +2595,50 @@ namespace Opc.Ua.SourceGeneration
                     return typeDefRule;
                 }
 
-                // Even when the option is off, never downgrade a
-                // type-definition Mandatory to Optional or placeholder.
-                if (typeDefRule == ModellingRule.Mandatory &&
-                    child.ModellingRule != ModellingRule.Mandatory)
+                // When not opt-in, only allow valid promotions per
+                // the OPC UA modelling rule standard.
+                if (!IsValidPromotion(typeDefRule, child.ModellingRule))
                 {
-                    return ModellingRule.Mandatory;
+                    return typeDefRule;
                 }
             }
 
             return child.ModellingRule;
+        }
+
+        /// <summary>
+        /// Determines whether the instance modelling rule is a valid
+        /// promotion of the type-definition modelling rule per OPC UA:
+        /// <list type="bullet">
+        ///   <item><c>Optional → Mandatory</c></item>
+        ///   <item><c>OptionalPlaceholder → Mandatory | MandatoryPlaceholder</c></item>
+        ///   <item><c>MandatoryPlaceholder → Mandatory</c></item>
+        /// </list>
+        /// Returns <c>true</c> when the instance rule is an allowed
+        /// promotion (or identical to the type-definition rule), and
+        /// <c>false</c> when it is a demotion that should be rejected.
+        /// </summary>
+        private static bool IsValidPromotion(
+            ModellingRule typeDefRule,
+            ModellingRule instanceRule)
+        {
+            if (instanceRule == typeDefRule)
+            {
+                return true;
+            }
+
+            return typeDefRule switch
+            {
+                ModellingRule.Optional =>
+                    instanceRule == ModellingRule.Mandatory,
+                ModellingRule.OptionalPlaceholder =>
+                    instanceRule is ModellingRule.Mandatory
+                        or ModellingRule.MandatoryPlaceholder,
+                ModellingRule.MandatoryPlaceholder =>
+                    instanceRule == ModellingRule.Mandatory,
+                // Mandatory, None, ExposesItsArray, etc. cannot be promoted
+                _ => false
+            };
         }
 
         private void GetChildren(
