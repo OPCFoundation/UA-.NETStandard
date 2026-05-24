@@ -84,9 +84,13 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// When set to <c>true</c>, the generator uses the modelling rules
-        /// from the referenced type definition rather than the overridden
-        /// rules on instance definitions for structural code generation
-        /// decisions. Off by default. Surfaced from MSBuild via the
+        /// from the referenced type definition unconditionally for all
+        /// structural code generation decisions and the emitted runtime
+        /// <c>ModellingRuleId</c>.  When off (default), the generator
+        /// enforces OPC UA modelling rule promotion semantics —
+        /// instances may only promote, never demote, the type
+        /// definition's rule.
+        /// Surfaced from MSBuild via the
         /// <c>ModelSourceGeneratorUseTypeDefinitionModellingRules</c> property.
         /// </summary>
         public bool UseTypeDefinitionModellingRules { get; set; }
