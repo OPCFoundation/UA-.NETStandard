@@ -106,21 +106,14 @@ namespace Microsoft.Extensions.DependencyInjection
         /// (<c>OpcUa:WotCon:Client</c>).
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddWotConClient(IOpcUaBuilder, Action{WotConClientOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configuration">Configuration root containing
         /// the <c>OpcUa:WotCon:Client</c> section.</param>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/>
         /// or <paramref name="configuration"/> is <c>null</c>.</exception>
-        [RequiresUnreferencedCode(
-            "Binds WotConClientOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConClientOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds WotConClientOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConClientOptions> overload for AOT consumers.")]
         public static IOpcUaBuilder AddWotConClient(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -137,20 +130,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// bound from the supplied <paramref name="section"/>.
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddWotConClient(IOpcUaBuilder, Action{WotConClientOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="section">Configuration section to bind.</param>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/>
         /// or <paramref name="section"/> is <c>null</c>.</exception>
-        [RequiresUnreferencedCode(
-            "Binds WotConClientOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConClientOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds WotConClientOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConClientOptions> overload for AOT consumers.")]
         public static IOpcUaBuilder AddWotConClient(
             this IOpcUaBuilder builder,
             IConfigurationSection section)

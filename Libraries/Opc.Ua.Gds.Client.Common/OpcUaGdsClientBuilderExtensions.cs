@@ -89,21 +89,14 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="DefaultConfigurationSection"/>.
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddGdsClient(IOpcUaBuilder, Action{GdsClientOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configuration">Configuration root containing the
         /// <c>OpcUa:Gds:Client</c> section.</param>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/>
         /// or <paramref name="configuration"/> is <c>null</c>.</exception>
-        [RequiresUnreferencedCode(
-            "Binds GdsClientOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsClientOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds GdsClientOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsClientOptions> overload for AOT consumers.")]
         public static IGdsClientBuilder AddGdsClient(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -120,20 +113,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// from the supplied <paramref name="section"/>.
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddGdsClient(IOpcUaBuilder, Action{GdsClientOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="section">Configuration section to bind.</param>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/>
         /// or <paramref name="section"/> is <c>null</c>.</exception>
-        [RequiresUnreferencedCode(
-            "Binds GdsClientOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsClientOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds GdsClientOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsClientOptions> overload for AOT consumers.")]
         public static IGdsClientBuilder AddGdsClient(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
@@ -147,8 +133,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            builder.Services.AddOptions();
-            builder.Services.Configure<GdsClientOptions>(section.Bind);
+            builder.Services.AddOptions<GdsClientOptions>().Bind(section);
 
             RegisterCoreServices(builder.Services);
 

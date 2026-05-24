@@ -123,9 +123,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// (<c>OpcUa:WotCon:Server</c>).
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddWotConServer(IOpcUaBuilder, Action{WotConnectivityServerOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configuration">Configuration root containing
@@ -134,12 +133,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// or <paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">A WoT Connectivity
         /// feature is already registered.</exception>
-        [RequiresUnreferencedCode(
-            "Binds WotConnectivityServerOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConnectivityServerOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds WotConnectivityServerOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConnectivityServerOptions> overload for AOT consumers.")]
         public static IWotConServerBuilder AddWotConServer(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -156,9 +149,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// from the supplied <paramref name="section"/>.
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddWotConServer(IOpcUaBuilder, Action{WotConnectivityServerOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="section">Configuration section to bind.</param>
@@ -166,12 +158,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// or <paramref name="section"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">A WoT Connectivity
         /// feature is already registered.</exception>
-        [RequiresUnreferencedCode(
-            "Binds WotConnectivityServerOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConnectivityServerOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds WotConnectivityServerOptions using reflection-based configuration binding. " +
-            "Use the Action<WotConnectivityServerOptions> overload for AOT consumers.")]
         public static IWotConServerBuilder AddWotConServer(
             this IOpcUaBuilder builder,
             IConfigurationSection section)

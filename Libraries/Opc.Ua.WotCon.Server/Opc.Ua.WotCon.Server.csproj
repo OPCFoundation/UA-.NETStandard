@@ -11,6 +11,15 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!--
+      SYSLIB1100/1101: the configuration binding source generator emits informational
+      diagnostics for properties whose type is an interface or non-default-constructible
+      class (e.g. IWotAssetDiscoveryProvider, IList<IWotAssetProviderFactory>). Those
+      properties are runtime-only and never bound from IConfiguration; the binder
+      silently skips them, which is the desired behavior.
+    -->
+    <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.WotCon.Tests" />

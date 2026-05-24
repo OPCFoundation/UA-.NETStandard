@@ -113,9 +113,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// section <see cref="DefaultConfigurationSection"/> (<c>OpcUa:Server</c>).
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configuration">Configuration root containing
@@ -124,12 +123,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// or <paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">An OPC UA server
         /// is already registered.</exception>
-        [RequiresUnreferencedCode(
-            "Binds OpcUaServerOptions using reflection-based configuration binding. " +
-            "Use the Action<OpcUaServerOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds OpcUaServerOptions using reflection-based configuration binding. " +
-            "Use the Action<OpcUaServerOptions> overload for AOT consumers.")]
         public static IOpcUaServerBuilder AddServer(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -146,9 +139,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// with options bound from the supplied <paramref name="section"/>.
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="section">Configuration section to bind.</param>
@@ -156,12 +148,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// or <paramref name="section"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">An OPC UA server
         /// is already registered.</exception>
-        [RequiresUnreferencedCode(
-            "Binds OpcUaServerOptions using reflection-based configuration binding. " +
-            "Use the Action<OpcUaServerOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds OpcUaServerOptions using reflection-based configuration binding. " +
-            "Use the Action<OpcUaServerOptions> overload for AOT consumers.")]
         public static IOpcUaServerBuilder AddServer(
             this IOpcUaBuilder builder,
             IConfigurationSection section)

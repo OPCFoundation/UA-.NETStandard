@@ -104,11 +104,15 @@ The default section names are:
 | WoT Connectivity Server        | `OpcUa:WotCon:Server`    |
 | WoT Connectivity Client        | `OpcUa:WotCon:Client`    |
 
-The `IConfiguration` and `IConfigurationSection` overloads are
-annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`
-because they use reflection-based binding. For Native AOT
-applications, use the `Action<TOptions>` overload exclusively — the
-existing `Opc.Ua.Aot.Tests` project demonstrates this pattern.
+The `IConfiguration` / `IConfigurationSection` overloads are
+**AOT-safe** on every library. Each DI-emitting library opts into the
+.NET 8+ [Configuration Binding Source Generator](https://learn.microsoft.com/dotnet/core/extensions/configuration-generator)
+(`<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>`),
+which replaces the reflection-based binder with statically-generated
+[C# 12 interceptors](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-12#interceptors).
+The `Tests/Opc.Ua.Aot.Tests` project verifies that `dotnet publish`
+under `PublishAot=true` produces zero `IL2026` / `IL3050` warnings
+from the DI surface.
 
 ## Server feature
 
@@ -513,12 +517,44 @@ isolated: the GDS / LDS hosted services do not see them.
 
 ## Native AOT
 
-All `.AddXxx(...)` methods are AOT-compatible **when called with the
-`Action<TOptions>` overload**. The `IConfiguration`-bound overloads use
-reflection and are marked `[RequiresUnreferencedCode]` /
-`[RequiresDynamicCode]`.
+Every `.AddXxx(...)` overload — both the `Action<TOptions>` shape and
+the `IConfiguration` / `IConfigurationSection` shapes — is AOT-safe.
+The .NET 8+ Configuration Binding Source Generator is enabled on every
+library that performs configuration binding
+(`<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>`),
+so the reflection-based binder is replaced by statically-generated
+[C# 12 interceptors](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-12#interceptors)
+at compile time.
 
-For AOT consumers, configure options through code:
+```csharp
+services.AddOpcUa()
+    .AddServer(builder.Configuration.GetSection("OpcUa:Server"))  // bind from appsettings.json — AOT-safe
+    .AddNodeManager<MyAotNodeManagerFactory>();
+```
+
+`Action<TOptions>` (code-only) and `IConfiguration` overloads can be
+mixed freely; consumers no longer need to choose between them for AOT
+compatibility.
+
+Notes:
+
+- The source generator targets net8.0+. On older TFMs (net48 /
+  netstandard2.0 / netstandard2.1) the generator is a no-op and the
+  reflection-based binder is used — those TFMs don't support
+  PublishAot anyway.
+- Options properties whose type is an interface or a non-default-
+  constructible class (e.g. `ApplicationConfiguration`,
+  `IUserIdentity`, `ISubscriptionEngineFactory`) are silently skipped
+  by the generator with an informational `SYSLIB1100` / `SYSLIB1101`
+  diagnostic. Those properties are runtime-only — set them in code,
+  not in `appsettings.json`. The affected libraries suppress those
+  diagnostics in their csproj.
+- The `Tests/Opc.Ua.Aot.Tests` project verifies the end-to-end AOT
+  path: build + AOT publish produce **zero** `IL2026` / `IL3050`
+  warnings from any DI extension.
+
+For AOT consumers, configure options through code or configuration —
+both are supported:
 
 ```csharp
 services.AddOpcUa()
@@ -531,9 +567,6 @@ services.AddOpcUa()
     })
     .AddNodeManager<MyAotNodeManagerFactory>();
 ```
-
-The `Tests/Opc.Ua.Aot.Tests` project exercises this path end-to-end
-under `PublishAot=true`.
 
 ## Telemetry
 

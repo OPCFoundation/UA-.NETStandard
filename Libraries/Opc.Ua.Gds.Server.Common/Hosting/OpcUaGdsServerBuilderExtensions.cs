@@ -121,9 +121,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// (<c>OpcUa:Gds:Server</c>).
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddGdsServer(IOpcUaBuilder, Action{GdsServerOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configuration">Configuration root containing
@@ -132,12 +131,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// or <paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">A GDS server is
         /// already registered.</exception>
-        [RequiresUnreferencedCode(
-            "Binds GdsServerOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsServerOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds GdsServerOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsServerOptions> overload for AOT consumers.")]
         public static IGdsServerBuilder AddGdsServer(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -155,9 +148,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// supplied <paramref name="section"/>.
         /// </summary>
         /// <remarks>
-        /// Uses reflection-based configuration binding. AOT consumers
-        /// should prefer
-        /// <see cref="AddGdsServer(IOpcUaBuilder, Action{GdsServerOptions})"/>.
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
         /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="section">Configuration section to bind.</param>
@@ -165,12 +157,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// or <paramref name="section"/> is <c>null</c>.</exception>
         /// <exception cref="InvalidOperationException">A GDS server is
         /// already registered.</exception>
-        [RequiresUnreferencedCode(
-            "Binds GdsServerOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsServerOptions> overload for trim/AOT consumers.")]
-        [RequiresDynamicCode(
-            "Binds GdsServerOptions using reflection-based configuration binding. " +
-            "Use the Action<GdsServerOptions> overload for AOT consumers.")]
         public static IGdsServerBuilder AddGdsServer(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
