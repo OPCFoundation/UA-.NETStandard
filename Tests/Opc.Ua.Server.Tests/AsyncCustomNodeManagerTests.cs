@@ -4088,7 +4088,7 @@ namespace Opc.Ua.Server.Tests
 
     internal sealed class TestEventMonitoredItem : IEventMonitoredItem
     {
-        public INodeManager NodeManager { get; set; }
+        public IAsyncNodeManager NodeManager { get; set; }
 
         public ISession Session { get; set; }
 

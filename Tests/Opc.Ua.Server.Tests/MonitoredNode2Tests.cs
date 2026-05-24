@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -61,13 +63,14 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32
             };
 
-            var nodeManagerMock = new Mock<INodeManager3>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
             nodeManagerMock
-                .Setup(m => m.ValidateRolePermissions(
+                .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<PermissionType>()))
-                .Returns(ServiceResult.Good);
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -83,12 +86,16 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
+            // Dispose waits for the consumer task to drain all queued notifications.
+            monitoredNode.Dispose();
+
             // Assert – ValidateRolePermissions should have been called exactly once (cached after first call)
             nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(
+                m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     nodeId,
-                    PermissionType.Read),
+                    PermissionType.Read,
+                    It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
@@ -108,13 +115,14 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32
             };
 
-            var nodeManagerMock = new Mock<INodeManager3>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
             nodeManagerMock
-                .Setup(m => m.ValidateRolePermissions(
+                .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<PermissionType>()))
-                .Returns(ServiceResult.Good);
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -135,12 +143,16 @@ namespace Opc.Ua.Server.Tests
             // Second value change should trigger re-validation
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
+            // Dispose waits for the consumer task to drain all queued notifications.
+            monitoredNode.Dispose();
+
             // Assert – ValidateRolePermissions should have been called twice (once before and once after cache invalidation)
             nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(
+                m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     nodeId,
-                    PermissionType.Read),
+                    PermissionType.Read,
+                    It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
         }
 
@@ -160,13 +172,14 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32
             };
 
-            var nodeManagerMock = new Mock<INodeManager3>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
             nodeManagerMock
-                .Setup(m => m.ValidateRolePermissions(
+                .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<PermissionType>()))
-                .Returns(new ServiceResult(StatusCodes.BadUserAccessDenied));
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied)));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -182,6 +195,9 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
+            // Dispose waits for the consumer task to drain all queued notifications.
+            monitoredNode.Dispose();
+
             // Assert – QueueValue should never have been called (permission denied)
             monitoredItemMock.Verify(
                 m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()),
@@ -189,10 +205,11 @@ namespace Opc.Ua.Server.Tests
 
             // And validate was only called once (cached bad result)
             nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(
+                m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     nodeId,
-                    PermissionType.Read),
+                    PermissionType.Read,
+                    It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
@@ -283,15 +300,21 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32
             };
 
-            var nodeManagerMock = new Mock<INodeManager3>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
             nodeManagerMock
-                .Setup(m => m.ValidateRolePermissions(
+                .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<PermissionType>()))
-                .Returns(ServiceResult.Good);
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    firstValidationSignal.Set();
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
 
-            // Set up a ConfigurationNodeManager mockthat exposes the DefaultPermissionsChanged event
+            // Set up a ConfigurationNodeManager mock that exposes the DefaultPermissionsChanged event
             var configNodeManagerMock = new Mock<IConfigurationNodeManager>();
             EventHandler capturedHandler = null;
             configNodeManagerMock
@@ -310,9 +333,9 @@ namespace Opc.Ua.Server.Tests
 
             // First value change populates the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
-            nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
-                Times.Once);
+
+            // Wait until the consumer has processed the first notification and populated the cache.
+            firstValidationSignal.Wait();
 
             // Simulate namespace DefaultPermissionsChanged event firing
             Assert.That(capturedHandler, Is.Not.Null, "DefaultPermissionsChanged handler should have been subscribed");
@@ -321,9 +344,12 @@ namespace Opc.Ua.Server.Tests
             // Second value change should trigger re-validation since cache was cleared
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
+            // Dispose waits for the consumer task to drain all queued notifications.
+            monitoredNode.Dispose();
+
             // Assert – ValidateRolePermissions should have been called twice (once before and once after cache invalidation)
             nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                m => m.ValidateRolePermissionsAsync(It.IsAny<OperationContext>(), nodeId, PermissionType.Read, It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
         }
 
@@ -364,13 +390,19 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32
             };
 
-            var nodeManagerMock = new Mock<INodeManager3>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
             nodeManagerMock
-                .Setup(m => m.ValidateRolePermissions(
+                .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<PermissionType>()))
-                .Returns(ServiceResult.Good);
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    firstValidationSignal.Set();
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -385,9 +417,9 @@ namespace Opc.Ua.Server.Tests
 
             // Populate the permission cache with the first value change
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
-            nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
-                Times.Once);
+
+            // Wait until the consumer has processed the first notification and populated the cache.
+            firstValidationSignal.Wait();
 
             // Act – invalidate permission cache for the session (simulates identity change)
             monitoredNode.InvalidatePermissionCacheForSession(sessionId);
@@ -395,9 +427,12 @@ namespace Opc.Ua.Server.Tests
             // Next value change should trigger re-validation
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
+            // Dispose waits for the consumer task to drain all queued notifications.
+            monitoredNode.Dispose();
+
             // Assert – called twice: once before and once after cache invalidation
             nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                m => m.ValidateRolePermissionsAsync(It.IsAny<OperationContext>(), nodeId, PermissionType.Read, It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
         }
 
@@ -419,13 +454,14 @@ namespace Opc.Ua.Server.Tests
                 DataType = DataTypeIds.Int32
             };
 
-            var nodeManagerMock = new Mock<INodeManager3>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
             nodeManagerMock
-                .Setup(m => m.ValidateRolePermissions(
+                .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
-                    It.IsAny<PermissionType>()))
-                .Returns(ServiceResult.Good);
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -448,9 +484,12 @@ namespace Opc.Ua.Server.Tests
             // Next value change should still use the cached result
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
+            // Dispose waits for the consumer task to drain all queued notifications.
+            monitoredNode.Dispose();
+
             // Assert – ValidateRolePermissions still called only once (cache was not cleared)
             nodeManagerMock.Verify(
-                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                m => m.ValidateRolePermissionsAsync(It.IsAny<OperationContext>(), nodeId, PermissionType.Read, It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 

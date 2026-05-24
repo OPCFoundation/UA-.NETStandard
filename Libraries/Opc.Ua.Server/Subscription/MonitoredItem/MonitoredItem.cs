@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public MonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             uint subscriptionId,
             uint id,
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public MonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem)
         {
@@ -263,7 +263,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
-        public INodeManager NodeManager { get; private set; }
+        public IAsyncNodeManager NodeManager { get; private set; }
 
         /// <summary>
         /// The handle assigned by the node manager when it created the item.

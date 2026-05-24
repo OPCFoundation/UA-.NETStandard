@@ -1451,7 +1451,7 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
 
-            var nodeMangerMock = new Mock<INodeManager>();
+            var nodeMangerMock = new Mock<IAsyncNodeManager>();
 
             return new MonitoredItem(
                 serverMock.Object,

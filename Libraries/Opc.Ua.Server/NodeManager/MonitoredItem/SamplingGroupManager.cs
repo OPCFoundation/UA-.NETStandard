@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public SamplingGroupManager(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             uint maxQueueSize,
             uint maxDurableQueueSize,
             IEnumerable<SamplingRateGroup> samplingRates)
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server
         /// <returns>The monitored item.</returns>
         protected virtual ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             uint subscriptionId,
             uint id,
@@ -511,7 +511,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
-        private readonly INodeManager m_nodeManager;
+        private readonly IAsyncNodeManager m_nodeManager;
         private readonly List<SamplingGroup> m_samplingGroups;
         private readonly Dictionary<ISampledDataChangeMonitoredItem, SamplingGroup> m_sampledItems;
         private readonly List<SamplingRateGroup> m_samplingRates;

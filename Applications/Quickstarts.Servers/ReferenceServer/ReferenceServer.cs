@@ -38,6 +38,7 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Server.UserManagement;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -85,6 +86,8 @@ namespace Quickstarts.ReferenceServer
                 "CertificateAuthorityAdmin",
                 Encoding.UTF8.GetBytes("demo"),
                 [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, Role.AuthenticatedUser]);
+
+            m_userManagement = new UserManagement(m_userDatabase, new Opc.Ua.Range(256, 1));
         }
 
         /// <summary>
@@ -214,6 +217,8 @@ namespace Quickstarts.ReferenceServer
             // categories with full Add/Delete support add an
             // AliasNameNodeManager configured with their own namespace.
             ConfigureAliasNameStore(server);
+
+            ServerInternal.SetUserManagement(m_userManagement);
 
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
@@ -774,8 +779,19 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_userManagement.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
         private CertificateManager? m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
         private ReferenceNodeManager? m_referenceNodeManager;
+        private readonly UserManagement m_userManagement;
     }
 }

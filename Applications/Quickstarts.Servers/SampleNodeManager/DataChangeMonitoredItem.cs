@@ -381,7 +381,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The node manager for the monitored item.
         /// </summary>
-        public INodeManager NodeManager => m_source.NodeManager;
+        public IAsyncNodeManager NodeManager => m_source.NodeManager;
 
         /// <summary>
         /// The session for the monitored item.

@@ -2033,7 +2033,7 @@ namespace Opc.Ua.Sample
                 // subscribe to events.
                 if (monitoredNode == null)
                 {
-                    instance.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                    instance.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
                 }
 
                 monitoredNode.SubscribeToEvents(systemContext, monitoredItem);
@@ -2104,7 +2104,7 @@ namespace Opc.Ua.Sample
             // subscribe to events.
             if (monitoredNode == null)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             monitoredNode.SubscribeToEvents(systemContext, monitoredItem);
@@ -2570,7 +2570,7 @@ namespace Opc.Ua.Sample
 
             if (source.Handle is not MonitoredNode monitoredNode)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             // check if the variable needs to be sampled.
@@ -2680,7 +2680,7 @@ namespace Opc.Ua.Sample
 
             if (source.Handle is not MonitoredNode monitoredNode)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             // determine the sampling interval.
