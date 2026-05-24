@@ -101,6 +101,24 @@ namespace Opc.Ua.Lds.Server.Hosting
         public bool EnableMulticast { get; set; } = true;
 
         /// <summary>
+        /// Restrict the multicast announcer to the loopback NIC. Intended
+        /// for in-process tests where the LDS-ME traffic must stay local.
+        /// Ignored when <see cref="EnableMulticast"/> is <c>false</c>.
+        /// </summary>
+        public bool MulticastLoopbackOnly { get; set; }
+
+        /// <summary>
+        /// Extra server capabilities to advertise. Each entry is appended
+        /// via <c>IApplicationConfigurationBuilderServerOptions.AddServerCapabilities</c>
+        /// and surfaces in <see cref="ServerConfiguration.ServerCapabilities"/>.
+        /// The hosted LDS always adds <c>LDS</c> (and <c>LDS-ME</c> when
+        /// multicast is enabled) per OPC 10000-12 Annex D; entries here are
+        /// additive. Mutated in place by
+        /// <c>options.ServerCapabilities.Add(...)</c>.
+        /// </summary>
+        public IList<string> ServerCapabilities { get; } = [];
+
+        /// <summary>
         /// Optional escape hatch invoked after the standard configuration steps
         /// (transport quotas, server policies, security configuration) but
         /// before <c>CreateAsync</c>. Use it to add bespoke security policies,

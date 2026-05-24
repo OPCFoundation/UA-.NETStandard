@@ -27,37 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
-    /// Top-level options for
-    /// <see cref="M:Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
+    /// Binder-friendly description of one OPC UA user-token policy. Each
+    /// entry expressed in <see cref="OpcUaServerOptions.UserTokenPolicies"/>
+    /// is turned into a call to
+    /// <c>IApplicationConfigurationBuilderServerSelected.AddUserTokenPolicy</c>
+    /// by the hosted service.
     /// </summary>
-    public sealed class OpcUaClientOptions
+    /// <remarks>
+    /// When the list is empty, the hosted service adds an
+    /// <see cref="UserTokenType.Anonymous"/> entry by default — matching
+    /// the historical builder behaviour when no token policy is supplied.
+    /// </remarks>
+    public sealed class OpcUaUserTokenPolicy
     {
         /// <summary>
-        /// The application configuration. Required.
+        /// The token type to advertise. Defaults to
+        /// <see cref="UserTokenType.Anonymous"/>.
         /// </summary>
-        public ApplicationConfiguration? Configuration { get; set; }
-
-        /// <summary>
-        /// Default <see cref="ManagedSessionOptions"/> used by the
-        /// session factory delegate registered with DI.
-        /// </summary>
-        public ManagedSessionOptions Session { get; set; } = new();
-
-        /// <summary>
-        /// Client-side reverse-connect configuration. When non-null the
-        /// DI container registers a singleton
-        /// <see cref="ReverseConnectManager"/> that binds the configured
-        /// listener endpoints on first resolution and surfaces inbound
-        /// reverse-hello messages via
-        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
-        /// The values are also written into
-        /// <see cref="ClientConfiguration.ReverseConnect"/> on
-        /// <see cref="Configuration"/> so the same data is observable
-        /// through the application-configuration surface.
-        /// </summary>
-        public ClientReverseConnectOptions? ReverseConnect { get; set; }
+        public UserTokenType TokenType { get; set; } = UserTokenType.Anonymous;
     }
 }

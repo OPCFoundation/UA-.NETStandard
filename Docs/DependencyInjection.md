@@ -155,6 +155,105 @@ stores), set `OpcUaServerOptions.ConfigureBuilder` — it receives the
 underlying `IApplicationConfigurationBuilderServerSelected` between the
 default policy/quota steps and `CreateAsync`.
 
+### First-class server options
+
+In addition to the basic application-identity / endpoint / PKI knobs
+covered above, `OpcUaServerOptions` exposes the following first-class
+properties (bindable from `IConfiguration` or set via the
+`Action<OpcUaServerOptions>` overload). Anything not listed here remains
+reachable through `ConfigureBuilder`.
+
+| Property | Underlying builder call | Purpose |
+|----------|-------------------------|---------|
+| `IncludeEccPolicies` | `AddEccSignAndEncryptPolicies()` | Add ECC sign-and-encrypt security policies. Off by default. |
+| `UserTokenPolicies` | `AddUserTokenPolicy(UserTokenType)` | List of user-token policies advertised on every endpoint. Defaults to `Anonymous` when empty. |
+| `MaxMessageSize` | `SetMaxMessageSize(int)` | Transport quota in bytes; `null` keeps the stack default. |
+| `OperationTimeoutMs` | `SetOperationTimeout(int)` | Transport operation timeout in ms; `null` keeps the stack default. |
+| `RejectSHA1Certificates` | `SetRejectSHA1SignedCertificates(bool)` | Security hardening — defaults to `true`. |
+| `MinCertificateKeySize` | `SetMinimumCertificateKeySize(ushort)` | Security hardening — defaults to `2048`. Set to `0` to keep the stack default. |
+| `RegistrationEndpointUrl` | `SetRegistrationEndpoint(EndpointDescription)` | LDS/GDS endpoint URL the server registers itself with on startup. |
+| `ReverseConnect` | `SetReverseConnect(ReverseConnectServerConfiguration)` | Server-side reverse-connect clients (see below). |
+| `OperationLimits` | `SetOperationLimits(OperationLimits)` | Per-service node limits (max nodes per read/write/browse/...). |
+
+### Server-side reverse connect
+
+A server can dial back to clients via reverse-hello using
+`OpcUaServerOptions.ReverseConnect`. The data binds directly from
+`OpcUa:Server:ReverseConnect`:
+
+```jsonc
+{
+  "OpcUa": {
+    "Server": {
+      "ReverseConnect": {
+        "ConnectIntervalMs": 15000,
+        "ConnectTimeoutMs": 30000,
+        "RejectTimeoutMs": 60000,
+        "Clients": [
+          {
+            "EndpointUrl": "opc.tcp://client.example.com:4841",
+            "Timeout": 30000,
+            "MaxSessionCount": 1,
+            "Enabled": true
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Equivalent code-only configuration:
+
+```csharp
+services.AddOpcUa().AddServer(o =>
+{
+    o.ReverseConnect = new ServerReverseConnectOptions();
+    o.ReverseConnect.Clients.Add(new ServerReverseConnectClientOptions
+    {
+        EndpointUrl = "opc.tcp://client.example.com:4841",
+        Enabled = true
+    });
+});
+```
+
+### Operation limits
+
+```csharp
+services.AddOpcUa().AddServer(o =>
+{
+    o.OperationLimits = new OperationLimitsOptions
+    {
+        MaxNodesPerRead = 1000,
+        MaxNodesPerWrite = 1000,
+        MaxNodesPerBrowse = 1000,
+        MaxMonitoredItemsPerCall = 5000
+    };
+});
+```
+
+Bindable from `OpcUa:Server:OperationLimits`. Any value left at zero is
+treated as "unlimited" by the OPC UA server stack.
+
+### User token policies
+
+```csharp
+services.AddOpcUa().AddServer(o =>
+{
+    o.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+    {
+        TokenType = UserTokenType.UserName
+    });
+    o.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+    {
+        TokenType = UserTokenType.Certificate
+    });
+});
+```
+
+Bindable from `OpcUa:Server:UserTokenPolicies`. When the list is empty
+the hosted service falls back to a single `Anonymous` policy.
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -203,6 +302,57 @@ var factory = sp.GetRequiredService<ComplexTypeSystemFactory>();
 ComplexTypeSystem cts = factory.Create(session);
 await cts.LoadAsync(...);
 ```
+
+### Client-side reverse connect
+
+When `OpcUaClientOptions.ReverseConnect` is set, the DI container
+registers a singleton `ReverseConnectManager` that opens the configured
+listener endpoints on first resolution. Inbound reverse-hello messages
+are surfaced via
+`ReverseConnectManager.WaitForConnectionAsync(endpointUrl, serverUri, ct)`,
+and the values are also mirrored into
+`ApplicationConfiguration.ClientConfiguration.ReverseConnect`.
+
+```jsonc
+{
+  "OpcUa": {
+    "Client": {
+      "ReverseConnect": {
+        "HoldTimeMs": 15000,
+        "WaitTimeoutMs": 20000,
+        "ClientEndpointUrls": [
+          "opc.tcp://0.0.0.0:4841"
+        ]
+      }
+    }
+  }
+}
+```
+
+Equivalent code-only:
+
+```csharp
+services.AddOpcUa().AddClient(opt =>
+{
+    opt.Configuration = applicationConfiguration;
+    opt.ReverseConnect = new ClientReverseConnectOptions();
+    opt.ReverseConnect.ClientEndpointUrls.Add("opc.tcp://0.0.0.0:4841");
+});
+
+// Resolve the manager and await an inbound reverse-hello connection:
+var reverseConnect = sp.GetRequiredService<ReverseConnectManager>();
+ITransportWaitingConnection connection =
+    await reverseConnect.WaitForConnectionAsync(endpointUrl, serverUri: null, ct);
+// pass `connection` to Session.Create / DefaultSessionFactory.RecreateAsync
+```
+
+Note: the `Func<CancellationToken, Task<ManagedSession>>` delegate
+registered by `AddClient` does **not** automatically consume the
+reverse-connect manager for initial connection — it still dials the
+configured endpoint outbound. Use the `ReverseConnectManager` directly
+when the server initiates the session. The
+`ReverseConnect` configuration is also consumed by `Session` /
+`SessionReconnectHandler` for reconnect-via-reverse-hello scenarios.
 
 ## Application instance (advanced)
 
@@ -274,13 +424,20 @@ services
         o.ApplicationUri = "urn:localhost:MyOrg:MyLds";
         o.ProductUri = "uri:myorg:mylds";
         o.EndpointUrls.Add("opc.tcp://localhost:4840/UADiscovery");
-        o.EnableMulticast = true;  // optional LDS-ME multicast advertisement
+        o.EnableMulticast = true;            // LDS-ME multicast advertisement
+        o.MulticastLoopbackOnly = false;     // set true for in-process tests
+        o.ServerCapabilities.Add("DA");      // extra capabilities (LDS / LDS-ME are always implicit)
     });
 ```
 
 Throws on a second `.AddLdsServer(...)`. The server is advertised as
 `ApplicationType.DiscoveryServer` (the LDS class promotes the type after
 `ApplicationConfiguration.CreateAsync`).
+
+`MulticastLoopbackOnly` restricts the mDNS announcer to the loopback NIC
+— intended for in-process tests where LDS-ME traffic must stay local.
+`ServerCapabilities` is additive — `LDS` is always included, plus
+`LDS-ME` when `EnableMulticast` is `true`.
 
 ## WoT Connectivity Server
 

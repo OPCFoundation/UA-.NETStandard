@@ -194,7 +194,73 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
                 sp => new ManagedSessionAccessor(sp).ConnectAsync);
 
+            services.TryAddSingleton(sp =>
+            {
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                return ReverseConnectManagerActivator.Create(options, telemetry);
+            });
+
             OpcUaServiceCollectionExtensions.AddOpcUa(services);
+        }
+
+        /// <summary>
+        /// Builds a <see cref="ReverseConnectManager"/> on first resolution
+        /// when client reverse-connect options are configured. The
+        /// configured listener URLs are added, the manager's
+        /// <see cref="ReverseConnectManager.StartService(ApplicationConfiguration)"/>
+        /// is invoked using the application configuration from
+        /// <see cref="OpcUaClientOptions"/>, and the options are mirrored
+        /// into <see cref="ClientConfiguration.ReverseConnect"/> so any
+        /// other consumer reading the application configuration sees the
+        /// same data.
+        /// </summary>
+        private static class ReverseConnectManagerActivator
+        {
+            public static ReverseConnectManager Create(
+                OpcUaClientOptions options,
+                ITelemetryContext telemetry)
+            {
+                var manager = new ReverseConnectManager(telemetry);
+
+                ClientReverseConnectOptions? rcOptions = options.ReverseConnect;
+                if (rcOptions == null || rcOptions.ClientEndpointUrls.Count == 0)
+                {
+                    return manager;
+                }
+
+                ApplicationConfiguration? configuration = options.Configuration;
+                if (configuration == null)
+                {
+                    throw new InvalidOperationException(
+                        "OpcUaClientOptions.Configuration must be set before " +
+                        "resolving ReverseConnectManager.");
+                }
+
+                configuration.ClientConfiguration ??= new ClientConfiguration();
+                var clientEndpoints = new ReverseConnectClientEndpoint[
+                    rcOptions.ClientEndpointUrls.Count];
+                for (int i = 0; i < rcOptions.ClientEndpointUrls.Count; i++)
+                {
+                    clientEndpoints[i] = new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = rcOptions.ClientEndpointUrls[i]
+                    };
+                }
+                configuration.ClientConfiguration.ReverseConnect = new ReverseConnectClientConfiguration
+                {
+                    ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(clientEndpoints),
+                    HoldTime = rcOptions.HoldTimeMs,
+                    WaitTimeout = rcOptions.WaitTimeoutMs
+                };
+
+                foreach (string url in rcOptions.ClientEndpointUrls)
+                {
+                    manager.AddEndpoint(new Uri(url));
+                }
+                manager.StartService(configuration);
+                return manager;
+            }
         }
 
         private sealed class OpcUaClientBuilder : IOpcUaClientBuilder

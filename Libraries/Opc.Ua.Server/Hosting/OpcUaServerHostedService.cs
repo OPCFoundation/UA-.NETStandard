@@ -106,15 +106,31 @@ namespace Opc.Ua.Server.Hosting
             string[] urls = new string[m_options.EndpointUrls.Count];
             m_options.EndpointUrls.CopyTo(urls, 0);
 
-            IApplicationConfigurationBuilderServerSelected serverBuilder = m_application
+            IApplicationConfigurationBuilderTransportQuotas quotasBuilder = m_application
                 .Build(m_options.ApplicationUri, m_options.ProductUri)
                 .SetMaxByteStringLength((int)m_options.MaxByteStringLength)
-                .SetMaxArrayLength((int)m_options.MaxArrayLength)
-                .AsServer(urls);
+                .SetMaxArrayLength((int)m_options.MaxArrayLength);
+
+            if (m_options.MaxMessageSize is int maxMessageSize)
+            {
+                quotasBuilder = quotasBuilder.SetMaxMessageSize(maxMessageSize);
+            }
+            if (m_options.OperationTimeoutMs is int operationTimeout)
+            {
+                quotasBuilder = quotasBuilder.SetOperationTimeout(operationTimeout);
+            }
+
+            IApplicationConfigurationBuilderServerSelected serverBuilder =
+                quotasBuilder.AsServer(urls);
 
             if (m_options.IncludeSignAndEncryptPolicies)
             {
                 serverBuilder = serverBuilder.AddSignAndEncryptPolicies();
+            }
+
+            if (m_options.IncludeEccPolicies)
+            {
+                serverBuilder = serverBuilder.AddEccSignAndEncryptPolicies();
             }
 
             if (m_options.IncludeUnsecurePolicyNone)
@@ -122,14 +138,53 @@ namespace Opc.Ua.Server.Hosting
                 serverBuilder = serverBuilder.AddUnsecurePolicyNone();
             }
 
+            if (m_options.UserTokenPolicies.Count == 0)
+            {
+                serverBuilder = serverBuilder.AddUserTokenPolicy(UserTokenType.Anonymous);
+            }
+            else
+            {
+                foreach (OpcUaUserTokenPolicy policy in m_options.UserTokenPolicies)
+                {
+                    serverBuilder = serverBuilder.AddUserTokenPolicy(policy.TokenType);
+                }
+            }
+
             IApplicationConfigurationBuilderServerOptions optionsBuilder =
                 serverBuilder.SetDiagnosticsEnabled(m_options.DiagnosticsEnabled);
 
+            if (m_options.OperationLimits is OperationLimitsOptions operationLimits)
+            {
+                optionsBuilder = optionsBuilder.SetOperationLimits(
+                    operationLimits.ToOperationLimits());
+            }
+
+            if (m_options.ReverseConnect is ServerReverseConnectOptions reverseConnect)
+            {
+                optionsBuilder = optionsBuilder.SetReverseConnect(
+                    ToReverseConnectConfiguration(reverseConnect));
+            }
+
+            if (!string.IsNullOrEmpty(m_options.RegistrationEndpointUrl))
+            {
+                optionsBuilder = optionsBuilder.SetRegistrationEndpoint(
+                    new EndpointDescription { EndpointUrl = m_options.RegistrationEndpointUrl });
+            }
+
             m_options.ConfigureBuilder?.Invoke(serverBuilder);
 
-            await optionsBuilder
+            IApplicationConfigurationBuilderSecurityOptions securityOptions = optionsBuilder
                 .AddSecurityConfiguration(certs, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates)
+                .SetRejectSHA1SignedCertificates(m_options.RejectSHA1Certificates);
+
+            if (m_options.MinCertificateKeySize > 0)
+            {
+                securityOptions = securityOptions.SetMinimumCertificateKeySize(
+                    m_options.MinCertificateKeySize);
+            }
+
+            await securityOptions
                 .CreateAsync(stoppingToken)
                 .ConfigureAwait(false);
 
@@ -195,6 +250,30 @@ namespace Opc.Ua.Server.Hosting
         {
             m_server?.Dispose();
             base.Dispose();
+        }
+
+        private static ReverseConnectServerConfiguration ToReverseConnectConfiguration(
+            ServerReverseConnectOptions options)
+        {
+            var clients = new ReverseConnectClient[options.Clients.Count];
+            for (int i = 0; i < options.Clients.Count; i++)
+            {
+                ServerReverseConnectClientOptions c = options.Clients[i];
+                clients[i] = new ReverseConnectClient
+                {
+                    EndpointUrl = c.EndpointUrl,
+                    Timeout = c.Timeout,
+                    MaxSessionCount = c.MaxSessionCount,
+                    Enabled = c.Enabled
+                };
+            }
+            return new ReverseConnectServerConfiguration
+            {
+                Clients = new ArrayOf<ReverseConnectClient>(clients),
+                ConnectInterval = options.ConnectIntervalMs,
+                ConnectTimeout = options.ConnectTimeoutMs,
+                RejectTimeout = options.RejectTimeoutMs
+            };
         }
     }
 }

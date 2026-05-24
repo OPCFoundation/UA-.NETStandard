@@ -112,6 +112,15 @@ namespace Opc.Ua.Lds.Server.Hosting
                 .Build(m_options.ApplicationUri, m_options.ProductUri)
                 .AsServer(urls);
 
+            foreach (string capability in m_options.ServerCapabilities)
+            {
+                if (!string.IsNullOrEmpty(capability))
+                {
+                    serverBuilder = (IApplicationConfigurationBuilderServerSelected)
+                        serverBuilder.AddServerCapabilities(capability);
+                }
+            }
+
             m_options.ConfigureBuilder?.Invoke(serverBuilder);
 
             ApplicationConfiguration configuration = await serverBuilder
@@ -140,9 +149,10 @@ namespace Opc.Ua.Lds.Server.Hosting
             if (m_options.EnableMulticast)
             {
                 ILogger multicastLogger = m_telemetry.CreateLogger<MulticastDiscovery>();
+                bool loopbackOnly = m_options.MulticastLoopbackOnly;
                 m_server.MulticastFactory = lds => new MulticastDiscovery(
                     lds.Store,
-                    loopbackOnly: false,
+                    loopbackOnly: loopbackOnly,
                     logger: multicastLogger);
             }
 

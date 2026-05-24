@@ -116,6 +116,79 @@ namespace Opc.Ua.Server.Hosting
         public bool IncludeUnsecurePolicyNone { get; set; }
 
         /// <summary>
+        /// When <c>true</c>, ECC sign-and-encrypt security policies are added
+        /// to the configuration builder via
+        /// <c>AddEccSignAndEncryptPolicies()</c>. Off by default.
+        /// </summary>
+        public bool IncludeEccPolicies { get; set; }
+
+        /// <summary>
+        /// User-token policies to advertise on every endpoint. Each entry
+        /// is appended via
+        /// <c>IApplicationConfigurationBuilderServerSelected.AddUserTokenPolicy</c>.
+        /// When this list is empty the hosted service falls back to
+        /// <see cref="UserTokenType.Anonymous"/>.
+        /// </summary>
+        public IList<OpcUaUserTokenPolicy> UserTokenPolicies { get; }
+            = new List<OpcUaUserTokenPolicy>();
+
+        /// <summary>
+        /// Maximum message size advertised on the transport, in bytes.
+        /// When <c>null</c>, the stack default is kept. When set, the value
+        /// is forwarded to
+        /// <c>IApplicationConfigurationBuilderTransportQuotas.SetMaxMessageSize</c>.
+        /// </summary>
+        public int? MaxMessageSize { get; set; }
+
+        /// <summary>
+        /// Operation timeout advertised on the transport, in milliseconds.
+        /// When <c>null</c>, the stack default is kept. When set, the value
+        /// is forwarded to
+        /// <c>IApplicationConfigurationBuilderTransportQuotas.SetOperationTimeout</c>.
+        /// </summary>
+        public int? OperationTimeoutMs { get; set; }
+
+        /// <summary>
+        /// Reject SHA-1-signed certificates during certificate validation
+        /// (server-wide hardening). Defaults to <c>true</c>; flip to
+        /// <c>false</c> only for legacy interop scenarios. Forwarded to
+        /// <c>SetRejectSHA1SignedCertificates</c>.
+        /// </summary>
+        public bool RejectSHA1Certificates { get; set; } = true;
+
+        /// <summary>
+        /// Minimum accepted certificate RSA key size during validation.
+        /// Defaults to 2048; set to <c>0</c> to keep the stack default.
+        /// Forwarded to <c>SetMinimumCertificateKeySize</c>.
+        /// </summary>
+        public ushort MinCertificateKeySize { get; set; } = 2048;
+
+        /// <summary>
+        /// Optional URL of an LDS/GDS registration endpoint. When set, the
+        /// hosted service builds a minimal
+        /// <see cref="EndpointDescription"/> and forwards it to
+        /// <c>SetRegistrationEndpoint</c> so the server registers itself
+        /// with the configured discovery server on startup.
+        /// </summary>
+        public string? RegistrationEndpointUrl { get; set; }
+
+        /// <summary>
+        /// Server-side reverse-connect configuration. When non-null the
+        /// hosted service builds the equivalent
+        /// <see cref="ReverseConnectServerConfiguration"/> and forwards it
+        /// to <c>SetReverseConnect</c>.
+        /// </summary>
+        public ServerReverseConnectOptions? ReverseConnect { get; set; }
+
+        /// <summary>
+        /// Operation limits advertised by the server (max nodes per read,
+        /// write, browse, etc.). When non-null the hosted service projects
+        /// the value into <see cref="OperationLimits"/> and forwards it to
+        /// <c>SetOperationLimits</c>.
+        /// </summary>
+        public OperationLimitsOptions? OperationLimits { get; set; }
+
+        /// <summary>
         /// Optional escape hatch invoked after the standard configuration steps
         /// (transport quotas, server policies, security configuration) but
         /// before <c>CreateAsync</c>. Use it to add bespoke security policies,
