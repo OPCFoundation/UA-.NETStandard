@@ -336,7 +336,7 @@ namespace Opc.Ua.Server
                 IEventMonitoredItem monitoredItem = kvp.Value;
                 IFilterTarget e = snapshot.EventTargetSnapshot;
 
-                if (e is AuditEventState)
+                if (e is AuditEventState || (e is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
                 {
                     if (!m_server.Auditing)
                     {
