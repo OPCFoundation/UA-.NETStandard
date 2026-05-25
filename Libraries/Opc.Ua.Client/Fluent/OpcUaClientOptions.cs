@@ -31,7 +31,7 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Top-level options for
-    /// <see cref="ServiceCollectionExtensions.AddOpcUaClient"/>.
+    /// <see cref="M:Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
     /// </summary>
     public sealed class OpcUaClientOptions
     {
@@ -45,5 +45,19 @@ namespace Opc.Ua.Client
         /// session factory delegate registered with DI.
         /// </summary>
         public ManagedSessionOptions Session { get; set; } = new();
+
+        /// <summary>
+        /// Client-side reverse-connect configuration. When non-null the
+        /// DI container registers a singleton
+        /// <see cref="ReverseConnectManager"/> that binds the configured
+        /// listener endpoints on first resolution and surfaces inbound
+        /// reverse-hello messages via
+        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
+        /// The values are also written into
+        /// <see cref="ClientConfiguration.ReverseConnect"/> on
+        /// <see cref="Configuration"/> so the same data is observable
+        /// through the application-configuration surface.
+        /// </summary>
+        public ClientReverseConnectOptions? ReverseConnect { get; set; }
     }
 }

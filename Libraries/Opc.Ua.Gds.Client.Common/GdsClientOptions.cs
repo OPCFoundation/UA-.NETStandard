@@ -35,7 +35,8 @@ namespace Opc.Ua.Gds.Client
     /// Configuration options for <see cref="GlobalDiscoveryServerClient"/> and
     /// <see cref="ServerPushConfigurationClient"/>. Bound by
     /// <see cref="Microsoft.Extensions.Options.IOptions{TOptions}"/> when the
-    /// clients are resolved from the dependency injection container.
+    /// clients are resolved from the dependency injection container via
+    /// <c>builder.AddGdsClient(...)</c>.
     /// </summary>
     public sealed class GdsClientOptions
     {
