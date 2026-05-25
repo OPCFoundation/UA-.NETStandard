@@ -27,20 +27,42 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.DependencyInjection;
+using System;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
+using Opc.Ua.Configuration;
 
-namespace Opc.Ua.Client
+namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// Builder returned by
-    /// <see cref="ServiceCollectionExtensions.AddOpcUaClient"/>
-    /// for further configuration of the OPC UA client services.
+    /// <see cref="IOpcUaBuilder"/> extensions provided by
+    /// <c>Opc.Ua.Configuration</c>.
     /// </summary>
-    public interface IClientBuilder
+    public static class OpcUaConfigurationServiceCollectionExtensions
     {
         /// <summary>
-        /// The underlying <see cref="IServiceCollection"/>.
+        /// Registers the default
+        /// <see cref="IApplicationInstanceFactory"/> implementation so
+        /// hosted OPC UA servers (regular, GDS, LDS, WotCon) can each
+        /// create their own <see cref="IApplicationInstance"/>.
         /// </summary>
-        IServiceCollection Services { get; }
+        /// <remarks>
+        /// Idempotent (<c>TryAddSingleton</c>). A consumer that registers
+        /// a custom <see cref="IApplicationInstanceFactory"/> before this
+        /// call wins.
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddApplicationInstance(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.TryAddSingleton<IApplicationInstanceFactory,
+                DefaultApplicationInstanceFactory>();
+            return builder;
+        }
     }
 }

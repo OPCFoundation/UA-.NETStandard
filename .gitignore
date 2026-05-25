@@ -269,3 +269,9 @@ testEnvironments.json
 /Fuzzing/**/Testcases/
 !/Fuzzing/**/Testcases/*.bin
 **/Properties/launchSettings.json
+
+aot-publish*.txt
+aot.binlog
+
+client-test-log.txt
+mac-*.log
