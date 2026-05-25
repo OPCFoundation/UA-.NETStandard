@@ -125,10 +125,10 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Reset();
 
                 m_samplingTask = Task.Factory.StartNew(
-                    () => SampleMonitoredItemsAsync(m_samplingInterval, CancellationToken.None),
+                    () => SampleMonitoredItemsAsync(m_samplingInterval, CancellationToken.None).AsTask(),
                     default, // TODO: Pass a cancellation token
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                    TaskScheduler.Default).Unwrap();
             }
         }
 
