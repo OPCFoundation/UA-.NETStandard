@@ -2,6 +2,20 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+parameters:
+- name: managedPool
+  displayName: 'Use managed agent pool'
+  type: boolean
+  default: false
+- name: managedPoolName
+  displayName: 'Managed agent pool name'
+  type: string
+  default: 'netstandard'
+- name: managedPoolVmImage
+  displayName: 'VM image override for managed pool agents'
+  type: string
+  default: ''
+
 trigger:
   batch: 'true'
   branches:
@@ -27,6 +41,12 @@ pr:
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
+  ${{ if parameters.managedPool }}:
+    poolName: ${{ parameters.managedPoolName }}
+    poolVmImage: ${{ parameters.managedPoolVmImage }}
+  ${{ else }}:
+    poolName: ''
+    poolVmImage: ''
 
 stages:
 - stage: build
