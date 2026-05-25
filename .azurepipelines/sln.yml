@@ -19,7 +19,13 @@ jobs:
 - job: buildslnprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Build Solutions Jobs
   pool:
-    vmImage: 'windows-2025-vs2026'
+    ${{ if ne(variables.poolName, '') }}:
+      name: ${{ variables.poolName }}
+      ${{ if ne(variables.poolVmImage, '') }}:
+        demands:
+          - ImageOverride -equals ${{ variables.poolVmImage }}
+    ${{ else }}:
+      vmImage: 'windows-2025-vs2026'
   steps:
   - task: PowerShell@2
     name: solutionmatrix
@@ -36,7 +42,13 @@ jobs:
   strategy:
     matrix: $[ dependencies.buildslnprep${{ parameters.jobnamesuffix }}.outputs['solutionmatrix.jobMatrix'] ]
   pool:
-    vmImage: ${{ parameters.poolImage }}
+    ${{ if ne(variables.poolName, '') }}:
+      name: ${{ variables.poolName }}
+      ${{ if ne(variables.poolVmImage, '') }}:
+        demands:
+          - ImageOverride -equals ${{ variables.poolVmImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
