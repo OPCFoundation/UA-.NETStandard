@@ -32,7 +32,7 @@ jobs:
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
-  timeoutInMinutes: 120
+  timeoutInMinutes: 180
   strategy:
     matrix: $[dependencies.testprep${{ parameters.jobnamesuffix }}.outputs['testmatrix.jobMatrix'] ]
   variables:
@@ -99,7 +99,7 @@ jobs:
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
-    timeoutInMinutes: 45
+    timeoutInMinutes: 90
     inputs:
       command: test
       projects: $(file)

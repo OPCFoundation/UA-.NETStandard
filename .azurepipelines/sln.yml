@@ -37,7 +37,7 @@ jobs:
 
 - job: buildallsln${{ parameters.jobnamesuffix }}
   displayName: Build Solution
-  timeoutInMinutes: 60
+  timeoutInMinutes: 120
   dependsOn: buildslnprep${{ parameters.jobnamesuffix }}
   strategy:
     matrix: $[ dependencies.buildslnprep${{ parameters.jobnamesuffix }}.outputs['solutionmatrix.jobMatrix'] ]

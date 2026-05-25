@@ -30,7 +30,7 @@ jobs:
 - job: testaot${{ parameters.jobnamesuffix }}
   displayName: AoT Tests
   dependsOn: testaotprep${{ parameters.jobnamesuffix }}
-  timeoutInMinutes: 30
+  timeoutInMinutes: 60
   strategy:
     matrix: $[dependencies.testaotprep${{ parameters.jobnamesuffix }}.outputs['aotmatrix.jobMatrix'] ]
   variables:

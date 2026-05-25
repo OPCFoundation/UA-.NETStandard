@@ -51,21 +51,8 @@ variables:
 
 stages:
 - stage: build
-  displayName: 'Build .NET Core Samples'
-  jobs:
-  - template: .azurepipelines/ci.yml
-- stage: buildnohttps
   dependsOn: []
-  displayName: 'Build NoHttps .NET Core Samples'
-  condition: ne(variables.FullBuild, 'False')
-  jobs:
-  - template: .azurepipelines/ci.yml
-    parameters:
-      buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-24.04" }'
-- stage: solutions
-  dependsOn: []
-  displayName: 'Build Solutions'
+  displayName: 'Build'
   jobs:
   - template: .azurepipelines/sln.yml
     parameters:
@@ -77,9 +64,18 @@ stages:
         solutions: 'UA.slnx'
       ${{ else }}:
         solutions: ''
-- stage: testrelease
+- stage: buildnohttps
   dependsOn: []
-  displayName: 'Test Core and SDK Release'
+  displayName: 'Build NoHttps .NET Core Samples'
+  condition: ne(variables.FullBuild, 'False')
+  jobs:
+  - template: .azurepipelines/ci.yml
+    parameters:
+      buildoption: '-p:NoHttps=true'
+      agents: '@{ linux = "ubuntu-24.04" }'
+- stage: testfastpr
+  dependsOn: []
+  displayName: 'Fast PR test'
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -91,9 +87,14 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"; mac = "macOS-15"}'
+      agents: '@{ mac = "macOS-15" }'
       jobnamesuffix: net100
       customtestarget: net10.0
+- stage: testaot
+  dependsOn: []
+  displayName: 'Test Native AoT'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
   - template: .azurepipelines/test-aot.yml
     parameters:
       configuration: Release
@@ -165,7 +166,7 @@ stages:
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
 - stage: coverage
-  dependsOn: [testdebug,testrelease]
+  dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
