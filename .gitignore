@@ -272,3 +272,6 @@ testEnvironments.json
 
 aot-publish*.txt
 aot.binlog
+
+client-test-log.txt
+mac-*.log
