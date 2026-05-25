@@ -185,7 +185,8 @@ namespace Opc.Ua.Client.Tests
                                         {
                                             AttributeId = Attributes.Value,
                                             MonitoringMode = MonitoringMode.Reporting,
-                                            SamplingInterval = TimeSpan.Zero
+                                            SamplingInterval = TimeSpan.Zero,
+                                            QueueSize = 1
                                         },
                                         out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item);
 
