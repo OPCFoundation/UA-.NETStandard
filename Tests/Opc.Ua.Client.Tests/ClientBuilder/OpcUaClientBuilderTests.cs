@@ -20,22 +20,27 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public sealed class OpcUaClientServiceCollectionExtensionsTests
+    public sealed class OpcUaClientBuilderTests
     {
         [Test]
-        public void AddOpcUaClientThrowsForNullArgs()
+        public void AddClientThrowsForNullArgs()
         {
-            Assert.That(() => ServiceCollectionExtensions.AddOpcUaClient(null!, _ => { }), Throws.ArgumentNullException);
+            Assert.That(
+                () => OpcUaClientBuilderExtensions.AddClient(null!, _ => { }),
+                Throws.ArgumentNullException);
 
             var services = new ServiceCollection();
-            Assert.That(() => services.AddOpcUaClient(null!), Throws.ArgumentNullException);
+            IOpcUaBuilder builder = services.AddOpcUa();
+            Assert.That(
+                () => builder.AddClient((Action<OpcUaClientOptions>)null!),
+                Throws.ArgumentNullException);
         }
 
         [Test]
-        public void AddOpcUaClientRegistersExpectedServices()
+        public void AddClientRegistersExpectedServices()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaClient(opt =>
+            services.AddOpcUa().AddClient(opt =>
             {
                 opt.Configuration = CreateConfig();
                 opt.Session = new ManagedSessionOptions
@@ -53,14 +58,16 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(sp.GetService<ITelemetryContext>(), Is.Not.Null);
             Assert.That(sp.GetService<ISessionFactory>(), Is.Not.Null);
             Assert.That(sp.GetService<ManagedSessionFactory>(), Is.Not.Null);
-            Assert.That(sp.GetService<Func<CancellationToken, Task<Client.ManagedSession>>>(), Is.Not.Null);
+            Assert.That(sp.GetService<Func<CancellationToken, Task<Client.ManagedSession>>>(),
+                Is.Not.Null);
         }
 
         [Test]
-        public void AddOpcUaClientReturnsBuilderWithServices()
+        public void AddClientReturnsBuilderWithServices()
         {
             var services = new ServiceCollection();
-            IClientBuilder builder = services.AddOpcUaClient(opt => opt.Configuration = CreateConfig());
+            IOpcUaClientBuilder builder = services.AddOpcUa()
+                .AddClient(opt => opt.Configuration = CreateConfig());
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
@@ -70,7 +77,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void SessionFactoryHasV2EngineByDefault()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaClient(opt => opt.Configuration = CreateConfig());
+            services.AddOpcUa().AddClient(opt => opt.Configuration = CreateConfig());
 
             using ServiceProvider sp = services.BuildServiceProvider();
             ISessionFactory? factory = sp.GetService<ISessionFactory>();
