@@ -355,7 +355,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            switch (instance.ModellingRule)
+            switch (GetEffectiveModellingRule(node, instance))
             {
                 case ModellingRule.Optional:
                     return NodeStateTemplates.OptionalMethod;
@@ -594,7 +594,9 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (instance.ModellingRule
+            ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
+
+            if (effectiveRule
                 is ModellingRule.ExposesItsArray
                 or ModellingRule.MandatoryPlaceholder
                 or ModellingRule.OptionalPlaceholder)
@@ -602,14 +604,14 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (instance.ModellingRule == ModellingRule.None)
+            if (effectiveRule == ModellingRule.None)
             {
                 return null;
             }
 
             if (instance is MethodDesign method &&
-                method.ModellingRule != ModellingRule.Mandatory &&
-                method.ModellingRule != ModellingRule.Optional)
+                GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
+                GetEffectiveModellingRule(node, method) != ModellingRule.Optional)
             {
                 return null;
             }
@@ -952,7 +954,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (instance.ModellingRule != ModellingRule.Optional)
+            if (GetEffectiveModellingRule(node, instance) != ModellingRule.Optional)
             {
                 return null;
             }
@@ -1005,7 +1007,9 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (instance.ModellingRule
+            ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
+
+            if (effectiveRule
                 is ModellingRule.ExposesItsArray
                 or ModellingRule.MandatoryPlaceholder
                 or ModellingRule.OptionalPlaceholder)
@@ -1013,14 +1017,14 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (instance.ModellingRule == ModellingRule.None)
+            if (effectiveRule == ModellingRule.None)
             {
                 return null;
             }
 
             if (instance is MethodDesign method &&
-                method.ModellingRule != ModellingRule.Mandatory &&
-                method.ModellingRule != ModellingRule.Optional)
+                GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
+                GetEffectiveModellingRule(node, method) != ModellingRule.Optional)
             {
                 return null;
             }
@@ -1097,7 +1101,10 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                if (instance.ModellingRule is
+                ModellingRule childEffectiveRule =
+                    GetEffectiveModellingRule(child, instance);
+
+                if (childEffectiveRule is
                     ModellingRule.ExposesItsArray or
                     ModellingRule.MandatoryPlaceholder or
                     ModellingRule.OptionalPlaceholder)
@@ -1105,12 +1112,12 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                if (instance.ModellingRule is ModellingRule.None)
+                if (childEffectiveRule is ModellingRule.None)
                 {
                     continue;
                 }
 
-                if (instance.ModellingRule is
+                if (childEffectiveRule is
                     ModellingRule.OptionalPlaceholder or
                     ModellingRule.MandatoryPlaceholder)
                 {
@@ -1273,7 +1280,7 @@ namespace Opc.Ua.SourceGeneration
                     return null;
                 }
 
-                if (instance.ModellingRule is
+                if (GetEffectiveModellingRule(node, instance) is
                     not ModellingRule.MandatoryPlaceholder and
                     not ModellingRule.OptionalPlaceholder)
                 {
@@ -1386,13 +1393,13 @@ namespace Opc.Ua.SourceGeneration
                     AddDataTypeStateFactoryReplacements(context, dataType);
                     break;
                 case ObjectDesign objectDesign:
-                    AddObjectReplacements(context, objectDesign, references);
+                    AddObjectReplacements(context, node, objectDesign, references);
                     break;
                 case VariableDesign variableDesign:
-                    AddVariableStateFactoryReplacements(context, variableDesign, references);
+                    AddVariableStateFactoryReplacements(context, node, variableDesign, references);
                     break;
                 case MethodDesign methodDesign:
-                    AddMethodStateFactoryReplacements(context, methodDesign);
+                    AddMethodStateFactoryReplacements(context, node, methodDesign);
                     break;
                 case ViewDesign viewDesign:
                     AddViewStateFactoryReplacements(context, viewDesign);
@@ -1483,6 +1490,11 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // Factory methods use the instance's own modelling rule for the
+            // mandatory/optional list classification so that children the
+            // instance explicitly marks Mandatory are always created.  The
+            // effective (type-definition) rule is used elsewhere for the
+            // type-class structure (fields, properties, optional init).
             if (context.Token == Tokens.ListOfOptionalChildNodeStates)
             {
                 if (instance.ModellingRule == ModellingRule.Mandatory)
@@ -1963,6 +1975,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddVariableStateFactoryReplacements(
             IWriteContext context,
+            NodeToGenerate nodeToGenerate,
             VariableDesign node,
             HashSet<ReferenceToGenerate> references)
         {
@@ -1990,7 +2003,8 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
-                GetModellingRuleReplacement(node.ModellingRule));
+                GetModellingRuleReplacement(
+                    GetEffectiveModellingRule(nodeToGenerate, node)));
             context.Template.AddReplacement(
                 Tokens.DataTypeIdConstant,
                 GetNodeIdConstantForDataType(node, m_context.ModelDesign.Namespaces));
@@ -2125,6 +2139,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddObjectReplacements(
             IWriteContext context,
+            NodeToGenerate nodeToGenerate,
             ObjectDesign node,
             HashSet<ReferenceToGenerate> references)
         {
@@ -2152,7 +2167,8 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
-                GetModellingRuleReplacement(node.ModellingRule));
+                GetModellingRuleReplacement(
+                    GetEffectiveModellingRule(nodeToGenerate, node)));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
                 node.SupportsEvents || HasForwardEventReferences(references)
@@ -2162,6 +2178,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddMethodStateFactoryReplacements(
             IWriteContext context,
+            NodeToGenerate nodeToGenerate,
             MethodDesign node)
         {
             context.Template.AddReplacement(
@@ -2183,7 +2200,8 @@ namespace Opc.Ua.SourceGeneration
                     asFactory: true));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
-                GetModellingRuleReplacement(node.ModellingRule));
+                GetModellingRuleReplacement(
+                    GetEffectiveModellingRule(nodeToGenerate, node)));
             bool executable = !node.NonExecutable;
             context.Template.AddReplacement(Tokens.ExecutableValue, executable);
 
@@ -2519,6 +2537,113 @@ namespace Opc.Ua.SourceGeneration
             return HasChildDefined(typeDefinitionNode.BaseTypeNode, symbolicName);
         }
 
+        /// <summary>
+        /// Returns the effective modelling rule for a <see cref="NodeToGenerate"/>.
+        /// When <see cref="GeneratorOptions.UseTypeDefinitionModellingRules"/>
+        /// is enabled (opt-in) and the node belongs to an instance hierarchy,
+        /// the type definition's modelling rule is used unconditionally.
+        /// When the option is off (default), the instance may only
+        /// <em>promote</em> the type-definition rule per OPC UA rules:
+        /// <list type="bullet">
+        ///   <item><c>Optional → Mandatory</c></item>
+        ///   <item><c>OptionalPlaceholder → Mandatory | MandatoryPlaceholder</c></item>
+        ///   <item><c>MandatoryPlaceholder → Mandatory</c></item>
+        /// </list>
+        /// Any other instance override (demotion) is ignored and the
+        /// type-definition rule is returned instead.
+        /// </summary>
+        private ModellingRule GetEffectiveModellingRule(
+            NodeToGenerate node,
+            InstanceDesign instance)
+        {
+            if (!node.RootIsTypeDefinition &&
+                node.TypeDefinitionModellingRule.HasValue)
+            {
+                ModellingRule typeDefRule = node.TypeDefinitionModellingRule.Value;
+
+                if (m_context.Options.UseTypeDefinitionModellingRules)
+                {
+                    return typeDefRule;
+                }
+
+                // When not opt-in, only allow valid promotions per
+                // the OPC UA modelling rule standard.
+                if (!IsValidPromotion(typeDefRule, instance.ModellingRule))
+                {
+                    return typeDefRule;
+                }
+            }
+
+            return instance.ModellingRule;
+        }
+
+        /// <summary>
+        /// Returns the effective modelling rule for a hierarchy node.
+        /// Overload used in <see cref="GetChildren"/> where the hierarchy
+        /// node and root-is-type-definition flag are available directly.
+        /// </summary>
+        private ModellingRule GetEffectiveModellingRule(
+            HierarchyNode hierarchyNode,
+            InstanceDesign child,
+            bool rootIsTypeDefinition)
+        {
+            if (!rootIsTypeDefinition &&
+                hierarchyNode.TypeDefinitionModellingRule.HasValue)
+            {
+                ModellingRule typeDefRule =
+                    hierarchyNode.TypeDefinitionModellingRule.Value;
+
+                if (m_context.Options.UseTypeDefinitionModellingRules)
+                {
+                    return typeDefRule;
+                }
+
+                // When not opt-in, only allow valid promotions per
+                // the OPC UA modelling rule standard.
+                if (!IsValidPromotion(typeDefRule, child.ModellingRule))
+                {
+                    return typeDefRule;
+                }
+            }
+
+            return child.ModellingRule;
+        }
+
+        /// <summary>
+        /// Determines whether the instance modelling rule is a valid
+        /// promotion of the type-definition modelling rule per OPC UA:
+        /// <list type="bullet">
+        ///   <item><c>Optional → Mandatory</c></item>
+        ///   <item><c>OptionalPlaceholder → Mandatory | MandatoryPlaceholder</c></item>
+        ///   <item><c>MandatoryPlaceholder → Mandatory</c></item>
+        /// </list>
+        /// Returns <c>true</c> when the instance rule is an allowed
+        /// promotion (or identical to the type-definition rule), and
+        /// <c>false</c> when it is a demotion that should be rejected.
+        /// </summary>
+        private static bool IsValidPromotion(
+            ModellingRule typeDefRule,
+            ModellingRule instanceRule)
+        {
+            if (instanceRule == typeDefRule)
+            {
+                return true;
+            }
+
+            return typeDefRule switch
+            {
+                ModellingRule.Optional =>
+                    instanceRule == ModellingRule.Mandatory,
+                ModellingRule.OptionalPlaceholder =>
+                    instanceRule is ModellingRule.Mandatory
+                        or ModellingRule.MandatoryPlaceholder,
+                ModellingRule.MandatoryPlaceholder =>
+                    instanceRule == ModellingRule.Mandatory,
+                // Mandatory, None, ExposesItsArray, etc. cannot be promoted
+                _ => false
+            };
+        }
+
         private void GetChildren(
             NodeToGenerate node,
             Dictionary<XmlQualifiedName, NodeToGenerate> children,
@@ -2618,20 +2743,23 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
+                ModellingRule effectiveRule = GetEffectiveModellingRule(
+                    current, child, node.RootIsTypeDefinition);
+
                 if (!node.RootIsTypeDefinition &&
                     !current.ExplicitlyDefined &&
-                    child.ModellingRule != ModellingRule.Mandatory &&
-                    child.ModellingRule != ModellingRule.Optional)
+                    effectiveRule != ModellingRule.Mandatory &&
+                    effectiveRule != ModellingRule.Optional)
                 {
                     continue;
                 }
 
                 if (!current.ExplicitlyDefined &&
-                    child.ModellingRule != ModellingRule.Mandatory &&
-                    child.ModellingRule != ModellingRule.None &&
-                    child.ModellingRule != ModellingRule.ExposesItsArray &&
-                    child.ModellingRule != ModellingRule.OptionalPlaceholder &&
-                    child.ModellingRule != ModellingRule.MandatoryPlaceholder)
+                    effectiveRule != ModellingRule.Mandatory &&
+                    effectiveRule != ModellingRule.None &&
+                    effectiveRule != ModellingRule.ExposesItsArray &&
+                    effectiveRule != ModellingRule.OptionalPlaceholder &&
+                    effectiveRule != ModellingRule.MandatoryPlaceholder)
                 {
                     continue;
                 }
@@ -2658,17 +2786,17 @@ namespace Opc.Ua.SourceGeneration
                 }
                 else if (node.RootIsTypeDefinition)
                 {
-                    if (child.ModellingRule == ModellingRule.Mandatory)
+                    if (effectiveRule == ModellingRule.Mandatory)
                     {
                         add = true;
                     }
                     else if (current.ExplicitlyDefined &&
-                        child.ModellingRule == ModellingRule.Optional)
+                        effectiveRule == ModellingRule.Optional)
                     {
                         add = true;
                     }
                     else if (current.ExplicitlyDefined &&
-                        (child.ModellingRule is
+                        (effectiveRule is
                             ModellingRule.ExposesItsArray or
                             ModellingRule.OptionalPlaceholder or
                             ModellingRule.MandatoryPlaceholder))
@@ -2679,7 +2807,7 @@ namespace Opc.Ua.SourceGeneration
                     {
                         add = true;
                     }
-                    else if (child.ModellingRule == ModellingRule.None &&
+                    else if (effectiveRule == ModellingRule.None &&
                         current.ExplicitlyDefined)
                     {
                         // Include ModellingRule=None children that are explicitly defined
@@ -2688,14 +2816,14 @@ namespace Opc.Ua.SourceGeneration
                         // Creatable or SupportsFilteredRetain).
                         add = true;
                     }
-                    else if (child.ModellingRule is not ModellingRule.None)
+                    else if (effectiveRule is not ModellingRule.None)
                     {
                         m_logger.LogDebug(
                             "Excluding child node {Node} from generation.",
                             current.Instance.SymbolicId.Name);
                     }
                 }
-                else if (child.ModellingRule == ModellingRule.Mandatory)
+                else if (effectiveRule == ModellingRule.Mandatory)
                 {
                     add = true;
                 }
@@ -2720,7 +2848,9 @@ namespace Opc.Ua.SourceGeneration
                         child,
                         IsNotExplicitlyDefined: !current.ExplicitlyDefined,
                         RootIsTypeDefinition: node.RootIsTypeDefinition,
-                        InstanceOf: null);
+                        InstanceOf: null,
+                        TypeDefinitionModellingRule:
+                            current.TypeDefinitionModellingRule);
                     if (!children.TryAdd(symbolicId, childNodeToGenerate))
                     {
                         m_logger.LogInformation(
@@ -2825,7 +2955,7 @@ namespace Opc.Ua.SourceGeneration
             return references;
         }
 
-        private static List<InstanceDesign> GetAdditionalChildren(NodeToGenerate node)
+        private List<InstanceDesign> GetAdditionalChildren(NodeToGenerate node)
         {
             List<InstanceDesign> additionalChildren = [];
             foreach (NodeToGenerate child in node.Children.Values)
@@ -2838,7 +2968,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (instance.ModellingRule is
+                if (GetEffectiveModellingRule(child, instance) is
                     not ModellingRule.Mandatory and
                     not ModellingRule.Optional)
                 {
@@ -2869,7 +2999,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (instance.ModellingRule is
+                if (GetEffectiveModellingRule(child, instance) is
                     not ModellingRule.Mandatory and
                     not ModellingRule.Optional)
                 {
@@ -3188,7 +3318,8 @@ namespace Opc.Ua.SourceGeneration
             NodeDesign Design = null,
             bool IsNotExplicitlyDefined = false,
             bool RootIsTypeDefinition = false,
-            NodeToGenerate InstanceOf = null) // Therefore an instance of a type
+            NodeToGenerate InstanceOf = null,
+            ModellingRule? TypeDefinitionModellingRule = null)
         {
             /// <summary> Full inherited list of children </summary>
             public List<NodeToGenerate> AllChildren { get; } = [];
