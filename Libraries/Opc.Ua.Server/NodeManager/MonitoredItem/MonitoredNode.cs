@@ -283,7 +283,14 @@ namespace Opc.Ua.Server
                 AttributeSnapshots = attributeSnapshots
             };
 
-            m_channel.Writer.TryWrite(notification);
+            try
+            {
+                m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+            }
+            catch (ChannelClosedException)
+            {
+                // The channel was completed during shutdown/disposal.
+            }
         }
 
         /// <summary>
