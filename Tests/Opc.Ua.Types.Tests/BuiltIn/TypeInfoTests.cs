@@ -1080,14 +1080,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void ConstructFromGenericEncodeableReturnsExtensionObject()
-        {
-            var result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
-            Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
-            Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
-        }
-
-        [Test]
         public void ConstructFromStringArrayReturnsStringArray()
         {
             var result = TypeInfo.Construct(typeof(string[]));
@@ -1780,8 +1772,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             TypeInfo result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
             Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+            Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }
-
 
         private sealed class GenericEncodeable<T> : IEncodeable
         {
