@@ -427,14 +427,14 @@ namespace Opc.Ua
             {
                 if (value2 is not null)
                 {
-                    return value2.Equals(value1!);
+                    return value2.Equals(value1);
                 }
 
                 return true;
             }
 
             // use IEquatable comparer
-            return value1.Equals(value2!);
+            return value1.Equals(value2);
         }
 
         /// <summary>

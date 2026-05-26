@@ -1316,7 +1316,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 DeleteSubscriptionsResponse del =
                     await Session.DeleteSubscriptionsAsync(
-                        null, new uint[0].ToArrayOf(),
+                        null, Array.Empty<uint>().ToArrayOf(),
                         CancellationToken.None).ConfigureAwait(false);
 
                 // Server may return Good with empty results or error

@@ -38,6 +38,11 @@ using ISession = Opc.Ua.Client.ISession;
 
 using Opc.Ua.Client.TestFramework;
 
+// Conformance tests use inline literal arrays as expected-value
+// assertions; the per-call allocation cost is irrelevant for tests
+// and keeping the literal adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
@@ -114,7 +119,7 @@ namespace Opc.Ua.Gds.Tests
 
             List<ApplicationRecordDataType> results = await FindAppsAsync(record.ApplicationUri)
                 .ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero);
+            Assert.That(results, Has.Count.Zero);
         }
 
         [Test]
@@ -345,7 +350,7 @@ namespace Opc.Ua.Gds.Tests
             List<ApplicationRecordDataType> results = await FindAppsAsync(
                 "urn:opcfoundation.org:tests:depth:nonexistent:002")
                 .ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero);
+            Assert.That(results, Has.Count.Zero);
         }
 
         [Test]
@@ -589,7 +594,7 @@ namespace Opc.Ua.Gds.Tests
 
             List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
                 .ConfigureAwait(false);
-            Assert.That(results.Count, Is.Zero);
+            Assert.That(results, Has.Count.Zero);
         }
 
         [Test]
@@ -1210,7 +1215,7 @@ namespace Opc.Ua.Gds.Tests
                 0, 100, null,
                 "urn:opcfoundation.org:tests:depth:nonexistent:055",
                 0, null, null).ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]
@@ -1302,7 +1307,7 @@ namespace Opc.Ua.Gds.Tests
 
             List<ApplicationRecordDataType> afterUnreg = await FindAppsAsync(rec.ApplicationUri)
                 .ConfigureAwait(false);
-            Assert.That(afterUnreg.Count, Is.Zero);
+            Assert.That(afterUnreg, Has.Count.Zero);
         }
 
         [Test]
@@ -1517,7 +1522,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterWithEmptyCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir076");
-            rec.ServerCapabilities = new string[] { }.ToArrayOf();
+            rec.ServerCapabilities = Array.Empty<string>().ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1616,7 +1621,7 @@ namespace Opc.Ua.Gds.Tests
                 0, 100, null,
                 "urn:opcfoundation.org:tests:depth:qa003:nonexistent",
                 0, null, null).ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]
@@ -1845,7 +1850,7 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, rec.ApplicationUri, 0, null, null)
                 .ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]
@@ -1916,7 +1921,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task QueryAppsEmptyCapabilitiesFilterAsync()
         {
-            ArrayOf<string> emptyArr = new string[] { }.ToArrayOf();
+            ArrayOf<string> emptyArr = Array.Empty<string>().ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null, 0, null, emptyArr)
                 .ConfigureAwait(false);
@@ -1950,7 +1955,7 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 999999, 10, null, null, 0, null, null)
                 .ConfigureAwait(false);
-            Assert.That(apps.Count, Is.Zero);
+            Assert.That(apps, Has.Count.Zero);
         }
 
         [Test]

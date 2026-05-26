@@ -294,7 +294,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
                 {
-                    jsonEncoder.WriteString(nameof(PublisherId), PublisherId!);
+                    jsonEncoder.WriteString(nameof(PublisherId), PublisherId);
                 }
 
                 if ((NetworkMessageContentMask &
@@ -313,7 +313,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
             {
-                jsonEncoder.WriteString(nameof(PublisherId), PublisherId!);
+                jsonEncoder.WriteString(nameof(PublisherId), PublisherId);
 
                 if (DataSetWriterId != null)
                 {
@@ -365,7 +365,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)
             {
-                jsonEncoder.WriteString(kFieldReplyTo, ReplyTo!);
+                jsonEncoder.WriteString(kFieldReplyTo, ReplyTo);
             }
         }
 

@@ -56,12 +56,16 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// shapes (caller should publish <see cref="StatusCodes.BadConfigurationError"/>
         /// on read per OPC 10100-1 §6.3.8 last paragraph).
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="property"/> is null.</exception>
         public static bool TryMap(
             WotProperty property,
             out NodeId dataType,
             out int valueRank)
         {
-            if (property is null) { throw new ArgumentNullException(nameof(property)); }
+            if (property is null)
+            {
+                throw new ArgumentNullException(nameof(property));
+            }
 
             if (string.Equals(property.Type, "array", StringComparison.OrdinalIgnoreCase))
             {

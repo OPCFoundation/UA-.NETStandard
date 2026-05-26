@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 
 namespace Opc.Ua.Server.FileSystem
@@ -86,13 +87,19 @@ namespace Opc.Ua.Server.FileSystem
         public ushort NamespaceIndex { get; }
 
         public static NodeId BuildRoot(ushort namespaceIndex)
-            => new FileSystemNodeId(Root, string.Empty, namespaceIndex).ToNodeId();
+        {
+            return new FileSystemNodeId(Root, string.Empty, namespaceIndex).ToNodeId();
+        }
 
         public static NodeId BuildDirectory(string providerPath, ushort namespaceIndex)
-            => new FileSystemNodeId(Directory, providerPath, namespaceIndex).ToNodeId();
+        {
+            return new FileSystemNodeId(Directory, providerPath, namespaceIndex).ToNodeId();
+        }
 
         public static NodeId BuildFile(string providerPath, ushort namespaceIndex)
-            => new FileSystemNodeId(File, providerPath, namespaceIndex).ToNodeId();
+        {
+            return new FileSystemNodeId(File, providerPath, namespaceIndex).ToNodeId();
+        }
 
         /// <summary>
         /// Attempts to parse the given <see cref="NodeId"/> into the
@@ -151,7 +158,7 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             string? componentPath = end < identifier.Length
-                ? identifier.Substring(end)
+                ? identifier[end..]
                 : null;
 
             result = new FileSystemNodeId(
@@ -166,7 +173,10 @@ namespace Opc.Ua.Server.FileSystem
         /// Returns this struct as a <see cref="NodeId"/> with the
         /// existing root + component path.
         /// </summary>
-        public NodeId ToNodeId() => ToNodeId(componentName: null);
+        public NodeId ToNodeId()
+        {
+            return ToNodeId(componentName: null);
+        }
 
         /// <summary>
         /// Returns this struct as a <see cref="NodeId"/>, optionally
@@ -175,8 +185,8 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public NodeId ToNodeId(string? componentName)
         {
-            var buffer = new StringBuilder();
-            buffer.Append(RootType).Append(':');
+            StringBuilder buffer = new StringBuilder()
+                .Append(RootType).Append(':');
 
             for (int ii = 0; ii < ProviderPath.Length; ii++)
             {
@@ -228,10 +238,10 @@ namespace Opc.Ua.Server.FileSystem
                 return component.NodeId;
             }
 
-            var buffer = new StringBuilder();
-            buffer.Append(parentId);
-            buffer.Append(parentId.IndexOf('?') < 0 ? '?' : '/');
-            buffer.Append(component.SymbolicName);
+            StringBuilder buffer = new StringBuilder()
+                .Append(parentId)
+                .Append(parentId.IndexOf('?', StringComparison.Ordinal) < 0 ? '?' : '/')
+                .Append(component.SymbolicName);
             return new NodeId(buffer.ToString(), namespaceIndex);
         }
     }

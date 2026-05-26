@@ -30,13 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -54,6 +51,12 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// </remarks>
     internal sealed class AssetRegistry : IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AssetRegistry"/> class.
+        /// </summary>
+        /// <param name="manager">The node manager that owns this registry.</param>
+        /// <param name="options">The WoT connectivity server options.</param>
+        /// <param name="logger">The logger instance.</param>
         public AssetRegistry(
             WotConnectivityNodeManager manager,
             WotConnectivityServerOptions options,
@@ -71,7 +74,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 lock (m_byName)
                 {
-                    return m_byName.Keys.ToArray();
+                    return [.. m_byName.Keys];
                 }
             }
         }
@@ -145,10 +148,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             return false;
         }
 
-        // ----------------------------------------------------------------
-        // Lifecycle
-        // ----------------------------------------------------------------
-
         /// <summary>
         /// Creates a new WoT asset object below the management object.
         /// Returns <see cref="StatusCodes.BadBrowseNameDuplicated"/> if
@@ -158,11 +157,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             string assetName,
             CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(assetName))
+            ServiceResult nameCheck = WotAssetNameValidator.Validate(assetName);
+            if (ServiceResult.IsBad(nameCheck))
             {
-                return (
-                    ServiceResult.Create(StatusCodes.BadInvalidArgument, "Asset name is required."),
-                    NodeId.Null);
+                return (nameCheck, NodeId.Null);
             }
 
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
@@ -248,6 +246,15 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Creates an asset, synthesises a TD via the discovery provider,
         /// materialises it and persists the TD.
         /// </summary>
+        /// <param name="assetName">The name for the new asset.</param>
+        /// <param name="assetEndpoint">The endpoint URI to discover the TD from.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A tuple containing the operation status and the created asset's node identifier.
+        /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// The created asset could not be found after creation.
+        /// </exception>
         public async ValueTask<(ServiceResult Status, NodeId AssetId)> CreateAssetForEndpointAsync(
             string assetName,
             string assetEndpoint,
@@ -293,6 +300,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Discovers available asset endpoints via the configured discovery provider.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A tuple containing the operation status and the list of discovered endpoints.
+        /// </returns>
         public async ValueTask<(ServiceResult Status, IReadOnlyList<string> Endpoints)> DiscoverAssetsAsync(
             CancellationToken ct)
         {
@@ -313,6 +327,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Tests connectivity to the specified asset endpoint.
+        /// </summary>
+        /// <param name="assetEndpoint">The endpoint URI to test.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A tuple containing the operation status, a success flag and a status text.
+        /// </returns>
         public async ValueTask<(ServiceResult Status, bool Success, string StatusText)> ConnectionTestAsync(
             string assetEndpoint,
             CancellationToken ct)
@@ -333,22 +355,37 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        // ----------------------------------------------------------------
-        // Materialisation
-        // ----------------------------------------------------------------
-
         /// <summary>
         /// Rebuilds the variable + method children of an asset from a TD,
         /// reconnecting (or replacing) its provider as appropriate.
         /// </summary>
+        /// <param name="entry">The asset entry to rebuild.</param>
+        /// <param name="td">The thing description to materialise.</param>
+        /// <param name="persistOnSuccess">
+        /// Whether to persist the TD to disk on success.
+        /// </param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>A <see cref="ServiceResult"/> indicating the outcome.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="entry"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="td"/> is null.
+        /// </exception>
         public async ValueTask<ServiceResult> RebuildAsync(
             AssetEntry entry,
             ThingDescription td,
             bool persistOnSuccess,
             CancellationToken ct)
         {
-            if (entry is null) { throw new ArgumentNullException(nameof(entry)); }
-            if (td is null) { throw new ArgumentNullException(nameof(td)); }
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+            if (td is null)
+            {
+                throw new ArgumentNullException(nameof(td));
+            }
 
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
@@ -452,8 +489,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             bool mapped = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId nodeId = m_manager.AllocateChildNodeId(entry.Name, "props", name);
-            NodeId hasWotComponent = ExpandedNodeId.ToNodeId(
-                Opc.Ua.WotCon.ReferenceTypeIds.HasWoTComponent,
+            var hasWotComponent = ExpandedNodeId.ToNodeId(
+                ReferenceTypeIds.HasWoTComponent,
                 m_manager.Server.NamespaceUris);
 
             var variable = new BaseDataVariableState(entry.Asset)
@@ -463,13 +500,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(property.Title ?? name),
                 Description = property.Description != null ? new LocalizedText(property.Description) : LocalizedText.Null,
-                DataType = mapped ? dataType : Opc.Ua.DataTypeIds.BaseDataType,
+                DataType = mapped ? dataType : DataTypeIds.BaseDataType,
                 ValueRank = mapped ? valueRank : ValueRanks.Scalar,
                 AccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 Historizing = false,
                 ReferenceTypeId = hasWotComponent,
-                TypeDefinitionId = Opc.Ua.VariableTypeIds.BaseDataVariableType
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType
             };
             variable.AddReference(hasWotComponent, isInverse: true, entry.Asset.NodeId);
             entry.Asset.AddReference(hasWotComponent, isInverse: false, variable.NodeId);
@@ -489,25 +526,19 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 variable.Value = Variant.Null;
                 variable.StatusCode = StatusCodes.BadConfigurationError;
-                variable.OnSimpleReadValue = static (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    value = Variant.Null;
-                    return StatusCodes.BadConfigurationError;
-                };
+                variable.OnSimpleReadValueAsync = static (_, _, _) =>
+                    new ValueTask<AttributeSimpleReadResult>(
+                        new AttributeSimpleReadResult(StatusCodes.BadConfigurationError, Variant.Null));
             }
             else
             {
-                variable.Value = ToVariant(TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank));
-                variable.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                {
-                    (ServiceResult status, Variant read) = SimpleReadFromProvider(entry, tag);
-                    value = read;
-                    return status;
-                };
+                variable.Value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
+                variable.OnSimpleReadValueAsync = (_, _, ct) =>
+                    ReadFromProviderAsync(entry, tag, ct);
                 if (!property.ReadOnly)
                 {
-                    variable.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                        SimpleWriteToProvider(entry, tag, value);
+                    variable.OnSimpleWriteValueAsync = (_, _, value, ct) =>
+                        WriteToProviderAsync(entry, tag, value, ct);
                 }
             }
 
@@ -526,12 +557,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(action.Title ?? name),
                 Description = action.Description != null ? new LocalizedText(action.Description) : LocalizedText.Null,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
                 Executable = true,
                 UserExecutable = true
             };
-            method.AddReference(Opc.Ua.ReferenceTypeIds.HasComponent, isInverse: true, entry.Asset.NodeId);
-            entry.Asset.AddReference(Opc.Ua.ReferenceTypeIds.HasComponent, isInverse: false, method.NodeId);
+            method.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: true, entry.Asset.NodeId);
+            entry.Asset.AddReference(Ua.ReferenceTypeIds.HasComponent, isInverse: false, method.NodeId);
             entry.Asset.AddChild(method);
 
             IReadOnlyList<Argument> inputArgs = WotActionMapper.BuildArguments(action.Input);
@@ -539,34 +570,40 @@ namespace Opc.Ua.WotCon.Server.Assets
 
             if (inputArgs.Count > 0)
             {
-                Argument[] argsArray = new Argument[inputArgs.Count];
-                for (int i = 0; i < inputArgs.Count; i++) { argsArray[i] = inputArgs[i]; }
-                PropertyState<ArrayOf<Argument>> inputProperty =
+                var argsArray = new Argument[inputArgs.Count];
+                for (int i = 0; i < inputArgs.Count; i++)
+                {
+                    argsArray[i] = inputArgs[i];
+                }
+                var inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
-                inputProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.InputArguments);
-                inputProperty.DisplayName = new LocalizedText(Opc.Ua.BrowseNames.InputArguments);
-                inputProperty.DataType = Opc.Ua.DataTypeIds.Argument;
+                inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
+                inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
+                inputProperty.DataType = DataTypeIds.Argument;
                 inputProperty.ValueRank = ValueRanks.OneDimension;
-                inputProperty.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
-                inputProperty.TypeDefinitionId = Opc.Ua.VariableTypeIds.PropertyType;
+                inputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+                inputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
                 inputProperty.Value = new ArrayOf<Argument>(argsArray);
                 method.InputArguments = inputProperty;
                 method.AddChild(inputProperty);
             }
             if (outputArgs.Count > 0)
             {
-                Argument[] argsArray = new Argument[outputArgs.Count];
-                for (int i = 0; i < outputArgs.Count; i++) { argsArray[i] = outputArgs[i]; }
-                PropertyState<ArrayOf<Argument>> outputProperty =
+                var argsArray = new Argument[outputArgs.Count];
+                for (int i = 0; i < outputArgs.Count; i++)
+                {
+                    argsArray[i] = outputArgs[i];
+                }
+                var outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
-                outputProperty.BrowseName = new QualifiedName(Opc.Ua.BrowseNames.OutputArguments);
-                outputProperty.DisplayName = new LocalizedText(Opc.Ua.BrowseNames.OutputArguments);
-                outputProperty.DataType = Opc.Ua.DataTypeIds.Argument;
+                outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
+                outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
+                outputProperty.DataType = DataTypeIds.Argument;
                 outputProperty.ValueRank = ValueRanks.OneDimension;
-                outputProperty.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
-                outputProperty.TypeDefinitionId = Opc.Ua.VariableTypeIds.PropertyType;
+                outputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+                outputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
                 outputProperty.Value = new ArrayOf<Argument>(argsArray);
                 method.OutputArguments = outputProperty;
                 method.AddChild(outputProperty);
@@ -576,54 +613,64 @@ namespace Opc.Ua.WotCon.Server.Assets
             var tag = new WotActionTag(name, nodeId, inputArgs, outputArgs, form);
 
             method.OnCallMethod2Async = (
-                ISystemContext _,
-                MethodState _,
-                NodeId _,
-                ArrayOf<Variant> inputArguments,
-                List<Variant> outputArguments,
-                CancellationToken ct) =>
+                _,
+                _,
+                _,
+                inputArguments,
+                outputArguments,
+                ct) =>
                 InvokeActionAsync(entry, tag, inputArguments, outputArguments, ct);
 
             entry.Actions[nodeId] = (method, tag);
         }
 
-        private (ServiceResult Status, Variant Value) SimpleReadFromProvider(AssetEntry entry, WotPropertyTag tag)
+        private async ValueTask<AttributeSimpleReadResult> ReadFromProviderAsync(
+            AssetEntry entry,
+            WotPropertyTag tag,
+            CancellationToken ct)
         {
             IWotAssetProvider? provider = entry.Provider;
             if (provider == null)
             {
-                return (StatusCodes.BadNotConnected, Variant.Null);
+                return new AttributeSimpleReadResult(StatusCodes.BadNotConnected, Variant.Null);
             }
             try
             {
-                return provider.ReadAsync(tag, CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
+                (ServiceResult status, Variant value) = await provider.ReadAsync(tag, ct).ConfigureAwait(false);
+                return new AttributeSimpleReadResult(status, value);
             }
             catch (Exception ex)
             {
                 m_logger.LogWarning(ex,
                     "Read failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
-                return (ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message), Variant.Null);
+                return new AttributeSimpleReadResult(
+                    ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message),
+                    Variant.Null);
             }
         }
 
-        private ServiceResult SimpleWriteToProvider(AssetEntry entry, WotPropertyTag tag, Variant value)
+        private async ValueTask<AttributeWriteResult> WriteToProviderAsync(
+            AssetEntry entry,
+            WotPropertyTag tag,
+            Variant value,
+            CancellationToken ct)
         {
             IWotAssetProvider? provider = entry.Provider;
             if (provider == null)
             {
-                return StatusCodes.BadNotConnected;
+                return new AttributeWriteResult(StatusCodes.BadNotConnected);
             }
             try
             {
-                return provider.WriteAsync(tag, value, CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
+                ServiceResult result = await provider.WriteAsync(tag, value, ct).ConfigureAwait(false);
+                return new AttributeWriteResult(result);
             }
             catch (Exception ex)
             {
                 m_logger.LogWarning(ex,
                     "Write failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
-                return ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message);
+                return new AttributeWriteResult(
+                    ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message));
             }
         }
 
@@ -640,13 +687,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return StatusCodes.BadNotConnected;
             }
 
-            Variant[] inputCopy = new Variant[inputArguments.Count];
+            var inputCopy = new Variant[inputArguments.Count];
             for (int i = 0; i < inputArguments.Count; i++)
             {
                 inputCopy[i] = inputArguments[i];
             }
 
-            Variant[] outputBuffer = new Variant[tag.OutputArguments.Count];
+            var outputBuffer = new Variant[tag.OutputArguments.Count];
             try
             {
                 ServiceResult status = await provider.InvokeActionAsync(
@@ -667,12 +714,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private static Variant ToVariant(object? value) => WotVariantHelper.ToVariant(value);
-
-        // ----------------------------------------------------------------
-        // TD persistence
-        // ----------------------------------------------------------------
-
         private void PersistTdToDisk(string name, ThingDescription td)
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
@@ -683,7 +724,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             try
             {
                 Directory.CreateDirectory(folder);
-                string path = Path.Combine(folder, name + ".jsonld");
+                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
+                {
+                    m_logger.LogWarning(
+                        "Refusing to persist TD for asset {AssetName}: name did not resolve to a safe path under {Folder}.",
+                        name, folder);
+                    return;
+                }
                 byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
                     td,
                     ThingDescriptionJsonContext.Default.ThingDescription);
@@ -704,7 +751,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             try
             {
-                string path = Path.Combine(folder, name + ".jsonld");
+                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
+                {
+                    m_logger.LogWarning(
+                        "Refusing to delete TD for asset {AssetName}: name did not resolve to a safe path under {Folder}.",
+                        name, folder);
+                    return;
+                }
                 if (File.Exists(path))
                 {
                     File.Delete(path);
@@ -716,6 +769,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Enumerates persisted thing descriptions from the storage folder,
+        /// loading and deserialising each one.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// An async enumerable of tuples containing the asset name and its
+        /// <see cref="ThingDescription"/>.
+        /// </returns>
         public async IAsyncEnumerable<(string Name, ThingDescription Description)> EnumeratePersistedAsync(
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
@@ -727,8 +789,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             foreach (string file in Directory.EnumerateFiles(folder, "*.jsonld"))
             {
                 ct.ThrowIfCancellationRequested();
-                ThingDescription? td;
                 string name = Path.GetFileNameWithoutExtension(file);
+                if (ServiceResult.IsBad(WotAssetNameValidator.Validate(name)))
+                {
+                    m_logger.LogWarning(
+                        "Skipping persisted TD {File}: name does not pass asset-name validation.",
+                        file);
+                    continue;
+                }
+                ThingDescription? td;
                 try
                 {
                     using FileStream stream = File.OpenRead(file);
@@ -749,12 +818,15 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Disposes all asset providers and releases associated resources.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             AssetEntry[] entries;
             lock (m_byName)
             {
-                entries = m_byNodeId.Values.ToArray();
+                entries = [.. m_byNodeId.Values];
                 m_byName.Clear();
                 m_byNodeId.Clear();
             }
@@ -782,6 +854,6 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
         private readonly Dictionary<string, AssetEntry> m_byName = new(StringComparer.Ordinal);
-        private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = new();
+        private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = [];
     }
 }

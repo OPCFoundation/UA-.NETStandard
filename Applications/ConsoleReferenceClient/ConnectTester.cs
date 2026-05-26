@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+#if NET8_0_OR_GREATER
 using System.Linq;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;

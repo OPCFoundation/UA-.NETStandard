@@ -50,26 +50,26 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (!IsDefault(ruleEndpoint.EndpointUrl)
-                && !string.Equals(ruleEndpoint.EndpointUrl, candidate.EndpointUrl, StringComparison.Ordinal))
+            if (!IsDefault(ruleEndpoint.EndpointUrl) &&
+                !string.Equals(ruleEndpoint.EndpointUrl, candidate.EndpointUrl, StringComparison.Ordinal))
             {
                 return false;
             }
 
-            if (ruleEndpoint.SecurityMode != MessageSecurityMode.Invalid
-                && ruleEndpoint.SecurityMode != candidate.SecurityMode)
+            if (ruleEndpoint.SecurityMode != MessageSecurityMode.Invalid &&
+                ruleEndpoint.SecurityMode != candidate.SecurityMode)
             {
                 return false;
             }
 
-            if (!IsDefault(ruleEndpoint.SecurityPolicyUri)
-                && !string.Equals(ruleEndpoint.SecurityPolicyUri, candidate.SecurityPolicyUri, StringComparison.Ordinal))
+            if (!IsDefault(ruleEndpoint.SecurityPolicyUri) &&
+                !string.Equals(ruleEndpoint.SecurityPolicyUri, candidate.SecurityPolicyUri, StringComparison.Ordinal))
             {
                 return false;
             }
 
-            if (!IsDefault(ruleEndpoint.TransportProfileUri)
-                && !string.Equals(ruleEndpoint.TransportProfileUri, candidate.TransportProfileUri, StringComparison.Ordinal))
+            if (!IsDefault(ruleEndpoint.TransportProfileUri) &&
+                !string.Equals(ruleEndpoint.TransportProfileUri, candidate.TransportProfileUri, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -89,10 +89,10 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            return string.Equals(Normalize(a.EndpointUrl), Normalize(b.EndpointUrl), StringComparison.Ordinal)
-                && a.SecurityMode == b.SecurityMode
-                && string.Equals(Normalize(a.SecurityPolicyUri), Normalize(b.SecurityPolicyUri), StringComparison.Ordinal)
-                && string.Equals(Normalize(a.TransportProfileUri), Normalize(b.TransportProfileUri), StringComparison.Ordinal);
+            return string.Equals(Normalize(a.EndpointUrl), Normalize(b.EndpointUrl), StringComparison.Ordinal) &&
+                a.SecurityMode == b.SecurityMode &&
+                string.Equals(Normalize(a.SecurityPolicyUri), Normalize(b.SecurityPolicyUri), StringComparison.Ordinal) &&
+                string.Equals(Normalize(a.TransportProfileUri), Normalize(b.TransportProfileUri), StringComparison.Ordinal);
         }
 
         /// <summary>

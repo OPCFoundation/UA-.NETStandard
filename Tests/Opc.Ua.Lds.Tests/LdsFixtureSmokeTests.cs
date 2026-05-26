@@ -91,7 +91,7 @@ namespace Opc.Ua.Lds.Tests
                 await client.FindServersOnNetworkAsync(0, 0, default, CancellationToken.None)
                     .ConfigureAwait(false);
 
-            Assert.That(servers.Count, Is.EqualTo(0));
+            Assert.That(servers, Has.Count.EqualTo(0));
         }
 
         private Task<DiscoveryClient> CreateDiscoveryClientAsync()

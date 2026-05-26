@@ -378,7 +378,7 @@ namespace Quickstarts.Servers
 
         public void Restore(List<(DataValue, ServiceResult?)>? values)
         {
-            Values = values ?? new List<(DataValue, ServiceResult?)>();
+            Values = values ?? [];
             IsPersisted = false;
             RestoreInProgress = false;
         }

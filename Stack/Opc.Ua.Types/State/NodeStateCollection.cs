@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -404,7 +404,7 @@ namespace Opc.Ua
             }
 
             // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris!, serverUris!);
+            decoder.SetMappingTables(namespaceUris, serverUris);
 
             int count = decoder.ReadInt32(null);
 
@@ -423,7 +423,7 @@ namespace Opc.Ua
             IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
-            using var decoder = new XmlDecoder(null!, reader, messageContext);
+            using var decoder = new XmlDecoder(null, reader, messageContext);
             var namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
@@ -463,7 +463,7 @@ namespace Opc.Ua
             }
 
             // set mapping.
-            decoder.SetMappingTables(namespaceUris!, serverUris!);
+            decoder.SetMappingTables(namespaceUris, serverUris);
 
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 

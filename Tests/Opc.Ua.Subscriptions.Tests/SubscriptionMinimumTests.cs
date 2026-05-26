@@ -2040,7 +2040,7 @@ namespace Opc.Ua.Subscriptions.Tests
             return result;
         }
 
-        private static readonly Random s_random = new();
+        private static readonly UnsecureRandom s_random = UnsecureRandom.Shared;
         private const double DefaultInterval = 1000;
         private const uint DefaultLifetime = 100;
         private const uint DefaultKeepAlive = 10;

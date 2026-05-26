@@ -680,7 +680,7 @@ namespace Opc.Ua.Server
                 // check if aggregate filter has been updated.
                 if (filterToUse is ServerAggregateFilter aggregateFilter)
                 {
-                    var existingFilter = aggregateFilter;
+                    ServerAggregateFilter existingFilter = aggregateFilter;
 
                     bool match = true;
 

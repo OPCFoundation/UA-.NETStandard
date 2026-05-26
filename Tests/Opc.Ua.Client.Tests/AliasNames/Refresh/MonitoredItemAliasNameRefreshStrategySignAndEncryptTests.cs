@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -94,16 +94,17 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             // Anonymous + Certificate, which makes the sysadmin/demo
             // username login fail with "Endpoint does not support the
             // user identity type provided."
-            await m_serverFixture.LoadConfigurationAsync(m_pkiRoot);
+            await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
 
-            m_server = await m_serverFixture.StartAsync(m_pkiRoot);
+            m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(telemetry);
-            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
+            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            m_url = new Uri(Utils.UriSchemeOpcTcp +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             try
             {
@@ -112,7 +113,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                     m_url,
                     SecurityPolicies.Basic256Sha256,
                     default,
-                    userIdentity);
+                    userIdentity).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -126,13 +127,13 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             if (m_session != null)
             {
-                await m_session.CloseAsync();
+                await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
                 m_session = null;
             }
             if (m_serverFixture != null)
             {
-                await m_serverFixture.StopAsync();
+                await m_serverFixture.StopAsync().ConfigureAwait(false);
             }
             m_clientFixture?.Dispose();
             m_server?.Dispose();
@@ -146,6 +147,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         /// and the next resolve picks the alias up without any explicit
         /// poll or refresh from the test.
         /// </summary>
+        /// <exception cref="InvalidOperationException">No alias-name store is registered for the Aliases category.</exception>
         [Test]
         public async Task MonitoredItemStrategyInvalidatesCacheUnderSignAndEncryptAsync()
         {
@@ -156,7 +158,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
 
             int initialSubscriptions = m_session.SubscriptionCount;
 
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
             await using var resolver = new AliasNameResolver(
                 client,
                 new AliasNameResolverOptions
@@ -164,18 +166,18 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                     RefreshMode = AliasNameResolverRefreshMode
                         .AutoOnLastChangeMonitoredItem,
                     PublishingIntervalMs = 200,
-                    LastChangeSamplingIntervalMs = 200,
+                    LastChangeSamplingIntervalMs = 200
                 });
 
-            await resolver.EnsureLoadedAsync();
+            await resolver.EnsureLoadedAsync().ConfigureAwait(false);
             Assert.That(m_session.SubscriptionCount,
                 Is.EqualTo(initialSubscriptions + 1),
                 "MonitoredItem strategy must add one subscription.");
 
             // Sanity: the new alias name does not exist yet.
-            string newAlias = "MITrigger_"
-                + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-            IReadOnlyList<ExpandedNodeId> before = await resolver.ResolveAsync(newAlias);
+            string newAlias = "MITrigger_" +
+                Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+            IReadOnlyList<ExpandedNodeId> before = await resolver.ResolveAsync(newAlias).ConfigureAwait(false);
             Assert.That(before, Is.Empty,
                 "Newly-generated alias name must not pre-exist in cache.");
 
@@ -186,8 +188,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             IAliasNameStore store = provider.AliasNameStoreRegistry
                 .GetStoreForCategory(ObjectIds.Aliases)
                 ?? throw new InvalidOperationException(
-                    "Expected a registered alias-name store rooted at "
-                    + "ObjectIds.Aliases.");
+                    "Expected a registered alias-name store rooted at " +
+                    "ObjectIds.Aliases.");
 
             int refServerNsIndex = m_server.CurrentInstance.NamespaceUris
                 .GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
@@ -206,9 +208,9 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             StatusCode[] addResults = await store.AddAliasesAsync(
                 ObjectIds.Aliases,
                 [request],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             Assert.That(addResults, Has.Length.EqualTo(1));
-            Assert.That(addResults[0], Is.EqualTo((StatusCode)StatusCodes.Good),
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.Good),
                 "Server-side AddAliasesAsync must succeed for the new alias.");
 
             // Wait for the MonitoredItem invalidation to arrive and the
@@ -217,17 +219,17 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             IReadOnlyList<ExpandedNodeId> resolved = [];
             for (int i = 0; i < 100; i++)
             {
-                resolved = await resolver.ResolveAsync(newAlias);
+                resolved = await resolver.ResolveAsync(newAlias).ConfigureAwait(false);
                 if (resolved.Count > 0)
                 {
                     break;
                 }
-                await Task.Delay(100);
+                await Task.Delay(100).ConfigureAwait(false);
             }
 
             Assert.That(resolved, Has.Count.EqualTo(1),
-                "MonitoredItem invalidation should have triggered a "
-                + "refetch picking up the new alias.");
+                "MonitoredItem invalidation should have triggered a " +
+                "refetch picking up the new alias.");
             Assert.That(resolved[0], Is.EqualTo(target),
                 "Refetched alias must point at the server-side target.");
         }

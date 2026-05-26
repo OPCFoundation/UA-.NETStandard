@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -332,7 +332,7 @@ namespace Opc.Ua
                         result = onReadInverseName(context, this, ref inverseName);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         if (inverseName.IsNullOrEmpty)
                         {
@@ -355,7 +355,7 @@ namespace Opc.Ua
                         result = onReadSymmetric(context, this, ref symmetric);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = symmetric;
                     }
@@ -402,7 +402,7 @@ namespace Opc.Ua
                         result = onWriteInverseName(context, this, ref inverseName);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         InverseName = inverseName;
                     }
@@ -426,7 +426,7 @@ namespace Opc.Ua
                         result = onWriteSymmetric(context, this, ref symmetric);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         Symmetric = symmetric;
                     }

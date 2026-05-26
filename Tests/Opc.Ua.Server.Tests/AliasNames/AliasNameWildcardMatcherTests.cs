@@ -71,16 +71,16 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public void EmptyPatternMatchesNothing()
         {
-            Assert.That(AliasNameWildcardMatcher.IsMatch("anything", ""),
+            Assert.That(AliasNameWildcardMatcher.IsMatch("anything", string.Empty),
                 Is.False);
         }
 
         [Test]
         public void EmptyTargetMatchesEmptyWildcard()
         {
-            Assert.That(AliasNameWildcardMatcher.IsMatch("", "%"), Is.True);
-            Assert.That(AliasNameWildcardMatcher.IsMatch("", "_"), Is.False);
-            Assert.That(AliasNameWildcardMatcher.IsMatch("", "X"), Is.False);
+            Assert.That(AliasNameWildcardMatcher.IsMatch(string.Empty, "%"), Is.True);
+            Assert.That(AliasNameWildcardMatcher.IsMatch(string.Empty, "_"), Is.False);
+            Assert.That(AliasNameWildcardMatcher.IsMatch(string.Empty, "X"), Is.False);
         }
 
         [Test]

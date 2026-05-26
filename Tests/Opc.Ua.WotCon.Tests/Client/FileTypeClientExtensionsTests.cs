@@ -51,7 +51,10 @@ namespace Opc.Ua.WotCon.Tests.Client
         public async Task CopyStreamInChunksSeekableStreamWritesAllBytesInOrderAsync()
         {
             byte[] data = new byte[10240];
-            for (int i = 0; i < data.Length; i++) { data[i] = (byte)(i % 251); }
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)(i % 251);
+            }
             using var source = new MemoryStream(data);
             var chunks = new List<byte[]>();
 
@@ -63,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                     chunks.Add(chunk.ToArray());
                     return default;
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             byte[] reassembled = Flatten(chunks);
             Assert.That(reassembled, Is.EqualTo(data));
@@ -75,7 +78,10 @@ namespace Opc.Ua.WotCon.Tests.Client
         public async Task CopyStreamInChunksNonSeekableStreamWritesAllBytesInOrderAsync()
         {
             byte[] data = new byte[3000];
-            for (int i = 0; i < data.Length; i++) { data[i] = (byte)i; }
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)i;
+            }
             using var source = new ForwardOnlyStream(data);
             var chunks = new List<byte[]>();
 
@@ -87,7 +93,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                     chunks.Add(chunk.ToArray());
                     return default;
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(Flatten(chunks), Is.EqualTo(data));
         }
@@ -106,9 +112,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                     writes++;
                     return default;
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(writes, Is.EqualTo(0));
+            Assert.That(writes, Is.Zero);
         }
 
         [Test]
@@ -126,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                     writes++;
                     return default;
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(writes, Is.EqualTo(2));
         }
@@ -138,21 +144,21 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.That(async () =>
-            {
-                await FileTypeClientExtensions.CopyStreamInChunksAsync(
+            Assert.That(async () => await FileTypeClientExtensions.CopyStreamInChunksAsync(
                     source,
                     1024,
                     (_, _) => default,
-                    cts.Token);
-            }, Throws.InstanceOf<OperationCanceledException>());
+                    cts.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
         }
 
         [Test]
         public async Task CopyChunksToStreamAccumulatesAllChunksInOrderAsync()
         {
             byte[] data = new byte[5000];
-            for (int i = 0; i < data.Length; i++) { data[i] = (byte)i; }
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)i;
+            }
             var source = new Queue<byte[]>();
             for (int i = 0; i < data.Length; i += 1024)
             {
@@ -175,7 +181,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                     byte[] next = source.Dequeue();
                     return new ValueTask<ReadOnlyMemory<byte>>(next);
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(dest.ToArray(), Is.EqualTo(data));
         }
@@ -188,7 +194,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             byte[] full = new byte[1024];
             byte[] partial = new byte[500];
             byte[] extra = new byte[1024]; // should never be requested
-            var source = new Queue<byte[]>(new[] { full, partial, extra });
+            var source = new Queue<byte[]>([full, partial, extra]);
 
             using var dest = new MemoryStream();
             await FileTypeClientExtensions.CopyChunksToStreamAsync(
@@ -199,10 +205,10 @@ namespace Opc.Ua.WotCon.Tests.Client
                     byte[] next = source.Dequeue();
                     return new ValueTask<ReadOnlyMemory<byte>>(next);
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(dest.Length, Is.EqualTo(1524));
-            Assert.That(source.Count, Is.EqualTo(1));
+            Assert.That(source, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -212,14 +218,11 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.That(async () =>
-            {
-                await FileTypeClientExtensions.CopyChunksToStreamAsync(
+            Assert.That(async () => await FileTypeClientExtensions.CopyChunksToStreamAsync(
                     dest,
                     1024,
                     (_, _) => new ValueTask<ReadOnlyMemory<byte>>(new byte[1024]),
-                    cts.Token);
-            }, Throws.InstanceOf<OperationCanceledException>());
+                    cts.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
         }
 
         [Test]
@@ -227,11 +230,18 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             var mock = new WotAssetFileTypeSessionMock();
             byte[] payload = new byte[6000];
-            for (int i = 0; i < payload.Length; i++) { payload[i] = (byte)(i & 0xff); }
+            for (int i = 0; i < payload.Length; i++)
+            {
+                payload[i] = (byte)(i & 0xff);
+            }
             byte capturedMode = 0;
-            byte[] writtenSoFar = Array.Empty<byte>();
+            byte[] writtenSoFar = [];
             bool closed = false;
-            mock.OnOpen(mode => { capturedMode = mode; return 99; });
+            mock.OnOpen(mode =>
+            {
+                capturedMode = mode;
+                return 99;
+            });
             mock.OnWrite((handle, data) =>
             {
                 Assert.That(handle, Is.EqualTo(99u));
@@ -240,11 +250,15 @@ namespace Opc.Ua.WotCon.Tests.Client
                 Array.Copy(data, 0, joined, writtenSoFar.Length, data.Length);
                 writtenSoFar = joined;
             });
-            mock.OnClose(handle => { Assert.That(handle, Is.EqualTo(99u)); closed = true; });
+            mock.OnClose(handle =>
+            {
+                Assert.That(handle, Is.EqualTo(99u));
+                closed = true;
+            });
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var source = new MemoryStream(payload);
-            await file.UploadAsync(source, mode: 6, chunkSize: 1024, CancellationToken.None);
+            await file.UploadAsync(source, mode: 6, chunkSize: 1024, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(capturedMode, Is.EqualTo((byte)6));
             Assert.That(writtenSoFar, Is.EqualTo(payload));
@@ -256,26 +270,40 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             var mock = new WotAssetFileTypeSessionMock();
             byte[] payload = new byte[3500];
-            for (int i = 0; i < payload.Length; i++) { payload[i] = (byte)(i & 0xff); }
+            for (int i = 0; i < payload.Length; i++)
+            {
+                payload[i] = (byte)(i & 0xff);
+            }
             int position = 0;
             byte capturedMode = 0;
             bool closed = false;
-            mock.OnOpen(mode => { capturedMode = mode; return 88; });
+            mock.OnOpen(mode =>
+            {
+                capturedMode = mode;
+                return 88;
+            });
             mock.OnRead((handle, len) =>
             {
                 Assert.That(handle, Is.EqualTo(88u));
                 int take = Math.Min(len, payload.Length - position);
-                if (take <= 0) { return Array.Empty<byte>(); }
+                if (take <= 0)
+                {
+                    return [];
+                }
                 byte[] slice = new byte[take];
                 Array.Copy(payload, position, slice, 0, take);
                 position += take;
                 return slice;
             });
-            mock.OnClose(handle => { Assert.That(handle, Is.EqualTo(88u)); closed = true; });
+            mock.OnClose(handle =>
+            {
+                Assert.That(handle, Is.EqualTo(88u));
+                closed = true;
+            });
 
             var file = new FileTypeClient(mock.Session, new NodeId(7u), mock.Session.MessageContext.Telemetry);
             using var destination = new MemoryStream();
-            await file.DownloadToAsync(destination, chunkSize: 1024, CancellationToken.None);
+            await file.DownloadToAsync(destination, chunkSize: 1024, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(capturedMode, Is.EqualTo((byte)1));
             Assert.That(destination.ToArray(), Is.EqualTo(payload));
@@ -286,10 +314,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         public void UploadStreamNullFileThrows()
         {
             using var source = new MemoryStream();
-            Assert.That(async () =>
-            {
-                await ((FileTypeClient)null!).UploadAsync(source);
-            }, Throws.ArgumentNullException);
+            Assert.That(async () => await ((FileTypeClient)null!).UploadAsync(source).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -297,10 +322,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             var mock = new WotAssetFileTypeSessionMock();
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
-            Assert.That(async () =>
-            {
-                await file.UploadAsync((Stream)null!);
-            }, Throws.ArgumentNullException);
+            Assert.That(async () => await file.UploadAsync((Stream)null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -310,10 +332,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             using var dest = new MemoryStream(new byte[16], writable: true);
             using var writeOnly = new WriteOnlyStream();
-            Assert.That(async () =>
-            {
-                await file.UploadAsync(writeOnly);
-            }, Throws.ArgumentException);
+            Assert.That(async () => await file.UploadAsync(writeOnly).ConfigureAwait(false), Throws.ArgumentException);
         }
 
         [Test]
@@ -322,20 +341,14 @@ namespace Opc.Ua.WotCon.Tests.Client
             var mock = new WotAssetFileTypeSessionMock();
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             using var source = new MemoryStream();
-            Assert.That(async () =>
-            {
-                await file.UploadAsync(source, chunkSize: 0);
-            }, Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(async () => await file.UploadAsync(source, chunkSize: 0).ConfigureAwait(false), Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
         public void DownloadToStreamNullFileThrows()
         {
             using var dest = new MemoryStream();
-            Assert.That(async () =>
-            {
-                await ((FileTypeClient)null!).DownloadToAsync(dest);
-            }, Throws.ArgumentNullException);
+            Assert.That(async () => await ((FileTypeClient)null!).DownloadToAsync(dest).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -343,10 +356,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             var mock = new WotAssetFileTypeSessionMock();
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
-            Assert.That(async () =>
-            {
-                await file.DownloadToAsync((Stream)null!);
-            }, Throws.ArgumentNullException);
+            Assert.That(async () => await file.DownloadToAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -355,10 +365,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var mock = new WotAssetFileTypeSessionMock();
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             using var readOnly = new ReadOnlyStream(new byte[8]);
-            Assert.That(async () =>
-            {
-                await file.DownloadToAsync(readOnly);
-            }, Throws.ArgumentException);
+            Assert.That(async () => await file.DownloadToAsync(readOnly).ConfigureAwait(false), Throws.ArgumentException);
         }
 
         [Test]
@@ -367,10 +374,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var mock = new WotAssetFileTypeSessionMock();
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             using var dest = new MemoryStream();
-            Assert.That(async () =>
-            {
-                await file.DownloadToAsync(dest, chunkSize: -1);
-            }, Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(async () => await file.DownloadToAsync(dest, chunkSize: -1).ConfigureAwait(false), Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
@@ -380,17 +384,21 @@ namespace Opc.Ua.WotCon.Tests.Client
             bool opened = false;
             bool closed = false;
             int writes = 0;
-            mock.OnOpen(_ => { opened = true; return 1; });
-            mock.OnWrite((_, _) => { writes++; });
-            mock.OnClose(_ => { closed = true; });
+            mock.OnOpen(_ =>
+            {
+                opened = true;
+                return 1;
+            });
+            mock.OnWrite((_, _) => writes++);
+            mock.OnClose(_ => closed = true);
 
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             using var source = new MemoryStream();
-            await file.UploadAsync(source);
+            await file.UploadAsync(source).ConfigureAwait(false);
 
             Assert.That(opened, Is.True);
             Assert.That(closed, Is.True);
-            Assert.That(writes, Is.EqualTo(0));
+            Assert.That(writes, Is.Zero);
         }
 
         [Test]
@@ -400,14 +408,14 @@ namespace Opc.Ua.WotCon.Tests.Client
             bool closed = false;
             mock.OnOpen(_ => 5);
             mock.OnWrite((_, _) => throw new InvalidOperationException("synthetic"));
-            mock.OnClose(_ => { closed = true; });
+            mock.OnClose(_ => closed = true);
 
             var file = new FileTypeClient(mock.Session, new NodeId(1u), mock.Session.MessageContext.Telemetry);
             using var source = new MemoryStream(new byte[16]);
 
             try
             {
-                await file.UploadAsync(source, chunkSize: 8);
+                await file.UploadAsync(source, chunkSize: 8).ConfigureAwait(false);
                 Assert.Fail("expected exception");
             }
             catch (InvalidOperationException)
@@ -420,7 +428,10 @@ namespace Opc.Ua.WotCon.Tests.Client
         private static byte[] Flatten(List<byte[]> chunks)
         {
             int total = 0;
-            foreach (byte[] c in chunks) { total += c.Length; }
+            foreach (byte[] c in chunks)
+            {
+                total += c.Length;
+            }
             byte[] result = new byte[total];
             int offset = 0;
             foreach (byte[] c in chunks)
@@ -433,32 +444,52 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         private sealed class ForwardOnlyStream : Stream
         {
-            public ForwardOnlyStream(byte[] data) { m_data = data; }
+            public ForwardOnlyStream(byte[] data)
+            {
+                m_data = data;
+            }
 
             public override bool CanRead => true;
             public override bool CanSeek => false;
             public override bool CanWrite => false;
             public override long Length => throw new NotSupportedException();
+
             public override long Position
             {
                 get => m_position;
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
+            public override void Flush()
+            {
+            }
+
             public override int Read(byte[] buffer, int offset, int count)
             {
                 int avail = Math.Min(count, m_data.Length - m_position);
-                if (avail <= 0) { return 0; }
+                if (avail <= 0)
+                {
+                    return 0;
+                }
                 Array.Copy(m_data, m_position, buffer, offset, avail);
                 m_position += avail;
                 return avail;
             }
+
             public override long Seek(long offset, SeekOrigin origin)
-                => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
             public override void Write(byte[] buffer, int offset, int count)
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
 
             private readonly byte[] m_data;
             private int m_position;
@@ -470,42 +501,78 @@ namespace Opc.Ua.WotCon.Tests.Client
             public override bool CanSeek => false;
             public override bool CanWrite => true;
             public override long Length => 0;
+
             public override long Position
             {
                 get => 0;
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
+            public override void Flush()
+            {
+            }
+
             public override int Read(byte[] buffer, int offset, int count)
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
+
             public override long Seek(long offset, SeekOrigin origin)
-                => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
-            public override void Write(byte[] buffer, int offset, int count) { }
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+            }
         }
 
         private sealed class ReadOnlyStream : Stream
         {
-            public ReadOnlyStream(byte[] data) { m_data = data; }
+            public ReadOnlyStream(byte[] data)
+            {
+                m_data = data;
+            }
 
             public override bool CanRead => true;
             public override bool CanSeek => false;
             public override bool CanWrite => false;
             public override long Length => m_data.Length;
+
             public override long Position
             {
                 get => 0;
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() { }
-            public override int Read(byte[] buffer, int offset, int count) => 0;
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return 0;
+            }
+
             public override long Seek(long offset, SeekOrigin origin)
-                => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
             public override void Write(byte[] buffer, int offset, int count)
-                => throw new NotSupportedException();
+            {
+                throw new NotSupportedException();
+            }
 
             private readonly byte[] m_data;
         }

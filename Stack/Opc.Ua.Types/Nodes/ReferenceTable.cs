@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -30,6 +30,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+
+// TODO: RCS1256 — needs polyfill for net48
+#pragma warning disable RCS1256 // Invalid argument null check
 
 namespace Opc.Ua
 {

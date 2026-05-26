@@ -269,7 +269,7 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
-        private static readonly Random s_random = new();
+        private static readonly UnsecureRandom s_random = UnsecureRandom.Shared;
 
         private async Task<CreateSubscriptionResponse> CreateSubAsync(
             double interval = DefaultInterval,

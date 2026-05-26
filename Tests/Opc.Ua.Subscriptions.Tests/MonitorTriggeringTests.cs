@@ -101,7 +101,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(trigResp.AddResults[0]), Is.True);
 
             // Write to B so it has a queued value
-            await WriteValueAsync(nodeB, new Random().Next(1, 10000)).ConfigureAwait(false);
+            await WriteValueAsync(nodeB, UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             // CurrentTime changes continuously, triggering B
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
@@ -135,7 +135,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Write to B only; A is static and in Sampling mode → no trigger fires
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
@@ -168,7 +168,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Write only to B; A is static so no trigger fires
                 await WriteValueAsync(nodeB,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
                 HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -211,7 +211,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(StatusCode.IsGood(removeResp.RemoveResults[0]), Is.True);
 
                 await WriteValueAsync(nodeB,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
                 HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -254,7 +254,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Write to B so it has data queued
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             // A fires (CurrentTime), should trigger B
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
@@ -281,7 +281,7 @@ namespace Opc.Ua.Subscriptions.Tests
             await SetTriggerAsync(idA, [idB]).ConfigureAwait(false);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -346,9 +346,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(StatusCode.IsGood(bcResp.AddResults[0]), Is.True);
 
                 await WriteValueAsync(nodeB,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
                 await WriteValueAsync(nodeC,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -388,9 +388,9 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Write to A to fire trigger chain
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -432,7 +432,7 @@ namespace Opc.Ua.Subscriptions.Tests
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -472,11 +472,11 @@ namespace Opc.Ua.Subscriptions.Tests
             await SetTriggerAsync(idC, [idD]).ConfigureAwait(false);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeD,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -514,11 +514,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeD,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             HashSet<uint> handles = await PublishUntilHandlesObservedAsync(
                 [1u, 2u, 3u, 4u]).ConfigureAwait(false);
@@ -560,9 +560,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(t2.AddResults[0]), Is.True);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -694,9 +694,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(StatusCode.IsGood(removeResp.RemoveResults[0]), Is.True);
 
                 await WriteValueAsync(nodeC,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
                 await WriteValueAsync(nodeD,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 // C and D are sampled-only items; the trigger fires on every A
                 // sample (Reporting CurrentTime, 50 ms). Aggregate handles
@@ -919,9 +919,9 @@ namespace Opc.Ua.Subscriptions.Tests
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -950,7 +950,7 @@ namespace Opc.Ua.Subscriptions.Tests
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -987,7 +987,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(modeResp.Results[0]), Is.True);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Verify trigger link is still active
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -1294,7 +1294,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Write to B; triggering should cause B to report at A's rate
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
             HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
                 await WriteValueAsync(nodeB,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
                 HashSet<uint> handles = CollectNotifiedHandles(pubResp);
@@ -1384,7 +1384,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(StatusCode.IsGood(delResp.Results[0]), Is.True);
 
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             // Wait one full publishing interval so the next Publish
             // is guaranteed to span at least one sampling period
@@ -1639,7 +1639,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 StatusCode.IsGood(trigResp.AddResults[0]), Is.True);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -1680,7 +1680,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 StatusCode.IsGood(baResp.AddResults[0]), Is.True);
 
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -1766,9 +1766,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(trigResp.AddResults.Count, Is.EqualTo(2));
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeC,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -1801,7 +1801,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 StatusCode.IsGood(trigResp.AddResults[0]), Is.True);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -1924,7 +1924,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Write to trigger A; since A is Sampling, no auto-report
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -1960,7 +1960,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -1994,7 +1994,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 StatusCode.IsGood(trigResp.AddResults[0]), Is.True);
 
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -2027,7 +2027,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     .ConfigureAwait(false);
 
                 await WriteValueAsync(nodeA,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
@@ -2081,9 +2081,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
                 await WriteValueAsync(nodeA,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
                 await WriteValueAsync(nodeB,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 PublishResponse pubResp =
                     await PublishAndWaitAsync().ConfigureAwait(false);
@@ -2123,7 +2123,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
 
             await WriteValueAsync(nodeA,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -2161,7 +2161,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
                 await WriteValueAsync(nodeA,
-                    new Random().Next(1, 10000)).ConfigureAwait(false);
+                    UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
                 PublishResponse pubResp =
                     await PublishAndWaitAsync().ConfigureAwait(false);
@@ -2220,7 +2220,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
 
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);
@@ -2296,7 +2296,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Verify B (Sampling) does not report
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
             PublishResponse pubResp =
@@ -2337,7 +2337,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Write to B; A is deleted so no trigger fires
             await WriteValueAsync(nodeB,
-                new Random().Next(1, 10000)).ConfigureAwait(false);
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp =
                 await PublishAndWaitAsync().ConfigureAwait(false);

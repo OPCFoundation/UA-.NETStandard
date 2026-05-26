@@ -1134,7 +1134,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            value = new EnumValue(0, xml!);
+                            value = new EnumValue(0, xml);
                         }
                     }
                     catch (Exception ex) when (ex is

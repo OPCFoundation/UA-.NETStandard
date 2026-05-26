@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,10 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Client.Roles
 {
@@ -55,11 +53,13 @@ namespace Opc.Ua.Client.Roles
         /// <summary>The session used for all service calls.</summary>
         public ISession Session { get; }
 
-        private static NodeId RoleSetId => Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet;
+        private static NodeId RoleSetId => ObjectIds.Server_ServerCapabilities_RoleSet;
+
         private static NodeId AddRoleMethodId
-            => Opc.Ua.MethodIds.Server_ServerCapabilities_RoleSet_AddRole;
+            => MethodIds.Server_ServerCapabilities_RoleSet_AddRole;
+
         private static NodeId RemoveRoleMethodId
-            => Opc.Ua.MethodIds.Server_ServerCapabilities_RoleSet_RemoveRole;
+            => MethodIds.Server_ServerCapabilities_RoleSet_RemoveRole;
 
         /// <inheritdoc/>
         public async ValueTask<IReadOnlyList<RoleInfo>> ListRolesAsync(
@@ -69,8 +69,8 @@ namespace Opc.Ua.Client.Roles
             // instances). Each child's NodeId + browse name is returned;
             // properties are then read in a single call per role to keep the
             // round-trip count proportional to the number of roles.
-            var browseDescriptions = new[]
-            {
+            BrowseDescription[] browseDescriptions =
+            [
                 new BrowseDescription
                 {
                     NodeId = RoleSetId,
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Roles
                     NodeClassMask = (uint)NodeClass.Object,
                     ResultMask = (uint)BrowseResultMask.All
                 }
-            };
+            ];
             BrowseResponse browseResponse = await Session.BrowseAsync(
                 null,
                 null,
@@ -102,13 +102,13 @@ namespace Opc.Ua.Client.Roles
             }
             foreach (ReferenceDescription reference in materializedRefs)
             {
-                NodeId roleId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var roleId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (roleId.IsNull)
                 {
                     continue;
                 }
-                if (!reference.TypeDefinition.IsNull
-                    && ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != Opc.Ua.ObjectTypeIds.RoleType)
+                if (!reference.TypeDefinition.IsNull &&
+                    ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != ObjectTypeIds.RoleType)
                 {
                     continue;
                 }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Roles
                 BrowseNames.ApplicationsExclude,
                 BrowseNames.Endpoints,
                 BrowseNames.EndpointsExclude,
-                BrowseNames.CustomConfiguration,
+                BrowseNames.CustomConfiguration
             ];
             var browsePaths = new List<BrowsePath>(propertyNames.Length);
             foreach (string name in propertyNames)
@@ -164,9 +164,9 @@ namespace Opc.Ua.Client.Roles
             for (int i = 0; i < propertyNames.Length; i++)
             {
                 BrowsePathResult pathResult = pathResponse.Results[i];
-                if (StatusCode.IsGood(pathResult.StatusCode)
-                    && pathResult.Targets.Count > 0
-                    && !pathResult.Targets[0].TargetId.IsNull)
+                if (StatusCode.IsGood(pathResult.StatusCode) &&
+                    pathResult.Targets.Count > 0 &&
+                    !pathResult.Targets[0].TargetId.IsNull)
                 {
                     resolved[i] = ExpandedNodeId.ToNodeId(
                         pathResult.Targets[0].TargetId, Session.NamespaceUris);
@@ -435,14 +435,14 @@ namespace Opc.Ua.Client.Roles
             NodeClass expectedClass,
             CancellationToken cancellationToken)
         {
-            var browsePaths = new[]
-            {
+            BrowsePath[] browsePaths =
+            [
                 new BrowsePath
                 {
                     StartingNode = parentId,
                     RelativePath = new RelativePath(new QualifiedName(browseName))
                 }
-            };
+            ];
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(
                     null,
@@ -472,15 +472,15 @@ namespace Opc.Ua.Client.Roles
         {
             NodeId propertyId = await ResolveChildAsync(parentId, browseName, NodeClass.Variable, cancellationToken)
                 .ConfigureAwait(false);
-            var writes = new[]
-            {
+            WriteValue[] writes =
+            [
                 new WriteValue
                 {
                     NodeId = propertyId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(value)
                 }
-            };
+            ];
             WriteResponse response = await Session.WriteAsync(
                 null,
                 ArrayOf.Wrapped(writes),
@@ -493,7 +493,7 @@ namespace Opc.Ua.Client.Roles
             }
         }
 
-        private static IReadOnlyList<T> ReadStructureArray<T>(DataValue dv) where T : class, IEncodeable, new()
+        private static List<T> ReadStructureArray<T>(DataValue dv) where T : class, IEncodeable, new()
         {
             if (StatusCode.IsBad(dv.StatusCode))
             {
@@ -527,7 +527,7 @@ namespace Opc.Ua.Client.Roles
             return [];
         }
 
-        private static IReadOnlyList<string> ReadStringArray(DataValue dv)
+        private static List<string> ReadStringArray(DataValue dv)
         {
             if (StatusCode.IsBad(dv.StatusCode))
             {

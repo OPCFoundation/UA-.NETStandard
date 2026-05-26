@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -675,6 +675,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature on the data provided using the SecurityPolicy.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// <paramref name="securityPolicyUri"/> is not a supported
+        /// security policy.
+        /// </exception>
         public static SignatureData CreateSignatureData(
            string securityPolicyUri,
            Certificate localCertificate,
@@ -967,7 +971,7 @@ namespace Opc.Ua
                     FieldInfo? infoField = Array.Find(infoFields, f => f.Name == field.Name);
                     if (infoField != null && infoField.FieldType == typeof(SecurityPolicyInfo))
                     {
-                        SecurityPolicyInfo? info = (SecurityPolicyInfo?)infoField.GetValue(null);
+                        var info = (SecurityPolicyInfo?)infoField.GetValue(null);
                         if (info != null)
                         {
                             keyValuePairs.Add(field.Name, info);

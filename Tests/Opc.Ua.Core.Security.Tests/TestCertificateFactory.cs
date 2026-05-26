@@ -225,7 +225,7 @@ namespace Opc.Ua.Core.Security.Tests
                 .CreateForRSA();
         }
 
-        private static X509Extension BuildSubjectAlternativeName(
+        private static X509SubjectAltNameExtension BuildSubjectAlternativeName(
             string applicationUri,
             string hostName)
         {

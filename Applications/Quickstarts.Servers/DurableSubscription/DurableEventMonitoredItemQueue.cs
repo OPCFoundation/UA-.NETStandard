@@ -422,7 +422,7 @@ namespace Quickstarts.Servers
 
         public void Restore(List<EventFieldList>? events)
         {
-            Events = events ?? new List<EventFieldList>();
+            Events = events ?? [];
             IsPersisted = false;
             RestoreInProgress = false;
         }

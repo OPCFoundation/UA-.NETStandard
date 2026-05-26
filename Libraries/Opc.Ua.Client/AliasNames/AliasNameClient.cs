@@ -75,6 +75,8 @@ namespace Opc.Ua.Client.AliasNames
         /// <c>AliasNameCategoryType</c> instance.</param>
         /// <param name="options">Optional configuration; defaults applied
         /// when <c>null</c>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="categoryId"/> is null.</exception>
         public AliasNameClient(
             ISession session,
             NodeId categoryId,
@@ -149,6 +151,12 @@ namespace Opc.Ua.Client.AliasNames
         /// result; a null/empty <paramref name="referenceTypeFilter"/>
         /// matches every reference type.
         /// </summary>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
+        /// <exception cref="NotSupportedException">The category does not
+        /// expose <c>FindAlias</c>.</exception>
+        /// <exception cref="UnauthorizedAccessException">The session does
+        /// not have permission to search aliases in this category.</exception>
         public async Task<IReadOnlyList<AliasNameDataType>> FindAliasAsync(
             string aliasNameSearchPattern,
             NodeId? referenceTypeFilter = null,
@@ -178,6 +186,12 @@ namespace Opc.Ua.Client.AliasNames
         /// server replies with <c>BadNotImplemented</c>/<c>BadMethodInvalid</c>
         /// which is translated into <see cref="NotSupportedException"/>.
         /// </summary>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
+        /// <exception cref="NotSupportedException">The category does not
+        /// expose <c>FindAliasVerbose</c>.</exception>
+        /// <exception cref="UnauthorizedAccessException">The session does
+        /// not have permission to search aliases in this category.</exception>
         public async Task<IReadOnlyList<AliasNameVerboseDataType>> FindAliasVerboseAsync(
             string aliasNameSearchPattern,
             NodeId? referenceTypeFilter = null,
@@ -209,6 +223,12 @@ namespace Opc.Ua.Client.AliasNames
         /// expose <c>AddAliasesToCategory</c>.</exception>
         /// <exception cref="UnauthorizedAccessException">The session does
         /// not have permission to add aliases to this category.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="requests"/> is null.</exception>
+        /// <exception cref="ArgumentException">Not all entries in
+        /// <paramref name="requests"/> share the same
+        /// <see cref="AliasNameAddRequest.TargetReferenceType"/>.</exception>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
         public async Task<StatusCode[]> AddAliasesToCategoryAsync(
             IReadOnlyList<AliasNameAddRequest> requests,
             CancellationToken ct = default)
@@ -218,9 +238,9 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ArgumentNullException(nameof(requests));
             }
 
-            var names = new string[requests.Count];
+            string[] names = new string[requests.Count];
             var targets = new ExpandedNodeId[requests.Count];
-            var servers = new string[requests.Count];
+            string[] servers = new string[requests.Count];
             NodeId refType = NodeId.Null;
             for (int i = 0; i < requests.Count; i++)
             {
@@ -274,6 +294,9 @@ namespace Opc.Ua.Client.AliasNames
         /// expose <c>DeleteAliasesFromCategory</c>.</exception>
         /// <exception cref="UnauthorizedAccessException">The session does
         /// not have permission to delete aliases from this category.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="requests"/> is null.</exception>
+        /// <exception cref="ServiceResultException">The server returned an
+        /// error status code.</exception>
         public async Task<StatusCode[]> DeleteAliasesFromCategoryAsync(
             IReadOnlyList<AliasNameDeleteRequest> requests,
             CancellationToken ct = default)
@@ -283,7 +306,7 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ArgumentNullException(nameof(requests));
             }
 
-            var names = new string[requests.Count];
+            string[] names = new string[requests.Count];
             var targets = new ExpandedNodeId[requests.Count];
             for (int i = 0; i < requests.Count; i++)
             {
@@ -311,8 +334,8 @@ namespace Opc.Ua.Client.AliasNames
 
         /// <summary>
         /// Resolves the category's <c>LastChange</c> property NodeId
-        /// (Part 17 §6.3.1). For the standard well-known <c>Aliases
-        /// (i=23470)</c> category the hardcoded <c>i=32852</c> instance
+        /// (Part 17 §6.3.1). For the standard well-known <code>Aliases
+        /// (i=23470)</code> category the hardcoded <c>i=32852</c> instance
         /// is returned without a round-trip; other categories fall back
         /// to a <c>TranslateBrowsePathsToNodeIds</c> probe. Returns
         /// <see cref="NodeId.Null"/> when the category does not expose
@@ -361,8 +384,8 @@ namespace Opc.Ua.Client.AliasNames
                 nodesToRead,
                 ct).ConfigureAwait(false);
 
-            if (response.Results.Count == 0
-                || StatusCode.IsBad(response.Results[0].StatusCode))
+            if (response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode))
             {
                 return null;
             }
@@ -378,6 +401,8 @@ namespace Opc.Ua.Client.AliasNames
         /// (Part 17 §6.3.1 <c>SubAliasNameCategories</c>) via a forward
         /// browse on <see cref="ReferenceTypeIds.Organizes"/>.
         /// </summary>
+        /// <exception cref="ServiceResultException">The browse operation
+        /// returned an error status code.</exception>
         public async IAsyncEnumerable<AliasNameSubCategoryInfo>
             EnumerateSubCategoriesAsync(
                 [EnumeratorCancellation] CancellationToken ct = default)
@@ -389,9 +414,10 @@ namespace Opc.Ua.Client.AliasNames
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 IncludeSubtypes = true,
                 NodeClassMask = (uint)NodeClass.Object,
-                ResultMask = (uint)(BrowseResultMask.BrowseName
-                    | BrowseResultMask.DisplayName
-                    | BrowseResultMask.TypeDefinition)
+                ResultMask =
+                    (uint)BrowseResultMask.BrowseName |
+                    (uint)BrowseResultMask.DisplayName |
+                    (uint)BrowseResultMask.TypeDefinition
             };
             ArrayOf<BrowseDescription> requests = [description];
             BrowseResponse response = await Session.BrowseAsync(
@@ -424,7 +450,7 @@ namespace Opc.Ua.Client.AliasNames
                 {
                     continue;
                 }
-                NodeId localId = ExpandedNodeId.ToNodeId(
+                var localId = ExpandedNodeId.ToNodeId(
                     r.NodeId, Session.NamespaceUris);
                 if (localId.IsNull)
                 {
@@ -469,9 +495,9 @@ namespace Opc.Ua.Client.AliasNames
                 await Session.TranslateBrowsePathsToNodeIdsAsync(
                     null, requests, ct).ConfigureAwait(false);
 
-            if (response.Results.Count == 0
-                || StatusCode.IsBad(response.Results[0].StatusCode)
-                || response.Results[0].Targets.Count == 0)
+            if (response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode) ||
+                response.Results[0].Targets.Count == 0)
             {
                 return NodeId.Null;
             }
@@ -495,7 +521,7 @@ namespace Opc.Ua.Client.AliasNames
             var result = new List<T>(arr.Count);
             for (int i = 0; i < arr.Count; i++)
             {
-                if (arr[i] != null)
+                if (!EqualityComparer<T?>.Default.Equals(arr[i], default))
                 {
                     result.Add(arr[i]);
                 }

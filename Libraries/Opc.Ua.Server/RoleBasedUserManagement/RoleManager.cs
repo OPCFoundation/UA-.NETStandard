@@ -51,16 +51,20 @@ namespace Opc.Ua.Server
     public sealed class RoleManager : IRoleManager, IDisposable
     {
         private static readonly NodeId s_anonymous
-            = Opc.Ua.ObjectIds.WellKnownRole_Anonymous;
+            = ObjectIds.WellKnownRole_Anonymous;
+
         private static readonly NodeId s_authenticatedUser
-            = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser;
+            = ObjectIds.WellKnownRole_AuthenticatedUser;
+
         private static readonly NodeId s_trustedApplication
-            = Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication;
+            = ObjectIds.WellKnownRole_TrustedApplication;
 
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
         private readonly Dictionary<NodeId, MutableRole> m_roles = [];
+
         private readonly Dictionary<string, NodeId> m_browseNameIndex
             = new(StringComparer.Ordinal);
+
         private uint m_nextDynamicId = 1;
         private bool m_disposed;
 
@@ -97,17 +101,17 @@ namespace Opc.Ua.Server
                 });
 
             // Configurable well-known roles (no default identities).
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Observer,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Observer,
                 BrowseNames.WellKnownRole_Observer, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Operator,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Operator,
                 BrowseNames.WellKnownRole_Operator, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Engineer,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Engineer,
                 BrowseNames.WellKnownRole_Engineer, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Supervisor,
+            AddBuiltInRole(ObjectIds.WellKnownRole_Supervisor,
                 BrowseNames.WellKnownRole_Supervisor, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+            AddBuiltInRole(ObjectIds.WellKnownRole_ConfigureAdmin,
                 BrowseNames.WellKnownRole_ConfigureAdmin, isReserved: false);
-            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
+            AddBuiltInRole(ObjectIds.WellKnownRole_SecurityAdmin,
                 BrowseNames.WellKnownRole_SecurityAdmin, isReserved: false);
         }
 
@@ -428,8 +432,8 @@ namespace Opc.Ua.Server
 
             bool isWellKnown = false;
             bool useOpcUaNamespace =
-                string.IsNullOrEmpty(namespaceUri)
-                || string.Equals(namespaceUri, Opc.Ua.Namespaces.OpcUa, StringComparison.Ordinal);
+                string.IsNullOrEmpty(namespaceUri) ||
+                string.Equals(namespaceUri, Ua.Namespaces.OpcUa, StringComparison.Ordinal);
 
             // If naming a well-known role under the OPC UA namespace, reuse
             // the well-known NodeId per Part 18 §4.2.2.
@@ -494,13 +498,12 @@ namespace Opc.Ua.Server
 
                 // Per §4.2.2: initial values of ApplicationsExclude/EndpointsExclude
                 // shall be TRUE on newly created roles when the properties exist.
-                var role = new MutableRole(allocated, roleName, namespaceIndex,
+                m_roles[allocated] = new MutableRole(allocated, roleName, namespaceIndex,
                     isReserved: false, isWellKnown: isWellKnown)
                 {
                     ApplicationsExclude = true,
                     EndpointsExclude = true
                 };
-                m_roles[allocated] = role;
                 m_browseNameIndex[roleName] = allocated;
                 newRoleId = allocated;
             }
@@ -559,9 +562,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(identity));
             }
 
-            string clientApplicationUri = clientCertificate != null
-                ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate).FirstOrDefault() ?? string.Empty
-                : string.Empty;
+            IReadOnlyList<string> clientApplicationUris = clientCertificate != null
+                ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate)
+                : [];
             string clientThumbprint = clientCertificate != null
                 ? IdentityRuleValidator.NormaliseThumbprint(clientCertificate.Thumbprint)
                 : string.Empty;
@@ -570,8 +573,8 @@ namespace Opc.Ua.Server
                 : string.Empty;
 
             string endpointUrl = endpoint?.EndpointUrl ?? string.Empty;
-            bool isSignedChannel = endpoint != null
-                && endpoint.SecurityMode is MessageSecurityMode.Sign
+            bool isSignedChannel = endpoint != null &&
+                endpoint.SecurityMode is MessageSecurityMode.Sign
                     or MessageSecurityMode.SignAndEncrypt;
             bool isEncryptedChannel = endpoint?.SecurityMode == MessageSecurityMode.SignAndEncrypt;
 
@@ -590,7 +593,7 @@ namespace Opc.Ua.Server
             {
                 foreach (MutableRole role in m_roles.Values)
                 {
-                    if (RoleMatches(role, identity, clientCertificate, clientApplicationUri,
+                    if (RoleMatches(role, identity, clientCertificate, clientApplicationUris,
                             clientThumbprint, clientSubject, candidate, isSignedChannel,
                             isEncryptedChannel, granted))
                     {
@@ -621,7 +624,7 @@ namespace Opc.Ua.Server
             MutableRole role,
             IUserIdentity identity,
             Certificate? clientCertificate,
-            string clientApplicationUri,
+            IReadOnlyList<string> clientApplicationUris,
             string clientThumbprint,
             string clientSubject,
             EndpointType candidateEndpoint,
@@ -635,14 +638,17 @@ namespace Opc.Ua.Server
                 // "If Applications has entries in the array, the Role shall only
                 // be granted if the Session uses a signed or signed and encrypted
                 // communication channel." — §4.4.1
-                if (!isSignedChannel || string.IsNullOrEmpty(clientApplicationUri))
+                if (!isSignedChannel || clientApplicationUris.Count == 0)
                 {
                     if (!role.ApplicationsExclude)
                     {
                         return false;
                     }
                 }
-                bool inList = role.Applications.Contains(clientApplicationUri);
+                // The certificate may advertise multiple ApplicationUris (Subject
+                // Alternative Names); any match against the role's Applications list
+                // counts as inclusion.
+                bool inList = clientApplicationUris.Any(role.Applications.Contains);
                 if (role.ApplicationsExclude ? inList : !inList)
                 {
                     return false;
@@ -672,7 +678,7 @@ namespace Opc.Ua.Server
             foreach (IdentityMappingRuleType rule in role.Identities)
             {
                 if (IdentityRuleMatches(rule, identity, clientCertificate,
-                        clientApplicationUri, clientThumbprint, clientSubject,
+                        clientApplicationUris, clientThumbprint, clientSubject,
                         isSignedChannel, isEncryptedChannel, rolesGrantedSoFar))
                 {
                     return true;
@@ -686,7 +692,7 @@ namespace Opc.Ua.Server
             IdentityMappingRuleType rule,
             IUserIdentity identity,
             Certificate? clientCertificate,
-            string clientApplicationUri,
+            IReadOnlyList<string> clientApplicationUris,
             string clientThumbprint,
             string clientSubject,
             bool isSignedChannel,
@@ -700,19 +706,21 @@ namespace Opc.Ua.Server
             {
                 IdentityCriteriaType.Anonymous => tokenType == UserTokenType.Anonymous,
                 IdentityCriteriaType.AuthenticatedUser => tokenType != UserTokenType.Anonymous,
-                IdentityCriteriaType.UserName => tokenType == UserTokenType.UserName
-                    && string.Equals(identity.DisplayName, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.Thumbprint => clientCertificate != null
-                    && string.Equals(clientThumbprint, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.X509Subject => clientCertificate != null
-                    && !string.IsNullOrEmpty(clientSubject)
-                    && string.Equals(clientSubject, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.UserName => tokenType == UserTokenType.UserName &&
+                    string.Equals(identity.DisplayName, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.Thumbprint => clientCertificate != null &&
+                    string.Equals(clientThumbprint, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.X509Subject => clientCertificate != null &&
+                    !string.IsNullOrEmpty(clientSubject) &&
+                    string.Equals(clientSubject, criteria, StringComparison.Ordinal),
                 IdentityCriteriaType.Role => MatchesGrantedRole(criteria, rolesGrantedSoFar),
-                IdentityCriteriaType.Application => clientCertificate != null
-                    && isSignedChannel
-                    && string.Equals(clientApplicationUri, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.TrustedApplication => clientCertificate != null
-                    && isSignedChannel,
+                // The certificate may advertise multiple ApplicationUris; any one
+                // matching the rule's criteria is sufficient.
+                IdentityCriteriaType.Application => clientCertificate != null &&
+                    isSignedChannel &&
+                    clientApplicationUris.Any(uri => string.Equals(uri, criteria, StringComparison.Ordinal)),
+                IdentityCriteriaType.TrustedApplication => clientCertificate != null &&
+                    isSignedChannel,
                 // GroupId: requires an external authorization service / JWT
                 // groups claim; without one, the rule cannot match.
                 IdentityCriteriaType.GroupId => false,
@@ -747,8 +755,7 @@ namespace Opc.Ua.Server
 
         private NodeId AllocateDynamicNodeId(ushort namespaceIndex)
         {
-            uint id = m_nextDynamicId++;
-            return new NodeId(id, namespaceIndex);
+            return new NodeId(m_nextDynamicId++, namespaceIndex);
         }
 
         private ServiceResult TryGetMutableRole(NodeId roleId, bool requireMutable, out MutableRole? role)
@@ -790,23 +797,23 @@ namespace Opc.Ua.Server
             return roleName switch
             {
                 BrowseNames.WellKnownRole_Anonymous
-                    => Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
+                    => ObjectIds.WellKnownRole_Anonymous,
                 BrowseNames.WellKnownRole_AuthenticatedUser
-                    => Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
+                    => ObjectIds.WellKnownRole_AuthenticatedUser,
                 BrowseNames.WellKnownRole_TrustedApplication
-                    => Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication,
+                    => ObjectIds.WellKnownRole_TrustedApplication,
                 BrowseNames.WellKnownRole_Observer
-                    => Opc.Ua.ObjectIds.WellKnownRole_Observer,
+                    => ObjectIds.WellKnownRole_Observer,
                 BrowseNames.WellKnownRole_Operator
-                    => Opc.Ua.ObjectIds.WellKnownRole_Operator,
+                    => ObjectIds.WellKnownRole_Operator,
                 BrowseNames.WellKnownRole_Engineer
-                    => Opc.Ua.ObjectIds.WellKnownRole_Engineer,
+                    => ObjectIds.WellKnownRole_Engineer,
                 BrowseNames.WellKnownRole_Supervisor
-                    => Opc.Ua.ObjectIds.WellKnownRole_Supervisor,
+                    => ObjectIds.WellKnownRole_Supervisor,
                 BrowseNames.WellKnownRole_ConfigureAdmin
-                    => Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+                    => ObjectIds.WellKnownRole_ConfigureAdmin,
                 BrowseNames.WellKnownRole_SecurityAdmin
-                    => Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
+                    => ObjectIds.WellKnownRole_SecurityAdmin,
                 _ => null
             };
         }
