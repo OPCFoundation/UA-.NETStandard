@@ -866,7 +866,34 @@ namespace Opc.Ua.Core.Security.Tests
             return m_cachedEndpoints;
         }
 
-        private X509Certificate2 GetSecureCert(
+        private static X509Certificate2 GetSecureCert(
+            ArrayOf<EndpointDescription> eps)
+        {
+            // Prefer an RSA-based secure endpoint; the tests in this
+            // fixture validate RSA cert properties (key length,
+            // GetRSAPublicKey() non-null, etc.). On macOS, ECC endpoints
+            // may appear before RSA endpoints in the descriptor list,
+            // which would cause the tests to read an ECC cert and fail.
+            return FindRsaSecureEndpointCert(eps) ?? FindAnySecureEndpointCert(eps);
+        }
+
+        private static X509Certificate2 FindRsaSecureEndpointCert(
+            ArrayOf<EndpointDescription> eps)
+        {
+            foreach (EndpointDescription ep in eps)
+            {
+                if (ep.SecurityMode != MessageSecurityMode.None &&
+                    !ep.ServerCertificate.IsEmpty &&
+                    !IsEccPolicy(ep.SecurityPolicyUri))
+                {
+                    return X509CertificateLoader.LoadCertificate(
+                        ep.ServerCertificate.ToArray());
+                }
+            }
+            return null;
+        }
+
+        private static X509Certificate2 FindAnySecureEndpointCert(
             ArrayOf<EndpointDescription> eps)
         {
             foreach (EndpointDescription ep in eps)
@@ -880,6 +907,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             return null;
+        }
+
+        private static bool IsEccPolicy(string policyUri)
+        {
+            return !string.IsNullOrEmpty(policyUri)
+                && policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
         }
 
         private EndpointDescription FindEp(

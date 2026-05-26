@@ -81,16 +81,12 @@ namespace Opc.Ua.Client.AliasNames.PubSub
             {
                 throw new ArgumentNullException(nameof(client));
             }
-            if (onInvalidate == null)
-            {
-                throw new ArgumentNullException(nameof(onInvalidate));
-            }
 
             m_categoryId = client.CategoryId;
             string? namespaceUri = client.Session.NamespaceUris
                 .GetString(m_categoryId.NamespaceIndex);
             m_categoryNamespaceUri = namespaceUri ?? string.Empty;
-            m_onInvalidate = onInvalidate;
+            m_onInvalidate = onInvalidate ?? throw new ArgumentNullException(nameof(onInvalidate));
             m_reader.AliasUpdateReceived += OnAliasUpdateReceived;
             return default;
         }
@@ -161,8 +157,9 @@ namespace Opc.Ua.Client.AliasNames.PubSub
             {
                 return string.Empty;
             }
-            int idx = text!.IndexOf(';');
-            return idx < 0 ? text : text.Substring(idx + 1);
+            string value = text!;
+            int idx = value.IndexOf(';', StringComparison.Ordinal);
+            return idx < 0 ? value : value[(idx + 1)..];
         }
 
         private readonly AliasNamePubSubReader m_reader;

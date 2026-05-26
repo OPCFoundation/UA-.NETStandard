@@ -39,7 +39,9 @@ namespace Opc.Ua.Server.Fluent
     /// delegate on the underlying <see cref="BaseVariableState"/> and
     /// performs <see cref="Variant"/> marshalling on every read / write.
     /// </summary>
-    /// <typeparam name="TValue"></typeparam>
+    /// <typeparam name="TValue">
+    /// CLR type carried by the variable's <c>Value</c> attribute.
+    /// </typeparam>
     internal sealed class VariableBuilder<TValue> :
         NodeBuilder<BaseVariableState>,
         IVariableBuilder<TValue>
@@ -56,7 +58,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(getter));
             }
-            OnRead((ISystemContext _) => getter());
+            OnRead(_ => getter());
             return this;
         }
 
@@ -67,8 +69,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(getter));
             }
-            ((INodeBuilder)this).OnRead(
-                (ISystemContext context, NodeState _, ref Variant value) =>
+            OnRead(
+                (context, _, ref value) =>
                 {
                     value = ToVariant(getter(context));
                     return ServiceResult.Good;
@@ -85,7 +87,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(getter));
             }
             return OnRead(
-                (ISystemContext _, CancellationToken ct) => getter(ct));
+                (_, ct) => getter(ct));
         }
 
         /// <inheritdoc/>
@@ -96,8 +98,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(getter));
             }
-            ((INodeBuilder)this).OnRead(
-                async (ISystemContext context, NodeState _, CancellationToken ct) =>
+            OnRead(
+                async (context, _, ct) =>
                 {
                     TValue typed = await getter(context, ct).ConfigureAwait(false);
                     return new AttributeSimpleReadResult(
@@ -114,7 +116,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            OnWrite((ISystemContext _, TValue v) => setter(v));
+            OnWrite((_, v) => setter(v));
             return this;
         }
 
@@ -125,8 +127,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            ((INodeBuilder)this).OnWrite(
-                (ISystemContext context, NodeState _, ref Variant value) =>
+            OnWrite(
+                (context, _, ref value) =>
                 {
                     setter(context, FromVariant(value)!);
                     return ServiceResult.Good;
@@ -142,7 +144,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            return OnWrite((ISystemContext _, TValue v, CancellationToken ct) => setter(v, ct));
+            return OnWrite((_, v, ct) => setter(v, ct));
         }
 
         /// <inheritdoc/>
@@ -153,8 +155,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(setter));
             }
-            ((INodeBuilder)this).OnWrite(
-                async (ISystemContext context, NodeState _, Variant value, CancellationToken ct) =>
+            OnWrite(
+                async (context, _, value, ct) =>
                 {
                     TValue? typed = FromVariant(value);
                     await setter(context, typed!, ct).ConfigureAwait(false);
@@ -186,12 +188,14 @@ namespace Opc.Ua.Server.Fluent
             return (TValue)boxed;
         }
 
-        // The reflection-based Variant(object) constructor is the only
-        // generic entry point for an open-ended TValue. AOT users should
-        // prefer the per-type generated walker (FluentBuilderGenerator) which
-        // routes through the typed Variant.From overloads instead. The
-        // suppression is scoped to this single call site so trim/AOT
-        // analysis still tracks every other path through this assembly.
+        /// <summary>
+        /// The reflection-based Variant(object) constructor is the only
+        /// generic entry point for an open-ended TValue. AOT users should
+        /// prefer the per-type generated walker (FluentBuilderGenerator) which
+        /// routes through the typed Variant.From overloads instead. The
+        /// suppression is scoped to this single call site so trim/AOT
+        /// analysis still tracks every other path through this assembly.
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
             "Trimming",
             "IL2026:RequiresUnreferencedCode",

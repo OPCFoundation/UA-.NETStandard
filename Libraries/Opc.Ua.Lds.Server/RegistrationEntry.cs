@@ -56,7 +56,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// The server's localized application names.
         /// </summary>
-        public IList<LocalizedText> ServerNames { get; set; } = new List<LocalizedText>();
+        public IList<LocalizedText> ServerNames { get; set; } = [];
 
         /// <summary>
         /// The server's <see cref="ApplicationType"/>. LDS rejects
@@ -72,7 +72,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// One or more discovery endpoint URLs.
         /// </summary>
-        public IList<string> DiscoveryUrls { get; set; } = new List<string>();
+        public IList<string> DiscoveryUrls { get; set; } = [];
 
         /// <summary>
         /// Optional file path used to keep the registration alive while the file exists.
@@ -94,7 +94,7 @@ namespace Opc.Ua.Lds.Server
         /// recent <c>MdnsDiscoveryConfiguration</c> if any. Empty for plain
         /// <c>RegisterServer</c> calls.
         /// </summary>
-        public IList<string> ServerCapabilities { get; set; } = new List<string>();
+        public IList<string> ServerCapabilities { get; set; } = [];
 
         /// <summary>
         /// The mDNS server name advertised by the most recent

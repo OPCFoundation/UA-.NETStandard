@@ -2,6 +2,20 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+parameters:
+- name: managedPool
+  displayName: 'Use managed agent pool'
+  type: boolean
+  default: false
+- name: managedPoolName
+  displayName: 'Managed agent pool name'
+  type: string
+  default: 'netstandard'
+- name: managedPoolVmImage
+  displayName: 'VM image override for managed pool agents'
+  type: string
+  default: ''
+
 trigger:
   batch: 'true'
   branches:
@@ -17,6 +31,7 @@ trigger:
     - '**/*.md'
 pr:
   autoCancel: 'true'
+  drafts: 'false'
   branches:
     include:
     - '*'
@@ -25,26 +40,19 @@ pr:
     - '*'
 
 variables:
-  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
+  FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
+  ${{ if parameters.managedPool }}:
+    poolName: ${{ parameters.managedPoolName }}
+    poolVmImage: ${{ parameters.managedPoolVmImage }}
+  ${{ else }}:
+    poolName: ''
+    poolVmImage: ''
 
 stages:
 - stage: build
-  displayName: 'Build .NET Core Samples'
-  jobs:
-  - template: .azurepipelines/ci.yml
-- stage: buildnohttps
   dependsOn: []
-  displayName: 'Build NoHttps .NET Core Samples'
-  condition: ne(variables.FullBuild, 'False')
-  jobs:
-  - template: .azurepipelines/ci.yml
-    parameters:
-      buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-24.04" }'
-- stage: solutions
-  dependsOn: []
-  displayName: 'Build Solutions'
+  displayName: 'Build'
   jobs:
   - template: .azurepipelines/sln.yml
     parameters:
@@ -56,10 +64,18 @@ stages:
         solutions: 'UA.slnx'
       ${{ else }}:
         solutions: ''
-- stage: testrelease
-  dependsOn: [build]
-  displayName: 'Test Core and SDK Release'
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+- stage: buildnohttps
+  dependsOn: []
+  displayName: 'Build NoHttps .NET Core Samples'
+  condition: ne(variables.FullBuild, 'False')
+  jobs:
+  - template: .azurepipelines/ci.yml
+    parameters:
+      buildoption: '-p:NoHttps=true'
+      agents: '@{ linux = "ubuntu-24.04" }'
+- stage: testfastpr
+  dependsOn: []
+  displayName: 'Fast PR test'
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -71,33 +87,22 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"; mac = "macOS-15"}'
+      agents: '@{ mac = "macOS-15" }'
       jobnamesuffix: net100
       customtestarget: net10.0
+- stage: testaot
+  dependsOn: []
+  displayName: 'Test Native AoT'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
   - template: .azurepipelines/test-aot.yml
     parameters:
       configuration: Release
       agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"}'
       jobnamesuffix: net100aot
-- stage: testreleasepr
-  dependsOn: []
-  displayName: 'Fast .NET 10.0 PR Test'
-  condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
-      framework: net10.0
-      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
-      jobnamesuffix: net100pr
-  - template: .azurepipelines/test-aot.yml
-    parameters:
-      configuration: Release
-      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
-      jobnamesuffix: net100praot
 - stage: testdebug
   dependsOn: [build]
-  displayName: 'Test .NET 10.0 Debug'
+  displayName: 'Test Core and SDK Debug'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
@@ -105,16 +110,6 @@ stages:
       framework: net10.0
       configuration: Debug
       jobnamesuffix: net100debug
-- stage: testnet80
-  dependsOn: [build]
-  displayName: 'Test .NET 8.0'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      framework: net8.0
-      configuration: Release
-      jobnamesuffix: net80
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -125,20 +120,16 @@ stages:
       framework: net9.0
       configuration: Release
       jobnamesuffix: net90
-- stage: testnet100
+- stage: testnet80
   dependsOn: [build]
-  displayName: 'Test .NET 10.0'
+  displayName: 'Test .NET 8.0'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net10.0
+      framework: net8.0
       configuration: Release
-      jobnamesuffix: net100
-  - template: .azurepipelines/test-aot.yml
-    parameters:
-      configuration: Release
-      jobnamesuffix: net100aot
+      jobnamesuffix: net80
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -175,7 +166,7 @@ stages:
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
 - stage: coverage
-  dependsOn: [testdebug,testrelease]
+  dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:

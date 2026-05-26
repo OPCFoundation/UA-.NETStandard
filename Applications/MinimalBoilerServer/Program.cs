@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Server.Hosting;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -39,7 +39,8 @@ builder.Logging.AddConsole();
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
 
 builder.Services
-    .AddOpcUaServer(o =>
+    .AddOpcUa()
+    .AddServer(o =>
     {
         o.ApplicationName = "MinimalBoilerServer";
         o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";

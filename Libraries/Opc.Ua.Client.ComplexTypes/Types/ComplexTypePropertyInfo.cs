@@ -289,6 +289,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Set the value of a property.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The property type is not an array type.</exception>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
             Justification = "Uses reflection to cast enum types.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
@@ -412,8 +413,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         PropertyInfo.SetValue(o, EnumHelper.Int32ArrayToEnumArray(
                             v.GetInt32Array(),
                             PropertyInfo.PropertyType.GetElementType()
-                                ?? throw new InvalidOperationException(
-                                    "PropertyType is not an array type.")));
+                            ?? throw new InvalidOperationException(
+                                "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Array().ToArray());
@@ -505,8 +506,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         PropertyInfo.SetValue(o, EnumHelper.Int32MatrixToEnumArray(
                            v.GetInt32Matrix(),
                            PropertyInfo.PropertyType.GetElementType()
-                                ?? throw new InvalidOperationException(
-                                    "PropertyType is not an array type.")));
+                           ?? throw new InvalidOperationException(
+                               "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Matrix().CreateArrayInstance());
@@ -597,6 +598,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Complex type identifier if field is a structure
         /// </summary>
+        /// <exception cref="InvalidOperationException">The property type is not an array type.</exception>
         public ExpandedNodeId GetDataTypeId(NamespaceTable namespaceTable)
         {
             // For arrays, GetElementType is non-null because PropertyType.IsArray is true.

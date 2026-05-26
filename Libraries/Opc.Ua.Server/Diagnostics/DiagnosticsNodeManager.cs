@@ -304,7 +304,8 @@ namespace Opc.Ua.Server
             }
 
             if (context is ISessionSystemContext session &&
-                subscription.SessionId != null! && !subscription.SessionId.Equals(session.SessionId))
+                subscription.SessionId != null! &&
+                !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -1134,7 +1135,7 @@ namespace Opc.Ua.Server
                     // create new node if not found.
                     historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
 
-                    NodeId nodeId = await CreateNodeAsync(
+                    _ = await CreateNodeAsync(
                         SystemContext,
                         default,
                         ReferenceTypeIds.HasComponent,

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;
@@ -201,33 +200,34 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(actionProjection, Is.EqualTo(originalActionProjection));
         }
 
-        // G7/G8: shared helpers that lock the persisted field set in one place.
+        /// <summary>
+        /// G7/G8: shared helpers that lock the persisted field set in one place.
+        /// </summary>
         private static string[] ProjectProperties(ThingDescription td)
         {
-            return td.Properties!
+            return [.. td.Properties!
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv =>
                     $"{kv.Key}|type={kv.Value.Type}|title={kv.Value.Title}|" +
                     $"desc={kv.Value.Description}|ro={kv.Value.ReadOnly}|" +
-                    $"obs={kv.Value.Observable}|unit={kv.Value.Unit}")
-                .ToArray();
+                    $"obs={kv.Value.Observable}|unit={kv.Value.Unit}")];
         }
 
         private static string[] ProjectActions(ThingDescription td)
         {
-            return td.Actions!
+            return [.. td.Actions!
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv =>
                 {
-                    var memberFields = kv.Value.Input?.Properties?
+                    string[] memberFields = kv.Value.Input?.Properties?
                         .OrderBy(m => m.Key, StringComparer.Ordinal)
                         .Select(m =>
                             $"{m.Key}:{m.Value.Type}/{m.Value.Minimum}/{m.Value.Maximum}/{m.Value.Unit}/{m.Value.Description}")
-                        .ToArray() ?? [];
+                        .ToArray() ??
+                        [];
                     return $"{kv.Key}|title={kv.Value.Title}|desc={kv.Value.Description}|" +
                         $"members=[{string.Join(",", memberFields)}]";
-                })
-                .ToArray();
+                })];
         }
     }
 }

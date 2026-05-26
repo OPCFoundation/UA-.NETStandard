@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -155,10 +155,7 @@ namespace Opc.Ua
             if (Comment != null)
             {
                 Comment.Value = comment;
-                if (Comment.SourceTimestamp != null)
-                {
-                    Comment.SourceTimestamp.Value = DateTime.UtcNow;
-                }
+                Comment.SourceTimestamp?.Value = DateTime.UtcNow;
 
                 ClientUserId?.Value = clientUserId;
             }

@@ -70,7 +70,10 @@ namespace Opc.Ua.Server.Fluent
         /// Returns a strongly-typed view of the same node. Throws if the
         /// resolved node is not assignable to <typeparamref name="TState"/>.
         /// </summary>
-        /// <typeparam name="TState"></typeparam>
+        /// <typeparam name="TState">The expected node state type.</typeparam>
+        /// <exception cref="ServiceResultException">
+        /// The resolved node is not assignable to <typeparamref name="TState"/>.
+        /// </exception>
         INodeBuilder<TState> As<TState>() where TState : NodeState;
 
         /// <summary>
@@ -215,7 +218,10 @@ namespace Opc.Ua.Server.Fluent
     /// builder; use <see cref="INodeBuilder.As{TState}"/> chaining when
     /// you need to restore the typed view.
     /// </summary>
-    /// <typeparam name="TState"></typeparam>
+    /// <typeparam name="TState">
+    /// The concrete <see cref="NodeState"/> derivative the resolved node
+    /// is narrowed to.
+    /// </typeparam>
     public interface INodeBuilder<out TState> : INodeBuilder
         where TState : NodeState
     {

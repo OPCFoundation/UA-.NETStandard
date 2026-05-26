@@ -326,6 +326,10 @@ namespace Opc.Ua
         /// <summary>
         /// Computes a signature.
         /// </summary>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="securityPolicyUri"/> cannot be resolved to a
+        /// known security policy.
+        /// </exception>
         public static byte[]? Sign(
             ArraySegment<byte> dataToSign,
             Certificate signingCertificate,
@@ -971,6 +975,9 @@ namespace Opc.Ua
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The signature HMAC could not be created.
+        /// </exception>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,

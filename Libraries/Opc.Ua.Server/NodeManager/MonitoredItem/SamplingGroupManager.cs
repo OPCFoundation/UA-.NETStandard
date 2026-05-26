@@ -84,9 +84,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<SamplingGroup>? samplingGroups = null;
-                List<ISampledDataChangeMonitoredItem>? monitoredItems = null;
-
+                List<SamplingGroup>? samplingGroups;
+                List<ISampledDataChangeMonitoredItem>? monitoredItems;
                 lock (m_lock)
                 {
                     samplingGroups = [.. m_samplingGroups];

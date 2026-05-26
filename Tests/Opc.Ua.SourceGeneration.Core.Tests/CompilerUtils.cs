@@ -585,8 +585,14 @@ namespace Opc.Ua.SourceGeneration
                     public ExpandedNodeId XmlEncodingId => default;
                     public void Encode(IEncoder encoder) { }
                     public void Decode(IDecoder decoder) { }
-                    public bool IsEqual(IEncodeable? encodeable) { return true; }
-                    public object Clone() { return this; }
+                    public bool IsEqual(IEncodeable? encodeable)
+                    {
+                        return true;
+                    }
+                    public object Clone()
+                    {
+                        return this;
+                    }
                 }
                 public class IdentityMappingRuleType : Encodeable { }
                 public class Range : Encodeable { }

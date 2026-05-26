@@ -39,6 +39,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * New AsyncCustomNodeManager (successor of CustomNodeManager2) with improved Locking Strategy, see [Server Async (TAP) Support](Docs/AsyncServerSupport.md)
 * In our Load Test the Server shows at least 2.5x higher throughput under load with 750 subscriptions totaling 450k Monitored items 
  and write times for 600 items below 5 seconds were before > 10 seconds were needed. Also for event at least 3x faster event reporting was observed.
+* Unified [Dependency Injection](Docs/DependencyInjection.md) surface — `services.AddOpcUa()` with fluent `AddServer()` / `AddClient()` / `AddGdsServer()` / `AddLdsServer()` / `AddWotConServer()` extensions for `Microsoft.Extensions.DependencyInjection` and the .NET Generic Host (AOT compatible via the `Action<TOptions>` overloads).
 
 #### **New in 1.05.378**
 

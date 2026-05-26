@@ -2309,7 +2309,7 @@ namespace Opc.Ua
                                 GetPropertyElement(JsonProperties.Text),
                                 out string? text))
                         {
-                            value = new LocalizedText(locale!, text!);
+                            value = new LocalizedText(locale, text);
                             return true;
                         }
                         value = LocalizedText.Null;

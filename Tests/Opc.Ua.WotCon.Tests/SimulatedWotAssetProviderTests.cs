@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -65,32 +64,32 @@ namespace Opc.Ua.WotCon.Tests
                 ValueRanks.Scalar,
                 readOnly: false,
                 observable: true,
-                form: (JsonElement?)null);
+                form: null);
         }
 
         [TearDown]
         public async Task TearDownAsync()
         {
-            await m_provider.DisposeAsync();
+            await m_provider.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
         public async Task ReadReturnsSeededDefaultBeforeFirstWrite()
         {
             (ServiceResult status, Variant value) = await m_provider
-                .ReadAsync(m_voltageTag, CancellationToken.None);
+                .ReadAsync(m_voltageTag, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
-            Assert.That(value.AsBoxedObject(), Is.EqualTo(0.0));
+            Assert.That(value.AsBoxedObject(), Is.Zero);
         }
 
         [Test]
         public async Task WriteUpdatesSubsequentRead()
         {
-            await m_provider.WriteAsync(m_voltageTag, new Variant(24.5), CancellationToken.None);
+            await m_provider.WriteAsync(m_voltageTag, new Variant(24.5), CancellationToken.None).ConfigureAwait(false);
 
             (ServiceResult _, Variant value) = await m_provider
-                .ReadAsync(m_voltageTag, CancellationToken.None);
+                .ReadAsync(m_voltageTag, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(value.AsBoxedObject(), Is.EqualTo(24.5));
         }
@@ -108,7 +107,7 @@ namespace Opc.Ua.WotCon.Tests
                     Interlocked.Increment(ref notifications);
                     lastValue = value;
                 },
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             m_provider.SetValue("Voltage", new Variant(12.3));
 
@@ -124,12 +123,12 @@ namespace Opc.Ua.WotCon.Tests
                 m_voltageTag,
                 subscriberId: 7,
                 (_, _, _, _) => Interlocked.Increment(ref notifications),
-                CancellationToken.None);
-            await m_provider.UnsubscribeAsync(m_voltageTag, subscriberId: 7, CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
+            await m_provider.UnsubscribeAsync(m_voltageTag, subscriberId: 7, CancellationToken.None).ConfigureAwait(false);
 
             m_provider.SetValue("Voltage", new Variant(1.0));
 
-            Assert.That(notifications, Is.EqualTo(0));
+            Assert.That(notifications, Is.Zero);
         }
 
         [Test]
@@ -138,16 +137,16 @@ namespace Opc.Ua.WotCon.Tests
             var actionTag = new WotActionTag(
                 "Echo",
                 new NodeId(2u, 2),
-                new[] { new Argument { Name = "in1", DataType = DataTypeIds.Int64 } },
-                new[] { new Argument { Name = "out1", DataType = DataTypeIds.Int64 } },
-                form: (JsonElement?)null);
-            Variant[] outputs = new Variant[1];
+                [new Argument { Name = "in1", DataType = DataTypeIds.Int64 }],
+                [new Argument { Name = "out1", DataType = DataTypeIds.Int64 }],
+                form: null);
+            var outputs = new Variant[1];
 
             ServiceResult result = await m_provider.InvokeActionAsync(
                 actionTag,
-                new[] { new Variant(42L) },
+                [new Variant(42L)],
                 outputs,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(outputs[0].AsBoxedObject(), Is.EqualTo(42L));

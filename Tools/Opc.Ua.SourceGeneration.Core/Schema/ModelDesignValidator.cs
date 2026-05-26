@@ -5766,7 +5766,9 @@ namespace Opc.Ua.Schema.Model
                                 node.Instance),
                             ExplicitlyDefined = false,
                             Inherited = node.Inherited,
-                            AdHocInstance = node.AdHocInstance
+                            AdHocInstance = node.AdHocInstance,
+                            TypeDefinitionModellingRule =
+                                (node.Instance as InstanceDesign)?.ModellingRule
                         };
 
                         hierarchy.Nodes.Add(node.RelativePath, mergedNode);
@@ -5776,6 +5778,18 @@ namespace Opc.Ua.Schema.Model
                     {
                         UpdateMergedInstance((InstanceDesign)mergedNode.Instance, node.Instance);
                         mergedNode.StaticValue = node.StaticValue;
+
+                        // Keep TypeDefinitionModellingRule current through
+                        // type-hierarchy merges (base → derived) so that the
+                        // effective type-definition rule is captured.  Freeze
+                        // once an explicit instance override is encountered.
+                        if (!explicitlyDefined &&
+                            node.Instance is InstanceDesign typeDefOverride &&
+                            typeDefOverride.ModellingRuleSpecified)
+                        {
+                            mergedNode.TypeDefinitionModellingRule =
+                                typeDefOverride.ModellingRule;
+                        }
                     }
 
                     if (explicitlyDefined && node.Instance.Extensions != null)

@@ -76,7 +76,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void AlarmInstancesExistInAddressSpace()
         {
-            Assert.That(AlarmInstances.Count, Is.GreaterThan(0),
+            Assert.That(AlarmInstances, Has.Count.GreaterThan(0),
                 "At least one alarm condition instance should exist.");
         }
 

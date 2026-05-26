@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using Opc.Ua.Tests;
 
@@ -67,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         public static DataValue[] BuildScalarDoubles(int count, int seed = 42)
         {
-            var rand = new Random(seed);
+            UnsecureRandom rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -88,11 +89,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         public static DataValue[] BuildScalarStrings(int count, int seed = 42)
         {
-            var rand = new Random(seed);
+            UnsecureRandom rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
-                string s = "value-" + rand.Next(0, 1_000_000).ToString();
+                string s = "value-" + rand.Next(0, 1_000_000).ToString(CultureInfo.InvariantCulture);
                 result[i] = new DataValue(
                     new Variant(s),
                     (StatusCode)StatusCodes.Good,
@@ -113,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             int length = 1024,
             int seed = 42)
         {
-            var rand = new Random(seed);
+            UnsecureRandom rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {

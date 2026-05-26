@@ -119,15 +119,19 @@ namespace Opc.Ua.Core.Security.Tests
                     ApplicationType = ApplicationType.Client
                 };
 
-                ApplicationConfiguration clientConfig = await clientApp
-                    .Build(applicationUri, "urn:opcfoundation.org:ConformanceTestClient")
-                    .AsClient()
-                    .AddSecurityConfiguration(new[] { certIdentifier }.ToArrayOf(), pkiRoot)
-                    .SetMinimumCertificateKeySize(1024)
-                    .SetAutoAcceptUntrustedCertificates(true)
-                    .SetRejectSHA1SignedCertificates(false)
-                    .CreateAsync()
-                    .ConfigureAwait(false);
+                ApplicationConfiguration clientConfig;
+                await using (clientApp.ConfigureAwait(false))
+                {
+                    clientConfig = await clientApp
+                        .Build(applicationUri, "urn:opcfoundation.org:ConformanceTestClient")
+                        .AsClient()
+                        .AddSecurityConfiguration(new[] { certIdentifier }.ToArrayOf(), pkiRoot)
+                        .SetMinimumCertificateKeySize(1024)
+                        .SetAutoAcceptUntrustedCertificates(true)
+                        .SetRejectSHA1SignedCertificates(false)
+                        .CreateAsync()
+                        .ConfigureAwait(false);
+                }
 
                 return new CertSessionContext(clientConfig, clientCertificate, pkiRoot);
             }

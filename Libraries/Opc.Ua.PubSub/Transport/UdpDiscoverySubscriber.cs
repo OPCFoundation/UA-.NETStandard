@@ -223,7 +223,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public void SendDiscoveryRequestDataSetMetaData()
         {
-            ushort[]? dataSetWriterIds = null;
+            ushort[]? dataSetWriterIds;
             lock (Lock)
             {
                 dataSetWriterIds = [.. m_metadataWriterIdsToSend];
