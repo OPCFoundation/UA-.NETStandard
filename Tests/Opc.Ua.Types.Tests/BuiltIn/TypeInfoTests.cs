@@ -1766,5 +1766,41 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = TypeInfo.Construct(typeof(Task<int>));
             Assert.That(result.IsUnknown, Is.True);
         }
+
+        [Test]
+        public void ConstructForGenericEncodeableTypeReturnsExtensionObject()
+        {
+            TypeInfo result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
+            Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+        }
+
+        private class GenericEncodeable<T> : IEncodeable
+        {
+            public ExpandedNodeId TypeId => throw new NotImplementedException();
+
+            public ExpandedNodeId BinaryEncodingId => throw new NotImplementedException();
+
+            public ExpandedNodeId XmlEncodingId => throw new NotImplementedException();
+
+            public object Clone()
+            {
+                throw new NotImplementedException();
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void Encode(IEncoder encoder)
+            {
+                throw new NotImplementedException();
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                throw new NotImplementedException();
+            }
+        }
     }
 }
