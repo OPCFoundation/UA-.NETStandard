@@ -199,6 +199,374 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers client identity providers bound from configuration.
+        /// </summary>
+        public static IOpcUaClientBuilder AddIdentityProvider(
+            this IOpcUaClientBuilder builder,
+            IConfiguration section)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section == null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            OpcUaClientIdentityOptions options = BindIdentityOptions(section);
+            builder.Services.AddSingleton(options);
+            builder.Services.AddSingleton<IClientIdentityProvider>(
+                sp => BuildConfiguredIdentityProvider(sp, options));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers an access-token provider implementation.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAccessTokenProvider<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
+            this IOpcUaClientBuilder builder)
+            where TProvider : class, IAccessTokenProvider
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<TProvider>();
+            builder.Services.AddSingleton<IAccessTokenProvider>(
+                sp => sp.GetRequiredService<TProvider>());
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers an access-token provider instance.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAccessTokenProvider(
+            this IOpcUaClientBuilder builder,
+            IAccessTokenProvider instance)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+
+            builder.Services.AddSingleton(instance);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers an access-token provider factory.
+        /// </summary>
+        public static IOpcUaClientBuilder AddAccessTokenProvider(
+            this IOpcUaClientBuilder builder,
+            Func<IServiceProvider, IAccessTokenProvider> factory)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            builder.Services.AddSingleton(sp =>
+            {
+                IAccessTokenProvider provider = factory(sp);
+                if (provider == null)
+                {
+                    throw new InvalidOperationException(
+                        "Access-token provider factory returned null.");
+                }
+                return provider;
+            });
+            return builder;
+        }
+
+        private static OpcUaClientIdentityOptions BindIdentityOptions(
+            IConfiguration section)
+        {
+            IConfiguration identitySection = section;
+            IConfigurationSection nested = section.GetSection("Identity");
+            if (nested.Exists())
+            {
+                identitySection = nested;
+            }
+
+            var options = new OpcUaClientIdentityOptions();
+            identitySection.Bind(options);
+            return options;
+        }
+
+        private static CompositeClientIdentityProvider BuildConfiguredIdentityProvider(
+            IServiceProvider sp,
+            OpcUaClientIdentityOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            var providers = new List<IClientIdentityProvider>();
+            if (options.EnableAnonymous)
+            {
+                providers.Add(new AnonymousIdentityProvider());
+            }
+            if (options.UserName != null)
+            {
+                providers.Add(CreateUserNameProvider(sp, options.UserName));
+            }
+            if (options.X509 != null)
+            {
+                providers.Add(CreateX509Provider(sp, options.X509));
+            }
+            if (options.IssuedToken != null)
+            {
+                providers.Add(CreateIssuedTokenProvider(sp, options.IssuedToken));
+            }
+
+            if (providers.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "At least one client identity provider must be configured.");
+            }
+
+            ApplyConfiguredOrder(providers, options.Order);
+            return new CompositeClientIdentityProvider(providers);
+        }
+
+        private static UserNamePasswordIdentityProvider CreateUserNameProvider(
+            IServiceProvider sp,
+            UserNameClientIdentityOptions options)
+        {
+            ValidateRequired(options.UserName, "UserName.UserName");
+            ValidateRequired(options.SecretName, "UserName.SecretName");
+            ValidateRequired(options.SecretStoreType, "UserName.SecretStoreType");
+
+            var passwordId = new SecretIdentifier(
+                options.SecretName,
+                options.SecretStoreType,
+                options.SecretStorePath);
+            return new UserNamePasswordIdentityProvider(
+                options.UserName,
+                sp.GetRequiredService<ISecretRegistry>(),
+                passwordId);
+        }
+
+        private static X509ClientIdentityProvider CreateX509Provider(
+            IServiceProvider sp,
+            X509ClientIdentityOptions options)
+        {
+            ValidateRequired(options.StoreType, "X509.StoreType");
+            ValidateRequired(options.StorePath, "X509.StorePath");
+            if (!string.IsNullOrWhiteSpace(options.SubjectName) &&
+                !string.IsNullOrWhiteSpace(options.Thumbprint))
+            {
+                throw new InvalidOperationException(
+                    "X509.SubjectName and X509.Thumbprint are mutually exclusive.");
+            }
+            if (string.IsNullOrWhiteSpace(options.SubjectName) &&
+                string.IsNullOrWhiteSpace(options.Thumbprint))
+            {
+                throw new InvalidOperationException(
+                    "Either X509.SubjectName or X509.Thumbprint must be configured.");
+            }
+
+            var certificateId = new CertificateIdentifier
+            {
+                StoreType = options.StoreType,
+                StorePath = options.StorePath,
+                SubjectName = options.SubjectName,
+                Thumbprint = options.Thumbprint
+            };
+            return new X509ClientIdentityProvider(
+                certificateId,
+                sp.GetRequiredService<ICertificatePasswordProvider>(),
+                sp.GetRequiredService<ICertificateProvider>());
+        }
+
+        private static IssuedTokenIdentityProvider CreateIssuedTokenProvider(
+            IServiceProvider sp,
+            IssuedTokenClientIdentityOptions options)
+        {
+            ValidateRequired(options.ProfileUri, "IssuedToken.ProfileUri");
+            IAccessTokenProvider accessTokenProvider = ResolveAccessTokenProvider(
+                sp,
+                options.AuthorityUri);
+            return new IssuedTokenIdentityProvider(accessTokenProvider, options.ProfileUri);
+        }
+
+        private static IAccessTokenProvider ResolveAccessTokenProvider(
+            IServiceProvider sp,
+            string? authorityUri)
+        {
+            var providers = new List<IAccessTokenProvider>();
+            foreach (IAccessTokenProvider provider in sp.GetServices<IAccessTokenProvider>())
+            {
+                providers.Add(provider);
+            }
+
+            if (string.IsNullOrWhiteSpace(authorityUri))
+            {
+                if (providers.Count == 1)
+                {
+                    return providers[0];
+                }
+                if (providers.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        "IssuedToken identity requires a registered IAccessTokenProvider.");
+                }
+
+                throw new InvalidOperationException(
+                    "IssuedToken.AuthorityUri must be configured when multiple " +
+                    "IAccessTokenProvider services are registered.");
+            }
+
+            foreach (IAccessTokenProvider provider in providers)
+            {
+                if (string.Equals(
+                    provider.AuthorityUri,
+                    authorityUri,
+                    StringComparison.Ordinal))
+                {
+                    return provider;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "No IAccessTokenProvider is registered for AuthorityUri '" +
+                authorityUri + "'.");
+        }
+
+        private static void ApplyConfiguredOrder(
+            List<IClientIdentityProvider> providers,
+            IList<string> order)
+        {
+            if (order == null || order.Count == 0 || providers.Count < 2)
+            {
+                return;
+            }
+
+            var priorities = new Dictionary<UserTokenType, int>();
+            for (int i = 0; i < order.Count; i++)
+            {
+                if (TryMapIdentityName(order[i], out UserTokenType tokenType) &&
+                    !priorities.ContainsKey(tokenType))
+                {
+                    priorities.Add(tokenType, i);
+                }
+            }
+
+            if (priorities.Count == 0)
+            {
+                return;
+            }
+
+            var ordered = new List<ProviderOrder>(providers.Count);
+            for (int i = 0; i < providers.Count; i++)
+            {
+                ordered.Add(new ProviderOrder(
+                    providers[i],
+                    GetProviderPriority(providers[i], priorities),
+                    i));
+            }
+
+            ordered.Sort(CompareProviderOrder);
+            providers.Clear();
+            foreach (ProviderOrder item in ordered)
+            {
+                providers.Add(item.Provider);
+            }
+        }
+
+        private static int GetProviderPriority(
+            IClientIdentityProvider provider,
+            Dictionary<UserTokenType, int> priorities)
+        {
+            int priority = int.MaxValue;
+            foreach (UserTokenType tokenType in provider.SupportedTokenTypes)
+            {
+                if (priorities.TryGetValue(tokenType, out int candidate) &&
+                    candidate < priority)
+                {
+                    priority = candidate;
+                }
+            }
+            return priority;
+        }
+
+        private static int CompareProviderOrder(ProviderOrder left, ProviderOrder right)
+        {
+            int priority = left.Priority.CompareTo(right.Priority);
+            return priority != 0
+                ? priority
+                : left.OriginalIndex.CompareTo(right.OriginalIndex);
+        }
+
+        private static bool TryMapIdentityName(string name, out UserTokenType tokenType)
+        {
+            if (string.Equals(name, "X509", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "Certificate", StringComparison.OrdinalIgnoreCase))
+            {
+                tokenType = UserTokenType.Certificate;
+                return true;
+            }
+
+            if (Enum.TryParse(name, true, out UserTokenType parsed))
+            {
+                tokenType = parsed;
+                return true;
+            }
+
+            tokenType = default;
+            return false;
+        }
+
+        private static void ValidateRequired(string value, string optionName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException(
+                    optionName + " must be configured.");
+            }
+        }
+
+        private static bool HasConfiguredIdentity(OpcUaClientIdentityOptions options)
+        {
+            return !options.EnableAnonymous ||
+                options.UserName != null ||
+                options.X509 != null ||
+                options.IssuedToken != null ||
+                options.Order.Count > 0;
+        }
+
+        private readonly struct ProviderOrder
+        {
+            public ProviderOrder(
+                IClientIdentityProvider provider,
+                int priority,
+                int originalIndex)
+            {
+                Provider = provider;
+                Priority = priority;
+                OriginalIndex = originalIndex;
+            }
+
+            public IClientIdentityProvider Provider { get; }
+
+            public int Priority { get; }
+
+            public int OriginalIndex { get; }
+        }
+
         private static void RegisterCoreServices(IServiceCollection services)
         {
             services.TryAddSingleton<ITelemetryContext>(
@@ -406,10 +774,18 @@ namespace Microsoft.Extensions.DependencyInjection
                     providers.Add(provider);
                 }
 
+                OpcUaClientOptions clientOptions =
+                    m_sp.GetRequiredService<OpcUaClientOptions>();
+                OpcUaClientIdentityOptions identityOptions =
+                    m_sp.GetService<OpcUaClientIdentityOptions>() ?? clientOptions.Identity;
                 if (providers.Count == 0)
                 {
-                    return null;
+                    return HasConfiguredIdentity(identityOptions)
+                        ? BuildConfiguredIdentityProvider(m_sp, identityOptions)
+                        : null;
                 }
+
+                ApplyConfiguredOrder(providers, identityOptions.Order);
                 if (providers.Count == 1)
                 {
                     return providers[0];

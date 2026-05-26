@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,43 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Top-level options for
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
+    /// Username/password client identity options.
     /// </summary>
-    public sealed class OpcUaClientOptions
+    public sealed class UserNameClientIdentityOptions
     {
         /// <summary>
-        /// The application configuration. Required.
+        /// User name to send with the selected username token policy.
         /// </summary>
-        public ApplicationConfiguration? Configuration { get; set; }
+        public string UserName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Default <see cref="ManagedSessionOptions"/> used by the
-        /// session factory delegate registered with DI.
+        /// Secret name used to resolve the password.
         /// </summary>
-        public ManagedSessionOptions Session { get; set; } = new();
+        public string SecretName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Client identity-provider configuration bound from
-        /// <c>OpcUa:Client:Identity</c>.
+        /// Secret store type used to route the password lookup.
         /// </summary>
-        public OpcUaClientIdentityOptions Identity { get; set; } = new();
+        public string SecretStoreType { get; set; } = string.Empty;
 
         /// <summary>
-        /// Client-side reverse-connect configuration. When non-null the
-        /// DI container registers a singleton
-        /// <see cref="ReverseConnectManager"/> that binds the configured
-        /// listener endpoints on first resolution and surfaces inbound
-        /// reverse-hello messages via
-        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
-        /// The values are also written into
-        /// <see cref="ClientConfiguration.ReverseConnect"/> on
-        /// <see cref="Configuration"/> so the same data is observable
-        /// through the application-configuration surface.
+        /// Optional secret store path or sub-scope.
         /// </summary>
-        public ClientReverseConnectOptions? ReverseConnect { get; set; }
+        public string? SecretStorePath { get; set; }
     }
 }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,43 +27,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
+using System.Collections.Generic;
+
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Top-level options for
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
+    /// Client identity provider options bound from <c>OpcUa:Client:Identity</c>.
     /// </summary>
-    public sealed class OpcUaClientOptions
+    public sealed class OpcUaClientIdentityOptions
     {
         /// <summary>
-        /// The application configuration. Required.
+        /// Enables anonymous user-token support.
         /// </summary>
-        public ApplicationConfiguration? Configuration { get; set; }
+        public bool EnableAnonymous { get; set; } = true;
 
         /// <summary>
-        /// Default <see cref="ManagedSessionOptions"/> used by the
-        /// session factory delegate registered with DI.
+        /// Username/password identity configuration.
         /// </summary>
-        public ManagedSessionOptions Session { get; set; } = new();
+        public UserNameClientIdentityOptions? UserName { get; set; }
 
         /// <summary>
-        /// Client identity-provider configuration bound from
-        /// <c>OpcUa:Client:Identity</c>.
+        /// X.509 user-certificate identity configuration.
         /// </summary>
-        public OpcUaClientIdentityOptions Identity { get; set; } = new();
+        public X509ClientIdentityOptions? X509 { get; set; }
 
         /// <summary>
-        /// Client-side reverse-connect configuration. When non-null the
-        /// DI container registers a singleton
-        /// <see cref="ReverseConnectManager"/> that binds the configured
-        /// listener endpoints on first resolution and surfaces inbound
-        /// reverse-hello messages via
-        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
-        /// The values are also written into
-        /// <see cref="ClientConfiguration.ReverseConnect"/> on
-        /// <see cref="Configuration"/> so the same data is observable
-        /// through the application-configuration surface.
+        /// Issued-token identity configuration.
         /// </summary>
-        public ClientReverseConnectOptions? ReverseConnect { get; set; }
+        public IssuedTokenClientIdentityOptions? IssuedToken { get; set; }
+
+        /// <summary>
+        /// Preferred provider order. Empty preserves registration order.
+        /// </summary>
+        public IList<string> Order { get; } = [];
     }
 }

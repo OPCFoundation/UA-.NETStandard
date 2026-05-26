@@ -78,6 +78,37 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Adds username/password identity support from options.
+        /// </summary>
+        public CompositeClientIdentityProviderBuilder AddUserName(
+            Action<UserNameClientIdentityOptions> configure,
+            ISecretRegistry registry)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (registry == null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            var options = new UserNameClientIdentityOptions();
+            configure(options);
+            ValidateRequired(options.UserName, "UserName.UserName");
+            ValidateRequired(options.SecretName, "UserName.SecretName");
+            ValidateRequired(options.SecretStoreType, "UserName.SecretStoreType");
+
+            return AddUserName(
+                options.UserName,
+                registry,
+                new SecretIdentifier(
+                    options.SecretName,
+                    options.SecretStoreType,
+                    options.SecretStorePath));
+        }
+
+        /// <summary>
         /// Adds X.509 user-certificate identity support.
         /// </summary>
         public CompositeClientIdentityProviderBuilder AddX509(
@@ -92,6 +123,54 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Adds X.509 user-certificate identity support from options.
+        /// </summary>
+        public CompositeClientIdentityProviderBuilder AddX509(
+            Action<X509ClientIdentityOptions> configure,
+            ICertificateProvider provider,
+            ICertificatePasswordProvider passwords)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            if (passwords == null)
+            {
+                throw new ArgumentNullException(nameof(passwords));
+            }
+
+            var options = new X509ClientIdentityOptions();
+            configure(options);
+            ValidateRequired(options.StoreType, "X509.StoreType");
+            ValidateRequired(options.StorePath, "X509.StorePath");
+            if (!string.IsNullOrWhiteSpace(options.SubjectName) &&
+                !string.IsNullOrWhiteSpace(options.Thumbprint))
+            {
+                throw new InvalidOperationException(
+                    "X509.SubjectName and X509.Thumbprint are mutually exclusive.");
+            }
+            if (string.IsNullOrWhiteSpace(options.SubjectName) &&
+                string.IsNullOrWhiteSpace(options.Thumbprint))
+            {
+                throw new InvalidOperationException(
+                    "Either X509.SubjectName or X509.Thumbprint must be configured.");
+            }
+
+            var certificateId = new CertificateIdentifier
+            {
+                StoreType = options.StoreType,
+                StorePath = options.StorePath,
+                SubjectName = options.SubjectName,
+                Thumbprint = options.Thumbprint
+            };
+            return AddX509(certificateId, passwords, provider);
+        }
+
+        /// <summary>
         /// Adds issued-token identity support.
         /// </summary>
         public CompositeClientIdentityProviderBuilder AddIssuedToken(
@@ -101,11 +180,42 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Adds issued-token identity support from options.
+        /// </summary>
+        public CompositeClientIdentityProviderBuilder AddIssuedToken(
+            Action<IssuedTokenClientIdentityOptions> configure,
+            IAccessTokenProvider provider)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            var options = new IssuedTokenClientIdentityOptions();
+            configure(options);
+            ValidateRequired(options.ProfileUri, "IssuedToken.ProfileUri");
+            return Add(new IssuedTokenIdentityProvider(provider, options.ProfileUri));
+        }
+
+        /// <summary>
         /// Creates the composite provider.
         /// </summary>
         public CompositeClientIdentityProvider Build()
         {
             return new CompositeClientIdentityProvider(m_providers);
+        }
+
+        private static void ValidateRequired(string value, string optionName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException(
+                    optionName + " must be configured.");
+            }
         }
 
         private readonly List<IClientIdentityProvider> m_providers = [];

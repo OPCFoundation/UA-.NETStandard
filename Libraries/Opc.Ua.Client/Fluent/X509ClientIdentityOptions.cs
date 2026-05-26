@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,43 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Top-level options for
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
+    /// X.509 user-certificate client identity options.
     /// </summary>
-    public sealed class OpcUaClientOptions
+    public sealed class X509ClientIdentityOptions
     {
         /// <summary>
-        /// The application configuration. Required.
+        /// Certificate store type.
         /// </summary>
-        public ApplicationConfiguration? Configuration { get; set; }
+        public string StoreType { get; set; } = string.Empty;
 
         /// <summary>
-        /// Default <see cref="ManagedSessionOptions"/> used by the
-        /// session factory delegate registered with DI.
+        /// Certificate store path.
         /// </summary>
-        public ManagedSessionOptions Session { get; set; } = new();
+        public string StorePath { get; set; } = string.Empty;
 
         /// <summary>
-        /// Client identity-provider configuration bound from
-        /// <c>OpcUa:Client:Identity</c>.
+        /// Certificate subject name selector.
         /// </summary>
-        public OpcUaClientIdentityOptions Identity { get; set; } = new();
+        public string? SubjectName { get; set; }
 
         /// <summary>
-        /// Client-side reverse-connect configuration. When non-null the
-        /// DI container registers a singleton
-        /// <see cref="ReverseConnectManager"/> that binds the configured
-        /// listener endpoints on first resolution and surfaces inbound
-        /// reverse-hello messages via
-        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
-        /// The values are also written into
-        /// <see cref="ClientConfiguration.ReverseConnect"/> on
-        /// <see cref="Configuration"/> so the same data is observable
-        /// through the application-configuration surface.
+        /// Certificate thumbprint selector.
         /// </summary>
-        public ClientReverseConnectOptions? ReverseConnect { get; set; }
+        public string? Thumbprint { get; set; }
     }
 }
