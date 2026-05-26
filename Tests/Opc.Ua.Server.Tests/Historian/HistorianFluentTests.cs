@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -170,7 +171,7 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
-        public void HistorizeWithCapabilitiesAdvertisedByProvider()
+        public async Task HistorizeWithCapabilitiesAdvertisedByProvider()
         {
             (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
             var custom = new HistorianNodeCapabilities
@@ -188,8 +189,8 @@ namespace Opc.Ua.Server.Tests.Historian
             IHistorianProvider? provider =
                 ((IHistorianRegistryProvider)server).HistorianRegistry.Resolve(v.NodeId);
             Assert.That(provider, Is.Not.Null);
-            HistorianNodeCapabilities advertised = provider!
-                .GetCapabilitiesAsync(v.NodeId, default).AsTask().GetAwaiter().GetResult();
+            HistorianNodeCapabilities advertised = await provider!
+                .GetCapabilitiesAsync(v.NodeId, default).ConfigureAwait(false);
             Assert.That(advertised.InsertAnnotation, Is.True);
             Assert.That(advertised.DeleteRaw, Is.False,
                 "Provider should advertise the capability set the user supplied verbatim.");

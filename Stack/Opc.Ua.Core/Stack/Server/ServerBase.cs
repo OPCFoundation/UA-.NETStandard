@@ -257,7 +257,7 @@ namespace Opc.Ua
             }
 
             // do any pre-startup processing
-            OnServerStarting(configuration);
+            await OnServerStartingAsync(configuration, cancellationToken).ConfigureAwait(false);
 
             // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
@@ -324,7 +324,7 @@ namespace Opc.Ua
             }
 
             // do any pre-startup processing
-            OnServerStarting(configuration);
+            await OnServerStartingAsync(configuration, cancellationToken).ConfigureAwait(false);
 
             // initialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
@@ -1383,6 +1383,39 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Called before the server starts (async). Performs cert-manager
+        /// initialization and certificate loading prior to invoking the
+        /// synchronous <see cref="OnServerStarting"/> hook.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable
+        /// configuration information for a UA application.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual async ValueTask OnServerStartingAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            if (CertificateManager == null)
+            {
+                if (configuration.CertificateManager is CertificateManager configManager)
+                {
+                    CertificateManager = configManager;
+                }
+                else
+                {
+                    CertificateManager = CertificateManagerFactory.Create(
+                        configuration.SecurityConfiguration,
+                        m_telemetry);
+                }
+                await CertificateManager.LoadApplicationCertificatesAsync(
+                    configuration.SecurityConfiguration,
+                    configuration.ApplicationUri,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            OnServerStarting(configuration);
+        }
+
+        /// <summary>
         /// Called before the server starts.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
@@ -1429,29 +1462,11 @@ namespace Opc.Ua
                 }
             }
 
-            // Initialize the new CertificateManager first so the provider can
-            // be backed by it (registry-mode). Reuse the manager already
-            // configured on the ApplicationConfiguration when available so that
-            // a single CertificateManager instance is shared by the
-            // ApplicationInstance and the ServerBase. Without this, GDS
-            // ApplyChanges would update the ApplicationInstance's manager but
-            // the server-side change observer would never fire because it is
-            // subscribed to a different (server-owned) instance.
             if (CertificateManager == null)
             {
-                if (configuration.CertificateManager is CertificateManager configManager)
-                {
-                    CertificateManager = configManager;
-                }
-                else
-                {
-                    CertificateManager = CertificateManagerFactory.Create(
-                        configuration.SecurityConfiguration,
-                        m_telemetry);
-                }
-                CertificateManager.LoadApplicationCertificatesAsync(
-                    configuration.SecurityConfiguration,
-                    configuration.ApplicationUri).GetAwaiter().GetResult();
+                throw ServiceResultException.ConfigurationError(
+                    "CertificateManager has not been initialised; " +
+                    "use StartAsync or call OnServerStartingAsync to load application certificates before invoking OnServerStarting.");
             }
 
             // load the instance certificate.

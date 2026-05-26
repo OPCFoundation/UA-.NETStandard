@@ -72,29 +72,21 @@ namespace Opc.Ua.Server
             // If maxTrustListSize is 0 (unlimited), use a sensible default limit
             m_maxTrustListSize = maxTrustListSize > 0 ? maxTrustListSize : kDefaultMaxTrustListSize;
 
-            node.Open!.OnCall = new OpenMethodStateMethodCallHandler(Open);
-            node.Open.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OpenAsync);
-            node.OpenWithMasks!.OnCall
-                = new OpenWithMasksMethodStateMethodCallHandler(OpenWithMasks);
-            node.OpenWithMasks.OnCallAsync
+            // Only the async handlers are wired. The TrustList's only in-tree
+            // containers (ConfigurationNodeManager and ApplicationsNodeManager)
+            // both dispatch through the IAsyncNodeManager/ICallAsyncNodeManager
+            // path, so MethodState.CallAsync routes calls to OnCallAsync.
+            node.Open!.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OpenAsync);
+            node.OpenWithMasks!.OnCallAsync
                 = new OpenWithMasksMethodStateMethodAsyncCallHandler(OpenWithMasksAsync);
-            node.Read!.OnCall = new ReadMethodStateMethodCallHandler(Read);
-            node.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(ReadAsync);
-            node.Write!.OnCall = new WriteMethodStateMethodCallHandler(Write);
-            node.Write.OnCallAsync = new WriteMethodStateMethodAsyncCallHandler(WriteAsync);
-            node.Close!.OnCall = new CloseMethodStateMethodCallHandler(Close);
-            node.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(CloseAsync);
-            node.CloseAndUpdate!.OnCall
-                = new CloseAndUpdateMethodStateMethodCallHandler(CloseAndUpdate);
-            node.CloseAndUpdate.OnCallAsync
+            node.Read!.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(ReadAsync);
+            node.Write!.OnCallAsync = new WriteMethodStateMethodAsyncCallHandler(WriteAsync);
+            node.Close!.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(CloseAsync);
+            node.CloseAndUpdate!.OnCallAsync
                 = new CloseAndUpdateMethodStateMethodAsyncCallHandler(CloseAndUpdateAsync);
-            node.AddCertificate!.OnCall
-                = new AddCertificateMethodStateMethodCallHandler(AddCertificate);
-            node.AddCertificate.OnCallAsync
+            node.AddCertificate!.OnCallAsync
                 = new AddCertificateMethodStateMethodAsyncCallHandler(AddCertificateAsync);
-            node.RemoveCertificate!.OnCall
-                = new RemoveCertificateMethodStateMethodCallHandler(RemoveCertificate);
-            node.RemoveCertificate.OnCallAsync
+            node.RemoveCertificate!.OnCallAsync
                 = new RemoveCertificateMethodStateMethodAsyncCallHandler(RemoveCertificateAsync);
         }
 
@@ -106,23 +98,6 @@ namespace Opc.Ua.Server
         public delegate void SecureAccess(
             ISystemContext context,
             CertificateStoreIdentifier trustedStore);
-
-        private ServiceResult Open(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            byte mode,
-            ref uint fileHandle)
-        {
-            OpenMethodStateResult result = OpenAsync(
-                context,
-                method,
-                objectId,
-                mode,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            fileHandle = result.FileHandle;
-            return result.ServiceResult;
-        }
 
         private ValueTask<OpenMethodStateResult> OpenAsync(
             ISystemContext context,
@@ -138,23 +113,6 @@ namespace Opc.Ua.Server
                 (OpenFileMode)mode,
                 TrustListMasks.All,
                 cancellationToken);
-        }
-
-        private ServiceResult OpenWithMasks(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint masks,
-            ref uint fileHandle)
-        {
-            OpenWithMasksMethodStateResult result = OpenWithMasksAsync(
-                context,
-                method,
-                objectId,
-                masks,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            fileHandle = result.FileHandle;
-            return result.ServiceResult;
         }
 
         private async ValueTask<OpenWithMasksMethodStateResult> OpenWithMasksAsync(
@@ -312,25 +270,6 @@ namespace Opc.Ua.Server
             };
         }
 
-        private ServiceResult Read(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint fileHandle,
-            int length,
-            ref ByteString data)
-        {
-            ReadMethodStateResult result = ReadAsync(
-                context,
-                method,
-                objectId,
-                fileHandle,
-                length,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            data = result.Data;
-            return result.ServiceResult;
-        }
-
         private ValueTask<ReadMethodStateResult> ReadAsync(
             ISystemContext context,
             MethodState method,
@@ -397,23 +336,6 @@ namespace Opc.Ua.Server
             });
         }
 
-        private ServiceResult Write(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint fileHandle,
-            ByteString data)
-        {
-            WriteMethodStateResult result = WriteAsync(
-                context,
-                method,
-                objectId,
-                fileHandle,
-                data,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            return result.ServiceResult;
-        }
-
         private ValueTask<WriteMethodStateResult> WriteAsync(
             ISystemContext context,
             MethodState method,
@@ -466,21 +388,6 @@ namespace Opc.Ua.Server
             });
         }
 
-        private ServiceResult Close(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint fileHandle)
-        {
-            CloseMethodStateResult result = CloseAsync(
-                context,
-                method,
-                objectId,
-                fileHandle,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            return result.ServiceResult;
-        }
-
         private ValueTask<CloseMethodStateResult> CloseAsync(
             ISystemContext context,
             MethodState method,
@@ -520,23 +427,6 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = ServiceResult.Good
             });
-        }
-
-        private ServiceResult CloseAndUpdate(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint fileHandle,
-            ref bool restartRequired)
-        {
-            CloseAndUpdateMethodStateResult result = CloseAndUpdateAsync(
-                context,
-                method,
-                objectId,
-                fileHandle,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            restartRequired = result.ApplyChangesRequired;
-            return result.ServiceResult;
         }
 
         private async ValueTask<CloseAndUpdateMethodStateResult> CloseAndUpdateAsync(
@@ -694,23 +584,6 @@ namespace Opc.Ua.Server
             };
         }
 
-        private ServiceResult AddCertificate(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            ByteString certificate,
-            bool isTrustedCertificate)
-        {
-            AddCertificateMethodStateResult result = AddCertificateAsync(
-                context,
-                method,
-                objectId,
-                certificate,
-                isTrustedCertificate,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            return result.ServiceResult;
-        }
-
         private async ValueTask<AddCertificateMethodStateResult> AddCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -799,23 +672,6 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = result
             };
-        }
-
-        private ServiceResult RemoveCertificate(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            string thumbprint,
-            bool isTrustedCertificate)
-        {
-            RemoveCertificateMethodStateResult result = RemoveCertificateAsync(
-                context,
-                method,
-                objectId,
-                thumbprint,
-                isTrustedCertificate,
-                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-            return result.ServiceResult;
         }
 
         private async ValueTask<RemoveCertificateMethodStateResult> RemoveCertificateAsync(
