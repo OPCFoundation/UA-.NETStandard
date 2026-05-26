@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Alarms
     /// <c>ObjectId</c>, so a server that does not expose condition
     /// instances as addressable nodes still services these calls.
     /// </remarks>
-    public class AlarmClient :
+    public partial class AlarmClient :
         IAlarmOperations,
         IDialogConditionOperations
     {

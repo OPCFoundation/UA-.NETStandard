@@ -544,6 +544,8 @@ session.
 - [IEC 62682](https://webstore.iec.ch/publication/61256) — Management of alarm systems for the process industries
 - [ISA 18.2](https://www.isa.org/products/ansi-isa-18-2-2016-management-of-alarm-systems-) — Management of Alarm Systems for the Process Industries
 - [Streaming Subscriptions](StreamingSubscription.md) — `IStreamingSubscription`
+- [State Machines](StateMachines.md) — generic Part 16 state-machine API used by
+  `AlarmClient.GetShelvingStateAsync` / `ObserveShelvingTransitionsAsync`
 - [Model Change Tracking](ModelChangeTracking.md) — client cache invalidation on address-space changes
 - Source: `Libraries/Opc.Ua.Server/Alarms/`, `Libraries/Opc.Ua.Client/Alarms/`,
   `Stack/Opc.Ua.Core.Types/State/AlarmConditionState.Methods.cs`

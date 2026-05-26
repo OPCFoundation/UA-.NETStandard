@@ -1561,6 +1561,31 @@ ReferenceAdded/ReferenceDeleted/DataTypeChanged`, `Drain`,
 `HasPending`) is also available for manual control — see
 [Model Change Tracking](ModelChangeTracking.md).
 
+### Part 16 state machines (additive)
+
+Version 1.6 adds a generic, extensible Part 16 state-machine API
+on top of the source-generated `*TypeClient` proxies (client) and
+the existing `FiniteStateMachineState` server base:
+
+* **Client**: extension methods on
+  `StateMachineTypeClient` / `FiniteStateMachineTypeClient`
+  (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`,
+  `WaitForStateAsync`, `GetAvailableStatesAsync`,
+  `GetAvailableTransitionsAsync`). Vendor proxies that derive from
+  these base proxies inherit the API automatically.
+* **Server**: `StateMachineBuilder` + `FluentFiniteStateMachineState`
+  let vendors declare a Part 16 state machine without subclassing
+  `FiniteStateMachineState` and hand-rolling the four protected
+  table overrides.
+* **Alarms alignment**: `AlarmClient.GetShelvingStateAsync` /
+  `ObserveShelvingTransitionsAsync` surface the new API for the
+  `ShelvingState` child of every alarm condition.
+
+Purely additive — see [State Machines](StateMachines.md). The
+standard `ShelvedStateMachineState` / `ExclusiveLimitStateMachineState`
+/ `ProgramStateMachineState` server classes keep their hardcoded
+tables (authoritative for the standard NodeSet).
+
 ### Address-space model change tracking
 
 #### New `INodeCache.InvalidateNode` member

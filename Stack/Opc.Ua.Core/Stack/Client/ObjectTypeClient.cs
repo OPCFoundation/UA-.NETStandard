@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the underlying session used to invoke methods.
         /// </summary>
-        protected ISessionClient Session { get; }
+        public ISessionClient Session { get; }
 
         /// <summary>
         /// Gets the NodeId of the wrapped Object instance.
@@ -87,7 +87,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the telemetry context used for diagnostics.
         /// </summary>
-        protected ITelemetryContext Telemetry { get; }
+        public ITelemetryContext Telemetry { get; }
 
         /// <summary>
         /// Calls the method identified by <paramref name="methodId"/> on
