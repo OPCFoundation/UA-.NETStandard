@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -65,6 +66,8 @@ namespace Opc.Ua.Server
         private readonly Dictionary<string, NodeId> m_browseNameIndex
             = new(StringComparer.Ordinal);
 
+        private readonly RoleConfigurationOptions m_options;
+
         private uint m_nextDynamicId = 1;
         private bool m_disposed;
 
@@ -74,7 +77,19 @@ namespace Opc.Ua.Server
         /// Part 18 §4.3.
         /// </summary>
         public RoleManager()
+            : this(null)
         {
+        }
+
+        /// <summary>
+        /// Creates a new role manager with the supplied role-mapping options.
+        /// </summary>
+        /// <param name="options">Role criteria compatibility options. If
+        /// <c>null</c>, the corrected default behaviour is used.</param>
+        public RoleManager(RoleConfigurationOptions? options)
+        {
+            m_options = options ?? new RoleConfigurationOptions();
+
             // Anonymous role: identities = { Anonymous, AuthenticatedUser }
             AddBuiltInRole(s_anonymous, BrowseNames.WellKnownRole_Anonymous, isReserved: true)
                 .Identities.Add(new IdentityMappingRuleType
@@ -620,7 +635,7 @@ namespace Opc.Ua.Server
             m_lock.Dispose();
         }
 
-        private static bool RoleMatches(
+        private bool RoleMatches(
             MutableRole role,
             IUserIdentity identity,
             Certificate? clientCertificate,
@@ -688,7 +703,7 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        private static bool IdentityRuleMatches(
+        private bool IdentityRuleMatches(
             IdentityMappingRuleType rule,
             IUserIdentity identity,
             Certificate? clientCertificate,
@@ -701,6 +716,7 @@ namespace Opc.Ua.Server
         {
             UserTokenType tokenType = identity.TokenType;
             string criteria = rule.Criteria ?? string.Empty;
+            IIdentityClaims? claims = identity as IIdentityClaims;
 
             return rule.CriteriaType switch
             {
@@ -713,7 +729,9 @@ namespace Opc.Ua.Server
                 IdentityCriteriaType.X509Subject => clientCertificate != null &&
                     !string.IsNullOrEmpty(clientSubject) &&
                     string.Equals(clientSubject, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.Role => MatchesGrantedRole(criteria, rolesGrantedSoFar),
+                IdentityCriteriaType.Role => m_options.LegacyRoleCriteriaMatchesGrantedRoles
+                    ? MatchesGrantedRole(criteria, rolesGrantedSoFar)
+                    : claims != null && MatchClaimRole(claims, criteria),
                 // The certificate may advertise multiple ApplicationUris; any one
                 // matching the rule's criteria is sufficient.
                 IdentityCriteriaType.Application => clientCertificate != null &&
@@ -721,11 +739,35 @@ namespace Opc.Ua.Server
                     clientApplicationUris.Any(uri => string.Equals(uri, criteria, StringComparison.Ordinal)),
                 IdentityCriteriaType.TrustedApplication => clientCertificate != null &&
                     isSignedChannel,
-                // GroupId: requires an external authorization service / JWT
-                // groups claim; without one, the rule cannot match.
-                IdentityCriteriaType.GroupId => false,
+                IdentityCriteriaType.GroupId => claims != null &&
+                    claims.Groups.Contains(criteria, StringComparer.Ordinal),
                 _ => false
             };
+        }
+
+        /// <summary>
+        /// Matches a Part 18 §4.4.4 Role criterion against roles asserted in
+        /// an access token, including the optional <c>iss/roleName</c> prefix.
+        /// </summary>
+        private static bool MatchClaimRole(IIdentityClaims claims, string criteria)
+        {
+            if (string.IsNullOrEmpty(criteria))
+            {
+                return false;
+            }
+
+            int separator = criteria.LastIndexOf('/');
+            if (separator < 0)
+            {
+                return claims.Roles.Contains(criteria, StringComparer.Ordinal);
+            }
+
+            string issuer = criteria.Substring(0, separator);
+            string roleName = criteria.Substring(separator + 1);
+            return !string.IsNullOrEmpty(issuer) &&
+                !string.IsNullOrEmpty(roleName) &&
+                string.Equals(claims.Issuer, issuer, StringComparison.Ordinal) &&
+                claims.Roles.Contains(roleName, StringComparer.Ordinal);
         }
 
         private static bool MatchesGrantedRole(string criteria, IReadOnlyList<NodeId> rolesGrantedSoFar)

@@ -175,6 +175,33 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Configures the default role manager used by the hosted OPC UA server.
+        /// </summary>
+        /// <param name="builder">The server builder returned by
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="RoleConfigurationOptions"/>.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder ConfigureRoles(
+            this IOpcUaServerBuilder builder,
+            Action<RoleConfigurationOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            builder.Services.AddOptions<RoleConfigurationOptions>().Configure(configure);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a server-side identity authenticator and adds it to the server registry on startup.
         /// </summary>
         public static IOpcUaServerBuilder AddIdentityAuthenticator<
@@ -286,6 +313,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+            services.AddOptions<RoleConfigurationOptions>();
             services.AddHostedService<OpcUaServerHostedService>();
             OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
         }

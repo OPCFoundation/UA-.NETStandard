@@ -45,6 +45,7 @@
     - [User Identity Token Handlers](#user-identity-token-handlers)
       - [Forward-looking: pluggable identity providers (additive, not yet breaking)](#forward-looking-pluggable-identity-providers-additive-not-yet-breaking)
         - [P4 — Client identity provider + refresh](#p4--client-identity-provider--refresh)
+        - [Role criteria semantic change](#role-criteria-semantic-change)
     - [Configuration](#configuration)
       - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
       - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
@@ -709,8 +710,9 @@ public surface change.
 ### Forward-looking: pluggable identity providers (additive, not yet breaking)
 
 > **Status**: interfaces are additive. Client sessions can now use
-> `IClientIdentityProvider` for lazy activation and coordinated refresh.
-> See [Identity Providers](IdentityProviders.md)
+> `IClientIdentityProvider` for lazy activation and coordinated refresh;
+> role mapping now consumes `IIdentityClaims` for Part 18 §4.4.4
+> `GroupId` / `Role` criteria. See [Identity Providers](IdentityProviders.md)
 > for the full developer guide.
 
 A new `Opc.Ua.Identity` namespace in `Opc.Ua.Core` exposes a symmetric
@@ -731,15 +733,15 @@ Interfaces shipping in this release:
 | `IServerIdentityRegistry` / `ServerIdentityRegistry` | Composable dispatcher that picks the right authenticator by `(UserTokenType, IssuedTokenProfileUri)`. Returns `NotHandled` so the legacy event remains a fallback. | Server |
 | `ITokenIssuer` | Server-side token issuance — backs Part 12 v1.05 `AuthorizationServiceType.StartRequestToken` (P6). | Server |
 | `IIssuerKeyResolver` + `IssuerVerificationKey` | JWT signature verification over `RSA` / `ECDsa` with portable `byte[]` overloads. No `System.IdentityModel.Tokens.Jwt` dependency. AOT-friendly. | Server |
-| `IIdentityClaims` | Optional probe interface on an `IUserIdentity` that exposes OIDC / JWT claims (groups, roles, sub, iss). Will be used by `IRoleManager.ResolveGrantedRoles` to satisfy OPC 10000-18 §4.4.4 `GroupId` / `Role` criteria (currently both are broken). | Both |
+| `IIdentityClaims` | Optional probe interface on an `IUserIdentity` that exposes OIDC / JWT claims (groups, roles, sub, iss). `IRoleManager.ResolveGrantedRoles` uses it to satisfy OPC 10000-18 §4.4.4 `GroupId` / `Role` criteria. | Both |
 
-**No breaking changes in this release.** The
-`SessionManager.ImpersonateUser` event, the `new UserIdentity(...)`
+The `SessionManager.ImpersonateUser` event, the `new UserIdentity(...)`
 ctors, the `UserIdentity.CreateAsync(...)` factory, and every existing
-extension hook continue to work unchanged. Adoption is opt-in — you
-can author and register one `IUserTokenAuthenticator` (or one
-`IClientIdentityProvider`) at a time while the rest of the auth path
-stays on the event.
+authentication extension hook continue to work unchanged. Adoption is
+incremental — you can author and register one `IUserTokenAuthenticator`
+(or one `IClientIdentityProvider`) at a time while the rest of the auth
+path stays on the event. Role mapping has one semantic correction; see
+[Role criteria semantic change](#role-criteria-semantic-change).
 
 #### P4 — Client identity provider + refresh
 
@@ -783,6 +785,26 @@ var options = new ManagedSessionOptions
 };
 ```
 
+#### Role criteria semantic change
+
+**Breaking semantic correction**: `IdentityCriteriaType.Role` now follows
+OPC 10000-18 §4.4.4. The rule criteria is matched against a role asserted
+inside the access token (`IIdentityClaims.Roles`), not against OPC UA role
+NodeIds that were already granted earlier in the same resolution pass.
+Bare criteria such as `Engineer` match a bare access-token role claim;
+prefixed criteria such as `https://idp.example.com/Engineer` match only
+when `IIdentityClaims.Issuer` is `https://idp.example.com` and the token
+asserts the `Engineer` role. `IdentityCriteriaType.GroupId` now likewise
+matches `IIdentityClaims.Groups`.
+
+Set `RoleConfigurationOptions.LegacyRoleCriteriaMatchesGrantedRoles = true`
+(or, with Generic Host, call
+`ConfigureRoles(o => o.LegacyRoleCriteriaMatchesGrantedRoles = true)`) only
+when an existing deployment intentionally relied on the historical,
+spec-incorrect behaviour. Clear the flag after migrating those rules to
+access-token role claims; the compatibility switch is intended to last for
+one release.
+
 **What to expect in future releases:**
 
 * A future release will route `SessionManager.ActivateSessionAsync`
@@ -793,16 +815,6 @@ var options = new ManagedSessionOptions
   `[Obsolete]` once the in-box default authenticators have shipped and
   the `ReferenceServer` sample has migrated. The event remains
   functional after the obsoletion.
-* `IRoleManager.ResolveGrantedRoles` will probe `IIdentityClaims` and
-  correctly evaluate Part 18 §4.4.4 `GroupId` / `Role` criteria. The
-  current `Role` criteria handling matches *already-granted OPC UA
-  role NodeIds* — that is contrary to the spec, which says the rule
-  matches a role asserted **in the access token** (optionally prefixed
-  with `iss/`). When the fix lands, a
-  `Compat.LegacyRoleCriteriaMatchesGrantedRoles=true` flag will
-  preserve the historical behaviour for one release; existing
-  identity-mapping rules that relied on the buggy semantics should be
-  reviewed before that release.
 * The client side now has `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)`
   and `ManagedSessionOptions.IdentityProvider`. Future releases will migrate
   the in-box samples to these APIs.
