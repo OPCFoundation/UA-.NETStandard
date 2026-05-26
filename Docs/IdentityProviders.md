@@ -6,10 +6,15 @@
 > proactive refresh, Part 18 §4.4.4 `GroupId` / `Role` claim mapping,
 > in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, and full
 > `Microsoft.Extensions.DependencyInjection` integration with
-> `appsettings.json` binding) is available. Reference-server migration
-> (P5), `AuthorizationServiceType` modernisation (P6), KeyCredential
-> push + bridge (P7), and sibling-package design (P8) remain. See
-> [Roadmap](#roadmap) below.
+> `appsettings.json` binding) is available. One known gap: the GDS
+> hosted service does not yet consume identity-authenticator
+> registrations deposited through the GDS forwarders — the forwarders
+> exist and tests verify they produce the correct DI registrations,
+> but `GdsServerHostedService` needs to read them at startup (tracked
+> alongside the P5–P8 reference-server migration). Reference-server
+> migration (P5), `AuthorizationServiceType` modernisation (P6),
+> KeyCredential push + bridge (P7), and sibling-package design (P8)
+> remain. See [Roadmap](#roadmap) below.
 
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
@@ -80,8 +85,13 @@ services.AddOpcUa()
     });
 ```
 
-Equivalent `appsettings.json` (picked up automatically by
-`builder.AddServer(IConfiguration)`):
+Equivalent `appsettings.json` picked up automatically by
+`builder.AddServer(IConfiguration)` — that overload walks the section
+and (in addition to binding `OpcUaServerOptions.Identity`) **also**
+registers each `Issuers[]` entry through `AddJwtIssuer(...)` and binds
+the `Roles` sub-section into `RoleConfigurationOptions`. The
+`Identity:Defaults` block is honoured because `AddServer(IConfiguration)`
+enables the configured-default-authenticators bridge:
 
 ```json
 {
@@ -103,42 +113,73 @@ Equivalent `appsettings.json` (picked up automatically by
             "JwksUri":   "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys"
           }
         ]
+      },
+      "Roles": {
+        "LegacyRoleCriteriaMatchesGrantedRoles": false
       }
     }
   }
 }
 ```
 
+> The `AddServer(Action<OpcUaServerOptions>)` overload (code-only) does
+> NOT wire the default authenticators or JWT issuers from
+> `OpcUaServerOptions.Identity` — that bridge is enabled only on the
+> `AddServer(IConfiguration)` path. With the `Action<>` overload, call
+> `AddDefaultIdentityAuthenticators(opt => …)`, `AddJwtIssuer(opt => …)`,
+> and `ConfigureRoles(opt => …)` explicitly.
+
 ### Client example
 
+The composite builder API takes the supporting service (an
+`ISecretRegistry` for passwords, an `IAccessTokenProvider` for
+issued tokens) directly:
+
 ```csharp
+ISecretRegistry secrets = /* register and populate elsewhere */;
+IAccessTokenProvider tokens = new JwtBearerAccessTokenProvider(
+    authorityUri: "https://issuer.example",
+    tokenBytes:   System.Text.Encoding.UTF8.GetBytes(jwt),
+    expiresAt:    DateTime.UtcNow.AddMinutes(55));
+
 services.AddOpcUa()
     .AddClient(opt =>
     {
         opt.SessionName = "MyClient";
     })
-    .AddAccessTokenProvider(new JwtBearerAccessTokenProvider(
-        authorityUri: "https://issuer.example",
-        tokenBytes:   System.Text.Encoding.UTF8.GetBytes(jwt),
-        expiresAt:    DateTime.UtcNow.AddMinutes(55)))
+    .AddAccessTokenProvider(tokens)
     .AddIdentityProvider(builder =>
     {
         builder.AddAnonymous();
-        builder.AddUserName(opt =>
-        {
-            opt.UserName        = "alice";
-            opt.SecretName      = "alice-password";
-            opt.SecretStoreType = "InMemory";
-        });
-        builder.AddIssuedToken(opt =>
-        {
-            opt.ProfileUri   = Profiles.JwtUserToken;
-            opt.AuthorityUri = "https://issuer.example";
-        });
+        builder.AddUserName(
+            configure: opt =>
+            {
+                opt.UserName        = "alice";
+                opt.SecretName      = "alice-password";
+                opt.SecretStoreType = "InMemory";
+            },
+            registry: secrets);
+        builder.AddIssuedToken(
+            configure: opt => opt.ProfileUri = Profiles.JwtUserToken,
+            provider:  tokens);
     });
 ```
 
-Equivalent `appsettings.json`:
+Or, drive the composite from configuration — the `IConfiguration`
+overload resolves the `ISecretRegistry` and `IAccessTokenProvider`
+from DI:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(configuration.GetSection("OpcUa:Client"))
+    .AddAccessTokenProvider(tokens)
+    .AddIdentityProvider(configuration.GetSection("OpcUa:Client:Identity"));
+```
+
+The matching `appsettings.json` (only the `AddIdentityProvider(section)`
+overload picks this up — `AddClient(IConfiguration)` alone binds the
+section into `OpcUaClientOptions.Identity` but does not register
+providers):
 
 ```json
 {
@@ -162,6 +203,11 @@ Equivalent `appsettings.json`:
 }
 ```
 
+`IssuedToken.AuthorityUri` selects which registered
+`IAccessTokenProvider` to use (matched against
+`IAccessTokenProvider.AuthorityUri`). Omit it if exactly one provider
+is registered.
+
 ### GDS example
 
 `IGdsServerBuilder` forwards every identity-related extension to the
@@ -178,6 +224,19 @@ services.AddOpcUa()
     .ConfigureRoles(opt => opt.LegacyRoleCriteriaMatchesGrantedRoles = false);
 ```
 
+> **Known gap**: `GdsServerHostedService` does not yet consume the
+> identity-authenticator registrations the forwarders deposit into DI.
+> The forwarder API exists and the registrations are produced (verified
+> by `GdsIdentityForwardingTests`), but the GDS hosted service needs to
+> be extended to read them and call
+> `IServerInternal.IdentityRegistry.Register(...)` during start-up the
+> same way `OpcUaServerHostedService` does. Until that ships, configure
+> identity by reaching the regular server builder directly (the
+> `AddIdentityAuthenticator<T>` registrations themselves are valid and
+> can be picked up by a custom GDS hosted service derived from
+> `GlobalDiscoverySampleServer`). Tracked under the P5–P8 reference-
+> server migration work in `plan.md`.
+
 ### Configuration reference
 
 | Key | Type | Default |
@@ -191,7 +250,12 @@ services.AddOpcUa()
 | `OpcUa:Server:Identity:Defaults:UserCertificateTrustList` | `TrustListIdentifier` | `Users` |
 | `OpcUa:Server:Identity:Issuers[].IssuerUri` | `string` | — (required) |
 | `OpcUa:Server:Identity:Issuers[].JwksUri` | `string?` | `null` |
-| `OpcUa:Server:Identity:Issuers[].StaticKeys[]` | `JwtStaticKeyOptions[]` | `[]` |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[].Kid` | `string?` | `null` |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[].Algorithm` | `string` | `RS256` |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[].RsaPublicKeyPem` | `string?` | `null` (SPKI or PKCS#1 PEM) |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[].RsaModulus` / `.RsaExponent` | `string?` | base64url-encoded JWK `n` / `e` |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[].EcCurve` | `string?` | `P-256` / `P-384` / `P-521` |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[].EcX` / `.EcY` | `string?` | base64url-encoded JWK `x` / `y` |
 | `OpcUa:Server:Identity:Issuers[].Algorithms` | `string[]` | `["RS256"]` |
 | `OpcUa:Server:Identity:Issuers[].Audience` | `string?` | `null` (falls back to `Defaults.ExpectedAudience`) |
 | `OpcUa:Server:Roles:LegacyRoleCriteriaMatchesGrantedRoles` | `bool` | `false` (spec-correct) |
@@ -207,6 +271,16 @@ services.AddOpcUa()
 | `OpcUa:Client:Identity:IssuedToken:ProfileUri` | `string` | `http://opcfoundation.org/UA/UserToken#JWT` |
 | `OpcUa:Client:Identity:IssuedToken:AuthorityUri` | `string?` | `null` (selects the matching `IAccessTokenProvider` by `AuthorityUri`) |
 | `OpcUa:Client:Identity:Order` | `string[]` | `[]` (registration order) |
+
+#### What gets auto-wired
+
+| Section | Path that auto-wires it | Notes |
+|---|---|---|
+| `OpcUa:Server:Identity:Defaults` | `AddServer(IConfiguration)` | The hosted service materialises the four default authenticators from the bound flags. |
+| `OpcUa:Server:Identity:Issuers[]` | `AddServer(IConfiguration)` | Each entry is registered through `AddJwtIssuer(...)` at builder time. |
+| `OpcUa:Server:Roles` | `AddServer(IConfiguration)` | Bound into `RoleConfigurationOptions`. |
+| `OpcUa:Client:Identity` | `AddClient(IConfiguration)` (fallback at session-factory resolution) | The session factory builds a composite from the bound options when **no** `IClientIdentityProvider` is registered AND at least one non-default field is set (any of `UserName`, `X509`, `IssuedToken`, `Order`, or `EnableAnonymous = false`). Pass the section to `.AddIdentityProvider(IConfiguration)` for an explicit eager registration. |
+| `OpcUa:Server:Identity:*` from the `AddServer(Action<>)` path | **Not auto-wired** | Use the explicit fluent calls (`AddDefaultIdentityAuthenticators`, `AddJwtIssuer`, `ConfigureRoles`). |
 
 See [Dependency Injection](DependencyInjection.md) for the full
 `services.AddOpcUa()` surface and how options flow through

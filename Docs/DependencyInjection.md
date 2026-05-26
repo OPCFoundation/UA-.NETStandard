@@ -323,6 +323,15 @@ Configuration binding under `OpcUa:Server:Identity`:
 }
 ```
 
+The `AddServer(IConfiguration)` overload walks this layout and (in
+addition to binding `OpcUaServerOptions.Identity`) registers each
+`Issuers[]` entry through `AddJwtIssuer(...)`, binds the `Roles`
+sub-section into `RoleConfigurationOptions`, and enables the bridge
+that creates the four default authenticators from the bound
+`Identity:Defaults` flags. The `AddServer(Action<OpcUaServerOptions>)`
+code-only overload does NOT auto-wire any of these — call the fluent
+extensions explicitly when configuring from code.
+
 The `IUserDatabase` / `IUserManagement` services needed by the
 UserNamePassword authenticator must be registered separately — the
 hosted service skips that authenticator if neither is in DI. See
@@ -411,6 +420,26 @@ When `Order` is non-empty the composite presents providers in that
 preference; otherwise registration order is preserved. The `IssuedToken`
 entry resolves the registered `IAccessTokenProvider` whose
 `AuthorityUri` matches.
+
+> **How the section is consumed.** `AddClient(IConfiguration)` binds
+> `OpcUa:Client:Identity` into `OpcUaClientOptions.Identity`. At
+> session-factory resolution time, if no `IClientIdentityProvider`
+> service is explicitly registered, the factory builds a composite
+> from the bound options provided at least one non-default field is
+> set (any of `UserName`, `X509`, `IssuedToken`, `Order`, or
+> `EnableAnonymous = false`). Setting only `EnableAnonymous = true`
+> (the default) does NOT register any provider — call
+> `.AddIdentityProvider(configuration.GetSection("OpcUa:Client:Identity"))`
+> if you want an explicit eager registration regardless of the option
+> values, or use the
+> `AddIdentityProvider(Action<CompositeClientIdentityProviderBuilder>)`
+> overload for code-only configuration. The composite-builder
+> shortcuts (`.AddUserName(configure, registry)`,
+> `.AddX509(configure, provider, passwords)`, and
+> `.AddIssuedToken(configure, provider)`) each take the supporting
+> service (an `ISecretRegistry`, `ICertificateProvider` +
+> `ICertificatePasswordProvider`, or `IAccessTokenProvider`) as a
+> second positional argument.
 
 `ManagedSessionOptions.Identity` (eager) is `[Obsolete]` — set
 `ManagedSessionOptions.IdentityProvider` instead for lazy / refreshable
@@ -567,6 +596,17 @@ services
 
 `Action<>` and `IConfiguration` overloads are available for
 `ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+
+> **Known gap**: `GdsServerHostedService` does not yet consume the
+> identity-authenticator registrations the forwarders deposit into DI.
+> The forwarder API exists and the registrations are produced (verified
+> by `GdsIdentityForwardingTests`), but the GDS hosted service needs to
+> be extended to read them and register them on
+> `IServerInternal.IdentityRegistry` during startup the same way
+> `OpcUaServerHostedService` does. Tracked alongside the P5–P8
+> reference-server migration in `plan.md`. The forwarders are safe to
+> call today; they just don't take effect at runtime yet.
+
 See [Identity Providers](IdentityProviders.md) for the full reference.
 
 ## LDS Server
