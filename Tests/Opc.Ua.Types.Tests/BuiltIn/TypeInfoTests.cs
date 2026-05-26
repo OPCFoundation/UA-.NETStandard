@@ -1798,7 +1798,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             public object Clone()
             {
                 return new GenericEncodeable<T>();
-                throw new NotImplementedException();
             }
         }
     }
