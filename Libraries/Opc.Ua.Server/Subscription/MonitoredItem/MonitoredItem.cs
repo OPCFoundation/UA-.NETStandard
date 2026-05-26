@@ -43,6 +43,52 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem
     {
+
+        /// <summary>
+        /// Initializes the object with its node type.
+        /// </summary>
+        [Obsolete("Use the overload that accepts IAsyncNodeManager.")]
+        public MonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            object managerHandle,
+            uint subscriptionId,
+            uint id,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double sourceSamplingInterval,
+            bool createDurable = false)
+            : this(
+                server,
+                nodeManager.ToAsyncNodeManager(),
+                managerHandle,
+                subscriptionId,
+                id,
+                itemToMonitor,
+                diagnosticsMasks,
+                timestampsToReturn,
+                monitoringMode,
+                clientHandle,
+                originalFilter,
+                filterToUse,
+                range,
+                samplingInterval,
+                queueSize,
+                discardOldest,
+                sourceSamplingInterval,
+                createDurable)
+        {
+        }
+
         /// <summary>
         /// Initializes the object with its node type.
         /// </summary>

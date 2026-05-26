@@ -209,7 +209,14 @@ namespace Opc.Ua.Server
                 EventTargetSnapshot = eventTarget
             };
 
-            m_channel.Writer.TryWrite(notification);
+            try
+            {
+                m_channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+            }
+            catch (ChannelClosedException)
+            {
+                // The channel was completed during shutdown/disposal.
+            }
         }
 
         /// <summary>
@@ -262,17 +269,12 @@ namespace Opc.Ua.Server
                     DateTime.UtcNow,
                     DateTime.MinValue);
 
-                (ServiceResult readError, dataValue) = node.ReadAttributeAsync(
+                (ServiceResult readError, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
                     context,
                     attributeId,
                     default,
                     QualifiedName.Null,
                     dataValue).AsTask().GetAwaiter().GetResult();
-
-                if (!ServiceResult.IsBad(readError))
-                {
-                    attributeSnapshots[attributeId] = dataValue;
-                }
             }
 
             var notification = new DataChangeSnapshot
