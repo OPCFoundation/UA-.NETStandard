@@ -133,6 +133,11 @@ namespace Opc.Ua.Server.Hosting
             = new List<OpcUaUserTokenPolicy>();
 
         /// <summary>
+        /// Server-side identity authenticators and trusted JWT issuers.
+        /// </summary>
+        public OpcUaServerIdentityOptions Identity { get; set; } = new();
+
+        /// <summary>
         /// Maximum message size advertised on the transport, in bytes.
         /// When <c>null</c>, the stack default is kept. When set, the value
         /// is forwarded to

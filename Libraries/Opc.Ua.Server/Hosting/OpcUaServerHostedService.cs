@@ -260,6 +260,8 @@ namespace Opc.Ua.Server.Hosting
                     m_services,
                     certificateValidator))
                 {
+                    // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
+                    // validates one fixed IssuerUri through its resolver.
                     m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
                 }
             }

@@ -29,7 +29,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -107,7 +112,7 @@ namespace Microsoft.Extensions.DependencyInjection
             EnsureFirstRegistration(builder.Services);
 
             builder.Services.AddOptions<OpcUaServerOptions>().Configure(configure);
-            RegisterCommonServices(builder.Services);
+            RegisterCommonServices(builder.Services, enableConfiguredIdentityAuthenticators: false);
 
             return new OpcUaServerBuilder(builder.Services);
         }
@@ -168,8 +173,25 @@ namespace Microsoft.Extensions.DependencyInjection
 
             EnsureFirstRegistration(builder.Services);
 
-            builder.Services.AddOptions<OpcUaServerOptions>().Bind(section);
-            RegisterCommonServices(builder.Services);
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options => BindOpcUaServerOptions(options, section));
+
+            IConfigurationSection rolesSection = section.GetSection("Roles");
+            if (rolesSection.Exists())
+            {
+                builder.Services.AddOptions<RoleConfigurationOptions>().Bind(rolesSection);
+            }
+
+            IConfigurationSection identitySection = section.GetSection("Identity");
+            if (identitySection.Exists())
+            {
+                foreach (IConfigurationSection issuerSection in identitySection.GetSection("Issuers").GetChildren())
+                {
+                    RegisterJwtIssuer(builder.Services, BindJwtIssuerOptions(issuerSection));
+                }
+            }
+
+            RegisterCommonServices(builder.Services, identitySection.Exists());
 
             return new OpcUaServerBuilder(builder.Services);
         }
@@ -198,6 +220,31 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             builder.Services.AddOptions<RoleConfigurationOptions>().Configure(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Configures the default role manager from a configuration section.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="section">Configuration section bound to <see cref="RoleConfigurationOptions"/>.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder ConfigureRoles(
+            this IOpcUaServerBuilder builder,
+            IConfiguration section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            builder.Services.AddOptions<RoleConfigurationOptions>().Bind(section);
             return builder;
         }
 
@@ -238,12 +285,93 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new DefaultAuthenticatorOptions();
             configure(options);
-            builder.Services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
+            RegisterDefaultIdentityAuthenticators(builder.Services, options);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the built-in identity authenticators from a configuration section.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="section">Configuration section bound to <see cref="DefaultAuthenticatorOptions"/>.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddDefaultIdentityAuthenticators(
+            this IOpcUaServerBuilder builder,
+            IConfiguration section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            DefaultAuthenticatorOptions options = BindDefaultAuthenticatorOptions(section);
+            RegisterDefaultIdentityAuthenticators(builder.Services, options);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a trusted JWT issuer from code.
+        /// </summary>
+        /// <remarks>
+        /// When both <see cref="JwtIssuerOptions.JwksUri"/> and static keys are supplied,
+        /// the registered resolver queries JWKS first and static keys second so online
+        /// key rotation wins while inline keys remain available as a fallback.
+        /// </remarks>
+        public static IOpcUaServerBuilder AddJwtIssuer(
+            this IOpcUaServerBuilder builder,
+            Action<JwtIssuerOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new JwtIssuerOptions();
+            configure(options);
+            RegisterJwtIssuer(builder.Services, options);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a trusted JWT issuer from a configuration section.
+        /// </summary>
+        public static IOpcUaServerBuilder AddJwtIssuer(
+            this IOpcUaServerBuilder builder,
+            IConfiguration section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            RegisterJwtIssuer(builder.Services, BindJwtIssuerOptions(section));
+            return builder;
+        }
+
+        private static void RegisterDefaultIdentityAuthenticators(
+            IServiceCollection services,
+            DefaultAuthenticatorOptions options)
+        {
+            services.AddSingleton<OpcUaServerDefaultIdentityAuthenticatorsMarker>();
+            services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
                 (sp, certificateValidator) => CreateDefaultIdentityAuthenticators(
                     sp,
                     certificateValidator,
                     options)));
-            return builder;
         }
 
         private static IEnumerable<IUserTokenAuthenticator> CreateDefaultIdentityAuthenticators(
@@ -284,14 +412,41 @@ namespace Microsoft.Extensions.DependencyInjection
 
             if (options.EnableJwt)
             {
-                IIssuerKeyResolver? keyResolver = options.IssuerKeyResolver ??
-                    services.GetService<IIssuerKeyResolver>();
-                if (keyResolver != null && !string.IsNullOrEmpty(options.ExpectedAudience))
+                if (options.IssuerKeyResolver != null)
                 {
-                    yield return new JwtAuthenticator(
-                        keyResolver,
-                        options.ExpectedAudience,
-                        options.ClockSkewTolerance);
+                    if (!string.IsNullOrEmpty(options.ExpectedAudience))
+                    {
+                        yield return new JwtAuthenticator(
+                            options.IssuerKeyResolver,
+                            options.ExpectedAudience,
+                            options.ClockSkewTolerance);
+                    }
+                    yield break;
+                }
+
+                bool haveIssuerRegistrations = false;
+                foreach (JwtIssuerRegistration registration in services.GetServices<JwtIssuerRegistration>())
+                {
+                    haveIssuerRegistrations = true;
+                    string? audience = registration.Audience ?? options.ExpectedAudience;
+                    if (!string.IsNullOrEmpty(audience))
+                    {
+                        yield return new JwtAuthenticator(
+                            registration.KeyResolver,
+                            audience,
+                            options.ClockSkewTolerance);
+                    }
+                }
+
+                if (!haveIssuerRegistrations && !string.IsNullOrEmpty(options.ExpectedAudience))
+                {
+                    foreach (IIssuerKeyResolver keyResolver in services.GetServices<IIssuerKeyResolver>())
+                    {
+                        yield return new JwtAuthenticator(
+                            keyResolver,
+                            options.ExpectedAudience,
+                            options.ClockSkewTolerance);
+                    }
                 }
             }
         }
@@ -309,13 +464,513 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<OpcUaServerRegistrationMarker>();
         }
 
-        private static void RegisterCommonServices(IServiceCollection services)
+        private static void RegisterCommonServices(
+            IServiceCollection services,
+            bool enableConfiguredIdentityAuthenticators)
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
             services.AddOptions<RoleConfigurationOptions>();
+            if (enableConfiguredIdentityAuthenticators)
+            {
+                services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
+                    (sp, certificateValidator) =>
+                    {
+                        if (sp.GetService<OpcUaServerDefaultIdentityAuthenticatorsMarker>() != null)
+                        {
+                            return Array.Empty<IUserTokenAuthenticator>();
+                        }
+
+                        OpcUaServerOptions options = sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;
+                        return CreateDefaultIdentityAuthenticators(
+                            sp,
+                            certificateValidator,
+                            options.Identity.Defaults);
+                    }));
+            }
             services.AddHostedService<OpcUaServerHostedService>();
             OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
+        }
+
+        private static void BindOpcUaServerOptions(OpcUaServerOptions options, IConfiguration section)
+        {
+            BindString(section, nameof(OpcUaServerOptions.ApplicationName), value => options.ApplicationName = value);
+            BindString(section, nameof(OpcUaServerOptions.ApplicationUri), value => options.ApplicationUri = value);
+            BindString(section, nameof(OpcUaServerOptions.ProductUri), value => options.ProductUri = value);
+            BindString(section, nameof(OpcUaServerOptions.SubjectName), value => options.SubjectName = value);
+            BindString(section, nameof(OpcUaServerOptions.PkiRoot), value => options.PkiRoot = value);
+            BindString(section, nameof(OpcUaServerOptions.RegistrationEndpointUrl),
+                value => options.RegistrationEndpointUrl = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.AutoAcceptUntrustedCertificates),
+                value => options.AutoAcceptUntrustedCertificates = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.DiagnosticsEnabled),
+                value => options.DiagnosticsEnabled = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.IncludeSignAndEncryptPolicies),
+                value => options.IncludeSignAndEncryptPolicies = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.IncludeUnsecurePolicyNone),
+                value => options.IncludeUnsecurePolicyNone = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.IncludeEccPolicies),
+                value => options.IncludeEccPolicies = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.RejectSHA1Certificates),
+                value => options.RejectSHA1Certificates = value);
+            BindUInt32(section, nameof(OpcUaServerOptions.MaxByteStringLength),
+                value => options.MaxByteStringLength = value);
+            BindUInt32(section, nameof(OpcUaServerOptions.MaxArrayLength),
+                value => options.MaxArrayLength = value);
+            BindNullableInt32(section, nameof(OpcUaServerOptions.MaxMessageSize),
+                value => options.MaxMessageSize = value);
+            BindNullableInt32(section, nameof(OpcUaServerOptions.OperationTimeoutMs),
+                value => options.OperationTimeoutMs = value);
+            BindUInt16(section, nameof(OpcUaServerOptions.MinCertificateKeySize),
+                value => options.MinCertificateKeySize = value);
+
+            BindEndpointUrls(options, section.GetSection(nameof(OpcUaServerOptions.EndpointUrls)));
+            BindUserTokenPolicies(options, section.GetSection(nameof(OpcUaServerOptions.UserTokenPolicies)));
+            BindReverseConnect(options, section.GetSection(nameof(OpcUaServerOptions.ReverseConnect)));
+            BindOperationLimits(options, section.GetSection(nameof(OpcUaServerOptions.OperationLimits)));
+            BindIdentity(options, section.GetSection(nameof(OpcUaServerOptions.Identity)));
+        }
+
+        private static void BindEndpointUrls(OpcUaServerOptions options, IConfigurationSection section)
+        {
+            if (!section.Exists())
+            {
+                return;
+            }
+
+            options.EndpointUrls.Clear();
+            foreach (IConfigurationSection child in section.GetChildren())
+            {
+                if (!string.IsNullOrEmpty(child.Value))
+                {
+                    options.EndpointUrls.Add(child.Value);
+                }
+            }
+        }
+
+        private static void BindUserTokenPolicies(OpcUaServerOptions options, IConfigurationSection section)
+        {
+            if (!section.Exists())
+            {
+                return;
+            }
+
+            options.UserTokenPolicies.Clear();
+            foreach (IConfigurationSection child in section.GetChildren())
+            {
+                var policy = new OpcUaUserTokenPolicy();
+                string? tokenType = child[nameof(OpcUaUserTokenPolicy.TokenType)];
+                if (!string.IsNullOrEmpty(tokenType) &&
+                    Enum.TryParse(tokenType, ignoreCase: true, out UserTokenType parsedTokenType))
+                {
+                    policy.TokenType = parsedTokenType;
+                }
+                options.UserTokenPolicies.Add(policy);
+            }
+        }
+
+        private static void BindReverseConnect(OpcUaServerOptions options, IConfigurationSection section)
+        {
+            if (!section.Exists())
+            {
+                return;
+            }
+
+            var reverseConnect = new ServerReverseConnectOptions();
+            BindInt32(section, nameof(ServerReverseConnectOptions.ConnectIntervalMs),
+                value => reverseConnect.ConnectIntervalMs = value);
+            BindInt32(section, nameof(ServerReverseConnectOptions.ConnectTimeoutMs),
+                value => reverseConnect.ConnectTimeoutMs = value);
+            BindInt32(section, nameof(ServerReverseConnectOptions.RejectTimeoutMs),
+                value => reverseConnect.RejectTimeoutMs = value);
+
+            foreach (IConfigurationSection child in section.GetSection(nameof(ServerReverseConnectOptions.Clients)).GetChildren())
+            {
+                var client = new ServerReverseConnectClientOptions();
+                BindString(child, nameof(ServerReverseConnectClientOptions.EndpointUrl),
+                    value => client.EndpointUrl = value);
+                BindInt32(child, nameof(ServerReverseConnectClientOptions.Timeout), value => client.Timeout = value);
+                BindInt32(child, nameof(ServerReverseConnectClientOptions.MaxSessionCount),
+                    value => client.MaxSessionCount = value);
+                BindBoolean(child, nameof(ServerReverseConnectClientOptions.Enabled), value => client.Enabled = value);
+                reverseConnect.Clients.Add(client);
+            }
+
+            options.ReverseConnect = reverseConnect;
+        }
+
+        private static void BindOperationLimits(OpcUaServerOptions options, IConfigurationSection section)
+        {
+            if (!section.Exists())
+            {
+                return;
+            }
+
+            var limits = new OperationLimitsOptions();
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerRead), value => limits.MaxNodesPerRead = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerHistoryReadData),
+                value => limits.MaxNodesPerHistoryReadData = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerHistoryReadEvents),
+                value => limits.MaxNodesPerHistoryReadEvents = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerWrite), value => limits.MaxNodesPerWrite = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerHistoryUpdateData),
+                value => limits.MaxNodesPerHistoryUpdateData = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerHistoryUpdateEvents),
+                value => limits.MaxNodesPerHistoryUpdateEvents = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerMethodCall),
+                value => limits.MaxNodesPerMethodCall = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerBrowse), value => limits.MaxNodesPerBrowse = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerRegisterNodes),
+                value => limits.MaxNodesPerRegisterNodes = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerTranslateBrowsePathsToNodeIds),
+                value => limits.MaxNodesPerTranslateBrowsePathsToNodeIds = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxNodesPerNodeManagement),
+                value => limits.MaxNodesPerNodeManagement = value);
+            BindUInt32(section, nameof(OperationLimitsOptions.MaxMonitoredItemsPerCall),
+                value => limits.MaxMonitoredItemsPerCall = value);
+            options.OperationLimits = limits;
+        }
+
+        private static void BindIdentity(OpcUaServerOptions options, IConfigurationSection section)
+        {
+            if (!section.Exists())
+            {
+                return;
+            }
+
+            var identity = new OpcUaServerIdentityOptions
+            {
+                Defaults = BindDefaultAuthenticatorOptions(section.GetSection(nameof(OpcUaServerIdentityOptions.Defaults)))
+            };
+            foreach (IConfigurationSection issuerSection in section.GetSection(nameof(OpcUaServerIdentityOptions.Issuers)).GetChildren())
+            {
+                identity.Issuers.Add(BindJwtIssuerOptions(issuerSection));
+            }
+            options.Identity = identity;
+        }
+
+        private static DefaultAuthenticatorOptions BindDefaultAuthenticatorOptions(IConfiguration section)
+        {
+            var options = new DefaultAuthenticatorOptions();
+            BindBoolean(section, nameof(DefaultAuthenticatorOptions.EnableAnonymous),
+                value => options.EnableAnonymous = value);
+            BindBoolean(section, nameof(DefaultAuthenticatorOptions.EnableUserNamePassword),
+                value => options.EnableUserNamePassword = value);
+            BindBoolean(section, nameof(DefaultAuthenticatorOptions.EnableX509),
+                value => options.EnableX509 = value);
+            BindBoolean(section, nameof(DefaultAuthenticatorOptions.EnableJwt),
+                value => options.EnableJwt = value);
+
+            string? expectedAudience = section[nameof(DefaultAuthenticatorOptions.ExpectedAudience)];
+            if (!string.IsNullOrEmpty(expectedAudience))
+            {
+                options.ExpectedAudience = expectedAudience;
+            }
+
+            string? clockSkew = section[nameof(DefaultAuthenticatorOptions.ClockSkewTolerance)];
+            if (!string.IsNullOrEmpty(clockSkew) &&
+                TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew))
+            {
+                options.ClockSkewTolerance = parsedClockSkew;
+            }
+
+            string? trustList = section[nameof(DefaultAuthenticatorOptions.UserCertificateTrustList)] ??
+                section.GetSection(nameof(DefaultAuthenticatorOptions.UserCertificateTrustList))["Name"];
+            if (!string.IsNullOrEmpty(trustList))
+            {
+                options.UserCertificateTrustList = new TrustListIdentifier(trustList);
+            }
+
+            return options;
+        }
+
+        private static void BindString(
+            IConfiguration section,
+            string key,
+            Action<string> assign)
+        {
+            string? value = section[key];
+            if (!string.IsNullOrEmpty(value))
+            {
+                assign(value);
+            }
+        }
+
+        private static void BindBoolean(
+            IConfiguration section,
+            string key,
+            Action<bool> assign)
+        {
+            string? value = section[key];
+            if (!string.IsNullOrEmpty(value) && bool.TryParse(value, out bool parsed))
+            {
+                assign(parsed);
+            }
+        }
+
+        private static void BindInt32(
+            IConfiguration section,
+            string key,
+            Action<int> assign)
+        {
+            string? value = section[key];
+            if (!string.IsNullOrEmpty(value) && int.TryParse(
+                value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out int parsed))
+            {
+                assign(parsed);
+            }
+        }
+
+        private static void BindNullableInt32(
+            IConfiguration section,
+            string key,
+            Action<int?> assign)
+        {
+            string? value = section[key];
+            if (!string.IsNullOrEmpty(value) && int.TryParse(
+                value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out int parsed))
+            {
+                assign(parsed);
+            }
+        }
+
+        private static void BindUInt32(
+            IConfiguration section,
+            string key,
+            Action<uint> assign)
+        {
+            string? value = section[key];
+            if (!string.IsNullOrEmpty(value) && uint.TryParse(
+                value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out uint parsed))
+            {
+                assign(parsed);
+            }
+        }
+
+        private static void BindUInt16(
+            IConfiguration section,
+            string key,
+            Action<ushort> assign)
+        {
+            string? value = section[key];
+            if (!string.IsNullOrEmpty(value) && ushort.TryParse(
+                value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out ushort parsed))
+            {
+                assign(parsed);
+            }
+        }
+
+        private static JwtIssuerOptions BindJwtIssuerOptions(IConfiguration section)
+        {
+            var options = new JwtIssuerOptions();
+            IConfigurationSection algorithmsSection = section.GetSection("Algorithms");
+            if (algorithmsSection.Exists())
+            {
+                options.Algorithms.Clear();
+            }
+
+            section.Bind(options);
+            if (options.Algorithms.Count == 0)
+            {
+                options.Algorithms.Add("RS256");
+            }
+            return options;
+        }
+
+        private static void RegisterJwtIssuer(IServiceCollection services, JwtIssuerOptions options)
+        {
+            options.Validate();
+            ValidateAlgorithms(options);
+
+            if (!string.IsNullOrEmpty(options.JwksUri))
+            {
+                services.TryAddSingleton(TimeProvider.System);
+                services.TryAddSingleton<HttpClient>();
+            }
+
+            string registrationId = Guid.NewGuid().ToString("N");
+            services.AddSingleton(sp => new JwtIssuerRegistration(
+                registrationId,
+                options.Audience,
+                CreateIssuerKeyResolver(sp, options)));
+            services.AddSingleton<IIssuerKeyResolver>(sp =>
+                GetJwtIssuerRegistration(sp, registrationId).KeyResolver);
+        }
+
+        private static JwtIssuerRegistration GetJwtIssuerRegistration(
+            IServiceProvider services,
+            string registrationId)
+        {
+            foreach (JwtIssuerRegistration registration in services.GetServices<JwtIssuerRegistration>())
+            {
+                if (string.Equals(registration.Id, registrationId, StringComparison.Ordinal))
+                {
+                    return registration;
+                }
+            }
+
+            throw new InvalidOperationException("JWT issuer registration was not found.");
+        }
+
+        private static IIssuerKeyResolver CreateIssuerKeyResolver(
+            IServiceProvider services,
+            JwtIssuerOptions options)
+        {
+            var resolvers = new List<IIssuerKeyResolver>();
+            if (!string.IsNullOrEmpty(options.JwksUri))
+            {
+                resolvers.Add(new JwksIssuerKeyResolver(
+                    options.IssuerUri,
+                    options.JwksUri,
+                    services.GetRequiredService<HttpClient>(),
+                    services.GetRequiredService<TimeProvider>(),
+                    TimeSpan.FromMinutes(5),
+                    options.GetEffectiveAlgorithms()));
+            }
+
+            if (options.StaticKeys.Count != 0)
+            {
+                resolvers.Add(new StaticIssuerKeyResolver(
+                    options.IssuerUri,
+                    CreateStaticVerificationKeys(options)));
+            }
+
+            return resolvers.Count == 1
+                ? resolvers[0]
+                : new CombinedIssuerKeyResolver(options.IssuerUri, resolvers);
+        }
+
+        private static ReadOnlyCollection<IssuerVerificationKey> CreateStaticVerificationKeys(
+            JwtIssuerOptions options)
+        {
+            IReadOnlyList<string> allowedAlgorithms = options.GetEffectiveAlgorithms();
+            var keys = new List<IssuerVerificationKey>();
+            foreach (JwtStaticKeyOptions keyOptions in options.StaticKeys)
+            {
+                if (!ContainsOrdinal(allowedAlgorithms, keyOptions.Algorithm))
+                {
+                    throw new InvalidOperationException(
+                        $"Static JWT key algorithm '{keyOptions.Algorithm}' is not allowed for issuer '{options.IssuerUri}'.");
+                }
+                keys.Add(keyOptions.CreateVerificationKey());
+            }
+            return keys.AsReadOnly();
+        }
+
+        private static void ValidateAlgorithms(JwtIssuerOptions options)
+        {
+            IReadOnlyList<string> algorithms = options.GetEffectiveAlgorithms();
+            foreach (string algorithm in algorithms)
+            {
+                if (string.IsNullOrWhiteSpace(algorithm))
+                {
+                    throw new InvalidOperationException(
+                        $"JWT issuer '{options.IssuerUri}' contains an empty algorithm entry.");
+                }
+            }
+        }
+
+        private static bool ContainsOrdinal(IReadOnlyList<string> values, string value)
+        {
+            foreach (string item in values)
+            {
+                if (string.Equals(item, value, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private sealed class JwtIssuerRegistration : IDisposable
+        {
+            public JwtIssuerRegistration(
+                string id,
+                string? audience,
+                IIssuerKeyResolver keyResolver)
+            {
+                Id = id;
+                Audience = audience;
+                KeyResolver = keyResolver;
+            }
+
+            public string Id { get; }
+
+            public string? Audience { get; }
+
+            public IIssuerKeyResolver KeyResolver { get; }
+
+            public void Dispose()
+            {
+                (KeyResolver as IDisposable)?.Dispose();
+            }
+        }
+
+        private sealed class CombinedIssuerKeyResolver : IIssuerKeyResolver, IDisposable
+        {
+            private readonly IReadOnlyList<IIssuerKeyResolver> m_resolvers;
+            private bool m_disposed;
+
+            public CombinedIssuerKeyResolver(string issuerUri, IReadOnlyList<IIssuerKeyResolver> resolvers)
+            {
+                IssuerUri = issuerUri;
+                m_resolvers = resolvers;
+            }
+
+            public string IssuerUri { get; }
+
+            public async ValueTask<IReadOnlyList<IssuerVerificationKey>> GetKeysAsync(
+                string? keyId,
+                CancellationToken ct = default)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(CombinedIssuerKeyResolver));
+                }
+
+                var keys = new List<IssuerVerificationKey>();
+                foreach (IIssuerKeyResolver resolver in m_resolvers)
+                {
+                    IReadOnlyList<IssuerVerificationKey> resolved = await resolver
+                        .GetKeysAsync(keyId, ct)
+                        .ConfigureAwait(false);
+                    for (int i = 0; i < resolved.Count; i++)
+                    {
+                        keys.Add(resolved[i]);
+                    }
+                }
+                return keys.AsReadOnly();
+            }
+
+            public void Dispose()
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+
+                m_disposed = true;
+                foreach (IIssuerKeyResolver resolver in m_resolvers)
+                {
+                    (resolver as IDisposable)?.Dispose();
+                }
+            }
+        }
+
+        private sealed class OpcUaServerDefaultIdentityAuthenticatorsMarker
+        {
         }
 
         private sealed class OpcUaServerBuilder : IOpcUaServerBuilder
