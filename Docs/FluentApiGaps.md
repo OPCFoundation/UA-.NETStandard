@@ -1,9 +1,17 @@
-# Fluent API Gap Analysis — OPC 40223 Pumps Implementation
+# Fluent API Gap Analysis — OPC 40223 Pumps Implementation (Historical)
 
-> Findings from implementing the OPC UA Pumps companion specification
-> (OPC 40223) with the server fluent API + source generator.
-> **All 11 gaps closed.** This document is preserved as a historical
-> record of the gap analysis and the design decisions for each fix.
+> **STATUS:** Historical record. **All 11 gaps closed.** This document
+> is preserved for design rationale and to document the migration path
+> for any caller who used the pre-fix workarounds.
+>
+> For current usage documentation see:
+>
+> - [Source-generated NodeManagers — Building richer node managers](SourceGeneratedNodeManagers.md#building-richer-node-managers--the-fluent-extension-surface) — developer-facing how-to for each fluent extension.
+> - [Companion specification libraries](CompanionSpecLibraries.md) — packaging a companion spec as a model + server + client library trio (worked example: DI + Pumps).
+> - `Applications/MinimalPumpServer/` — the running consumer that exercises every extension end-to-end.
+
+Findings from implementing the OPC UA Pumps companion specification
+(OPC 40223) with the server fluent API + source generator.
 
 ## Summary
 
