@@ -15,8 +15,8 @@ namespace Opc.Ua.Server.Tests.Alarms
         public void CurrentAlarmRateStartsAtZero()
         {
             var tracker = new AlarmRateTracker();
-            Assert.That(tracker.CurrentAlarmRate, Is.EqualTo(0L));
-            Assert.That(tracker.MaximumAlarmRate, Is.EqualTo(0L));
+            Assert.That(tracker.CurrentAlarmRate, Is.Zero);
+            Assert.That(tracker.MaximumAlarmRate, Is.Zero);
         }
 
         [Test]
@@ -37,7 +37,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             DateTime old = DateTime.UtcNow.AddSeconds(-10);
             tracker.RecordActivation(old);
 
-            Assert.That(tracker.CurrentAlarmRate, Is.EqualTo(0L));
+            Assert.That(tracker.CurrentAlarmRate, Is.Zero);
         }
 
         [Test]
@@ -64,8 +64,8 @@ namespace Opc.Ua.Server.Tests.Alarms
 
             tracker.Reset();
 
-            Assert.That(tracker.CurrentAlarmRate, Is.EqualTo(0L));
-            Assert.That(tracker.MaximumAlarmRate, Is.EqualTo(0L));
+            Assert.That(tracker.CurrentAlarmRate, Is.Zero);
+            Assert.That(tracker.MaximumAlarmRate, Is.Zero);
         }
     }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests.Alarms
         {
             var agg = new ModelChangeAggregator();
             ArrayOf<ModelChangeStructureDataType> changes = agg.Drain();
-            Assert.That(changes.Count, Is.EqualTo(0));
+            Assert.That(changes.Count, Is.Zero);
         }
 
         [Test]

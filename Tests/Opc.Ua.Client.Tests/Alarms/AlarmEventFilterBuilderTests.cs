@@ -28,7 +28,7 @@ namespace Opc.Ua.Client.Tests.Alarms
 
             Assert.That(filter, Is.Not.Null);
             Assert.That(filter.WhereClause, Is.Not.Null);
-            Assert.That(filter.WhereClause.Elements.Count, Is.EqualTo(0));
+            Assert.That(filter.WhereClause.Elements.Count, Is.Zero);
         }
 
         [Test]

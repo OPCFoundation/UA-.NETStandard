@@ -189,6 +189,30 @@ namespace Opc.Ua.Client.Alarms
             [QualifiedName.From(BrowseNames.DialogState), QualifiedName.From(BrowseNames.Id)],
             [QualifiedName.From(BrowseNames.Prompt)],
             [QualifiedName.From(BrowseNames.ResponseOptionSet)],
+            // LimitAlarmType fields
+            [QualifiedName.From(BrowseNames.HighHighLimit)],
+            [QualifiedName.From(BrowseNames.HighLimit)],
+            [QualifiedName.From(BrowseNames.LowLimit)],
+            [QualifiedName.From(BrowseNames.LowLowLimit)],
+            // ExclusiveLimitAlarmType fields
+            [QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState)],
+            [QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState), QualifiedName.From(BrowseNames.Id)],
+            // NonExclusiveLimitAlarmType fields
+            [QualifiedName.From(BrowseNames.HighHighState), QualifiedName.From(BrowseNames.Id)],
+            [QualifiedName.From(BrowseNames.HighState), QualifiedName.From(BrowseNames.Id)],
+            [QualifiedName.From(BrowseNames.LowState), QualifiedName.From(BrowseNames.Id)],
+            [QualifiedName.From(BrowseNames.LowLowState), QualifiedName.From(BrowseNames.Id)],
+            // OffNormalAlarmType field
+            [QualifiedName.From(BrowseNames.NormalState)],
+            // CertificateExpirationAlarmType fields
+            [QualifiedName.From(BrowseNames.ExpirationDate)],
+            [QualifiedName.From(BrowseNames.ExpirationLimit)],
+            [QualifiedName.From(BrowseNames.CertificateType)],
+            [QualifiedName.From(BrowseNames.Certificate)],
+            // DiscrepancyAlarmType fields
+            [QualifiedName.From(BrowseNames.TargetValueNode)],
+            [QualifiedName.From(BrowseNames.ExpectedTime)],
+            [QualifiedName.From(BrowseNames.Tolerance)],
         ];
 
         /// <summary>
@@ -275,34 +299,13 @@ namespace Opc.Ua.Client.Alarms
                 silenceStateId.HasValue || suppressedOrShelved.HasValue ||
                 inputNode != null)
             {
-                return new AlarmRecord
-                {
-                    EventId = eventId,
-                    EventType = eventType,
-                    SourceNode = sourceNode,
-                    SourceName = sourceName,
-                    Time = time,
-                    ReceiveTime = receiveTime,
-                    Message = message,
-                    Severity = severity,
-                    ConditionId = sourceNode,
-                    ConditionName = conditionName,
-                    BranchId = branchId,
-                    Retain = retain,
-                    EnabledStateId = enabledStateId,
-                    Quality = quality,
-                    Comment = comment,
-                    ClientUserId = clientUserId,
-                    AckedStateId = ackedStateId,
-                    ConfirmedStateId = confirmedStateId,
-                    ActiveStateId = activeStateId,
-                    InputNode = inputNode,
-                    SuppressedStateId = suppressedStateId,
-                    OutOfServiceStateId = outOfServiceStateId,
-                    LatchedStateId = latchedStateId,
-                    SilenceStateId = silenceStateId,
-                    SuppressedOrShelved = suppressedOrShelved,
-                };
+                return BuildAlarmRecord(
+                    fields, eventId, eventType, sourceNode, sourceName,
+                    time, receiveTime, message, severity, conditionName, branchId,
+                    retain, enabledStateId, quality, comment, clientUserId,
+                    ackedStateId, confirmedStateId,
+                    activeStateId, inputNode, suppressedStateId, outOfServiceStateId,
+                    latchedStateId, silenceStateId, suppressedOrShelved);
             }
 
             if (ackedStateId.HasValue || confirmedStateId.HasValue)
@@ -348,6 +351,195 @@ namespace Opc.Ua.Client.Alarms
                 Quality = quality,
                 Comment = comment,
                 ClientUserId = clientUserId,
+            };
+        }
+
+        /// <summary>
+        /// Builds the right <see cref="AlarmRecord"/> subtype based on
+        /// the populated fields (and falls back to <see cref="AlarmRecord"/>
+        /// when no subtype-specific fields are present).
+        /// </summary>
+        private static AlarmRecord BuildAlarmRecord(
+            IReadOnlyList<Variant> fields,
+            ByteString eventId, NodeId? eventType, NodeId? sourceNode,
+            string? sourceName, DateTime time, DateTime receiveTime,
+            LocalizedText message, ushort severity, string? conditionName,
+            NodeId? branchId, bool retain, bool? enabledStateId,
+            StatusCode quality, LocalizedText comment, string? clientUserId,
+            bool? ackedStateId, bool? confirmedStateId,
+            bool? activeStateId, NodeId? inputNode,
+            bool? suppressedStateId, bool? outOfServiceStateId,
+            bool? latchedStateId, bool? silenceStateId,
+            bool? suppressedOrShelved)
+        {
+            // LimitAlarm fields (27-30)
+            double? hhLimit = GetNullable<double>(fields, 27);
+            double? hLimit = GetNullable<double>(fields, 28);
+            double? lLimit = GetNullable<double>(fields, 29);
+            double? llLimit = GetNullable<double>(fields, 30);
+            // ExclusiveLimitAlarm fields (31-32)
+            LocalizedText currentLimitState = GetValue<LocalizedText>(fields, 31);
+            NodeId? currentLimitStateId = GetNodeId(fields, 32);
+            // NonExclusiveLimitAlarm fields (33-36)
+            bool? hhStateId = GetNullable<bool>(fields, 33);
+            bool? hStateId = GetNullable<bool>(fields, 34);
+            bool? lStateId = GetNullable<bool>(fields, 35);
+            bool? llStateId = GetNullable<bool>(fields, 36);
+            // OffNormalAlarm field (37)
+            NodeId? normalState = GetNodeId(fields, 37);
+            // CertificateExpirationAlarm fields (38-41)
+            DateTime? expirationDate = GetNullable<DateTime>(fields, 38);
+            double? expirationLimitMs = GetNullable<double>(fields, 39);
+            NodeId? certificateType = GetNodeId(fields, 40);
+            ByteString certificate = GetValue<ByteString>(fields, 41);
+            // DiscrepancyAlarm fields (42-44)
+            NodeId? targetValueNode = GetNodeId(fields, 42);
+            double? expectedTime = GetNullable<double>(fields, 43);
+            double? tolerance = GetNullable<double>(fields, 44);
+
+            // Choose the most specific record type based on which subtype-
+            // specific fields are populated. ExpirationDate/Certificate
+            // imply CertificateExpiration; NormalState alone implies
+            // OffNormal; CurrentLimitState* implies Exclusive; HighHighState
+            // etc. imply NonExclusive; HighHighLimit etc. imply Limit;
+            // TargetValueNode implies Discrepancy.
+            if (expirationDate.HasValue || !certificate.IsNull || certificateType != null)
+            {
+                return new CertificateExpirationAlarmRecord
+                {
+                    EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                    SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                    EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                    ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                    ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                    InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                    OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                    SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
+                    NormalState = normalState,
+                    ExpirationDate = expirationDate,
+                    ExpirationLimit = expirationLimitMs.HasValue
+                        ? TimeSpan.FromMilliseconds(expirationLimitMs.Value)
+                        : null,
+                    CertificateType = certificateType,
+                    Certificate = certificate,
+                };
+            }
+
+            if (targetValueNode != null || expectedTime.HasValue || tolerance.HasValue)
+            {
+                return new DiscrepancyAlarmRecord
+                {
+                    EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                    SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                    EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                    ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                    ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                    InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                    OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                    SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
+                    TargetValueNode = targetValueNode,
+                    ExpectedTime = expectedTime,
+                    Tolerance = tolerance,
+                };
+            }
+
+            if (normalState != null)
+            {
+                return new OffNormalAlarmRecord
+                {
+                    EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                    SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                    EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                    ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                    ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                    InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                    OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                    SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
+                    NormalState = normalState,
+                };
+            }
+
+            if (currentLimitStateId != null || !currentLimitState.IsNullOrEmpty)
+            {
+                return new ExclusiveLimitAlarmRecord
+                {
+                    EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                    SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                    EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                    ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                    ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                    InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                    OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                    SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
+                    HighHighLimit = hhLimit, HighLimit = hLimit,
+                    LowLimit = lLimit, LowLowLimit = llLimit,
+                    CurrentLimitState = currentLimitState,
+                    CurrentLimitStateId = currentLimitStateId,
+                };
+            }
+
+            if (hhStateId.HasValue || hStateId.HasValue ||
+                lStateId.HasValue || llStateId.HasValue)
+            {
+                return new NonExclusiveLimitAlarmRecord
+                {
+                    EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                    SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                    EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                    ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                    ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                    InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                    OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                    SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
+                    HighHighLimit = hhLimit, HighLimit = hLimit,
+                    LowLimit = lLimit, LowLowLimit = llLimit,
+                    HighHighStateId = hhStateId, HighStateId = hStateId,
+                    LowStateId = lStateId, LowLowStateId = llStateId,
+                };
+            }
+
+            if (hhLimit.HasValue || hLimit.HasValue ||
+                lLimit.HasValue || llLimit.HasValue)
+            {
+                return new LimitAlarmRecord
+                {
+                    EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                    SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                    EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                    ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                    ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                    InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                    OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                    SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
+                    HighHighLimit = hhLimit, HighLimit = hLimit,
+                    LowLimit = lLimit, LowLowLimit = llLimit,
+                };
+            }
+
+            return new AlarmRecord
+            {
+                EventId = eventId, EventType = eventType, SourceNode = sourceNode,
+                SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
+                Message = message, Severity = severity, ConditionId = sourceNode,
+                ConditionName = conditionName, BranchId = branchId, Retain = retain,
+                EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
+                ClientUserId = clientUserId, AckedStateId = ackedStateId,
+                ConfirmedStateId = confirmedStateId, ActiveStateId = activeStateId,
+                InputNode = inputNode, SuppressedStateId = suppressedStateId,
+                OutOfServiceStateId = outOfServiceStateId, LatchedStateId = latchedStateId,
+                SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
             };
         }
 

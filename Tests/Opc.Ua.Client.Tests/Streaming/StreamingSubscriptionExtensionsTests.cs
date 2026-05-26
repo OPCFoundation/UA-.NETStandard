@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Tests.Streaming
                     break;
                 }
             }
-            Assert.That(items.Count, Is.LessThan(10));
+            Assert.That(items, Has.Count.LessThan(10));
         }
 
         [Test]

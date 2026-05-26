@@ -56,6 +56,11 @@
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
     - [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
+    - [Part 9 Alarms and Conditions](#part-9-alarms-and-conditions)
+      - [`AlarmConditionState` state-transition behavior](#alarmconditionstate-state-transition-behavior)
+      - [Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`](#auto-emit-generalmodelchangeevent-from-customnodemanager)
+    - [Address-space model change tracking](#address-space-model-change-tracking)
+      - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -1385,6 +1390,107 @@ ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
 ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
 bool isType = await cache.IsTypeOfAsync(sub, super);
 ```
+
+### Part 9 Alarms and Conditions
+
+Version 1.6 completes server- and client-side support for OPC UA
+Part 9. The new APIs are additive — `AlarmClient`,
+`AlarmEventDecoder`, `AlarmEventFilterBuilder`, `AlarmGroup`,
+`AlarmSuppressionEngine`, `AlarmRateTracker`, the typed alarm
+record hierarchy — and require no migration. See
+[Alarms and Conditions](AlarmsAndConditions.md) for the developer
+guide.
+
+Two changes are **behavioral**: they are bug fixes that bring the
+stack into compliance with the Part 9 spec, but existing code that
+relied on the prior behavior will see a difference.
+
+#### `AlarmConditionState` state-transition behavior
+
+The state-machine setters on `AlarmConditionState` previously did not
+implement several cross-state spec requirements. 1.6 makes them
+compliant:
+
+| Behavior | Spec | Was (≤ 1.5.378) | Is (1.6) |
+|---|---|---|---|
+| Activating an alarm with `LatchedState` populated | §4.8 | `LatchedState` untouched | `LatchedState.Id = true` automatically |
+| Activating an alarm with `SilenceState` populated and silenced | §4.8 | `SilenceState` stayed silenced | `SilenceState.Id = false` (audible again) |
+| `SuppressedOrShelved` flag computation | §5.8.2 | considered Suppressed + Shelved only | also considers `OutOfServiceState` |
+| `GetRetainState` for latched alarms | §5.5.2 | did not include LatchedState | latched alarms are retained while `LatchedState.Id = true` |
+| `EffectiveDisplayName` composition | §5.8.2 | Active + Suppressed + Shelved + Acked + Confirmed | additionally includes OutOfService and Latched |
+
+**Migration:** If you have alarms with `LatchedState`,
+`SilenceState`, or `OutOfServiceState` populated and you relied on
+the prior behavior, the spec-compliant behavior is what your
+operators expected anyway. To restore the old behavior, do not
+populate those optional state nodes (leave them `null`).
+
+The quickstart reference server (`Applications/Quickstarts.Servers/
+Alarms/AlarmHolders/AlarmConditionTypeHolder.cs`) now creates the
+`SilenceState`, `OutOfServiceState`, and `LatchedState` nodes by
+default — so the conformance tests exercise the new compliant
+behavior end-to-end.
+
+#### Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`
+
+`CustomNodeManager.CreateNode(...)` and `DeleteNode(...)` (and the
+async equivalents on `AsyncCustomNodeManager`) now record the change
+in a per-instance `ModelChangeAggregator` and emit a
+`GeneralModelChangeEvent` at the end of the call. This was required
+by Part 5 §6.4.32 but was previously left to derived classes.
+
+If clients were already subscribed to `BaseEventType` on the server
+notifier, they will start receiving the new event type. Clients
+already conformant with Part 5 ignore the event; clients that
+explicitly enumerate events may need to add a filter to skip events
+they do not consume.
+
+```csharp
+// To opt out of auto-emit in a derived node manager:
+public MyNodeManager(...)
+{
+    ModelChangeEmissionEnabled = false;
+}
+```
+
+The aggregator API (`ModelChangeAggregator.RecordNodeAdded/Deleted/
+ReferenceAdded/ReferenceDeleted/DataTypeChanged`, `Drain`,
+`HasPending`) is also available for manual control — see
+[Model Change Tracking](ModelChangeTracking.md).
+
+### Address-space model change tracking
+
+#### New `INodeCache.InvalidateNode` member
+
+`INodeCache` gains a new abstract member in 1.6:
+
+```csharp
+void InvalidateNode(NodeId nodeId);
+```
+
+The stack's built-in `NodeCache` implements this with true per-node
+eviction. The `ModelChangeTracker` uses it to keep the cache in sync
+with server-reported address-space changes — see
+[Model Change Tracking](ModelChangeTracking.md).
+
+**Migration:** Custom `INodeCache` implementations must add an
+implementation. The simplest is to delegate to `Clear()`:
+
+```csharp
+public sealed class MyNodeCache : INodeCache
+{
+    public void Clear() { /* ... */ }
+
+    // Add this:
+    public void InvalidateNode(NodeId nodeId) => Clear();
+
+    // ... rest of INodeCache ...
+}
+```
+
+Implementations that can perform per-node eviction should do so —
+the tracker is most efficient when targeted invalidation is
+available.
 
 ## Migrating from 1.05.377 to 1.05.378
 

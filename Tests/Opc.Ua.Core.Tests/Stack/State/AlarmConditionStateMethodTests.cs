@@ -295,7 +295,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // Inactive alarm
             alarm.ProcessReAlarm(m_context);
 
-            Assert.That(alarm.ReAlarmRepeatCount.Value, Is.EqualTo((short)0));
+            Assert.That(alarm.ReAlarmRepeatCount.Value, Is.Zero);
         }
 
         [Test]
@@ -308,7 +308,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             alarm.ResetReAlarmRepeatCount(m_context);
 
-            Assert.That(alarm.ReAlarmRepeatCount.Value, Is.EqualTo((short)0));
+            Assert.That(alarm.ReAlarmRepeatCount.Value, Is.Zero);
         }
 
         #endregion

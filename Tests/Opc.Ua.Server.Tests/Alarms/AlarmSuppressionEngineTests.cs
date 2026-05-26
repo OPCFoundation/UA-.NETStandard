@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Tests.Alarms
             {
                 count++;
             }
-            Assert.That(count, Is.EqualTo(0));
+            Assert.That(count, Is.Zero);
         }
     }
 }
