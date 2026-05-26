@@ -13,6 +13,8 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
@@ -781,6 +783,49 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Async variant of <see cref="TryDecrypt"/>. Awaits the sender certificate validation
+        /// rather than blocking on it inside the cryptographic decode loop.
+        /// </summary>
+        public async ValueTask<(bool Success, byte[]? Secret)> TryDecryptAsync(
+            byte[] encryptedSecret,
+            byte[] expectedNonce,
+            CancellationToken cancellationToken = default)
+        {
+            if (encryptedSecret == null)
+            {
+                return (false, null);
+            }
+
+            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                bool ok = TryDecryptRsa(encryptedSecret, expectedNonce, out byte[]? rsaSecret);
+                return (ok, rsaSecret);
+            }
+
+            try
+            {
+                byte[] secret = await DecryptAsync(
+                    DateTime.UtcNow - s_eccEncryptedSecretMaxTokenAge,
+                    expectedNonce,
+                    encryptedSecret,
+                    0,
+                    encryptedSecret.Length,
+                    Context.Telemetry,
+                    cancellationToken).ConfigureAwait(false);
+                return (true, secret);
+            }
+            catch (Exception ex) when (ex is
+                ServiceResultException or
+                CryptographicException or
+                IOException or
+                FormatException or
+                ArgumentException)
+            {
+                return (false, null);
+            }
+        }
+
         private static int GetPaddingCount(int blockSize, int secretLength, int dataLength)
         {
             dataLength += 2; // add padding size
@@ -796,6 +841,157 @@ namespace Opc.Ua
             }
 
             return paddingCount;
+        }
+
+        /// <summary>
+        /// Verifies the header for an ECC encrypted message and returns the encrypted data.
+        /// </summary>
+        /// <param name="dataToDecrypt">The data to decrypt.</param>
+        /// <param name="earliestTime">The earliest time allowed for the message signing time.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The encrypted data.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        private async ValueTask<ArraySegment<byte>> VerifyHeaderForEccAsync(
+            ArraySegment<byte> dataToDecrypt,
+            DateTime earliestTime,
+            ITelemetryContext telemetry,
+            CancellationToken cancellationToken)
+        {
+            byte[] decryptArray = dataToDecrypt.Array ?? throw new ArgumentNullException(nameof(dataToDecrypt));
+
+            using var decoder = new BinaryDecoder(
+                decryptArray,
+                dataToDecrypt.Offset,
+                dataToDecrypt.Count,
+                Context);
+            NodeId typeId = decoder.ReadNodeId(null);
+
+            if (typeId != DataTypeIds.EccEncryptedSecret)
+            {
+                throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown);
+            }
+
+            var encoding = (ExtensionObjectEncoding)decoder.ReadByte(null);
+
+            if (encoding != ExtensionObjectEncoding.Binary)
+            {
+                throw new ServiceResultException(StatusCodes.BadDataEncodingUnsupported);
+            }
+
+            int length = (int)decoder.ReadUInt32(null) + decoder.Position;
+
+            SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null)!) ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+
+            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            }
+
+            // extract the send certificate and any chain.
+            ByteString senderCertificate = decoder.ReadByteString(null);
+
+            if (senderCertificate.Length == 0)
+            {
+                if (SenderCertificate == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+            }
+            else
+            {
+                using CertificateCollection senderCertificateChain = Utils.ParseCertificateChainBlob(
+                    senderCertificate.ToArray(),
+                    telemetry);
+
+                SenderCertificate = senderCertificateChain[0].AddRef();
+                SenderIssuerCertificates = [];
+
+                for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                {
+                    SenderIssuerCertificates.Add(senderCertificateChain[ii]);
+                }
+
+                // validate the sender.
+                if (Validator != null)
+                {
+                    await Validator.ValidateAsync(senderCertificateChain, ct: cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // extract the send certificate and any chain.
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
+
+            if (signingTime < earliestTime)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
+            }
+
+            // extract the key data length.
+            ushort headerLength = decoder.ReadUInt16(null);
+
+            if (headerLength == 0 || headerLength > length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            // read the key data.
+            ByteString senderPublicKey = decoder.ReadByteString(null);
+            ByteString receiverPublicKey = decoder.ReadByteString(null);
+
+            if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected key data length");
+            }
+
+            int startOfEncryption = decoder.Position;
+
+            SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+
+            if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce?.Data))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected receiver nonce.");
+            }
+
+            // check the signature.
+            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
+
+            if (signatureLength >= length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            byte[] signature = new byte[signatureLength];
+
+            Buffer.BlockCopy(
+                decryptArray,
+                dataToDecrypt.Offset + dataToDecrypt.Count - signatureLength,
+                signature,
+                0,
+                signatureLength);
+
+            var dataToSign = new ArraySegment<byte>(
+                decryptArray,
+                dataToDecrypt.Offset,
+                dataToDecrypt.Count - signatureLength);
+
+            if (!CryptoUtils.Verify(dataToSign, signature, SenderCertificate!, SecurityPolicy.AsymmetricSignatureAlgorithm))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Could not verify signature.");
+            }
+
+            // extract the encrypted data.
+            return new ArraySegment<byte>(
+                decryptArray,
+                dataToDecrypt.Offset + startOfEncryption,
+                dataToDecrypt.Count - startOfEncryption - signatureLength);
         }
 
         /// <summary>
@@ -958,6 +1154,36 @@ namespace Opc.Ua
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The decrypted data.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask<byte[]> DecryptAsync(
+            DateTime earliestTime,
+            byte[] expectedNonce,
+            byte[] data,
+            int offset,
+            int count,
+            ITelemetryContext telemetry,
+            CancellationToken cancellationToken = default)
+        {
+            ArraySegment<byte> dataToDecrypt = await VerifyHeaderForEccAsync(
+                new ArraySegment<byte>(data, offset, count),
+                earliestTime,
+                telemetry,
+                cancellationToken).ConfigureAwait(false);
+
+            return DecryptVerifiedEcc(dataToDecrypt, expectedNonce);
+        }
+
+        /// <summary>
+        /// Decrypts the specified data using the ECC algorithm.
+        /// </summary>
+        /// <param name="earliestTime">The earliest time allowed for the message.</param>
+        /// <param name="expectedNonce">The expected nonce value.</param>
+        /// <param name="data">The data to decrypt.</param>
+        /// <param name="offset">The offset of the data to decrypt.</param>
+        /// <param name="count">The number of bytes to decrypt.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The decrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
         public byte[] Decrypt(
@@ -973,6 +1199,11 @@ namespace Opc.Ua
                 earliestTime,
                 telemetry);
 
+            return DecryptVerifiedEcc(dataToDecrypt, expectedNonce);
+        }
+
+        private byte[] DecryptVerifiedEcc(ArraySegment<byte> dataToDecrypt, byte[] expectedNonce)
+        {
             if (ReceiverNonce == null || SenderNonce == null)
             {
                 throw new ServiceResultException(StatusCodes.BadArgumentsMissing, "Receiver and sender nonces are required for ECC decryption.");

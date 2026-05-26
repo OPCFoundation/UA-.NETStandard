@@ -83,7 +83,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_tempDirs.Clear();
         }
 
-        #region Trust-List Registry
 
         [Test]
         public void RegisterTrustListAddsEntry()
@@ -142,9 +141,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 () => manager.OpenTrustedStore(TrustListIdentifier.Peers));
         }
 
-        #endregion Trust-List Registry
 
-        #region Certificate Registry
 
         [Test]
         public async Task LoadApplicationCertificatesLoadsFromConfig()
@@ -207,9 +204,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
         }
 
-        #endregion Certificate Registry
 
-        #region Validation
 
         [Test]
         public async Task ValidateUntrustedCertReturnsFailure()
@@ -256,9 +251,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.True);
         }
 
-        #endregion Validation
 
-        #region Lifecycle
 
         [Test]
         public async Task CertificateChangesNotifiesOnUpdate()
@@ -304,9 +297,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return Task.CompletedTask;
         }
 
-        #endregion Lifecycle
 
-        #region Factory Creation
 
         [Test]
         public void FactoryCreateFromSecurityConfiguration()
@@ -336,9 +327,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Rejected));
         }
 
-        #endregion Factory Creation
 
-        #region Issuer Resolution and Chain Blob
 
         [Test]
         public async Task GetIssuersAsyncReturnsEmptyForSelfSignedCertificate()
@@ -646,9 +635,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(newStore.StorePath, Is.EqualTo(newPath));
         }
 
-        #endregion Issuer Resolution and Chain Blob
 
-        #region Helpers
 
         private string CreateTempDir()
         {
@@ -680,6 +667,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        #endregion Helpers
     }
 }

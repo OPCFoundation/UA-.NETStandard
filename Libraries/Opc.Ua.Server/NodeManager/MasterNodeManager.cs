@@ -731,6 +731,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use RemoveReferencesAsync instead.")]
         public void RemoveReferences(List<LocalReference> referencesToRemove)
         {
             RemoveReferencesAsync(referencesToRemove).AsTask().GetAwaiter().GetResult();

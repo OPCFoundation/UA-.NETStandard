@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.FileSystem
     /// under <c>i=16314</c>.
     /// </para>
     /// </remarks>
-    public sealed class FileSystemNodeManager : CustomNodeManager2
+    public sealed class FileSystemNodeManager : CustomNodeManager2, ICallAsyncNodeManager
     {
         /// <summary>
         /// Base URI used to build the namespace URI of a mounted
