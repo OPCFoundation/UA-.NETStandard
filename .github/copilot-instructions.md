@@ -8,6 +8,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **SDK**: .net 10 SDK
 - **Language**: C# with LangVersion 14.0
 - **Target Frameworks**: .NET Standard 2.0/2.1, .NET Framework 4.8, .NET 8.0 (LTS), .NET 9.0, .NET 10.0 (LTS)
+- **NativeAOT**
 - **Project Type**: Class libraries, console applications, and reference implementations
 - **Architecture**: OPC UA Stack with Client, Server, Configuration, Complex Types, GDS, and PubSub components
 
@@ -43,24 +44,41 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **Transport**: UA-TCP and HTTPS transports with reverse connect capability
 
 ## IMPORTANT RULES
+- Rules apply to any new code added and existing code that is changed.
 - All new code should use Async/await (TAP), APM and synchronous to Async are not allowed. 
 - DO NOT create SYNC over ASYNC (GetAwaiter().GetResult(), Wait(), Result) unless explicitly requested/confirmed.
-- All types implementing INullable must never be used or added via the "System.Nullable<T>" (T?). Instead use .IsNull check on the type to determine whether it is null and the .Null or default to create a null value.
-- ALWAYs use TryGet or TryGetValue, or similar on struct types over casting. NEVER use .AsBoxedValue or .Value of the Variant type. 
-- DO NOT use [Obsolete] API.
+- All types implementing `INullable` must never be used or added via the `System.Nullable<T>` (`T?`). Instead use `.IsNull` check on the type to determine whether it is null and the `.Null` or default to create a null value.
+- ALWAYS use `TryGet` or `TryGetValue`, or similar on struct types vs casting. Particularly NEVER use `.AsBoxedValue` of the `Variant` type or `.Value` of `System.IUnion`. 
+- NEVER use `object` or `object?` in public API unless overriding `Equals`. If OPC UA related API, use `Variant`.
+- Prefer ArrayOf<T> over read-only collection types and ReadOnlyMemory<T> 
+- Prefer ByteString over ArrayOf<byte>, byte[], ReadOnlyMemory<byte> and byte readonly collections in public API. 
+- Prefer Span<byte>/ReadOnlySpan<byte> over byte[] in any API.
+- DO NOT use API that is marked as [Obsolete] unless used inside "Test code".
+- DO NOT add new API that is not compatible with NativeAOT (needs suppression, annotation).
 - All new functionality added must wire into the DI infrastructure and be injectable.  Direct "create"/construct path should also be available as fallback.
 - Consider making new functionality available using a fluent API (and ideally integrated into the existing API if it can extend it).
 - Maintain compatibility with the previous version (1.5.378, master378 branch) in master, mark any replaced API with [Obsolete]. Already marked [Obsolete] API in 1.5.378 (master378) can be removed/replaced in master.
-- DO REUSE existing features and concepts (docs/*) in new features, e.g. 
+- Use modern C# and .net and add a polyfill to Opc.Ua.Types/Polyfills if API is not available on older platforms.  
+- Use new "extension" keyword when you need to define "static" or "property" extensions. Use old style extension methods for the rest.
+- Pass `DataValue` values by ref when possible (use `in` for one way arguments). Adding `in` keyword is not considered a breaking change since the API can be invoked with and without ref.
+- Support the latest version of the OPC UA specifications (1.05.07 for OPC UA core)
+- NEVER expose "locks" or locking in _any_ internal or public API surface because nobody can effectively reason over the lock behavior. NEVER expose a "lock" as protected field to sub classes.
+
+### Architecture and patterns
+- DO NOT rely on inheritance to provide "extensibility". Instead - make all non abstract public classes sealed by default and ask for exceptions.
+- Prefer a provider model with injectable providers, see FileSystem or HistoricAccess providers as examples. 
+- Align all architectural decisions around the following high level goals:
+  - Running servers with High availability and in a distributed system. Especially consider what this means for "state".
+  - A "simple" API with progressive "advanced" feature sets, example: Minimal* samples and the focus on fluent API and ManagedSession API.
+- Use SOLID principles. Encapsulate concerns and do not let implementation bleed through the APIs (e.g. GOOD: reconnect handling in managed session, BAD: ReconnectHandler (old)).
+- ALWAYS REUSE existing features and concepts (docs/*) inside new features, e.g. 
   - All source generated code, in particular ObjectType proxies should be used over manually calling service calls inside new clients.
   - Consider using the source generators to implement emitting "boilerplate", especially if it is related to the OPC UA standard (e.g. information model).
   - Base services: File System, Certificate manager, Secret store, State machine, Alarms and conditions Streaming subscription, Sessions, etc. in new code. (Documented in docs/*).
   - Observability is plumbed through via `ITelemetryContext`. Use it to create a `ILogger` for logging.
-- Use modern C# and .net and add a polyfill to Opc.Ua.Types/Polyfills if API is not available on older platforms.  
-- Use new "extension" keyword when you need to define "static" or "property" extensions. Use old style extension methods for the rest.
-- Support the latest version of the OPC UA specifications (1.05.07 for OPC UA core)
+- If reuse is not possible, ASK whether to extend an existing feature so it becomes reuseable.
 
-### Code Style and Standards
+### Code Style
 - Add the OPC Foundation MIT license header to all source files.
 - NEVER use #region/#endregion directives. Remove them when you encounter them.
 - ALWAYS add a line break after a statement ending with `;`
@@ -80,6 +98,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Follow standard C# naming conventions. Do not use underscores in method names.
 - Assembly prefix: `Opc.Ua` (Except applications, or if otherwise requested)
 - Package prefix: `OPCFoundation.NetStandard`
+- Always use a line break after <summary> and before </summary> for all members (except for documentation of fields).
 
 ### Security Requirements
 - **Never hardcode credentials, certificates, or secrets** in source code
@@ -106,6 +125,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Mirror the structure of the code being tested
 - Use descriptive test method names that explain what is being tested
 - DO NOT use _ in test method names; use PascalCase
+- Ensure that any null assertions do not assert null of a "struct" type. If structs implement `INullable` test for IsNull to be true or false.
 
 ### Documentation
 
@@ -130,7 +150,8 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
   - Prefer stable, well-maintained packages. 
   - Do not use packages with incompatible license (e.g. GPL, AGPL or commercial)
   - Check compatibility with all target frameworks
-- Prefer AOT and trimmable packages over others.
+- Prefer AOT and trimmable annotated nuget packages over others. 
+  - If a nuget dependencies is not explicitly marked as Native AOT compatible, add AOT tests to the AoT test project to exercise all code paths using the dependency.
 
 ### Contributing
 
@@ -145,6 +166,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 #### Pull Request Guidelines
 - Provide clear description of changes
 - Reference any related issues
+- Ensure that net48 and net10.0 TFM tests in UA.slnx solution run successfully before creating the PR.
 - Ensure CI/CD pipelines pass
 - Use the opc-ua-codestyle-enforcer agent if needed to ensure compliance before opening pull requests.
 
@@ -168,7 +190,9 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Use async/await properly to avoid blocking
 - Consider thread safety
 - Profile performance-critical code
-- Avoid locking where possible. If needed use SemaphoreSlim to lock instead of lock keyword
+- Avoid locking where possible.
+  - If needed use SemaphoreSlim to lock instead of lock keyword
+  - If a synchronous lock is required/desired, use "System.Threading.Lock" instead of object in lock(...) statements (a polyfill exists for it).
 
 ## Resources
 
