@@ -47,10 +47,14 @@ namespace Opc.Ua.Client.Alarms
     {
         /// <summary>
         /// Subscribes to alarm events from the supplied notifier and
-        /// yields decoded <see cref="ConditionRecord"/>s (or any
-        /// subtype based on which fields are populated).
+        /// yields decoded <see cref="ConditionTypeRecord"/>s (or any
+        /// subtype based on which fields are populated, including
+        /// <see cref="AlarmConditionTypeRecord"/>,
+        /// <see cref="DialogConditionTypeRecord"/>,
+        /// <see cref="AcknowledgeableConditionTypeRecord"/>, and the
+        /// alarm subtypes generated for the standard NodeSet).
         /// </summary>
-        public static IAsyncEnumerable<ConditionRecord> SubscribeAlarmsAsync(
+        public static IAsyncEnumerable<ConditionTypeRecord> SubscribeAlarmsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
             AlarmEventFilterBuilder? filterBuilder = null,
@@ -66,7 +70,7 @@ namespace Opc.Ua.Client.Alarms
             return SubscribeAlarmsImpl(streaming, notifierId, filter, options, ct);
         }
 
-        private static async IAsyncEnumerable<ConditionRecord> SubscribeAlarmsImpl(
+        private static async IAsyncEnumerable<ConditionTypeRecord> SubscribeAlarmsImpl(
             IStreamingSubscription streaming,
             NodeId notifierId,
             EventFilter filter,
@@ -78,7 +82,7 @@ namespace Opc.Ua.Client.Alarms
             await foreach (EventNotification notification in source.ConfigureAwait(false))
             {
                 IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
-                ConditionRecord? record = AlarmEventDecoder.Decode(fields);
+                ConditionTypeRecord? record = AlarmEventDecoder.Decode(fields);
                 if (record != null)
                 {
                     yield return record;
@@ -90,7 +94,7 @@ namespace Opc.Ua.Client.Alarms
         /// Subscribes to condition events (any condition type) from
         /// the supplied notifier and yields decoded records.
         /// </summary>
-        public static IAsyncEnumerable<ConditionRecord> SubscribeConditionsAsync(
+        public static IAsyncEnumerable<ConditionTypeRecord> SubscribeConditionsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
             MItemOptions? options = null,
@@ -106,9 +110,9 @@ namespace Opc.Ua.Client.Alarms
 
         /// <summary>
         /// Subscribes to dialog events from the supplied notifier and
-        /// yields decoded <see cref="DialogRecord"/>s.
+        /// yields decoded <see cref="DialogConditionTypeRecord"/>s.
         /// </summary>
-        public static IAsyncEnumerable<DialogRecord> SubscribeDialogsAsync(
+        public static IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
             MItemOptions? options = null,
@@ -122,7 +126,7 @@ namespace Opc.Ua.Client.Alarms
             return SubscribeDialogsImpl(streaming, notifierId, filter, options, ct);
         }
 
-        private static async IAsyncEnumerable<DialogRecord> SubscribeDialogsImpl(
+        private static async IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsImpl(
             IStreamingSubscription streaming,
             NodeId notifierId,
             EventFilter filter,
@@ -134,8 +138,8 @@ namespace Opc.Ua.Client.Alarms
                 .ConfigureAwait(false))
             {
                 IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
-                ConditionRecord? record = AlarmEventDecoder.Decode(fields);
-                if (record is DialogRecord dialog)
+                ConditionTypeRecord? record = AlarmEventDecoder.Decode(fields);
+                if (record is DialogConditionTypeRecord dialog)
                 {
                     yield return dialog;
                 }

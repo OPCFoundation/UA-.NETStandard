@@ -213,17 +213,17 @@ The streaming subscription and `AlarmClient` are complementary:
 AlarmClient alarms = session.GetAlarmClient();
 IStreamingSubscription streaming = session.DefaultStreaming;
 
-await foreach (ConditionRecord rec in streaming
+await foreach (ConditionTypeRecord rec in streaming
     .SubscribeAlarmsAsync(ObjectIds.Server)
     .TakeUntilAsync(r =>
-        r is AlarmRecord a &&
+        r is AlarmConditionTypeRecord a &&
         a.ConditionId == myAlarmId &&
         a.ActiveStateId == true))
 {
-    if (rec is AlarmRecord active && active.ActiveStateId == true)
+    if (rec is AlarmConditionTypeRecord active && active.ActiveStateId == true)
     {
         await alarms.AcknowledgeAsync(
-            active.ConditionId!,
+            active.ConditionId,
             active.EventId,
             new LocalizedText("en", "Auto-acked")).ConfigureAwait(false);
     }

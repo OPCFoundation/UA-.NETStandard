@@ -39,7 +39,8 @@ namespace Opc.Ua.Client.Alarms
     /// Where clause construction is intentionally limited to OfType
     /// because most Part 9 filtering use cases are type-based.
     /// Additional filtering (severity, active-only, retained-only) can
-    /// be applied client-side on the decoded <see cref="ConditionRecord"/>.
+    /// be applied client-side on the decoded
+    /// <see cref="ConditionTypeRecord"/>.
     /// </remarks>
     public class AlarmEventFilterBuilder
     {

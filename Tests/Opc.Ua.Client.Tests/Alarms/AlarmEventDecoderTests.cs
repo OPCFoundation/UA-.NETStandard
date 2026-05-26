@@ -14,7 +14,7 @@ namespace Opc.Ua.Client.Tests.Alarms
         [Test]
         public void DecodeReturnsNullForEmptyFields()
         {
-            ConditionRecord? result = AlarmEventDecoder.Decode(System.Array.Empty<Variant>());
+            ConditionTypeRecord? result = AlarmEventDecoder.Decode(System.Array.Empty<Variant>());
             Assert.That(result, Is.Null);
         }
 
@@ -40,7 +40,7 @@ namespace Opc.Ua.Client.Tests.Alarms
                 Variant.From("user1")
             };
 
-            ConditionRecord? result = AlarmEventDecoder.Decode(fields);
+            ConditionTypeRecord? result = AlarmEventDecoder.Decode(fields);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.ConditionName, Is.EqualTo("MyCondition"));
@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             Assert.That(result.Retain, Is.True);
             Assert.That(result.EnabledStateId, Is.True);
             Assert.That(result.SourceName, Is.EqualTo("Source"));
-            Assert.That(result.GetType(), Is.EqualTo(typeof(ConditionRecord)));
+            Assert.That(result.GetType(), Is.EqualTo(typeof(ConditionTypeRecord)));
         }
 
         [Test]
@@ -63,11 +63,11 @@ namespace Opc.Ua.Client.Tests.Alarms
             fields.Add(default(Variant));
             fields.Add(Variant.From(true));
 
-            ConditionRecord? result = AlarmEventDecoder.Decode(fields);
+            ConditionTypeRecord? result = AlarmEventDecoder.Decode(fields);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.InstanceOf<AlarmRecord>());
-            Assert.That(((AlarmRecord)result!).ActiveStateId, Is.True);
+            Assert.That(result, Is.InstanceOf<AlarmConditionTypeRecord>());
+            Assert.That(((AlarmConditionTypeRecord)result!).ActiveStateId, Is.True);
         }
 
         [Test]
@@ -81,11 +81,11 @@ namespace Opc.Ua.Client.Tests.Alarms
             fields.Add(Variant.From(false));
             fields.Add(Variant.From(true));
 
-            ConditionRecord? result = AlarmEventDecoder.Decode(fields);
+            ConditionTypeRecord? result = AlarmEventDecoder.Decode(fields);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.InstanceOf<AcknowledgeableConditionRecord>());
-            Assert.That(result, Is.Not.InstanceOf<AlarmRecord>());
+            Assert.That(result, Is.InstanceOf<AcknowledgeableConditionTypeRecord>());
+            Assert.That(result, Is.Not.InstanceOf<AlarmConditionTypeRecord>());
         }
     }
 }

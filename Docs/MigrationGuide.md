@@ -1397,13 +1397,64 @@ Version 1.6 completes server- and client-side support for OPC UA
 Part 9. The new APIs are additive — `AlarmClient`,
 `AlarmEventDecoder`, `AlarmEventFilterBuilder`, `AlarmGroup`,
 `AlarmSuppressionEngine`, `AlarmRateTracker`, the typed alarm
-record hierarchy — and require no migration. See
+record hierarchy — and most of it requires no migration. See
 [Alarms and Conditions](AlarmsAndConditions.md) for the developer
 guide.
 
-Two changes are **behavioral**: they are bug fixes that bring the
-stack into compliance with the Part 9 spec, but existing code that
-relied on the prior behavior will see a difference.
+Three changes require attention.
+
+#### Event-record types are now source-generated (breaking)
+
+Decoded alarm/condition records have moved from hand-coded classes
+in `Opc.Ua.Client.Alarms` to **source-generated** records in
+`Opc.Ua` (emitted by the `EventRecordGenerator` for every ObjectType
+that derives from `BaseEventType` — including any vendor extensions
+in your own model). The hand-coded `TypedAlarmRecords.cs` file is
+removed.
+
+Rename your record references:
+
+| Was (≤ 1.5.378 + early 1.6 preview) | Is (1.6) |
+|---|---|
+| `Opc.Ua.Client.Alarms.ConditionRecord` | `Opc.Ua.ConditionTypeRecord` |
+| `Opc.Ua.Client.Alarms.AcknowledgeableConditionRecord` | `Opc.Ua.AcknowledgeableConditionTypeRecord` |
+| `Opc.Ua.Client.Alarms.AlarmRecord` | `Opc.Ua.AlarmConditionTypeRecord` |
+| `Opc.Ua.Client.Alarms.DialogRecord` | `Opc.Ua.DialogConditionTypeRecord` |
+| `Opc.Ua.Client.Alarms.LimitAlarmRecord` | `Opc.Ua.LimitAlarmTypeRecord` |
+| `Opc.Ua.Client.Alarms.ExclusiveLimitAlarmRecord` | `Opc.Ua.ExclusiveLimitAlarmTypeRecord` |
+| `Opc.Ua.Client.Alarms.NonExclusiveLimitAlarmRecord` | `Opc.Ua.NonExclusiveLimitAlarmTypeRecord` |
+| `Opc.Ua.Client.Alarms.DiscreteAlarmRecord` | `Opc.Ua.DiscreteAlarmTypeRecord` |
+| `Opc.Ua.Client.Alarms.OffNormalAlarmRecord` | `Opc.Ua.OffNormalAlarmTypeRecord` |
+| `Opc.Ua.Client.Alarms.CertificateExpirationAlarmRecord` | `Opc.Ua.CertificateExpirationAlarmTypeRecord` |
+| `Opc.Ua.Client.Alarms.DiscrepancyAlarmRecord` | `Opc.Ua.DiscrepancyAlarmTypeRecord` |
+
+The record property surface area is unchanged — the same property
+names (`EventId`, `EventType`, `SourceNode`, `ConditionId`,
+`AckedStateId`, `ActiveStateId`, …) flow through the generated
+inheritance chain. `ConditionTypeRecord.ConditionId` is preserved as
+a hand-written `partial record` alias for `SourceNode` so existing
+call sites continue to work after renaming.
+
+Three minor behavioral notes:
+
+* Built-in INullable types (`NodeId`, `ByteString`, `LocalizedText`,
+  `QualifiedName`, `ExpandedNodeId`, `Variant`, …) are exposed
+  **non-nullable** on the generated records. Replace
+  `record.SourceNode == null` with `record.SourceNode.IsNull`. The
+  `?` annotation on these properties was removed in line with the
+  stack-wide INullable convention.
+* `Time` and `ReceiveTime` are now `DateTime?` (matching the OPC UA
+  spec — these can be absent from an event notification). Treat
+  `null` as "timestamp not delivered".
+* `Severity` and `Retain` are now `ushort?` / `bool?` (same
+  reasoning).
+
+Vendor types automatically generate their own records. A custom
+`VibrationAlarmType : AlarmConditionType` in your NodeSet produces
+a `VibrationAlarmTypeRecord : AlarmConditionTypeRecord` in your
+target namespace with every declared field exposed. Add convenience
+members via a hand-written `partial record VibrationAlarmTypeRecord
+{ ... }` next to your generated types.
 
 #### `AlarmConditionState` state-transition behavior
 

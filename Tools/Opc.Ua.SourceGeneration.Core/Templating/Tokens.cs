@@ -138,6 +138,7 @@ namespace Opc.Ua.SourceGeneration
         public static string OnCallDeclaration => nameof(OnCallDeclaration);
         public static string OnCallImplementation => nameof(OnCallImplementation);
         public static string Prefix => nameof(Prefix);
+        public static string PropertyName => nameof(PropertyName);
         public static string RequestParameters => nameof(RequestParameters);
         public static string ResponseParameters => nameof(ResponseParameters);
         public static string ServerApi => nameof(ServerApi);

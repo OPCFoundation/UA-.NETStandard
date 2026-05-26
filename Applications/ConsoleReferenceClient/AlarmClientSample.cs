@@ -81,7 +81,7 @@ namespace Quickstarts
 
             try
             {
-                await foreach (ConditionRecord record in streaming
+                await foreach (ConditionTypeRecord record in streaming
                     .SubscribeAlarmsAsync(ObjectIds.Server, ct: timeout.Token)
                     .ConfigureAwait(false))
                 {
@@ -113,15 +113,15 @@ namespace Quickstarts
 
             Console.WriteLine($"Waiting for next active record from {conditionId}...");
 
-            await foreach (ConditionRecord record in streaming
+            await foreach (ConditionTypeRecord record in streaming
                 .SubscribeAlarmsAsync(ObjectIds.Server, ct: ct)
                 .TakeUntilAsync(r =>
-                    r is AlarmRecord ar &&
+                    r is AlarmConditionTypeRecord ar &&
                     ar.ConditionId == conditionId &&
                     ar.ActiveStateId == true, ct)
                 .ConfigureAwait(false))
             {
-                if (record is AlarmRecord alarm &&
+                if (record is AlarmConditionTypeRecord alarm &&
                     alarm.ConditionId == conditionId &&
                     alarm.ActiveStateId == true)
                 {
@@ -129,7 +129,7 @@ namespace Quickstarts
                     try
                     {
                         await alarms.AcknowledgeAsync(
-                            alarm.ConditionId!,
+                            alarm.ConditionId,
                             alarm.EventId,
                             new LocalizedText("en", "Acknowledged by sample"),
                             ct).ConfigureAwait(false);
@@ -164,22 +164,22 @@ namespace Quickstarts
             Console.WriteLine("Alarm shelved.");
         }
 
-        private static void PrintAlarm(ConditionRecord record)
+        private static void PrintAlarm(ConditionTypeRecord record)
         {
             switch (record)
             {
-                case AlarmRecord alarm:
+                case AlarmConditionTypeRecord alarm:
                     Console.WriteLine(
                         $"[ALARM] {alarm.SourceName} sev={alarm.Severity} " +
                         $"active={alarm.ActiveStateId} acked={alarm.AckedStateId} " +
                         $"suppressed={alarm.SuppressedStateId} latched={alarm.LatchedStateId}");
                     break;
-                case DialogRecord dialog:
+                case DialogConditionTypeRecord dialog:
                     Console.WriteLine(
                         $"[DIALOG] {dialog.SourceName} prompt='{dialog.Prompt}' " +
                         $"options={dialog.ResponseOptionSet?.Length ?? 0}");
                     break;
-                case AcknowledgeableConditionRecord ack:
+                case AcknowledgeableConditionTypeRecord ack:
                     Console.WriteLine(
                         $"[CONDITION] {ack.SourceName} sev={ack.Severity} acked={ack.AckedStateId}");
                     break;

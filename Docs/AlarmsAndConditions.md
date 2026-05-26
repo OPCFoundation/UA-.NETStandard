@@ -344,23 +344,23 @@ strongly-typed records:
 ManagedSession session = ...;
 IStreamingSubscription streaming = session.DefaultStreaming;
 
-await foreach (ConditionRecord record in streaming
+await foreach (ConditionTypeRecord record in streaming
     .SubscribeAlarmsAsync(notifierId: ObjectIds.Server, ct: ct)
     .ConfigureAwait(false))
 {
     switch (record)
     {
-        case ExclusiveLimitAlarmRecord limit:
-            Console.WriteLine($"{limit.SourceName} now {limit.CurrentLimitState}");
+        case ExclusiveLimitAlarmTypeRecord limit:
+            Console.WriteLine($"{limit.SourceName} limit-state-id={limit.LimitState}");
             break;
-        case AlarmRecord alarm when alarm.ActiveStateId == true:
-            await alarms.AcknowledgeAsync(alarm.ConditionId!,
+        case AlarmConditionTypeRecord alarm when alarm.ActiveStateId == true:
+            await alarms.AcknowledgeAsync(alarm.ConditionId,
                 alarm.EventId,
                 new LocalizedText("en", "Auto-ack")).ConfigureAwait(false);
             break;
-        case DialogRecord dialog:
+        case DialogConditionTypeRecord dialog:
             // Pick a response index from dialog.ResponseOptionSet
-            await alarms.RespondAsync(dialog.ConditionId!,
+            await alarms.RespondAsync(dialog.ConditionId,
                 selectedResponse: 0).ConfigureAwait(false);
             break;
     }
@@ -374,7 +374,7 @@ State-machine waits compose naturally with
 // Wait for myAlarm to clear, or 5 minutes — whichever comes first.
 await streaming.SubscribeAlarmsAsync(ObjectIds.Server)
     .TakeUntilAsync(r =>
-        r is AlarmRecord a && a.ConditionId == myAlarmId &&
+        r is AlarmConditionTypeRecord a && a.ConditionId == myAlarmId &&
         a.ActiveStateId == false)
     .WithTimeoutAsync(TimeSpan.FromMinutes(5))
     .LastAsync(ct);
@@ -382,34 +382,54 @@ await streaming.SubscribeAlarmsAsync(ObjectIds.Server)
 
 ### Typed alarm records
 
-The `AlarmEventDecoder` maps raw field arrays into a record hierarchy:
+Alarm and condition records are **source-generated** by the
+`Opc.Ua.SourceGeneration` analyzer (see the `EventRecordGenerator`).
+For every `ObjectType` whose base-type chain ends at `BaseEventType`,
+the generator emits a `partial record {Type}Record` deriving from the
+record of its parent type, exposing one init-only property per
+declared field. The standard NodeSet produces the following hierarchy
+(abridged — only the most commonly observed types are shown):
 
 ```
-ConditionRecord
-├── AcknowledgeableConditionRecord
-│   └── AlarmRecord
-│       ├── LimitAlarmRecord
-│       │   ├── ExclusiveLimitAlarmRecord
-│       │   └── NonExclusiveLimitAlarmRecord
-│       ├── DiscreteAlarmRecord
-│       │   └── OffNormalAlarmRecord
-│       │       └── CertificateExpirationAlarmRecord
-│       └── DiscrepancyAlarmRecord
-└── DialogRecord
+EventRecord                              (anchor; hand-written)
+└── BaseEventTypeRecord                  (i=2041)
+    └── ConditionTypeRecord              (i=2782)
+        ├── DialogConditionTypeRecord    (i=2830)
+        └── AcknowledgeableConditionTypeRecord
+            └── AlarmConditionTypeRecord
+                ├── LimitAlarmTypeRecord
+                │   ├── ExclusiveLimitAlarmTypeRecord
+                │   └── NonExclusiveLimitAlarmTypeRecord
+                ├── DiscreteAlarmTypeRecord
+                │   └── OffNormalAlarmTypeRecord
+                │       └── CertificateExpirationAlarmTypeRecord
+                └── DiscrepancyAlarmTypeRecord
 ```
+
+Vendor models that derive from any of these types **automatically**
+get their own `*TypeRecord` deriving from the closest standard
+ancestor — no checked-in code, no manual class definitions. Add a
+hand-written `partial record VibrationAlarmTypeRecord` in your project
+to extend the generated declaration with computed properties or
+custom helpers.
 
 The decoder upgrades the record type based on which fields are
 populated in the event. A simple `switch` on the record type gives you
 the right field set:
 
 ```csharp
-ConditionRecord? record = AlarmEventDecoder.Decode(eventFields);
+ConditionTypeRecord? record = AlarmEventDecoder.Decode(eventFields);
 
-if (record is CertificateExpirationAlarmRecord cert)
+if (record is CertificateExpirationAlarmTypeRecord cert)
 {
     Console.WriteLine($"Cert {cert.CertificateType} expires {cert.ExpirationDate}");
 }
 ```
+
+The shared `ConditionTypeRecord.ConditionId` property is a hand-written
+alias for `SourceNode` — Part 9 of the OPC UA specification defines
+the "ConditionId" as the NodeId of the condition object that fired
+the event, which is reported through the `SourceNode` event field.
 
 ### `AlarmEventFilterBuilder`
 
@@ -436,13 +456,14 @@ EventFilter f4 = new AlarmEventFilterBuilder()
 
 ### Dialog conditions
 
-A `DialogConditionType` event arrives as a `DialogRecord`. The
-`Respond` and `Respond2` methods on `IDialogConditionOperations` close
-out the dialog. The decoded record exposes the prompt and available
-response option set so the caller can pick an index:
+A `DialogConditionType` event arrives as a
+`DialogConditionTypeRecord`. The `Respond` and `Respond2` methods on
+`IDialogConditionOperations` close out the dialog. The decoded record
+exposes the prompt and available response option set so the caller
+can pick an index:
 
 ```csharp
-await foreach (DialogRecord dialog in streaming.SubscribeDialogsAsync(notifierId))
+await foreach (DialogConditionTypeRecord dialog in streaming.SubscribeDialogsAsync(notifierId))
 {
     Console.WriteLine($"Prompt: {dialog.Prompt}");
     LocalizedText[] options = dialog.ResponseOptionSet ?? Array.Empty<LocalizedText>();
@@ -450,7 +471,7 @@ await foreach (DialogRecord dialog in streaming.SubscribeDialogsAsync(notifierId
 
     // Pick whichever option matches your scenario.
     int selectedIndex = 0;
-    await alarms.Respond2Async(dialog.ConditionId!, selectedIndex,
+    await alarms.Respond2Async(dialog.ConditionId, selectedIndex,
         new LocalizedText("en", "Approved by operator-1")).ConfigureAwait(false);
 }
 ```
@@ -459,7 +480,8 @@ The `OkResponse` / `CancelResponse` / `DefaultResponse` properties on
 the *server-side* `DialogConditionType` (Part 9 §5.6.2) carry their
 canonical indices for clients to read separately via Read service if
 the application needs them; they are not surfaced in the standard
-`DialogRecord` (which only carries the dialog prompt + active state).
+`DialogConditionTypeRecord` (which only carries the dialog prompt +
+active state).
 
 ### `ConditionRefresh`
 

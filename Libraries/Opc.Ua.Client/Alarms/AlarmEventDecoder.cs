@@ -33,121 +33,26 @@ using System.Collections.Generic;
 namespace Opc.Ua.Client.Alarms
 {
     /// <summary>
-    /// Strongly-typed record of a base condition event.
-    /// </summary>
-    public record ConditionRecord
-    {
-        /// <summary>The event id.</summary>
-        public ByteString EventId { get; init; }
-
-        /// <summary>The type definition of the event.</summary>
-        public NodeId? EventType { get; init; }
-
-        /// <summary>NodeId of the source of the event.</summary>
-        public NodeId? SourceNode { get; init; }
-
-        /// <summary>Source name string.</summary>
-        public string? SourceName { get; init; }
-
-        /// <summary>Event timestamp.</summary>
-        public DateTime Time { get; init; }
-
-        /// <summary>Receive timestamp.</summary>
-        public DateTime ReceiveTime { get; init; }
-
-        /// <summary>Server-side message.</summary>
-        public LocalizedText Message { get; init; }
-
-        /// <summary>Severity 1-1000.</summary>
-        public ushort Severity { get; init; }
-
-        /// <summary>The condition NodeId (event source).</summary>
-        public NodeId? ConditionId { get; init; }
-
-        /// <summary>The condition name.</summary>
-        public string? ConditionName { get; init; }
-
-        /// <summary>BranchId identifies the condition branch; NULL for trunk.</summary>
-        public NodeId? BranchId { get; init; }
-
-        /// <summary>Whether the condition is interesting to retain.</summary>
-        public bool Retain { get; init; }
-
-        /// <summary>Enabled state value (true/false).</summary>
-        public bool? EnabledStateId { get; init; }
-
-        /// <summary>Quality status code.</summary>
-        public StatusCode Quality { get; init; }
-
-        /// <summary>The last comment on the condition.</summary>
-        public LocalizedText Comment { get; init; }
-
-        /// <summary>Client user identifier.</summary>
-        public string? ClientUserId { get; init; }
-    }
-
-    /// <summary>
-    /// Acknowledgeable condition record adding ack/confirm states.
-    /// </summary>
-    public record AcknowledgeableConditionRecord : ConditionRecord
-    {
-        /// <summary>Whether the condition is acknowledged.</summary>
-        public bool? AckedStateId { get; init; }
-
-        /// <summary>Whether the condition is confirmed.</summary>
-        public bool? ConfirmedStateId { get; init; }
-    }
-
-    /// <summary>
-    /// Alarm record adding active/suppressed/shelved/latched states.
-    /// </summary>
-    public record AlarmRecord : AcknowledgeableConditionRecord
-    {
-        /// <summary>Whether the alarm is active.</summary>
-        public bool? ActiveStateId { get; init; }
-
-        /// <summary>InputNode (source variable being monitored).</summary>
-        public NodeId? InputNode { get; init; }
-
-        /// <summary>Whether the alarm is suppressed.</summary>
-        public bool? SuppressedStateId { get; init; }
-
-        /// <summary>Whether the alarm is out of service.</summary>
-        public bool? OutOfServiceStateId { get; init; }
-
-        /// <summary>Whether the alarm is latched.</summary>
-        public bool? LatchedStateId { get; init; }
-
-        /// <summary>Whether the alarm is silenced.</summary>
-        public bool? SilenceStateId { get; init; }
-
-        /// <summary>Suppressed-or-shelved flag.</summary>
-        public bool? SuppressedOrShelved { get; init; }
-    }
-
-    /// <summary>
-    /// Dialog condition record.
-    /// </summary>
-    public record DialogRecord : ConditionRecord
-    {
-        /// <summary>Whether the dialog is active.</summary>
-        public bool? DialogStateId { get; init; }
-
-        /// <summary>The dialog prompt.</summary>
-        public LocalizedText Prompt { get; init; }
-
-        /// <summary>Available response options.</summary>
-        public LocalizedText[]? ResponseOptionSet { get; init; }
-    }
-
-    /// <summary>
     /// Decodes raw <see cref="Subscriptions.EventNotification"/> field
-    /// arrays into typed condition/alarm/dialog records.
+    /// arrays into the source-generated <c>*TypeRecord</c> records
+    /// emitted by the <c>EventRecordGenerator</c>.
     /// </summary>
     /// <remarks>
-    /// The decoder is paired with an <see cref="AlarmEventFilterBuilder"/>
+    /// The decoder is paired with <see cref="AlarmEventFilterBuilder"/>
     /// — the order of fields in <see cref="Subscriptions.EventNotification.Fields"/>
-    /// matches the order of select clauses produced by the builder.
+    /// matches the order of select clauses produced by the builder
+    /// (defined by <see cref="StandardFields"/>).
+    /// <para>
+    /// The returned records (<see cref="ConditionTypeRecord"/>,
+    /// <see cref="AcknowledgeableConditionTypeRecord"/>,
+    /// <see cref="AlarmConditionTypeRecord"/>,
+    /// <see cref="DialogConditionTypeRecord"/>, …) are generated from
+    /// the standard OPC UA NodeSet by the
+    /// <c>Opc.Ua.SourceGeneration</c> source generator. Vendor models
+    /// generate their own subtypes (e.g. a vendor-defined
+    /// <c>VibrationAlarmType</c> emits <c>VibrationAlarmTypeRecord</c>)
+    /// automatically.
+    /// </para>
     /// </remarks>
     public static class AlarmEventDecoder
     {
@@ -216,17 +121,24 @@ namespace Opc.Ua.Client.Alarms
         ];
 
         /// <summary>
-        /// Decodes the field array into a condition record. The returned
-        /// type is upgraded based on which fields are populated:
-        /// <see cref="AlarmRecord"/> if any alarm-only field is present,
-        /// <see cref="AcknowledgeableConditionRecord"/> if acked/confirmed
-        /// fields are present, <see cref="DialogRecord"/> if a dialog
-        /// state field is present, otherwise <see cref="ConditionRecord"/>.
+        /// Decodes the field array into a generated event record. The
+        /// returned runtime type is the most-specific generated
+        /// <c>*TypeRecord</c> whose fields are populated:
+        /// <see cref="CertificateExpirationAlarmTypeRecord"/>,
+        /// <see cref="DiscrepancyAlarmTypeRecord"/>,
+        /// <see cref="OffNormalAlarmTypeRecord"/>,
+        /// <see cref="ExclusiveLimitAlarmTypeRecord"/>,
+        /// <see cref="NonExclusiveLimitAlarmTypeRecord"/>,
+        /// <see cref="LimitAlarmTypeRecord"/>,
+        /// <see cref="AlarmConditionTypeRecord"/>,
+        /// <see cref="AcknowledgeableConditionTypeRecord"/>,
+        /// <see cref="DialogConditionTypeRecord"/>, or
+        /// <see cref="ConditionTypeRecord"/>.
         /// </summary>
         /// <param name="fields">The event field values, matching the
         /// <see cref="StandardFields"/> order.</param>
         /// <returns>Decoded record, or <c>null</c> if fields is empty.</returns>
-        public static ConditionRecord? Decode(IReadOnlyList<Variant> fields)
+        public static ConditionTypeRecord? Decode(IReadOnlyList<Variant> fields)
         {
             if (fields == null || fields.Count == 0)
             {
@@ -235,15 +147,15 @@ namespace Opc.Ua.Client.Alarms
 
             // Field indices in StandardFields
             ByteString eventId = GetValue<ByteString>(fields, 0);
-            NodeId? eventType = GetNodeId(fields, 1);
-            NodeId? sourceNode = GetNodeId(fields, 2);
+            NodeId eventType = GetNodeId(fields, 1);
+            NodeId sourceNode = GetNodeId(fields, 2);
             string? sourceName = GetValue<string?>(fields, 3);
             DateTime time = GetValue<DateTime>(fields, 4);
             DateTime receiveTime = GetValue<DateTime>(fields, 5);
             LocalizedText message = GetValue<LocalizedText>(fields, 6);
             ushort severity = GetValue<ushort>(fields, 7);
             string? conditionName = GetValue<string?>(fields, 8);
-            NodeId? branchId = GetNodeId(fields, 9);
+            NodeId branchId = GetNodeId(fields, 9);
             bool retain = GetValue<bool>(fields, 10);
             bool? enabledStateId = GetNullable<bool>(fields, 11);
             StatusCode quality = GetValue<StatusCode>(fields, 12);
@@ -254,7 +166,7 @@ namespace Opc.Ua.Client.Alarms
             bool? confirmedStateId = GetNullable<bool>(fields, 16);
 
             bool? activeStateId = GetNullable<bool>(fields, 17);
-            NodeId? inputNode = GetNodeId(fields, 18);
+            NodeId inputNode = GetNodeId(fields, 18);
             bool? suppressedStateId = GetNullable<bool>(fields, 19);
             bool? outOfServiceStateId = GetNullable<bool>(fields, 20);
             bool? latchedStateId = GetNullable<bool>(fields, 21);
@@ -270,7 +182,7 @@ namespace Opc.Ua.Client.Alarms
             // Determine record type
             if (dialogStateId.HasValue)
             {
-                return new DialogRecord
+                return new DialogConditionTypeRecord
                 {
                     EventId = eventId,
                     EventType = eventType,
@@ -280,7 +192,6 @@ namespace Opc.Ua.Client.Alarms
                     ReceiveTime = receiveTime,
                     Message = message,
                     Severity = severity,
-                    ConditionId = sourceNode,
                     ConditionName = conditionName,
                     BranchId = branchId,
                     Retain = retain,
@@ -297,7 +208,7 @@ namespace Opc.Ua.Client.Alarms
             if (activeStateId.HasValue || suppressedStateId.HasValue ||
                 outOfServiceStateId.HasValue || latchedStateId.HasValue ||
                 silenceStateId.HasValue || suppressedOrShelved.HasValue ||
-                inputNode != null)
+                !inputNode.IsNull)
             {
                 return BuildAlarmRecord(
                     fields, eventId, eventType, sourceNode, sourceName,
@@ -310,7 +221,7 @@ namespace Opc.Ua.Client.Alarms
 
             if (ackedStateId.HasValue || confirmedStateId.HasValue)
             {
-                return new AcknowledgeableConditionRecord
+                return new AcknowledgeableConditionTypeRecord
                 {
                     EventId = eventId,
                     EventType = eventType,
@@ -320,7 +231,6 @@ namespace Opc.Ua.Client.Alarms
                     ReceiveTime = receiveTime,
                     Message = message,
                     Severity = severity,
-                    ConditionId = sourceNode,
                     ConditionName = conditionName,
                     BranchId = branchId,
                     Retain = retain,
@@ -333,7 +243,7 @@ namespace Opc.Ua.Client.Alarms
                 };
             }
 
-            return new ConditionRecord
+            return new ConditionTypeRecord
             {
                 EventId = eventId,
                 EventType = eventType,
@@ -343,7 +253,6 @@ namespace Opc.Ua.Client.Alarms
                 ReceiveTime = receiveTime,
                 Message = message,
                 Severity = severity,
-                ConditionId = sourceNode,
                 ConditionName = conditionName,
                 BranchId = branchId,
                 Retain = retain,
@@ -355,19 +264,20 @@ namespace Opc.Ua.Client.Alarms
         }
 
         /// <summary>
-        /// Builds the right <see cref="AlarmRecord"/> subtype based on
-        /// the populated fields (and falls back to <see cref="AlarmRecord"/>
-        /// when no subtype-specific fields are present).
+        /// Builds the right <see cref="AlarmConditionTypeRecord"/>
+        /// subtype based on the populated fields (and falls back to
+        /// <see cref="AlarmConditionTypeRecord"/> when no subtype-
+        /// specific fields are present).
         /// </summary>
-        private static AlarmRecord BuildAlarmRecord(
+        private static AlarmConditionTypeRecord BuildAlarmRecord(
             IReadOnlyList<Variant> fields,
-            ByteString eventId, NodeId? eventType, NodeId? sourceNode,
+            ByteString eventId, NodeId eventType, NodeId sourceNode,
             string? sourceName, DateTime time, DateTime receiveTime,
             LocalizedText message, ushort severity, string? conditionName,
-            NodeId? branchId, bool retain, bool? enabledStateId,
+            NodeId branchId, bool retain, bool? enabledStateId,
             StatusCode quality, LocalizedText comment, string? clientUserId,
             bool? ackedStateId, bool? confirmedStateId,
-            bool? activeStateId, NodeId? inputNode,
+            bool? activeStateId, NodeId inputNode,
             bool? suppressedStateId, bool? outOfServiceStateId,
             bool? latchedStateId, bool? silenceStateId,
             bool? suppressedOrShelved)
@@ -377,39 +287,37 @@ namespace Opc.Ua.Client.Alarms
             double? hLimit = GetNullable<double>(fields, 28);
             double? lLimit = GetNullable<double>(fields, 29);
             double? llLimit = GetNullable<double>(fields, 30);
-            // ExclusiveLimitAlarm fields (31-32)
-            LocalizedText currentLimitState = GetValue<LocalizedText>(fields, 31);
-            NodeId? currentLimitStateId = GetNodeId(fields, 32);
+            // ExclusiveLimitAlarm fields (31-32) — index 31 is the
+            // current limit state localized text, index 32 is the
+            // limit-state Id NodeId. Generated record only exposes the
+            // Id (matches the StateMachine model).
+            NodeId currentLimitStateId = GetNodeId(fields, 32);
             // NonExclusiveLimitAlarm fields (33-36)
             bool? hhStateId = GetNullable<bool>(fields, 33);
             bool? hStateId = GetNullable<bool>(fields, 34);
             bool? lStateId = GetNullable<bool>(fields, 35);
             bool? llStateId = GetNullable<bool>(fields, 36);
             // OffNormalAlarm field (37)
-            NodeId? normalState = GetNodeId(fields, 37);
+            NodeId normalState = GetNodeId(fields, 37);
             // CertificateExpirationAlarm fields (38-41)
             DateTime? expirationDate = GetNullable<DateTime>(fields, 38);
             double? expirationLimitMs = GetNullable<double>(fields, 39);
-            NodeId? certificateType = GetNodeId(fields, 40);
+            NodeId certificateType = GetNodeId(fields, 40);
             ByteString certificate = GetValue<ByteString>(fields, 41);
             // DiscrepancyAlarm fields (42-44)
-            NodeId? targetValueNode = GetNodeId(fields, 42);
+            NodeId targetValueNode = GetNodeId(fields, 42);
             double? expectedTime = GetNullable<double>(fields, 43);
             double? tolerance = GetNullable<double>(fields, 44);
 
             // Choose the most specific record type based on which subtype-
-            // specific fields are populated. ExpirationDate/Certificate
-            // imply CertificateExpiration; NormalState alone implies
-            // OffNormal; CurrentLimitState* implies Exclusive; HighHighState
-            // etc. imply NonExclusive; HighHighLimit etc. imply Limit;
-            // TargetValueNode implies Discrepancy.
-            if (expirationDate.HasValue || !certificate.IsNull || certificateType != null)
+            // specific fields are populated.
+            if (expirationDate.HasValue || !certificate.IsNull || !certificateType.IsNull)
             {
-                return new CertificateExpirationAlarmRecord
+                return new CertificateExpirationAlarmTypeRecord
                 {
                     EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                     SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    Message = message, Severity = severity,
                     ConditionName = conditionName, BranchId = branchId, Retain = retain,
                     EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                     ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -419,21 +327,19 @@ namespace Opc.Ua.Client.Alarms
                     SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
                     NormalState = normalState,
                     ExpirationDate = expirationDate,
-                    ExpirationLimit = expirationLimitMs.HasValue
-                        ? TimeSpan.FromMilliseconds(expirationLimitMs.Value)
-                        : null,
+                    ExpirationLimit = expirationLimitMs,
                     CertificateType = certificateType,
                     Certificate = certificate,
                 };
             }
 
-            if (targetValueNode != null || expectedTime.HasValue || tolerance.HasValue)
+            if (!targetValueNode.IsNull || expectedTime.HasValue || tolerance.HasValue)
             {
-                return new DiscrepancyAlarmRecord
+                return new DiscrepancyAlarmTypeRecord
                 {
                     EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                     SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    Message = message, Severity = severity,
                     ConditionName = conditionName, BranchId = branchId, Retain = retain,
                     EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                     ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -447,13 +353,13 @@ namespace Opc.Ua.Client.Alarms
                 };
             }
 
-            if (normalState != null)
+            if (!normalState.IsNull)
             {
-                return new OffNormalAlarmRecord
+                return new OffNormalAlarmTypeRecord
                 {
                     EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                     SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    Message = message, Severity = severity,
                     ConditionName = conditionName, BranchId = branchId, Retain = retain,
                     EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                     ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -465,13 +371,13 @@ namespace Opc.Ua.Client.Alarms
                 };
             }
 
-            if (currentLimitStateId != null || !currentLimitState.IsNullOrEmpty)
+            if (!currentLimitStateId.IsNull)
             {
-                return new ExclusiveLimitAlarmRecord
+                return new ExclusiveLimitAlarmTypeRecord
                 {
                     EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                     SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    Message = message, Severity = severity,
                     ConditionName = conditionName, BranchId = branchId, Retain = retain,
                     EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                     ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -481,19 +387,17 @@ namespace Opc.Ua.Client.Alarms
                     SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
                     HighHighLimit = hhLimit, HighLimit = hLimit,
                     LowLimit = lLimit, LowLowLimit = llLimit,
-                    CurrentLimitState = currentLimitState,
-                    CurrentLimitStateId = currentLimitStateId,
                 };
             }
 
             if (hhStateId.HasValue || hStateId.HasValue ||
                 lStateId.HasValue || llStateId.HasValue)
             {
-                return new NonExclusiveLimitAlarmRecord
+                return new NonExclusiveLimitAlarmTypeRecord
                 {
                     EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                     SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    Message = message, Severity = severity,
                     ConditionName = conditionName, BranchId = branchId, Retain = retain,
                     EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                     ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -503,19 +407,17 @@ namespace Opc.Ua.Client.Alarms
                     SilenceStateId = silenceStateId, SuppressedOrShelved = suppressedOrShelved,
                     HighHighLimit = hhLimit, HighLimit = hLimit,
                     LowLimit = lLimit, LowLowLimit = llLimit,
-                    HighHighStateId = hhStateId, HighStateId = hStateId,
-                    LowStateId = lStateId, LowLowStateId = llStateId,
                 };
             }
 
             if (hhLimit.HasValue || hLimit.HasValue ||
                 lLimit.HasValue || llLimit.HasValue)
             {
-                return new LimitAlarmRecord
+                return new LimitAlarmTypeRecord
                 {
                     EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                     SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                    Message = message, Severity = severity, ConditionId = sourceNode,
+                    Message = message, Severity = severity,
                     ConditionName = conditionName, BranchId = branchId, Retain = retain,
                     EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                     ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -528,11 +430,11 @@ namespace Opc.Ua.Client.Alarms
                 };
             }
 
-            return new AlarmRecord
+            return new AlarmConditionTypeRecord
             {
                 EventId = eventId, EventType = eventType, SourceNode = sourceNode,
                 SourceName = sourceName, Time = time, ReceiveTime = receiveTime,
-                Message = message, Severity = severity, ConditionId = sourceNode,
+                Message = message, Severity = severity,
                 ConditionName = conditionName, BranchId = branchId, Retain = retain,
                 EnabledStateId = enabledStateId, Quality = quality, Comment = comment,
                 ClientUserId = clientUserId, AckedStateId = ackedStateId,
@@ -576,11 +478,11 @@ namespace Opc.Ua.Client.Alarms
             return null;
         }
 
-        private static NodeId? GetNodeId(IReadOnlyList<Variant> fields, int index)
+        private static NodeId GetNodeId(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
             {
-                return null;
+                return NodeId.Null;
             }
 
             object? value = fields[index].AsBoxedObject();
@@ -588,7 +490,7 @@ namespace Opc.Ua.Client.Alarms
             {
                 return nodeId;
             }
-            return null;
+            return NodeId.Null;
         }
     }
 }
