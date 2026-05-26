@@ -29,6 +29,7 @@
 
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -327,5 +328,624 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(alarm.SilenceState.Id.Value, Is.False, "Audible activation clears silence");
         }
 
+        // -----------------------------------------------------------------
+        // On*Called audit handler coverage
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Test-only subclass that exposes the protected On*Called handlers
+        /// so the handler logic can be exercised directly.
+        /// </summary>
+        private sealed class TestableAlarm : AlarmConditionState
+        {
+            public TestableAlarm(ITelemetryContext telemetry)
+                : base(telemetry, null)
+            {
+            }
+
+            public ServiceResult CallSilence(ISystemContext c)
+                => OnSilenceCalled(c, null!, default, new List<Variant>());
+
+            public ServiceResult CallSuppress(ISystemContext c)
+                => OnSuppressCalled(c, null!, default, new List<Variant>());
+
+            public ServiceResult CallSuppress2(ISystemContext c, LocalizedText comment)
+                => OnSuppress2Called(c, null!, NodeId.Null, comment);
+
+            public ServiceResult CallUnsuppress(ISystemContext c)
+                => OnUnsuppressCalled(c, null!, default, new List<Variant>());
+
+            public ServiceResult CallUnsuppress2(ISystemContext c, LocalizedText comment)
+                => OnUnsuppress2Called(c, null!, NodeId.Null, comment);
+
+            public ServiceResult CallRemoveFromService(ISystemContext c)
+                => OnRemoveFromServiceCalled(c, null!, default, new List<Variant>());
+
+            public ServiceResult CallRemoveFromService2(ISystemContext c, LocalizedText comment)
+                => OnRemoveFromService2Called(c, null!, NodeId.Null, comment);
+
+            public ServiceResult CallPlaceInService(ISystemContext c)
+                => OnPlaceInServiceCalled(c, null!, default, new List<Variant>());
+
+            public ServiceResult CallPlaceInService2(ISystemContext c, LocalizedText comment)
+                => OnPlaceInService2Called(c, null!, NodeId.Null, comment);
+
+            public ServiceResult CallReset(ISystemContext c)
+                => OnResetCalled(c, null!, default, new List<Variant>());
+
+            public ServiceResult CallReset2(ISystemContext c, LocalizedText comment)
+                => OnReset2Called(c, null!, NodeId.Null, comment);
+
+            public ServiceResult CallGetGroupMemberships(ISystemContext c, ref ArrayOf<NodeId> groups)
+                => OnGetGroupMembershipsCalled(c, null!, NodeId.Null, ref groups);
+        }
+
+        private TestableAlarm CreateTestableAlarm()
+        {
+            var alarm = new TestableAlarm(m_telemetry);
+            alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
+            alarm.SetEnableState(m_context, true);
+            return alarm;
+        }
+
+        private void EnsureComment(AlarmConditionState alarm)
+        {
+            if (alarm.Comment == null)
+            {
+                alarm.Comment = ConditionVariableState<LocalizedText>.With<VariantBuilder>(alarm);
+                alarm.Comment.Create(m_context, default, QualifiedName.From(BrowseNames.Comment), default, false);
+            }
+        }
+
+        // ---------- Silence ----------
+
+        [Test]
+        public void OnSilenceCalledReturnsBadNotSupportedWhenStateMissing()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            // SilenceState intentionally not added.
+
+            ServiceResult result = alarm.CallSilence(m_context);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        public void OnSilenceCalledReturnsBadNothingToDoWhenAlreadySilenced()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SilenceState, s => alarm.SilenceState = s);
+            alarm.SetSilenceState(m_context, true);
+
+            ServiceResult result = alarm.CallSilence(m_context);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNothingToDo));
+        }
+
+        [Test]
+        public void OnSilenceCalledInvokesRequestedDelegateAndTransitions()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SilenceState, s => alarm.SilenceState = s);
+            int callCount = 0;
+            alarm.OnSilenceRequested = (c, a) =>
+            {
+                callCount++;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = alarm.CallSilence(m_context);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(callCount, Is.EqualTo(1));
+            Assert.That(alarm.SilenceState.Id.Value, Is.True);
+        }
+
+        [Test]
+        public void OnSilenceCalledVetoedByRequestedDelegateDoesNotTransition()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SilenceState, s => alarm.SilenceState = s);
+            alarm.OnSilenceRequested = (c, a) => StatusCodes.BadUserAccessDenied;
+
+            ServiceResult result = alarm.CallSilence(m_context);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(alarm.SilenceState.Id.Value, Is.False, "Veto must not transition");
+        }
+
+        // ---------- Suppress / Suppress2 ----------
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnSuppressCalledReturnsBadNotSupportedWhenStateMissing(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            // SuppressedState intentionally not added.
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallSuppress(m_context)
+                : alarm.CallSuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnSuppressCalledReturnsBadNothingToDoWhenAlreadySuppressed(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            alarm.SetSuppressedState(m_context, true);
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallSuppress(m_context)
+                : alarm.CallSuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNothingToDo));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnSuppressCalledInvokesRequestedDelegateAndTransitions(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            int callCount = 0;
+            bool? suppressingArg = null;
+            alarm.OnSuppressRequested = (c, a, suppressing) =>
+            {
+                callCount++;
+                suppressingArg = suppressing;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallSuppress(m_context)
+                : alarm.CallSuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(callCount, Is.EqualTo(1));
+            Assert.That(suppressingArg, Is.True);
+            Assert.That(alarm.SuppressedState.Id.Value, Is.True);
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnSuppressCalledVetoedByRequestedDelegateDoesNotTransition(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            alarm.OnSuppressRequested = (c, a, suppressing) => StatusCodes.BadUserAccessDenied;
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallSuppress(m_context)
+                : alarm.CallSuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(alarm.SuppressedState.Id.Value, Is.False);
+        }
+
+        [Test]
+        public void OnSuppress2CalledAppliesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            EnsureComment(alarm);
+            var comment = new LocalizedText("en", "operator suppressed");
+
+            ServiceResult result = alarm.CallSuppress2(m_context, comment);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+        }
+
+        // ---------- Unsuppress / Unsuppress2 ----------
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnUnsuppressCalledReturnsBadNotSupportedWhenStateMissing(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallUnsuppress(m_context)
+                : alarm.CallUnsuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnUnsuppressCalledReturnsBadNothingToDoWhenNotSuppressed(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            // Not suppressed.
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallUnsuppress(m_context)
+                : alarm.CallUnsuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNothingToDo));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnUnsuppressCalledInvokesRequestedDelegateAndTransitions(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            alarm.SetSuppressedState(m_context, true);
+
+            int callCount = 0;
+            bool? suppressingArg = null;
+            alarm.OnSuppressRequested = (c, a, suppressing) =>
+            {
+                callCount++;
+                suppressingArg = suppressing;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallUnsuppress(m_context)
+                : alarm.CallUnsuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(callCount, Is.EqualTo(1));
+            Assert.That(suppressingArg, Is.False);
+            Assert.That(alarm.SuppressedState.Id.Value, Is.False);
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnUnsuppressCalledVetoedByRequestedDelegateDoesNotTransition(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            alarm.SetSuppressedState(m_context, true);
+            alarm.OnSuppressRequested = (c, a, suppressing) => StatusCodes.BadUserAccessDenied;
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallUnsuppress(m_context)
+                : alarm.CallUnsuppress2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(alarm.SuppressedState.Id.Value, Is.True, "Veto preserves suppressed state");
+        }
+
+        [Test]
+        public void OnUnsuppress2CalledAppliesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.SuppressedState, s => alarm.SuppressedState = s);
+            alarm.SetSuppressedState(m_context, true);
+            EnsureComment(alarm);
+            var comment = new LocalizedText("en", "operator unsuppressed");
+
+            ServiceResult result = alarm.CallUnsuppress2(m_context, comment);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+        }
+
+        // ---------- RemoveFromService / RemoveFromService2 ----------
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnRemoveFromServiceCalledReturnsBadNotSupportedWhenStateMissing(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallRemoveFromService(m_context)
+                : alarm.CallRemoveFromService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnRemoveFromServiceCalledReturnsBadNothingToDoWhenAlreadyOutOfService(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            alarm.SetOutOfServiceState(m_context, true);
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallRemoveFromService(m_context)
+                : alarm.CallRemoveFromService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNothingToDo));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnRemoveFromServiceCalledInvokesRequestedDelegateAndTransitions(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            int callCount = 0;
+            bool? outOfServiceArg = null;
+            alarm.OnOutOfServiceRequested = (c, a, oos) =>
+            {
+                callCount++;
+                outOfServiceArg = oos;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallRemoveFromService(m_context)
+                : alarm.CallRemoveFromService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(callCount, Is.EqualTo(1));
+            Assert.That(outOfServiceArg, Is.True);
+            Assert.That(alarm.OutOfServiceState.Id.Value, Is.True);
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnRemoveFromServiceCalledVetoedByRequestedDelegateDoesNotTransition(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            alarm.OnOutOfServiceRequested = (c, a, oos) => StatusCodes.BadUserAccessDenied;
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallRemoveFromService(m_context)
+                : alarm.CallRemoveFromService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(alarm.OutOfServiceState.Id.Value, Is.False);
+        }
+
+        [Test]
+        public void OnRemoveFromService2CalledAppliesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            EnsureComment(alarm);
+            var comment = new LocalizedText("en", "down for maintenance");
+
+            ServiceResult result = alarm.CallRemoveFromService2(m_context, comment);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+        }
+
+        // ---------- PlaceInService / PlaceInService2 ----------
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnPlaceInServiceCalledReturnsBadNotSupportedWhenStateMissing(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallPlaceInService(m_context)
+                : alarm.CallPlaceInService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnPlaceInServiceCalledReturnsBadNothingToDoWhenAlreadyInService(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            // Default OutOfService=false (in service).
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallPlaceInService(m_context)
+                : alarm.CallPlaceInService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNothingToDo));
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnPlaceInServiceCalledInvokesRequestedDelegateAndTransitions(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            alarm.SetOutOfServiceState(m_context, true);
+
+            int callCount = 0;
+            bool? outOfServiceArg = null;
+            alarm.OnOutOfServiceRequested = (c, a, oos) =>
+            {
+                callCount++;
+                outOfServiceArg = oos;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallPlaceInService(m_context)
+                : alarm.CallPlaceInService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(callCount, Is.EqualTo(1));
+            Assert.That(outOfServiceArg, Is.False);
+            Assert.That(alarm.OutOfServiceState.Id.Value, Is.False);
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnPlaceInServiceCalledVetoedByRequestedDelegateDoesNotTransition(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            alarm.SetOutOfServiceState(m_context, true);
+            alarm.OnOutOfServiceRequested = (c, a, oos) => StatusCodes.BadUserAccessDenied;
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallPlaceInService(m_context)
+                : alarm.CallPlaceInService2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(alarm.OutOfServiceState.Id.Value, Is.True);
+        }
+
+        [Test]
+        public void OnPlaceInService2CalledAppliesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
+            alarm.SetOutOfServiceState(m_context, true);
+            EnsureComment(alarm);
+            var comment = new LocalizedText("en", "back in service");
+
+            ServiceResult result = alarm.CallPlaceInService2(m_context, comment);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+        }
+
+        // ---------- Reset / Reset2 ----------
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnResetCalledReturnsBadNotSupportedWhenLatchedStateMissing(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallReset(m_context)
+                : alarm.CallReset2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        private TestableAlarm CreateResettableAlarm()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.LatchedState, s => alarm.LatchedState = s);
+            // Activate then deactivate so the alarm is latched but not active.
+            alarm.SetActiveState(m_context, true);
+            // Acknowledge / confirm so Reset prerequisites pass.
+            if (alarm.AckedState is { } acked)
+            {
+                acked.Id!.Value = true;
+            }
+            if (alarm.ConfirmedState is { } confirmed)
+            {
+                confirmed.Id!.Value = true;
+            }
+            alarm.SetActiveState(m_context, false);
+            return alarm;
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnResetCalledInvokesRequestedDelegateAndClearsLatch(string variant)
+        {
+            TestableAlarm alarm = CreateResettableAlarm();
+            Assert.That(alarm.LatchedState.Id.Value, Is.True, "precondition: alarm is latched");
+
+            int callCount = 0;
+            alarm.OnResetRequested = (c, a) =>
+            {
+                callCount++;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallReset(m_context)
+                : alarm.CallReset2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(callCount, Is.EqualTo(1));
+            Assert.That(alarm.LatchedState.Id.Value, Is.False);
+        }
+
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnResetCalledVetoedByRequestedDelegateDoesNotClearLatch(string variant)
+        {
+            TestableAlarm alarm = CreateResettableAlarm();
+            alarm.OnResetRequested = (c, a) => StatusCodes.BadUserAccessDenied;
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallReset(m_context)
+                : alarm.CallReset2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+        }
+
+        [Test]
+        public void OnReset2CalledAppliesComment()
+        {
+            TestableAlarm alarm = CreateResettableAlarm();
+            EnsureComment(alarm);
+            var comment = new LocalizedText("en", "reset by operator");
+
+            ServiceResult result = alarm.CallReset2(m_context, comment);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+        }
+
+        // ---------- GetGroupMemberships ----------
+
+        [Test]
+        public void OnGetGroupMembershipsCalledReturnsEmptyArrayWhenNoGroups()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            ArrayOf<NodeId> groups = default;
+
+            ServiceResult result = alarm.CallGetGroupMemberships(m_context, ref groups);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(groups.Count, Is.Zero);
+        }
+
+        [Test]
+        public void OnGetGroupMembershipsCalledReturnsBadConditionDisabledWhenDisabled()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            alarm.SetEnableState(m_context, false);
+
+            ArrayOf<NodeId> groups = default;
+            ServiceResult result = alarm.CallGetGroupMemberships(m_context, ref groups);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadConditionDisabled));
+        }
+
+        [Test]
+        public void OnGetGroupMembershipsCalledReturnsConfiguredGroups()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            var groupNodeId = new NodeId(4242);
+            alarm.AddReference(ReferenceTypeIds.AlarmGroupMember, isInverse: true, groupNodeId);
+
+            ArrayOf<NodeId> groups = default;
+            ServiceResult result = alarm.CallGetGroupMemberships(m_context, ref groups);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(groups.Count, Is.EqualTo(1));
+            Assert.That(groups[0], Is.EqualTo(groupNodeId));
+        }
 }
 }

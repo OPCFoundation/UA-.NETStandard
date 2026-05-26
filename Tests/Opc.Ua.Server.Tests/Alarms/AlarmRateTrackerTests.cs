@@ -112,5 +112,97 @@ namespace Opc.Ua.Server.Tests.Alarms
             ArrayOf<ModelChangeStructureDataType> changes = agg.Drain();
             Assert.That(changes.Count, Is.EqualTo(3));
         }
+
+        [Test]
+        public void AddWithNullEntryThrowsArgumentNullException()
+        {
+            var agg = new ModelChangeAggregator();
+            Assert.That(() => agg.Add(null!),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [TestCase("NodeAdded")]
+        [TestCase("NodeDeleted")]
+        [TestCase("ReferenceAdded")]
+        [TestCase("ReferenceDeleted")]
+        [TestCase("DataTypeChanged")]
+        public void RecordFamilyWithNullNodeIdThrowsArgumentNullException(string family)
+        {
+            var agg = new ModelChangeAggregator();
+            switch (family)
+            {
+                case "NodeAdded":
+                    Assert.That(() => agg.RecordNodeAdded(NodeId.Null, null),
+                        Throws.InstanceOf<ArgumentNullException>());
+                    break;
+                case "NodeDeleted":
+                    Assert.That(() => agg.RecordNodeDeleted(NodeId.Null, null),
+                        Throws.InstanceOf<ArgumentNullException>());
+                    break;
+                case "ReferenceAdded":
+                    Assert.That(() => agg.RecordReferenceAdded(NodeId.Null),
+                        Throws.InstanceOf<ArgumentNullException>());
+                    break;
+                case "ReferenceDeleted":
+                    Assert.That(() => agg.RecordReferenceDeleted(NodeId.Null),
+                        Throws.InstanceOf<ArgumentNullException>());
+                    break;
+                case "DataTypeChanged":
+                    Assert.That(() => agg.RecordDataTypeChanged(NodeId.Null),
+                        Throws.InstanceOf<ArgumentNullException>());
+                    break;
+            }
+        }
+
+        [Test]
+        public void RecordReferenceDeletedProducesEntryWithReferenceDeletedVerb()
+        {
+            var agg = new ModelChangeAggregator();
+            agg.RecordReferenceDeleted(new NodeId(50));
+
+            ArrayOf<ModelChangeStructureDataType> changes = agg.Drain();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)ModelChangeVerbs.ReferenceDeleted));
+            Assert.That(changes[0].Affected, Is.EqualTo(new NodeId(50)));
+        }
+
+        [Test]
+        public void RecordDataTypeChangedProducesEntryWithDataTypeChangedVerb()
+        {
+            var agg = new ModelChangeAggregator();
+            agg.RecordDataTypeChanged(new NodeId(60));
+
+            ArrayOf<ModelChangeStructureDataType> changes = agg.Drain();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)ModelChangeVerbs.DataTypeChanged));
+            Assert.That(changes[0].Affected, Is.EqualTo(new NodeId(60)));
+        }
+
+        [Test]
+        public void DrainEmptiesPendingListSoSecondDrainIsEmpty()
+        {
+            var agg = new ModelChangeAggregator();
+            agg.RecordNodeAdded(new NodeId(70), new NodeId(71));
+
+            ArrayOf<ModelChangeStructureDataType> first = agg.Drain();
+            Assert.That(first.Count, Is.EqualTo(1));
+            Assert.That(agg.HasPending, Is.False);
+
+            ArrayOf<ModelChangeStructureDataType> second = agg.Drain();
+            Assert.That(second.Count, Is.Zero);
+            Assert.That(agg.HasPending, Is.False);
+        }
+
+        [Test]
+        public void RecordNodeAddedWithNullTypeDefinitionResolvesToNodeIdNull()
+        {
+            var agg = new ModelChangeAggregator();
+            agg.RecordNodeAdded(new NodeId(80), null);
+
+            ArrayOf<ModelChangeStructureDataType> changes = agg.Drain();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].AffectedType.IsNull, Is.True);
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)ModelChangeVerbs.NodeAdded));
+        }
     }
 }

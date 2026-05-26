@@ -109,5 +109,104 @@ namespace Opc.Ua.Server.Tests.StateMachines
             var sm = new FluentFiniteStateMachineState(null!, def);
             Assert.That(sm.Definition, Is.SameAs(def));
         }
+
+        [TestCase(null)]
+        [TestCase("")]
+        public void AddStateWithEmptyBrowseNameThrowsArgumentException(string browseName)
+        {
+            var b = new StateMachineBuilder();
+            Assert.That(() => b.AddState(1, browseName!),
+                Throws.ArgumentException);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        public void AddTransitionWithEmptyBrowseNameThrowsArgumentException(string browseName)
+        {
+            var b = new StateMachineBuilder();
+            b.AddState(1, "Off");
+            b.AddState(2, "On");
+            Assert.That(() => b.AddTransition(10, browseName!, from: 1, to: 2),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void AddTransitionWithDanglingToStateFailsAtBuild()
+        {
+            var b = new StateMachineBuilder();
+            b.AddState(1, "Off");
+            b.AddTransition(10, "OffToGhost", from: 1, to: 99);
+            Assert.That(() => b.Build(),
+                Throws.TypeOf<System.InvalidOperationException>());
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        public void UseElementNamespaceWithNullOrEmptyThrowsArgumentException(string namespaceUri)
+        {
+            var b = new StateMachineBuilder();
+            Assert.That(() => b.UseElementNamespace(namespaceUri!),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void UseElementNamespacePropagatesToDefinition()
+        {
+            const string customUri = "urn:test:custom";
+            StateMachineDefinition def = new StateMachineBuilder()
+                .UseElementNamespace(customUri)
+                .AddState(1, "Off", isInitial: true)
+                .Build();
+
+            Assert.That(def.ElementNamespaceUri, Is.EqualTo(customUri));
+        }
+
+        [Test]
+        public void AddStateInitialTrueTwiceWithSameIdDoesNotResetInitialState()
+        {
+            // Same id passed twice — the second AddState should throw on
+            // duplicate id, leaving the initial state intact.
+            var b = new StateMachineBuilder();
+            b.AddState(1, "Off", isInitial: true);
+
+            Assert.That(() => b.AddState(1, "Off", isInitial: true),
+                Throws.ArgumentException);
+
+            // Add a non-clashing state and verify the initial state id
+            // captured on the first call is still 1.
+            b.AddState(2, "On");
+            StateMachineDefinition def = b.Build();
+            Assert.That(def.InitialStateId, Is.EqualTo(1u));
+        }
+
+        [Test]
+        public void HasEffectFalseSurvivesBuildAndIsReflectedOnDefinitionTransitions()
+        {
+            StateMachineDefinition def = new StateMachineBuilder()
+                .AddState(1, "Off", isInitial: true)
+                .AddState(2, "On")
+                .AddTransition(10, "OffToOn", from: 1, to: 2, hasEffect: false)
+                .AddTransition(20, "OnToOff", from: 2, to: 1)
+                .Build();
+
+            StateMachineTransitionDefinition silent = null!;
+            StateMachineTransitionDefinition loud = null!;
+            foreach (StateMachineTransitionDefinition t in def.Transitions)
+            {
+                if (t.Id == 10u)
+                {
+                    silent = t;
+                }
+                if (t.Id == 20u)
+                {
+                    loud = t;
+                }
+            }
+
+            Assert.That(silent, Is.Not.Null);
+            Assert.That(silent.HasEffect, Is.False);
+            Assert.That(loud, Is.Not.Null);
+            Assert.That(loud.HasEffect, Is.True);
+        }
     }
 }

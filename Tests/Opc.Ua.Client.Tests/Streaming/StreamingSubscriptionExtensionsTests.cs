@@ -77,6 +77,88 @@ namespace Opc.Ua.Client.Tests.Streaming
                 Throws.InstanceOf<ArgumentNullException>());
         }
 
+        [Test]
+        public void BufferedAsyncWithNullSourceThrowsArgumentNullException()
+        {
+            Assert.That(async () =>
+                await StreamingSubscriptionExtensions.BufferedAsync<int>(null!, 5),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void BufferedAsyncWithNonPositiveCountThrowsArgumentOutOfRangeException(int count)
+        {
+            Assert.That(async () => await Range(3).BufferedAsync(count),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
+        public async Task BufferedAsyncReturnsShorterBatchWhenSourceEndsEarly()
+        {
+            IReadOnlyList<int> buffer = await Range(3).BufferedAsync(10);
+
+            Assert.That(buffer, Is.EqualTo(new[] { 0, 1, 2 }));
+            Assert.That(buffer, Has.Count.EqualTo(3));
+        }
+
+        [Test]
+        public void TakeUntilAsyncRespectsExplicitCancellationToken()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(async () =>
+            {
+                await foreach (int _ in InfiniteWithDelay(0)
+                    .TakeUntilAsync(_ => false, cts.Token))
+                {
+                    // No-op; the iterator should throw on first item.
+                }
+            }, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public void WithTimeoutAsyncWithNullSourceThrowsArgumentNullException()
+        {
+            Assert.That(
+                () => StreamingSubscriptionExtensions
+                    .WithTimeoutAsync<int>(null!, TimeSpan.FromMilliseconds(50)),
+                Throws.InstanceOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void WithTimeoutAsyncPropagatesOuterCancellationAsOperationCanceledException()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(async () =>
+            {
+                await foreach (int _ in InfiniteWithDelay(10)
+                    .WithTimeoutAsync(TimeSpan.FromSeconds(5), cts.Token))
+                {
+                    // Drains until the outer CT cancels — should throw OCE,
+                    // not silently complete the way the internal timeout
+                    // does.
+                }
+            }, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public async Task WithTimeoutAsyncDisposesEnumeratorOnExit()
+        {
+            var probe = new DisposeProbeEnumerable();
+
+            await foreach (int _ in probe.WithTimeoutAsync(TimeSpan.FromMilliseconds(20)))
+            {
+                // drain until timeout fires
+            }
+
+            Assert.That(probe.LastEnumerator, Is.Not.Null);
+            Assert.That(probe.LastEnumerator!.DisposeCalls, Is.GreaterThanOrEqualTo(1));
+        }
+
         private static async IAsyncEnumerable<int> Range(int count)
         {
             for (int i = 0; i < count; i++)
@@ -93,6 +175,51 @@ namespace Opc.Ua.Client.Tests.Streaming
             {
                 yield return i;
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// IAsyncEnumerable probe that records DisposeAsync calls on the
+        /// enumerator returned to the caller. Used to verify that
+        /// <c>WithTimeoutAsync</c> disposes the source enumerator in
+        /// its finally block.
+        /// </summary>
+        private sealed class DisposeProbeEnumerable : IAsyncEnumerable<int>
+        {
+            public DisposeProbeEnumerator? LastEnumerator { get; private set; }
+
+            public IAsyncEnumerator<int> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+            {
+                LastEnumerator = new DisposeProbeEnumerator(cancellationToken);
+                return LastEnumerator;
+            }
+        }
+
+        private sealed class DisposeProbeEnumerator : IAsyncEnumerator<int>
+        {
+            private readonly CancellationToken m_ct;
+            public int DisposeCalls { get; private set; }
+
+            public DisposeProbeEnumerator(CancellationToken ct)
+            {
+                m_ct = ct;
+            }
+
+            public int Current => 0;
+
+            public ValueTask DisposeAsync()
+            {
+                DisposeCalls++;
+                return default;
+            }
+
+            public async ValueTask<bool> MoveNextAsync()
+            {
+                // Block until the linked CT fires (the WithTimeoutAsync
+                // internal timeout). Throws OCE which the production
+                // code swallows; the finally block then disposes us.
+                await Task.Delay(Timeout.Infinite, m_ct).ConfigureAwait(false);
+                return false;
             }
         }
     }
