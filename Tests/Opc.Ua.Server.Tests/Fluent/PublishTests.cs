@@ -111,7 +111,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             m_queueFactory?.Dispose();
         }
 
-        #region Lazy / eager activation
 
         [Test]
         public async Task Publish_LazyDefault_DoesNotInvokeFactoryUntilEventsAreMonitoredAsync()
@@ -188,9 +187,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
 
-        #endregion Lazy / eager activation
 
-        #region Event delivery
 
         [Test]
         public async Task Publish_ActivatedSource_DeliversEventsThroughOnReportEventAsync()
@@ -351,9 +348,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
-        #endregion Event delivery
 
-        #region Errors and validation
 
         [Test]
         public async Task Publish_FactoryThrows_InvokesOnErrorAndStopsSourceAsync()
@@ -472,9 +467,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     options: null));
         }
 
-        #endregion Errors and validation
 
-        #region Auto-promote and root-notifier
 
         [Test]
         public void Publish_AutoPromotesEventNotifierBit()
@@ -509,9 +502,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
         }
 
-        #endregion Auto-promote and root-notifier
 
-        #region Lifecycle / dispose
 
         [Test]
         public async Task Dispose_CancelsActiveIteratorAsync()
@@ -538,9 +529,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
 
-        #endregion Lifecycle / dispose
 
-        #region Extension method (Publish on builder)
 
         [Test]
         public void Publish_OnNonFluentManager_ThrowsBadConfigurationErrorWithManagerType()
@@ -660,9 +649,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null));
         }
 
-        #endregion Extension method (Publish on builder)
 
-        #region Helpers
 
         private TestablePublishManager CreateManager()
         {
@@ -841,6 +828,5 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
-        #endregion Helpers
     }
 }

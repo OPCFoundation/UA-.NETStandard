@@ -82,7 +82,6 @@ namespace Opc.Ua.History.Tests
             await DiscoverDirectoryAndFileAsync().ConfigureAwait(false);
         }
 
-        #region helpers
 
         private async Task<NodeId> FindFirstVolumeAsync()
         {
@@ -337,7 +336,6 @@ namespace Opc.Ua.History.Tests
             }
         }
 
-        #endregion helpers
 
         [Test]
         public async Task VolumeBrowseNameMatchesPathAsync()
