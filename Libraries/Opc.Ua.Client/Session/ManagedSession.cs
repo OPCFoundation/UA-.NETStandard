@@ -1161,6 +1161,11 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            // Tear down streaming subscription and model change tracker
+            // before closing the session so any in-flight publish work
+            // completes against a still-valid session.
+            await DisposeStreamingAsync().ConfigureAwait(false);
+
             await StateMachine.DisposeAsync()
                 .ConfigureAwait(false);
 

@@ -385,6 +385,7 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
+            NodeId resultId;
             lock (Lock)
             {
                 instance.ReferenceTypeId = referenceTypeId;
@@ -407,8 +408,23 @@ namespace Opc.Ua.Server
                 instance.Create(contextToUse, default, browseName, default, true);
                 AddPredefinedNode(contextToUse, instance);
 
-                return instance.NodeId;
+                resultId = instance.NodeId;
             }
+
+            // Auto-emit GeneralModelChangeEvent for dynamic CreateNode usage.
+            // This is best-effort: callers can opt out by overriding
+            // EmitModelChange or setting ModelChangeEmissionEnabled to false.
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeAdded(resultId, instance.TypeDefinitionId);
+                if (!parentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceAdded(parentId);
+                }
+                EmitModelChange(contextToUse);
+            }
+
+            return resultId;
         }
 
         /// <summary>
@@ -425,12 +441,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+
             RemovePredefinedNode(contextToUse, node!, referencesToRemove);
             RemoveRootNotifier(node!);
 
             if (referencesToRemove.Count > 0)
             {
                 Server.NodeManager.RemoveReferences(referencesToRemove);
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                EmitModelChange(contextToUse);
             }
 
             return true;
@@ -2237,6 +2261,80 @@ namespace Opc.Ua.Server
                             }.ToArrayOf();
 
             Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// Raises a GeneralModelChangeEvent to notify clients that nodes or references
+        /// have been added or removed in the address space. Per Part 5 §6.4.32,
+        /// changes should be aggregated and reported in batches.
+        /// </summary>
+        /// <param name="systemContext">The system context.</param>
+        /// <param name="changes">The aggregated set of model changes.</param>
+        protected void RaiseGeneralModelChangeEvent(
+            ISystemContext systemContext,
+            ArrayOf<ModelChangeStructureDataType> changes)
+        {
+            if (changes.Count == 0)
+            {
+                return;
+            }
+
+            var e = new GeneralModelChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "GeneralModelChangeEvent",
+                "en-US",
+                "Address space model changed.");
+
+            e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null!);
+            e!.Changes!.Value = changes;
+
+            Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// The model change aggregator used by <see cref="CreateNode"/> /
+        /// <see cref="DeleteNode"/> to batch address-space changes per
+        /// publish cycle. Custom node managers can also call
+        /// <c>ModelChangeAggregator.Record*</c> directly when mutating
+        /// the address space outside the standard hooks, then call
+        /// <see cref="EmitModelChange"/> to publish.
+        /// </summary>
+        protected Opc.Ua.Server.Alarms.ModelChangeAggregator ModelChangeAggregator { get; }
+            = new Opc.Ua.Server.Alarms.ModelChangeAggregator();
+
+        /// <summary>
+        /// Gets or sets whether the framework automatically emits
+        /// <c>GeneralModelChangeEventType</c> from <see cref="CreateNode"/>
+        /// / <see cref="DeleteNode"/>. Default: <c>true</c>. Set to
+        /// <c>false</c> if the derived node manager prefers manual control
+        /// over event emission (e.g. to batch many operations and emit
+        /// once at the end).
+        /// </summary>
+        public bool ModelChangeEmissionEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Drains the <see cref="ModelChangeAggregator"/> and emits a
+        /// single <c>GeneralModelChangeEvent</c> with the accumulated
+        /// changes. No-op when no changes are pending.
+        /// </summary>
+        protected void EmitModelChange(ISystemContext systemContext)
+        {
+            if (!ModelChangeAggregator.HasPending)
+            {
+                return;
+            }
+            ArrayOf<ModelChangeStructureDataType> changes = ModelChangeAggregator.Drain();
+            RaiseGeneralModelChangeEvent(systemContext, changes);
         }
 
         /// <summary>

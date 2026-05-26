@@ -75,6 +75,8 @@ namespace Opc.Ua
                 shelvingState.Unshelve!.OnReadExecutable = IsUnshelveExecutable;
                 shelvingState.Unshelve!.OnReadUserExecutable = IsUnshelveExecutable;
             }
+
+            WireAlarmMethods();
         }
 
         /// <inheritdoc/>
@@ -136,6 +138,18 @@ namespace Opc.Ua
                     "ConditionStateActive",
                     "en-US",
                     ConditionStateNames.Active);
+
+                // When a latched alarm activates, set LatchedState to true
+                if (LatchedState != null && !LatchedState.Id!.Value)
+                {
+                    SetLatchedState(context, true);
+                }
+
+                // New activation resets silence state
+                if (SilenceState is { } silenceState && silenceState.Id!.Value)
+                {
+                    SetSilenceState(context, false);
+                }
             }
             else
             {
@@ -186,9 +200,10 @@ namespace Opc.Ua
             }
             else
             {
-                if (ShelvingState == null ||
+                if ((ShelvingState == null ||
                     ShelvingState.CurrentState!.Id!.Value == ObjectIds
-                        .ShelvedStateMachineType_Unshelved) // CurrentState/Id are populated by the state machine ctor
+                        .ShelvedStateMachineType_Unshelved) &&
+                    (OutOfServiceState == null || !OutOfServiceState.Id!.Value))  // CurrentState/Id are populated by the state machine ctor
                 {
                     SuppressedOrShelved!.Value = false; // SuppressedOrShelved is created with the alarm
                 }
@@ -238,7 +253,8 @@ namespace Opc.Ua
 
             if (!shelved)
             {
-                if (SuppressedState == null || !SuppressedState.Id!.Value) // Id is created with SuppressedState
+                if ((SuppressedState == null || !SuppressedState.Id!.Value) &&
+                    (OutOfServiceState == null || !OutOfServiceState.Id!.Value)) // Id is created with SuppressedState/OutOfServiceState
                 {
                     SuppressedOrShelved!.Value = false; // SuppressedOrShelved is created with the alarm
                 }
@@ -313,6 +329,11 @@ namespace Opc.Ua
                 retainState = base.GetRetainState();
 
                 if (!IsBranch() && ActiveState!.Id!.Value) // alarm conditions always have ActiveState/Id
+                {
+                    retainState = true;
+                }
+
+                if (!IsBranch() && LatchedState is { } latchedState && latchedState.Id!.Value)
                 {
                     retainState = true;
                 }
@@ -403,6 +424,11 @@ namespace Opc.Ua
                 suppressedState = suppressedStateNode.Value;
             }
 
+            if (OutOfServiceState is { } outOfServiceNode && outOfServiceNode.Id!.Value) // Id is created with OutOfServiceState
+            {
+                suppressedState = outOfServiceNode.Value;
+            }
+
             if (ShelvingState is { } shelvingState &&
                 shelvingState.CurrentState!.Id!.Value != ObjectIds.ShelvedStateMachineType_Unshelved) // CurrentState/Id are populated by the state machine ctor
             {
@@ -413,6 +439,12 @@ namespace Opc.Ua
             {
                 builder.Append(" | ")
                     .Append(suppressedState);
+            }
+
+            if (LatchedState is { } latchedStateNode && latchedStateNode.Id!.Value) // Id is created with LatchedState
+            {
+                builder.Append(" | ")
+                    .Append(latchedStateNode.Value);
             }
 
             LocalizedText ackState = default;

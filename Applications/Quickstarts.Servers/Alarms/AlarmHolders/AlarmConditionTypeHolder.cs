@@ -83,6 +83,8 @@ namespace Alarms
 
                 alarm.OutOfServiceState ??= new TwoStateVariableState(alarm);
 
+                alarm.SilenceState ??= new TwoStateVariableState(alarm);
+
                 if (alarm.ShelvingState == null)
                 {
                     alarm.ShelvingState = new ShelvedStateMachineState(alarm);
@@ -109,6 +111,8 @@ namespace Alarms
             if (Optional)
             {
                 alarm.SetSuppressedState(SystemContext, suppressed: false);
+                alarm.SetOutOfServiceState(SystemContext, outOfService: false);
+                alarm.SetSilenceState(SystemContext, silenced: false);
                 alarm.SetShelvingState(
                     SystemContext,
                     shelved: false,
@@ -130,6 +134,8 @@ namespace Alarms
             {
                 alarm.ShelvingState = null;
                 alarm.LatchedState = null;
+                alarm.SilenceState = null;
+                alarm.OutOfServiceState = null;
             }
 
             alarm.AudibleSound = null;

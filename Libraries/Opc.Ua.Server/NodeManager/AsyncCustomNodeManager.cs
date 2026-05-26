@@ -432,7 +432,19 @@ namespace Opc.Ua.Server
             instance.Create(contextToUse, default, browseName, default, true);
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
-            return instance.NodeId;
+            NodeId resultId = instance.NodeId;
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeAdded(resultId, instance.TypeDefinitionId);
+                if (!parentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceAdded(parentId);
+                }
+                EmitModelChange(contextToUse);
+            }
+
+            return resultId;
         }
 
         /// <summary>
@@ -548,12 +560,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+
             await RemovePredefinedNodeAsync(contextToUse, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
             await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
 
             if (referencesToRemove.Count > 0)
             {
                 await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                EmitModelChange(contextToUse);
             }
 
             return true;
@@ -2394,6 +2414,71 @@ namespace Opc.Ua.Server
                             }.ToArrayOf();
 
             Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// Raises a GeneralModelChangeEvent to notify clients that nodes or references
+        /// have been added or removed in the address space.
+        /// </summary>
+        protected void RaiseGeneralModelChangeEvent(
+            ISystemContext systemContext,
+            ArrayOf<ModelChangeStructureDataType> changes)
+        {
+            if (changes.Count == 0)
+            {
+                return;
+            }
+
+            var e = new GeneralModelChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "GeneralModelChangeEvent",
+                "en-US",
+                "Address space model changed.");
+
+            e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null!);
+            e!.Changes!.Value = changes;
+
+            Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// The model change aggregator used by <see cref="CreateNodeAsync"/> /
+        /// <see cref="DeleteNodeAsync"/> to batch address-space changes
+        /// per publish cycle.
+        /// </summary>
+        protected Opc.Ua.Server.Alarms.ModelChangeAggregator ModelChangeAggregator { get; }
+            = new Opc.Ua.Server.Alarms.ModelChangeAggregator();
+
+        /// <summary>
+        /// Gets or sets whether the framework automatically emits
+        /// <c>GeneralModelChangeEventType</c> from <see cref="CreateNodeAsync"/>
+        /// / <see cref="DeleteNodeAsync"/>. Default: <c>true</c>.
+        /// </summary>
+        public bool ModelChangeEmissionEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Drains the <see cref="ModelChangeAggregator"/> and emits a
+        /// single <c>GeneralModelChangeEvent</c>. No-op when no changes
+        /// are pending.
+        /// </summary>
+        protected void EmitModelChange(ISystemContext systemContext)
+        {
+            if (!ModelChangeAggregator.HasPending)
+            {
+                return;
+            }
+            ArrayOf<ModelChangeStructureDataType> changes = ModelChangeAggregator.Drain();
+            RaiseGeneralModelChangeEvent(systemContext, changes);
         }
 
         /// <summary>
