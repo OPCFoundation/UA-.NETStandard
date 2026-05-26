@@ -37,6 +37,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
@@ -202,12 +203,12 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var endpoint = new EndpointDescription
             {
                 SecurityPolicyUri = SecurityPolicies.None,
-                UserIdentityTokens = new UserTokenPolicyCollection()
+                UserIdentityTokens = []
             };
             return new IdentitySelectionContext(
                 endpoint,
                 Array.Empty<UserTokenPolicy>(),
-                ServiceMessageContext.GlobalContext);
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
         private sealed class FakeSecretRegistry : ISecretRegistry

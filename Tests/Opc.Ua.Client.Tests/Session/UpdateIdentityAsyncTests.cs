@@ -32,7 +32,7 @@ using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
 
-namespace Opc.Ua.Client.Tests.Session
+namespace Opc.Ua.Client.Tests.Identity
 {
     [TestFixture]
     [Category("Session")]
