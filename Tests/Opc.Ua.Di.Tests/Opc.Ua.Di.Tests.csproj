@@ -35,5 +35,6 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
 </Project>

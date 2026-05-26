@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Di;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
@@ -46,7 +47,7 @@ namespace Pumps
     /// (constructor, address-space load, fluent builder wiring) for the
     /// OPC 40223 Pumps companion specification server.
     /// </summary>
-    public partial class PumpNodeManager : FluentNodeManagerBase, INodeIdFactory
+    public partial class PumpNodeManager : DiNodeManager
     {
         /// <summary>
         /// Initialises a new <see cref="PumpNodeManager"/>.
@@ -57,17 +58,16 @@ namespace Pumps
             : base(
                   server,
                   configuration,
-                  server.Telemetry.CreateLogger<PumpNodeManager>(),
                   PumpsNamespaceUri,
-                  MachineryNamespaceUri,
-                  DiNamespaceUri)
+                  MachineryNamespaceUri)
         {
+            // Base class constructor sets SystemContext.NodeIdFactory to
+            // itself; our New() override takes over.
             SystemContext.NodeIdFactory = this;
         }
 
         private const string PumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
         private const string MachineryNamespaceUri = "http://opcfoundation.org/UA/Machinery/";
-        private const string DiNamespaceUri = global::Opc.Ua.Di.Namespaces.OpcUaDi;
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
