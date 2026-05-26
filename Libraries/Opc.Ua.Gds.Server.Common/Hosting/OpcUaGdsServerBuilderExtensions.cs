@@ -248,6 +248,103 @@ namespace Microsoft.Extensions.DependencyInjection
             return gdsBuilder;
         }
 
+        /// <summary>
+        /// Configures the default role manager used by the hosted GDS server
+        /// using configuration binding.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="section">Configuration section bound to
+        /// <see cref="RoleConfigurationOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder ConfigureRoles(
+            this IGdsServerBuilder gdsBuilder,
+            IConfiguration section)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            OpcUaServerBuilderExtensions.ConfigureRoles(serverBuilder, section);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers the built-in GDS identity authenticators with options
+        /// bound from a configuration section.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="section">Configuration section bound to
+        /// <see cref="DefaultAuthenticatorOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddDefaultIdentityAuthenticators(
+            this IGdsServerBuilder gdsBuilder,
+            IConfiguration section)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
+                serverBuilder,
+                section);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a trusted JWT issuer with the GDS server from code.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="JwtIssuerOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddJwtIssuer(
+            this IGdsServerBuilder gdsBuilder,
+            Action<JwtIssuerOptions> configure)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            OpcUaServerBuilderExtensions.AddJwtIssuer(serverBuilder, configure);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a trusted JWT issuer with the GDS server from a
+        /// configuration section.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="section">Configuration section bound to
+        /// <see cref="JwtIssuerOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddJwtIssuer(
+            this IGdsServerBuilder gdsBuilder,
+            IConfiguration section)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            OpcUaServerBuilderExtensions.AddJwtIssuer(serverBuilder, section);
+            return gdsBuilder;
+        }
+
         private static ForwardingServerBuilder ToServerBuilder(IGdsServerBuilder gdsBuilder)
         {
             if (gdsBuilder is null)

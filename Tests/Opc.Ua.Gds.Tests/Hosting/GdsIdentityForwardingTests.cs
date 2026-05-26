@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -116,6 +117,93 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 builder.AddDefaultIdentityAuthenticators(options => options.EnableJwt = false));
 
             Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+        }
+
+        [Test]
+        public void ConfigureRolesConfigurationMatchesServerBuilderRegistration()
+        {
+            IConfiguration section = BuildConfiguration("LegacyRoleCriteriaMatchesGrantedRoles", "true");
+            IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
+                builder.ConfigureRoles(section));
+            IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
+                builder.ConfigureRoles(section));
+
+            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+        }
+
+        [Test]
+        public void ConfigureRolesConfigurationAppliesOptions()
+        {
+            var services = new ServiceCollection();
+            IGdsServerBuilder builder = services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "Gds");
+            IConfiguration section = BuildConfiguration(
+                "LegacyRoleCriteriaMatchesGrantedRoles",
+                "true");
+
+            IGdsServerBuilder returned = builder.ConfigureRoles(section);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            RoleConfigurationOptions options = sp.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
+
+            Assert.That(returned, Is.SameAs(builder));
+            Assert.That(options.LegacyRoleCriteriaMatchesGrantedRoles, Is.True);
+        }
+
+        [Test]
+        public void AddDefaultIdentityAuthenticatorsConfigurationMatchesServerBuilderRegistration()
+        {
+            IConfiguration section = BuildConfiguration("EnableJwt", "false");
+            IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
+                builder.AddDefaultIdentityAuthenticators(section));
+            IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
+                builder.AddDefaultIdentityAuthenticators(section));
+
+            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+        }
+
+        [Test]
+        public void AddJwtIssuerActionMatchesServerBuilderRegistration()
+        {
+            IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
+                builder.AddJwtIssuer(opt =>
+                {
+                    opt.IssuerUri = "https://issuer.example";
+                    opt.JwksUri = "https://issuer.example/.well-known/jwks";
+                }));
+            IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
+                builder.AddJwtIssuer(opt =>
+                {
+                    opt.IssuerUri = "https://issuer.example";
+                    opt.JwksUri = "https://issuer.example/.well-known/jwks";
+                }));
+
+            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+        }
+
+        [Test]
+        public void AddJwtIssuerConfigurationMatchesServerBuilderRegistration()
+        {
+            IConfiguration section = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["IssuerUri"] = "https://issuer.example",
+                    ["JwksUri"] = "https://issuer.example/.well-known/jwks"
+                })
+                .Build();
+            IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
+                builder.AddJwtIssuer(section));
+            IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
+                builder.AddJwtIssuer(section));
+
+            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+        }
+
+        private static IConfiguration BuildConfiguration(string key, string value)
+        {
+            return new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string> { [key] = value })
+                .Build();
         }
 
         private static IReadOnlyList<string> CaptureServerDelta(Action<IOpcUaServerBuilder> configure)
