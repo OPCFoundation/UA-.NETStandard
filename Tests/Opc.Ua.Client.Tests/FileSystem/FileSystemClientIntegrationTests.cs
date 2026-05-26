@@ -148,6 +148,9 @@ namespace Opc.Ua.Client.Tests.FileSystem
             }
         }
 
+        private static readonly string[] s_rootListing = ["a.txt", "b.txt", "sub"];
+        private static readonly string[] s_nestedListing = ["inside.txt"];
+
         private FileSystemClient OpenClient()
         {
             NodeId mountRoot = ResolveMountRoot();
@@ -212,11 +215,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await sub.CreateFileAsync("c.txt").ConfigureAwait(false);
 
             var names = new List<string>();
-            await foreach (UaFileSystemInfo info in client.Root.EnumerateAsync())
+            await foreach (UaFileSystemInfo info in client.Root.EnumerateAsync().ConfigureAwait(false))
             {
                 names.Add(info.Name);
             }
-            Assert.That(names, Is.EquivalentTo(new[] { "a.txt", "b.txt", "sub" }));
+            Assert.That(names, Is.EquivalentTo(s_rootListing));
         }
 
         [Test]
@@ -297,7 +300,9 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 .CreateFileAsync("big.bin")
                 .ConfigureAwait(false);
 
-            var rng = new Random(42);
+            // Deterministic test payload generation, not cryptographic
+            // material - use the shared UnsecureRandom wrapper.
+            var rng = new UnsecureRandom(42);
             byte[] payload = new byte[64 * 1024];
             rng.NextBytes(payload);
             await file.WriteAllBytesAsync(payload).ConfigureAwait(false);
@@ -327,7 +332,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 TimestampsToReturn.Neither,
                 nodesToRead,
                 default).ConfigureAwait(false);
-            QualifiedName actual = response.Results[0].GetValue<QualifiedName>(QualifiedName.Null);
+            QualifiedName actual = response.Results[0].GetValue(QualifiedName.Null);
             Assert.That(actual.Name, Is.EqualTo("TestRoot"));
         }
 
@@ -354,11 +359,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await level2.CreateFileAsync("inside.txt").ConfigureAwait(false);
 
             var names = new List<string>();
-            await foreach (UaFileSystemInfo info in level2.EnumerateAsync())
+            await foreach (UaFileSystemInfo info in level2.EnumerateAsync().ConfigureAwait(false))
             {
                 names.Add(info.Name);
             }
-            Assert.That(names, Is.EquivalentTo(new[] { "inside.txt" }));
+            Assert.That(names, Is.EquivalentTo(s_nestedListing));
         }
 
         [Test]

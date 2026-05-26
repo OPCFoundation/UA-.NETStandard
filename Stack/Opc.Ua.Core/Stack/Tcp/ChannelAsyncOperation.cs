@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -174,8 +174,7 @@ namespace Opc.Ua.Bindings
         public T End(int timeout, bool throwOnError = true)
         {
             // check if the request has already completed.
-            bool mustWait = false;
-
+            bool mustWait;
             lock (m_lock)
             {
                 mustWait = !m_completed;
@@ -229,8 +228,7 @@ namespace Opc.Ua.Bindings
             CancellationToken ct = default)
         {
             // check if the request has already completed.
-            bool mustWait = false;
-
+            bool mustWait;
             lock (m_lock)
             {
                 mustWait = !m_completed;

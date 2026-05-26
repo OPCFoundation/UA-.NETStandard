@@ -325,7 +325,7 @@ namespace Opc.Ua.Server.FileSystem
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument,
                     "Negative length.");
             }
-            var buffer = new byte[length];
+            byte[] buffer = new byte[length];
             int read = stream.Read(buffer, 0, length);
             if (read == length)
             {
@@ -333,7 +333,7 @@ namespace Opc.Ua.Server.FileSystem
             }
             else
             {
-                var trimmed = new byte[read];
+                byte[] trimmed = new byte[read];
                 Array.Copy(buffer, 0, trimmed, 0, read);
                 data = ByteString.From(trimmed);
             }

@@ -64,12 +64,18 @@
     <PublicKey>$(PublicKey)71b5c8f2ab1067f7c880e8f8882a73c80a12a1ef</PublicKey>
   </PropertyGroup>
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0' OR '$(TargetFramework)' == 'net10.0'">
+    <When Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net5.0'))">
       <PropertyGroup>
         <!-- Disable strongname warning as that's not been enforced since .net 5.-->
         <NoWarn>$(NoWarn);CS8002</NoWarn>
       </PropertyGroup>
     </When>
+    <Otherwise>
+      <PropertyGroup>
+        <!-- Disable nullable warning as it is not as meaningful on .net framework as on .net -->
+        <NoWarn>$(NoWarn);nullable</NoWarn>
+      </PropertyGroup>
+    </Otherwise>
   </Choose>
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <None

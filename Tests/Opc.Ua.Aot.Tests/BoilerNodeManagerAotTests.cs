@@ -145,7 +145,9 @@ namespace Opc.Ua.Aot.Tests
         /// <see cref="ResolveBoilerVariableAsync"/>.
         /// </summary>
         private Task<NodeId> ResolveBoilerObjectAsync(params string[] tail)
-            => ResolveBoilerVariableAsync(tail);
+        {
+            return ResolveBoilerVariableAsync(tail);
+        }
 
         /// <summary>
         /// Walks the boiler instance tree starting from the well-known

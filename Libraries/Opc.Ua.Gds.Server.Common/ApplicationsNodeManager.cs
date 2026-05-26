@@ -561,7 +561,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.RevokeCertificate!.OnCallAsync = OnRevokeCertificateAsync;
                     activeNode.CheckRevocationStatus!.OnCallAsync = OnCheckRevocationStatusAsync;
 
-                    var defaultApplicationCertificateTypes = activeNode.CertificateGroups!
+                    PropertyState<ArrayOf<NodeId>> defaultApplicationCertificateTypes = activeNode.CertificateGroups!
                         .DefaultApplicationGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultApplicationGroupId,
@@ -592,7 +592,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable!.Value =
                         true;
 
-                    var defaultHttpsCertificateTypes = activeNode.CertificateGroups
+                    PropertyState<ArrayOf<NodeId>> defaultHttpsCertificateTypes = activeNode.CertificateGroups
                         .DefaultHttpsGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultHttpsGroupId,
@@ -617,7 +617,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable!.Value =
                         true;
 
-                    var defaultUserTokenCertificateTypes = activeNode.CertificateGroups
+                    PropertyState<ArrayOf<NodeId>> defaultUserTokenCertificateTypes = activeNode.CertificateGroups
                         .DefaultUserTokenGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultUserTokenGroupId,
@@ -1045,12 +1045,8 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
             try
             {
-                ApplicationRecordDataType? foundApplication = m_database.GetApplication(applicationId);
-                if (foundApplication == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNotFound);
-                }
-                application = foundApplication;
+                application = m_database.GetApplication(applicationId)
+                    ?? throw new ServiceResultException(StatusCodes.BadNotFound);
             }
             catch (ArgumentException ex)
             {
@@ -1834,11 +1830,10 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        string[] defaultDomainNames = GetDefaultDomainNames(application);
                         certificate = await certificateGroup.SigningRequestAsync(
                             application,
                             certificateTypeNodeId,
-                            defaultDomainNames,
+                            GetDefaultDomainNames(application),
                             certificateRequest,
                             cancellationToken).ConfigureAwait(false);
                     }
@@ -1961,8 +1956,7 @@ namespace Opc.Ua.Gds.Server
             var certificateGroupIdList = new List<NodeId>();
             foreach (KeyValuePair<NodeId, ICertificateGroup> certificateGroup in m_certificateGroups)
             {
-                NodeId key = certificateGroup.Key;
-                certificateGroupIdList.Add(key);
+                certificateGroupIdList.Add(certificateGroup.Key);
             }
             certificateGroupIds = [.. certificateGroupIdList];
 
@@ -2216,16 +2210,13 @@ namespace Opc.Ua.Gds.Server
                     certificateGroup.Id);
             }
 
-            if (certificateGroup.DefaultTrustList != null)
-            {
-                certificateGroup.DefaultTrustList.Handle = new TrustList(
+            certificateGroup.DefaultTrustList?.Handle = new TrustList(
                     certificateGroup.DefaultTrustList,
                     new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
                     new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     Server.Telemetry);
-            }
         }
 
         private void HasTrustListAccess(

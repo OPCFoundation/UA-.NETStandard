@@ -217,8 +217,8 @@ namespace Opc.Ua
 
                 Certificate? cert = await store.LoadPrivateKeyAsync(
                         identifier.Thumbprint!,
-                        identifier.SubjectName!,
-                        applicationUri: null!,
+                        identifier.SubjectName,
+                        applicationUri: null,
                         identifier.CertificateType,
                         password,
                         ct)
@@ -229,8 +229,8 @@ namespace Opc.Ua
                 {
                     cert = await store.LoadPrivateKeyAsync(
                             identifier.Thumbprint!,
-                            subjectName: null!,
-                            applicationUri!,
+                            subjectName: null,
+                            applicationUri,
                             identifier.CertificateType,
                             password,
                             ct)
@@ -247,8 +247,8 @@ namespace Opc.Ua
                 {
                     cert = await store.LoadPrivateKeyAsync(
                             thumbprint: null!,
-                            subjectName: null!,
-                            applicationUri!,
+                            subjectName: null,
+                            applicationUri,
                             identifier.CertificateType,
                             password,
                             ct)

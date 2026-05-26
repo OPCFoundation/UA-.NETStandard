@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -289,10 +289,7 @@ namespace Opc.Ua
             if (stateId == 0)
             {
                 variable.Value = default;
-                if (variable.Id != null)
-                {
-                    variable.Id.Value = default;
-                }
+                variable.Id?.Value = default;
 
                 variable.Number?.Value = 0;
 
@@ -313,10 +310,7 @@ namespace Opc.Ua
                 if (state.Id == stateId)
                 {
                     variable.Value = new LocalizedText(state.Name);
-                    if (variable.Id != null)
-                    {
-                        variable.Id.Value = new NodeId(state.Id, ElementNamespaceIndex);
-                    }
+                    variable.Id?.Value = new NodeId(state.Id, ElementNamespaceIndex);
 
                     variable.Number?.Value = state.Number;
 
@@ -341,10 +335,7 @@ namespace Opc.Ua
             if (transitionId == 0)
             {
                 variable.Value = default;
-                if (variable.Id != null)
-                {
-                    variable.Id.Value = default;
-                }
+                variable.Id?.Value = default;
 
                 variable.TransitionTime?.Value = DateTime.MinValue;
 
@@ -367,10 +358,7 @@ namespace Opc.Ua
                 if (transition.Id == transitionId)
                 {
                     variable.Value = new LocalizedText(transition.Name);
-                    if (variable.Id != null)
-                    {
-                        variable.Id.Value = new NodeId(transition.Id, ElementNamespaceIndex);
-                    }
+                    variable.Id?.Value = new NodeId(transition.Id, ElementNamespaceIndex);
 
                     variable.TransitionTime?.Value = DateTime.UtcNow;
 

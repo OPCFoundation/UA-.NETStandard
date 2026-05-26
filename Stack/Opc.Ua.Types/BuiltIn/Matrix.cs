@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,12 +40,13 @@ namespace Opc.Ua
     /// <summary>
     /// Wraps a multi-dimensional array for use within a Variant.
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
         /// <summary>
         /// Initializes the matrix with a multidimensional array.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="value"/> is null.</exception>
         [Obsolete("Use MatrixOf<T> instead of Matrix")]
         public Matrix(Array value, BuiltInType builtInType)
         {
@@ -64,6 +65,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the matrix with a one dimensional array and a list of dimensions.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="elements"/> is null.</exception>
+        /// <exception cref="ArgumentException">The number of elements in the array does not match the dimensions.</exception>
         [Obsolete("Use MatrixOf<T> instead of Matrix")]
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
@@ -112,6 +115,7 @@ namespace Opc.Ua
         /// Returns the flattened array as a multi-dimensional array.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException">The element type of the array cannot be determined.</exception>
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         public Array ToArray()
@@ -120,7 +124,7 @@ namespace Opc.Ua
             {
                 var array = Array.CreateInstance(
                     Elements.GetType().GetElementType()
-                        ?? throw new InvalidOperationException("Elements is not an array type."),
+                    ?? throw new InvalidOperationException("Elements is not an array type."),
                     Dimensions);
 
                 int[] indexes = new int[Dimensions.Length];
@@ -213,6 +217,7 @@ namespace Opc.Ua
         /// Returns the string representation of the object.
         /// </remarks>
         /// <exception cref="FormatException">Thrown when the 'format' argument is NOT null.</exception>
+        /// <exception cref="InvalidOperationException">The element type of the array cannot be determined.</exception>
         public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
@@ -456,13 +461,14 @@ namespace Opc.Ua
         /// e.g. a array with dimensions [2,2,2] is written in this order:
         /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
         /// </remarks>
+        /// <exception cref="InvalidOperationException">The element type of the array cannot be determined.</exception>
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         private static Array FlattenArray(Array array)
         {
             var flatArray = Array.CreateInstance(
                 array.GetType().GetElementType()
-                    ?? throw new InvalidOperationException("Argument is not an array type."),
+                ?? throw new InvalidOperationException("Argument is not an array type."),
                 array.Length);
 
             int[] indexes = new int[array.Rank];

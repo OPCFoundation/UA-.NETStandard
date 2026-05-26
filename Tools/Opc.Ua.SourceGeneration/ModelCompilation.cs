@@ -109,7 +109,9 @@ namespace Opc.Ua.SourceGeneration
                     ObjectTypeProxyNamespace =
                         string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
                             ? null
-                            : m_options.ObjectTypeProxyNamespace
+                            : m_options.ObjectTypeProxyNamespace,
+                    UseTypeDefinitionModellingRules =
+                        m_options.UseTypeDefinitionModellingRules
                 };
 
                 // Load all available nodeset files from the input

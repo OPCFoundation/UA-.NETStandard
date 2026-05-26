@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Opc.Ua.Security;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Gds.Server.Database
 {
@@ -367,7 +365,7 @@ namespace Opc.Ua.Gds.Server.Database
         /// <returns>true if the target string matches the pattern, otherwise false.</returns>
         public static bool Match(string? target, string pattern)
         {
-            if (target == null || target.Length == 0)
+            if (string.IsNullOrEmpty(target))
             {
                 return false;
             }

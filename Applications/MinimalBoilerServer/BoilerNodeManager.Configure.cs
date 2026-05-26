@@ -143,8 +143,15 @@ namespace Boiler
             // is reached via generated accessors with no string paths or
             // NodeIds in sight. The Func<double> handler is the same shape
             // as wiring (3) but the resolution is fully type-checked.
+            // The trailing .Historize() opts this variable in to Part 11
+            // historical access; with no prior UseHistorian() call the
+            // fluent surface lazily installs an in-memory engine and
+            // registers it as the server-wide default. Subsequent
+            // .Historize() calls in this manager would reuse the same
+            // binding.
             builder.Boilers.Boiler__1.LCX001.Measurement
-                .OnRead(GenerateLevelControlMeasurement);
+                .OnRead(GenerateLevelControlMeasurement)
+                .Historize();
 
             // (7) Typed traversal of a method node — the Halt method is
             // bound to an async lambda. The generator emits the typed
@@ -165,7 +172,7 @@ namespace Boiler
             // registry auto-populates EventId/EventType/Time/SourceNode
             // so the iterator only fills the user-meaningful fields.
             builder.Boilers.Boiler__1.DrumX001
-                .Publish<BaseEventState>(GenerateDrumHeartbeatAsync);
+                .Publish(GenerateDrumHeartbeatAsync);
         }
 
         private long m_levelMeasurementTicks;
@@ -202,7 +209,7 @@ namespace Boiler
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                Task delay = Task.Delay(
+                var delay = Task.Delay(
                     TimeSpan.FromMilliseconds(500), cancellationToken);
                 try
                 {

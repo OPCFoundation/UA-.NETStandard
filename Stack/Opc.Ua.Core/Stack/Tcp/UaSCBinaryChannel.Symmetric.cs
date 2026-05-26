@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -316,7 +316,7 @@ namespace Opc.Ua.Bindings
                 int signatureSize = SymmetricSignatureSize;
                 // token.SecurityPolicy is set in ComputeKeys before the channel sends messages.
                 int paddingCountSize =
-                    (SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy!.NoSymmetricEncryptionPadding)
+                    SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy!.NoSymmetricEncryptionPadding
                     ? 0
                     : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
 
@@ -524,7 +524,7 @@ namespace Opc.Ua.Bindings
                 token.SecurityPolicy!,
                 (useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey)!,
                 (useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector)!,
-                (useClientKeys ? token.ClientSigningKey : token.ServerSigningKey)!,
+                useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
@@ -661,7 +661,7 @@ namespace Opc.Ua.Bindings
                 token.SecurityPolicy!,
                 (useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey)!,
                 (useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector)!,
-                (useClientKeys ? token.ClientSigningKey : token.ServerSigningKey)!,
+                useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 m_remoteSequenceNumber);

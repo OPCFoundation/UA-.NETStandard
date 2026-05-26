@@ -1574,7 +1574,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetIssuer(rootCA)
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
-            using Certificate rootCAPublic = Certificate.FromRawData(rootCA.RawData);
+            using var rootCAPublic = Certificate.FromRawData(rootCA.RawData);
 
             // Collection AddRefs each cert; the using directives dispose our
             // local references so the caller's collection holds the only refs.

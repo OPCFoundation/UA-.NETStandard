@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task DiscoverReturnsCannedEndpoint()
         {
             System.Collections.Generic.IReadOnlyList<string> endpoints = await m_discovery
-                .DiscoverAsync(CancellationToken.None);
+                .DiscoverAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(endpoints, Has.Count.EqualTo(1));
             Assert.That(endpoints[0], Is.EqualTo(SimulatedWotDiscoveryProvider.CannedEndpoint));
@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task TestSucceedsForCannedEndpoint()
         {
             (bool success, string status) = await m_discovery
-                .TestAsync(SimulatedWotDiscoveryProvider.CannedEndpoint, CancellationToken.None);
+                .TestAsync(SimulatedWotDiscoveryProvider.CannedEndpoint, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(success, Is.True);
             Assert.That(status, Is.EqualTo("Healthy"));
@@ -64,7 +64,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task TestFailsForUnknownEndpoint()
         {
             (bool success, _) = await m_discovery
-                .TestAsync("sim://nope", CancellationToken.None);
+                .TestAsync("sim://nope", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(success, Is.False);
         }
@@ -72,11 +72,11 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task CreateThingDescriptionEmitsExpectedShape()
         {
-            Opc.Ua.WotCon.Server.ThingDescriptions.ThingDescription td = await m_discovery
+            Server.ThingDescriptions.ThingDescription td = await m_discovery
                 .CreateThingDescriptionAsync(
                     "asset-001",
                     SimulatedWotDiscoveryProvider.CannedEndpoint,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(td.Name, Is.EqualTo("asset-001"));
             Assert.That(td.Base, Is.EqualTo(SimulatedWotDiscoveryProvider.CannedEndpoint));
@@ -97,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void CanHandleAcceptsSimScheme()
         {
-            var td = new Opc.Ua.WotCon.Server.ThingDescriptions.ThingDescription
+            var td = new Server.ThingDescriptions.ThingDescription
             {
                 Base = "sim://opcua.test/wot/asset-001"
             };
@@ -108,7 +108,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void CanHandleRejectsHttpScheme()
         {
-            var td = new Opc.Ua.WotCon.Server.ThingDescriptions.ThingDescription
+            var td = new Server.ThingDescriptions.ThingDescription
             {
                 Base = "http://example.com/thing"
             };

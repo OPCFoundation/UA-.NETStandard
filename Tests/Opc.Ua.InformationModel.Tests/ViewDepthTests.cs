@@ -273,8 +273,8 @@ namespace Opc.Ua.InformationModel.Tests
             List<ReferenceDescription> srvRefs = await BrowseAllRefsAsync(
                 ObjectIds.Server, 0).ConfigureAwait(false);
 
-            Assert.That(objRefs.Count, Is.Not.EqualTo(srvRefs.Count)
-                .Or.GreaterThan(0),
+            Assert.That(objRefs,
+                Has.Count.Not.EqualTo(srvRefs.Count) | Has.Count.GreaterThan(0),
                 "ObjectsFolder and Server should have different child counts " +
                 "or both have children.");
         }

@@ -72,8 +72,8 @@ namespace Opc.Ua.WotCon.Tests
             uint handle = 0;
             ServiceResult result = harness.Open(mode, ref handle);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
-            Assert.That(handle, Is.EqualTo(0u), "No handle is allocated for a rejected mode.");
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(handle, Is.Zero, "No handle is allocated for a rejected mode.");
         }
 
         [Test]
@@ -108,8 +108,8 @@ namespace Opc.Ua.WotCon.Tests
             uint second = 0;
             ServiceResult result = harness.Open(ModeWriteErase, ref second);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
-            Assert.That(second, Is.EqualTo(0u));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(second, Is.Zero);
         }
 
         [Test]
@@ -123,7 +123,7 @@ namespace Opc.Ua.WotCon.Tests
             uint h3 = 0;
             ServiceResult result = harness.Open(ModeRead, ref h3);
 
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTooManyOperations));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
         // ----------------------------------------------------------------
@@ -160,7 +160,7 @@ namespace Opc.Ua.WotCon.Tests
         public void GetPositionAndSetPositionWorkOnReadHandle()
         {
             using var harness = new Harness();
-            harness.Upload(new byte[] { 1, 2, 3, 4, 5 });
+            harness.Upload([1, 2, 3, 4, 5]);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
             try
@@ -168,7 +168,7 @@ namespace Opc.Ua.WotCon.Tests
                 ulong pos = 999;
                 ServiceResult getResult = harness.GetPosition(handle, ref pos);
                 Assert.That(ServiceResult.IsGood(getResult), Is.True);
-                Assert.That(pos, Is.EqualTo(0ul));
+                Assert.That(pos, Is.Zero);
 
                 Assert.That(ServiceResult.IsGood(harness.SetPosition(handle, 3)), Is.True);
 
@@ -186,14 +186,14 @@ namespace Opc.Ua.WotCon.Tests
         public void SetPositionBeyondLengthReturnsBadInvalidArgument()
         {
             using var harness = new Harness();
-            harness.Upload(new byte[] { 1, 2, 3 });
+            harness.Upload([1, 2, 3]);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
             try
             {
                 ServiceResult result = harness.SetPosition(handle, 100);
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
             finally
             {
@@ -212,7 +212,7 @@ namespace Opc.Ua.WotCon.Tests
                 ByteString data = default;
                 ServiceResult result = harness.Read(handle, 16, ref data);
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Is.EqualTo(StatusCodes.BadInvalidState));
             }
             finally
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2 }));
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    Is.EqualTo(StatusCodes.BadInvalidState));
             }
             finally
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua.WotCon.Tests
                 ServiceResult result = harness.Write(
                     handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
                 Assert.That(result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadOutOfMemory));
+                    Is.EqualTo(StatusCodes.BadOutOfMemory));
             }
             finally
             {
@@ -267,11 +267,11 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult writeResult = harness.Write(9999, ByteString.From(new byte[] { 1 }));
 
             Assert.That(readResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(closeResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(writeResult.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -288,8 +288,8 @@ namespace Opc.Ua.WotCon.Tests
             harness.Close(handle);
 
             // Persistent content remains unchanged (was empty).
-            Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
-            Assert.That(harness.MaterialiseCallCount, Is.EqualTo(0));
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
             Assert.That(harness.LastMaterialisedTd, Is.Null);
         }
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task CloseAndUpdateWithValidTdInvokesMaterialiseCallbackAndPersistsContent()
         {
             using var harness = new Harness();
-            byte[] tdBytes = Encoding.UTF8.GetBytes("""
+            byte[] tdBytes = Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
                 {"name":"asset-001","base":"sim://example/asset/1"}
                 """);
 
@@ -316,7 +316,7 @@ namespace Opc.Ua.WotCon.Tests
             // Subsequent Read returns the persisted TD bytes.
             byte[] downloaded = harness.Download();
             Assert.That(downloaded, Is.EqualTo(tdBytes));
-            await Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         [Test]
@@ -329,10 +329,10 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
-            Assert.That(harness.MaterialiseCallCount, Is.EqualTo(0));
+                Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
             // Bad TD must not become the new persisted content.
-            Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
+            Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
         [Test]
@@ -344,7 +344,7 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
@@ -355,13 +355,13 @@ namespace Opc.Ua.WotCon.Tests
                     (ServiceResult)StatusCodes.BadConfigurationError));
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
-            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes("""{"name":"x"}""")));
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """{"name":"x"}""")));
             ServiceResult result = harness.CloseAndUpdate(handle);
 
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Is.EqualTo(StatusCodes.BadConfigurationError));
             // When the callback fails, the new bytes must not become persistent content.
-            Assert.That(harness.File.Size!.Value, Is.EqualTo(0ul));
+            Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
         // ----------------------------------------------------------------
@@ -381,7 +381,7 @@ namespace Opc.Ua.WotCon.Tests
             harness.Close(h1);
             Assert.That(harness.File.OpenCount.Value, Is.EqualTo((ushort)1));
             harness.Close(h2);
-            Assert.That(harness.File.OpenCount.Value, Is.EqualTo((ushort)0));
+            Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
 
         // ----------------------------------------------------------------
@@ -391,7 +391,7 @@ namespace Opc.Ua.WotCon.Tests
         private sealed class Harness : IDisposable
         {
             private readonly NodeId _objectId;
-            private readonly List<ThingDescription> _materialisedTds = new();
+            private readonly List<ThingDescription> _materialisedTds = [];
             private readonly Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> _materialiseDelegate;
 
             public Harness(
@@ -436,28 +436,42 @@ namespace Opc.Ua.WotCon.Tests
                 => _materialisedTds.Count == 0 ? null : _materialisedTds[^1];
 
             public ServiceResult Open(byte mode, ref uint fileHandle)
-                => File.Open!.OnCall!.Invoke(Context, File.Open, _objectId, mode, ref fileHandle);
+            {
+                return File.Open!.OnCall!.Invoke(Context, File.Open, _objectId, mode, ref fileHandle);
+            }
 
             public ServiceResult Close(uint fileHandle)
-                => File.Close!.OnCall!.Invoke(Context, File.Close, _objectId, fileHandle);
+            {
+                return File.Close!.OnCall!.Invoke(Context, File.Close, _objectId, fileHandle);
+            }
 
             public ServiceResult Read(uint fileHandle, int length, ref ByteString data)
-                => File.Read!.OnCall!.Invoke(Context, File.Read, _objectId, fileHandle, length, ref data);
+            {
+                return File.Read!.OnCall!.Invoke(Context, File.Read, _objectId, fileHandle, length, ref data);
+            }
 
             public ServiceResult Write(uint fileHandle, ByteString data)
-                => File.Write!.OnCall!.Invoke(Context, File.Write, _objectId, fileHandle, data);
+            {
+                return File.Write!.OnCall!.Invoke(Context, File.Write, _objectId, fileHandle, data);
+            }
 
             public ServiceResult GetPosition(uint fileHandle, ref ulong position)
-                => File.GetPosition!.OnCall!.Invoke(
-                    Context, File.GetPosition, _objectId, fileHandle, ref position);
+            {
+                return File.GetPosition!.OnCall!.Invoke(
+                                Context, File.GetPosition, _objectId, fileHandle, ref position);
+            }
 
             public ServiceResult SetPosition(uint fileHandle, ulong position)
-                => File.SetPosition!.OnCall!.Invoke(
-                    Context, File.SetPosition, _objectId, fileHandle, position);
+            {
+                return File.SetPosition!.OnCall!.Invoke(
+                                Context, File.SetPosition, _objectId, fileHandle, position);
+            }
 
             public ServiceResult CloseAndUpdate(uint fileHandle)
-                => File.CloseAndUpdate!.OnCall!.Invoke(
-                    Context, File.CloseAndUpdate, _objectId, fileHandle);
+            {
+                return File.CloseAndUpdate!.OnCall!.Invoke(
+                                Context, File.CloseAndUpdate, _objectId, fileHandle);
+            }
 
             public void Upload(byte[] content)
             {
@@ -492,9 +506,15 @@ namespace Opc.Ua.WotCon.Tests
                     {
                         ByteString chunk = default;
                         Read(handle, 1024, ref chunk);
-                        if (chunk.IsNull || chunk.Span.Length == 0) { break; }
+                        if (chunk.IsNull || chunk.Span.Length == 0)
+                        {
+                            break;
+                        }
                         buffer.AddRange(chunk.Span.ToArray());
-                        if (chunk.Span.Length < 1024) { break; }
+                        if (chunk.Span.Length < 1024)
+                        {
+                            break;
+                        }
                     }
                     return [.. buffer];
                 }
@@ -504,7 +524,10 @@ namespace Opc.Ua.WotCon.Tests
                 }
             }
 
-            public void Dispose() => Manager.Dispose();
+            public void Dispose()
+            {
+                Manager.Dispose();
+            }
 
             private ValueTask<ServiceResult> DefaultMaterialise(
                 ThingDescription td,

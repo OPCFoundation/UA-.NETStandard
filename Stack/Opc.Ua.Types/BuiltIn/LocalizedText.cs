@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -185,7 +185,7 @@ namespace Opc.Ua
         public LocalizedText(
             IReadOnlyDictionary<string, string> translations,
             TranslationInfo translationInfo = default)
-            : this(LocalizedTextFormatAndTranslation.Create(translations, translationInfo)!)
+            : this(LocalizedTextFormatAndTranslation.Create(translations, translationInfo))
         {
         }
 
@@ -197,7 +197,7 @@ namespace Opc.Ua
         /// <param name="key">A key used to look up the text for different locales</param>
         /// <param name="translations">key = locale, value = text</param>
         public LocalizedText(string key, IReadOnlyDictionary<string, string> translations)
-            : this(LocalizedTextFormatAndTranslation.Create(key, translations)!)
+            : this(LocalizedTextFormatAndTranslation.Create(key, translations))
         {
         }
 
@@ -480,7 +480,7 @@ namespace Opc.Ua
             string? locale = translationInfo.Locale;
             string? text = translationInfo.Text;
             return new LocalizedTextFormatAndTranslation(
-                DecodeMulLocale(locale, text)!,
+                DecodeMulLocale(locale, text),
                 translationInfo);
         }
 
@@ -511,7 +511,7 @@ namespace Opc.Ua
             string text)
         {
             return new LocalizedTextFormatAndTranslation(
-                DecodeMulLocale(locale, text)!,
+                DecodeMulLocale(locale, text),
                 new TranslationInfo(key, locale, text));
         }
 
@@ -532,7 +532,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(key))
             {
                 return new LocalizedTextFormatAndTranslation(
-                    translations!, new TranslationInfo(key, null!, null!));
+                    translations, new TranslationInfo(key, null, null));
             }
             return new LocalizedTextFormatAndTranslation(translations);
         }
@@ -552,7 +552,7 @@ namespace Opc.Ua
                 return null;
             }
             return new LocalizedTextFormatAndTranslation(
-                translations!,
+                translations,
                 translationInfo);
         }
 
@@ -703,7 +703,7 @@ namespace Opc.Ua
             {
                 if (Translations.TryGetValue(locale, out string? text))
                 {
-                    return new LocalizedText(locale, FormatText(locale, text)!);
+                    return new LocalizedText(locale, FormatText(locale, text));
                 }
             }
 
@@ -716,14 +716,14 @@ namespace Opc.Ua
                     if (kvp.Key.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(kvp.Key, language, StringComparison.OrdinalIgnoreCase))
                     {
-                        return new LocalizedText(kvp.Key, FormatText(kvp.Key, kvp.Value)!);
+                        return new LocalizedText(kvp.Key, FormatText(kvp.Key, kvp.Value));
                     }
                 }
             }
 
             // Return the first entry instead
             KeyValuePair<string, string> first = Translations.First();
-            return new LocalizedText(first.Key, FormatText(first.Key, first.Value)!);
+            return new LocalizedText(first.Key, FormatText(first.Key, first.Value));
         }
 
         /// <summary>

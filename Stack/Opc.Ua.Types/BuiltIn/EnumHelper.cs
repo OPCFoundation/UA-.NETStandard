@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -331,7 +331,7 @@ namespace Opc.Ua
             {
                 return values.ToArray();
             }
-            Array array = Array.CreateInstance(type, values.Count);
+            var array = Array.CreateInstance(type, values.Count);
             // Convert array of int values to array of enum values
             for (int i = 0; i < values.Count; i++)
             {
@@ -358,7 +358,7 @@ namespace Opc.Ua
                 return values.CreateArrayInstance();
             }
             int[] dim = values.Dimensions;
-            Array array = Array.CreateInstance(type, dim);
+            var array = Array.CreateInstance(type, dim);
             // Convert the matrix with dimensions into an multi dimensional Array of enum values
             int[] indexes = new int[dim.Length];
             foreach (int element in values.Span)

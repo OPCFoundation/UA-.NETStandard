@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task ReadCallsTargetCorrectMethodIdAsync()
         {
-            m_session.OnRead((_, _) => new byte[] { 1, 2 });
+            m_session.OnRead((_, _) => [1, 2]);
             UaFileStream stream = NewStream(
                 UaFileMode.Read, length: 2, chunkSize: 2);
             await using (stream.ConfigureAwait(false))
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await using (stream.ConfigureAwait(false))
             {
                 await stream
-                    .WriteAsync(new byte[] { 9, 8, 7 }, 0, 3, CancellationToken.None)
+                    .WriteAsync([9, 8, 7], 0, 3, CancellationToken.None)
                     .ConfigureAwait(false);
             }
 

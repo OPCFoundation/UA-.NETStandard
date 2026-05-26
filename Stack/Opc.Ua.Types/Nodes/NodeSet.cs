@@ -265,7 +265,7 @@ namespace Opc.Ua
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
-            var node = Node.Copy(nodeToExport)!;
+            Node node = Node.Copy(nodeToExport)!;
 
             node.NodeId = Translate(nodeToExport.NodeId, m_namespaceUris, namespaceUris);
             node.BrowseName = Translate(nodeToExport.BrowseName, m_namespaceUris, namespaceUris);
@@ -465,7 +465,7 @@ namespace Opc.Ua
         /// </remarks>
         public Node Copy(Node nodeToImport, NamespaceTable namespaceUris, StringTable serverUris)
         {
-            var node = Node.Copy(nodeToImport)!;
+            Node node = Node.Copy(nodeToImport)!;
 
             node.NodeId = Translate(nodeToImport.NodeId, namespaceUris, m_namespaceUris);
             node.BrowseName = Translate(nodeToImport.BrowseName, namespaceUris, m_namespaceUris);
@@ -958,8 +958,7 @@ namespace Opc.Ua
                     targetNamespaceUris);
                 return new ExtensionObject(argument);
             }
-#pragma warning restore CS8602
-#pragma warning restore CS8600
+#pragma warning restore CS8602, CS8600
 
             return extensionObject;
         }

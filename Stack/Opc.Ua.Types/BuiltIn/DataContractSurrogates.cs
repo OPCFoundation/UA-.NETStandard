@@ -478,7 +478,7 @@ namespace Opc.Ua
             {
                 SerializableVariant s => Equals(s),
                 Variant n => Equals(n),
-                _ => ((object)Value).Equals(obj)
+                _ => Value.Equals(obj)
             };
         }
 
@@ -789,7 +789,7 @@ namespace Opc.Ua
         internal string? XmlEncodedLocale
         {
             get => Value.Locale;
-            set => Value = new LocalizedText(value!, XmlEncodedText!);
+            set => Value = new LocalizedText(value, XmlEncodedText);
         }
 
         /// <inheritdoc/>
@@ -797,7 +797,7 @@ namespace Opc.Ua
         internal string? XmlEncodedText
         {
             get => Value.Text;
-            set => Value = new LocalizedText(XmlEncodedLocale!, value!);
+            set => Value = new LocalizedText(XmlEncodedLocale, value);
         }
 
         /// <inheritdoc/>
@@ -807,7 +807,7 @@ namespace Opc.Ua
             {
                 SerializableLocalizedText s => Equals(s),
                 LocalizedText n => Equals(n),
-                _ => Value.Equals(obj!)
+                _ => Value.Equals(obj)
             };
         }
 
@@ -1057,7 +1057,7 @@ namespace Opc.Ua
             {
                 SerializableExpandedNodeId s => Equals(s),
                 ExpandedNodeId n => Equals(n),
-                _ => Value.Equals(obj!)
+                _ => Value.Equals(obj)
             };
         }
 
@@ -1236,7 +1236,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public ArrayOf<XmlElement> Value =>
-            this.ConvertAll(x => XmlElement.From(x)).ToArrayOf();
+            ConvertAll(x => XmlElement.From(x)).ToArrayOf();
 
         /// <inheritdoc/>
         public object GetValue()

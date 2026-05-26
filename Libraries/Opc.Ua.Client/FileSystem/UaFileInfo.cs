@@ -39,7 +39,7 @@ namespace Opc.Ua.Client.FileSystem
 {
     /// <summary>
     /// Strongly-typed handle to a single OPC UA <c>FileType</c>
-    /// instance. Mirrors <see cref="System.IO.FileInfo"/>.
+    /// instance. Mirrors <see cref="FileInfo"/>.
     /// </summary>
     /// <remarks>
     /// File metadata properties (<see cref="Size"/>,
@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.FileSystem
             Size = metadata.Size ?? 0UL;
             Writable = metadata.Writable ?? false;
             UserWritable = metadata.UserWritable ?? false;
-            OpenCount = metadata.OpenCount ?? (ushort)0;
+            OpenCount = metadata.OpenCount ?? 0;
             MimeType = metadata.MimeType;
             MaxByteStringLength = metadata.MaxByteStringLength;
             LastModifiedTime = metadata.LastModifiedTime;

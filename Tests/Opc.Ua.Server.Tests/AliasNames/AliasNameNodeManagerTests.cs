@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -30,7 +30,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.AliasNames;
@@ -64,7 +63,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var stringTable = new StringTable();
             var typeTable = new TypeTable(m_namespaceTable);
 
-            ITelemetryContext telemetry = Opc.Ua.Tests.NUnitTelemetryContext.Create();
+            ITelemetryContext telemetry = Ua.Tests.NUnitTelemetryContext.Create();
 
             m_mockServer.Setup(s => s.NamespaceUris).Returns(m_namespaceTable);
             m_mockServer.Setup(s => s.ServerUris).Returns(stringTable);
@@ -109,7 +108,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 m_mockServer.Object,
                 m_configuration,
                 m_store,
-                options ?? new AliasNameNodeManagerOptions
+                options ??
+                new AliasNameNodeManagerOptions
                 {
                     NamespaceUri = c_namespaceUri,
                     RegisterWithServerRegistry = false
@@ -139,8 +139,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
             bool hasOrganizes = false;
             foreach (IReference r in refs)
             {
-                if (r.ReferenceTypeId.Equals(ReferenceTypeIds.Organizes)
-                    && r.TargetId.Equals(category.NodeId))
+                if (r.ReferenceTypeId.Equals(ReferenceTypeIds.Organizes) &&
+                    r.TargetId.Equals(category.NodeId))
                 {
                     hasOrganizes = true;
                     break;
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 output,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(result, Is.Null.Or.EqualTo(ServiceResult.Good));
-            Assert.That(output.Count, Is.EqualTo(1));
+            Assert.That(output, Has.Count.EqualTo(1));
             Assert.That(output[0].TryGetStructure(
                 out ArrayOf<AliasNameDataType> aliases), Is.True);
             Assert.That(aliases.Count, Is.EqualTo(1));
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             AliasNameCategoryState category = manager
                 .FindPredefinedNode<AliasNameCategoryState>(categoryId);
 
-            uint initial = (category.LastChange!.Value);
+            uint initial = category.LastChange!.Value;
             await m_store.AddAliasesAsync(categoryId,
                 [
                     new AliasAddRequest("LC1",
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
         private static readonly string[] s_singleX = ["X"];
         private static readonly ExpandedNodeId[] s_singleT = [new("T", 1)];
-        private static readonly string[] s_singleEmpty = [""];
+        private static readonly string[] s_singleEmpty = [string.Empty];
 
         [Test]
         public async Task AddAliasesAnonymousIsRejectedWithBadUserAccessDeniedAsync()
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>
             {
-                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+                new(System.Array.Empty<StatusCode>().ToArrayOf())
             };
 
             ServiceResult result = await category.AddAliasesToCategory!.CallAsync(
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>
             {
-                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+                new(System.Array.Empty<StatusCode>().ToArrayOf())
             };
             return await category.AddAliasesToCategory!.CallAsync(
                 context, categoryId, input, argumentErrors, output,
@@ -369,7 +369,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>
             {
-                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+                new(System.Array.Empty<StatusCode>().ToArrayOf())
             };
             return await category.DeleteAliasesFromCategory!.CallAsync(
                 context, categoryId, input, argumentErrors, output,
@@ -386,7 +386,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 {
                     NamespaceUri = c_namespaceUri,
                     RegisterWithServerRegistry = false,
-                    RequireSecurityAdminForMutations = true,
+                    RequireSecurityAdminForMutations = true
                 });
             await manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);

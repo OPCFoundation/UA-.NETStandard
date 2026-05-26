@@ -89,7 +89,7 @@ namespace Opc.Ua.Client.Subscriptions
             rented.Reuse();
 
             // Fields reset to default.
-            Assert.That(rented.ClientHandle, Is.EqualTo(0u),
+            Assert.That(rented.ClientHandle, Is.Zero,
                 "Reuse should reset ClientHandle to default(uint)");
             Assert.That(rented.Value.IsNull, Is.True,
                 "Reuse should reset Value to default");
@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.Subscriptions
             // again should reset the fields and re-pool.
             rerented.ClientHandle = 99;
             rerented.Reuse();
-            Assert.That(rerented.ClientHandle, Is.EqualTo(0u));
+            Assert.That(rerented.ClientHandle, Is.Zero);
             var third = (MonitoredItemNotification)
                 MonitoredItemNotificationActivator.Instance.CreateInstance();
             Assert.That(third, Is.SameAs(rented),
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Subscriptions
             };
             Assert.That(rented.MonitoredItems.Count, Is.EqualTo(2));
             rented.Reuse();
-            Assert.That(rented.MonitoredItems.Count, Is.EqualTo(0),
+            Assert.That(rented.MonitoredItems.Count, Is.Zero,
                 "Reuse should drop the MonitoredItems backing reference");
             var reRented = (DataChangeNotification)
                 DataChangeNotificationActivator.Instance.CreateInstance();
@@ -171,8 +171,8 @@ namespace Opc.Ua.Client.Subscriptions
             rented.EventFields = new Variant[] { new(42), new("text") };
             Assert.That(rented.EventFields.Count, Is.EqualTo(2));
             rented.Reuse();
-            Assert.That(rented.ClientHandle, Is.EqualTo(0u));
-            Assert.That(rented.EventFields.Count, Is.EqualTo(0));
+            Assert.That(rented.ClientHandle, Is.Zero);
+            Assert.That(rented.EventFields.Count, Is.Zero);
             var reRented = (EventFieldList)
                 EventFieldListActivator.Instance.CreateInstance();
             Assert.That(reRented, Is.SameAs(rented));
@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.Subscriptions
             };
             Assert.That(rented.Events.Count, Is.EqualTo(1));
             rented.Reuse();
-            Assert.That(rented.Events.Count, Is.EqualTo(0));
+            Assert.That(rented.Events.Count, Is.Zero);
             var reRented = (EventNotificationList)
                 EventNotificationListActivator.Instance.CreateInstance();
             Assert.That(reRented, Is.SameAs(rented));
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(rentedContainer, Is.SameAs(dataChange),
                 "Pool should hand back the DataChangeNotification that was " +
                 "reused after dispatch");
-            Assert.That(rentedItem.ClientHandle, Is.EqualTo(0u),
+            Assert.That(rentedItem.ClientHandle, Is.Zero,
                 "Reused MonitoredItemNotification should have been reset");
         }
 

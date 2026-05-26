@@ -66,8 +66,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<OperationContext>? operations = null;
-
+                List<OperationContext>? operations;
                 lock (m_requestsLock)
                 {
                     operations = [.. m_requests.Values];

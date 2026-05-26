@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="fieldName">The field name to be used to encode this object, by default it is null.</param>
         internal void Encode(PubSubJsonEncoder jsonEncoder, string? fieldName = null)
         {
-            jsonEncoder.PushStructure(fieldName!);
+            jsonEncoder.PushStructure(fieldName);
             if (HasDataSetMessageHeader)
             {
                 EncodeDataSetMessageHeader(jsonEncoder);
@@ -205,7 +205,7 @@ namespace Opc.Ua.PubSub.Encoding
             if (!jsonDecoder.ReadField(kFieldPayload, out object token))
             {
                 // Decode the Messages element in case there is no "Payload" structure
-                jsonDecoder.ReadField(null!, out token);
+                jsonDecoder.ReadField(null, out token);
                 payloadStructureName = null;
             }
 
@@ -236,7 +236,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 // try decoding Payload Structure
-                bool wasPush = jsonDecoder.PushStructure(payloadStructureName!);
+                bool wasPush = jsonDecoder.PushStructure(payloadStructureName);
                 if (wasPush)
                 {
                     DataSet = DecodePayloadContent(jsonDecoder, dataSetReader)!;
@@ -264,12 +264,12 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 FieldMetaData? fieldMetaData = dataSetMetaData?.Fields[index];
 
-                if (jsonDecoder.ReadField(fieldMetaData!.Name!, out _))
+                if (jsonDecoder.ReadField(fieldMetaData!.Name, out _))
                 {
                     switch (m_fieldTypeEncoding)
                     {
                         case FieldTypeEncodingMask.Variant:
-                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name!);
+                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name);
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                             break;
                         case FieldTypeEncodingMask.DataValue:
-                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name!);
+                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name);
                             var dataValue = new DataValue(Variant.Null);
                             try
                             {

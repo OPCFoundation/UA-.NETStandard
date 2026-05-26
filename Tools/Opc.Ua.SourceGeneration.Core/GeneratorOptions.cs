@@ -74,6 +74,26 @@ namespace Opc.Ua.SourceGeneration
         public string ObjectTypeProxyNamespace { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the <see cref="NodeStateGenerator"/>
+        /// uses the modelling rules from the referenced type definition
+        /// unconditionally, rather than the overridden rules on instance
+        /// definitions, for all structural code generation decisions
+        /// (child inclusion, optional vs mandatory classification) and
+        /// the emitted runtime <c>ModellingRuleId</c>.
+        /// <para>
+        /// Off by default.  When off, the generator still enforces OPC UA
+        /// modelling rule promotion semantics — instances may only
+        /// <em>promote</em> the type definition's rule:
+        /// <c>Optional → Mandatory</c>,
+        /// <c>OptionalPlaceholder → Mandatory | MandatoryPlaceholder</c>,
+        /// <c>MandatoryPlaceholder → Mandatory</c>.
+        /// Any demotion is silently rejected and the type definition's
+        /// rule is used instead.
+        /// </para>
+        /// </summary>
+        public bool UseTypeDefinitionModellingRules { get; set; }
+
+        /// <summary>
         /// Maps an OPC UA namespace URI (key) to the C# namespace (value)
         /// in which the corresponding source-generated <c>*TypeClient</c>
         /// proxies live. Used by the

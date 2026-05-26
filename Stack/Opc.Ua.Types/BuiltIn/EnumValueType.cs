@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -37,7 +36,7 @@ namespace Opc.Ua
     /// <summary>
     /// Enum value
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class EnumValueType : IEncodeable, IEquatable<EnumValueType>
     {
         /// <summary>

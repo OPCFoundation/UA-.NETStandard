@@ -292,9 +292,9 @@ namespace Opc.Ua.History.Tests
                 return null;
             }
             // Strip the "2:" RootType prefix and any "?<component>" suffix.
-            int q = s.IndexOf('?');
+            int q = s.IndexOf('?', StringComparison.Ordinal);
             string head = q >= 0 ? s[..q] : s;
-            int colon = head.IndexOf(':');
+            int colon = head.IndexOf(':', StringComparison.Ordinal);
             if (colon < 0 || colon + 1 >= head.Length)
             {
                 return null;

@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.FileSystem
     /// </remarks>
     public sealed class UaFileStream : Stream
 #if !(NETSTANDARD2_1_OR_GREATER || NET)
-        , System.IAsyncDisposable
+        , IAsyncDisposable
 #endif
     {
         internal UaFileStream(

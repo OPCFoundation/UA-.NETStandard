@@ -608,12 +608,12 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryGoodServersBatchesAsync()
         {
             // repeating queries to get all servers
-            ArrayOf<ServerOnNetwork> allServers = (await m_gdsClient.GDSClient.QueryServersAsync(
+            ArrayOf<ServerOnNetwork> allServers = await m_gdsClient.GDSClient.QueryServersAsync(
                 0,
                 string.Empty,
                 string.Empty,
                 string.Empty,
-                default).ConfigureAwait(false));
+                default).ConfigureAwait(false);
             int uniqueServerRecords = allServers
                 .ToList()
                 .Select(server => server.RecordId)
@@ -1799,11 +1799,6 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.Ignore("Test requires good new key pair request.");
             }
-        }
-
-        private int GoodServersOnNetworkCount()
-        {
-            return m_goodApplicationTestSet.Sum(a => a.ApplicationRecord.DiscoveryUrls.Count);
         }
 
         private const int kGoodApplicationsTestCount = 10;

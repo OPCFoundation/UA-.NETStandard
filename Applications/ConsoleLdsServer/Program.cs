@@ -36,7 +36,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
-using Opc.Ua.Lds.Server;
 using Serilog;
 using Serilog.Events;
 
@@ -91,7 +90,8 @@ namespace Opc.Ua.Lds.Server.Console
                 {
                     Log.Logger = new LoggerConfiguration()
                         .MinimumLevel.Information()
-                        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
+                        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information,
+                            formatProvider: CultureInfo.InvariantCulture)
                         .CreateLogger();
                 }
 
@@ -117,12 +117,12 @@ namespace Opc.Ua.Lds.Server.Console
                 {
                     System.Console.WriteLine($"Loading configuration from {ConfigSectionName}.Config.xml.");
                     await application
-                        .LoadApplicationConfigurationAsync(silent: false)
+                        .LoadApplicationConfigurationAsync(silent: false, ct: cancellationToken)
                         .ConfigureAwait(false);
 
                     System.Console.WriteLine("Checking the application certificate.");
                     bool ok = await application
-                        .CheckApplicationInstanceCertificatesAsync(silent: false)
+                        .CheckApplicationInstanceCertificatesAsync(silent: false, ct: cancellationToken)
                         .ConfigureAwait(false);
                     if (!ok)
                     {
@@ -160,7 +160,7 @@ namespace Opc.Ua.Lds.Server.Console
                     {
                         if (timeoutMs >= 0)
                         {
-                            using CancellationTokenSource timeoutCts =
+                            using var timeoutCts =
                                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                             timeoutCts.CancelAfter(timeoutMs);
                             await Task.Delay(Timeout.Infinite, timeoutCts.Token).ConfigureAwait(false);

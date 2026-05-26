@@ -35,6 +35,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server
 {
@@ -496,6 +497,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="node">The pre-built node subtree to register.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is null.
+        /// </exception>
         public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
         {
             if (node == null)
@@ -1524,7 +1528,7 @@ namespace Opc.Ua.Server
             ContinuationPoint continuationPoint,
             NodeState node)
         {
-            if (continuationPoint == null || ViewDescription.IsDefault(continuationPoint.View!))
+            if (continuationPoint == null || ViewDescription.IsDefault(continuationPoint.View))
             {
                 return true;
             }
@@ -2553,6 +2557,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the historian provider for a node. The default
+        /// implementation returns <c>null</c>, which causes the dispatcher
+        /// to fall back to the server-wide
+        /// <see cref="IHistorianProviderRegistry"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Subclasses can override this to bind a specific
+        /// <see cref="IHistorianProvider"/> to nodes owned by this node
+        /// manager — for example a database-backed historian for variables
+        /// in this manager's namespace, while the server-wide registry
+        /// covers everything else.
+        /// </para>
+        /// </remarks>
+        protected virtual IHistorianProvider? GetHistorianProvider(NodeState node)
+        {
+            return null;
+        }
+
+        private IHistorianProvider? ResolveHistorianProvider(NodeState node)
+        {
+            return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
+        }
+
+        /// <summary>
         /// Releases the continuation points.
         /// </summary>
         protected virtual async ValueTask HistoryReleaseContinuationPointsAsync(
@@ -2575,7 +2604,8 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadContinuationPointInvalid;
+                errors[handle.Index] = HistorianDispatcher.ReleaseContinuationPoint(
+                    context, nodesToRead[handle.Index]);
             }
         }
 
@@ -2597,15 +2627,64 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                // Route HistoryRead on an Annotations property to the
+                // parent variable's annotation provider (Part 11 §5.2.7).
+                if (HistorianDispatcher.IsAnnotationsProperty(source))
+                {
+                    BaseVariableState? parent = HistorianDispatcher.GetAnnotationsParent(source);
+                    if (parent == null)
+                    {
+                        errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+
+                    IHistorianProvider? annotationProvider = ResolveHistorianProvider(parent);
+                    if (annotationProvider == null)
+                    {
+                        errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+
+                    errors[handle.Index] = await HistorianDispatcher.DispatchAnnotationReadAsync(
+                        context,
+                        annotationProvider,
+                        parent,
+                        nodesToRead[handle.Index],
+                        details,
+                        timestampsToReturn,
+                        results[handle.Index],
+                        cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchRawReadAsync(
+                    context,
+                    provider,
+                    source,
+                    nodesToRead[handle.Index],
+                    details,
+                    timestampsToReturn,
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -2627,15 +2706,41 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                NodeId aggregateId = !details.AggregateType.IsNull && details.AggregateType.Count > 0
+                    ? (handle.Index < details.AggregateType.Count
+                        ? details.AggregateType[handle.Index]
+                        : details.AggregateType[0])
+                    : NodeId.Null;
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchProcessedReadAsync(
+                    context,
+                    provider,
+                    source,
+                    nodesToRead[handle.Index],
+                    details,
+                    aggregateId,
+                    timestampsToReturn,
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -2657,15 +2762,34 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                    context,
+                    provider,
+                    source,
+                    nodesToRead[handle.Index],
+                    details,
+                    timestampsToReturn,
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -2687,15 +2811,23 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchEventReadAsync(
+                    context, provider, source, nodesToRead[handle.Index],
+                    details, timestampsToReturn, results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -2735,24 +2867,43 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
 
+            // If any node-to-read carries a continuation point the dispatcher
+            // will restore the saved request (including its original
+            // timestamps and NumValuesPerNode). Continuation-point reads
+            // therefore commonly arrive with MinValue/MinValue timestamps
+            // and NumValuesPerNode = 0 — skip the timestamp validation in
+            // that case so subsequent pages aren't rejected.
+            bool hasContinuationPoint = false;
+            for (int idx = 0; idx < nodesToRead.Count; idx++)
+            {
+                if (!nodesToRead[idx].ContinuationPoint.IsEmpty)
+                {
+                    hasContinuationPoint = true;
+                    break;
+                }
+            }
+
             // handle raw data request.
 
             if (details is ReadRawModifiedDetails readRawModifiedDetails)
             {
-                // at least one must be provided.
-                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
-                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
+                if (!hasContinuationPoint)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
-                }
-
-                // if one is null the num values must be provided.
-                if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue ||
-                    readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
-                {
-                    if (readRawModifiedDetails.NumValuesPerNode == 0)
+                    // at least one must be provided.
+                    if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue &&
+                        readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    }
+
+                    // if one is null the num values must be provided.
+                    if (readRawModifiedDetails.StartTime == DateTimeUtc.MinValue ||
+                        readRawModifiedDetails.EndTime == DateTimeUtc.MinValue)
+                    {
+                        if (readRawModifiedDetails.NumValuesPerNode == 0)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        }
                     }
                 }
 
@@ -2780,11 +2931,14 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadAggregateListMismatch);
                 }
 
-                // check start/end time.
-                if (readProcessedDetails.StartTime == DateTimeUtc.MinValue ||
-                    readProcessedDetails.EndTime == DateTimeUtc.MinValue)
+                if (!hasContinuationPoint)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    // check start/end time.
+                    if (readProcessedDetails.StartTime == DateTimeUtc.MinValue ||
+                        readProcessedDetails.EndTime == DateTimeUtc.MinValue)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    }
                 }
 
                 await HistoryReadProcessedAsync(
@@ -2823,28 +2977,31 @@ namespace Opc.Ua.Server
 
             if (details is ReadEventDetails readEventDetails)
             {
-                // check start/end time and max values.
-                if (readEventDetails.NumValuesPerNode == 0)
+                if (!hasContinuationPoint)
                 {
-                    if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
+                    // check start/end time and max values.
+                    if (readEventDetails.NumValuesPerNode == 0)
+                    {
+                        if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
+                            readEventDetails.EndTime == DateTimeUtc.MinValue)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        }
+                    }
+                    else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
                         readEventDetails.EndTime == DateTimeUtc.MinValue)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                     }
-                }
-                else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
-                    readEventDetails.EndTime == DateTimeUtc.MinValue)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
-                }
 
-                // validate the event filter.
-                EventFilter.Result result = readEventDetails.Filter.Validate(
-                    new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
+                    // validate the event filter.
+                    EventFilter.Result result = readEventDetails.Filter.Validate(
+                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
 
-                if (ServiceResult.IsBad(result.Status))
-                {
-                    throw new ServiceResultException(result.Status);
+                    if (ServiceResult.IsBad(result.Status))
+                    {
+                        throw new ServiceResultException(result.Status);
+                    }
                 }
 
                 // read the event history.
@@ -3119,20 +3276,38 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchUpdateDataAsync(
+                    context,
+                    provider,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// Updates the structured data history for one or more nodes.
+        /// Updates the structured data history (Part 11 §5.2.7
+        /// Annotations) for one or more nodes.
         /// </summary>
         protected virtual async ValueTask HistoryUpdateStructureDataAsync(
             ServerSystemContext context,
@@ -3147,15 +3322,39 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                if (!HistorianDispatcher.IsAnnotationsProperty(source))
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                BaseVariableState? parent = HistorianDispatcher.GetAnnotationsParent(source);
+                if (parent == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(parent);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchAnnotationUpdateAsync(
+                    context,
+                    provider,
+                    parent,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -3175,15 +3374,22 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchUpdateEventAsync(
+                    context, provider, source, nodesToUpdate[handle.Index],
+                    results[handle.Index], cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -3203,20 +3409,37 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchDeleteRawAsync(
+                    context,
+                    provider,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// Deletes the data history for one or more nodes.
+        /// Deletes the data history at specified timestamps for one or more nodes.
         /// </summary>
         protected virtual async ValueTask HistoryDeleteAtTimeAsync(
             ServerSystemContext context,
@@ -3231,15 +3454,32 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchDeleteAtTimeAsync(
+                    context,
+                    provider,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -3259,15 +3499,22 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToProcess[ii];
 
-                // validate node.
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
                 if (source == null)
                 {
                     continue;
                 }
 
-                errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                IHistorianProvider? provider = ResolveHistorianProvider(source);
+                if (provider == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = await HistorianDispatcher.DispatchDeleteEventsAsync(
+                    context, provider, source, nodesToUpdate[handle.Index],
+                    results[handle.Index], cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -3361,8 +3608,6 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                MethodState? method = null;
-
                 // check for valid handle.
                 NodeHandle handle = await GetManagerHandleAsync(
                     systemContext,
@@ -3385,10 +3630,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                method = await FindMethodStateAsync(
-                    context,
-                    methodToCall,
-                    cancellationToken).ConfigureAwait(false);
+                MethodState? method = await FindMethodStateAsync(
+    context,
+    methodToCall,
+    cancellationToken).ConfigureAwait(false);
 
                 if (method == null)
                 {

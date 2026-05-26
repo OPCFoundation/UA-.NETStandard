@@ -893,7 +893,7 @@ namespace Opc.Ua.Core.Security.Tests
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadUserAccessDenied &&
-                sre.Message.Contains("Too many failed authentication attempts"))
+                sre.Message.Contains("Too many failed authentication attempts", StringComparison.Ordinal))
             {
                 Assert.Fail("Account locked out from prior negative tests; cannot authenticate");
                 return;
@@ -935,7 +935,7 @@ namespace Opc.Ua.Core.Security.Tests
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadUserAccessDenied &&
-                sre.Message.Contains("Too many failed authentication attempts"))
+                sre.Message.Contains("Too many failed authentication attempts", StringComparison.Ordinal))
             {
                 Assert.Fail("Account locked out from prior negative tests; cannot authenticate");
                 return;
@@ -972,7 +972,7 @@ namespace Opc.Ua.Core.Security.Tests
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadUserAccessDenied &&
-                sre.Message.Contains("Too many failed authentication attempts"))
+                sre.Message.Contains("Too many failed authentication attempts", StringComparison.Ordinal))
             {
                 Assert.Fail("Account locked out from prior negative tests; cannot authenticate");
                 return;
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Core.Security.Tests
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadUserAccessDenied &&
-                sre.Message.Contains("Too many failed authentication attempts"))
+                sre.Message.Contains("Too many failed authentication attempts", StringComparison.Ordinal))
             {
                 Assert.Fail("Account locked out from prior negative tests; cannot authenticate");
                 return;

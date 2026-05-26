@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -1044,13 +1044,8 @@ namespace Opc.Ua
             NamespaceTable namespaceTable,
             StringTable? serverUris = null)
         {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            context.NamespaceUris = namespaceTable;
+            var context = ServiceMessageContext.CreateEmpty(null!);
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
             // Substitute an empty server table when none is supplied so that any
             // svu= prefix in the input is naturally rejected (no URI in the
             // empty table will resolve under RequireResolvedUris).
@@ -1348,7 +1343,7 @@ namespace Opc.Ua
             }
 
             // Create the result using the constructor
-            value = new ExpandedNodeId(innerNodeId, namespaceUri!, serverIndex);
+            value = new ExpandedNodeId(innerNodeId, namespaceUri, serverIndex);
 
             return true;
         }
@@ -1470,12 +1465,12 @@ namespace Opc.Ua
             {
                 value = new ExpandedNodeId(
                     nodeId.WithNamespaceIndex((ushort)namespaceIndex),
-                    null!,
+                    null,
                     (uint)serverIndex);
             }
             else
             {
-                value = new ExpandedNodeId(nodeId, namespaceUri!, (uint)serverIndex);
+                value = new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
             }
 
             return true;

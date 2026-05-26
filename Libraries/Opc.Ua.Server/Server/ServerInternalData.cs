@@ -58,7 +58,10 @@ namespace Opc.Ua.Server
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </para>
     /// </remarks>
-    public class ServerInternalData : IServerInternal, AliasNames.IAliasNameStoreRegistryProvider
+    public class ServerInternalData :
+        IServerInternal,
+        AliasNames.IAliasNameStoreRegistryProvider,
+        Historian.IHistorianRegistryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -92,6 +95,7 @@ namespace Opc.Ua.Server
 
             ServerUris = new StringTable();
             TypeTree = new TypeTable(NamespaceUris);
+            HistorianRegistry = new Historian.HistorianProviderRegistry(NamespaceUris);
 
             // add the server uri to the server table.
             ServerUris.Append(m_configuration.ApplicationUri!);
@@ -129,6 +133,7 @@ namespace Opc.Ua.Server
                 SubscriptionManager?.Dispose();
                 MonitoredItemQueueFactory?.Dispose();
                 (AliasNameStoreRegistry as IDisposable)?.Dispose();
+                (HistorianRegistry as IDisposable)?.Dispose();
             }
         }
 
@@ -143,6 +148,15 @@ namespace Opc.Ua.Server
             = new AliasNames.AliasNameStoreRegistry();
 
         /// <summary>
+        /// The server-wide registry of Part 11 historian providers.
+        /// Surfaces through the optional
+        /// <see cref="Historian.IHistorianRegistryProvider"/> interface so
+        /// consumers can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public Historian.IHistorianProviderRegistry HistorianRegistry { get; }
+
+        /// <summary>
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
@@ -152,7 +166,7 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
-        public Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; private set; }
+        public UserManagement.IUserManagement? UserManagement { get; private set; }
 
         /// <summary>
         /// The subscription manager to use with the server.
@@ -253,12 +267,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void SetRoleManager(IRoleManager roleManager)
         {
-            if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
-            RoleManager = roleManager;
+            RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         }
 
         /// <inheritdoc/>
-        public void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement)
+        public void SetUserManagement(UserManagement.IUserManagement userManagement)
         {
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
         }

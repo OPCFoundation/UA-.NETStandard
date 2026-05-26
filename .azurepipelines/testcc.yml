@@ -21,7 +21,13 @@ jobs:
     ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
-    vmImage: ${{ parameters.poolImage }}
+    ${{ if ne(variables.poolName, '') }}:
+      name: ${{ variables.poolName }}
+      ${{ if ne(variables.poolVmImage, '') }}:
+        demands:
+          - ImageOverride -equals ${{ variables.poolVmImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 8.0'

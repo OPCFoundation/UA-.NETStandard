@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using Opc.Ua.Server.AliasNames;
 
 namespace Opc.Ua.Server
@@ -95,9 +94,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (category.FindAlias != null)
-            {
-                category.FindAlias.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
+            category.FindAlias?.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
                     AliasNameMethodDispatcher.FindAliasAsync(
                         m_aliasRegistry!,
                         Server.TypeTree,
@@ -105,7 +102,6 @@ namespace Opc.Ua.Server
                         pattern,
                         refType,
                         ct);
-            }
 
             if (includeLastChange && category.LastChange != null)
             {
@@ -132,8 +128,8 @@ namespace Opc.Ua.Server
         {
             // Only the standard Aliases (i=23470) node carries a LastChange
             // property in the shipped NodeSet; mirror its store value.
-            if (m_aliasesLastChangeNode != null
-                && e.CategoryId == ObjectIds.Aliases)
+            if (m_aliasesLastChangeNode != null &&
+                e.CategoryId == ObjectIds.Aliases)
             {
                 m_aliasesLastChangeNode.Value = e.LastChange;
                 m_aliasesLastChangeNode.ClearChangeMasks(SystemContext, false);
