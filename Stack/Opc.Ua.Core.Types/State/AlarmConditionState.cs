@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -433,7 +433,7 @@ namespace Opc.Ua
                     .Append(ackState);
             }
 
-            var effectiveState = new LocalizedText(locale!, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
+            var effectiveState = new LocalizedText(locale, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }

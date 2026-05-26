@@ -44,7 +44,5 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     [JsonSerializable(typeof(WotAction))]
     [JsonSerializable(typeof(WotActionSchema))]
     [JsonSerializable(typeof(WotActionMember))]
-    internal sealed partial class ThingDescriptionJsonContext : JsonSerializerContext
-    {
-    }
+    internal sealed partial class ThingDescriptionJsonContext : JsonSerializerContext;
 }

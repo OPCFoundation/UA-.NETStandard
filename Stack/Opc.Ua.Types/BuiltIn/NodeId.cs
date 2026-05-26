@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics.Contracts;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
@@ -295,13 +294,8 @@ namespace Opc.Ua
             string text,
             NamespaceTable namespaceTable)
         {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            context.NamespaceUris = namespaceTable;
+            var context = ServiceMessageContext.CreateEmpty(null!);
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
 
             return Parse(
                 context,
@@ -882,7 +876,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        ByteString bytes = ByteString.FromBase64(text[2..]);
+                        var bytes = ByteString.FromBase64(text[2..]);
                         value = new NodeId(bytes, namespaceIndex);
                         return true;
                     }

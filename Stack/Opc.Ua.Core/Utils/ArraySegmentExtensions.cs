@@ -41,6 +41,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the underlying array of an <see cref="ArraySegment{T}"/>.
         /// </summary>
+        /// <typeparam name="T">The element type of the segment.</typeparam>
         /// <remarks>
         /// <see cref="ArraySegment{T}.Array"/> is declared nullable in the BCL
         /// because the default <see cref="ArraySegment{T}"/> value exposes a

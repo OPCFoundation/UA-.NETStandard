@@ -647,7 +647,7 @@ namespace MemoryBuffer
 
         private void ScanTimer_Tick(object sender, EventArgs e)
         {
-            DoScan(null!);
+            DoScan(null);
         }
 
         private void PublishTimer_Tick(object sender, EventArgs e)

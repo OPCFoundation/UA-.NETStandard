@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -238,6 +239,7 @@ namespace Opc.Ua.Core.Security.Tests
                             continue;
                         }
 
+                        var candidateEventTypes = new List<NodeId>();
                         foreach (ExtensionObject notification in pubResp.NotificationMessage.NotificationData)
                         {
                             if (notification.TryGetValue(out EventNotificationList eventList))
@@ -247,15 +249,19 @@ namespace Opc.Ua.Core.Security.Tests
                                     if (ef.EventFields.Count > 0
                                         && ef.EventFields[0].TryGetValue(out NodeId eventType))
                                     {
-                                        if (NodeIdMatchesType(session, eventType, expectedEventType))
-                                        {
-                                            seen = true;
-                                            break;
-                                        }
+                                        candidateEventTypes.Add(eventType);
                                     }
                                 }
                             }
-                            if (seen) { break; }
+                        }
+
+                        foreach (NodeId eventType in candidateEventTypes)
+                        {
+                            if (await NodeIdMatchesTypeAsync(session, eventType, expectedEventType).ConfigureAwait(false))
+                            {
+                                seen = true;
+                                break;
+                            }
                         }
                     }
 
@@ -298,7 +304,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
         }
 
-        private static bool NodeIdMatchesType(ISession session, NodeId actual, NodeId expected)
+        private static async Task<bool> NodeIdMatchesTypeAsync(ISession session, NodeId actual, NodeId expected)
         {
             if (actual == expected)
             {
@@ -306,7 +312,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                BrowseResponse resp = session.BrowseAsync(
+                BrowseResponse resp = await session.BrowseAsync(
                     null, null, 0,
                     new BrowseDescription[]
                     {
@@ -319,7 +325,7 @@ namespace Opc.Ua.Core.Security.Tests
                             ResultMask = (uint)BrowseResultMask.NodeClass
                         }
                     }.ToArrayOf(),
-                    CancellationToken.None).GetAwaiter().GetResult();
+                    CancellationToken.None).ConfigureAwait(false);
                 if (resp.Results.Count == 0 || resp.Results[0].References.Count == 0)
                 {
                     return false;
@@ -330,7 +336,7 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     return true;
                 }
-                return NodeIdMatchesType(session, parent, expected);
+                return await NodeIdMatchesTypeAsync(session, parent, expected).ConfigureAwait(false);
             }
             catch
             {

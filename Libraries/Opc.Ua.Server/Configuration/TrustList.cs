@@ -346,7 +346,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! &&
+                    !m_sessionId.Equals(session.SessionId))
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
@@ -426,7 +427,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! &&
+                    !m_sessionId.Equals(session.SessionId))
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -491,7 +493,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! &&
+                    !m_sessionId.Equals(session.SessionId))
                 {
                     return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
                     {
@@ -555,12 +558,12 @@ namespace Opc.Ua.Server
 
             ServiceResult result = StatusCodes.Good;
 
-            MemoryStream? strm = null;
-
+            MemoryStream? strm;
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! &&
+                    !m_sessionId.Equals(session.SessionId))
                 {
                     return new CloseAndUpdateMethodStateResult
                     {

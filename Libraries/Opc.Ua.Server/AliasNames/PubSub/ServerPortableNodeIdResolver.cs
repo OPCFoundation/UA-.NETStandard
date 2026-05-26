@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.AliasNames.PubSub
             return new PortableNodeId
             {
                 NamespaceUri = namespaceUri,
-                Identifier = stripped,
+                Identifier = stripped
             };
         }
 

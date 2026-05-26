@@ -125,8 +125,8 @@ namespace Opc.Ua.Server.AliasNames
             NodeId targetReferenceType,
             CancellationToken ct)
         {
-            if (aliasNames.Count != targetNodes.Count
-                || aliasNames.Count != targetServers.Count)
+            if (aliasNames.Count != targetNodes.Count ||
+                aliasNames.Count != targetServers.Count)
             {
                 return new AddAliasesToCategoryMethodStateResult
                 {
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (items == null || items.Count == 0)
             {
-                return ArrayOf.Empty<T>();
+                return [];
             }
             var array = new T[items.Count];
             for (int i = 0; i < items.Count; i++)

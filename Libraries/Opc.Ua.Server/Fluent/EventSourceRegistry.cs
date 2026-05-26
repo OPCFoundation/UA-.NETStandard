@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -90,9 +89,23 @@ namespace Opc.Ua.Server.Fluent
         /// is set) cannot deadlock because no other thread is contending
         /// on the manager's monitored-item semaphore.
         /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="notifier"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="factory"/> is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// A source is already registered for <paramref name="notifier"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="EventPublishOptions.RegisterAsRootNotifier"/> is
+        /// set and adding <paramref name="notifier"/> as a root notifier
+        /// failed.
+        /// </exception>
         public void Register(
             BaseObjectState notifier,
-            Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> factory,
+            Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> factory,
             EventPublishOptions? options)
         {
             if (notifier == null)
@@ -263,7 +276,7 @@ namespace Opc.Ua.Server.Fluent
             List<SourceEntry> snapshot;
             lock (m_sourcesLock)
             {
-                snapshot = new List<SourceEntry>(m_sources.Values);
+                snapshot = [.. m_sources.Values];
                 m_sources.Clear();
             }
 
@@ -331,7 +344,7 @@ namespace Opc.Ua.Server.Fluent
             List<SourceEntry> snapshot;
             lock (m_sourcesLock)
             {
-                snapshot = new List<SourceEntry>(m_sources.Values);
+                snapshot = [.. m_sources.Values];
             }
 
             foreach (SourceEntry entry in snapshot)
@@ -433,7 +446,7 @@ namespace Opc.Ua.Server.Fluent
         {
             ISystemContext systemContext = m_owner.SystemContext;
 
-            System.Collections.Generic.IAsyncEnumerable<BaseEventState> stream;
+            IAsyncEnumerable<BaseEventState> stream;
             try
             {
                 stream = entry.Factory(entry.Notifier, systemContext, ct);
@@ -598,12 +611,9 @@ namespace Opc.Ua.Server.Fluent
                     (ushort)EventSeverity.Medium);
             }
 
-            if (e.Message == null)
-            {
-                e.Message = PropertyState<LocalizedText>.With<VariantBuilder>(
+            e.Message ??= PropertyState<LocalizedText>.With<VariantBuilder>(
                     e,
                     new LocalizedText(string.Empty));
-            }
         }
 
         private void ThrowIfDisposed()
@@ -618,7 +628,7 @@ namespace Opc.Ua.Server.Fluent
         {
             public SourceEntry(
                 BaseObjectState notifier,
-                Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> factory,
+                Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> factory,
                 EventPublishOptions options)
             {
                 Notifier = notifier;
@@ -627,7 +637,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             public BaseObjectState Notifier { get; }
-            public Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> Factory { get; }
+            public Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> Factory { get; }
             public EventPublishOptions Options { get; }
             public CancellationTokenSource? WorkerCts;
             public Task? WorkerTask;
@@ -639,8 +649,8 @@ namespace Opc.Ua.Server.Fluent
         private readonly SemaphoreSlim m_reconcileSignal;
         private readonly CancellationTokenSource m_managerCts;
         private readonly Task m_reconcileTask;
-        private readonly object m_sourcesLock = new object();
-        private readonly Dictionary<NodeId, SourceEntry> m_sources = new Dictionary<NodeId, SourceEntry>();
+        private readonly Lock m_sourcesLock = new();
+        private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private int m_disposed;
     }
 }

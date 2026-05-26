@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasAsyncTargetsAliasesFindAliasMethodAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             // Server returns a single AliasNameDataType.
             harness.CallHandler = _ =>
             {
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 };
             };
 
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             IReadOnlyList<AliasNameDataType> result = await client
                 .FindAliasAsync("%", referenceTypeFilter: null).ConfigureAwait(false);
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasAsyncPassesNullFilterAsNodeIdNullAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             CallMethodRequest captured = null;
             harness.CallHandler = req =>
             {
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 };
             };
 
-            AliasNameClient client = AliasNameClient.OpenStandardTopics(harness.Session);
+            var client = AliasNameClient.OpenStandardTopics(harness.Session);
             await client.FindAliasAsync("Foo", null).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
@@ -117,14 +117,14 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task ReadLastChangeAsyncTargetsStandardAliasesLastChangeAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.ReadHandler = read =>
             {
                 Assert.That(read.NodeId,
                     Is.EqualTo(VariableIds.Aliases_LastChange));
                 return new DataValue(new Variant((uint)42), StatusCodes.Good);
             };
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             uint? lastChange = await client.ReadLastChangeAsync().ConfigureAwait(false);
             Assert.That(lastChange, Is.EqualTo((uint?)42));
         }
@@ -132,7 +132,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task AddAliasesToCategoryAsyncReturnsPerEntryStatusCodesAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = _ =>
             {
                 ArrayOf<StatusCode> codes = new StatusCode[]
@@ -147,18 +147,17 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 };
             };
 
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             client.Options.AllowVerboseProbe = false;
             StatusCode[] result = await client.AddAliasesToCategoryAsync(
-                new[]
-                {
+                [
                     new AliasNameAddRequest("A",
                         new ExpandedNodeId("T1", 2),
                         null, ReferenceTypeIds.AliasFor),
                     new AliasNameAddRequest("A",
                         new ExpandedNodeId("T1", 2),
                         null, ReferenceTypeIds.AliasFor)
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
 
             Assert.That(result, Has.Length.EqualTo(2));
             Assert.That(result[0].Code, Is.EqualTo(StatusCodes.Good));
@@ -169,8 +168,8 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public void AddAliasesToCategoryRejectsMixedReferenceTypes()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var harness = AliasNameSessionHarness.Create();
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             Assert.That(async () =>
             {
                 await client.AddAliasesToCategoryAsync(new[]
@@ -188,7 +187,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task DeleteAliasesFromCategoryAsyncSendsParallelArraysAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = _ =>
             {
                 ArrayOf<StatusCode> codes =
@@ -200,12 +199,11 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 };
             };
 
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             StatusCode[] result = await client.DeleteAliasesFromCategoryAsync(
-                new[]
-                {
+                [
                     new AliasNameDeleteRequest("A", new ExpandedNodeId("T", 2))
-                }).ConfigureAwait(false);
+                ]).ConfigureAwait(false);
             Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(harness.CallRequests, Has.Count.EqualTo(1));
             Assert.That(harness.CallRequests[0].InputArguments.Count, Is.EqualTo(2));
@@ -214,12 +212,12 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public void AddAliasesMapsBadUserAccessDeniedToUnauthorizedAccessException()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = _ => new CallMethodResult
             {
                 StatusCode = StatusCodes.BadUserAccessDenied
             };
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             Assert.That(async () =>
             {
                 await client.AddAliasesToCategoryAsync(new[]

@@ -52,8 +52,10 @@ namespace Opc.Ua.Server.UserManagement
     public sealed class UserManagement : IUserManagement, IDisposable
     {
         private readonly IUserDatabase m_userDatabase;
+
         private readonly Dictionary<string, UserMetadata> m_metadata
             = new(StringComparer.Ordinal);
+
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
         private bool m_disposed;
 
@@ -83,9 +85,9 @@ namespace Opc.Ua.Server.UserManagement
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
             PasswordLength = passwordLength ?? new Range { Low = 8, High = 256 };
             PasswordOptions = passwordOptions
-                ?? PasswordOptionsMask.SupportDisableUser
-                | PasswordOptionsMask.SupportInitialPasswordChange
-                | PasswordOptionsMask.SupportDescriptionForUser;
+                ?? (PasswordOptionsMask.SupportDisableUser |
+                    PasswordOptionsMask.SupportInitialPasswordChange |
+                    PasswordOptionsMask.SupportDescriptionForUser);
             PasswordRestrictions = passwordRestrictions;
         }
 
@@ -213,12 +215,12 @@ namespace Opc.Ua.Server.UserManagement
                         return configValidation;
                     }
 
-                    willDisable = (existing.Configuration & UserConfigurationMask.Disabled) == 0
-                        && (userConfiguration & UserConfigurationMask.Disabled) != 0;
+                    willDisable = (existing.Configuration & UserConfigurationMask.Disabled) == 0 &&
+                        (userConfiguration & UserConfigurationMask.Disabled) != 0;
 
-                    if (willDisable
-                        && callingUserName != null
-                        && string.Equals(callingUserName, userName, StringComparison.Ordinal))
+                    if (willDisable &&
+                        callingUserName != null &&
+                        string.Equals(callingUserName, userName, StringComparison.Ordinal))
                     {
                         return new ServiceResult(StatusCodes.BadInvalidSelfReference,
                             new LocalizedText("The user to disable is the calling session's user."));
@@ -292,8 +294,8 @@ namespace Opc.Ua.Server.UserManagement
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
 
-            if (callingUserName != null
-                && string.Equals(callingUserName, userName, StringComparison.Ordinal))
+            if (callingUserName != null &&
+                string.Equals(callingUserName, userName, StringComparison.Ordinal))
             {
                 return new ServiceResult(StatusCodes.BadInvalidSelfReference,
                     new LocalizedText("The user to remove is the calling session's user."));
@@ -346,11 +348,10 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("New password matches the old password."));
             }
 
-            UserMetadata? metadata;
             m_lock.EnterReadLock();
             try
             {
-                if (!m_metadata.TryGetValue(userName, out metadata))
+                if (!m_metadata.TryGetValue(userName, out UserMetadata? metadata))
                 {
                     return new ServiceResult(StatusCodes.BadNotFound);
                 }
@@ -401,8 +402,8 @@ namespace Opc.Ua.Server.UserManagement
             m_lock.EnterReadLock();
             try
             {
-                return m_metadata.TryGetValue(userName, out UserMetadata? meta)
-                    && (meta.Configuration & UserConfigurationMask.MustChangePassword) != 0;
+                return m_metadata.TryGetValue(userName, out UserMetadata? meta) &&
+                    (meta.Configuration & UserConfigurationMask.MustChangePassword) != 0;
             }
             finally
             {
@@ -420,8 +421,8 @@ namespace Opc.Ua.Server.UserManagement
             m_lock.EnterReadLock();
             try
             {
-                return m_metadata.TryGetValue(userName, out UserMetadata? meta)
-                    && (meta.Configuration & UserConfigurationMask.Disabled) == 0;
+                return m_metadata.TryGetValue(userName, out UserMetadata? meta) &&
+                    (meta.Configuration & UserConfigurationMask.Disabled) == 0;
             }
             finally
             {
@@ -445,26 +446,26 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText($"Password must be at most {high} characters long."));
             }
 
-            if ((PasswordOptions & PasswordOptionsMask.RequiresUpperCaseCharacters) != 0
-                && !password.Any(char.IsUpper))
+            if ((PasswordOptions & PasswordOptionsMask.RequiresUpperCaseCharacters) != 0 &&
+                !password.Any(char.IsUpper))
             {
                 return new ServiceResult(StatusCodes.BadOutOfRange,
                     new LocalizedText("Password must contain at least one upper-case character."));
             }
-            if ((PasswordOptions & PasswordOptionsMask.RequiresLowerCaseCharacters) != 0
-                && !password.Any(char.IsLower))
+            if ((PasswordOptions & PasswordOptionsMask.RequiresLowerCaseCharacters) != 0 &&
+                !password.Any(char.IsLower))
             {
                 return new ServiceResult(StatusCodes.BadOutOfRange,
                     new LocalizedText("Password must contain at least one lower-case character."));
             }
-            if ((PasswordOptions & PasswordOptionsMask.RequiresDigitCharacters) != 0
-                && !password.Any(char.IsDigit))
+            if ((PasswordOptions & PasswordOptionsMask.RequiresDigitCharacters) != 0 &&
+                !password.Any(char.IsDigit))
             {
                 return new ServiceResult(StatusCodes.BadOutOfRange,
                     new LocalizedText("Password must contain at least one digit."));
             }
-            if ((PasswordOptions & PasswordOptionsMask.RequiresSpecialCharacters) != 0
-                && password.All(c => char.IsLetterOrDigit(c)))
+            if ((PasswordOptions & PasswordOptionsMask.RequiresSpecialCharacters) != 0 &&
+                password.All(char.IsLetterOrDigit))
             {
                 return new ServiceResult(StatusCodes.BadOutOfRange,
                     new LocalizedText("Password must contain at least one special character."));
@@ -474,18 +475,18 @@ namespace Opc.Ua.Server.UserManagement
 
         private ServiceResult ValidateConfigurationFlags(UserConfigurationMask config)
         {
-            if ((config & UserConfigurationMask.MustChangePassword) != 0
-                && (config & UserConfigurationMask.NoChangeByUser) != 0)
+            if ((config & UserConfigurationMask.MustChangePassword) != 0 &&
+                (config & UserConfigurationMask.NoChangeByUser) != 0)
             {
                 return new ServiceResult(StatusCodes.BadConfigurationError,
                     new LocalizedText("MustChangePassword and NoChangeByUser are mutually exclusive."));
             }
 
-            UserConfigurationMask supported =
-                UserConfigurationMask.NoDelete
-                | UserConfigurationMask.Disabled
-                | UserConfigurationMask.NoChangeByUser
-                | UserConfigurationMask.MustChangePassword;
+            const UserConfigurationMask supported =
+                UserConfigurationMask.NoDelete |
+                UserConfigurationMask.Disabled |
+                UserConfigurationMask.NoChangeByUser |
+                UserConfigurationMask.MustChangePassword;
             UserConfigurationMask unsupported = config & ~supported;
             if (unsupported != 0)
             {
@@ -494,26 +495,26 @@ namespace Opc.Ua.Server.UserManagement
             }
 
             // Check against this manager's PasswordOptions advertisement.
-            if ((config & UserConfigurationMask.MustChangePassword) != 0
-                && (PasswordOptions & PasswordOptionsMask.SupportInitialPasswordChange) == 0)
+            if ((config & UserConfigurationMask.MustChangePassword) != 0 &&
+                (PasswordOptions & PasswordOptionsMask.SupportInitialPasswordChange) == 0)
             {
                 return new ServiceResult(StatusCodes.BadNotSupported,
                     new LocalizedText("Server does not support MustChangePassword."));
             }
-            if ((config & UserConfigurationMask.Disabled) != 0
-                && (PasswordOptions & PasswordOptionsMask.SupportDisableUser) == 0)
+            if ((config & UserConfigurationMask.Disabled) != 0 &&
+                (PasswordOptions & PasswordOptionsMask.SupportDisableUser) == 0)
             {
                 return new ServiceResult(StatusCodes.BadNotSupported,
                     new LocalizedText("Server does not support disabling users."));
             }
-            if ((config & UserConfigurationMask.NoDelete) != 0
-                && (PasswordOptions & PasswordOptionsMask.SupportDisableDeleteForUser) == 0)
+            if ((config & UserConfigurationMask.NoDelete) != 0 &&
+                (PasswordOptions & PasswordOptionsMask.SupportDisableDeleteForUser) == 0)
             {
                 return new ServiceResult(StatusCodes.BadNotSupported,
                     new LocalizedText("Server does not support NoDelete."));
             }
-            if ((config & UserConfigurationMask.NoChangeByUser) != 0
-                && (PasswordOptions & PasswordOptionsMask.SupportNoChangeForUser) == 0)
+            if ((config & UserConfigurationMask.NoChangeByUser) != 0 &&
+                (PasswordOptions & PasswordOptionsMask.SupportNoChangeForUser) == 0)
             {
                 return new ServiceResult(StatusCodes.BadNotSupported,
                     new LocalizedText("Server does not support NoChangeByUser."));

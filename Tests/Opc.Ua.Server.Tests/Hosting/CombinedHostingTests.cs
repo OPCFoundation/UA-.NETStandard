@@ -398,6 +398,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         /// <see cref="OpcUaServerNodeManagerRegistration"/> enumerable
         /// and nowhere else.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Instantiated by the DI container via the registration under test.")]
         private sealed class FakeAsyncNodeManagerFactory : IAsyncNodeManagerFactory
         {
             public ArrayOf<string> NamespacesUris { get; } = ["urn:test:fake"];

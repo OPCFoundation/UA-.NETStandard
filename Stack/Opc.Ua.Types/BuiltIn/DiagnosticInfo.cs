@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// in provide diagnostic information in a uniform way.
     /// <br/></para>
     /// </remarks>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public sealed class DiagnosticInfo : ICloneable, IFormattable
     {
         /// <summary>

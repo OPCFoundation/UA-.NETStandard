@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -861,7 +861,7 @@ namespace Opc.Ua
 
             foreach (SimpleAttributeOperand clause in m_selectClauses)
             {
-                ServiceResult? clauseResult = null;
+                ServiceResult? clauseResult;
 
                 // check for null.
                 if (clause == null)

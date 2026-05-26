@@ -41,11 +41,11 @@ namespace Boiler
         {
             base.OnAfterCreate(context, node, ct);
 
-            var start = Start!;
-            var suspend = Suspend!;
-            var resume = Resume!;
-            var halt = Halt!;
-            var reset = Reset!;
+            MethodState start = Start!;
+            MethodState suspend = Suspend!;
+            MethodState resume = Resume!;
+            MethodState halt = Halt!;
+            MethodState reset = Reset!;
 
             start.OnCallMethod = OnStart;
             start.OnReadExecutable = IsStartExecutable;

@@ -89,31 +89,31 @@ namespace Opc.Ua.Server.AliasNames
             AliasNameNodeManagerOptions? options = null)
             : base(server, configuration, ResolveNamespaceUri(options))
         {
-            m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_options = options ?? new AliasNameNodeManagerOptions();
+            Store = store ?? throw new ArgumentNullException(nameof(store));
+            Options = options ?? new AliasNameNodeManagerOptions();
             m_aliasLogger = server.Telemetry.CreateLogger<AliasNameNodeManager>();
             m_registry = ResolveServerRegistry(server);
             m_localCategoryDispatcher = new AliasNameStoreRegistry();
-            m_localCategoryDispatcher.Register(m_store);
+            m_localCategoryDispatcher.Register(Store);
         }
 
         /// <summary>
         /// The backing <see cref="IAliasNameStore"/>.
         /// </summary>
-        public IAliasNameStore Store => m_store;
+        public IAliasNameStore Store { get; }
 
         /// <summary>
         /// The tunables in use.
         /// </summary>
-        public AliasNameNodeManagerOptions Options => m_options;
+        public AliasNameNodeManagerOptions Options { get; }
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {
             // Preserve any caller-assigned NodeId that already lives in our
             // namespace; otherwise mint a sequential numeric id.
-            if (!node.NodeId.IsNull
-                && node.NodeId.NamespaceIndex == NamespaceIndex)
+            if (!node.NodeId.IsNull &&
+                node.NodeId.NamespaceIndex == NamespaceIndex)
             {
                 return node.NodeId;
             }
@@ -129,12 +129,12 @@ namespace Opc.Ua.Server.AliasNames
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            foreach (AliasNameCategoryDescriptor root in m_store.RootCategories)
+            foreach (AliasNameCategoryDescriptor root in Store.RootCategories)
             {
                 AliasNameCategoryState rootState = BuildCategoryTree(root);
                 m_rootCategoryStates[root.NodeId] = rootState;
 
-                if (m_options.LinkToStandardAliasesObject)
+                if (Options.LinkToStandardAliasesObject)
                 {
                     AddExternalReference(
                         ObjectIds.Aliases,
@@ -153,11 +153,11 @@ namespace Opc.Ua.Server.AliasNames
                     .ConfigureAwait(false);
             }
 
-            if (m_options.RegisterWithServerRegistry && m_registry != null)
+            if (Options.RegisterWithServerRegistry && m_registry != null)
             {
                 try
                 {
-                    m_registry.Register(m_store);
+                    m_registry.Register(Store);
                     m_registeredWithServer = true;
                 }
                 catch (InvalidOperationException ex)
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.AliasNames
                 }
             }
 
-            m_store.Changed += OnStoreChanged;
+            Store.Changed += OnStoreChanged;
         }
 
         /// <inheritdoc/>
@@ -177,10 +177,10 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (disposing)
             {
-                m_store.Changed -= OnStoreChanged;
+                Store.Changed -= OnStoreChanged;
                 if (m_registeredWithServer && m_registry != null)
                 {
-                    m_registry.Unregister(m_store);
+                    m_registry.Unregister(Store);
                     m_registeredWithServer = false;
                 }
                 m_localCategoryDispatcher.Dispose();
@@ -244,20 +244,15 @@ namespace Opc.Ua.Server.AliasNames
             WireCategoryHandlers(descriptor.NodeId, category);
 
             // Seed LastChange.
-            if (category.LastChange != null)
-            {
-                category.LastChange.Value
-                    = m_store.GetLastChange(descriptor.NodeId) ?? 0u;
-            }
+            category.LastChange?.Value
+                    = Store.GetLastChange(descriptor.NodeId) ?? 0u;
 
             return category;
         }
 
         private void WireCategoryHandlers(NodeId categoryId, AliasNameCategoryState category)
         {
-            if (category.FindAlias != null)
-            {
-                category.FindAlias.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
+            category.FindAlias?.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
                     AliasNameMethodDispatcher.FindAliasAsync(
                         m_localCategoryDispatcher,
                         Server.TypeTree,
@@ -265,10 +260,7 @@ namespace Opc.Ua.Server.AliasNames
                         pattern,
                         refType,
                         ct);
-            }
-            if (category.FindAliasVerbose != null)
-            {
-                category.FindAliasVerbose.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
+            category.FindAliasVerbose?.OnCallAsync = (ctx, method, objId, pattern, refType, ct) =>
                     AliasNameMethodDispatcher.FindAliasVerboseAsync(
                         m_localCategoryDispatcher,
                         Server.TypeTree,
@@ -276,19 +268,12 @@ namespace Opc.Ua.Server.AliasNames
                         pattern,
                         refType,
                         ct);
-            }
-            if (category.AddAliasesToCategory != null)
-            {
-                category.AddAliasesToCategory.OnCallAsync =
+            category.AddAliasesToCategory?.OnCallAsync =
                     (ctx, method, objId, names, targets, servers, refType, ct) =>
                         DispatchAddAsync(ctx, categoryId, objId, names, targets, servers, refType, ct);
-            }
-            if (category.DeleteAliasesFromCategory != null)
-            {
-                category.DeleteAliasesFromCategory.OnCallAsync =
+            category.DeleteAliasesFromCategory?.OnCallAsync =
                     (ctx, method, objId, names, targets, ct) =>
                         DispatchDeleteAsync(ctx, categoryId, objId, names, targets, ct);
-            }
 
             // Recurse into sub-category children (already wired through
             // BuildCategoryTree, but their state objects sit on this
@@ -297,8 +282,8 @@ namespace Opc.Ua.Server.AliasNames
             category.GetChildren(SystemContext, children);
             foreach (BaseInstanceState child in children)
             {
-                if (child is AliasNameCategoryState childCategory
-                    && !ReferenceEquals(childCategory, category))
+                if (child is AliasNameCategoryState childCategory &&
+                    !ReferenceEquals(childCategory, category))
                 {
                     WireCategoryHandlers(childCategory.NodeId, childCategory);
                 }
@@ -315,8 +300,8 @@ namespace Opc.Ua.Server.AliasNames
             NodeId targetReferenceType,
             CancellationToken ct)
         {
-            if (m_options.RequireSecurityAdminForMutations
-                && !HasSecureAdminAccess(context))
+            if (Options.RequireSecurityAdminForMutations &&
+                !HasSecureAdminAccess(context))
             {
                 return new ValueTask<AddAliasesToCategoryMethodStateResult>(
                     new AddAliasesToCategoryMethodStateResult
@@ -343,8 +328,8 @@ namespace Opc.Ua.Server.AliasNames
             ArrayOf<ExpandedNodeId> targetNodes,
             CancellationToken ct)
         {
-            if (m_options.RequireSecurityAdminForMutations
-                && !HasSecureAdminAccess(context))
+            if (Options.RequireSecurityAdminForMutations &&
+                !HasSecureAdminAccess(context))
             {
                 return new ValueTask<DeleteAliasesFromCategoryMethodStateResult>(
                     new DeleteAliasesFromCategoryMethodStateResult
@@ -418,8 +403,8 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (context is SessionSystemContext { OperationContext: OperationContext op } session)
             {
-                if (op.ChannelContext?.EndpointDescription?.SecurityMode
-                    != MessageSecurityMode.SignAndEncrypt)
+                if (op.ChannelContext?.EndpointDescription?.SecurityMode !=
+                    MessageSecurityMode.SignAndEncrypt)
                 {
                     return false;
                 }
@@ -440,17 +425,18 @@ namespace Opc.Ua.Server.AliasNames
             return (server as IAliasNameStoreRegistryProvider)?.AliasNameStoreRegistry;
         }
 
-        private readonly IAliasNameStore m_store;
-        private readonly AliasNameNodeManagerOptions m_options;
         private readonly ILogger m_aliasLogger;
         private readonly IAliasNameStoreRegistry? m_registry;
-        // Always-available dispatcher that wraps just this manager's store
-        // so the standalone manager works even when the host server does
-        // not implement IAliasNameStoreRegistryProvider.
+
+        /// <summary>
+        /// Always-available dispatcher that wraps just this manager's
+        /// store so the standalone manager works even when the host
+        /// server does not implement IAliasNameStoreRegistryProvider.
+        /// </summary>
         private readonly AliasNameStoreRegistry m_localCategoryDispatcher;
         private readonly Dictionary<NodeId, AliasNameCategoryState> m_rootCategoryStates = [];
         private bool m_registeredWithServer;
         private uint m_nextNodeId;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
     }
 }

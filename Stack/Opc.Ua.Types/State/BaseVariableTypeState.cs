@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -453,7 +453,7 @@ namespace Opc.Ua
                         result = onReadDataType(context, this, ref dataType);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = dataType;
                     }
@@ -469,7 +469,7 @@ namespace Opc.Ua
                         result = onReadValueRank(context, this, ref valueRank);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = valueRank;
                     }
@@ -485,7 +485,7 @@ namespace Opc.Ua
                         result = onReadArrayDimensions(context, this, ref arrayDimensions);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = arrayDimensions;
                     }
@@ -584,7 +584,7 @@ namespace Opc.Ua
                         result = onWriteDataType(context, this, ref dataType);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         DataType = dataType;
                     }
@@ -608,7 +608,7 @@ namespace Opc.Ua
                         result = onWriteValueRank(context, this, ref valueRank);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         ValueRank = valueRank;
                     }
@@ -637,7 +637,7 @@ namespace Opc.Ua
                         result = onWriteArrayDimensions(context, this, ref arrayDimensions);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         ArrayDimensions = arrayDimensions;
                     }

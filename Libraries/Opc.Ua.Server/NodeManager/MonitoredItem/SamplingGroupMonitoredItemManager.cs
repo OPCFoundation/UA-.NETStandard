@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                monitoredItem.QueueValue(initialValue, null!);
+                monitoredItem.QueueValue(initialValue, null);
             }
 
             return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.Good, previousMode));

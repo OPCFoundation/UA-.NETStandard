@@ -35,7 +35,7 @@ namespace Opc.Ua.Aot.Tests
     /// AOT integration tests that verify the source-generated typed
     /// <c>Publish&lt;TEvent&gt;</c> overload on the boiler's
     /// <c>DrumX001</c> notifier wrapper actually wires an
-    /// <see cref="System.Collections.Generic.IAsyncEnumerable{T}"/>
+    /// <see cref="IAsyncEnumerable{T}"/>
     /// event source through the runtime
     /// <c>EventSourceRegistry</c> and dispatches events to
     /// monitored items under NativeAOT constraints (no JIT, no
@@ -114,7 +114,7 @@ namespace Opc.Ua.Aot.Tests
                     await Assert.That(fields.EventFields.Count)
                         .IsEqualTo(eventFilter.SelectClauses.Count);
 
-                    List<Variant> values = fields.EventFields.ToList();
+                    var values = fields.EventFields.ToList();
                     string sourceName = values[2].GetString();
                     ushort severity = values[3].GetUInt16();
                     LocalizedText message = values[4].GetLocalizedText();

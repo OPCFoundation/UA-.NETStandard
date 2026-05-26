@@ -392,7 +392,7 @@ namespace Opc.Ua.Server
             if (Server is IServerInternal serverInternal && serverInternal.UserManagement != null)
             {
                 m_userManagementBinding?.Dispose();
-                m_userManagementBinding = Opc.Ua.Server.UserManagement.UserManagementBinding.Bind(
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
                     this,
                     serverInternal.UserManagement,
                     serverInternal.SessionManager);
@@ -1850,7 +1850,7 @@ namespace Opc.Ua.Server
 
 #pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
         private ServerConfigurationState? m_serverConfigurationNode;
-        private Opc.Ua.Server.UserManagement.UserManagementBinding? m_userManagementBinding;
+        private UserManagement.UserManagementBinding? m_userManagementBinding;
 #pragma warning restore CA2213
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<ServerCertificateGroup> m_certificateGroups;

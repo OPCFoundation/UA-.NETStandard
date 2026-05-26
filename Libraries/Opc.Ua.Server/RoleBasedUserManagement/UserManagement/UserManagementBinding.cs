@@ -84,6 +84,12 @@ namespace Opc.Ua.Server.UserManagement
         /// <c>null</c> if the standard <c>UserManagement</c> object is not
         /// present in the address space.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeManager"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="userManagement"/> is null.
+        /// </exception>
         public static UserManagementBinding? Bind(
             AsyncCustomNodeManager nodeManager,
             IUserManagement userManagement,
@@ -99,7 +105,7 @@ namespace Opc.Ua.Server.UserManagement
             }
 
             UserManagementState? state = nodeManager.FindPredefinedNode<UserManagementState>(
-                new NodeId(Opc.Ua.Objects.UserManagement));
+                new NodeId(Objects.UserManagement));
             if (state == null)
             {
                 return null;
@@ -108,7 +114,7 @@ namespace Opc.Ua.Server.UserManagement
             var binding = new UserManagementBinding(
                 userManagement,
                 sessionManager,
-                (nodeManager.Server as IServerInternal)?.Telemetry);
+                nodeManager.Server?.Telemetry);
             binding.Initialize(state);
             return binding;
         }
@@ -159,24 +165,12 @@ namespace Opc.Ua.Server.UserManagement
             {
                 return;
             }
-            if (m_state.Users != null)
-            {
-                m_state.Users.Value = ArrayOf.Wrapped(
+            m_state.Users?.Value = ArrayOf.Wrapped(
                     System.Linq.Enumerable.ToArray(m_userManagement.SnapshotUsers()));
-            }
-            if (m_state.PasswordLength != null)
-            {
-                m_state.PasswordLength.Value = m_userManagement.PasswordLength;
-            }
-            if (m_state.PasswordOptions != null)
-            {
-                m_state.PasswordOptions.Value = (uint)m_userManagement.PasswordOptions;
-            }
-            if (m_state.PasswordRestrictions != null)
-            {
-                m_state.PasswordRestrictions.Value = m_userManagement.PasswordRestrictions
-                    ?? LocalizedText.Null;
-            }
+            m_state.PasswordLength?.Value = m_userManagement.PasswordLength;
+            m_state.PasswordOptions?.Value = (uint)m_userManagement.PasswordOptions;
+            m_state.PasswordRestrictions?.Value = m_userManagement.PasswordRestrictions
+                ?? LocalizedText.Null;
         }
 
         private async ValueTask<AddUserMethodStateResult> OnAddUserAsync(
@@ -231,7 +225,6 @@ namespace Opc.Ua.Server.UserManagement
                 return result;
             }
 
-            string? callingUserName = RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName;
             result.ServiceResult = m_userManagement.ModifyUser(
                 userName,
                 modifyPassword,
@@ -240,7 +233,7 @@ namespace Opc.Ua.Server.UserManagement
                 (UserConfigurationMask)userConfiguration,
                 modifyDescription,
                 description,
-                callingUserName);
+                RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName);
             if (ServiceResult.IsGood(result.ServiceResult))
             {
                 SyncProperties();
@@ -265,8 +258,8 @@ namespace Opc.Ua.Server.UserManagement
                 return result;
             }
 
-            string? callingUserName = RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName;
-            result.ServiceResult = m_userManagement.RemoveUser(userName, callingUserName);
+            result.ServiceResult = m_userManagement.RemoveUser(
+                userName, RoleAuthorizationGate.GetUserIdentity(context)?.DisplayName);
             if (ServiceResult.IsGood(result.ServiceResult))
             {
                 SyncProperties();
@@ -312,8 +305,7 @@ namespace Opc.Ua.Server.UserManagement
             }
             try
             {
-                System.Collections.Generic.IList<ISession> sessions = m_sessionManager.GetSessions();
-                foreach (ISession session in sessions)
+                foreach (ISession session in m_sessionManager.GetSessions())
                 {
                     if (string.Equals(session.Identity?.DisplayName, e.UserName, StringComparison.Ordinal))
                     {

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua.Server.AliasNames.PubSub
@@ -42,7 +41,7 @@ namespace Opc.Ua.Server.AliasNames.PubSub
         /// <see cref="AliasUpdateDataType.ApplicationUri"/> field of
         /// every produced message. Defaults to the server's
         /// application URI when wired via the
-        /// <see cref="AliasNamePublisher.AliasNamePublisher(IAliasNameStoreRegistry, IPortableNodeIdResolver, string, AliasNamePublisherOptions)"/>
+        /// <see cref="AliasNamePublisher(IAliasNameStoreRegistry, IPortableNodeIdResolver, string, AliasNamePublisherOptions)"/>
         /// constructor.
         /// </summary>
         public string ApplicationUri { get; set; } = string.Empty;

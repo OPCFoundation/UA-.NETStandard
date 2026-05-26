@@ -88,14 +88,17 @@ namespace Opc.Ua.Client.AliasNames.PubSub
         /// </summary>
         /// <returns><c>true</c> if the message passed the filter and an
         /// event was raised; <c>false</c> if the message was dropped.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="update"/> is null.
+        /// </exception>
         public bool Submit(AliasUpdateDataType update)
         {
             if (update == null)
             {
                 throw new ArgumentNullException(nameof(update));
             }
-            if (!string.IsNullOrEmpty(Options.ExpectedApplicationUri)
-                && !string.Equals(
+            if (!string.IsNullOrEmpty(Options.ExpectedApplicationUri) &&
+                !string.Equals(
                     update.ApplicationUri,
                     Options.ExpectedApplicationUri,
                     StringComparison.Ordinal))

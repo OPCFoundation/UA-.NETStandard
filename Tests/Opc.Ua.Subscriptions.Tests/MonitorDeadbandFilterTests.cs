@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -933,7 +934,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 return [.. a.Cast<object>().Select(Convert.ToInt32)];
             }
-            return [Convert.ToInt32(val)];
+            return [Convert.ToInt32(val, CultureInfo.InvariantCulture)];
         }
 
         private int NotificationCount(PublishResponse pubResp)

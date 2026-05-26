@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Tests.Roles
     /// the SecurityAdmin-only RoleSet methods directly without further
     /// configuration. Tests use <c>SecurityPolicies.Basic256Sha256</c> so
     /// the channel SecurityMode is <c>SignAndEncrypt</c> as required by
-    /// the <see cref="Opc.Ua.Server.RoleAuthorizationGate"/>.
+    /// the <see cref="Server.RoleAuthorizationGate"/>.
     /// </para>
     /// <para>
     /// Each test is fully isolated — a fresh <c>ServerFixture</c> +
@@ -75,7 +75,6 @@ namespace Opc.Ua.Client.Tests.Roles
     public class RoleManagementIntegrationTests
     {
         private const string SysAdminUser = "sysadmin";
-        private const string SysAdminPassword = "demo";
 
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
         private ClientFixture m_clientFixture = null!;
@@ -171,7 +170,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task ListRolesAsync_ReturnsAllWellKnownRolesAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
             IReadOnlyList<RoleInfo> roles = await client.ListRolesAsync().ConfigureAwait(false);
 
             // Part 3 §4.9 defines nine well-known roles which the server's
@@ -200,7 +199,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task ReadRoleAsync_SecurityAdminRole_ReturnsExpectedNodeIdsAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
             RoleInfo info = await client.ReadRoleAsync(ObjectIds.WellKnownRole_SecurityAdmin)
                 .ConfigureAwait(false);
 
@@ -217,7 +216,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task AddIdentityAsync_Authorised_SucceedsAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
             await client.AddIdentityAsync(
                 ObjectIds.WellKnownRole_Observer,
                 new IdentityMappingRuleType
@@ -240,7 +239,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task RemoveIdentityAsync_Authorised_DropsMappingAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
             var rule = new IdentityMappingRuleType
             {
                 CriteriaType = IdentityCriteriaType.UserName,
@@ -269,7 +268,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task AddApplicationAsync_Authorised_AddsAppUriAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
             await client.AddApplicationAsync(
                 ObjectIds.WellKnownRole_Observer,
                 "urn:test:role-management:app").ConfigureAwait(false);
@@ -280,10 +279,7 @@ namespace Opc.Ua.Client.Tests.Roles
             // Applications is an ArrayOf<string> snapshot; convert to a
             // local list for assertion clarity.
             var apps = new List<string>();
-            foreach (string app in refreshed.Applications)
-            {
-                apps.Add(app);
-            }
+            apps.AddRange(refreshed.Applications);
             Assert.That(apps, Has.Member("urn:test:role-management:app"),
                 "The added ApplicationUri should be visible on subsequent reads.");
         }
@@ -291,7 +287,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task SetApplicationsExcludeAsync_Authorised_PersistsAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
             await client.SetApplicationsExcludeAsync(
                 ObjectIds.WellKnownRole_Observer, true).ConfigureAwait(false);
 
@@ -314,7 +310,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task AddRoleAsync_Authorised_MaterializesRoleAndIsBrowseableAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
 
             NodeId newRoleId = await client.AddRoleAsync(
                 "IntegrationTestRole_Add",
@@ -352,7 +348,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public async Task RemoveRoleAsync_Authorised_DropsRoleFromAddressSpaceAsync()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
 
             NodeId newRoleId = await client.AddRoleAsync(
                 "IntegrationTestRole_Remove", namespaceUri: null).ConfigureAwait(false);
@@ -373,7 +369,7 @@ namespace Opc.Ua.Client.Tests.Roles
         [Test]
         public void AddIdentityAsync_AnonymousReservedRole_RejectedByServer()
         {
-            IRoleManagementClient client = new RoleManagementClient(m_session);
+            var client = new RoleManagementClient(m_session);
 
             // Per Part 3 §4.9 the Anonymous role's identity mapping is
             // immutable. The standard nodeset doesn't materialize an
@@ -390,10 +386,10 @@ namespace Opc.Ua.Client.Tests.Roles
                         Criteria = "should-not-stick"
                     }).ConfigureAwait(false));
 
-            Assert.That((StatusCode)ex!.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument)
-                    .Or.EqualTo((StatusCode)StatusCodes.BadInvalidState)
-                    .Or.EqualTo((StatusCode)StatusCodes.BadNoMatch),
+            Assert.That(ex!.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument)
+                    .Or.EqualTo(StatusCodes.BadInvalidState)
+                    .Or.EqualTo(StatusCodes.BadNoMatch),
                 "Reserved-role AddIdentity must be rejected.");
         }
     }

@@ -56,18 +56,18 @@ namespace Opc.Ua.Server.Tests.AliasNames
         private static InMemoryAliasNameStore CreateStore(
             bool withSubCategory = false,
             AliasNameCapabilities capabilities =
-                AliasNameCapabilities.AddAliasesToCategory
-                | AliasNameCapabilities.DeleteAliasesFromCategory
-                | AliasNameCapabilities.LastChange)
+                AliasNameCapabilities.AddAliasesToCategory |
+                AliasNameCapabilities.DeleteAliasesFromCategory |
+                AliasNameCapabilities.LastChange)
         {
-            var subs = withSubCategory
-                ? new[]
-                {
+            AliasNameCategoryDescriptor[] subs = withSubCategory
+                ?
+                [
                     new AliasNameCategoryDescriptor(
                         s_child,
                         new QualifiedName("Child", 2),
                         capabilities)
-                }
+                ]
                 : null;
             var root = new AliasNameCategoryDescriptor(
                 s_root,
@@ -78,12 +78,14 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         private static TypeTable EmptyTypeTree()
-            => new(new NamespaceTable());
+        {
+            return new(new NamespaceTable());
+        }
 
         [Test]
         public async Task AddAndFindRoundTripAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [
                     new AliasAddRequest("Temp", s_t1, null,
@@ -103,7 +105,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DuplicateAddReturnsBadBrowseNameDuplicatedAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] first = await store.AddAliasesAsync(s_root,
                 [
                     new AliasAddRequest("X", s_t1, null,
@@ -124,7 +126,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteMissingReturnsBadNotFoundAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.DeleteAliasesAsync(s_root,
                 [new AliasDeleteRequest("Ghost", s_t1)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -134,7 +136,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task LastChangeAdvancesMonotonicallyPerBatchAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             Assert.That(store.GetLastChange(s_root), Is.EqualTo((uint?)0));
 
             await store.AddAliasesAsync(s_root,
@@ -161,7 +163,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task ChangedEventCarriesCategoryAndVersionAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             AliasStoreChangedEventArgs captured = null;
             store.Changed += (_, e) => captured = e;
             await store.AddAliasesAsync(s_root,
@@ -177,7 +179,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task SubCategoryMatchesCascadeFromParentAsync()
         {
-            using var store = CreateStore(withSubCategory: true);
+            using InMemoryAliasNameStore store = CreateStore(withSubCategory: true);
             await store.AddAliasesAsync(s_child,
                 [new AliasAddRequest("SubA", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -201,12 +203,12 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task FindAliasWithEmptyPatternReturnsEmptyAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("A", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
             IReadOnlyList<AliasNameDataType> result = await store
-                .FindAliasAsync(s_root, "", NodeId.Null, EmptyTypeTree())
+                .FindAliasAsync(s_root, string.Empty, NodeId.Null, EmptyTypeTree())
                 .ConfigureAwait(false);
             Assert.That(result, Is.Empty);
         }
@@ -214,7 +216,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task FindAliasWithUnknownCategoryReturnsEmptyAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             IReadOnlyList<AliasNameDataType> result = await store
                 .FindAliasAsync(new NodeId("Unknown", 2),
                     "%", NodeId.Null, EmptyTypeTree())
@@ -225,7 +227,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task AddOnUnsupportedCategoryThrowsBadNotSupportedAsync()
         {
-            using var store = CreateStore(
+            using InMemoryAliasNameStore store = CreateStore(
                 capabilities: AliasNameCapabilities.None);
 
             ServiceResultException ex = null;
@@ -247,7 +249,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task FindAliasVerboseProducesServerUrisAndCategoryIdAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             store.Seed(s_root, "S1", s_t1, serverUri: "urn:other-server",
                 referenceTypeId: ReferenceTypeIds.AliasFor);
 
@@ -264,7 +266,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task OwnsCategoryReflectsRegisteredTreeAsync()
         {
-            using var store = CreateStore(withSubCategory: true);
+            using InMemoryAliasNameStore store = CreateStore(withSubCategory: true);
             Assert.That(store.OwnsCategory(s_root), Is.True);
             Assert.That(store.OwnsCategory(s_child), Is.True);
             Assert.That(store.OwnsCategory(new NodeId("Other", 2)), Is.False);
@@ -275,7 +277,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteExistingAliasRoundTripsAndBumpsLastChangeAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -301,7 +303,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteFiresChangedEventWithCategoryAndVersionAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -323,7 +325,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteRemovesEmptyAliasGroupSoReAddSucceedsAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -343,7 +345,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteAllFailBatchDoesNotBumpLastChangeAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -362,9 +364,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task AddWithEmptyNameReturnsBadBrowseNameInvalidAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.AddAliasesAsync(s_root,
-                [new AliasAddRequest("", s_t1, null, ReferenceTypeIds.AliasFor)],
+                [new AliasAddRequest(string.Empty, s_t1, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(r[0].Code, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
@@ -372,7 +374,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task AddWithNullTargetNodeReturnsBadNodeIdInvalidAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", ExpandedNodeId.Null, null, ReferenceTypeIds.AliasFor)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -382,7 +384,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task AddWithNullReferenceTypeReturnsBadReferenceTypeIdInvalidAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", s_t1, null, NodeId.Null)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -392,9 +394,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteWithEmptyNameReturnsBadBrowseNameInvalidAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.DeleteAliasesAsync(s_root,
-                [new AliasDeleteRequest("", s_t1)],
+                [new AliasDeleteRequest(string.Empty, s_t1)],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(r[0].Code, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
@@ -402,7 +404,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task DeleteWithNullTargetNodeReturnsBadNodeIdInvalidAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             StatusCode[] r = await store.DeleteAliasesAsync(s_root,
                 [new AliasDeleteRequest("X", ExpandedNodeId.Null)],
                 CancellationToken.None).ConfigureAwait(false);
@@ -412,11 +414,11 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task AddBatchAccumulatesPerEntryFailuresWithoutBumpAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             // All three rows fail individually — none should bump LastChange.
             StatusCode[] r = await store.AddAliasesAsync(s_root,
                 [
-                    new AliasAddRequest("", s_t1, null, ReferenceTypeIds.AliasFor),
+                    new AliasAddRequest(string.Empty, s_t1, null, ReferenceTypeIds.AliasFor),
                     new AliasAddRequest("X", ExpandedNodeId.Null, null, ReferenceTypeIds.AliasFor),
                     new AliasAddRequest("Y", s_t1, null, NodeId.Null)
                 ],
@@ -437,7 +439,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             // FindAlias with a filter equal to AliasFor must return the alias
             // because ITypeTable.IsTypeOf(subtype, base) returns true (Part 17
             // §6.3.2 reference-type filter semantics: include subtypes).
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             var specialAliasFor = new NodeId("SpecialAliasFor", 2);
             store.Seed(s_root, "Tagged", s_t1, serverUri: null,
                 referenceTypeId: specialAliasFor);
@@ -469,7 +471,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task FindAliasWithReferencesAsFilterMatchesAllAsync()
         {
-            using var store = CreateStore();
+            using InMemoryAliasNameStore store = CreateStore();
             await store.AddAliasesAsync(s_root,
                 [
                     new AliasAddRequest("A", s_t1, null, ReferenceTypeIds.AliasFor),
