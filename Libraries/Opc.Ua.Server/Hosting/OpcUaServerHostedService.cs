@@ -36,6 +36,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Configuration;
+using Opc.Ua.Identity;
 
 #nullable enable
 
@@ -55,6 +56,8 @@ namespace Opc.Ua.Server.Hosting
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
+        private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IServiceProvider m_services;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
         // managed via the async StopAsync override which calls m_application.StopAsync.
@@ -68,6 +71,8 @@ namespace Opc.Ua.Server.Hosting
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IServiceProvider services,
             ILogger<OpcUaServerHostedService> logger)
         {
             if (options is null)
@@ -78,6 +83,9 @@ namespace Opc.Ua.Server.Hosting
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
             m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
+            m_identityRegistrations = identityRegistrations ??
+                throw new ArgumentNullException(nameof(identityRegistrations));
+            m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -212,6 +220,7 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            RegisterIdentityAuthenticators();
 
             foreach (string url in urls)
             {
@@ -225,6 +234,27 @@ namespace Opc.Ua.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
+            }
+        }
+
+        private void RegisterIdentityAuthenticators()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            ICertificateValidatorEx? certificateValidator =
+                m_application?.ApplicationConfiguration?.CertificateManager as ICertificateValidatorEx;
+
+            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
+            {
+                foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
+                    m_services,
+                    certificateValidator))
+                {
+                    m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                }
             }
         }
 

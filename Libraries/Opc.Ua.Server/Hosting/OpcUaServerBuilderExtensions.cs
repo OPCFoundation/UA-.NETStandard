@@ -28,14 +28,19 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Server.UserManagement;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -167,6 +172,101 @@ namespace Microsoft.Extensions.DependencyInjection
             RegisterCommonServices(builder.Services);
 
             return new OpcUaServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers a server-side identity authenticator and adds it to the server registry on startup.
+        /// </summary>
+        public static IOpcUaServerBuilder AddIdentityAuthenticator<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAuth>(
+                this IOpcUaServerBuilder builder)
+            where TAuth : class, IUserTokenAuthenticator
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddSingleton<TAuth>();
+            builder.Services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
+                (sp, _) => new IUserTokenAuthenticator[] { sp.GetRequiredService<TAuth>() }));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the built-in identity authenticators that can be resolved from DI and server state.
+        /// </summary>
+        public static IOpcUaServerBuilder AddDefaultIdentityAuthenticators(
+            this IOpcUaServerBuilder builder,
+            Action<DefaultAuthenticatorOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new DefaultAuthenticatorOptions();
+            configure(options);
+            builder.Services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
+                (sp, certificateValidator) => CreateDefaultIdentityAuthenticators(
+                    sp,
+                    certificateValidator,
+                    options)));
+            return builder;
+        }
+
+        private static IEnumerable<IUserTokenAuthenticator> CreateDefaultIdentityAuthenticators(
+            IServiceProvider services,
+            ICertificateValidatorEx? serverCertificateValidator,
+            DefaultAuthenticatorOptions options)
+        {
+            if (options.EnableAnonymous)
+            {
+                yield return new AnonymousAuthenticator();
+            }
+
+            if (options.EnableUserNamePassword)
+            {
+                IUserDatabase? userDatabase = options.UserDatabase ?? services.GetService<IUserDatabase>();
+                IUserManagement? userManagement = options.UserManagement ?? services.GetService<IUserManagement>();
+                if (userDatabase != null && userManagement != null)
+                {
+                    yield return new UserNamePasswordAuthenticator(
+                        userDatabase,
+                        userManagement,
+                        services.GetRequiredService<ITelemetryContext>());
+                }
+            }
+
+            if (options.EnableX509)
+            {
+                ICertificateValidatorEx? certificateValidator = options.CertificateValidator ??
+                    services.GetService<ICertificateValidatorEx>() ??
+                    serverCertificateValidator;
+                if (certificateValidator != null)
+                {
+                    yield return new X509Authenticator(
+                        certificateValidator,
+                        options.UserCertificateTrustList);
+                }
+            }
+
+            if (options.EnableJwt)
+            {
+                IIssuerKeyResolver? keyResolver = options.IssuerKeyResolver ??
+                    services.GetService<IIssuerKeyResolver>();
+                if (keyResolver != null && !string.IsNullOrEmpty(options.ExpectedAudience))
+                {
+                    yield return new JwtAuthenticator(
+                        keyResolver,
+                        options.ExpectedAudience,
+                        options.ClockSkewTolerance);
+                }
+            }
         }
 
         private static void EnsureFirstRegistration(IServiceCollection services)

@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             Assert.That(anonResult.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(anonymous.CallCount, Is.EqualTo(1));
-            Assert.That(userName.CallCount, Is.EqualTo(0));
+            Assert.That(userName.CallCount, Is.Zero);
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             AuthenticationResult userNameResult = await registry.AuthenticateAsync(userNameCtx).ConfigureAwait(false);
 
             Assert.That(userNameResult.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
-            Assert.That(anonymous.CallCount, Is.EqualTo(0));
+            Assert.That(anonymous.CallCount, Is.Zero);
             Assert.That(userName.CallCount, Is.EqualTo(1));
         }
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(jwt.CallCount, Is.EqualTo(1));
-            Assert.That(saml.CallCount, Is.EqualTo(0));
+            Assert.That(saml.CallCount, Is.Zero);
         }
 
         [Test]
@@ -165,7 +165,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             AuthenticationResult result = await registry.AuthenticateAsync(context).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(nextOne.CallCount, Is.EqualTo(0));
+            Assert.That(nextOne.CallCount, Is.Zero);
         }
 
         [Test]

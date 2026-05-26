@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 // TODO: RCS1256 — needs polyfill for net48
@@ -390,28 +391,16 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    // check if the application has a callback which validates the identity tokens.
-                    lock (m_eventLock)
-                    {
-                        if (m_ImpersonateUser != null)
-                        {
-                            var args = new ImpersonateEventArgs(
-                                newIdentity,
-                                userTokenPolicy,
-                                context.ChannelContext.EndpointDescription);
-                            m_ImpersonateUser(session, args);
-
-                            if (ServiceResult.IsBad(args.IdentityValidationError))
-                            {
-                                error = args.IdentityValidationError;
-                            }
-                            else
-                            {
-                                identity = args.Identity;
-                                effectiveIdentity = args.EffectiveIdentity;
-                            }
-                        }
-                    }
+                    (
+                        identity,
+                        effectiveIdentity,
+                        error) = await AuthenticateUserIdentityAsync(
+                            session,
+                            newIdentity!,
+                            userTokenPolicy,
+                            context.ChannelContext!.EndpointDescription!,
+                            cancellationToken)
+                        .ConfigureAwait(false);
 
                     // parse the token manually if the identity is not provided.
                     if (identity == null)
@@ -633,6 +622,83 @@ namespace Opc.Ua.Server
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Validates an inbound user token through the identity registry first, then the legacy event.
+        /// </summary>
+        protected virtual async ValueTask<(
+            IUserIdentity? Identity,
+            IUserIdentity? EffectiveIdentity,
+            ServiceResult? Error)> AuthenticateUserIdentityAsync(
+                ISession session,
+                IUserIdentityTokenHandler newIdentity,
+                UserTokenPolicy? userTokenPolicy,
+                EndpointDescription endpointDescription,
+                CancellationToken cancellationToken)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (newIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(newIdentity));
+            }
+            if (endpointDescription == null)
+            {
+                throw new ArgumentNullException(nameof(endpointDescription));
+            }
+
+            UserTokenPolicy policy = userTokenPolicy ?? new UserTokenPolicy
+            {
+                TokenType = newIdentity.TokenType
+            };
+
+            var authCtx = new AuthenticationContext(
+                newIdentity,
+                policy,
+                endpointDescription,
+                m_server.MessageContext);
+
+            AuthenticationResult authResult = await m_server.IdentityRegistry
+                .AuthenticateAsync(authCtx, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (authResult.Outcome == AuthenticationOutcome.Accepted)
+            {
+                return (authResult.Identity, authResult.Identity, null);
+            }
+
+            if (authResult.Outcome == AuthenticationOutcome.Rejected)
+            {
+                return (
+                    null,
+                    null,
+                    authResult.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+            }
+
+            // check if the application has a callback which validates the identity tokens.
+            lock (m_eventLock)
+            {
+                if (m_ImpersonateUser != null)
+                {
+                    var args = new ImpersonateEventArgs(
+                        newIdentity,
+                        userTokenPolicy,
+                        endpointDescription);
+                    m_ImpersonateUser(session, args);
+
+                    if (ServiceResult.IsBad(args.IdentityValidationError))
+                    {
+                        return (null, null, args.IdentityValidationError);
+                    }
+
+                    return (args.Identity, args.EffectiveIdentity, null);
+                }
+            }
+
+            return (null, null, null);
         }
 
         /// <summary>

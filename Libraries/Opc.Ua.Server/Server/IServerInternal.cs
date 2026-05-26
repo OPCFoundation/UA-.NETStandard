@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Server
 {
@@ -160,6 +161,14 @@ namespace Opc.Ua.Server
         /// <see cref="SetRoleManager"/> before the address space is bound.
         /// </summary>
         IRoleManager RoleManager { get; }
+
+        /// <summary>
+        /// The registry that validates user identity tokens before falling back
+        /// to the legacy <c>SessionManager.ImpersonateUser</c> event. Integrators
+        /// may replace the default empty registry by calling
+        /// <see cref="SetIdentityRegistry"/> before sessions are activated.
+        /// </summary>
+        IServerIdentityRegistry IdentityRegistry { get; }
 
         /// <summary>
         /// The manager for the OPC UA Part 18 §5 user-management model.
@@ -356,6 +365,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="roleManager">The role manager to use.</param>
         void SetRoleManager(IRoleManager roleManager);
+
+        /// <summary>
+        /// Replaces the identity registry with a custom
+        /// <see cref="IServerIdentityRegistry"/> implementation. Must be
+        /// called before sessions are activated so authenticators can run
+        /// ahead of the legacy impersonation event.
+        /// </summary>
+        /// <param name="registry">The identity registry to use.</param>
+        void SetIdentityRegistry(IServerIdentityRegistry registry);
 
         /// <summary>
         /// Replaces the user-management facade with a custom

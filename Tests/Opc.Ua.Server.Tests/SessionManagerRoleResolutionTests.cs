@@ -30,8 +30,12 @@
 #nullable enable
 
 using System;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Identity;
 using Opc.Ua.Server.UserManagement;
 using Opc.Ua.Tests;
 
@@ -324,6 +328,123 @@ namespace Opc.Ua.Server.Tests
             Assert.That(status, Is.EqualTo(ServiceResult.Good),
                 "USERNAME identities without a DisplayName cannot be looked up — must return Good.");
             userManagement.Verify(u => u.MustChangePassword(It.IsAny<string>()), Times.Never);
+        }
+
+        // ----------------------------------------------------------------
+        // Identity registry before legacy ImpersonateUser event
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task AuthenticateUserIdentityAsyncRegistryAcceptedSkipsLegacyAndRoleManagerGrants()
+        {
+            using var roleManager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                roleManager.AddIdentity(
+                    ObjectIds.WellKnownRole_Observer,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.UserName,
+                        Criteria = "alice"
+                    })),
+                Is.True);
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+
+            IUserIdentity registryIdentity = CreateUserNameIdentity("alice");
+            var authenticator = new Mock<IUserTokenAuthenticator>();
+            authenticator.Setup(a => a.TokenType).Returns(UserTokenType.UserName);
+            authenticator.Setup(a => a.IssuedTokenProfileUri).Returns((string?)null);
+            authenticator.Setup(a => a.AuthenticateAsync(
+                    It.IsAny<AuthenticationContext>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<AuthenticationResult>(
+                    AuthenticationResult.Accept(registryIdentity)));
+            m_serverMock.Setup(s => s.IdentityRegistry).Returns(new ServerIdentityRegistry(authenticator.Object));
+
+            using TestableSessionManager manager = CreateManager();
+            int legacyCalls = 0;
+            manager.ImpersonateUser += (_, _) => legacyCalls++;
+
+            Mock<ISession> sessionMock = CreateSessionMock();
+            (IUserIdentity? identity, IUserIdentity? effectiveIdentity, ServiceResult? error) =
+                await manager.PublicAuthenticateUserIdentityAsync(
+                    sessionMock.Object,
+                    new UserNameIdentityTokenHandler("alice", Encoding.UTF8.GetBytes("password")),
+                    new UserTokenPolicy { TokenType = UserTokenType.UserName, PolicyId = "user" },
+                    CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt).EndpointDescription!)
+                .ConfigureAwait(false);
+
+            Assert.That(error, Is.Null);
+            Assert.That(identity, Is.SameAs(registryIdentity));
+            Assert.That(effectiveIdentity, Is.SameAs(registryIdentity));
+            Assert.That(legacyCalls, Is.Zero);
+
+            IUserIdentity grantedIdentity = manager.PublicAddMandatoryRoles(
+                sessionMock.Object,
+                CreateOperationContext(MessageSecurityMode.SignAndEncrypt),
+                effectiveIdentity!);
+
+            Assert.That(grantedIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.True);
+        }
+
+        [Test]
+        public async Task AuthenticateUserIdentityAsyncRegistryRejectedReturnsErrorAndSkipsLegacy()
+        {
+            var authenticator = new Mock<IUserTokenAuthenticator>();
+            authenticator.Setup(a => a.TokenType).Returns(UserTokenType.UserName);
+            authenticator.Setup(a => a.IssuedTokenProfileUri).Returns((string?)null);
+            authenticator.Setup(a => a.AuthenticateAsync(
+                    It.IsAny<AuthenticationContext>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<AuthenticationResult>(
+                    AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied))));
+            m_serverMock.Setup(s => s.IdentityRegistry).Returns(new ServerIdentityRegistry(authenticator.Object));
+
+            using TestableSessionManager manager = CreateManager();
+            int legacyCalls = 0;
+            manager.ImpersonateUser += (_, _) => legacyCalls++;
+
+            (IUserIdentity? identity, IUserIdentity? effectiveIdentity, ServiceResult? error) =
+                await manager.PublicAuthenticateUserIdentityAsync(
+                    CreateSessionMock().Object,
+                    new UserNameIdentityTokenHandler("alice", Encoding.UTF8.GetBytes("password")),
+                    new UserTokenPolicy { TokenType = UserTokenType.UserName, PolicyId = "user" },
+                    CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt).EndpointDescription!)
+                .ConfigureAwait(false);
+
+            Assert.That(identity, Is.Null);
+            Assert.That(effectiveIdentity, Is.Null);
+            Assert.That(error, Is.Not.Null);
+            Assert.That(error!.Code, Is.EqualTo((uint)StatusCodes.BadUserAccessDenied));
+            Assert.That(legacyCalls, Is.Zero);
+        }
+
+        [Test]
+        public async Task AuthenticateUserIdentityAsyncRegistryNotHandledFiresLegacyEvent()
+        {
+            m_serverMock.Setup(s => s.IdentityRegistry).Returns(new ServerIdentityRegistry());
+
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity legacyIdentity = CreateUserNameIdentity("legacy");
+            int legacyCalls = 0;
+            manager.ImpersonateUser += (_, args) =>
+            {
+                legacyCalls++;
+                args.Identity = legacyIdentity;
+                args.EffectiveIdentity = legacyIdentity;
+            };
+
+            (IUserIdentity? identity, IUserIdentity? effectiveIdentity, ServiceResult? error) =
+                await manager.PublicAuthenticateUserIdentityAsync(
+                    CreateSessionMock().Object,
+                    new UserNameIdentityTokenHandler("alice", Encoding.UTF8.GetBytes("password")),
+                    new UserTokenPolicy { TokenType = UserTokenType.UserName, PolicyId = "user" },
+                    CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt).EndpointDescription!)
+                .ConfigureAwait(false);
+
+            Assert.That(error, Is.Null);
+            Assert.That(identity, Is.SameAs(legacyIdentity));
+            Assert.That(effectiveIdentity, Is.SameAs(legacyIdentity));
+            Assert.That(legacyCalls, Is.EqualTo(1));
         }
 
         // ----------------------------------------------------------------
