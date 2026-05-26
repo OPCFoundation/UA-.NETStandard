@@ -77,7 +77,7 @@ namespace Opc.Ua.Gds.Tests
             });
 
             var apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.That(apps.Count, Is.EqualTo(1));
+            Assert.That(apps, Has.Count.EqualTo(1));
             Assert.That(apps[0].ApplicationUri, Is.EqualTo(AppUri));
             Assert.That(apps[0].Enabled, Is.True);
         }
@@ -336,7 +336,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var result = new AccessTokenResult();
             Assert.That(result.AccessToken, Is.EqualTo(string.Empty));
-            Assert.That(result.AccessTokenExpiryTime, Is.EqualTo(default(DateTime)));
+            Assert.That(result.AccessTokenExpiryTime, Is.Default);
             Assert.That(result.RefreshToken, Is.Null);
         }
 

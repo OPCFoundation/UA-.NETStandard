@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Transport
                     m_logger.LogInformation(
                         "OnUadpDiscoveryReceive received message with length {Length} from {Address}",
                         message.Length,
-                        source.Address);
+                        source!.Address);
 
                     if (message.Length > 1)
                     {

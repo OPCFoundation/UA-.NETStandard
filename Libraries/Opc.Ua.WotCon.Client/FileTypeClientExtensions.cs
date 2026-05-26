@@ -67,6 +67,8 @@ namespace Opc.Ua.WotCon.Client
         /// <c>Write | EraseExisting</c>.</param>
         /// <param name="chunkSize">Maximum per-write chunk size.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask UploadAsync(
             this FileTypeClient file,
             ReadOnlyMemory<byte> content,
@@ -74,7 +76,10 @@ namespace Opc.Ua.WotCon.Client
             int chunkSize = DefaultChunkSize,
             CancellationToken ct = default)
         {
-            if (file is null) { throw new ArgumentNullException(nameof(file)); }
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
@@ -86,7 +91,7 @@ namespace Opc.Ua.WotCon.Client
                 while (offset < content.Length)
                 {
                     int take = Math.Min(chunkSize, content.Length - offset);
-                    ByteString chunk = ByteString.From(content.Slice(offset, take).ToArray());
+                    var chunk = ByteString.From(content.Slice(offset, take).ToArray());
                     await file.WriteAsync(handle, chunk, ct).ConfigureAwait(false);
                     offset += take;
                 }
@@ -115,6 +120,10 @@ namespace Opc.Ua.WotCon.Client
         /// <param name="chunkSize">Maximum per-write chunk size and
         /// size of the rented intermediate buffer.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="content"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="content"/> is not readable.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask UploadAsync(
             this FileTypeClient file,
             Stream content,
@@ -122,8 +131,14 @@ namespace Opc.Ua.WotCon.Client
             int chunkSize = DefaultChunkSize,
             CancellationToken ct = default)
         {
-            if (file is null) { throw new ArgumentNullException(nameof(file)); }
-            if (content is null) { throw new ArgumentNullException(nameof(content)); }
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+            if (content is null)
+            {
+                throw new ArgumentNullException(nameof(content));
+            }
             if (!content.CanRead)
             {
                 throw new ArgumentException("Stream must be readable.", nameof(content));
@@ -151,12 +166,17 @@ namespace Opc.Ua.WotCon.Client
         /// Reads the entire content of the file behind <paramref name="file"/>
         /// into memory using chunked <c>Read</c> calls.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask<byte[]> DownloadAllAsync(
             this FileTypeClient file,
             int chunkSize = DefaultChunkSize,
             CancellationToken ct = default)
         {
-            if (file is null) { throw new ArgumentNullException(nameof(file)); }
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
@@ -165,7 +185,7 @@ namespace Opc.Ua.WotCon.Client
             uint handle = await file.OpenAsync(readMode, ct).ConfigureAwait(false);
             try
             {
-                using System.IO.MemoryStream buffer = new();
+                using MemoryStream buffer = new();
                 while (true)
                 {
                     ByteString chunk = await file.ReadAsync(handle, chunkSize, ct).ConfigureAwait(false);
@@ -201,14 +221,24 @@ namespace Opc.Ua.WotCon.Client
         /// the file contents.</param>
         /// <param name="chunkSize">Maximum per-read chunk size.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="destination"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="destination"/> is not writable.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is less than or equal to zero.</exception>
         public static async ValueTask DownloadToAsync(
             this FileTypeClient file,
             Stream destination,
             int chunkSize = DefaultChunkSize,
             CancellationToken ct = default)
         {
-            if (file is null) { throw new ArgumentNullException(nameof(file)); }
-            if (destination is null) { throw new ArgumentNullException(nameof(destination)); }
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+            if (destination is null)
+            {
+                throw new ArgumentNullException(nameof(destination));
+            }
             if (!destination.CanWrite)
             {
                 throw new ArgumentException("Stream must be writable.", nameof(destination));
@@ -227,7 +257,10 @@ namespace Opc.Ua.WotCon.Client
                     async (size, token) =>
                     {
                         ByteString chunk = await file.ReadAsync(handle, size, token).ConfigureAwait(false);
-                        if (chunk.IsNull) { return ReadOnlyMemory<byte>.Empty; }
+                        if (chunk.IsNull)
+                        {
+                            return ReadOnlyMemory<byte>.Empty;
+                        }
                         return chunk.Span.ToArray();
                     },
                     ct).ConfigureAwait(false);
@@ -248,7 +281,7 @@ namespace Opc.Ua.WotCon.Client
         /// <see cref="ArrayPool{T}.Shared"/>.
         /// </summary>
         internal static async ValueTask CopyStreamInChunksAsync(
-            Stream source,
+            this Stream source,
             int chunkSize,
             Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask> writeChunk,
             CancellationToken ct)
@@ -266,7 +299,10 @@ namespace Opc.Ua.WotCon.Client
                     int read = await source.ReadAsync(buffer, 0, chunkSize, ct)
                         .ConfigureAwait(false);
 #endif
-                    if (read <= 0) { break; }
+                    if (read <= 0)
+                    {
+                        break;
+                    }
                     await writeChunk(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
                 }
             }
@@ -285,7 +321,7 @@ namespace Opc.Ua.WotCon.Client
         /// into <paramref name="destination"/>.
         /// </summary>
         internal static async ValueTask CopyChunksToStreamAsync(
-            Stream destination,
+            this Stream destination,
             int chunkSize,
             Func<int, CancellationToken, ValueTask<ReadOnlyMemory<byte>>> readChunk,
             CancellationToken ct)
@@ -294,14 +330,20 @@ namespace Opc.Ua.WotCon.Client
             {
                 ct.ThrowIfCancellationRequested();
                 ReadOnlyMemory<byte> chunk = await readChunk(chunkSize, ct).ConfigureAwait(false);
-                if (chunk.IsEmpty) { break; }
+                if (chunk.IsEmpty)
+                {
+                    break;
+                }
 #if NETSTANDARD2_1_OR_GREATER || NET
                 await destination.WriteAsync(chunk, ct).ConfigureAwait(false);
 #else
                 byte[] copy = chunk.ToArray();
                 await destination.WriteAsync(copy, 0, copy.Length, ct).ConfigureAwait(false);
 #endif
-                if (chunk.Length < chunkSize) { break; }
+                if (chunk.Length < chunkSize)
+                {
+                    break;
+                }
             }
         }
     }

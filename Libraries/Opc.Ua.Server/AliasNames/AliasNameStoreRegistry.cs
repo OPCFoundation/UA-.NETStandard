@@ -123,8 +123,8 @@ namespace Opc.Ua.Server.AliasNames
                 CollectCategoryIds(store, out HashSet<NodeId> categoryIds);
                 foreach (NodeId id in categoryIds)
                 {
-                    if (m_categoryToStore.TryGetValue(id, out IAliasNameStore? owner)
-                        && ReferenceEquals(owner, store))
+                    if (m_categoryToStore.TryGetValue(id, out IAliasNameStore? owner) &&
+                        ReferenceEquals(owner, store))
                     {
                         m_categoryToStore.Remove(id);
                     }

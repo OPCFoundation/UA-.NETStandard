@@ -67,7 +67,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         public static AliasNameSessionHarness Create()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetry);
+            var messageContext = ServiceMessageContext.Create(telemetry);
 
             var sessionMock = new Mock<ISession>(MockBehavior.Loose);
             sessionMock.SetupGet(s => s.MessageContext).Returns(messageContext);
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                             results[i] = new BrowseResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                References = System.Array
+                                References = Array
                                     .Empty<ReferenceDescription>()
                                     .ToArrayOf()
                             };
@@ -190,7 +190,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             return new CallMethodResult
             {
                 StatusCode = StatusCodes.Good,
-                OutputArguments = System.Array.Empty<Variant>().ToArrayOf()
+                OutputArguments = Array.Empty<Variant>().ToArrayOf()
             };
         }
 

@@ -271,7 +271,7 @@ namespace Opc.Ua.Types.Polyfills.Tests
             Channel<int> channel = CreateChannel();
 
             Assert.That(channel.Reader.CanCount, Is.True);
-            Assert.That(channel.Reader.Count, Is.EqualTo(0));
+            Assert.That(channel.Reader.Count, Is.Zero);
 
             Assert.That(channel.Writer.TryWrite(1), Is.True);
             Assert.That(channel.Writer.TryWrite(2), Is.True);

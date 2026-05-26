@@ -1300,13 +1300,13 @@ publish-payload types implement today.
 
 **Dependency Injection:**
 
-`AddOpcUaClient` registers a `ManagedSession` factory delegate that lazily connects on first use:
+`services.AddOpcUa().AddClient(...)` registers a `ManagedSession` factory delegate that lazily connects on first use:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Client;
 
-services.AddOpcUaClient(opt =>
+services.AddOpcUa().AddClient(opt =>
 {
     opt.Configuration = applicationConfiguration;
     opt.Session = new ManagedSessionOptions

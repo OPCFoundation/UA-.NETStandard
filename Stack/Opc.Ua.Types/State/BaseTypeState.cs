@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -315,7 +315,7 @@ namespace Opc.Ua
                         result = onReadIsAbstract(context, this, ref isAbstract);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = isAbstract;
                     }
@@ -356,7 +356,7 @@ namespace Opc.Ua
                         result = onWriteIsAbstract(context, this, ref isAbstract);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         IsAbstract = isAbstract;
                     }

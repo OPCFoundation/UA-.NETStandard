@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                             .ExtensionFields
                                             .Find(x =>
                                                 x.Key == extensionFieldName);
-                                        if (extensionField != null)
+                                        if (!extensionField.Key.IsNull)
                                         {
                                             dataValue = new DataValue(extensionField.Value);
                                         }

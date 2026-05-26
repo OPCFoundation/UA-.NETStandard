@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.FileSystem
         /// Sentinel value indicating that no mode has been specified.
         /// Passing this to
         /// <see cref="UaFileInfo.OpenAsync(UaFileMode, System.Threading.CancellationToken)"/>
-        /// is rejected with <see cref="System.ArgumentException"/> at
+        /// is rejected with <see cref="ArgumentException"/> at
         /// runtime; the value exists so callers can use it as a default
         /// and check explicitly.
         /// </summary>

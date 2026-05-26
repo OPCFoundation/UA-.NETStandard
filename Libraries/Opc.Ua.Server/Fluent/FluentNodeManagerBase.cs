@@ -67,8 +67,8 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
-            m_simulations = new SimulationRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
+            Simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -80,8 +80,8 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, logger, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
-            m_simulations = new SimulationRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
+            Simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -93,8 +93,8 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
-            m_simulations = new SimulationRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
+            Simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -107,8 +107,8 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, logger, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
-            m_simulations = new SimulationRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
+            Simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -121,8 +121,8 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
-            m_simulations = new SimulationRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
+            Simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -136,8 +136,8 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
-            m_simulations = new SimulationRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
+            Simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -147,14 +147,15 @@ namespace Opc.Ua.Server.Fluent
         /// <c>Configure</c> and by generated wrappers; not intended for
         /// direct subclass use.
         /// </summary>
-        internal EventSourceRegistry EventSources => m_eventSources;
+        internal EventSourceRegistry EventSources { get; }
 
         /// <summary>
         /// Registry that the fluent <c>Simulation</c> surface stores its
         /// registered periodic tick loops in. Started after
-        /// <c>Configure</c> completes and torn down on disposal.
+        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.Seal</c>)
+        /// and torn down on disposal.
         /// </summary>
-        internal SimulationRegistry Simulations => m_simulations;
+        internal SimulationRegistry Simulations { get; }
 
         /// <summary>
         /// Attaches this manager's event-source registry to the supplied
@@ -178,8 +179,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new System.ArgumentNullException(nameof(builder));
             }
-            builder.AttachEventSources(m_eventSources);
-            builder.AttachSimulations(m_simulations);
+            builder.AttachEventSources(EventSources);
+            builder.AttachSimulations(Simulations);
         }
 
         /// <summary>
@@ -195,7 +196,7 @@ namespace Opc.Ua.Server.Fluent
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            m_eventSources.SignalReconcile();
+            EventSources.SignalReconcile();
             return base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken);
         }
 
@@ -210,8 +211,8 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
-                m_simulations.Dispose();
-                m_eventSources.Dispose();
+                Simulations.Dispose();
+                EventSources.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -230,8 +231,5 @@ namespace Opc.Ua.Server.Fluent
         {
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
-
-        private readonly EventSourceRegistry m_eventSources;
-        private readonly SimulationRegistry m_simulations;
     }
 }

@@ -327,7 +327,35 @@ namespace Opc.Ua.Core.Security.Tests
                 default, CancellationToken.None).ConfigureAwait(false);
         }
 
-        private X509Certificate2 GetFirstSecureEndpointCert(
+        private static X509Certificate2 GetFirstSecureEndpointCert(
+            ArrayOf<EndpointDescription> endpoints)
+        {
+            // Prefer RSA-based secure endpoints. The fixture may register
+            // ECC policies (ECC_nistP384, etc.) in addition to RSA. On
+            // some platforms (macOS in particular) the ECC endpoint may
+            // appear first; this method's callers verify RSA-specific
+            // properties (key size >= 2048, RSA public key), so the
+            // first secure endpoint isn't always the right one.
+            return FindRsaEndpointCert(endpoints) ?? FindAnySecureEndpointCert(endpoints);
+        }
+
+        private static X509Certificate2 FindRsaEndpointCert(
+            ArrayOf<EndpointDescription> endpoints)
+        {
+            foreach (EndpointDescription ep in endpoints)
+            {
+                if (ep.SecurityMode != MessageSecurityMode.None &&
+                    !ep.ServerCertificate.IsEmpty &&
+                    !IsEccPolicy(ep.SecurityPolicyUri))
+                {
+                    return X509CertificateLoader.LoadCertificate(
+                        ep.ServerCertificate.ToArray());
+                }
+            }
+            return null;
+        }
+
+        private static X509Certificate2 FindAnySecureEndpointCert(
             ArrayOf<EndpointDescription> endpoints)
         {
             foreach (EndpointDescription ep in endpoints)
@@ -341,6 +369,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             return null;
+        }
+
+        private static bool IsEccPolicy(string policyUri)
+        {
+            return !string.IsNullOrEmpty(policyUri)
+                && policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
         }
     }
 }

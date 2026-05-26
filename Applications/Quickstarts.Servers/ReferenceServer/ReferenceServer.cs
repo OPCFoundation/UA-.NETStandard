@@ -226,12 +226,12 @@ namespace Quickstarts.ReferenceServer
             }
 
             var tagVariables = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                Opc.Ua.ObjectIds.TagVariables,
-                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.TagVariables),
+                ObjectIds.TagVariables,
+                QualifiedName.From(BrowseNames.TagVariables),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
             var topics = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                Opc.Ua.ObjectIds.Topics,
-                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Topics),
+                ObjectIds.Topics,
+                QualifiedName.From(BrowseNames.Topics),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
 
             // Root the Aliases (i=23470) object too so FindAlias /
@@ -246,12 +246,12 @@ namespace Quickstarts.ReferenceServer
             // so this is a server-side capability only and does not
             // expose mutation methods over the wire on the standard node.
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                Opc.Ua.ObjectIds.Aliases,
-                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
+                ObjectIds.Aliases,
+                QualifiedName.From(BrowseNames.Aliases),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
                 subCategories: [tagVariables, topics]);
 
             // CA2000: ownership transferred to the registry which disposes
@@ -267,7 +267,7 @@ namespace Quickstarts.ReferenceServer
                 ? (ushort)refServerNsIndex
                 : ushort.MaxValue;
 
-            NodeId aliasFor = Opc.Ua.ReferenceTypeIds.AliasFor;
+            NodeId aliasFor = ReferenceTypeIds.AliasFor;
 
             if (refServerNs != ushort.MaxValue)
             {
@@ -287,10 +287,10 @@ namespace Quickstarts.ReferenceServer
                     new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
             }
 
-            store.Seed(Opc.Ua.ObjectIds.Topics, "ServerEvents",
-                Opc.Ua.ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
-            store.Seed(Opc.Ua.ObjectIds.Topics, "AuditEvents",
-                new ExpandedNodeId(Opc.Ua.ObjectTypes.AuditEventType),
+            store.Seed(ObjectIds.Topics, "ServerEvents",
+                ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
+            store.Seed(ObjectIds.Topics, "AuditEvents",
+                new ExpandedNodeId(ObjectTypes.AuditEventType),
                 serverUri: null, referenceTypeId: aliasFor);
 
             provider.AliasNameStoreRegistry.Register(store);
@@ -300,9 +300,9 @@ namespace Quickstarts.ReferenceServer
                 string name,
                 ExpandedNodeId target)
             {
-                store.Seed(Opc.Ua.ObjectIds.TagVariables, name, target,
+                store.Seed(ObjectIds.TagVariables, name, target,
                     serverUri: null,
-                    referenceTypeId: Opc.Ua.ReferenceTypeIds.AliasFor);
+                    referenceTypeId: ReferenceTypeIds.AliasFor);
             }
         }
 
@@ -326,7 +326,7 @@ namespace Quickstarts.ReferenceServer
         /// rooted at a per-process temp folder. Override
         /// <see cref="FileSystemProvider"/> to mount a different backend.
         /// </summary>
-        private static Opc.Ua.Server.FileSystem.IFileSystemProvider CreateDefaultFileSystemProvider()
+        private static Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider CreateDefaultFileSystemProvider()
         {
             string root = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
@@ -776,6 +776,9 @@ namespace Quickstarts.ReferenceServer
 
         private CertificateManager? m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
+        // CA2213: ownership transferred to MasterNodeManager which disposes child node managers on shutdown.
+#pragma warning disable CA2213
         private ReferenceNodeManager? m_referenceNodeManager;
+#pragma warning restore CA2213
     }
 }

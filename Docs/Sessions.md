@@ -218,7 +218,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 ```
 
 The builder is also the integration point for
-`OpcUaClientServiceCollectionExtensions.AddOpcUaClient` — DI consumers
+`OpcUaClientBuilderExtensions.AddClient` — DI consumers
 inject a `Func<CancellationToken, Task<ManagedSession>>` that lazily
 connects on first use and caches the resulting session.
 
@@ -484,8 +484,8 @@ Pick the entry point that best matches your call site:
   `SubscriptionEngineFactory = DefaultSubscriptionEngineFactory.Instance`
   to `DefaultSessionFactory`.
 - **New service / ASP.NET Core / generic-host application.** Use
-  `AddOpcUaClient` and resolve `Func<CancellationToken, Task<ManagedSession>>`
-  from DI.
+  `services.AddOpcUa().AddClient(...)` and resolve
+  `Func<CancellationToken, Task<ManagedSession>>` from DI.
 - **New code without DI.** Use `ManagedSessionBuilder.ConnectAsync(...)`.
 - **Drop-in replacement for `DefaultSessionFactory` that wants managed
   reconnect.** Switch to `ManagedSessionFactory` — the public surface

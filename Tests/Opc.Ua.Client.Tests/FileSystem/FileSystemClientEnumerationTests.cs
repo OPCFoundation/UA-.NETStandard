@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task EnumerateAsyncReturnsBothFilesAndDirectoriesAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("a.txt"));
             harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             harness.RegisterFile(harness.Root, new QualifiedName("b.bin"));
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task EnumerateFilesAsyncFiltersToFilesOnlyAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("a.txt"));
             harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -85,13 +85,13 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 files.Add(file.Name);
             }
-            Assert.That(files, Is.EqualTo(new[] { "a.txt" }));
+            Assert.That(files, Is.EqualTo(["a.txt"]));
         }
 
         [Test]
         public async Task EnumerateDirectoriesAsyncFiltersToDirectoriesOnlyAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("a.txt"));
             harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             var client = new FileSystemClient(harness.Session, harness.Root);
@@ -102,13 +102,13 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 directories.Add(dir.Name);
             }
-            Assert.That(directories, Is.EqualTo(new[] { "subdir" }));
+            Assert.That(directories, Is.EqualTo(["subdir"]));
         }
 
         [Test]
         public async Task EnumerateAsyncSkipsUnknownObjectTypesAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("a.txt"));
             // A child that is neither a FileType nor a FileDirectoryType
             // should be filtered out.
@@ -121,14 +121,15 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 seen.Add(entry.Name);
             }
-            Assert.That(seen, Is.EqualTo(new[] { "a.txt" }));
+            Assert.That(seen, Is.EqualTo(["a.txt"]));
         }
 
         [Test]
         public async Task EnumerateAsyncOnEmptyDirectoryYieldsNothingAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
-            NodeId empty = harness.RegisterDirectory(harness.Root, new QualifiedName("empty"));
+            var harness = FileSystemSessionHarness.Create();
+
+            _ = harness.RegisterDirectory(harness.Root, new QualifiedName("empty"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
             int count = 0;
@@ -143,7 +144,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task EnumerateAsyncPropagatesFullPathAsync()
         {
-            FileSystemSessionHarness harness = FileSystemSessionHarness.Create();
+            var harness = FileSystemSessionHarness.Create();
             NodeId sub = harness.RegisterDirectory(harness.Root, new QualifiedName("Reports"));
             harness.RegisterFile(sub, new QualifiedName("data.csv"));
             var client = new FileSystemClient(harness.Session, harness.Root);

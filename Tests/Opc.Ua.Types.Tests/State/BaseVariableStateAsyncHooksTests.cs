@@ -162,7 +162,7 @@ namespace Opc.Ua.Types.Tests.State
             // if the read path released the lock before awaiting the
             // handler.
             bool lockAcquired = false;
-            Task lockTask = Task.Run(() =>
+            var lockTask = Task.Run(() =>
             {
 #pragma warning disable CA2002
                 lock (v)

@@ -61,9 +61,9 @@ namespace Opc.Ua.Server.UserManagement
     /// </summary>
     /// <remarks>
     /// The default implementation <see cref="UserManagement"/> wraps the
-    /// existing <see cref="Opc.Ua.Server.UserDatabase.IUserDatabase"/> for
+    /// existing <see cref="UserDatabase.IUserDatabase"/> for
     /// credential persistence and stores the user metadata
-    /// (<see cref="Opc.Ua.UserConfigurationMask"/> + description) in memory.
+    /// (<see cref="UserConfigurationMask"/> + description) in memory.
     /// Integrators that need to persist metadata across server restarts can
     /// implement this interface directly and inject the instance via
     /// <see cref="IServerInternal.SetUserManagement"/>.

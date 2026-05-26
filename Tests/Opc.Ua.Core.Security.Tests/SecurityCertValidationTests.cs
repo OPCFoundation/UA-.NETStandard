@@ -985,9 +985,12 @@ namespace Opc.Ua.Core.Security.Tests
             // ReplaceDCLocalhost call doesn't change the subject (which would
             // otherwise trigger an ArgumentException on SubjectName setter).
             string subject = "CN=" + slug + ", O=OPC Foundation";
+            // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).
+#pragma warning disable CA2000
             Certificate cert = expired
                 ? TestCertificateFactory.CreateExpiredAppInstanceCert(subject, appUri)
                 : TestCertificateFactory.CreateNotYetValidAppInstanceCert(subject, appUri);
+#pragma warning restore CA2000
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenSessionWithClientCertAsync(cert, appUri).ConfigureAwait(false));
@@ -1027,8 +1030,11 @@ namespace Opc.Ua.Core.Security.Tests
             string slug = "corrupted010";
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
-            Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
+            using Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
+            // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).
+#pragma warning disable CA2000
             Certificate corrupted = TestCertificateFactory.CorruptCertSignature(valid);
+#pragma warning restore CA2000
             // The corrupted DER may not even round-trip through the
             // application configuration loader (the loader tries to
             // re-parse it). Either way the server cannot accept it,
@@ -1312,8 +1318,11 @@ namespace Opc.Ua.Core.Security.Tests
         {
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
+            // CA2000: ownership transferred to CertSessionContext via OpenSessionWithClientCertAsync (disposes ClientCertificate).
+#pragma warning disable CA2000
             Certificate cert = TestCertificateFactory.CreateValidAppInstanceCert(
                 subject, appUri, rsaKeySize, HashAlgorithmName.SHA256);
+#pragma warning restore CA2000
 
             // Modern crypto should connect cleanly. The connection
             // may still fail for unrelated reasons (untrusted cert
@@ -1398,7 +1407,36 @@ namespace Opc.Ua.Core.Security.Tests
             }
         }
 
-        private X509Certificate2 GetFirstSecureEndpointCert(
+        private static X509Certificate2 GetFirstSecureEndpointCert(
+            ArrayOf<EndpointDescription> endpoints)
+        {
+            // Prefer RSA-based secure endpoints. The fixture may register
+            // ECC policies (ECC_nistP384, etc.) in addition to RSA. On
+            // some platforms (macOS in particular) the ECC endpoint may
+            // appear first; this method's callers verify RSA-specific
+            // properties (key size >= 2048, RSA public key, key-usage
+            // flags appropriate for RSA), so the first secure endpoint
+            // isn't always the right one.
+            return FindRsaEndpointCert(endpoints) ?? FindAnySecureEndpointCert(endpoints);
+        }
+
+        private static X509Certificate2 FindRsaEndpointCert(
+            ArrayOf<EndpointDescription> endpoints)
+        {
+            foreach (EndpointDescription ep in endpoints)
+            {
+                if (ep.SecurityMode != MessageSecurityMode.None &&
+                    !ep.ServerCertificate.IsEmpty &&
+                    !IsEccPolicy(ep.SecurityPolicyUri))
+                {
+                    return X509CertificateLoader.LoadCertificate(
+                        ep.ServerCertificate.ToArray());
+                }
+            }
+            return null;
+        }
+
+        private static X509Certificate2 FindAnySecureEndpointCert(
             ArrayOf<EndpointDescription> endpoints)
         {
             foreach (EndpointDescription ep in endpoints)
@@ -1419,18 +1457,51 @@ namespace Opc.Ua.Core.Security.Tests
             MessageSecurityMode mode,
             string policyUri = null)
         {
-            foreach (EndpointDescription ep in endpoints)
+            // Without an explicit policyUri, prefer RSA-based endpoints
+            // (the TestCertificateFactory in this fixture only produces
+            // RSA client certs; attempting to open a session against an
+            // ECC endpoint with an RSA client cert returns
+            // BadConfigurationError before any cert-validity code runs).
+            if (policyUri == null)
             {
-                if (ep.SecurityMode == mode)
+                EndpointDescription rsa = FindMatchingEndpoint(endpoints, mode, null, requireRsa: true);
+                if (rsa != null)
                 {
-                    if (policyUri == null || ep.SecurityPolicyUri == policyUri)
-                    {
-                        return ep;
-                    }
+                    return rsa;
                 }
             }
+            return FindMatchingEndpoint(endpoints, mode, policyUri, requireRsa: false);
+        }
 
+        private static EndpointDescription FindMatchingEndpoint(
+            ArrayOf<EndpointDescription> endpoints,
+            MessageSecurityMode mode,
+            string policyUri,
+            bool requireRsa)
+        {
+            foreach (EndpointDescription ep in endpoints)
+            {
+                if (ep.SecurityMode != mode)
+                {
+                    continue;
+                }
+                if (policyUri != null && ep.SecurityPolicyUri != policyUri)
+                {
+                    continue;
+                }
+                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri))
+                {
+                    continue;
+                }
+                return ep;
+            }
             return null;
+        }
+
+        private static bool IsEccPolicy(string policyUri)
+        {
+            return !string.IsNullOrEmpty(policyUri)
+                && policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
         }
 
         private async Task<ISession> ConnectToSecurePolicyAsync(string policyUri)
@@ -1473,14 +1544,16 @@ namespace Opc.Ua.Core.Security.Tests
                 ?? FindEndpoint(endpoints, MessageSecurityMode.Sign, policyUri);
             Assert.That(ep, Is.Not.Null, "No suitable secure endpoint found.");
 
-            await using CertSessionContext ctx = await CertSessionContext.CreateAsync(
+            CertSessionContext ctx = await CertSessionContext.CreateAsync(
                 clientCert, applicationUri, Telemetry).ConfigureAwait(false);
+            await using (ctx.ConfigureAwait(false))
+            {
+                var endpointConfig = EndpointConfiguration.Create(ctx.ClientConfig);
+                endpointConfig.OperationTimeout = 10000;
+                var configured = new ConfiguredEndpoint(null, ep, endpointConfig);
 
-            var endpointConfig = EndpointConfiguration.Create(ctx.ClientConfig);
-            endpointConfig.OperationTimeout = 10000;
-            var configured = new ConfiguredEndpoint(null, ep, endpointConfig);
-
-            return await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
+                return await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
+            }
         }
 
         private static string NewTestApplicationUri(string slug)

@@ -407,8 +407,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue updated = original.WithSourcePicoseconds(42);
 
             Assert.That(updated.SourcePicoseconds, Is.EqualTo(42));
-            Assert.That(original.SourcePicoseconds, Is.EqualTo(0));
-            Assert.That(updated.ServerPicoseconds, Is.EqualTo(0));
+            Assert.That(original.SourcePicoseconds, Is.Zero);
+            Assert.That(updated.ServerPicoseconds, Is.Zero);
         }
 
         [Test]
@@ -418,8 +418,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DataValue updated = original.WithServerPicoseconds(73);
 
             Assert.That(updated.ServerPicoseconds, Is.EqualTo(73));
-            Assert.That(original.ServerPicoseconds, Is.EqualTo(0));
-            Assert.That(updated.SourcePicoseconds, Is.EqualTo(0));
+            Assert.That(original.ServerPicoseconds, Is.Zero);
+            Assert.That(updated.SourcePicoseconds, Is.Zero);
         }
 
         [Test]

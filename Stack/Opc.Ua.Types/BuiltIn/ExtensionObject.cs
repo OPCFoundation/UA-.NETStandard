@@ -302,9 +302,9 @@ namespace Opc.Ua
         /// </summary>
         private static bool TypeIdMatches(ExpandedNodeId typeId, IEncodeable encodeable)
         {
-            return typeId == encodeable.TypeId
-                || typeId == encodeable.BinaryEncodingId
-                || typeId == encodeable.XmlEncodingId;
+            return typeId == encodeable.TypeId ||
+                typeId == encodeable.BinaryEncodingId ||
+                typeId == encodeable.XmlEncodingId;
         }
 
         /// <inheritdoc/>
@@ -426,7 +426,7 @@ namespace Opc.Ua
         /// Try get as json
         /// </summary>
         public bool TryGetAsJson(
-            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string json,
+            [MaybeNullWhen(false)] out string json,
             IServiceMessageContext? messageContext = null)
         {
             if (m_body is string s)

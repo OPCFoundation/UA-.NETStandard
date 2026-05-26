@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -83,17 +83,18 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-            m_server = await m_serverFixture.StartAsync(m_pkiRoot);
+            m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(telemetry);
-            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
+            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            m_url = new Uri(Utils.UriSchemeOpcTcp +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             try
             {
                 m_session = await m_clientFixture.ConnectAsync(
-                    m_url, SecurityPolicies.None);
+                    m_url, SecurityPolicies.None).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -107,13 +108,13 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             if (m_session != null)
             {
-                await m_session.CloseAsync();
+                await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
                 m_session = null;
             }
             if (m_serverFixture != null)
             {
-                await m_serverFixture.StopAsync();
+                await m_serverFixture.StopAsync().ConfigureAwait(false);
             }
             m_clientFixture?.Dispose();
             m_server?.Dispose();
@@ -123,7 +124,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         public async Task StrategyCreatesAndDisposesSubscriptionAsync()
         {
             int initialCount = m_session.SubscriptionCount;
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
 
             AliasNameResolver resolver = new(
                 client,
@@ -132,25 +133,25 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                     RefreshMode = AliasNameResolverRefreshMode
                         .AutoOnLastChangeMonitoredItem,
                     PublishingIntervalMs = 500,
-                    LastChangeSamplingIntervalMs = 500,
+                    LastChangeSamplingIntervalMs = 500
                 });
             try
             {
-                await resolver.EnsureLoadedAsync();
+                await resolver.EnsureLoadedAsync().ConfigureAwait(false);
                 Assert.That(m_session.SubscriptionCount,
                     Is.EqualTo(initialCount + 1),
                     "MonitoredItem strategy must add one subscription.");
             }
             finally
             {
-                await resolver.DisposeAsync();
+                await resolver.DisposeAsync().ConfigureAwait(false);
             }
 
             // Allow a moment for the RemoveSubscription/Delete round-trips.
-            for (int i = 0; i < 20
-                && m_session.SubscriptionCount != initialCount; i++)
+            for (int i = 0; i < 20 &&
+                m_session.SubscriptionCount != initialCount; i++)
             {
-                await Task.Delay(50);
+                await Task.Delay(50).ConfigureAwait(false);
             }
             Assert.That(m_session.SubscriptionCount, Is.EqualTo(initialCount),
                 "Owned subscription must be removed on DisposeAsync.");
@@ -160,7 +161,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         public async Task ManualResolverDoesNotCreateSubscriptionAsync()
         {
             int initialCount = m_session.SubscriptionCount;
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
 
             await using var resolver = new AliasNameResolver(
                 client,
@@ -168,7 +169,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 {
                     RefreshMode = AliasNameResolverRefreshMode.Manual
                 });
-            await resolver.EnsureLoadedAsync();
+            await resolver.EnsureLoadedAsync().ConfigureAwait(false);
 
             Assert.That(m_session.SubscriptionCount, Is.EqualTo(initialCount));
         }
@@ -187,33 +188,31 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             {
                 DisplayName = "shared-by-test",
                 PublishingEnabled = true,
-                PublishingInterval = 500,
+                PublishingInterval = 500
             };
             m_session.AddSubscription(sharedSubscription);
-            await sharedSubscription.CreateAsync();
+            await sharedSubscription.CreateAsync().ConfigureAwait(false);
             Assert.That(m_session.SubscriptionCount,
                 Is.EqualTo(initialCount + 1),
                 "Test setup must own the subscription.");
 
             int sharedItemCountBefore = (int)sharedSubscription.MonitoredItemCount;
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+            var client = AliasNameClient.OpenStandardAliases(m_session);
 
             var resolver = new AliasNameResolver(
                 client,
                 new AliasNameResolverOptions
                 {
-                    RefreshStrategy = new Opc.Ua.Client.AliasNames.Refresh
-                        .MonitoredItemAliasNameRefreshStrategy(
-                        new Opc.Ua.Client.AliasNames.Refresh
-                            .MonitoredItemAliasNameRefreshStrategyOptions
+                    RefreshStrategy = new MonitoredItemAliasNameRefreshStrategy(
+                        new MonitoredItemAliasNameRefreshStrategyOptions
                         {
                             SharedSubscription = sharedSubscription,
-                            SamplingIntervalMs = 500,
+                            SamplingIntervalMs = 500
                         })
                 });
             try
             {
-                await resolver.EnsureLoadedAsync();
+                await resolver.EnsureLoadedAsync().ConfigureAwait(false);
 
                 Assert.That(m_session.SubscriptionCount,
                     Is.EqualTo(initialCount + 1),
@@ -224,7 +223,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             }
             finally
             {
-                await resolver.DisposeAsync();
+                await resolver.DisposeAsync().ConfigureAwait(false);
             }
 
             // After the strategy disposes, the shared subscription must
@@ -240,8 +239,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             // Test owns the subscription — clean it up.
             try
             {
-                await m_session.RemoveSubscriptionAsync(sharedSubscription);
-                await sharedSubscription.DeleteAsync(silent: true);
+                await m_session.RemoveSubscriptionAsync(sharedSubscription).ConfigureAwait(false);
+                await sharedSubscription.DeleteAsync(silent: true).ConfigureAwait(false);
             }
             catch
             {

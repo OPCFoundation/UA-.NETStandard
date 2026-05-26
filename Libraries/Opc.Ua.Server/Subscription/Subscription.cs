@@ -1815,7 +1815,7 @@ namespace Opc.Ua.Server
                                 errors[ii],
                                 m_logger);
                             diagnosticsExist = true;
-                            diagnosticInfos.Add(diagnosticInfo!);
+                            diagnosticInfos!.Add(diagnosticInfo!);
                         }
 
                         continue;
@@ -1831,7 +1831,7 @@ namespace Opc.Ua.Server
                     // update diagnostics.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos.Add(null!);
+                        diagnosticInfos!.Add(null!);
                     }
                 }
             }
@@ -1895,7 +1895,7 @@ namespace Opc.Ua.Server
                         error != null &&
                         error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                        diagnosticInfos![ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
                             error,
@@ -1954,7 +1954,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var results = new List<StatusCode>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null!;
+            List<DiagnosticInfo>? diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -1998,7 +1998,7 @@ namespace Opc.Ua.Server
                                 errors[ii],
                                 m_logger);
                             diagnosticsExist = true;
-                            diagnosticInfos.Add(diagnosticInfo!);
+                            diagnosticInfos!.Add(diagnosticInfo!);
                         }
 
                         continue;
@@ -2037,7 +2037,7 @@ namespace Opc.Ua.Server
                     // update diagnostics.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos.Add(null!);
+                        diagnosticInfos!.Add(null!);
                     }
                 }
             }
@@ -2083,7 +2083,7 @@ namespace Opc.Ua.Server
                         error != null &&
                         error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                        diagnosticInfos![ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
                             error,
@@ -2167,7 +2167,7 @@ namespace Opc.Ua.Server
                                 errors[ii],
                                 m_logger);
                             diagnosticsExist = true;
-                            diagnosticInfos.Add(diagnosticInfo!);
+                            diagnosticInfos!.Add(diagnosticInfo!);
                         }
 
                         continue;
@@ -2183,7 +2183,7 @@ namespace Opc.Ua.Server
                     // update diagnostics.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos.Add(null!);
+                        diagnosticInfos!.Add(null!);
                     }
                 }
             }
@@ -2225,7 +2225,7 @@ namespace Opc.Ua.Server
                         error != null &&
                         error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                        diagnosticInfos![ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
                             error,
