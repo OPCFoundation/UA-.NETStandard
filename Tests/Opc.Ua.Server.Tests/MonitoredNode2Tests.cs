@@ -975,7 +975,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – QueueEvent must never have been called
             int queueCount = eventItemMock.Invocations
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
-            Assert.That(queueCount, Is.EqualTo(0));
+            Assert.That(queueCount, Is.Zero);
         }
 
         /// <summary>
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – nothing queued
             int queueCount = eventItemMock.Invocations
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
-            Assert.That(queueCount, Is.EqualTo(0));
+            Assert.That(queueCount, Is.Zero);
         }
 
         /// <summary>
@@ -1120,7 +1120,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – event must not have been queued for the item in a different session
             int queueCount = eventItemMock.Invocations
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
-            Assert.That(queueCount, Is.EqualTo(0));
+            Assert.That(queueCount, Is.Zero);
         }
 
         private static Mock<IEventMonitoredItem> CreateEventMonitoredItemMock(uint id)
