@@ -34,7 +34,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.WotCon;
 
 namespace Opc.Ua.WotCon.Client
 {
@@ -84,7 +83,9 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask UploadThingDescriptionAsync(
             ReadOnlyMemory<byte> thingDescriptionJson,
             CancellationToken ct = default)
-            => File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        {
+            return File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        }
 
         /// <summary>
         /// Uploads a WoT Thing Description streamed from
@@ -98,14 +99,18 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask UploadThingDescriptionAsync(
             Stream thingDescriptionJson,
             CancellationToken ct = default)
-            => File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        {
+            return File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+        }
 
         /// <summary>
         /// Downloads the currently persisted WoT Thing Description.
         /// </summary>
         public ValueTask<byte[]> DownloadThingDescriptionAsync(
             CancellationToken ct = default)
-            => File.DownloadAllAsync(ct: ct);
+        {
+            return File.DownloadAllAsync(ct: ct);
+        }
 
         /// <summary>
         /// Downloads the currently persisted WoT Thing Description and
@@ -117,7 +122,9 @@ namespace Opc.Ua.WotCon.Client
         public ValueTask DownloadThingDescriptionAsync(
             Stream destination,
             CancellationToken ct = default)
-            => File.DownloadToAsync(destination, ct: ct);
+        {
+            return File.DownloadToAsync(destination, ct: ct);
+        }
 
         /// <summary>
         /// Enumerates the asset's property variables (children attached
@@ -125,11 +132,13 @@ namespace Opc.Ua.WotCon.Client
         /// </summary>
         public IAsyncEnumerable<WotAssetVariableEntry> EnumeratePropertiesAsync(
             CancellationToken ct = default)
-            => BrowseChildrenAsync(
-                Opc.Ua.WotCon.ReferenceTypeIds.HasWoTComponent,
-                includeSubtypes: false,
-                nodeClasses: NodeClass.Variable,
-                ct);
+        {
+            return BrowseChildrenAsync(
+                        ReferenceTypeIds.HasWoTComponent,
+                        includeSubtypes: false,
+                        nodeClasses: NodeClass.Variable,
+                        ct);
+        }
 
         /// <summary>
         /// Enumerates the asset's action methods (children attached via
@@ -137,11 +146,13 @@ namespace Opc.Ua.WotCon.Client
         /// </summary>
         public IAsyncEnumerable<WotAssetVariableEntry> EnumerateActionsAsync(
             CancellationToken ct = default)
-            => BrowseChildrenAsync(
-                Opc.Ua.ReferenceTypeIds.HasComponent,
-                includeSubtypes: false,
-                nodeClasses: NodeClass.Method,
-                ct);
+        {
+            return BrowseChildrenAsync(
+                        Ua.ReferenceTypeIds.HasComponent,
+                        includeSubtypes: false,
+                        nodeClasses: NodeClass.Method,
+                        ct);
+        }
 
         private async IAsyncEnumerable<WotAssetVariableEntry> BrowseChildrenAsync(
             ExpandedNodeId referenceType,
@@ -149,7 +160,7 @@ namespace Opc.Ua.WotCon.Client
             NodeClass nodeClasses,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            NodeId refTypeId = ExpandedNodeId.ToNodeId(referenceType, Session.NamespaceUris);
+            var refTypeId = ExpandedNodeId.ToNodeId(referenceType, Session.NamespaceUris);
             (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
                 requestHeader: null,
                 view: null,
@@ -160,12 +171,15 @@ namespace Opc.Ua.WotCon.Client
                 includeSubtypes: includeSubtypes,
                 (uint)nodeClasses,
                 ct).ConfigureAwait(false);
-            ReferenceDescription[] snapshot = new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++) { snapshot[i] = references[i]; }
+            var snapshot = new ReferenceDescription[references.Count];
+            for (int i = 0; i < references.Count; i++)
+            {
+                snapshot[i] = references[i];
+            }
             foreach (ReferenceDescription reference in snapshot)
             {
                 ct.ThrowIfCancellationRequested();
-                NodeId targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                var targetId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 yield return new WotAssetVariableEntry(
                     targetId,
                     reference.BrowseName.Name ?? string.Empty);

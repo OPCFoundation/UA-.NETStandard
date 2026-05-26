@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -44,7 +44,7 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public MethodState(NodeState? parent)
-            : base(NodeClass.Method, parent!)
+            : base(NodeClass.Method, parent)
         {
             m_executable = true;
             m_userExecutable = true;
@@ -371,7 +371,7 @@ namespace Opc.Ua
                         result = onReadExecutable(context, this, ref executable);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = executable;
                     }
@@ -387,7 +387,7 @@ namespace Opc.Ua
                         result = onReadUserExecutable(context, this, ref userExecutable);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = userExecutable;
                     }
@@ -428,7 +428,7 @@ namespace Opc.Ua
                         result = onWriteExecutable(context, this, ref executable);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         Executable = executable;
                     }
@@ -452,7 +452,7 @@ namespace Opc.Ua
                         result = onWriteUserExecutable(context, this, ref userExecutable);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         UserExecutable = userExecutable;
                     }

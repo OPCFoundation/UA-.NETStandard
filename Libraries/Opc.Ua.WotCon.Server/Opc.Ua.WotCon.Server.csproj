@@ -18,8 +18,12 @@
       class (e.g. IWotAssetDiscoveryProvider, IList<IWotAssetProviderFactory>). Those
       properties are runtime-only and never bound from IConfiguration; the binder
       silently skips them, which is the desired behavior.
+      IL2026/IL3050: WotConfigurationParameter.InitialValue is typed as Variant?, and
+      the binder generator emits 'new Variant((object)value)' whose ctor has
+      RequiresUnreferencedCode/RequiresDynamicCode. The InitialValue path is
+      runtime-only and not bound from appsettings; suppress at project level.
     -->
-    <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101</NoWarn>
+    <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101;IL2026;IL3050</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.WotCon.Tests" />

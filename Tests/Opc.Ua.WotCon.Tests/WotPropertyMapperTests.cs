@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             var property = new WotProperty { Type = "boolean" };
 
-            bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
+            bool ok = WotPropertyMapper.TryMap(property, out NodeId dataType, out _);
 
             Assert.That(ok, Is.True);
             Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));
@@ -148,7 +148,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
-        // G1: "array" string compare must be case-insensitive.
+        /// <summary>
+        /// G1: "array" string compare must be case-insensitive.
+        /// </summary>
         [TestCase("array")]
         [TestCase("Array")]
         [TestCase("ARRAY")]
@@ -168,7 +170,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
-        // G1 (cont'd): primitive lookups via ToLowerInvariant() are case-insensitive too.
+        /// <summary>
+        /// G1 (cont'd): primitive lookups via ToLowerInvariant() are case-insensitive too.
+        /// </summary>
         [Test]
         public void MapPrimitiveNumberIsCaseInsensitive(
             [Values("Number", "number", "NUMBER", "Number")] string typeLiteral)
@@ -218,7 +222,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(dataType, Is.EqualTo(DataTypeIds.String));
         }
 
-        // G2: unknown primitive type collapses to BaseDataType but returns true (mapping succeeded).
+        /// <summary>
+        /// G2: unknown primitive type collapses to BaseDataType but returns true (mapping succeeded).
+        /// </summary>
         [Test]
         public void MapUnknownPrimitiveTypeReturnsBaseDataTypeAndTrue()
         {
@@ -231,7 +237,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(valueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
-        // G2 + boundary: empty-string Type is treated as 'no mapping' (TryMapPrimitive returns false).
+        /// <summary>
+        /// G2 + boundary: empty-string Type is treated as 'no mapping' (TryMapPrimitive returns false).
+        /// </summary>
         [Test]
         public void MapEmptyStringTypeReturnsFalse()
         {
@@ -243,7 +251,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(dataType.IsNull, Is.True);
         }
 
-        // G6 (property side): array with Items.Type = "object" must collapse to BaseDataType.
+        /// <summary>
+        /// G6 (property side): array with Items.Type = "object" must collapse to BaseDataType.
+        /// </summary>
         [Test]
         public void MapArrayOfObjectsCollapsesToBaseDataType()
         {
@@ -261,6 +271,5 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(dataType.IsNull, Is.True);
             Assert.That(valueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
-
     }
 }

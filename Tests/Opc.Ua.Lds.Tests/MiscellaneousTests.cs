@@ -393,7 +393,7 @@ namespace Opc.Ua.Lds.Tests
 
             Assert.That(response.Results[0].WrappedValue.TryGetValue(out ArrayOf<string> nsArr), Is.True);
             string[] nsStrings = nsArr.ToArray();
-            Assert.That(nsStrings.Length, Is.GreaterThanOrEqualTo(2),
+            Assert.That(nsStrings, Has.Length.GreaterThanOrEqualTo(2),
                 "NamespaceArray should have at least 2 entries.");
         }
 

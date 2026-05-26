@@ -79,19 +79,19 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.NamespaceUri,
                 Is.EqualTo("http://example.org/MyServer/"));
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
         }
 
         [Test]
         public void PortableResolverPreservesNumericIdentifier()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             PortableNodeId portable = resolver.ToPortable(new NodeId(42u, 1));
 
             Assert.That(portable, Is.Not.Null);
             Assert.That(portable.NamespaceUri,
                 Is.EqualTo("http://example.org/MyServer/"));
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
             Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(portable.Identifier.TryGetValue(out uint numeric), Is.True);
             Assert.That(numeric, Is.EqualTo(42u));
@@ -100,12 +100,12 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverPreservesGuidIdentifier()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             var guid = Guid.NewGuid();
             PortableNodeId portable = resolver.ToPortable(new NodeId(guid, 1));
 
             Assert.That(portable, Is.Not.Null);
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
             Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(portable.Identifier.TryGetValue(out Guid g), Is.True);
             Assert.That(g, Is.EqualTo(guid));
@@ -114,12 +114,12 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverPreservesOpaqueIdentifier()
         {
-            var resolver = NewResolver();
-            var bytes = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+            ServerPortableNodeIdResolver resolver = NewResolver();
+            byte[] bytes = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
             PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1));
 
             Assert.That(portable, Is.Not.Null);
-            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.Zero);
             Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Opaque));
             Assert.That(portable.Identifier.TryGetValue(out ByteString opaque), Is.True);
             Assert.That(opaque.Span.ToArray(), Is.EqualTo(bytes));
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverReturnsNullForNullNodeId()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             PortableNodeId portable = resolver.ToPortable(NodeId.Null);
             Assert.That(portable, Is.Null,
                 "Null NodeId must short-circuit to null without throwing.");
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         [Test]
         public void PortableResolverReturnsNullForUnknownNamespaceIndex()
         {
-            var resolver = NewResolver();
+            ServerPortableNodeIdResolver resolver = NewResolver();
             // Namespace index 99 is not registered — the resolver must
             // gracefully return null rather than emit a PortableNodeId
             // with a null/empty namespace URI.
@@ -165,8 +165,8 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
                 [new AliasNameCategoryDescriptor(
                     new NodeId("Cat", 1),
                     new QualifiedName("Cat", 1),
-                    AliasNameCapabilities.AddAliasesToCategory
-                        | AliasNameCapabilities.LastChange)]);
+                    AliasNameCapabilities.AddAliasesToCategory |
+                    AliasNameCapabilities.LastChange)]);
             registry.Register(store);
 
             var ns = new NamespaceTable();

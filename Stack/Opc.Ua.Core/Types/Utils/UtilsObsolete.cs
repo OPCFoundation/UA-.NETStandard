@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -574,7 +574,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.Log.")]
         public static void Log(LogLevel logLevel, string message, params object[] args)
         {
-            Log(logLevel, 0, (Exception?)null, message, args);
+            Log(logLevel, 0, null, message, args);
         }
 
         /// <summary>
@@ -672,7 +672,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.Log.")]
         public static void Log(int traceMask, string format, bool handled, params object[] args)
         {
-            Log((Exception?)null, traceMask, format, handled, args);
+            Log(null, traceMask, format, handled, args);
         }
 
         /// <summary>

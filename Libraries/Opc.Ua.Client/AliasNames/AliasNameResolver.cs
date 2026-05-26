@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -190,6 +190,9 @@ namespace Opc.Ua.Client.AliasNames
         /// alias name <paramref name="aliasName"/>, or an empty list
         /// when no mapping exists. Loads the cache on demand.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="aliasName"/> is null.
+        /// </exception>
         public async Task<IReadOnlyList<ExpandedNodeId>> ResolveAsync(
             string aliasName,
             CancellationToken ct = default)
@@ -253,6 +256,9 @@ namespace Opc.Ua.Client.AliasNames
         /// <see cref="AliasNameResolverOptions.UseVerbose"/>; returns an
         /// empty list otherwise.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="aliasName"/> is null.
+        /// </exception>
         public async Task<IReadOnlyList<string?>> ResolveServerUrisAsync(
             string aliasName,
             CancellationToken ct = default)
@@ -343,9 +349,8 @@ namespace Opc.Ua.Client.AliasNames
                         new MonitoredItemAliasNameRefreshStrategyOptions
                         {
                             PublishingIntervalMs = options.PublishingIntervalMs,
-                            SamplingIntervalMs = options.LastChangeSamplingIntervalMs,
+                            SamplingIntervalMs = options.LastChangeSamplingIntervalMs
                         });
-                case AliasNameResolverRefreshMode.Manual:
                 default:
                     return new ManualAliasNameRefreshStrategy();
             }
@@ -382,7 +387,7 @@ namespace Opc.Ua.Client.AliasNames
                 string key = a.AliasName.Name ?? string.Empty;
                 int count = a.ReferencedNodes.Count;
                 var arr = new ExpandedNodeId[count];
-                var uris = new string?[count];
+                string?[] uris = new string?[count];
                 for (int i = 0; i < count; i++)
                 {
                     arr[i] = a.ReferencedNodes[i];
@@ -397,10 +402,13 @@ namespace Opc.Ua.Client.AliasNames
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly SemaphoreSlim m_strategyStartLock = new(1, 1);
         private readonly IAliasNameRefreshStrategy m_strategy;
+
         private Dictionary<string, ExpandedNodeId[]> m_forward
             = new(StringComparer.Ordinal);
+
         private Dictionary<string, string?[]> m_serverUris
             = new(StringComparer.Ordinal);
+
         private Dictionary<ExpandedNodeId, string> m_reverse = [];
         private int m_loaded;
         private int m_strategyStarted;

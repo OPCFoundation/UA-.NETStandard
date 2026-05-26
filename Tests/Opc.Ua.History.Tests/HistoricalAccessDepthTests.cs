@@ -764,7 +764,7 @@ namespace Opc.Ua.History.Tests
                     }),
                     TimestampsToReturn.Both,
                     false,
-                    new HistoryReadValueId[0].ToArrayOf(),
+                    Array.Empty<HistoryReadValueId>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(response, Is.Not.Null);
@@ -1786,7 +1786,7 @@ namespace Opc.Ua.History.Tests
                 var deleteDetails = new DeleteAtTimeDetails
                 {
                     NodeId = nodeId,
-                    ReqTimes = new DateTimeUtc[0].ToArrayOf()
+                    ReqTimes = Array.Empty<DateTimeUtc>().ToArrayOf()
                 };
 
                 HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -1888,7 +1888,7 @@ namespace Opc.Ua.History.Tests
             {
                 HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
                     null,
-                    new ExtensionObject[0].ToArrayOf(),
+                    Array.Empty<ExtensionObject>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(response, Is.Not.Null);
             }
@@ -2010,7 +2010,7 @@ namespace Opc.Ua.History.Tests
                 var deleteDetails = new DeleteAtTimeDetails
                 {
                     NodeId = nodeId,
-                    ReqTimes = new DateTimeUtc[0].ToArrayOf()
+                    ReqTimes = Array.Empty<DateTimeUtc>().ToArrayOf()
                 };
 
                 HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -2546,7 +2546,7 @@ namespace Opc.Ua.History.Tests
             {
                 HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
                     null,
-                    new ExtensionObject[0].ToArrayOf(),
+                    Array.Empty<ExtensionObject>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(response, Is.Not.Null);
             }

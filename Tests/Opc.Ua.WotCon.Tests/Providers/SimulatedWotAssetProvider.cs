@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server;
@@ -76,7 +75,10 @@ namespace Opc.Ua.WotCon.Tests.Providers
             if (m_subscriptions.TryGetValue(property, out List<Subscription>? subs))
             {
                 Subscription[] snapshot;
-                lock (subs) { snapshot = subs.ToArray(); }
+                lock (subs)
+                {
+                    snapshot = [.. subs];
+                }
                 foreach (Subscription s in snapshot)
                 {
                     s.Callback(s.Tag, value, StatusCodes.Good, DateTime.UtcNow);
@@ -111,7 +113,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
             OnWotValueChange callback,
             CancellationToken ct)
         {
-            List<Subscription> bucket = m_subscriptions.GetOrAdd(tag.Name, _ => new List<Subscription>());
+            List<Subscription> bucket = m_subscriptions.GetOrAdd(tag.Name, _ => []);
             lock (bucket)
             {
                 bucket.Add(new Subscription(subscriberId, tag, callback));
@@ -142,8 +144,11 @@ namespace Opc.Ua.WotCon.Tests.Providers
         {
             // For tests we echo each input into the matching output and
             // record the call so tests can assert on it.
-            Variant[] inputSnapshot = new Variant[inputs.Count];
-            for (int i = 0; i < inputs.Count; i++) { inputSnapshot[i] = inputs[i]; }
+            var inputSnapshot = new Variant[inputs.Count];
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                inputSnapshot[i] = inputs[i];
+            }
             m_invocations.Add(new ActionInvocation(action.Name, inputSnapshot));
             for (int i = 0; i < outputs.Count && i < inputs.Count; i++)
             {
@@ -153,7 +158,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
         }
 
         /// <summary>Returns the list of recorded action invocations (test helper).</summary>
-        public IReadOnlyList<ActionInvocation> Invocations => m_invocations.ToArray();
+        public IReadOnlyList<ActionInvocation> Invocations => [.. m_invocations];
 
         public ValueTask DisposeAsync()
         {
@@ -179,9 +184,11 @@ namespace Opc.Ua.WotCon.Tests.Providers
 
         private readonly ConcurrentDictionary<string, Variant> m_values =
             new(StringComparer.Ordinal);
+
         private readonly ConcurrentDictionary<string, List<Subscription>> m_subscriptions =
             new(StringComparer.Ordinal);
-        private readonly System.Collections.Concurrent.ConcurrentBag<ActionInvocation> m_invocations = [];
+
+        private readonly ConcurrentBag<ActionInvocation> m_invocations = [];
     }
 
     /// <summary>
@@ -192,7 +199,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
     {
         public const string BindingUri = "sim://opcua.test/wot";
 
-        public IReadOnlyCollection<string> SupportedBindings { get; } = new[] { BindingUri };
+        public IReadOnlyCollection<string> SupportedBindings { get; } = [BindingUri];
 
         public bool CanHandle(ThingDescription thingDescription)
         {
@@ -204,6 +211,8 @@ namespace Opc.Ua.WotCon.Tests.Providers
         public ValueTask<IWotAssetProvider> ConnectAsync(
             ThingDescription thingDescription,
             CancellationToken ct)
-            => new(new SimulatedWotAssetProvider(thingDescription));
+        {
+            return new(new SimulatedWotAssetProvider(thingDescription));
+        }
     }
 }

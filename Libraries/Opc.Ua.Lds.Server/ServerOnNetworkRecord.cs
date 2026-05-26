@@ -64,7 +64,7 @@ namespace Opc.Ua.Lds.Server
         /// <summary>
         /// The capabilities advertised by the server.
         /// </summary>
-        public IList<string> ServerCapabilities { get; set; } = new List<string>();
+        public IList<string> ServerCapabilities { get; set; } = [];
 
         /// <summary>
         /// Wall-clock timestamp of the most recent observation. Used for TTL-based

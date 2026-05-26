@@ -94,7 +94,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             OpcUaServerNodeManagerRegistration[] regs = sp
                 .GetServices<OpcUaServerNodeManagerRegistration>()
                 .ToArray();
-            Assert.That(regs.Length, Is.GreaterThanOrEqualTo(1));
+            Assert.That(regs, Has.Length.GreaterThanOrEqualTo(1));
             Assert.That(
                 regs.Any(r => ReferenceEquals(r.SyncFactory, factory)),
                 Is.True,

@@ -37,6 +37,11 @@ using NUnit.Framework;
 
 using Opc.Ua.Client.TestFramework;
 
+// Conformance tests use inline literal arrays as expected-value
+// assertions; the per-call allocation cost is irrelevant for tests
+// and keeping the literal adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
@@ -769,7 +774,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 // Write new value
-                int newValue = new Random().Next(1, 10000);
+                int newValue = UnsecureRandom.Shared.Next(1, 10000);
                 await WriteValueAsync(nodeId, newValue).ConfigureAwait(false);
 
                 await Task.Delay(300).ConfigureAwait(false);
@@ -814,7 +819,7 @@ namespace Opc.Ua.Subscriptions.Tests
             await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Write to only the first node
-            await WriteValueAsync(nodeId1, new Random().Next(1, 10000)).ConfigureAwait(false);
+            await WriteValueAsync(nodeId1, UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
 

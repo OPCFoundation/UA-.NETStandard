@@ -142,7 +142,7 @@ namespace Opc.Ua.Lds.Tests
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.TransportProfileUri != null &&
-                    ep.TransportProfileUri.Contains("uatcp"))
+                    ep.TransportProfileUri.Contains("uatcp", StringComparison.Ordinal))
                 {
                     hasTcp = true;
                     break;
@@ -162,7 +162,7 @@ namespace Opc.Ua.Lds.Tests
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.TransportProfileUri != null &&
-                    ep.TransportProfileUri.Contains("https"))
+                    ep.TransportProfileUri.Contains("https", StringComparison.Ordinal))
                 {
                     hasHttps = true;
                     break;

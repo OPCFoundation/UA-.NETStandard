@@ -317,14 +317,16 @@ namespace Quickstarts.Servers
             };
 
             ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);
-            if (!origFilterEo.IsNull && origFilterEo.TryGetValue(out IEncodeable? origBody) &&
+            if (!origFilterEo.IsNull &&
+                origFilterEo.TryGetValue(out IEncodeable? origBody) &&
                 origBody is MonitoringFilter origFilter)
             {
                 item.OriginalFilter = origFilter;
             }
 
             ExtensionObject filterEo = decoder.ReadExtensionObject(null);
-            if (!filterEo.IsNull && filterEo.TryGetValue(out IEncodeable? filterBody) &&
+            if (!filterEo.IsNull &&
+                filterEo.TryGetValue(out IEncodeable? filterBody) &&
                 filterBody is MonitoringFilter filterToUse)
             {
                 item.FilterToUse = filterToUse;

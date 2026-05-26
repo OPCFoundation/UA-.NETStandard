@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -35,6 +35,11 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
+// Test fixtures construct short-lived literal arrays inline as method
+// arguments; the per-call allocation cost is irrelevant for tests and
+// keeping the data adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
@@ -50,26 +55,25 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class RoleManagerTests
     {
-        private static IdentityMappingRuleType Anonymous()
-            => new() { CriteriaType = IdentityCriteriaType.Anonymous };
-
         private static IdentityMappingRuleType AuthenticatedUser()
-            => new() { CriteriaType = IdentityCriteriaType.AuthenticatedUser };
-
-        private static IdentityMappingRuleType TrustedApplication()
-            => new() { CriteriaType = IdentityCriteriaType.TrustedApplication };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.AuthenticatedUser };
+        }
 
         private static IdentityMappingRuleType UserName(string name)
-            => new() { CriteriaType = IdentityCriteriaType.UserName, Criteria = name };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.UserName, Criteria = name };
+        }
 
         private static IdentityMappingRuleType Thumbprint(string thumbprint)
-            => new() { CriteriaType = IdentityCriteriaType.Thumbprint, Criteria = thumbprint };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.Thumbprint, Criteria = thumbprint };
+        }
 
         private static IdentityMappingRuleType X509Subject(string subject)
-            => new() { CriteriaType = IdentityCriteriaType.X509Subject, Criteria = subject };
-
-        private static IdentityMappingRuleType Application(string uri)
-            => new() { CriteriaType = IdentityCriteriaType.Application, Criteria = uri };
+        {
+            return new() { CriteriaType = IdentityCriteriaType.X509Subject, Criteria = subject };
+        }
 
         // ----------------------------------------------------------------
         // Well-known roles + default identities (Part 18 §4.3)
@@ -90,7 +94,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(roleIds, Has.Member(ObjectIds.WellKnownRole_Supervisor));
             Assert.That(roleIds, Has.Member(ObjectIds.WellKnownRole_ConfigureAdmin));
             Assert.That(roleIds, Has.Member(ObjectIds.WellKnownRole_SecurityAdmin));
-            Assert.That(roleIds.Count, Is.EqualTo(9));
+            Assert.That(roleIds, Has.Count.EqualTo(9));
         }
 
         [Test]
@@ -99,7 +103,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_Anonymous);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.Identities.Count, Is.EqualTo(2));
+            Assert.That(entry!.Identities, Has.Count.EqualTo(2));
             Assert.That(entry.Identities.Any(r => r.CriteriaType == IdentityCriteriaType.Anonymous), Is.True);
             Assert.That(entry.Identities.Any(r => r.CriteriaType == IdentityCriteriaType.AuthenticatedUser), Is.True);
         }
@@ -110,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_AuthenticatedUser);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.Identities.Count, Is.EqualTo(1));
+            Assert.That(entry!.Identities, Has.Count.EqualTo(1));
             Assert.That(entry.Identities[0].CriteriaType, Is.EqualTo(IdentityCriteriaType.AuthenticatedUser));
         }
 
@@ -120,7 +124,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_TrustedApplication);
             Assert.That(entry, Is.Not.Null);
-            Assert.That(entry!.Identities.Count, Is.EqualTo(1));
+            Assert.That(entry!.Identities, Has.Count.EqualTo(1));
             Assert.That(entry.Identities[0].CriteriaType, Is.EqualTo(IdentityCriteriaType.TrustedApplication));
         }
 
@@ -135,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                          ObjectIds.WellKnownRole_Engineer,
                          ObjectIds.WellKnownRole_Supervisor,
                          ObjectIds.WellKnownRole_ConfigureAdmin,
-                         ObjectIds.WellKnownRole_SecurityAdmin,
+                         ObjectIds.WellKnownRole_SecurityAdmin
                      })
             {
                 RoleEntry? entry = manager.GetRole(roleId);
@@ -153,7 +157,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Anonymous, UserName("x"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
         }
 
         [Test]
@@ -161,7 +165,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_AuthenticatedUser, UserName("x"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
         }
 
         [Test]
@@ -169,7 +173,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_TrustedApplication, UserName("x"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
         }
 
         [Test]
@@ -184,8 +188,8 @@ namespace Opc.Ua.Server.Tests
                      })
             {
                 ServiceResult result = manager.RemoveRole(reserved);
-                Assert.That((StatusCode)result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadRequestNotAllowed),
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(StatusCodes.BadRequestNotAllowed),
                     $"RemoveRole on reserved role {reserved} should fail.");
             }
         }
@@ -211,8 +215,8 @@ namespace Opc.Ua.Server.Tests
                 manager.AddIdentity(ObjectIds.WellKnownRole_Observer, UserName("alice"))), Is.True);
             ServiceResult duplicate = manager.AddIdentity(
                 ObjectIds.WellKnownRole_Observer, UserName("alice"));
-            Assert.That((StatusCode)duplicate.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(duplicate.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -221,7 +225,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.RemoveIdentity(
                 ObjectIds.WellKnownRole_Observer, UserName("alice"));
-            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -232,8 +236,8 @@ namespace Opc.Ua.Server.Tests
                 manager.AddApplication(ObjectIds.WellKnownRole_Observer, "urn:app")), Is.True);
             ServiceResult duplicate = manager.AddApplication(
                 ObjectIds.WellKnownRole_Observer, "urn:app");
-            Assert.That((StatusCode)duplicate.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(duplicate.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -244,8 +248,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(
                 manager.AddEndpoint(ObjectIds.WellKnownRole_Observer, ep)), Is.True);
             ServiceResult duplicate = manager.AddEndpoint(ObjectIds.WellKnownRole_Observer, ep);
-            Assert.That((StatusCode)duplicate.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(duplicate.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -253,8 +257,8 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.RemoveRole(new NodeId(99999u));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -262,8 +266,8 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(new NodeId(99999u), UserName("x"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         // ----------------------------------------------------------------
@@ -280,8 +284,8 @@ namespace Opc.Ua.Server.Tests
                     CriteriaType = IdentityCriteriaType.Anonymous,
                     Criteria = "not-empty"
                 });
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -290,8 +294,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint("aabbccddee"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -300,8 +304,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint("AA BB CC"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -319,8 +323,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 X509Subject("CN=NoQuotes"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -388,7 +392,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("operator1");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Operator));
@@ -402,7 +406,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("alice");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Engineer));
         }
@@ -417,7 +421,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("alice");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Engineer));
         }
@@ -452,7 +456,7 @@ namespace Opc.Ua.Server.Tests
             var namespaces = new NamespaceTable();
             ServiceResult result = manager.AddRole(
                 BrowseNames.WellKnownRole_Observer,
-                Opc.Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa,
                 namespaces,
                 defaultNamespaceIndex: 0,
                 out NodeId newId);
@@ -466,12 +470,12 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddRole(
                 BrowseNames.WellKnownRole_Observer,
-                Opc.Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa,
                 new NamespaceTable(),
                 defaultNamespaceIndex: 0,
                 out _);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadAlreadyExists));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
@@ -479,8 +483,8 @@ namespace Opc.Ua.Server.Tests
         {
             using var manager = new RoleManager();
             ServiceResult result = manager.AddRole(string.Empty, null, new NamespaceTable(), 0, out _);
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -532,7 +536,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             // No cert ⇒ client app URI is empty ⇒ doesn't match the include list
             // ⇒ role not granted.
@@ -573,7 +577,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("Operator1");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
@@ -596,12 +600,12 @@ namespace Opc.Ua.Server.Tests
                 manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, false)), Is.True);
 
             using Certificate cert = CertificateBuilder.Create("CN=Test")
-                .AddExtension(new X509SubjectAltNameExtension("urn:listed:app", new[] { "localhost" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:listed:app", ["localhost"]))
                 .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
@@ -623,12 +627,12 @@ namespace Opc.Ua.Server.Tests
                 manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
 
             using Certificate cert = CertificateBuilder.Create("CN=Test")
-                .AddExtension(new X509SubjectAltNameExtension("urn:blocked:app", new[] { "localhost" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:blocked:app", ["localhost"]))
                 .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
@@ -648,12 +652,12 @@ namespace Opc.Ua.Server.Tests
                 manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
 
             using Certificate cert = CertificateBuilder.Create("CN=Test")
-                .AddExtension(new X509SubjectAltNameExtension("urn:other:app", new[] { "localhost" }))
+                .AddExtension(new X509SubjectAltNameExtension("urn:other:app", ["localhost"]))
                 .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
@@ -680,7 +684,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -706,7 +710,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -732,7 +736,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -758,7 +762,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("op");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             var endpoint = new EndpointDescription
             {
@@ -791,7 +795,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns("alice");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
@@ -813,8 +817,8 @@ namespace Opc.Ua.Server.Tests
                     CriteriaType = criteriaType,
                     Criteria = "must-be-empty"
                 });
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -834,8 +838,8 @@ namespace Opc.Ua.Server.Tests
                     CriteriaType = criteriaType,
                     Criteria = string.Empty
                 });
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ----------------------------------------------------------------
@@ -860,8 +864,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint("ABC"));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument),
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "Odd-length thumbprints are not valid hex strings.");
         }
 
@@ -871,8 +875,8 @@ namespace Opc.Ua.Server.Tests
             using var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
                 Thumbprint(string.Empty));
-            Assert.That((StatusCode)result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
     }
 }

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -55,7 +56,7 @@ namespace Opc.Ua.Lds.Tests
             foreach (EndpointDescription e in endpoints)
             {
                 if (e.TransportProfileUri != null &&
-                    e.TransportProfileUri.Contains("uatcp"))
+                    e.TransportProfileUri.Contains("uatcp", StringComparison.Ordinal))
                 {
                     hasTcp = true;
                     break;

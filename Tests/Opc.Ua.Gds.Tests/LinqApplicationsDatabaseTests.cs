@@ -80,7 +80,7 @@ namespace Opc.Ua.Gds.Tests
 
             ServerOnNetwork[] pagedServers = database.QueryServers(firstRecordId, 0, null, null, null, [], out _);
 
-            Assert.That(pagedServers.Length, Is.GreaterThan(0));
+            Assert.That(pagedServers, Has.Length.GreaterThan(0));
             Assert.That(pagedServers.All(server => server.RecordId > firstRecordId), Is.True);
         }
 

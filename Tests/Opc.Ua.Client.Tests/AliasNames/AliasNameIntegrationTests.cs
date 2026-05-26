@@ -86,17 +86,18 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 AllNodeManagers = true,
                 OperationLimits = true
             };
-            m_server = await m_serverFixture.StartAsync(m_pkiRoot);
+            m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(telemetry);
-            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot);
-            m_url = new Uri(Utils.UriSchemeOpcTcp + "://localhost:"
-                + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
+            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            m_url = new Uri(Utils.UriSchemeOpcTcp +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             try
             {
                 m_session = await m_clientFixture.ConnectAsync(
-                    m_url, SecurityPolicies.None);
+                    m_url, SecurityPolicies.None).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -110,13 +111,13 @@ namespace Opc.Ua.Client.Tests.AliasNames
         {
             if (m_session != null)
             {
-                await m_session.CloseAsync();
+                await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
                 m_session = null;
             }
             if (m_serverFixture != null)
             {
-                await m_serverFixture.StopAsync();
+                await m_serverFixture.StopAsync().ConfigureAwait(false);
             }
             m_clientFixture?.Dispose();
             m_server?.Dispose();
@@ -125,11 +126,11 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasOnStandardTagVariablesReturnsSeededEntriesAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
 
             IReadOnlyList<AliasNameDataType> result =
-                await client.FindAliasAsync("%", referenceTypeFilter: null);
+                await client.FindAliasAsync("%", referenceTypeFilter: null).ConfigureAwait(false);
 
             Assert.That(result, Is.Not.Empty,
                 "ReferenceServer should seed at least one TagVariables alias.");
@@ -144,11 +145,11 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasWithPrefixWildcardMatchesAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
 
             IReadOnlyList<AliasNameDataType> result =
-                await client.FindAliasAsync("TIC%", null);
+                await client.FindAliasAsync("TIC%", null).ConfigureAwait(false);
 
             foreach (AliasNameDataType a in result)
             {
@@ -160,11 +161,11 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task FindAliasOnTopicsReturnsServerEventsAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTopics(m_session);
 
             IReadOnlyList<AliasNameDataType> result =
-                await client.FindAliasAsync("ServerEvents", null);
+                await client.FindAliasAsync("ServerEvents", null).ConfigureAwait(false);
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].AliasName.Name, Is.EqualTo("ServerEvents"));
             Assert.That(result[0].ReferencedNodes.Count, Is.GreaterThanOrEqualTo(1));
@@ -173,15 +174,15 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task ResolverRoundTripsAliasToNodeIdAsync()
         {
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
             await using var resolver = new AliasNameResolver(client);
 
             IReadOnlyList<ExpandedNodeId> targets =
-                await resolver.ResolveAsync("Pump1_Status");
+                await resolver.ResolveAsync("Pump1_Status").ConfigureAwait(false);
             Assert.That(targets, Is.Not.Empty);
 
-            string reverse = await resolver.ResolveAliasNameAsync(targets[0]);
+            string reverse = await resolver.ResolveAliasNameAsync(targets[0]).ConfigureAwait(false);
             Assert.That(reverse, Is.EqualTo("Pump1_Status"));
         }
 
@@ -191,13 +192,13 @@ namespace Opc.Ua.Client.Tests.AliasNames
             // The standard Aliases (i=23470) node has TagVariables and
             // Topics as Organizes children in the shipped NodeSet; the
             // client's IAsyncEnumerable must yield both.
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardAliases(m_session);
 
-            var names = new System.Collections.Generic.HashSet<string>();
-            var nodeIds = new System.Collections.Generic.HashSet<NodeId>();
+            var names = new HashSet<string>();
+            var nodeIds = new HashSet<NodeId>();
             await foreach (AliasNameSubCategoryInfo info in
-                client.EnumerateSubCategoriesAsync())
+                client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
             {
                 Assert.That(info, Is.Not.Null);
                 Assert.That(info.BrowseName.IsNull, Is.False);
@@ -219,11 +220,11 @@ namespace Opc.Ua.Client.Tests.AliasNames
         {
             // TagVariables has no sub-categories in the standard NodeSet —
             // the enumeration must yield zero results without throwing.
-            AliasNameClient client = AliasNameClient
+            var client = AliasNameClient
                 .OpenStandardTagVariables(m_session);
             int count = 0;
             await foreach (AliasNameSubCategoryInfo _ in
-                client.EnumerateSubCategoriesAsync())
+                client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
             {
                 count++;
             }

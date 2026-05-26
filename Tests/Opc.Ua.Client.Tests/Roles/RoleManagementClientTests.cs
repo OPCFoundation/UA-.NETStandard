@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Roles;
-using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Client.Tests.Roles
 {
@@ -95,15 +94,15 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<CallResponse>(new CallResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[]
-                    {
+                    Results = ArrayOf.Wrapped(
+                    [
                         new CallMethodResult
                         {
                             StatusCode = StatusCodes.Good,
-                            OutputArguments = ArrayOf.Wrapped(new[] { Variant.From(expectedNew) })
+                            OutputArguments = ArrayOf.Wrapped([Variant.From(expectedNew)])
                         }
-                    }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    ]),
+                    DiagnosticInfos = []
                 }));
 
             NodeId result = await m_client.AddRoleAsync("OpsLead", "urn:example:roles").ConfigureAwait(false);
@@ -133,7 +132,7 @@ namespace Opc.Ua.Client.Tests.Roles
         {
             ArrayOf<CallMethodRequest> capturedRequests = default;
             SetupCallResponse(captured => capturedRequests = captured,
-                outputs: new[] { Variant.From(new NodeId(1u, 0)) });
+                outputs: [Variant.From(new NodeId(1u, 0))]);
 
             await m_client.AddRoleAsync("MyRole").ConfigureAwait(false);
 
@@ -197,18 +196,18 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = methodId }
-                                })
+                                ])
                             }
-                        }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        ]),
+                        DiagnosticInfos = []
                     }));
 
             // Second call: CallAsync sends the AddIdentity method invocation.
@@ -314,8 +313,8 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    Results = ArrayOf.Wrapped([StatusCodes.Good]),
+                    DiagnosticInfos = []
                 }));
 
             await m_client.SetApplicationsExcludeAsync(
@@ -343,18 +342,18 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = propertyId }
-                                })
+                                ])
                             }
-                        }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        ]),
+                        DiagnosticInfos = []
                     }));
             m_sessionMock.Setup(s => s.WriteAsync(
                     It.IsAny<RequestHeader>(),
@@ -363,8 +362,8 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    Results = ArrayOf.Wrapped([StatusCodes.Good]),
+                    DiagnosticInfos = []
                 }));
 
             await m_client.SetEndpointsExcludeAsync(ObjectIds.WellKnownRole_Operator, false).ConfigureAwait(false);
@@ -392,18 +391,18 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = methodId }
-                                })
+                                ])
                             }
-                        }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        ]),
+                        DiagnosticInfos = []
                     }));
 
             ArrayOf<CallMethodRequest> capturedRequests = default;
@@ -519,18 +518,18 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = propertyId }
-                                })
+                                ])
                             }
-                        }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        ]),
+                        DiagnosticInfos = []
                     }));
             ArrayOf<WriteValue> capturedWrites = default;
             m_sessionMock.Setup(s => s.WriteAsync(
@@ -542,8 +541,8 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    Results = ArrayOf.Wrapped([StatusCodes.Good]),
+                    DiagnosticInfos = []
                 }));
 
             await m_client.SetCustomConfigurationAsync(
@@ -588,18 +587,18 @@ namespace Opc.Ua.Client.Tests.Roles
                     new TranslateBrowsePathsToNodeIdsResponse
                     {
                         ResponseHeader = new ResponseHeader(),
-                        Results = ArrayOf.Wrapped(new[]
-                        {
+                        Results = ArrayOf.Wrapped(
+                        [
                             new BrowsePathResult
                             {
                                 StatusCode = StatusCodes.Good,
-                                Targets = ArrayOf.Wrapped(new[]
-                                {
+                                Targets = ArrayOf.Wrapped(
+                                [
                                     new BrowsePathTarget { TargetId = resolvedNodeId }
-                                })
+                                ])
                             }
-                        }),
-                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                        ]),
+                        DiagnosticInfos = []
                     }));
         }
 
@@ -616,17 +615,17 @@ namespace Opc.Ua.Client.Tests.Roles
                 .Returns(new ValueTask<CallResponse>(new CallResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = ArrayOf.Wrapped(new[]
-                    {
+                    Results = ArrayOf.Wrapped(
+                    [
                         new CallMethodResult
                         {
                             StatusCode = StatusCodes.Good,
                             OutputArguments = outputs == null
-                                ? ArrayOf.Empty<Variant>()
+                                ? []
                                 : ArrayOf.Wrapped(outputs)
                         }
-                    }),
-                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    ]),
+                    DiagnosticInfos = []
                 }));
         }
     }

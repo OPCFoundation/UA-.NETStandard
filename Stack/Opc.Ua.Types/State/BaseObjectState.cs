@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseObjectState(NodeState? parent)
-            : base(NodeClass.Object, parent!)
+            : base(NodeClass.Object, parent)
         {
             m_eventNotifier = EventNotifiers.None;
 
@@ -293,7 +293,7 @@ namespace Opc.Ua
                         result = readEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         value = eventNotifier;
                     }
@@ -334,7 +334,7 @@ namespace Opc.Ua
                         result = writeEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         EventNotifier = eventNotifier;
                     }

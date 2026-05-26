@@ -1150,7 +1150,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            value = new EnumValue(0, xml!);
+                            value = new EnumValue(0, xml);
                         }
                     }
                     catch (Exception ex) when (ex is
@@ -2908,7 +2908,7 @@ return ReadDataValue(typeName);
 
             // Push the root element directly as context so children are
             // immediately accessible (equivalent of BeginField in streaming).
-            m_contextStack.Push(new ElementContext(docElement!));
+            m_contextStack.Push(new ElementContext(docElement));
         }
 
         /// <summary>

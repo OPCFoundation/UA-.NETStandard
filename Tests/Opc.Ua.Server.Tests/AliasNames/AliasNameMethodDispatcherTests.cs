@@ -27,11 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.AliasNames;
+
+// Test fixtures construct short-lived literal arrays inline as method
+// arguments; the per-call allocation cost is irrelevant for tests and
+// keeping the data adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
 
 namespace Opc.Ua.Server.Tests.AliasNames
 {
@@ -84,7 +88,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                             new("T1", 2),
                             new("T2", 2)
                         }.ToArrayOf(),
-                        new string[] { "", "" }.ToArrayOf(),
+                        new string[] { string.Empty, string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -114,7 +118,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                             new("T1", 2),
                             new("T2", 2)
                         }.ToArrayOf(),
-                        new string[] { "" }.ToArrayOf(),
+                        new string[] { string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -165,7 +169,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                         s_categoryId,
                         new string[] { null! }.ToArrayOf(),
                         new ExpandedNodeId[] { new("T1", 2) }.ToArrayOf(),
-                        new string[] { "" }.ToArrayOf(),
+                        new string[] { string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -220,7 +224,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .ConfigureAwait(false);
 
                 Assert.That(result.ServiceResult, Is.EqualTo(ServiceResult.Good));
-                Assert.That(result.AliasNodeList.Count, Is.EqualTo(0),
+                Assert.That(result.AliasNodeList.Count, Is.Zero,
                     "Empty result list must round-trip through ToArrayOf without throwing.");
             }
         }
@@ -244,7 +248,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .ConfigureAwait(false);
 
                 Assert.That(result.ServiceResult, Is.EqualTo(ServiceResult.Good));
-                Assert.That(result.AliasNodeList.Count, Is.EqualTo(0));
+                Assert.That(result.AliasNodeList.Count, Is.Zero);
             }
         }
 
@@ -260,13 +264,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .AddAliasesAsync(
                         registry,
                         s_categoryId,
-                        new string[] { "A", "" }.ToArrayOf(),
+                        new string[] { "A", string.Empty }.ToArrayOf(),
                         new ExpandedNodeId[]
                         {
                             new("T1", 2),
                             new("T2", 2)
                         }.ToArrayOf(),
-                        new string[] { "", "" }.ToArrayOf(),
+                        new string[] { string.Empty, string.Empty }.ToArrayOf(),
                         ReferenceTypeIds.AliasFor,
                         CancellationToken.None)
                     .ConfigureAwait(false);

@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.FileSystem
                 if (!externalReferences.TryGetValue(ObjectIds.FileSystem,
                     out IList<IReference>? references))
                 {
-                    externalReferences[ObjectIds.FileSystem] = references = new List<IReference>();
+                    externalReferences[ObjectIds.FileSystem] = references = [];
                 }
                 NodeId rootId = FileSystemNodeId.BuildRoot(NamespaceIndex);
                 references.Add(new NodeStateReference(
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server.FileSystem
                 return NodeId.Null;
             }
             int slash = providerPath.LastIndexOf('/');
-            string parent = slash < 0 ? string.Empty : providerPath.Substring(0, slash);
+            string parent = slash < 0 ? string.Empty : providerPath[..slash];
             return string.IsNullOrEmpty(parent)
                 ? FileSystemNodeId.BuildRoot(NamespaceIndex)
                 : FileSystemNodeId.BuildDirectory(parent, NamespaceIndex);
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server.FileSystem
             return NamespaceUriBase + "/" + provider.MountName;
         }
 
-        private readonly Dictionary<NodeId, FileHandle> m_handles = new();
+        private readonly Dictionary<NodeId, FileHandle> m_handles = [];
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in
@@ -363,6 +363,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 Value = value;
             }
+
             public FileSystemNodeId Value { get; }
         }
     }
