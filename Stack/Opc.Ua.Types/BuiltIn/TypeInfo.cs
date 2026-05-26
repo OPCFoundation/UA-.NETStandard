@@ -1655,6 +1655,13 @@ namespace Opc.Ua
                     return Unknown;
                 }
 
+                // check for encodeable object.
+                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
+                    name == "IEncodeable")
+                {
+                    return Scalars.ExtensionObject;
+                }
+
                 // check for generic type.
                 if (systemType.GetTypeInfo().IsGenericType)
                 {

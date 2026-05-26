@@ -1775,18 +1775,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsUnknown, Is.True);
         }
 
+        [Test]
+        public void ConstructForGenericEncodeableTypeReturnsExtensionObject()
+        {
+            TypeInfo result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
+            Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+        }
+
+
         private sealed class GenericEncodeable<T> : IEncodeable
         {
             public ExpandedNodeId TypeId => new(100000);
             public ExpandedNodeId BinaryEncodingId => new(100001);
             public ExpandedNodeId XmlEncodingId => new(100002);
 
-            public void Encode(IEncoder encoder)
+            public void Decode(IDecoder decoder)
             {
             }
 
-            public void Decode(IDecoder decoder)
+            public void Encode(IEncoder encoder)
             {
+                throw new NotImplementedException();
             }
 
             public bool IsEqual(IEncodeable? encodeable)
@@ -1797,6 +1806,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             public object Clone()
             {
                 return new GenericEncodeable<T>();
+                throw new NotImplementedException();
             }
         }
     }
