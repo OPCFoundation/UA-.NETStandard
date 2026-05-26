@@ -43,6 +43,7 @@
         - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
         - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
     - [User Identity Token Handlers](#user-identity-token-handlers)
+      - [Forward-looking: pluggable identity providers (additive, not yet breaking)](#forward-looking-pluggable-identity-providers-additive-not-yet-breaking)
     - [Configuration](#configuration)
       - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
       - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
@@ -703,6 +704,76 @@ fields until GC. A follow-up revision will route inbound decrypted
 secrets through the new `ISecretStore` abstraction (see *Secrets*
 below) so secure clearing becomes the store's responsibility, with no
 public surface change.
+
+### Forward-looking: pluggable identity providers (additive, not yet breaking)
+
+> **Status**: interfaces only. No existing API is removed, marked
+> `[Obsolete]`, or changed. See [Identity Providers](IdentityProviders.md)
+> for the full developer guide.
+
+A new `Opc.Ua.Identity` namespace in `Opc.Ua.Core` exposes a symmetric
+client/server identity-provider model that covers every user identity
+mechanism defined in OPC 10000-6 §6.5 (Anonymous, UserName, X509,
+IssuedToken / JWT / SAML / Kerberos) plus the indirect/direct
+identity-provider handshakes in OPC 10000-4 §6.2.
+
+Interfaces shipping in this release:
+
+| Interface / Type | Purpose | Side |
+|---|---|---|
+| `IClientIdentityProvider` | Returns an `IUserIdentity` lazily for `ActivateSession`. Replaces eager `new UserIdentity(...)` ctors when used. | Client |
+| `IAccessTokenProvider` | Acquires OAuth2 / OIDC / GDS access tokens — orthogonal to OPC UA transport. | Client |
+| `AuthorizationServerMetadata` | Parses the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON object that a JWT `UserTokenPolicy` actually carries (it is a JSON object, not a URL despite the name). | Both |
+| `AccessToken` | Disposable token DTO; zeroes its buffer on dispose. | Both |
+| `IUserTokenAuthenticator` | Validates a single token type / profile on the server. Replaces the giant `switch` inside the historical `SessionManager.ImpersonateUser` callback. | Server |
+| `IServerIdentityRegistry` / `ServerIdentityRegistry` | Composable dispatcher that picks the right authenticator by `(UserTokenType, IssuedTokenProfileUri)`. Returns `NotHandled` so the legacy event remains a fallback. | Server |
+| `ITokenIssuer` | Server-side token issuance — backs Part 12 v1.05 `AuthorizationServiceType.StartRequestToken` (P6). | Server |
+| `IIssuerKeyResolver` + `IssuerVerificationKey` | JWT signature verification over `RSA` / `ECDsa` with portable `byte[]` overloads. No `System.IdentityModel.Tokens.Jwt` dependency. AOT-friendly. | Server |
+| `IIdentityClaims` | Optional probe interface on an `IUserIdentity` that exposes OIDC / JWT claims (groups, roles, sub, iss). Will be used by `IRoleManager.ResolveGrantedRoles` to satisfy OPC 10000-18 §4.4.4 `GroupId` / `Role` criteria (currently both are broken). | Both |
+
+**No breaking changes in this release.** The
+`SessionManager.ImpersonateUser` event, the `new UserIdentity(...)`
+ctors, the `UserIdentity.CreateAsync(...)` factory, and every existing
+extension hook continue to work unchanged. Adoption is opt-in — you
+can author and register one `IUserTokenAuthenticator` (or one
+`IClientIdentityProvider`) at a time while the rest of the auth path
+stays on the event.
+
+**What to expect in future releases:**
+
+* A future release will route `SessionManager.ActivateSessionAsync`
+  through the registry first and fall back to the event when no
+  authenticator handled the token. No source change required, no
+  obsoletion of the event.
+* A subsequent release will mark `SessionManager.ImpersonateUser`
+  `[Obsolete]` once the in-box default authenticators have shipped and
+  the `ReferenceServer` sample has migrated. The event remains
+  functional after the obsoletion.
+* `IRoleManager.ResolveGrantedRoles` will probe `IIdentityClaims` and
+  correctly evaluate Part 18 §4.4.4 `GroupId` / `Role` criteria. The
+  current `Role` criteria handling matches *already-granted OPC UA
+  role NodeIds* — that is contrary to the spec, which says the rule
+  matches a role asserted **in the access token** (optionally prefixed
+  with `iss/`). When the fix lands, a
+  `Compat.LegacyRoleCriteriaMatchesGrantedRoles=true` flag will
+  preserve the historical behaviour for one release; existing
+  identity-mapping rules that relied on the buggy semantics should be
+  reviewed before that release.
+* The client side will gain a `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)`
+  method that coordinates token refresh with the current
+  `m_serverNonce` and the existing reactivation lock.
+  `ManagedSessionOptions.IdentityProvider` will be added; the eager
+  `ManagedSessionOptions.Identity` setter will be `[Obsolete]`.
+* Part 12 v1.05 deprecates `AuthorizationServiceType.RequestAccessToken`
+  in favour of the new `StartRequestToken` / `FinishRequestToken`
+  flow. The .NET stack will follow: server-side `RequestAccessToken`
+  becomes `[Obsolete]` (but remains functional).
+
+For now, write providers against the stable interfaces; the wiring
+arrives in subsequent releases without forcing another rewrite. See
+[Identity Providers](IdentityProviders.md) for full developer
+guidance and recipes (Entra/MSAL, generic OIDC, ASP.NET
+`ITokenAcquisition`, GDS `KeyCredentialService`).
 
 ### Secrets — caller-supplied passwords go through a secret registry
 

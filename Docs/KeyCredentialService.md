@@ -5,6 +5,16 @@ a GDS to issue and manage credentials (e.g. username/password, API keys,
 tokens) on behalf of applications that need to authenticate to
 non-OPC UA services such as MQTT brokers or REST APIs.
 
+> **Scope note**: this service is for credentials targeting **non-OPC
+> UA** resources (MQTT brokers, REST APIs, etc. — see `ResourceUri`
+> + `ProfileUris` on `KeyCredentialServiceType`). Using a
+> KeyCredential as an OPC UA session identity is **not defined by the
+> spec**; a future release will offer that as an experimental vendor
+> extension under a non-standard profile URI. For standards-conformant
+> OPC UA session authentication, use
+> [AuthorizationService](AuthorizationService.md) (JWT) and the
+> [Identity Providers](IdentityProviders.md) infrastructure.
+
 ## Architecture
 
 ```

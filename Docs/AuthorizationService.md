@@ -5,6 +5,16 @@ a GDS to issue access tokens that OPC UA applications use to
 authenticate to other services or to each other using OAuth2-style
 token exchange.
 
+> **Note**: Part 12 v1.05 deprecates `RequestAccessToken` in favour of
+> the new `StartRequestToken` / `FinishRequestToken` flow. The current
+> stack still surfaces the legacy method via
+> `AuthorizationServiceClient.RequestAccessTokenAsync` (works against
+> v1.04 servers); the modern flow lands in a future release. For the
+> client-side handling of the JWT tokens that this service emits —
+> including parsing of the `IssuerEndpointUrl` JSON object and lazy
+> per-activation token acquisition — see
+> [Identity Providers](IdentityProviders.md).
+
 ## Architecture
 
 ```

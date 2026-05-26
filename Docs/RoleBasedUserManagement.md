@@ -51,6 +51,13 @@ Every mutator returns a `ServiceResult` that mirrors the spec-defined status cod
 
 `EndpointType` comparisons in identity resolution honour Part 18 4.4.2: fields set to their default value on the rule side act as wildcards.
 
+> **Known gaps (tracked for a future release)**:
+>
+> - `IdentityCriteriaType.GroupId` currently always returns `false` because the legacy `IUserIdentity` contract has no claims surface for an identity provider to populate.
+> - `IdentityCriteriaType.Role` currently matches *already-granted OPC UA role NodeIds*. Per Part 18 4.4.4, the criteria value is a role asserted **inside the access token** (e.g. a JWT `roles` array entry, optionally prefixed by the issuer URI as `iss/roleName`).
+>
+> A future release will fix both by probing the returned `IUserIdentity` for the new `Opc.Ua.Identity.IIdentityClaims` interface (see [Identity Providers](IdentityProviders.md)) and reading `Groups` / `Roles` / `Issuer` claims from it. The role-claim fix changes semantics, so an opt-in `Compat.LegacyRoleCriteriaMatchesGrantedRoles=true` flag will preserve the historical (incorrect) behaviour for one release. Existing identity-mapping rules that rely on `Role` matching against granted role NodeIds should be reviewed before the fix lands.
+
 ### RoleConfigurationChanged event
 
 `IRoleManager.RoleConfigurationChanged` fires after every successful mutation with the role NodeId and a `RoleConfigurationChangeKind`. Integrators can subscribe to:

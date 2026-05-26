@@ -13,6 +13,7 @@ Here is a list of available documentation for different topics:
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Observability](Observability.md) support in the stack.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
+* Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows. Layers on top of the historical `SessionManager.ImpersonateUser` callback without breaking it.
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
