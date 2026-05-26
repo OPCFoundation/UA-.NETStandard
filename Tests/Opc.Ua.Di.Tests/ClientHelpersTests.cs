@@ -116,6 +116,32 @@ namespace Opc.Ua.Di.Tests
             Assert.That(a, Is.EqualTo(b));
         }
 
+        [Test]
+        public void SoftwareUpdateClientThrowsOnNullSession()
+        {
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => new SoftwareUpdateClient(null!, new NodeId("update-1", 2), NullTelemetry()))!;
+            Assert.That(ex.ParamName, Is.EqualTo("session"));
+        }
+
+        [Test]
+        public void SoftwareUpdateClientThrowsOnNullNodeId()
+        {
+            ArgumentException ex = Assert.Throws<ArgumentException>(
+                () => new SoftwareUpdateClient(FakeSession(), NodeId.Null, NullTelemetry()))!;
+            Assert.That(ex.ParamName, Is.EqualTo("softwareUpdateNodeId"));
+        }
+
+        [Test]
+        public void SoftwareUpdateClientExposesConstructorArguments()
+        {
+            var session = FakeSession();
+            var nodeId = new NodeId("update-1", 2);
+            var client = new SoftwareUpdateClient(session, nodeId, NullTelemetry());
+            Assert.That(client.Session, Is.SameAs(session));
+            Assert.That(client.SoftwareUpdateNodeId, Is.EqualTo(nodeId));
+        }
+
         private static Opc.Ua.Client.ISession FakeSession()
         {
             // Use the SessionStub from the existing DI client tests if

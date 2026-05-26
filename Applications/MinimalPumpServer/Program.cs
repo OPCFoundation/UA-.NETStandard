@@ -31,6 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Di.Server.SoftwareUpdate;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -38,6 +39,11 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
+
+// Phase 8E software update: a single in-memory package store shared
+// across the pump-server lifetime. Production deployments would
+// switch this to FileSystemPackageStore over an IFileSystemProvider.
+builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
 
 builder.Services
     .AddOpcUa()
@@ -68,6 +74,14 @@ builder.Services
             id.HardwareRevision = "1.0";
             id.SoftwareRevision = "2.5.3";
         });
+
+        // Phase 8F integration: seed the package store with sample
+        // firmware payloads exposed through the DI software-update
+        // facet.
+        ISoftwarePackageStore packageStore = ctx.GetRequiredService<ISoftwarePackageStore>();
+        await Pumps.SoftwareUpdate.PumpSoftwareUpdateSeeder
+            .SeedAsync(packageStore)
+            .ConfigureAwait(false);
     });
 
 await builder.Build().RunAsync().ConfigureAwait(false);

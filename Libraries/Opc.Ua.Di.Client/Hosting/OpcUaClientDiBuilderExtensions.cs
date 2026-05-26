@@ -154,6 +154,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 };
             });
 
+            // SoftwareUpdate client factory: callers supply a NodeId of
+            // a SoftwareUpdateType instance on the server.
+            builder.Services.TryAddSingleton<
+                Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>>(sp =>
+            {
+                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires AddClient() to be called first.");
+                ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires an ITelemetryContext.");
+
+                return async (NodeId softwareUpdateNodeId, CancellationToken ct) =>
+                {
+                    ManagedSession session = await accessor(ct).ConfigureAwait(false);
+                    return new SoftwareUpdateClient(session, softwareUpdateNodeId, telemetry);
+                };
+            });
+
             return builder;
         }
     }
