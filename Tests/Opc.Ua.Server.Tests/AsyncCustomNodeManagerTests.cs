@@ -784,13 +784,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(hadMore, Is.False);
             if (!m_useSamplingGroups)
             {
-                // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks
-                Assert.That(notifications, Has.Count.EqualTo(2));
-                MonitoredItemNotification notification = notifications.Dequeue();
-                MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That((int)notification.Value.WrappedValue, Is.Zero);
-                Assert.That((int)notificationAfterWrite.Value.WrappedValue, Is.EqualTo(123));
-                Assert.That(diagnostics, Has.Count.EqualTo(2));
+                // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks.
+                // With channel-based delivery the initial and write updates can be coalesced.
+                Assert.That(notifications, Has.Count.GreaterThanOrEqualTo(1));
+                bool writeNotificationSeen = notifications.Any(n => (int)n.Value.WrappedValue == 123);
+                for (int i = 0; i < 5 && !writeNotificationSeen; i++)
+                {
+                    await Task.Delay(20).ConfigureAwait(false);
+                    _ = monitoredItem.Publish(
+                        new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
+                        notifications,
+                        diagnostics,
+                        10,
+                        m_mockLogger.Object);
+                    writeNotificationSeen = notifications.Any(n => (int)n.Value.WrappedValue == 123);
+                }
+
+                Assert.That(writeNotificationSeen, Is.True);
+                Assert.That(diagnostics, Has.Count.EqualTo(notifications.Count));
                 Assert.That(monitoredItem.IsReadyToPublish, Is.False);
             }
             // For SamplingGroupMonitoredItemManager the background sampling timer fires
