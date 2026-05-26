@@ -1019,11 +1019,16 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Find child case template
+        /// Find child case template. Uses a string literal in the case
+        /// expression rather than <c>{Namespace}.BrowseNames.{ChildName}</c>
+        /// so cross-namespace BrowseNames (e.g. a Pumps child whose name
+        /// belongs to the DI namespace) compile even when the foreign
+        /// namespace's generated <c>BrowseNames</c> class doesn't carry
+        /// a constant for that name.
         /// </summary>
         public static readonly TemplateString FindChildCase = TemplateString.Parse(
             $$"""
-            case {{Tokens.BrowseNameNamespacePrefix}}.BrowseNames.{{Tokens.ChildName}}:
+            case "{{Tokens.ChildName}}":
             {
                 instance = !createOrReplace ?
                     {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);

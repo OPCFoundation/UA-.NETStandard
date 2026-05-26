@@ -132,7 +132,8 @@ namespace Opc.Ua.SourceGeneration
                     : DataTypeTemplates.PooledStructureActivatorClass;
             }
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
-                datatype.IsEnumeration)
+                datatype.IsEnumeration &&
+                !datatype.IsOptionSet)
             {
                 return DataTypeTemplates.EnumerationActivatorClass;
             }
@@ -210,7 +211,8 @@ namespace Opc.Ua.SourceGeneration
                 return DataTypeTemplates.StructureActivatorRegistration;
             }
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
-                datatype.IsEnumeration)
+                datatype.IsEnumeration &&
+                !datatype.IsOptionSet)
             {
                 return DataTypeTemplates.EnumerationActivatorRegistration;
             }

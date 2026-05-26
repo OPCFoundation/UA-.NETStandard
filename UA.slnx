@@ -157,4 +157,10 @@
     <Project Path="Tests/Opc.Ua.Client.TestFramework/Opc.Ua.Client.TestFramework.csproj" />
     <Project Path="Tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
+  <Project Path="Applications/MinimalPumpServer/MinimalPumpServer.csproj" />
+  <Project Path="Libraries/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
+  <Project Path="Libraries/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
+  <Project Path="Libraries/Opc.Ua.Di/Opc.Ua.Di.csproj" />
+  <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
+  <Project Path="Tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
 </Solution>

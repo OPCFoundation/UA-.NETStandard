@@ -1012,8 +1012,14 @@ namespace Opc.Ua.Schema.Model
                     if (dataType.BaseTypeNode?.SymbolicId ==
                         new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                     {
-                        return MakeReturnType(CoreUtils.Format("new {0}()",
-                            dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces)));
+                        // OptionSet subtypes inherit from Opc.Ua.OptionSet (a
+                        // class implementing IEncodeable), so Variant.From<T>
+                        // (where T : struct, Enum) does not apply. Route them
+                        // through Variant.FromStructure<T> (where T : IEncodeable).
+                        return MakeReturnType(
+                            CoreUtils.Format("new {0}()",
+                                dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces)),
+                            "Structure");
                     }
                     if (!dataType.IsOptionSet && dataType.Fields?.Length > 0)
                     {

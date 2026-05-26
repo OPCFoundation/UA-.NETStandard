@@ -1537,25 +1537,37 @@ namespace Opc.Ua.SourceGeneration
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
-                            switch (instance.ModellingRule)
+                            // Children whose SymbolicName ends in "_Placeholder"
+                            // come from OptionalPlaceholder/MandatoryPlaceholder
+                            // slots on the type, which emit Add*_Placeholder
+                            // methods (cardinality 0..N) instead of
+                            // CreateOrReplace*_Placeholder methods (which only
+                            // exist for fixed Mandatory/Optional slots).
+                            // Fall through to AddChild for these.
+                            bool isPlaceholderSlot = instance.SymbolicName.Name
+                                .EndsWith("_Placeholder", StringComparison.Ordinal);
+                            if (!isPlaceholderSlot)
                             {
-                                case ModellingRule.Mandatory:
-                                case ModellingRule.Optional:
-                                    context.Out.WriteLine(
-                                        "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
-                                        instance.SymbolicName.Name,
-                                        instance.SymbolicId.Name,
-                                        forInstanceVariableValue);
-                                    return null;
-                                case ModellingRule.OptionalPlaceholder:
-                                case ModellingRule.MandatoryPlaceholder:
-                                    // TODO
-                                    break;
-                                case ModellingRule.ExposesItsArray:
-                                case ModellingRule.None:
-                                case ModellingRule.CardinalityRestriction:
-                                case ModellingRule.MandatoryShared:
-                                    break;
+                                switch (instance.ModellingRule)
+                                {
+                                    case ModellingRule.Mandatory:
+                                    case ModellingRule.Optional:
+                                        context.Out.WriteLine(
+                                            "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                                            instance.SymbolicName.Name,
+                                            instance.SymbolicId.Name,
+                                            forInstanceVariableValue);
+                                        return null;
+                                    case ModellingRule.OptionalPlaceholder:
+                                    case ModellingRule.MandatoryPlaceholder:
+                                        // TODO
+                                        break;
+                                    case ModellingRule.ExposesItsArray:
+                                    case ModellingRule.None:
+                                    case ModellingRule.CardinalityRestriction:
+                                    case ModellingRule.MandatoryShared:
+                                        break;
+                                }
                             }
                         }
                         break;

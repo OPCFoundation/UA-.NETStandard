@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:OpcUa="http://opcfoundation.org/UA/"
+  xmlns:DI="http://opcfoundation.org/UA/DI/"
+  xmlns:Pack="http://opcfoundation.org/UA/DI/PackageMetadata/"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  TargetNamespace="http://opcfoundation.org/UA/DI/PackageMetadata/"
+  TargetXmlNamespace="http://opcfoundation.org/UA/DI/PackageMetadata/"
+  TargetVersion="1.05.0"
+  TargetPublicationDate="2025-04-01T00:00:00Z"
+  xmlns="http://opcfoundation.org/UA/ModelDesign.xsd">
+
+  <Namespaces>
+    <Namespace Name="OpcUaDiPackageMetadata" Prefix="Opc.Ua.Di.PackageMetadata" XmlNamespace="http://opcfoundation.org/UA/DI/PackageMetadata/Types.xsd" XmlPrefix="DI">http://opcfoundation.org/UA/DI/PackageMetadata/</Namespace>
+    <Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</Namespace>
+  </Namespaces>
+
+  <DataType SymbolicName="Pack:PackageMetadata" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="Name" DataType="OpcUa:String" />
+      <Field Name="Description" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="ManufacturerUri" DataType="OpcUa:String" />
+      <Field Name="Manufacturer" DataType="OpcUa:String" />
+      <Field Name="PackageRevision" DataType="OpcUa:String" />
+      <Field Name="PackageType" DataType="Pack:PackageType" />
+      <Field Name="SoftwareSubClass" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="DeployCompletePackage" DataType="OpcUa:Boolean" IsOptional="true" />
+      <Field Name="SoftwareRevision" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="ReleaseDate" DataType="OpcUa:DateTime" IsOptional="true" />
+      <Field Name="TargetManufacturerUri" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="TargetManufacturer" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="UpdateTargets" DataType="Pack:UpdateTarget" ValueRank="Array" IsOptional="true" />
+      <Field Name="Files" DataType="Pack:FileDescriptor" ValueRank="Array" IsOptional="true" />
+      <Field Name="Compatibilities" DataType="Pack:CompatibilityOption" ValueRank="Array" IsOptional="true" />
+      <Field Name="Assignments" DataType="Pack:Assignment" ValueRank="Array" IsOptional="true" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:UpdateTarget" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="ProductCode" DataType="OpcUa:String" />
+      <Field Name="Model" DataType="OpcUa:String" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:FileDescriptor" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="FileType" DataType="Pack:FileType" />
+      <Field Name="FileName" DataType="OpcUa:String" />
+      <Field Name="MimeType" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="Language" DataType="OpcUa:String" IsOptional="true" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:CompatibilityOption" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="CompatibilityRequirements" DataType="Pack:CompatibilityRequirement" ValueRank="Array" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:CompatibilityRequirement" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="Variable" DataType="OpcUa:String" />
+      <Field Name="Values" DataType="OpcUa:BaseDataType" ValueRank="Array" />
+      <Field Name="Operation" DataType="Pack:ComparisonOperation" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:PackageType" BaseType="OpcUa:Enumeration">
+    <Fields>
+      <Field Name="Firmware" Identifier="0">
+        <Description>The Software Package contains the firmware of a physical device.</Description>
+      </Field>
+      <Field Name="Application" Identifier="1">
+        <Description>The Software Package contains an executable software.</Description>
+      </Field>
+      <Field Name="Configuration" Identifier="2">
+        <Description>The Software Package contains the configuration of a device or application.</Description>
+      </Field>
+      <Field Name="Solution" Identifier="3">
+        <Description>The Software Package contains a solution with several software package.</Description>
+      </Field>
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:FileType" BaseType="OpcUa:Enumeration">
+    <Fields>
+      <Field Name="DeploymentItem" Identifier="0">
+        <Description>This file shall be deployed to the device. At most one file can be marked as DeploymentItem. If the complete Software Package is deployed to the device the individual files are not described explicitly.</Description>
+      </Field>
+      <Field Name="ReleaseNotes" Identifier="1">
+        <Description>E.g. link for user to open the document.</Description>
+      </Field>
+      <Field Name="LicenseInfo" Identifier="2">
+        <Description>E.g. link for user to open the document.</Description>
+      </Field>
+      <Field Name="PreInstallNote" Identifier="3">
+        <Description>Text that shall be shown to the user at least once before installation.</Description>
+      </Field>
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:ComparisonOperation" BaseType="OpcUa:Enumeration">
+    <Fields>
+      <Field Name="EqualTo" Identifier="0">
+        <Description>Value[0] = Variable</Description>
+      </Field>
+      <Field Name="GreaterThan" Identifier="1">
+        <Description>Value[0] > Variable</Description>
+      </Field>
+      <Field Name="GreaterEqual" Identifier="2">
+        <Description>Value[0] >= Variable</Description>
+      </Field>
+      <Field Name="LessThen" Identifier="3">
+        <Description>Value[0] &lt; Variable</Description>
+      </Field>
+      <Field Name="LessEqual" Identifier="4">
+        <Description>Value[0] &lt;= Variable</Description>
+      </Field>
+      <Field Name="RegularExpression" Identifier="5">
+        <Description>Value[0] contains a regular expression which must match the value of the Variable</Description>
+      </Field>
+      <Field Name="OneOf" Identifier="6">
+        <Description>Value[0] contains a regular expression which must match the value of the Variable</Description>
+      </Field>
+      <Field Name="Exist" Identifier="7">
+        <Description>The Node that is described by the Variable must exist. The Values array shall be empty</Description>
+      </Field>
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:Assignment" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="Subpackage" DataType="OpcUa:String" />
+      <Field Name="InstallationOrder" DataType="OpcUa:UInt32" IsOptional="true" />
+      <Field Name="Targets" DataType="Pack:PackageTarget" ValueRank="Array" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:PackageTarget" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="TargetType" DataType="OpcUa:NodeId" IsOptional="true" />
+      <Field Name="TargetNode" DataType="OpcUa:NodeId" IsOptional="true" />
+      <Field Name="ProductInstanceUri" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="AssetId" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="ManufacturerUri" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="ProductCode" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="SerialNumber" DataType="OpcUa:String" IsOptional="true" />
+      <Field Name="FxPath" DataType="Pack:FxPathElement" ValueRank="Array" IsOptional="true" AllowSubTypes="false" />
+      <Field Name="FxScope" DataType="Pack:FxPathElement" ValueRank="Array" IsOptional="true"  AllowSubTypes="false" />
+      <Field Name="BrowsePath" DataType="OpcUa:RelativePathElement" ValueRank="Array" IsOptional="true"  AllowSubTypes="false" />
+      <Field Name="TargetServer" DataType="OpcUa:String" IsOptional="true" />
+    </Fields>
+  </DataType>
+
+  <DataType SymbolicName="Pack:FxPathElement" BaseType="OpcUa:Structure">
+    <Fields>
+      <Field Name="AssetConnectorType" DataType="OpcUa:NodeId" />
+      <Field Name="ConnectorId" DataType="OpcUa:UInt16" IsOptional="true" />
+      <Field Name="ConnectorName" DataType="OpcUa:String" IsOptional="true" />
+    </Fields>
+  </DataType>
+  
+</ModelDesign>

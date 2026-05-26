@@ -68,6 +68,7 @@ namespace Opc.Ua.Server.Fluent
             : base(server, namespaceUris)
         {
             m_eventSources = new EventSourceRegistry(this, m_logger);
+            m_simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -80,6 +81,7 @@ namespace Opc.Ua.Server.Fluent
             : base(server, logger, namespaceUris)
         {
             m_eventSources = new EventSourceRegistry(this, m_logger);
+            m_simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -92,6 +94,7 @@ namespace Opc.Ua.Server.Fluent
             : base(server, configuration, namespaceUris)
         {
             m_eventSources = new EventSourceRegistry(this, m_logger);
+            m_simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -105,6 +108,7 @@ namespace Opc.Ua.Server.Fluent
             : base(server, configuration, logger, namespaceUris)
         {
             m_eventSources = new EventSourceRegistry(this, m_logger);
+            m_simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -118,6 +122,7 @@ namespace Opc.Ua.Server.Fluent
             : base(server, configuration, useSamplingGroups, namespaceUris)
         {
             m_eventSources = new EventSourceRegistry(this, m_logger);
+            m_simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -132,6 +137,7 @@ namespace Opc.Ua.Server.Fluent
             : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
             m_eventSources = new EventSourceRegistry(this, m_logger);
+            m_simulations = new SimulationRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -142,6 +148,13 @@ namespace Opc.Ua.Server.Fluent
         /// direct subclass use.
         /// </summary>
         internal EventSourceRegistry EventSources => m_eventSources;
+
+        /// <summary>
+        /// Registry that the fluent <c>Simulation</c> surface stores its
+        /// registered periodic tick loops in. Started after
+        /// <c>Configure</c> completes and torn down on disposal.
+        /// </summary>
+        internal SimulationRegistry Simulations => m_simulations;
 
         /// <summary>
         /// Attaches this manager's event-source registry to the supplied
@@ -166,6 +179,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new System.ArgumentNullException(nameof(builder));
             }
             builder.AttachEventSources(m_eventSources);
+            builder.AttachSimulations(m_simulations);
         }
 
         /// <summary>
@@ -196,6 +210,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
+                m_simulations.Dispose();
                 m_eventSources.Dispose();
             }
             base.Dispose(disposing);
@@ -217,5 +232,6 @@ namespace Opc.Ua.Server.Fluent
         }
 
         private readonly EventSourceRegistry m_eventSources;
+        private readonly SimulationRegistry m_simulations;
     }
 }
