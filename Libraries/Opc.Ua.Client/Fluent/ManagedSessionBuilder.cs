@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
 {
@@ -118,7 +119,37 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(identity));
             }
+#pragma warning disable CS0618 // Legacy eager identity remains supported for compatibility.
             m_options = m_options with { Identity = identity };
+#pragma warning restore CS0618
+            return this;
+        }
+
+        /// <summary>
+        /// Set the lazy identity provider used to refresh identities after connect.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithIdentityProvider(IClientIdentityProvider provider)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            m_options = m_options with { IdentityProvider = provider };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the time provider used by proactive identity refresh.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithTimeProvider(TimeProvider timeProvider)
+        {
+            if (timeProvider == null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+            m_options = m_options with { TimeProvider = timeProvider };
             return this;
         }
 
@@ -358,11 +389,14 @@ namespace Opc.Ua.Client
                 preferredLocales = new ArrayOf<string>(arr);
             }
 
+#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
+            IUserIdentity? identity = opts.Identity;
+#pragma warning restore CS0618
             return ManagedSession.CreateAsync(
                 m_configuration,
                 opts.Endpoint,
                 sessionFactory,
-                opts.Identity,
+                identity,
                 reconnect,
                 redundancy,
                 m_telemetry,
@@ -373,6 +407,8 @@ namespace Opc.Ua.Client
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
                 opts.PoolNotifications,
+                opts.IdentityProvider,
+                opts.TimeProvider,
                 ct);
         }
     }

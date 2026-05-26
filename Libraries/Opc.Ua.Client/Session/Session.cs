@@ -36,6 +36,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -1541,6 +1542,143 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             return UpdateSessionAsync(Identity, preferredLocales, ct);
+        }
+
+        /// <summary>
+        /// Refreshes the current user identity by asking a provider for a
+        /// fresh token and reactivating the existing session with the
+        /// current server nonce.
+        /// </summary>
+        /// <param name="provider">The provider that materializes the new identity.</param>
+        /// <param name="ct">A cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadIdentityTokenRejected</c> when no offered policy can be
+        /// satisfied by the provider, or <c>BadIdentityChangeNotSupported</c>
+        /// when the server refuses user-identity changes on an active
+        /// session.
+        /// </exception>
+        public async ValueTask UpdateIdentityAsync(
+            IClientIdentityProvider provider,
+            CancellationToken ct = default)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            ThrowIfDisposed();
+            using Activity? activity = m_telemetry.StartActivity();
+
+            await AcquireIdentityUpdateLockAsync(ct).ConfigureAwait(false);
+            try
+            {
+                IdentitySelectionContext context;
+                lock (m_lock)
+                {
+                    if (!Connected)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            "Not connected to server.");
+                    }
+
+                    context = new IdentitySelectionContext(
+                        m_endpoint.Description,
+                        m_endpoint.Description.UserIdentityTokens.ToArray() ??
+                            Array.Empty<UserTokenPolicy>(),
+                        MessageContext);
+                }
+
+                UserTokenPolicy identityPolicy = SelectUserTokenPolicy(provider, context);
+                IUserIdentity identity = await provider
+                    .GetIdentityAsync(identityPolicy, context, ct)
+                    .ConfigureAwait(false);
+                identity.TokenHandler.Token.PolicyId = identityPolicy.PolicyId;
+
+                await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadIdentityChangeNotSupported)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "Server rejected an in-session identity change for {SessionId}.",
+                    SessionId);
+                throw;
+            }
+            finally
+            {
+                Reconnecting = false;
+                m_reconnectLock.Release();
+            }
+        }
+
+        private async Task AcquireIdentityUpdateLockAsync(CancellationToken ct)
+        {
+            while (true)
+            {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                if (!Reconnecting)
+                {
+                    Reconnecting = true;
+                    return;
+                }
+
+                m_reconnectLock.Release();
+                await Task.Delay(100, ct).ConfigureAwait(false);
+            }
+        }
+
+        private UserTokenPolicy SelectUserTokenPolicy(
+            IClientIdentityProvider provider,
+            IdentitySelectionContext context)
+        {
+            string tokenSecurityPolicyUri =
+                m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+            UserTokenPolicy? sameEncryptionAlgorithm = null;
+            UserTokenPolicy? unspecifiedSecPolicy = null;
+
+            foreach (UserTokenPolicy policy in context.OfferedPolicies)
+            {
+                if (!provider.CanSatisfy(policy, context))
+                {
+                    continue;
+                }
+
+                if (policy.TokenType == UserTokenType.Anonymous ||
+                    string.Equals(
+                        policy.SecurityPolicyUri,
+                        tokenSecurityPolicyUri,
+                        StringComparison.Ordinal))
+                {
+                    return policy;
+                }
+
+                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
+                {
+                    unspecifiedSecPolicy ??= policy;
+                }
+                else if (HasSameEncryptionAlgorithm(
+                    policy.SecurityPolicyUri!,
+                    tokenSecurityPolicyUri))
+                {
+                    sameEncryptionAlgorithm ??= policy;
+                }
+            }
+
+            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
+        }
+
+        private static bool HasSameEncryptionAlgorithm(
+            string policySecurityPolicyUri,
+            string tokenSecurityPolicyUri)
+        {
+            return CryptoUtils.IsEccPolicy(policySecurityPolicyUri) ==
+                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri);
         }
 
         /// <inheritdoc/>

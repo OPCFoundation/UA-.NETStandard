@@ -33,6 +33,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
 {
@@ -70,6 +71,8 @@ namespace Opc.Ua.Client
             IServerRedundancyHandler? redundancyHandler,
             ILogger logger,
             IUserIdentity? identity,
+            IClientIdentityProvider? identityProvider,
+            TimeProvider? timeProvider,
             ArrayOf<string> preferredLocales,
             string sessionName,
             uint sessionTimeout,
@@ -89,6 +92,8 @@ namespace Opc.Ua.Client
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
             m_identity = identity;
+            m_identityProvider = identityProvider;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_preferredLocales = preferredLocales;
             m_sessionName = sessionName;
             m_sessionTimeout = sessionTimeout;
@@ -113,6 +118,8 @@ namespace Opc.Ua.Client
         /// <param name="sessionFactory">The session factory to use for
         /// creating sessions.</param>
         /// <param name="identity">Optional user identity.</param>
+        /// <param name="identityProvider">Optional lazy identity provider.</param>
+        /// <param name="timeProvider">Optional time provider for proactive refresh.</param>
         /// <param name="reconnectPolicy">Optional reconnect policy.
         /// Defaults to <see cref="ReconnectPolicy"/>.</param>
         /// <param name="redundancyHandler">Optional redundancy handler.
@@ -159,6 +166,8 @@ namespace Opc.Ua.Client
             ISubscriptionEngineFactory? engineFactory = null,
             bool transferSubscriptionsOnRecreate = false,
             bool poolNotifications = false,
+            IClientIdentityProvider? identityProvider = null,
+            TimeProvider? timeProvider = null,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -188,6 +197,8 @@ namespace Opc.Ua.Client
                 redundancyHandler,
                 logger,
                 identity,
+                identityProvider,
+                timeProvider,
                 preferredLocales,
                 sessionName,
                 sessionTimeout,
@@ -825,6 +836,27 @@ namespace Opc.Ua.Client
             return InnerSession.NewRequestHandle();
         }
 
+        /// <summary>
+        /// Refreshes the user identity on the connected inner session.
+        /// </summary>
+        public async ValueTask UpdateIdentityAsync(
+            IClientIdentityProvider provider,
+            CancellationToken ct = default)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            using (await m_serviceLock.WriterLockAsync(ct)
+                .ConfigureAwait(false))
+            {
+                await InnerSession
+                    .UpdateIdentityAsync(provider, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
         private void WireStateMachineCallbacks()
         {
             StateMachine.ConnectAsync = HandleConnectAsync;
@@ -850,12 +882,24 @@ namespace Opc.Ua.Client
                     m_checkDomain,
                     m_sessionName,
                     m_sessionTimeout,
-                    m_identity,
+                    m_identityProvider == null ? m_identity : null,
                     m_preferredLocales,
                     ct).ConfigureAwait(false);
 
                 WireSessionEvents(session);
                 m_session = session;
+
+                if (m_identityProvider != null)
+                {
+                    using (await m_serviceLock.WriterLockAsync(ct)
+                        .ConfigureAwait(false))
+                    {
+                        await session
+                            .UpdateIdentityAsync(m_identityProvider, ct)
+                            .ConfigureAwait(false);
+                    }
+                    StartIdentityRefreshLoop();
+                }
 
                 // Apply opt-in V2 transfer-on-recreate. The V2 engine
                 // and SubscriptionManager survive in-place re-creates
@@ -1007,6 +1051,8 @@ namespace Opc.Ua.Client
 
         private async Task HandleCloseSessionAsync(CancellationToken ct)
         {
+            await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+
             Session? session = m_session;
             if (session != null)
             {
@@ -1117,6 +1163,179 @@ namespace Opc.Ua.Client
             ConnectionStateChanged?.Invoke(this, e);
         }
 
+        private void StartIdentityRefreshLoop()
+        {
+            if (m_identityProvider == null)
+            {
+                return;
+            }
+
+            var cts = new CancellationTokenSource();
+            Task task = RunIdentityRefreshLoopAsync(m_identityProvider, cts.Token);
+
+            CancellationTokenSource? previousCts = null;
+            lock (m_identityRefreshLock)
+            {
+                previousCts = m_identityRefreshCancellation;
+                m_identityRefreshCancellation = cts;
+                m_identityRefreshTask = task;
+            }
+            previousCts?.Cancel();
+        }
+
+        private async Task RunIdentityRefreshLoopAsync(
+            IClientIdentityProvider provider,
+            CancellationToken ct)
+        {
+            int retryAttempt = 0;
+            while (!ct.IsCancellationRequested)
+            {
+                TimeSpan delay = GetIdentityRefreshDelay(provider.ExpiresAt, retryAttempt == 0);
+                try
+                {
+                    await DelayAsync(delay, ct).ConfigureAwait(false);
+                    await RefreshIdentityOnceAsync(provider, ct).ConfigureAwait(false);
+                    retryAttempt = 0;
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    retryAttempt++;
+                    m_logger.LogWarning(
+                        ex,
+                        "ManagedSession: proactive identity refresh failed; retrying.");
+                    TimeSpan backoff = GetIdentityRefreshBackoff(retryAttempt);
+                    try
+                    {
+                        await DelayAsync(backoff, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        private async Task DelayAsync(TimeSpan delay, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (delay == TimeSpan.Zero)
+            {
+                return;
+            }
+
+            var delayState = new DelayState();
+            delayState.Timer = m_timeProvider.CreateTimer(
+                static state => ((DelayState)state!).Complete(),
+                delayState,
+                delay,
+                Timeout.InfiniteTimeSpan);
+            delayState.Cancellation = ct.Register(
+                static state => ((DelayState)state!).Cancel(),
+                delayState);
+            try
+            {
+                await delayState.Task.ConfigureAwait(false);
+            }
+            finally
+            {
+                delayState.Dispose();
+            }
+        }
+
+        private TimeSpan GetIdentityRefreshDelay(DateTime expiresAt, bool allowInfinite)
+        {
+            if (expiresAt == DateTime.MaxValue)
+            {
+                return allowInfinite ? Timeout.InfiniteTimeSpan : TimeSpan.FromMinutes(5);
+            }
+
+            DateTimeOffset now = m_timeProvider.GetUtcNow();
+            DateTimeOffset expires = expiresAt.Kind == DateTimeKind.Local
+                ? new DateTimeOffset(expiresAt).ToUniversalTime()
+                : new DateTimeOffset(DateTime.SpecifyKind(expiresAt, DateTimeKind.Utc));
+            TimeSpan delay = expires - now - IdentityRefreshSafetyMargin;
+            if (delay <= TimeSpan.Zero)
+            {
+                return TimeSpan.FromSeconds(1);
+            }
+            return delay;
+        }
+
+        private static TimeSpan GetIdentityRefreshBackoff(int retryAttempt)
+        {
+            int cappedAttempt = Math.Min(retryAttempt, 5);
+            double seconds = Math.Min(5 * Math.Pow(2, cappedAttempt - 1), 60);
+            return TimeSpan.FromSeconds(seconds);
+        }
+
+        private async Task RefreshIdentityOnceAsync(
+            IClientIdentityProvider provider,
+            CancellationToken ct)
+        {
+            using (await m_serviceLock.WriterLockAsync(ct)
+                .ConfigureAwait(false))
+            {
+                Session? session = m_session;
+                if (session == null)
+                {
+                    return;
+                }
+
+                await session.UpdateIdentityAsync(provider, ct).ConfigureAwait(false);
+            }
+        }
+
+        private async Task StopIdentityRefreshLoopAsync()
+        {
+            CancellationTokenSource? cts;
+            Task? task;
+            lock (m_identityRefreshLock)
+            {
+                cts = m_identityRefreshCancellation;
+                task = m_identityRefreshTask;
+                m_identityRefreshCancellation = null;
+                m_identityRefreshTask = null;
+            }
+
+            if (cts == null)
+            {
+                return;
+            }
+
+            try
+            {
+                cts.Cancel();
+                if (task != null)
+                {
+                    await task.ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+        }
+
+        private void CancelIdentityRefreshLoop()
+        {
+            CancellationTokenSource? cts;
+            lock (m_identityRefreshLock)
+            {
+                cts = m_identityRefreshCancellation;
+                m_identityRefreshCancellation = null;
+                m_identityRefreshTask = null;
+            }
+            cts?.Cancel();
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -1138,6 +1357,7 @@ namespace Opc.Ua.Client
 
             if (disposing)
             {
+                CancelIdentityRefreshLoop();
                 StateMachine.RequestClose();
 
                 Session? session = m_session;
@@ -1160,6 +1380,8 @@ namespace Opc.Ua.Client
             {
                 return;
             }
+
+            await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
 
             await StateMachine.DisposeAsync()
                 .ConfigureAwait(false);
@@ -1188,6 +1410,34 @@ namespace Opc.Ua.Client
             GC.SuppressFinalize(this);
         }
 
+        private sealed class DelayState : IDisposable
+        {
+            public Task Task => m_completion.Task;
+
+            public ITimer? Timer { get; set; }
+
+            public CancellationTokenRegistration Cancellation { get; set; }
+
+            public void Complete()
+            {
+                m_completion.TrySetResult(null);
+            }
+
+            public void Cancel()
+            {
+                m_completion.TrySetCanceled();
+            }
+
+            public void Dispose()
+            {
+                Cancellation.Dispose();
+                Timer?.Dispose();
+            }
+
+            private readonly TaskCompletionSource<object?> m_completion = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         private KeepAliveEventHandler? m_keepAlive;
         private NotificationEventHandler? m_notification;
         private PublishErrorEventHandler? m_publishError;
@@ -1201,8 +1451,12 @@ namespace Opc.Ua.Client
         private readonly ApplicationConfiguration m_configuration;
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly IServerRedundancyHandler? m_redundancyHandler;
+        private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
+
         private readonly ILogger m_logger;
         private readonly IUserIdentity? m_identity;
+        private readonly IClientIdentityProvider? m_identityProvider;
+        private readonly TimeProvider m_timeProvider;
         private readonly ArrayOf<string> m_preferredLocales;
         private readonly string m_sessionName;
         private readonly uint m_sessionTimeout;
@@ -1210,6 +1464,13 @@ namespace Opc.Ua.Client
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
         private ServerRedundancyInfo? m_redundancyInfo;
+        private readonly object m_identityRefreshLock = new();
+#pragma warning disable CA2213
+        // Disposed by StopIdentityRefreshLoopAsync; sync Dispose cancels because it cannot await.
+        // TODO: move ManagedSession to async-only disposal.
+        private CancellationTokenSource? m_identityRefreshCancellation;
+#pragma warning restore CA2213
+        private Task? m_identityRefreshTask;
         private int m_disposed;
     }
 }

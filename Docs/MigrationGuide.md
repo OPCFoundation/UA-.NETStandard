@@ -44,6 +44,7 @@
         - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
     - [User Identity Token Handlers](#user-identity-token-handlers)
       - [Forward-looking: pluggable identity providers (additive, not yet breaking)](#forward-looking-pluggable-identity-providers-additive-not-yet-breaking)
+        - [P4 — Client identity provider + refresh](#p4--client-identity-provider--refresh)
     - [Configuration](#configuration)
       - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
       - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
@@ -707,8 +708,9 @@ public surface change.
 
 ### Forward-looking: pluggable identity providers (additive, not yet breaking)
 
-> **Status**: interfaces only. No existing API is removed, marked
-> `[Obsolete]`, or changed. See [Identity Providers](IdentityProviders.md)
+> **Status**: interfaces are additive. Client sessions can now use
+> `IClientIdentityProvider` for lazy activation and coordinated refresh.
+> See [Identity Providers](IdentityProviders.md)
 > for the full developer guide.
 
 A new `Opc.Ua.Identity` namespace in `Opc.Ua.Core` exposes a symmetric
@@ -739,6 +741,48 @@ can author and register one `IUserTokenAuthenticator` (or one
 `IClientIdentityProvider`) at a time while the rest of the auth path
 stays on the event.
 
+#### P4 — Client identity provider + refresh
+
+`ManagedSessionOptions.IdentityProvider` is the preferred client option
+for identities that must be acquired lazily or refreshed (for example
+short-lived JWT issued tokens). When both `IdentityProvider` and the
+legacy eager `Identity` are set, `IdentityProvider` takes precedence.
+`ManagedSessionOptions.Identity` is now `[Obsolete]` because an eager
+`IUserIdentity` cannot refresh itself when a token expires.
+
+Raw sessions can refresh explicitly:
+
+```csharp
+await session.UpdateIdentityAsync(identityProvider, ct);
+```
+
+Managed sessions refresh proactively. After connect, `ManagedSession`
+reactivates with the provider, then schedules refresh at
+`provider.ExpiresAt - 60s` using `TimeProvider`. Refresh failures are
+logged and retried with backoff; the session remains open.
+
+Mechanical migration:
+
+```csharp
+// Before: eager identity, no refresh path.
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    Identity = new UserIdentity("user1", passwordBytes)
+};
+
+// After: provider resolves the secret on every activation/refresh.
+var passwordId = new SecretIdentifier("user1-password", InMemorySecretStore.DefaultStoreType);
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    IdentityProvider = new UserNamePasswordIdentityProvider(
+        "user1",
+        secretRegistry,
+        passwordId)
+};
+```
+
 **What to expect in future releases:**
 
 * A future release will route `SessionManager.ActivateSessionAsync`
@@ -759,11 +803,9 @@ stays on the event.
   preserve the historical behaviour for one release; existing
   identity-mapping rules that relied on the buggy semantics should be
   reviewed before that release.
-* The client side will gain a `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)`
-  method that coordinates token refresh with the current
-  `m_serverNonce` and the existing reactivation lock.
-  `ManagedSessionOptions.IdentityProvider` will be added; the eager
-  `ManagedSessionOptions.Identity` setter will be `[Obsolete]`.
+* The client side now has `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)`
+  and `ManagedSessionOptions.IdentityProvider`. Future releases will migrate
+  the in-box samples to these APIs.
 * Part 12 v1.05 deprecates `AuthorizationServiceType.RequestAccessToken`
   in favour of the new `StartRequestToken` / `FinishRequestToken`
   flow. The .NET stack will follow: server-side `RequestAccessToken`

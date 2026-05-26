@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,6 +37,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Identity;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -154,10 +156,55 @@ namespace Microsoft.Extensions.DependencyInjection
             return new OpcUaClientBuilder(builder.Services);
         }
 
+        /// <summary>
+        /// Registers a client identity provider implementation.
+        /// </summary>
+        public static IOpcUaClientBuilder AddIdentityProvider<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
+            this IOpcUaClientBuilder builder)
+            where TProvider : class, IClientIdentityProvider
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddSingleton<TProvider>();
+            builder.Services.AddSingleton<IClientIdentityProvider>(
+                sp => sp.GetRequiredService<TProvider>());
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a composite client identity provider built from the
+        /// supplied shortcut configuration.
+        /// </summary>
+        public static IOpcUaClientBuilder AddIdentityProvider(
+            this IOpcUaClientBuilder builder,
+            Action<CompositeClientIdentityProviderBuilder> configure)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var compositeBuilder = new CompositeClientIdentityProviderBuilder();
+            configure(compositeBuilder);
+            builder.Services.AddSingleton<IClientIdentityProvider>(
+                compositeBuilder.Build());
+            return builder;
+        }
+
         private static void RegisterCoreServices(IServiceCollection services)
         {
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
+
+            services.TryAddSingleton(TimeProvider.System);
 
             services.TryAddSingleton<ISessionFactory>(sp =>
             {
@@ -302,10 +349,24 @@ namespace Microsoft.Extensions.DependencyInjection
                        .WithSessionTimeout(options.Session.SessionTimeout)
                        .WithCheckDomain(options.Session.CheckDomain)
                        .WithReconnectPolicy(_ => options.Session.ReconnectPolicy);
-                if (options.Session.Identity != null)
+
+                IClientIdentityProvider? identityProvider =
+                    options.Session.IdentityProvider ?? ResolveIdentityProvider();
+                if (identityProvider != null)
+                {
+                    builder.WithIdentityProvider(identityProvider);
+                }
+#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
+                else if (options.Session.Identity != null)
                 {
                     builder.WithUserIdentity(options.Session.Identity);
                 }
+#pragma warning restore CS0618
+
+                TimeProvider timeProvider =
+                    options.Session.TimeProvider ?? m_sp.GetRequiredService<TimeProvider>();
+                builder.WithTimeProvider(timeProvider);
+
                 if (options.Session.PreferredLocales is { Count: > 0 } locales)
                 {
                     string[] arr = new string[locales.Count];
@@ -333,6 +394,27 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
 
                 return builder.ConnectAsync(ct);
+            }
+
+            private IClientIdentityProvider? ResolveIdentityProvider()
+            {
+                IEnumerable<IClientIdentityProvider> registered =
+                    m_sp.GetServices<IClientIdentityProvider>();
+                var providers = new List<IClientIdentityProvider>();
+                foreach (IClientIdentityProvider provider in registered)
+                {
+                    providers.Add(provider);
+                }
+
+                if (providers.Count == 0)
+                {
+                    return null;
+                }
+                if (providers.Count == 1)
+                {
+                    return providers[0];
+                }
+                return new CompositeClientIdentityProvider(providers);
             }
 
             private readonly IServiceProvider m_sp;

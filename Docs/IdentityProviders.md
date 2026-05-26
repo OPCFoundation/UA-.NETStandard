@@ -1,11 +1,10 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-> **Status**: Phase 1 — interfaces are in `Opc.Ua.Core` but the server +
-> client paths still use the historical hooks (`SessionManager.ImpersonateUser`
-> event on the server, eager `UserIdentity` ctors on the client). Wiring
-> arrives in subsequent phases (see [Roadmap](#roadmap) below).
-> This guide is for developers who want to author providers *now* against
-> the stable interface surface.
+> **Status**: Phase 4 — client identity providers are wired through
+> `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` and
+> `ManagedSessionOptions.IdentityProvider` with proactive refresh. Server-side
+> provider wiring continues in the remaining phases (see [Roadmap](#roadmap)
+> below).
 
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
@@ -127,16 +126,28 @@ public sealed class MyEntraIdentityProvider : IClientIdentityProvider
 Key design notes:
 
 * **Token refresh is the session's responsibility, not the provider's.**
-  The session calls back into your provider when it decides to
-  reactivate (P4 will add `Session.UpdateIdentityAsync(provider, ct)`
-  which serialises against the session's update lock and re-uses the
-  current `m_serverNonce`). Don't try to refresh tokens inside the
-  provider — race conditions with normal service calls will follow.
-* **Use `ExpiresAt` to schedule proactive refresh.** P4 will add a
-  scheduler that watches `provider.ExpiresAt` and triggers refresh
-  before service calls start failing. Until P4 lands, write the
-  provider so it returns a fresh token per call and let the host
-  decide when to ask.
+  Call `await session.UpdateIdentityAsync(provider, ct)` to reactivate
+  a raw `Session` with a fresh identity. The method serialises with the
+  existing reactivation lock and binds the new token to the current
+  server nonce.
+* **Use `ManagedSessionOptions.IdentityProvider` for managed clients.**
+  `ManagedSession` calls `UpdateIdentityAsync` after connect, then
+  schedules proactive refresh at `provider.ExpiresAt - 60s` using the
+  configured `TimeProvider`. Refresh failures are logged and retried
+  with backoff; they do not close the session.
+
+```csharp
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    IdentityProvider = new IssuedTokenIdentityProvider(accessTokens)
+};
+
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithIdentityProvider(options.IdentityProvider)
+    .ConnectAsync(ct);
+```
 
 ### `IAccessTokenProvider` — orthogonal to the OPC UA stack
 
