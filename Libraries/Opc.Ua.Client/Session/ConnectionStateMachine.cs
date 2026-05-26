@@ -47,6 +47,7 @@ namespace Opc.Ua.Client
         private readonly CancellationTokenSource m_cts = new();
         private readonly AsyncAutoResetEvent m_trigger = new(false);
         private readonly AsyncManualResetEvent m_connected = new(false);
+        private readonly AsyncManualResetEvent m_closed = new(false);
         private readonly Lock m_lock = new();
         private Task? m_worker;
         private int m_disposed;
@@ -123,6 +124,21 @@ namespace Opc.Ua.Client
             }
 
             return new ValueTask(m_connected.WaitAsync(ct));
+        }
+
+        /// <summary>
+        /// Wait until closed or cancelled.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>A task that completes when closed.</returns>
+        public ValueTask WaitForClosedAsync(CancellationToken ct)
+        {
+            if (m_closed.IsSet)
+            {
+                return default;
+            }
+
+            return new ValueTask(m_closed.WaitAsync(ct));
         }
 
         /// <summary>
@@ -482,6 +498,7 @@ namespace Opc.Ua.Client
                     error: null,
                     reconnectAttempt: 0);
                 m_connected.Reset();
+                m_closed.Set();
             }
         }
 
