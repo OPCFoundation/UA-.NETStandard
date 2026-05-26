@@ -53,6 +53,15 @@ For the formal model, see
 AlarmClient alarms = session.GetAlarmClient();
 ```
 
+For dependency-injected hosts use the
+[`builder.AddAlarms()`](DependencyInjection.md#alarms-and-conditions)
+extension and resolve `AlarmClientFactory`:
+
+```csharp
+var factory = sp.GetRequiredService<AlarmClientFactory>();
+AlarmClient alarms = factory.Create(session);
+```
+
 ## Server side
 
 ### Creating an alarm
