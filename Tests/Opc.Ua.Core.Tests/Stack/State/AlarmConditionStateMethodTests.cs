@@ -82,8 +82,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             setter(state);
         }
 
-        #region Silence Tests
-
         [Test]
         public void SetSilenceStateUpdatesValueAndTransitionTime()
         {
@@ -123,10 +121,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.That(alarm.SilenceState.Id.Value, Is.False);
         }
-
-        #endregion
-
-        #region OutOfService Tests
 
         [Test]
         public void SetOutOfServiceStateUpdatesSuppressedOrShelved()
@@ -184,10 +178,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(alarm.SuppressedOrShelved.Value, Is.True, "OutOfService keeps SuppressedOrShelved");
         }
 
-        #endregion
-
-        #region Latched Tests
-
         [Test]
         public void SetLatchedStateUpdatesValueAndTimestamp()
         {
@@ -244,10 +234,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // verify LatchedState alone keeps the alarm in retained state.
             Assert.That(alarm.LatchedState.Id.Value, Is.True);
         }
-
-        #endregion
-
-        #region ReAlarm Tests
 
         [Test]
         public void IsReAlarmEnabledReflectsReAlarmTime()
@@ -311,10 +297,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(alarm.ReAlarmRepeatCount.Value, Is.Zero);
         }
 
-        #endregion
-
-        #region Audible Tests
-
         [Test]
         public void UpdateAudibleStateNoOpWhenAudibleDisabled()
         {
@@ -345,6 +327,5 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(alarm.SilenceState.Id.Value, Is.False, "Audible activation clears silence");
         }
 
-        #endregion
-    }
+}
 }

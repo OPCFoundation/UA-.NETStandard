@@ -56,8 +56,6 @@ namespace Opc.Ua
         /// </summary>
         public AlarmConditionSimpleEventHandler? OnResetRequested;
 
-        #region State Setters
-
         /// <summary>
         /// Sets the silence state of the alarm.
         /// </summary>
@@ -177,10 +175,6 @@ namespace Opc.Ua
 
             return false;
         }
-
-        #endregion
-
-        #region Method Handlers
 
         /// <summary>
         /// Wires the Part 9 alarm methods introduced in this partial file.
@@ -595,10 +589,6 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
 
-        #endregion
-
-        #region Common Infrastructure
-
         /// <summary>
         /// Applies a comment if it is not null/empty.
         /// </summary>
@@ -675,10 +665,6 @@ namespace Opc.Ua
             return error;
         }
 
-        #endregion
-
-        #region ReAlarm Helpers
-
         /// <summary>
         /// Processes a re-alarm occurrence. Call this from an external timer
         /// when <see cref="ReAlarmTime"/> is configured and the alarm is
@@ -743,10 +729,6 @@ namespace Opc.Ua
         public bool IsReAlarmEnabled =>
             ReAlarmTime is { } reAlarmTime && reAlarmTime.Value > 0;
 
-        #endregion
-
-        #region Audible Alarm Support
-
         /// <summary>
         /// Updates the audible state of the alarm when it activates.
         /// Call this after <see cref="SetActiveState"/> when
@@ -788,8 +770,7 @@ namespace Opc.Ua
             ClearChangeMasks(context, includeChildren: true);
         }
 
-        #endregion
-    }
+}
 
     /// <summary>
     /// Delegate for simple alarm condition events (Silence, Reset).

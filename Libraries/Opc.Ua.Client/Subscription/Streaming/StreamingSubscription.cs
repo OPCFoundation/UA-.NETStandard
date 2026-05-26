@@ -337,8 +337,6 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             }
         }
 
-        #region Helpers
-
         private sealed class Notifier : ISubscriptionNotificationHandler
         {
             private readonly StreamingSubscription m_parent;
@@ -471,7 +469,6 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             public IDisposable? OnChange(Action<T, string?> listener) => null;
         }
 
-        #endregion
-    }
+}
 }
 

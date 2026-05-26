@@ -56,8 +56,6 @@ namespace Opc.Ua.Client.Alarms
             m_session = session ?? throw new ArgumentNullException(nameof(session));
         }
 
-        #region Condition Operations
-
         /// <inheritdoc/>
         public async ValueTask EnableAsync(
             NodeId conditionId,
@@ -121,10 +119,6 @@ namespace Opc.Ua.Client.Alarms
                 Variant.From(monitoredItemId)).ConfigureAwait(false);
         }
 
-        #endregion
-
-        #region Acknowledgeable Condition Operations
-
         /// <inheritdoc/>
         public async ValueTask AcknowledgeAsync(
             NodeId conditionId,
@@ -154,10 +148,6 @@ namespace Opc.Ua.Client.Alarms
                 Variant.From(eventId),
                 Variant.From(comment)).ConfigureAwait(false);
         }
-
-        #endregion
-
-        #region Alarm Operations
 
         /// <inheritdoc/>
         public async ValueTask SilenceAsync(
@@ -338,10 +328,6 @@ namespace Opc.Ua.Client.Alarms
             return ExtractNodeIdArray(outputs[0]);
         }
 
-        #endregion
-
-        #region Dialog Condition Operations
-
         /// <inheritdoc/>
         public async ValueTask RespondAsync(
             NodeId conditionId,
@@ -370,10 +356,6 @@ namespace Opc.Ua.Client.Alarms
                 Variant.From(comment)).ConfigureAwait(false);
         }
 
-        #endregion
-
-        #region Helpers
-
         private async ValueTask CallVoidMethodAsync(
             NodeId objectId,
             NodeId methodId,
@@ -399,6 +381,5 @@ namespace Opc.Ua.Client.Alarms
             };
         }
 
-        #endregion
-    }
+}
 }
