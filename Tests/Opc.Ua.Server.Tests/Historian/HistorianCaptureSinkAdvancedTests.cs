@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -126,7 +130,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 sink.Enqueue(nodeId, new DataValue(new Variant(99), StatusCodes.Good, DateTime.UtcNow)));
 
             await Task.Delay(50).ConfigureAwait(false);
-            Assert.That(provider.Inserts.Count, Is.EqualTo(countBefore),
+            Assert.That(provider.Inserts, Has.Count.EqualTo(countBefore),
                 "Enqueue after dispose must be a silent no-op.");
         }
 

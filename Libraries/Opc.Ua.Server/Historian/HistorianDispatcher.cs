@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -333,6 +334,8 @@ namespace Opc.Ua.Server.Historian
         /// standard streaming fallback when the provider does not
         /// implement <see cref="IHistorianProcessedProvider"/>.
         /// </summary>
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint or disposed inline by EmitProcessedPage.")]
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -841,6 +844,8 @@ namespace Opc.Ua.Server.Historian
             return null;
         }
 
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint.")]
         private static void SaveOrReleaseAnnotationContinuation(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
@@ -1244,6 +1249,8 @@ namespace Opc.Ua.Server.Historian
             return new HistorianEventRecord(eventId, eventType, sourceTs, fields);
         }
 
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint.")]
         private static void SaveOrReleaseEventContinuation(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
@@ -1491,6 +1498,8 @@ namespace Opc.Ua.Server.Historian
             return default;
         }
 
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "HistorianContinuationState ownership is transferred to the session via SaveHistoryContinuationPoint.")]
         private static void SaveOrReleaseContinuation(
             ServerSystemContext systemContext,
             HistoryReadValueId nodeToRead,
@@ -1567,8 +1576,8 @@ namespace Opc.Ua.Server.Historian
 
         private static void FillHistoryModifiedData(
             HistoryReadResult result,
-            IReadOnlyList<DataValue> values,
-            IReadOnlyList<ModificationInfo> infos,
+            List<DataValue> values,
+            List<ModificationInfo> infos,
             HistoryReadValueId nodeToRead,
             TimestampsToReturn timestampsToReturn)
         {
@@ -1684,7 +1693,7 @@ namespace Opc.Ua.Server.Historian
             HistorianOperationContext context,
             IHistorianDataProvider raw,
             NodeId nodeId,
-            IReadOnlyList<DateTimeUtc> times,
+            List<DateTimeUtc> times,
             CancellationToken cancellationToken)
         {
             if (times.Count == 0)
@@ -1736,7 +1745,7 @@ namespace Opc.Ua.Server.Historian
             return collected;
         }
 
-        private static DataValue InterpolateAtTime(IList<DataValue> samples, DateTimeUtc requestedTime, bool useSimpleBounds)
+        private static DataValue InterpolateAtTime(List<DataValue> samples, DateTimeUtc requestedTime, bool useSimpleBounds)
         {
             DataValue before = DataValue.Null;
             DataValue after = DataValue.Null;
@@ -1825,7 +1834,7 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        private static IList<DataValue> ToList(ArrayOf<DataValue> values)
+        private static List<DataValue> ToList(ArrayOf<DataValue> values)
         {
             var list = new List<DataValue>(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -1840,7 +1849,7 @@ namespace Opc.Ua.Server.Historian
             return values is IReadOnlyList<DataValue> rol ? rol : new List<DataValue>(values);
         }
 
-        private static IList<StatusCode> RepeatStatus(StatusCode code, int count)
+        private static StatusCode[] RepeatStatus(StatusCode code, int count)
         {
             var statuses = new StatusCode[count];
             for (int i = 0; i < count; i++)

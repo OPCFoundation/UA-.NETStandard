@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+
 #nullable enable
 
 using System;
@@ -554,7 +558,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             CancellationToken.None).ConfigureAwait(false);
 
         Assert.That(page.Values, Has.Count.EqualTo(1));
-        Assert.That(page.Values[0].EventId == eventId, Is.True);
+        Assert.That(page.Values[0].EventId, Is.EqualTo(eventId));
     }
 
     [Test]

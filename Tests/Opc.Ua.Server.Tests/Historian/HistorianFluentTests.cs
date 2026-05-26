@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+
 using System;
 using System.Collections.Generic;
 using Moq;
@@ -118,7 +122,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryRead),
                 Is.EqualTo(AccessLevels.HistoryRead));
             Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryWrite),
-                Is.EqualTo(0),
+                Is.Zero,
                 "HistoryWrite must not be set when only HistoryRead was requested.");
         }
 

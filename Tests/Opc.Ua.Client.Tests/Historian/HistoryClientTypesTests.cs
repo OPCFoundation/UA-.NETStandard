@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var options = new HistoryClientOptions();
 
             Assert.That(options.DefaultTimestampsToReturn, Is.EqualTo(TimestampsToReturn.Source));
-            Assert.That(options.DefaultMaxValuesPerNode, Is.EqualTo(0u));
+            Assert.That(options.DefaultMaxValuesPerNode, Is.Zero);
         }
 
         [Test]
