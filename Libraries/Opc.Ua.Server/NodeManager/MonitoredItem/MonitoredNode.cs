@@ -194,13 +194,11 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // Build snapshot so the original event state is preserved when the consumer processes it.
             IFilterTarget eventTarget = e;
-            if (e is BaseInstanceState instanceState)
+            // Build snapshot so the original event state is preserved when the consumer processes it.
+            if (e is NodeState eventState)
             {
-                var snapshot = new InstanceStateSnapshot();
-                snapshot.Initialize(context, instanceState);
-                eventTarget = snapshot;
+                eventTarget = (IFilterTarget)eventState.Clone();
             }
 
             var notification = new EventSnapshot
@@ -495,7 +493,7 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             in DataValue snapshotValue)
         {
-            
+
             // Clone the Variant so we do not mutate the shared snapshot value.
             Variant value = snapshotValue.WrappedValue.Copy();
 
