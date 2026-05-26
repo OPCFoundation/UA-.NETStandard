@@ -27,27 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using System;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
-    {
-        o.ApplicationName = "MinimalPumpServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalPumpServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalPumpServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalPumpServer");
-    })
-    .AddNodeManager<Pumps.PumpNodeManagerFactory>();
-
-await builder.Build().RunAsync().ConfigureAwait(false);
+[assembly: CLSCompliant(false)]

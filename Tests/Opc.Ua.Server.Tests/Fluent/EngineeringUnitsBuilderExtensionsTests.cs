@@ -148,7 +148,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             vb.WithUnits(units, min: 0, max: 1_000_000);
 
             Assert.That(analog.EngineeringUnits!.Value, Is.SameAs(units));
-            Assert.That(analog.EURange!.Value.Low, Is.EqualTo(0));
+            Assert.That(analog.EURange!.Value.Low, Is.Zero);
             Assert.That(analog.EURange.Value.High, Is.EqualTo(1_000_000));
         }
 

@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Fluent
         {
             ValidateArgs(builder, browseName);
             BaseVariableState property = ResolveVariableChildByName(
-                builder!.Node, browseName, builder.Builder.Context);
+                builder.Node, browseName, builder.Builder.Context);
             property.WrappedValue = value;
             return builder;
         }
@@ -225,12 +225,16 @@ namespace Opc.Ua.Server.Fluent
 
         // ── Helpers ──────────────────────────────────────────────────
 
-        private static void ValidateArgs(INodeBuilder? builder, string browseName)
+        private static void ValidateArgs(INodeBuilder builder, string browseName)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             if (string.IsNullOrEmpty(browseName))
             {
-                throw new ArgumentNullException(nameof(browseName));
+                throw new ArgumentException(
+                    "Browse name must not be null or empty.", nameof(browseName));
             }
         }
 

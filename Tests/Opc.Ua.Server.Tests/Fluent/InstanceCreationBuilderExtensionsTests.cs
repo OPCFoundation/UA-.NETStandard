@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var children = new List<BaseInstanceState>();
             root.GetChildren(null!, children);
-            Assert.That(children.Count, Is.EqualTo(2));
+            Assert.That(children, Has.Count.EqualTo(2));
         }
 
         [Test]

@@ -144,8 +144,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             v.ClearChangeMasks(null!, includeChildren: false);
             // First write to value (false -> false) -> no rising, no falling
 
-            Assert.That(rising, Is.EqualTo(0));
-            Assert.That(falling, Is.EqualTo(0));
+            Assert.That(rising, Is.Zero);
+            Assert.That(falling, Is.Zero);
         }
 
         [Test]

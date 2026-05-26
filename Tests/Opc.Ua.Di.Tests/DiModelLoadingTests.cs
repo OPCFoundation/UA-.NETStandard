@@ -59,9 +59,9 @@ namespace Opc.Ua.Di.Tests
         public void DiHasIdentifiersGenerated()
         {
             // Sanity: a few well-known DI ObjectType ids should be available.
-            Assert.That(global::Opc.Ua.Di.ObjectTypes.DeviceType, Is.Not.EqualTo(0u));
-            Assert.That(global::Opc.Ua.Di.ObjectTypes.TopologyElementType, Is.Not.EqualTo(0u));
-            Assert.That(global::Opc.Ua.Di.ObjectTypes.FunctionalGroupType, Is.Not.EqualTo(0u));
+            Assert.That(global::Opc.Ua.Di.ObjectTypes.DeviceType, Is.Not.Zero);
+            Assert.That(global::Opc.Ua.Di.ObjectTypes.TopologyElementType, Is.Not.Zero);
+            Assert.That(global::Opc.Ua.Di.ObjectTypes.FunctionalGroupType, Is.Not.Zero);
         }
 
         [Test]
@@ -78,7 +78,7 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(nodes, Is.Not.Empty,
                 "DI model should contribute predefined nodes.");
-            Assert.That(nodes.Count, Is.GreaterThan(10),
+            Assert.That(nodes, Has.Count.GreaterThan(10),
                 "DI model should contribute non-trivial number of nodes.");
         }
 

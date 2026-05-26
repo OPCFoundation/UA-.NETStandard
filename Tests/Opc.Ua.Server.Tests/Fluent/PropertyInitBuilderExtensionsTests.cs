@@ -202,12 +202,12 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void WithPropertyEmptyBrowseNameThrowsArgumentNullException()
+        public void WithPropertyEmptyBrowseNameThrowsArgumentException()
         {
             (NodeManagerBuilder b, _, _, _, _) = CreateBuilderWithObject();
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
-            Assert.Throws<ArgumentNullException>(
+            Assert.Throws<ArgumentException>(
                 () => nb.WithProperty(string.Empty, "x"));
         }
 
