@@ -846,9 +846,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that the event snapshot is taken at the time <see cref="OnReportEvent"/> is
-        /// called. Mutating the original event instance after enqueueing must not alter what the
-        /// consumer delivers to the monitored item.
+        /// Verifies that <see cref="OnReportEvent"/> clones event data at enqueue time.
+        /// Mutating the original event instance after enqueueing must not alter the queued clone.
         /// </summary>
         [Test]
         public void OnReportEvent_EventSnapshot_CapturesStateAtEnqueueTime_NotAtProcessingTime()
@@ -889,7 +888,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<ServiceResult>(ServiceResult.Good);
                 });
 
-            // Capture the IFilterTarget that reaches QueueEvent so we can inspect it.
+            // Capture the IFilterTarget that reaches QueueEvent so we can inspect cloned values.
             IFilterTarget deliveredTarget = null;
 
             var serverMock = new Mock<IServerInternal>();
@@ -903,35 +902,42 @@ namespace Opc.Ua.Server.Tests
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(eventItemMock.Object);
 
-            // Create a concrete instance state and enqueue it
-            var originalEvent = new BaseObjectState(null)
-            {
-                NodeId = new NodeId("event1", 1),
-                BrowseName = new QualifiedName("event1", 1)
-            };
-
             ISystemContext context = new Mock<ISystemContext>().Object;
-            monitoredNode.OnReportEvent(context, node, originalEvent);
-            validationStarted.Wait(TimeSpan.FromSeconds(30));
 
-            // Mutate the original after enqueue – the snapshot must not reflect this change
-            originalEvent.BrowseName = new QualifiedName("mutated", 1);
+            // Create an existing event type and set values before enqueue.
+            var originalEvent = new BaseEventState(null);
+            originalEvent.SetChildValue(context, BrowseNames.SourceName, "source-before", false);
+            originalEvent.SetChildValue(context, BrowseNames.Severity, (ushort)300, false);
+
+            monitoredNode.OnReportEvent(context, node, originalEvent);
+            Assert.That(validationStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
+
+            // Mutate the original after enqueue – the clone must not reflect this change.
+            originalEvent.SetChildValue(context, BrowseNames.SourceName, "source-after", false);
+            originalEvent.SetChildValue(context, BrowseNames.Severity, (ushort)900, false);
 
             validationGate.Release();
             monitoredNode.Dispose();
 
-            // Assert – the delivered target is an InstanceStateSnapshot (proving a deep copy was
-            // taken at enqueue time). Its Handle points back to the original event instance;
-            // the snapshot itself is independent of any subsequent mutation to that instance.
             Assert.That(deliveredTarget, Is.Not.Null);
-            Assert.That(deliveredTarget, Is.InstanceOf<InstanceStateSnapshot>());
-            var snapshot = (InstanceStateSnapshot)deliveredTarget;
-            // The snapshot's Handle is the original (now mutated) event, confirming that the
-            // snapshot was captured FROM that instance but is structurally independent.
-            Assert.That(snapshot.Handle, Is.SameAs(originalEvent));
-            // The original browse name was changed to "mutated" AFTER the snapshot was taken;
-            // the original node is now mutated, which confirms our enqueue happened before mutation.
-            Assert.That(originalEvent.BrowseName, Is.EqualTo(new QualifiedName("mutated", 1)));
+
+            var filterContext = new Mock<IFilterContext>();
+            Variant sourceName = deliveredTarget.GetAttributeValue(
+                filterContext.Object,
+                NodeId.Null,
+                [QualifiedName.From(BrowseNames.SourceName)],
+                Attributes.Value,
+                NumericRange.Null);
+            Variant severity = deliveredTarget.GetAttributeValue(
+                filterContext.Object,
+                NodeId.Null,
+                [QualifiedName.From(BrowseNames.Severity)],
+                Attributes.Value,
+                NumericRange.Null);
+
+            // Assert cloned values remain the enqueue-time values.
+            Assert.That(sourceName.AsBoxedObject(), Is.EqualTo("source-before"));
+            Assert.That(severity.AsBoxedObject(), Is.EqualTo((ushort)300));
         }
 
         /// <summary>
