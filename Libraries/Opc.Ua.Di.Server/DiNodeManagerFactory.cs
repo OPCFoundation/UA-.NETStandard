@@ -30,16 +30,41 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Server
 {
     /// <summary>
     /// <see cref="IAsyncNodeManagerFactory"/> that produces
-    /// <see cref="DiNodeManager"/> instances.
+    /// <see cref="DiNodeManager"/> instances. When constructed through
+    /// the unified <c>AddOpcUaDi()</c> hosting pipeline, the factory
+    /// injects an <see cref="IDiPostSetupRunner"/> into every manager
+    /// it produces so post-setup configurators are dispatched
+    /// automatically.
     /// </summary>
     public sealed class DiNodeManagerFactory : IAsyncNodeManagerFactory
     {
+        private readonly IDiPostSetupRunner? m_runner;
+
+        /// <summary>
+        /// Creates a factory without DI-hosting integration.
+        /// </summary>
+        public DiNodeManagerFactory()
+            : this(null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory that injects the supplied runner into every
+        /// manager it produces. Typically resolved from the DI container
+        /// by the <c>AddOpcUaDi()</c> registration.
+        /// </summary>
+        public DiNodeManagerFactory(IDiPostSetupRunner? runner)
+        {
+            m_runner = runner;
+        }
+
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris => new string[]
         {
@@ -55,7 +80,7 @@ namespace Opc.Ua.Di.Server
             CancellationToken cancellationToken = default)
         {
             // Ownership of the node manager is transferred to the server.
-            IAsyncNodeManager nodeManager = new DiNodeManager(server, configuration);
+            IAsyncNodeManager nodeManager = new DiNodeManager(server, configuration, m_runner);
             return new ValueTask<IAsyncNodeManager>(nodeManager);
         }
     }

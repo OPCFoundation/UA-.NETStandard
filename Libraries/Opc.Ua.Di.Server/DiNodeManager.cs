@@ -82,11 +82,30 @@ namespace Opc.Ua.Di.Server
         private NodeManagerBuilder? m_builder;
 
         /// <summary>
-        /// Initialises a new <see cref="DiNodeManager"/>.
+        /// Initialises a new <see cref="DiNodeManager"/> without DI-
+        /// hosting integration. Use this constructor for manual
+        /// (non-<c>AddOpcUaDi</c>) wiring.
         /// </summary>
         public DiNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
+            : this(server, configuration, postSetupRunner: null)
+        {
+        }
+
+        /// <summary>
+        /// Initialises a new <see cref="DiNodeManager"/> with an
+        /// optional post-setup runner. The runner is invoked at the
+        /// end of the manager's
+        /// <c>CreateAddressSpaceAsync</c> (only when the runtime type
+        /// is exactly <see cref="DiNodeManager"/>; subclasses must
+        /// invoke the runner themselves at the appropriate point in
+        /// their own override).
+        /// </summary>
+        public DiNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner)
             : base(
                   server,
                   configuration,
@@ -94,6 +113,7 @@ namespace Opc.Ua.Di.Server
                   DiNamespaceUri)
         {
             SystemContext.NodeIdFactory = this;
+            PostSetupRunner = postSetupRunner;
         }
 
         /// <summary>
@@ -112,6 +132,21 @@ namespace Opc.Ua.Di.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             params string[] additionalNamespaceUris)
+            : this(server, configuration, postSetupRunner: null, additionalNamespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Initialises a new <see cref="DiNodeManager"/> that registers
+        /// additional namespaces in addition to DI and accepts an
+        /// optional post-setup runner. Subclasses pass the runner
+        /// injected through their factory.
+        /// </summary>
+        protected DiNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner,
+            params string[] additionalNamespaceUris)
             : base(
                   server,
                   configuration,
@@ -119,7 +154,18 @@ namespace Opc.Ua.Di.Server
                   CombineNamespaces(additionalNamespaceUris))
         {
             SystemContext.NodeIdFactory = this;
+            PostSetupRunner = postSetupRunner;
         }
+
+        /// <summary>
+        /// Optional post-setup runner injected through the DI hosting
+        /// pipeline. Subclasses invoke this from their
+        /// <c>CreateAddressSpaceAsync</c> override after their own
+        /// builder/wiring work completes; the base class only invokes
+        /// it when the runtime type is exactly
+        /// <see cref="DiNodeManager"/>.
+        /// </summary>
+        protected global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
 
         private static string[] CombineNamespaces(string[] additional)
         {
@@ -194,6 +240,17 @@ namespace Opc.Ua.Di.Server
         {
             await base.CreateAddressSpaceAsync(
                 externalReferences, cancellationToken).ConfigureAwait(false);
+
+            // Only run post-setup configurators when this is exactly a
+            // DiNodeManager. Subclasses must invoke PostSetupRunner from
+            // their own override at the right point (typically AFTER their
+            // builder configuration completes) so configurators see the
+            // fully wired subclass state.
+            if (PostSetupRunner != null && GetType() == typeof(DiNodeManager))
+            {
+                await PostSetupRunner.RunAsync(this, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>

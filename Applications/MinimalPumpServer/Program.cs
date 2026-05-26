@@ -30,6 +30,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -48,6 +49,25 @@ builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalPumpServer");
     })
-    .AddNodeManager<Pumps.PumpNodeManagerFactory>();
+    .AddNodeManager<Pumps.PumpNodeManagerFactory>()
+    // Phase 8H DI hosting integration: materialise a second pump
+    // declaratively at server startup. The runner runs the delegate
+    // AFTER the pump-specific NodeSet2 + fluent wiring is complete.
+    .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
+    {
+        var pump = await ctx.CreateDeviceAsync(
+            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex))
+            .ConfigureAwait(false);
+
+        pump.WithIdentification(id =>
+        {
+            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
+            id.Model = new LocalizedText("PumpX-2000 (declarative)");
+            id.SerialNumber = "SN-DI-2";
+            id.DeviceClass = "Pump";
+            id.HardwareRevision = "1.0";
+            id.SoftwareRevision = "2.5.3";
+        });
+    });
 
 await builder.Build().RunAsync().ConfigureAwait(false);

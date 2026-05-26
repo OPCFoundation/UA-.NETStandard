@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
@@ -50,14 +51,28 @@ namespace Pumps
     public partial class PumpNodeManager : DiNodeManager
     {
         /// <summary>
-        /// Initialises a new <see cref="PumpNodeManager"/>.
+        /// Initialises a new <see cref="PumpNodeManager"/> without
+        /// DI-hosting integration.
         /// </summary>
         public PumpNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
+            : this(server, configuration, postSetupRunner: null)
+        {
+        }
+
+        /// <summary>
+        /// Initialises a new <see cref="PumpNodeManager"/> that
+        /// participates in the DI hosting post-setup pipeline.
+        /// </summary>
+        public PumpNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IDiPostSetupRunner? postSetupRunner)
             : base(
                   server,
                   configuration,
+                  postSetupRunner,
                   PumpsNamespaceUri,
                   MachineryNamespaceUri)
         {
@@ -134,6 +149,15 @@ namespace Pumps
             m_logger.LogInformation(
                 "PumpNodeManager: address space ready ({NodeCount} predefined nodes).",
                 PredefinedNodes.Count);
+
+            // DI hosting post-setup runs LAST — after the pump-specific
+            // fluent wiring is complete and sealed — so configurators
+            // see the fully wired manager.
+            if (PostSetupRunner != null)
+            {
+                await PostSetupRunner.RunAsync(this, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         private NodeState? FindRootByBrowseName(QualifiedName browseName)
@@ -173,9 +197,33 @@ namespace Pumps
 
     /// <summary>
     /// Factory that produces <see cref="PumpNodeManager"/> instances.
+    /// When constructed by the DI container via
+    /// <c>AddNodeManager&lt;PumpNodeManagerFactory&gt;()</c>, the
+    /// post-setup runner is injected and forwarded to every manager
+    /// the factory produces, enabling
+    /// <c>ConfigureDevicesFor&lt;PumpNodeManager&gt;(...)</c>.
     /// </summary>
     public sealed class PumpNodeManagerFactory : IAsyncNodeManagerFactory
     {
+        private readonly IDiPostSetupRunner? m_runner;
+
+        /// <summary>
+        /// Creates a factory without DI-hosting integration.
+        /// </summary>
+        public PumpNodeManagerFactory()
+            : this(null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory that injects the post-setup runner into
+        /// every manager it produces.
+        /// </summary>
+        public PumpNodeManagerFactory(IDiPostSetupRunner? runner)
+        {
+            m_runner = runner;
+        }
+
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris => new string[]
         {
@@ -192,7 +240,7 @@ namespace Pumps
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-            IAsyncNodeManager nm = new PumpNodeManager(server, configuration);
+            IAsyncNodeManager nm = new PumpNodeManager(server, configuration, m_runner);
             return new ValueTask<IAsyncNodeManager>(nm);
         }
     }

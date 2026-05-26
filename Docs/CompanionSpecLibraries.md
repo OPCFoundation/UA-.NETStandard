@@ -295,6 +295,118 @@ protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
 See `Applications/MinimalPumpServer/PumpNodeManager.cs` for the full
 end-to-end consumer.
 
+## 4a. DI hosting integration (`AddOpcUa()` extensions)
+
+Each DI library trio plugs into the unified
+`AddOpcUa().AddServer(...)` Microsoft.Extensions DI hosting pattern via
+two extension method bundles:
+
+| Extension | Library | Purpose |
+|-----------|---------|---------|
+| `IOpcUaServerBuilder.AddOpcUaDi()` | `Opc.Ua.Di.Server` | Registers `DiNodeManagerFactory` so a plain DI server (no companion specs) can be hosted. |
+| `IOpcUaServerBuilder.ConfigureDevicesFor<TNodeManager>(action)` | `Opc.Ua.Di.Server` | Declaratively materialises devices at startup. The delegate runs once the manager's address space is fully wired. |
+| `IOpcUaClientBuilder.AddOpcUaDi()` | `Opc.Ua.Di.Client` | Registers `IDiDiscoveryService` and a lazy `Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>` factory. |
+
+### Plain DI server (no companion spec)
+
+```csharp
+services.AddOpcUa()
+    .AddServer(o =>
+    {
+        o.ApplicationName = "MyDiServer";
+        o.EndpointUrls.Add("opc.tcp://localhost:48010/MyDiServer");
+    })
+    .AddOpcUaDi()
+    .ConfigureDevicesForAsync<DiNodeManager>(async ctx =>
+    {
+        var sensor = await ctx.CreateDeviceAsync(
+            new QualifiedName("Sensor #1", ctx.Manager.DiNamespaceIndex));
+        sensor.WithIdentification(id =>
+        {
+            id.Manufacturer = new LocalizedText("Acme");
+            id.SerialNumber = "SN-001";
+        });
+    });
+```
+
+### Companion-spec server (Pumps + DI)
+
+`AddOpcUaDi()` is for the plain DI manager. Companion specs that
+already include DI in their composite manager (e.g. the pump server,
+which loads DI + Machinery + Pumps via `IModelLoaderBuilder`) skip
+`AddOpcUaDi()` and instead register their own factory directly:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(o => { o.ApplicationName = "MinimalPumpServer"; ... })
+    .AddNodeManager<Pumps.PumpNodeManagerFactory>()
+    .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
+    {
+        var pump = await ctx.CreateDeviceAsync(
+            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex));
+        pump.WithIdentification(id =>
+        {
+            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
+            id.SerialNumber = "SN-DI-2";
+            id.DeviceClass = "Pump";
+        });
+    });
+```
+
+`ConfigureDevicesFor<TNodeManager>` targets the supplied node-manager
+type **including derived classes** (matching follows
+`Type.IsAssignableFrom`). A delegate targeting `DiNodeManager` will run
+against pump managers as well; the inverse (target `PumpNodeManager`)
+will not run against plain `DiNodeManager` instances.
+
+### How it wires together
+
+1. `AddOpcUaDi()` (or, for companion specs, the registration of a
+   DI-aware factory) places a singleton
+   `IDiPostSetupRunner` into the DI container.
+2. `ConfigureDevicesFor<TNodeManager>(action)` wraps the delegate in
+   an `IDiPostSetupConfigurator` keyed by the manager type and adds it
+   to the service collection.
+3. `DiNodeManagerFactory` (and `PumpNodeManagerFactory`, etc.) inject
+   the runner into the manager they create.
+4. The manager's `CreateAddressSpaceAsync` calls `runner.RunAsync(this, ct)`
+   after its address space is fully populated and (for companion-spec
+   managers) the fluent builder has been sealed. The runner filters
+   configurators by `TargetManagerType` and invokes each one in
+   registration order.
+5. Exceptions thrown from a configurator abort hosted-server startup
+   with a diagnostic identifying the failing configurator.
+
+### Client-side hosting
+
+```csharp
+services.AddOpcUa()
+    .AddClient(o => { o.Configuration = ...; o.Session.Endpoint = ...; })
+    .AddOpcUaDi();
+
+// Then inject into your services:
+public sealed class MyAppService(
+    IDiDiscoveryService discovery,
+    Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>> deviceFactory)
+{
+    public async Task ReportAsync(CancellationToken ct)
+    {
+        IReadOnlyList<DeviceEntry> devices = await discovery
+            .EnumerateDevicesAsync(ct);
+        foreach (var entry in devices)
+        {
+            DiDeviceClient device = await deviceFactory(entry.DeviceId, ct);
+            DeviceIdentification id = await device.ReadIdentificationAsync(ct);
+            // ...
+        }
+    }
+}
+```
+
+`AddOpcUaDi()` on the client builder requires `AddClient(...)` to have
+been called first — it depends on the managed-session accessor
+registered by the client services.
+
 ## 5. Testing
 
 Each library gets its own test project. Recommended split:
