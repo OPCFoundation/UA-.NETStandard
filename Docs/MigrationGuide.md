@@ -1401,7 +1401,7 @@ record hierarchy — and most of it requires no migration. See
 [Alarms and Conditions](AlarmsAndConditions.md) for the developer
 guide.
 
-Three changes require attention.
+Four changes require attention.
 
 #### Event-record types are now source-generated (breaking)
 
@@ -1455,6 +1455,40 @@ a `VibrationAlarmTypeRecord : AlarmConditionTypeRecord` in your
 target namespace with every declared field exposed. Add convenience
 members via a hand-written `partial record VibrationAlarmTypeRecord
 { ... }` next to your generated types.
+
+#### `AlarmClient` now requires `ITelemetryContext` (breaking)
+
+`AlarmClient` was reworked to delegate every Part 9 method call to
+the matching source-generated `*TypeClient` proxy
+(`ConditionTypeClient`, `AcknowledgeableConditionTypeClient`,
+`AlarmConditionTypeClient`, `DialogConditionTypeClient`,
+`ShelvedStateMachineTypeClient`). The proxy base
+(`ObjectTypeClient`) requires a non-null telemetry context, so the
+`AlarmClient` ctor and the `GetAlarmClient` extension now take one
+too:
+
+```csharp
+// Was:
+AlarmClient alarms = new AlarmClient(session);
+AlarmClient alarms = session.GetAlarmClient();
+
+// Is:
+AlarmClient alarms = new AlarmClient(session, telemetry);
+AlarmClient alarms = session.GetAlarmClient(telemetry);
+```
+
+DI consumers are unaffected — the `AlarmClientFactory` (registered
+by `builder.AddAlarms()`) already threads the host's telemetry into
+the client:
+
+```csharp
+var factory = sp.GetRequiredService<AlarmClientFactory>();
+AlarmClient alarms = factory.Create(session); // unchanged
+```
+
+The public `IAlarmOperations` / `IDialogConditionOperations`
+interfaces — every method that takes a `NodeId conditionId` —
+are unchanged.
 
 #### `AlarmConditionState` state-transition behavior
 

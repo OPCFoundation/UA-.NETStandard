@@ -49,14 +49,14 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void GetAlarmClientReturnsNonNullInstance()
         {
-            AlarmClient client = Session.GetAlarmClient();
+            AlarmClient client = Session.GetAlarmClient(Telemetry);
             Assert.That(client, Is.Not.Null);
         }
 
         [Test]
         public void ConditionRefreshOnInvalidSubscriptionReturnsBadStatus()
         {
-            AlarmClient client = Session.GetAlarmClient();
+            AlarmClient client = Session.GetAlarmClient(Telemetry);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ConditionRefreshAsync(
@@ -72,7 +72,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void EnableOnUnknownConditionReturnsBadStatus()
         {
-            AlarmClient client = Session.GetAlarmClient();
+            AlarmClient client = Session.GetAlarmClient(Telemetry);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.EnableAsync(
@@ -88,7 +88,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void AcknowledgeOnUnknownConditionReturnsBadStatus()
         {
-            AlarmClient client = Session.GetAlarmClient();
+            AlarmClient client = Session.GetAlarmClient(Telemetry);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.AcknowledgeAsync(
@@ -106,7 +106,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void SilenceOnUnknownConditionReturnsBadStatus()
         {
-            AlarmClient client = Session.GetAlarmClient();
+            AlarmClient client = Session.GetAlarmClient(Telemetry);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.SilenceAsync(
@@ -122,7 +122,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void TimedShelveOnUnknownConditionReturnsBadStatus()
         {
-            AlarmClient client = Session.GetAlarmClient();
+            AlarmClient client = Session.GetAlarmClient(Telemetry);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.TimedShelveAsync(

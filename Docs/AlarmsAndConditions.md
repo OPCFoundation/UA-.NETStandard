@@ -47,19 +47,32 @@ For the formal model, see
 | Stream alarm events | n/a | `IStreamingSubscription.SubscribeAlarmsAsync` |
 | Decode raw event fields | n/a | `AlarmEventDecoder` |
 
-`AlarmClient` is obtained from any `ISession`:
+`AlarmClient` is obtained from any `ISession` and a telemetry context;
+internally it delegates every Part 9 method call to the matching
+source-generated `*TypeClient` proxy (so there is exactly one place
+that knows each method NodeId — the generator):
 
 ```csharp
-AlarmClient alarms = session.GetAlarmClient();
+AlarmClient alarms = session.GetAlarmClient(telemetry);
 ```
 
 For dependency-injected hosts use the
 [`builder.AddAlarms()`](DependencyInjection.md#alarms-and-conditions)
-extension and resolve `AlarmClientFactory`:
+extension and resolve `AlarmClientFactory` (which threads the
+host's telemetry into the client for you):
 
 ```csharp
 var factory = sp.GetRequiredService<AlarmClientFactory>();
 AlarmClient alarms = factory.Create(session);
+```
+
+If you already have a typed handle to a specific condition node you
+can also construct a proxy directly — `AlarmClient` is a convenience
+façade over these:
+
+```csharp
+await new AlarmConditionTypeClient(session, conditionId, telemetry)
+    .AcknowledgeAsync(eventId, comment);
 ```
 
 ## Server side
@@ -311,14 +324,18 @@ audit event — it happens inside the method handler when
 ### `AlarmClient` — typed operations
 
 `AlarmClient` is the strongly-typed client API for Part 9 methods.
-Internally it uses the well-known `ConditionType` /
-`AcknowledgeableConditionType` / `AlarmConditionType` /
-`DialogConditionType` method NodeIds, so it works whether or not the
-server exposes condition instances as nodes in the address space
-(Part 9 §5.5.4 — `ConditionId` is acceptable as `ObjectId`).
+Each method delegates to the matching source-generated
+`*TypeClient` proxy (`ConditionTypeClient`,
+`AcknowledgeableConditionTypeClient`,
+`AlarmConditionTypeClient`, `DialogConditionTypeClient`,
+`ShelvedStateMachineTypeClient`), passing the caller-supplied
+`conditionId` as the proxy's `ObjectId`. This honours the Part 9
+§5.5.4 idiom (`ConditionId` is acceptable as `ObjectId`) and keeps
+exactly one source of truth — the generated proxy — for every
+method NodeId and argument shape.
 
 ```csharp
-AlarmClient alarms = session.GetAlarmClient();
+AlarmClient alarms = session.GetAlarmClient(telemetry);
 
 // ConditionType methods
 await alarms.EnableAsync(conditionId);

@@ -35,351 +35,218 @@ namespace Opc.Ua.Client.Alarms
 {
     /// <summary>
     /// Default implementation of OPC UA Part 9 alarm and condition
-    /// client operations. Uses the well-known method ids on
-    /// <c>ConditionType</c> / <c>AcknowledgeableConditionType</c> /
-    /// <c>AlarmConditionType</c> / <c>DialogConditionType</c>, allowing
-    /// servers that do not expose condition instances to still accept
-    /// method calls with the <c>ConditionId</c> as the <c>ObjectId</c>.
+    /// client operations. Every method delegates to the corresponding
+    /// source-generated <c>*TypeClient</c> proxy
+    /// (<see cref="ConditionTypeClient"/>,
+    /// <see cref="AcknowledgeableConditionTypeClient"/>,
+    /// <see cref="AlarmConditionTypeClient"/>,
+    /// <see cref="DialogConditionTypeClient"/>, and
+    /// <see cref="ShelvedStateMachineTypeClient"/>), constructed
+    /// per-call with the caller-supplied <c>conditionId</c> as the
+    /// proxy's <c>ObjectId</c>.
     /// </summary>
+    /// <remarks>
+    /// The proxies are sufficient on their own — this client merely
+    /// provides a session-scoped façade with one method per Part 9
+    /// operation that takes the <c>conditionId</c> as an explicit
+    /// parameter (the proxies require it at construction). Following
+    /// Part 9 §5.5.4, the well-known method NodeIds are accepted by
+    /// servers using the condition instance's NodeId as the
+    /// <c>ObjectId</c>, so a server that does not expose condition
+    /// instances as addressable nodes still services these calls.
+    /// </remarks>
     public class AlarmClient :
         IAlarmOperations,
         IDialogConditionOperations
     {
         private readonly ISessionClient m_session;
+        private readonly ITelemetryContext m_telemetry;
 
         /// <summary>
-        /// Initializes a new AlarmClient over the supplied session.
+        /// Initializes a new <see cref="AlarmClient"/> over the supplied
+        /// session and telemetry context. The telemetry context is
+        /// forwarded to every source-generated proxy this client
+        /// constructs internally.
         /// </summary>
         /// <param name="session">The client session to use.</param>
-        public AlarmClient(ISessionClient session)
+        /// <param name="telemetry">The telemetry context for diagnostics.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="session"/> or <paramref name="telemetry"/> is
+        /// <c>null</c>.
+        /// </exception>
+        public AlarmClient(ISessionClient session, ITelemetryContext telemetry)
         {
             m_session = session ?? throw new ArgumentNullException(nameof(session));
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
         /// <inheritdoc/>
-        public async ValueTask EnableAsync(
+        public ValueTask EnableAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.ConditionType_Enable,
-                ct).ConfigureAwait(false);
-        }
+            => new ConditionTypeClient(m_session, conditionId, m_telemetry)
+                .EnableAsync(ct);
 
         /// <inheritdoc/>
-        public async ValueTask DisableAsync(
+        public ValueTask DisableAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.ConditionType_Disable,
-                ct).ConfigureAwait(false);
-        }
+            => new ConditionTypeClient(m_session, conditionId, m_telemetry)
+                .DisableAsync(ct);
 
         /// <inheritdoc/>
-        public async ValueTask AddCommentAsync(
+        public ValueTask AddCommentAsync(
             NodeId conditionId,
             ByteString eventId,
             LocalizedText comment,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.ConditionType_AddComment,
-                ct,
-                Variant.From(eventId),
-                Variant.From(comment)).ConfigureAwait(false);
-        }
+            => new ConditionTypeClient(m_session, conditionId, m_telemetry)
+                .AddCommentAsync(eventId, comment, ct);
 
         /// <inheritdoc/>
-        public async ValueTask ConditionRefreshAsync(
+        public ValueTask ConditionRefreshAsync(
             uint subscriptionId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                ObjectTypeIds.ConditionType,
-                MethodIds.ConditionType_ConditionRefresh,
-                ct,
-                Variant.From(subscriptionId)).ConfigureAwait(false);
-        }
+            => new ConditionTypeClient(m_session, ObjectTypeIds.ConditionType, m_telemetry)
+                .ConditionRefreshAsync(subscriptionId, ct);
 
         /// <inheritdoc/>
-        public async ValueTask ConditionRefresh2Async(
+        public ValueTask ConditionRefresh2Async(
             uint subscriptionId,
             uint monitoredItemId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                ObjectTypeIds.ConditionType,
-                MethodIds.ConditionType_ConditionRefresh2,
-                ct,
-                Variant.From(subscriptionId),
-                Variant.From(monitoredItemId)).ConfigureAwait(false);
-        }
+            => new ConditionTypeClient(m_session, ObjectTypeIds.ConditionType, m_telemetry)
+                .ConditionRefresh2Async(subscriptionId, monitoredItemId, ct);
 
         /// <inheritdoc/>
-        public async ValueTask AcknowledgeAsync(
+        public ValueTask AcknowledgeAsync(
             NodeId conditionId,
             ByteString eventId,
             LocalizedText comment,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.AcknowledgeableConditionType_Acknowledge,
-                ct,
-                Variant.From(eventId),
-                Variant.From(comment)).ConfigureAwait(false);
-        }
+            => new AcknowledgeableConditionTypeClient(m_session, conditionId, m_telemetry)
+                .AcknowledgeAsync(eventId, comment, ct);
 
         /// <inheritdoc/>
-        public async ValueTask ConfirmAsync(
+        public ValueTask ConfirmAsync(
             NodeId conditionId,
             ByteString eventId,
             LocalizedText comment,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.AcknowledgeableConditionType_Confirm,
-                ct,
-                Variant.From(eventId),
-                Variant.From(comment)).ConfigureAwait(false);
-        }
+            => new AcknowledgeableConditionTypeClient(m_session, conditionId, m_telemetry)
+                .ConfirmAsync(eventId, comment, ct);
 
         /// <inheritdoc/>
-        public async ValueTask SilenceAsync(
+        public ValueTask SilenceAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.AlarmConditionType_Silence,
-                ct).ConfigureAwait(false);
-        }
+            => new AlarmConditionTypeClient(m_session, conditionId, m_telemetry)
+                .SilenceAsync(ct);
 
         /// <inheritdoc/>
-        public async ValueTask SuppressAsync(
+        public ValueTask SuppressAsync(
             NodeId conditionId,
             LocalizedText comment = default,
             CancellationToken ct = default)
         {
-            if (comment.IsNullOrEmpty)
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_Suppress,
-                    ct).ConfigureAwait(false);
-            }
-            else
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_Suppress2,
-                    ct,
-                    Variant.From(comment)).ConfigureAwait(false);
-            }
+            var proxy = new AlarmConditionTypeClient(m_session, conditionId, m_telemetry);
+            return comment.IsNullOrEmpty
+                ? proxy.SuppressAsync(ct)
+                : proxy.Suppress2Async(comment, ct);
         }
 
         /// <inheritdoc/>
-        public async ValueTask UnsuppressAsync(
+        public ValueTask UnsuppressAsync(
             NodeId conditionId,
             LocalizedText comment = default,
             CancellationToken ct = default)
         {
-            if (comment.IsNullOrEmpty)
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_Unsuppress,
-                    ct).ConfigureAwait(false);
-            }
-            else
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_Unsuppress2,
-                    ct,
-                    Variant.From(comment)).ConfigureAwait(false);
-            }
+            var proxy = new AlarmConditionTypeClient(m_session, conditionId, m_telemetry);
+            return comment.IsNullOrEmpty
+                ? proxy.UnsuppressAsync(ct)
+                : proxy.Unsuppress2Async(comment, ct);
         }
 
         /// <inheritdoc/>
-        public async ValueTask RemoveFromServiceAsync(
+        public ValueTask RemoveFromServiceAsync(
             NodeId conditionId,
             LocalizedText comment = default,
             CancellationToken ct = default)
         {
-            if (comment.IsNullOrEmpty)
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_RemoveFromService,
-                    ct).ConfigureAwait(false);
-            }
-            else
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_RemoveFromService2,
-                    ct,
-                    Variant.From(comment)).ConfigureAwait(false);
-            }
+            var proxy = new AlarmConditionTypeClient(m_session, conditionId, m_telemetry);
+            return comment.IsNullOrEmpty
+                ? proxy.RemoveFromServiceAsync(ct)
+                : proxy.RemoveFromService2Async(comment, ct);
         }
 
         /// <inheritdoc/>
-        public async ValueTask PlaceInServiceAsync(
+        public ValueTask PlaceInServiceAsync(
             NodeId conditionId,
             LocalizedText comment = default,
             CancellationToken ct = default)
         {
-            if (comment.IsNullOrEmpty)
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_PlaceInService,
-                    ct).ConfigureAwait(false);
-            }
-            else
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_PlaceInService2,
-                    ct,
-                    Variant.From(comment)).ConfigureAwait(false);
-            }
+            var proxy = new AlarmConditionTypeClient(m_session, conditionId, m_telemetry);
+            return comment.IsNullOrEmpty
+                ? proxy.PlaceInServiceAsync(ct)
+                : proxy.PlaceInService2Async(comment, ct);
         }
 
         /// <inheritdoc/>
-        public async ValueTask ResetAsync(
+        public ValueTask ResetAsync(
             NodeId conditionId,
             LocalizedText comment = default,
             CancellationToken ct = default)
         {
-            if (comment.IsNullOrEmpty)
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_Reset,
-                    ct).ConfigureAwait(false);
-            }
-            else
-            {
-                await CallVoidMethodAsync(
-                    conditionId,
-                    MethodIds.AlarmConditionType_Reset2,
-                    ct,
-                    Variant.From(comment)).ConfigureAwait(false);
-            }
+            var proxy = new AlarmConditionTypeClient(m_session, conditionId, m_telemetry);
+            return comment.IsNullOrEmpty
+                ? proxy.ResetAsync(ct)
+                : proxy.Reset2Async(comment, ct);
         }
 
         /// <inheritdoc/>
-        public async ValueTask TimedShelveAsync(
+        public ValueTask TimedShelveAsync(
             NodeId conditionId,
             double shelvingTime,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.ShelvedStateMachineType_TimedShelve,
-                ct,
-                Variant.From(shelvingTime)).ConfigureAwait(false);
-        }
+            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                .TimedShelveAsync(shelvingTime, ct);
 
         /// <inheritdoc/>
-        public async ValueTask OneShotShelveAsync(
+        public ValueTask OneShotShelveAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.ShelvedStateMachineType_OneShotShelve,
-                ct).ConfigureAwait(false);
-        }
+            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                .OneShotShelveAsync(ct);
 
         /// <inheritdoc/>
-        public async ValueTask UnshelveAsync(
+        public ValueTask UnshelveAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.ShelvedStateMachineType_Unshelve,
-                ct).ConfigureAwait(false);
-        }
+            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                .UnshelveAsync(ct);
 
         /// <inheritdoc/>
-        public async ValueTask<ArrayOf<NodeId>> GetGroupMembershipsAsync(
+        public ValueTask<ArrayOf<NodeId>> GetGroupMembershipsAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-        {
-            ArrayOf<Variant> outputs = await m_session.CallAsync(
-                conditionId,
-                MethodIds.AlarmConditionType_GetGroupMemberships,
-                ct).ConfigureAwait(false);
-
-            if (outputs.Count == 0)
-            {
-                return ArrayOf<NodeId>.Empty;
-            }
-
-            return ExtractNodeIdArray(outputs[0]);
-        }
+            => new AlarmConditionTypeClient(m_session, conditionId, m_telemetry)
+                .GetGroupMembershipsAsync(ct);
 
         /// <inheritdoc/>
-        public async ValueTask RespondAsync(
+        public ValueTask RespondAsync(
             NodeId conditionId,
             int selectedResponse,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.DialogConditionType_Respond,
-                ct,
-                Variant.From(selectedResponse)).ConfigureAwait(false);
-        }
+            => new DialogConditionTypeClient(m_session, conditionId, m_telemetry)
+                .RespondAsync(selectedResponse, ct);
 
         /// <inheritdoc/>
-        public async ValueTask Respond2Async(
+        public ValueTask Respond2Async(
             NodeId conditionId,
             int selectedResponse,
             LocalizedText comment,
             CancellationToken ct = default)
-        {
-            await CallVoidMethodAsync(
-                conditionId,
-                MethodIds.DialogConditionType_Respond2,
-                ct,
-                Variant.From(selectedResponse),
-                Variant.From(comment)).ConfigureAwait(false);
-        }
-
-        private async ValueTask CallVoidMethodAsync(
-            NodeId objectId,
-            NodeId methodId,
-            CancellationToken ct,
-            params Variant[] args)
-        {
-            await m_session.CallAsync(objectId, methodId, ct, args).ConfigureAwait(false);
-        }
-
-        private static ArrayOf<NodeId> ExtractNodeIdArray(Variant variant)
-        {
-            if (variant.IsNull)
-            {
-                return ArrayOf<NodeId>.Empty;
-            }
-
-            object? value = variant.AsBoxedObject();
-            return value switch
-            {
-                NodeId[] arr => new ArrayOf<NodeId>(arr),
-                ArrayOf<NodeId> array => array,
-                _ => ArrayOf<NodeId>.Empty
-            };
-        }
-
-}
+            => new DialogConditionTypeClient(m_session, conditionId, m_telemetry)
+                .Respond2Async(selectedResponse, comment, ct);
+    }
 }

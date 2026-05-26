@@ -39,11 +39,17 @@ namespace Opc.Ua.Client.Alarms
     {
         /// <summary>
         /// Returns an <see cref="AlarmClient"/> bound to the supplied
-        /// session.
+        /// session. The supplied <paramref name="telemetry"/> is
+        /// forwarded to the source-generated proxies the client
+        /// constructs internally.
         /// </summary>
-        public static AlarmClient GetAlarmClient(this ISession session)
+        /// <param name="session">The client session.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        public static AlarmClient GetAlarmClient(
+            this ISession session,
+            ITelemetryContext telemetry)
         {
-            return new AlarmClient(session);
+            return new AlarmClient(session, telemetry);
         }
     }
 }

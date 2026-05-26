@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Alarms
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            return new AlarmClient(session);
+            return new AlarmClient(session, m_telemetry);
         }
 
         /// <summary>

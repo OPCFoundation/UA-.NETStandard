@@ -46,13 +46,15 @@ namespace Quickstarts
     public class AlarmClientSample
     {
         private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
 
         /// <summary>
         /// Constructs a new sample.
         /// </summary>
-        public AlarmClientSample(ILogger logger)
+        public AlarmClientSample(ILogger logger, ITelemetryContext telemetry)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
         /// <summary>
@@ -108,7 +110,7 @@ namespace Quickstarts
                 throw new ArgumentNullException(nameof(session));
             }
 
-            AlarmClient alarms = session.GetAlarmClient();
+            AlarmClient alarms = session.GetAlarmClient(m_telemetry);
             IStreamingSubscription streaming = session.DefaultStreaming;
 
             Console.WriteLine($"Waiting for next active record from {conditionId}...");
@@ -157,7 +159,7 @@ namespace Quickstarts
                 throw new ArgumentNullException(nameof(session));
             }
 
-            AlarmClient alarms = session.GetAlarmClient();
+            AlarmClient alarms = session.GetAlarmClient(m_telemetry);
 
             Console.WriteLine($"Shelving {conditionId} for {shelvingTimeMs}ms...");
             await alarms.TimedShelveAsync(conditionId, shelvingTimeMs, ct).ConfigureAwait(false);
