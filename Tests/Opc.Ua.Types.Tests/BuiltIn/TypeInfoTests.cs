@@ -1790,7 +1790,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 throw new NotImplementedException();
             }
 
-            public bool IsEqual(IEncodeable? encodeable)
+            public bool IsEqual(IEncodeable encodeable)
             {
                 return encodeable is GenericEncodeable<T>;
             }
