@@ -805,26 +805,60 @@ spec-incorrect behaviour. Clear the flag after migrating those rules to
 access-token role claims; the compatibility switch is intended to last for
 one release.
 
-**What to expect in future releases:**
+**What is shipped now:**
 
-* A future release will route `SessionManager.ActivateSessionAsync`
-  through the registry first and fall back to the event when no
-  authenticator handled the token. No source change required, no
-  obsoletion of the event.
-* A subsequent release will mark `SessionManager.ImpersonateUser`
-  `[Obsolete]` once the in-box default authenticators have shipped and
-  the `ReferenceServer` sample has migrated. The event remains
-  functional after the obsoletion.
-* The client side now has `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)`
-  and `ManagedSessionOptions.IdentityProvider`. Future releases will migrate
-  the in-box samples to these APIs.
+* `SessionManager.ActivateSessionAsync` consults `IServerInternal.IdentityRegistry`
+  first and falls back to the legacy `ImpersonateUser` event only when
+  no authenticator returned `Accepted` or `Rejected`. Default
+  authenticators (`AnonymousAuthenticator`, `UserNamePasswordAuthenticator`,
+  `X509Authenticator`, `JwtAuthenticator`) ship in
+  `Libraries/Opc.Ua.Server/RoleBasedUserManagement/Authenticators/`.
+  The legacy event is still **functional** and not yet `[Obsolete]`.
+* `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` and
+  `ManagedSessionOptions.IdentityProvider` ship on the client side, and
+  `ManagedSession` schedules proactive token refresh through
+  `TimeProvider`. The eager `ManagedSessionOptions.Identity` setter is
+  `[Obsolete]`.
+* Full `Microsoft.Extensions.DependencyInjection` integration is
+  available on `IOpcUaServerBuilder` (`ConfigureRoles`,
+  `AddIdentityAuthenticator<T>`, `AddDefaultIdentityAuthenticators`,
+  `AddJwtIssuer`), `IOpcUaClientBuilder` (`AddIdentityProvider`,
+  `AddAccessTokenProvider`), and `IGdsServerBuilder` (the same
+  identity extensions forwarded to the underlying server builder).
+  Every extension has both an `Action<TOptions>` overload and an
+  `IConfiguration` overload, and `OpcUaServerOptions.Identity` /
+  `OpcUaClientOptions.Identity` nest the configuration under
+  `OpcUa:Server:Identity` and `OpcUa:Client:Identity` respectively.
+* In-box `IIssuerKeyResolver` implementations ship under
+  `Stack/Opc.Ua.Core/Security/Identity/`: `StaticIssuerKeyResolver`
+  (config-driven inline JWKs) and `JwksIssuerKeyResolver` (fetches
+  JWKS from a `jwks_uri` with refresh throttling). In-box
+  `JwtBearerAccessTokenProvider` ships under
+  `Stack/Opc.Ua.Core/Security/Identity/Defaults/` for static-JWT
+  client scenarios.
+
+See [Dependency Injection — Identity](DependencyInjection.md#identity-server)
+for the full DI surface with `appsettings.json` examples, or
+[Identity Providers — Quick start — DI](IdentityProviders.md#quick-start--di)
+for a 30-line walkthrough.
+
+**Still pending in future releases:**
+
+* `ReferenceServer` and `ConsoleReferenceClient` will be migrated to the
+  provider model. After that migration, `SessionManager.ImpersonateUser`
+  will be marked `[Obsolete]` (functional but discouraged).
 * Part 12 v1.05 deprecates `AuthorizationServiceType.RequestAccessToken`
   in favour of the new `StartRequestToken` / `FinishRequestToken`
   flow. The .NET stack will follow: server-side `RequestAccessToken`
   becomes `[Obsolete]` (but remains functional).
+* `KeyCredentialConfigurationFolderType` Push model wiring + an
+  experimental KeyCredential → IssuedIdentityToken bridge under a
+  vendor profile URI (closed-deployment scenarios).
+* Sibling design-only packages: `Opc.Ua.Identity.Entra` (MSAL),
+  `…Oidc`, `…Windows` (Negotiate / Kerberos), `…AspNetCore`.
 
-For now, write providers against the stable interfaces; the wiring
-arrives in subsequent releases without forcing another rewrite. See
+Write providers against the stable interfaces; the remaining wiring
+arrives without forcing another rewrite. See
 [Identity Providers](IdentityProviders.md) for full developer
 guidance and recipes (Entra/MSAL, generic OIDC, ASP.NET
 `ITokenAcquisition`, GDS `KeyCredentialService`).

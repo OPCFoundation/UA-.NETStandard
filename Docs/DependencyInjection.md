@@ -42,6 +42,23 @@ you need finer control.
 | `Opc.Ua.WotCon.Server`         | `builder.AddWotConServer(opt => …)`      | `IWotConServerBuilder`   | yes (via `AddServer`) | `OpcUa:WotCon:Server` |
 | `Opc.Ua.WotCon.Client`         | `builder.AddWotConClient(opt => …)`      | `IOpcUaBuilder`          | —       | `OpcUa:WotCon:Client`    |
 
+Identity-provider extensions hang off `IOpcUaServerBuilder`,
+`IOpcUaClientBuilder`, and `IGdsServerBuilder`:
+
+| Extension                                     | Builder                  | Section                          |
+|-----------------------------------------------|--------------------------|----------------------------------|
+| `AddDefaultIdentityAuthenticators(...)`       | server, gds              | `OpcUa:Server:Identity:Defaults` |
+| `AddIdentityAuthenticator<T>()`               | server, gds              | —                                |
+| `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
+| `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
+| `AddIdentityProvider(...)` / `<T>()`          | client                   | `OpcUa:Client:Identity`          |
+| `AddAccessTokenProvider(...)` / `<T>()`       | client                   | —                                |
+
+See the [Identity (server)](#identity-server),
+[Identity (client)](#identity-client), and
+[Identity (GDS server)](#identity-gds-server) sections below and the
+full [Identity Providers](IdentityProviders.md) guide.
+
 Server features marked **Hosted? = yes** register an `IHostedService` so
 the .NET Generic Host (`Host.CreateApplicationBuilder(args)`) owns their
 lifetime, certificate setup, and Ctrl+C / SIGTERM handling.
@@ -258,6 +275,60 @@ services.AddOpcUa().AddServer(o =>
 Bindable from `OpcUa:Server:UserTokenPolicies`. When the list is empty
 the hosted service falls back to a single `Anonymous` policy.
 
+### Identity (server)
+
+> Full identity surface is documented in
+> [Identity Providers](IdentityProviders.md). This section covers only
+> the DI bindings.
+
+`builder.AddServer(...)` exposes four identity-related extension
+methods on `IOpcUaServerBuilder`:
+
+| Extension | Purpose |
+|---|---|
+| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Adjusts `RoleManager` behaviour. Currently the only knob is `LegacyRoleCriteriaMatchesGrantedRoles` (default `false` = spec-correct per OPC 10000-18 §4.4.4). |
+| `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
+| `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
+| `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
+
+Configuration binding under `OpcUa:Server:Identity`:
+
+```json
+{
+  "OpcUa": {
+    "Server": {
+      "Identity": {
+        "Defaults": {
+          "EnableAnonymous": true,
+          "EnableUserNamePassword": true,
+          "EnableX509": true,
+          "EnableJwt": true,
+          "ExpectedAudience": "urn:my-server",
+          "ClockSkewTolerance": "00:01:00",
+          "UserCertificateTrustList": "Users"
+        },
+        "Issuers": [
+          {
+            "IssuerUri": "https://login.microsoftonline.com/{tenant}/v2.0",
+            "JwksUri":   "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys",
+            "Algorithms": [ "RS256" ]
+          }
+        ]
+      },
+      "Roles": {
+        "LegacyRoleCriteriaMatchesGrantedRoles": false
+      }
+    }
+  }
+}
+```
+
+The `IUserDatabase` / `IUserManagement` services needed by the
+UserNamePassword authenticator must be registered separately — the
+hosted service skips that authenticator if neither is in DI. See
+[Role-Based Security](RoleBasedUserManagement.md) for the role-mapping
+layer.
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -291,6 +362,60 @@ ManagedSession session = await sessionFactory(ct);
 `AddClient` also registers `ITelemetryContext`, `ISessionFactory` (a
 `DefaultSessionFactory` configured with the V2 subscription engine),
 `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+
+### Identity (client)
+
+> Full identity surface is documented in
+> [Identity Providers](IdentityProviders.md). This section covers only
+> the DI bindings.
+
+`builder.AddClient(...)` exposes:
+
+| Extension | Purpose |
+|---|---|
+| `AddIdentityProvider<TProvider>()` | Registers a custom `IClientIdentityProvider` type. All registered providers are composed into a single resolver by the session builder. |
+| `AddIdentityProvider(Action<CompositeClientIdentityProviderBuilder>)` | Fluent composite-builder with shortcuts: `.AddAnonymous()`, `.AddUserName(...)`, `.AddX509(...)`, `.AddIssuedToken(...)`. |
+| `AddIdentityProvider(IConfiguration section)` | Binds `OpcUaClientIdentityOptions` and rolls a `CompositeClientIdentityProvider` from the bound entries. |
+| `AddAccessTokenProvider<T>()` / `(instance)` / `(factory)` | Registers an `IAccessTokenProvider` keyed by `AuthorityUri`. Issued-token identity providers select the matching provider at runtime via the URI. |
+
+Configuration binding under `OpcUa:Client:Identity`:
+
+```json
+{
+  "OpcUa": {
+    "Client": {
+      "Identity": {
+        "EnableAnonymous": true,
+        "UserName": {
+          "UserName":        "alice",
+          "SecretName":      "alice-password",
+          "SecretStoreType": "InMemory"
+        },
+        "X509": {
+          "StoreType":   "X509Store",
+          "StorePath":   "CurrentUser/My",
+          "SubjectName": "CN=Alice"
+        },
+        "IssuedToken": {
+          "ProfileUri":   "http://opcfoundation.org/UA/UserToken#JWT",
+          "AuthorityUri": "https://issuer.example"
+        },
+        "Order": [ "IssuedToken", "UserName", "X509", "Anonymous" ]
+      }
+    }
+  }
+}
+```
+
+When `Order` is non-empty the composite presents providers in that
+preference; otherwise registration order is preserved. The `IssuedToken`
+entry resolves the registered `IAccessTokenProvider` whose
+`AuthorityUri` matches.
+
+`ManagedSessionOptions.Identity` (eager) is `[Obsolete]` — set
+`ManagedSessionOptions.IdentityProvider` instead for lazy / refreshable
+identities. The `ManagedSession` proactive-refresh scheduler keys off
+`IClientIdentityProvider.ExpiresAt`.
 
 ## Complex types
 
@@ -416,6 +541,33 @@ Throws on a second `.AddGdsServer(...)`. Auto-registers an internal
 `ApplicationsNodeManager`. The pluggable services (`IApplicationsDatabase`,
 `ICertificateGroup`, `ICertificateRequest`, etc.) are resolved from the
 container at startup.
+
+### Identity (GDS server)
+
+`IGdsServerBuilder` forwards every identity-related extension to the
+underlying server builder so a GDS host configures identity the same
+way as a regular server:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddDefaultIdentityAuthenticators(opt =>
+    {
+        opt.EnableAnonymous = false;
+        opt.EnableUserNamePassword = true;
+    })
+    .ConfigureRoles(opt => opt.LegacyRoleCriteriaMatchesGrantedRoles = false)
+    .AddJwtIssuer(opt =>
+    {
+        opt.IssuerUri = "https://login.microsoftonline.com/{tenant}/v2.0";
+        opt.JwksUri   = "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys";
+    });
+```
+
+`Action<>` and `IConfiguration` overloads are available for
+`ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+See [Identity Providers](IdentityProviders.md) for the full reference.
 
 ## LDS Server
 

@@ -1,10 +1,15 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-> **Status**: Phase 4 — client identity providers are wired through
-> `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` and
-> `ManagedSessionOptions.IdentityProvider` with proactive refresh. Server-side
-> provider wiring continues in the remaining phases (see [Roadmap](#roadmap)
-> below).
+> **Status**: phases P1 – PI shipped. The full identity surface (server
+> `IServerIdentityRegistry` + default authenticators, client
+> `IClientIdentityProvider` + `Session.UpdateIdentityAsync` with
+> proactive refresh, Part 18 §4.4.4 `GroupId` / `Role` claim mapping,
+> in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, and full
+> `Microsoft.Extensions.DependencyInjection` integration with
+> `appsettings.json` binding) is available. Reference-server migration
+> (P5), `AuthorizationServiceType` modernisation (P6), KeyCredential
+> push + bridge (P7), and sibling-package design (P8) remain. See
+> [Roadmap](#roadmap) below.
 
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
@@ -41,6 +46,171 @@ on-the-wire types. The provider model layers on top, so you can stage
 adoption: keep your existing
 `SessionManager.ImpersonateUser` callback running while you migrate one
 token type at a time to an `IUserTokenAuthenticator`.
+
+## Quick start — DI
+
+For applications hosted on `Microsoft.Extensions.Hosting` (the default
+in this stack — see [Dependency Injection](DependencyInjection.md)),
+the identity surface is configured through fluent extensions on
+`IOpcUaServerBuilder` and `IOpcUaClientBuilder`, plus matching
+`appsettings.json` sections.
+
+### Server example
+
+```csharp
+services.AddOpcUa()
+    .AddServer(opt =>
+    {
+        opt.ApplicationName = "MyServer";
+        opt.ApplicationUri  = "urn:my-server";
+    })
+    .AddDefaultIdentityAuthenticators(opt =>
+    {
+        opt.EnableAnonymous        = true;
+        opt.EnableUserNamePassword = true;
+        opt.EnableX509             = true;
+        opt.EnableJwt              = true;
+        opt.ExpectedAudience       = "urn:my-server";
+    })
+    .ConfigureRoles(opt => opt.LegacyRoleCriteriaMatchesGrantedRoles = false)
+    .AddJwtIssuer(opt =>
+    {
+        opt.IssuerUri = "https://login.microsoftonline.com/{tenant}/v2.0";
+        opt.JwksUri   = "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys";
+    });
+```
+
+Equivalent `appsettings.json` (picked up automatically by
+`builder.AddServer(IConfiguration)`):
+
+```json
+{
+  "OpcUa": {
+    "Server": {
+      "ApplicationName": "MyServer",
+      "ApplicationUri": "urn:my-server",
+      "Identity": {
+        "Defaults": {
+          "EnableAnonymous": true,
+          "EnableUserNamePassword": true,
+          "EnableX509": true,
+          "EnableJwt": true,
+          "ExpectedAudience": "urn:my-server"
+        },
+        "Issuers": [
+          {
+            "IssuerUri": "https://login.microsoftonline.com/{tenant}/v2.0",
+            "JwksUri":   "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### Client example
+
+```csharp
+services.AddOpcUa()
+    .AddClient(opt =>
+    {
+        opt.SessionName = "MyClient";
+    })
+    .AddAccessTokenProvider(new JwtBearerAccessTokenProvider(
+        authorityUri: "https://issuer.example",
+        tokenBytes:   System.Text.Encoding.UTF8.GetBytes(jwt),
+        expiresAt:    DateTime.UtcNow.AddMinutes(55)))
+    .AddIdentityProvider(builder =>
+    {
+        builder.AddAnonymous();
+        builder.AddUserName(opt =>
+        {
+            opt.UserName        = "alice";
+            opt.SecretName      = "alice-password";
+            opt.SecretStoreType = "InMemory";
+        });
+        builder.AddIssuedToken(opt =>
+        {
+            opt.ProfileUri   = Profiles.JwtUserToken;
+            opt.AuthorityUri = "https://issuer.example";
+        });
+    });
+```
+
+Equivalent `appsettings.json`:
+
+```json
+{
+  "OpcUa": {
+    "Client": {
+      "SessionName": "MyClient",
+      "Identity": {
+        "EnableAnonymous": true,
+        "UserName": {
+          "UserName":        "alice",
+          "SecretName":      "alice-password",
+          "SecretStoreType": "InMemory"
+        },
+        "IssuedToken": {
+          "ProfileUri":   "http://opcfoundation.org/UA/UserToken#JWT",
+          "AuthorityUri": "https://issuer.example"
+        }
+      }
+    }
+  }
+}
+```
+
+### GDS example
+
+`IGdsServerBuilder` forwards every identity-related extension to the
+underlying server builder (`ConfigureRoles`,
+`AddIdentityAuthenticator<T>`, `AddDefaultIdentityAuthenticators`,
+`AddJwtIssuer` — each with both `Action<>` and `IConfiguration`
+overloads). A GDS host configures identity the same way as a regular
+server, just on the GDS builder:
+
+```csharp
+services.AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddDefaultIdentityAuthenticators(opt => opt.EnableJwt = false)
+    .ConfigureRoles(opt => opt.LegacyRoleCriteriaMatchesGrantedRoles = false);
+```
+
+### Configuration reference
+
+| Key | Type | Default |
+|---|---|---|
+| `OpcUa:Server:Identity:Defaults:EnableAnonymous` | `bool` | `true` |
+| `OpcUa:Server:Identity:Defaults:EnableUserNamePassword` | `bool` | `true` |
+| `OpcUa:Server:Identity:Defaults:EnableX509` | `bool` | `true` |
+| `OpcUa:Server:Identity:Defaults:EnableJwt` | `bool` | `true` |
+| `OpcUa:Server:Identity:Defaults:ExpectedAudience` | `string?` | `null` (required when `EnableJwt`) |
+| `OpcUa:Server:Identity:Defaults:ClockSkewTolerance` | `TimeSpan` | `00:01:00` |
+| `OpcUa:Server:Identity:Defaults:UserCertificateTrustList` | `TrustListIdentifier` | `Users` |
+| `OpcUa:Server:Identity:Issuers[].IssuerUri` | `string` | — (required) |
+| `OpcUa:Server:Identity:Issuers[].JwksUri` | `string?` | `null` |
+| `OpcUa:Server:Identity:Issuers[].StaticKeys[]` | `JwtStaticKeyOptions[]` | `[]` |
+| `OpcUa:Server:Identity:Issuers[].Algorithms` | `string[]` | `["RS256"]` |
+| `OpcUa:Server:Identity:Issuers[].Audience` | `string?` | `null` (falls back to `Defaults.ExpectedAudience`) |
+| `OpcUa:Server:Roles:LegacyRoleCriteriaMatchesGrantedRoles` | `bool` | `false` (spec-correct) |
+| `OpcUa:Client:Identity:EnableAnonymous` | `bool` | `true` |
+| `OpcUa:Client:Identity:UserName:UserName` | `string` | — |
+| `OpcUa:Client:Identity:UserName:SecretName` | `string` | — |
+| `OpcUa:Client:Identity:UserName:SecretStoreType` | `string` | — |
+| `OpcUa:Client:Identity:UserName:SecretStorePath` | `string?` | `null` |
+| `OpcUa:Client:Identity:X509:StoreType` | `string` | — |
+| `OpcUa:Client:Identity:X509:StorePath` | `string` | — |
+| `OpcUa:Client:Identity:X509:SubjectName` | `string?` | `null` (exclusive with `Thumbprint`) |
+| `OpcUa:Client:Identity:X509:Thumbprint` | `string?` | `null` (exclusive with `SubjectName`) |
+| `OpcUa:Client:Identity:IssuedToken:ProfileUri` | `string` | `http://opcfoundation.org/UA/UserToken#JWT` |
+| `OpcUa:Client:Identity:IssuedToken:AuthorityUri` | `string?` | `null` (selects the matching `IAccessTokenProvider` by `AuthorityUri`) |
+| `OpcUa:Client:Identity:Order` | `string[]` | `[]` (registration order) |
+
+See [Dependency Injection](DependencyInjection.md) for the full
+`services.AddOpcUa()` surface and how options flow through
+`IConfiguration`.
 
 ## Three layers, kept separate
 
@@ -477,16 +647,17 @@ A sibling package `Opc.Ua.Identity.AspNetCore` is reserved for this in P8.
 
 ## Roadmap
 
-| Phase | Adds |
-|-------|------|
-| **P1** (shipped) | Interfaces + `AuthorizationServerMetadata` parser + `ServerIdentityRegistry` + `IssuerVerificationKey` helper. No behaviour change. |
-| **P2** | `SessionManager` routes incoming tokens through the registry first, falls back to the existing `ImpersonateUser` event when no authenticator matches. Default `Anonymous`, `UserNamePassword`, `X509`, `Jwt` authenticators in `Opc.Ua.Server`. |
-| **P3** | `IRoleManager.ResolveGrantedRoles` probes `IIdentityClaims` to wire OPC 10000-18 §4.4.4 `GroupId` + `Role` criteria (correctly — current `Role` matching is spec-incorrect and an opt-out flag preserves legacy behaviour for one release). |
-| **P4** | Client side: `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` + proactive refresh scheduler + `ManagedSessionOptions.IdentityProvider`. |
-| **P5** | `ReferenceServer` and `ConsoleReferenceClient` migrate to the provider model. `SessionManager.ImpersonateUser` event is marked `[Obsolete]` (functional but discouraged). |
-| **P6** | Modern Part 12 v1.05 `AuthorizationServiceType.StartRequestToken` / `FinishRequestToken` flow with `ITokenIssuer` backing. `RequestAccessToken` stays available but `[Obsolete]` (deprecated in v1.05 per spec). |
-| **P7** | `KeyCredentialConfigurationFolderType` Push model wiring + experimental KeyCredential → IssuedIdentityToken bridge under a vendor profile URI. |
-| **P8** | Sibling packages design notes for `Opc.Ua.Identity.{Entra,Oidc,Windows,AspNetCore}`. |
+| Phase | Status | Adds |
+|-------|--------|------|
+| **P1** | ✅ shipped (`735dcd87`) | Interfaces + `AuthorizationServerMetadata` parser + `ServerIdentityRegistry` + `IssuerVerificationKey` helper. No behaviour change. |
+| **P2** | ✅ shipped (`f097f7e2`) | `SessionManager` routes incoming tokens through the registry first, falls back to the existing `ImpersonateUser` event when no authenticator matches. Default `Anonymous`, `UserNamePassword`, `X509`, `Jwt` authenticators in `Opc.Ua.Server`. |
+| **P3** | ✅ shipped (`4ecdeb53`) | `IRoleManager.ResolveGrantedRoles` probes `IIdentityClaims` to wire OPC 10000-18 §4.4.4 `GroupId` + `Role` criteria correctly. `RoleConfigurationOptions.LegacyRoleCriteriaMatchesGrantedRoles=true` opt-out preserves historical behaviour for one release. |
+| **P4** | ✅ shipped (`df56442d`) | Client side: `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` + proactive refresh scheduler + `ManagedSessionOptions.IdentityProvider` (eager `Identity` setter is `[Obsolete]`). |
+| **PI** | ✅ shipped (`c8ff0d48`, `c4848919`, `fbc32fe8`, `1d5cfe7a`, `b113a5c1`) | DI integration completeness: `OpcUaServerIdentityOptions`, `OpcUaClientIdentityOptions`, `JwtIssuerOptions`, in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, `JwtBearerAccessTokenProvider`, `IConfiguration` overloads on `ConfigureRoles` / `AddDefaultIdentityAuthenticators` / `AddJwtIssuer`, GDS forwarders. Identity is now fully reachable from `appsettings.json`. |
+| **P5** | pending | `ReferenceServer` and `ConsoleReferenceClient` migrate to the provider model. `SessionManager.ImpersonateUser` event is marked `[Obsolete]` (functional but discouraged). |
+| **P6** | pending | Modern Part 12 v1.05 `AuthorizationServiceType.StartRequestToken` / `FinishRequestToken` flow with `ITokenIssuer` backing. `RequestAccessToken` stays available but `[Obsolete]` (deprecated in v1.05 per spec). |
+| **P7** | pending | `KeyCredentialConfigurationFolderType` Push model wiring + experimental KeyCredential → IssuedIdentityToken bridge under a vendor profile URI. |
+| **P8** | pending | Sibling packages design notes for `Opc.Ua.Identity.{Entra,Oidc,Windows,AspNetCore}`. |
 
 ## See also
 
