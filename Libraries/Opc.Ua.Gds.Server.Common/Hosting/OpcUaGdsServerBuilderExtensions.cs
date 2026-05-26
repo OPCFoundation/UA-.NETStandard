@@ -35,6 +35,8 @@ using Opc.Ua;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 
 #nullable enable
@@ -178,6 +180,84 @@ namespace Microsoft.Extensions.DependencyInjection
             return new GdsServerBuilder(builder.Services);
         }
 
+        /// <summary>
+        /// Configures the default role manager used by the hosted GDS server.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="RoleConfigurationOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder ConfigureRoles(
+            this IGdsServerBuilder gdsBuilder,
+            Action<RoleConfigurationOptions> configure)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            OpcUaServerBuilderExtensions.ConfigureRoles(serverBuilder, configure);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a GDS server-side identity authenticator and adds it to
+        /// the server registry on startup.
+        /// </summary>
+        /// <typeparam name="TAuth">The authenticator type.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddIdentityAuthenticator<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAuth>(
+                this IGdsServerBuilder gdsBuilder)
+            where TAuth : class, Opc.Ua.Identity.IUserTokenAuthenticator
+        {
+            OpcUaServerBuilderExtensions.AddIdentityAuthenticator<TAuth>(
+                ToServerBuilder(gdsBuilder));
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers the built-in GDS identity authenticators that can be
+        /// resolved from DI and server state.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="DefaultAuthenticatorOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddDefaultIdentityAuthenticators(
+            this IGdsServerBuilder gdsBuilder,
+            Action<DefaultAuthenticatorOptions> configure)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
+                serverBuilder,
+                configure);
+            return gdsBuilder;
+        }
+
+        private static ForwardingServerBuilder ToServerBuilder(IGdsServerBuilder gdsBuilder)
+        {
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
+
+            return new ForwardingServerBuilder(gdsBuilder.Services);
+        }
+
         private static void EnsureFirstRegistration(IServiceCollection services)
         {
             foreach (ServiceDescriptor d in services)
@@ -201,6 +281,36 @@ namespace Microsoft.Extensions.DependencyInjection
             OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
 
             services.AddHostedService<GdsServerHostedService>();
+        }
+
+        private sealed class ForwardingServerBuilder : IOpcUaServerBuilder
+        {
+            public ForwardingServerBuilder(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
+
+            public IOpcUaServerBuilder AddNodeManager<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
+                where TFactory : class, IAsyncNodeManagerFactory
+            {
+                Services.AddSingleton<TFactory>();
+                Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
+                    sp.GetRequiredService<TFactory>()));
+                return this;
+            }
+
+            public IOpcUaServerBuilder AddSyncNodeManager<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
+                where TFactory : class, INodeManagerFactory
+            {
+                Services.AddSingleton<TFactory>();
+                Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
+                    sp.GetRequiredService<TFactory>()));
+                return this;
+            }
         }
 
         private sealed class GdsServerBuilder : IGdsServerBuilder
