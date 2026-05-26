@@ -239,7 +239,7 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             CancellationToken ct)
         {
-            foreach (CertificateIdentifier id in ApplicationCertificates.ToArray().Where(certId =>
+            foreach (CertificateIdentifier id in (ApplicationCertificates.ToArray() ?? []).Where(certId =>
                 certId.CertificateType == ObjectTypeIds.ApplicationCertificateType))
             {
                 var candidateId = new CertificateIdentifier
