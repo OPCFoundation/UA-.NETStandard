@@ -2921,10 +2921,9 @@ namespace Opc.Ua.Server
 
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                IMasterNodeManager masterNodeManager = await CreateMasterNodeManagerAsync(
+                IMasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
-                    configuration,
-                    cancellationToken).ConfigureAwait(false);
+                    configuration);
 
                 // add the node manager to the datastore.
                 ServerInternal.SetNodeManager(masterNodeManager);
