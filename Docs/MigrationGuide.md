@@ -1482,6 +1482,24 @@ Alarms/AlarmHolders/AlarmConditionTypeHolder.cs`) now creates the
 default — so the conformance tests exercise the new compliant
 behavior end-to-end.
 
+The quickstart `AlarmNodeManager` itself was also modernized:
+
+* it now derives from `AsyncCustomNodeManager` (was
+  `CustomNodeManager2`) and uses the async lifecycle overrides
+  (`CreateAddressSpaceAsync`, `CallAsync`, `ConditionRefreshAsync`),
+  matching the stack-wide pattern used by `WotConnectivityNodeManager`,
+  `FluentNodeManagerBase`, etc.;
+* it demonstrates the new `AlarmGroup` + `AlarmSuppressionEngine`
+  helpers end-to-end with an `/Alarms/AnalogGroup` group and a
+  writable `/Alarms/MaintenanceMode` boolean — clients can flip
+  MaintenanceMode and watch every member alarm transition into
+  `SuppressedState`. See
+  [Alarms and Conditions](AlarmsAndConditions.md#alarm-groups-and-first-in-group)
+  for the developer guide.
+
+Neither change is breaking for stack consumers — they only affect
+the quickstart demo project that ships with the reference server.
+
 #### Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`
 
 `CustomNodeManager.CreateNode(...)` and `DeleteNode(...)` (and the

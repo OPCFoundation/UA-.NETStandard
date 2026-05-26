@@ -231,6 +231,18 @@ The first `Evaluate` call always applies the current state, so
 clients see a coherent suppression state immediately after
 registration — there is no edge required.
 
+> **Live demo:** The `Applications/Quickstarts.Servers/Alarms/
+> AlarmNodeManager.cs` reference implementation wires this up
+> end-to-end. It exposes a `/Alarms/AnalogGroup` (`AlarmGroupType`)
+> containing every analog-source alarm and a writable
+> `/Alarms/MaintenanceMode` boolean. Writing `true` to
+> MaintenanceMode runs `AlarmSuppressionEngine.Evaluate(...)` and
+> suppresses every group member; writing `false` clears
+> suppression on the next evaluation. The reference server's node
+> manager itself derives from `AsyncCustomNodeManager`, so the same
+> file is a worked example of porting a Part 9 demo to the modern
+> async base class.
+
 ### Alarm metrics (rate tracking)
 
 `AlarmRateTracker` records activations into a sliding window and
