@@ -335,7 +335,7 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
             // Wait until the consumer has processed the first notification and populated the cache.
-            firstValidationSignal.Wait();
+            firstValidationSignal.Wait(TimeSpan.FromSeconds(30));
 
             // Simulate namespace DefaultPermissionsChanged event firing
             Assert.That(capturedHandler, Is.Not.Null, "DefaultPermissionsChanged handler should have been subscribed");
@@ -412,7 +412,7 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
             // Wait until the consumer has started validation so it is definitely blocked
-            validationStarted.Wait();
+            validationStarted.Wait(TimeSpan.FromSeconds(30));
 
             // While blocked, enqueue two more changes; each call snapshots the value immediately
             node.Value = 20;
@@ -501,7 +501,7 @@ namespace Opc.Ua.Server.Tests
             // Enqueue snapshot with value=100
             node.Value = 100;
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
-            validationStarted.Wait();
+            validationStarted.Wait(TimeSpan.FromSeconds(30));
 
             // Enqueue second snapshot while consumer is blocked; value at enqueue time is 200
             node.Value = 200;
@@ -697,7 +697,7 @@ namespace Opc.Ua.Server.Tests
             // First value change – consumer blocks on validation
             node.Value = 10;
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
-            firstValidationStarted.Wait();
+            firstValidationStarted.Wait(TimeSpan.FromSeconds(30));
 
             // While consumer is blocked, enqueue a RolePermissions change followed by another value change
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.RolePermissions);
@@ -829,7 +829,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act – fire first event; consumer blocks on validation
             monitoredNode.OnReportEvent(context, node, new BaseEventState(null));
-            validationStarted.Wait();
+            validationStarted.Wait(TimeSpan.FromSeconds(30));
 
             // While blocked, enqueue two more events
             monitoredNode.OnReportEvent(context, node, new BaseEventState(null));
@@ -912,7 +912,7 @@ namespace Opc.Ua.Server.Tests
 
             ISystemContext context = new Mock<ISystemContext>().Object;
             monitoredNode.OnReportEvent(context, node, originalEvent);
-            validationStarted.Wait();
+            validationStarted.Wait(TimeSpan.FromSeconds(30));
 
             // Mutate the original after enqueue – the snapshot must not reflect this change
             originalEvent.BrowseName = new QualifiedName("mutated", 1);
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
             // Wait until the consumer has processed the first notification and populated the cache.
-            firstValidationSignal.Wait();
+            firstValidationSignal.Wait(TimeSpan.FromSeconds(30));
 
             // Act – invalidate permission cache for the session (simulates identity change)
             monitoredNode.InvalidatePermissionCacheForSession(sessionId);
