@@ -143,7 +143,11 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             finally
             {
+                // CA1508: analyzer cannot prove this; subId may be the original SubscriptionId value
+                // when an exception is raised before the explicit subId=0 assignment.
+#pragma warning disable CA1508
                 if (subId != 0)
+#pragma warning restore CA1508
                 {
                     await DeleteSubAsync(subId).ConfigureAwait(false);
                 }

@@ -508,6 +508,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="node">The pre-built node subtree to register.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is null.
+        /// </exception>
         public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
         {
             if (node == null)
@@ -1544,7 +1547,7 @@ namespace Opc.Ua.Server
             ContinuationPoint continuationPoint,
             NodeState node)
         {
-            if (continuationPoint == null || ViewDescription.IsDefault(continuationPoint.View!))
+            if (continuationPoint == null || ViewDescription.IsDefault(continuationPoint.View))
             {
                 return true;
             }
@@ -3446,8 +3449,6 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                MethodState? method = null;
-
                 // check for valid handle.
                 NodeHandle handle = await GetManagerHandleAsync(
                     systemContext,
@@ -3470,10 +3471,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                method = await FindMethodStateAsync(
-                    context,
-                    methodToCall,
-                    cancellationToken).ConfigureAwait(false);
+                MethodState? method = await FindMethodStateAsync(
+    context,
+    methodToCall,
+    cancellationToken).ConfigureAwait(false);
 
                 if (method == null)
                 {

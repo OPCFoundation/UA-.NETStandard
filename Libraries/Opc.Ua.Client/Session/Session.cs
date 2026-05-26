@@ -77,6 +77,9 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="channel"/> is not an <see cref="ITransportChannel"/>.
+        /// </exception>
         [Obsolete("Use constructor with ITransportChannel instead of ISessionChannel.")]
         public Session(
             ISessionChannel channel,
@@ -207,6 +210,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the session.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="messageContext"/> is null.
+        /// </exception>
         private Session(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
@@ -4242,7 +4248,8 @@ namespace Opc.Ua.Client
                 EndpointDescription serverEndpoint = endpointDescriptions[ii];
                 Uri? actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
 
-                if (actualUrl != null && expectedUrl != null &&
+                if (actualUrl != null &&
+                    expectedUrl != null &&
                     actualUrl.Scheme == expectedUrl.Scheme &&
                     (!matchPort || actualUrl.Port == expectedUrl.Port) &&
                     serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri &&

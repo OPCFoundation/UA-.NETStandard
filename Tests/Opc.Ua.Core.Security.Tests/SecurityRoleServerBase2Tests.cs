@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -57,8 +58,8 @@ namespace Opc.Ua.Core.Security.Tests
             foreach (ReferenceDescription rd in
                 response.Results[0].References)
             {
-                if (rd.TypeDefinition.ToString().Contains("11616") ||
-                    rd.BrowseName.Name.Contains("Namespace"))
+                if (rd.TypeDefinition.ToString().Contains("11616", StringComparison.Ordinal) ||
+                    rd.BrowseName.Name.Contains("Namespace", StringComparison.Ordinal))
                 {
                     foundNamespaceMetadata = true;
                     break;

@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 CancellationToken.None);
 
             await Task.Delay(50);
-            Assert.That(invalidations, Is.EqualTo(0));
+            Assert.That(invalidations, Is.Zero);
         }
 
         [Test]

@@ -187,12 +187,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 Application? record =
                         (from ii in Applications
                          where ii.ApplicationId == applicationId
-                         select ii).SingleOrDefault();
-
-                if (record == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNotFound);
-                }
+                         select ii).SingleOrDefault() ??
+                        throw new ServiceResultException(StatusCodes.BadNotFound);
 
                 if (record.ApplicationUri != application.ApplicationUri)
                 {

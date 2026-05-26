@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -58,15 +58,13 @@ namespace Opc.Ua.Server.AliasNames.PubSub
         {
             var fields = new FieldMetaData[]
             {
-                new FieldMetaData
-                {
+                new() {
                     Name = "ApplicationUri",
                     BuiltInType = (byte)BuiltInType.String,
                     DataType = DataTypeIds.String,
                     ValueRank = ValueRanks.Scalar
                 },
-                new FieldMetaData
-                {
+                new() {
                     Name = "Categories",
                     BuiltInType = (byte)BuiltInType.ExtensionObject,
                     DataType = DataTypeIds.AliasCategoryUpdateDataType,
@@ -80,7 +78,7 @@ namespace Opc.Ua.Server.AliasNames.PubSub
                 DataSetClassId = new Uuid(dataSetClassId),
                 Fields = fields.ToArrayOf(),
                 Description = LocalizedText.From(
-                    "OPC UA Part 17 Annex D AliasUpdateDataType DataSet."),
+                    "OPC UA Part 17 Annex D AliasUpdateDataType DataSet.")
             };
         }
     }

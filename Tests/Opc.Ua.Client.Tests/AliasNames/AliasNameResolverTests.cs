@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task ResolveLoadsCacheOnDemandAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             int callCount = 0;
             harness.CallHandler = _ =>
             {
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                     ("Beta", new ExpandedNodeId("T2", 2)));
             };
 
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(client);
 
             IReadOnlyList<ExpandedNodeId> alpha =
@@ -106,10 +106,10 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task ResolveAliasNameAsyncReverseLookupAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = _ => AliasesResult(
                 ("Speed", new ExpandedNodeId("V1", 2)));
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(client);
 
             string name = await resolver
@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task InvalidateForcesRefreshOnNextResolveAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             int callCount = 0;
             harness.CallHandler = _ =>
             {
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 return AliasesResult(
                     ("Sigma", new ExpandedNodeId($"T-{callCount}", 2)));
             };
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(client);
 
             await resolver.ResolveAsync("Sigma").ConfigureAwait(false);
@@ -145,10 +145,10 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task UnknownNameReturnsEmptyListAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = _ => AliasesResult(
                 ("A", new ExpandedNodeId("T1", 2)));
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(client);
             IReadOnlyList<ExpandedNodeId> result = await resolver
                 .ResolveAsync("Unknown").ConfigureAwait(false);
@@ -170,7 +170,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                     AliasName = new QualifiedName(aliases[i].name),
                     ReferencedNodes = new[] { aliases[i].target }.ToArrayOf(),
                     ServerUris = new[] { aliases[i].serverUri ?? string.Empty }.ToArrayOf(),
-                    AliasNameCategoryId = ObjectIds.Aliases,
+                    AliasNameCategoryId = ObjectIds.Aliases
                 };
             }
             return new CallMethodResult
@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task VerboseResolverPopulatesServerUrisAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = req =>
             {
                 if (req.MethodId == MethodIds.AliasNameCategoryType_FindAliasVerbose)
@@ -197,7 +197,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 // Non-verbose path should not be hit when UseVerbose succeeds.
                 return AliasesResult(("Tag1", new ExpandedNodeId("T1", 2)));
             };
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(
                 client,
                 new AliasNameResolverOptions { UseVerbose = true });
@@ -216,10 +216,10 @@ namespace Opc.Ua.Client.Tests.AliasNames
         [Test]
         public async Task NonVerboseResolverReturnsEmptyServerUrisAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             harness.CallHandler = _ => AliasesResult(
                 ("Tag1", new ExpandedNodeId("T1", 2)));
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(client);
 
             await resolver.ResolveAsync("Tag1").ConfigureAwait(false);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
             // Server returns BadNotImplemented for the verbose method —
             // the resolver must transparently fall back to FindAlias and
             // populate the cache from the non-verbose response.
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            var harness = AliasNameSessionHarness.Create();
             int verboseCalls = 0;
             int nonVerboseCalls = 0;
             harness.CallHandler = req =>
@@ -252,7 +252,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 nonVerboseCalls++;
                 return AliasesResult(("Tag1", new ExpandedNodeId("T1", 2)));
             };
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             await using var resolver = new AliasNameResolver(
                 client,
                 new AliasNameResolverOptions { UseVerbose = true });

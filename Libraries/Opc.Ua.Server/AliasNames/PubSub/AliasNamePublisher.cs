@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -117,8 +117,8 @@ namespace Opc.Ua.Server.AliasNames.PubSub
 
         private void OnRegistryChanged(object? sender, AliasStoreChangedEventArgs e)
         {
-            if (Options.IncludedCategories != null
-                && !Options.IncludedCategories.Contains(e.CategoryId))
+            if (Options.IncludedCategories != null &&
+                !Options.IncludedCategories.Contains(e.CategoryId))
             {
                 return;
             }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.AliasNames.PubSub
                     new AliasCategoryUpdateDataType
                     {
                         Category = portable,
-                        LastChange = e.LastChange,
+                        LastChange = e.LastChange
                     }
                 }.ToArrayOf()
             };

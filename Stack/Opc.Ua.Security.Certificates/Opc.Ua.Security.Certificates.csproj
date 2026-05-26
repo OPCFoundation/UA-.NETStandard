@@ -16,7 +16,6 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
     <PackageReference Include="System.Formats.Asn1" />
     <PackageReference Include="System.Text.Json" />

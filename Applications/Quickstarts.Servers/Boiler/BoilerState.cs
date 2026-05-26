@@ -220,22 +220,22 @@ namespace Boiler
         {
             try
             {
-                var drumLevelOutput = m_drum!.LevelIndicator!.Output!;
-                var drumLevelEURange = drumLevelOutput.EURange?.Value;
-                var levelController = m_levelController!;
-                var levelSetPoint = levelController.SetPoint!;
-                var customController = m_customController!;
-                var customInput1 = customController.Input1!;
-                var customInput2 = customController.Input2!;
-                var customInput3 = customController.Input3!;
-                var customControlOut = customController.ControlOut!;
-                var flowController = m_flowController!;
-                var flowSetPoint = flowController.SetPoint!;
-                var inputPipe = m_inputPipe!;
-                var inputFlow = inputPipe.FlowTransmitter1!.Output!;
-                var inputFlowEURange = inputFlow.EURange?.Value;
-                var inputValve = inputPipe.Valve!.Input!;
-                var outputFlow = m_outputPipe!.FlowTransmitter2!.Output!;
+                AnalogItemState<double> drumLevelOutput = m_drum!.LevelIndicator!.Output!;
+                Opc.Ua.Range? drumLevelEURange = drumLevelOutput.EURange?.Value;
+                LevelControllerState levelController = m_levelController!;
+                PropertyState<double> levelSetPoint = levelController.SetPoint!;
+                CustomControllerState customController = m_customController!;
+                PropertyState<double> customInput1 = customController.Input1!;
+                PropertyState<double> customInput2 = customController.Input2!;
+                PropertyState<double> customInput3 = customController.Input3!;
+                PropertyState<double> customControlOut = customController.ControlOut!;
+                FlowControllerState flowController = m_flowController!;
+                PropertyState<double> flowSetPoint = flowController.SetPoint!;
+                BoilerInputPipeState inputPipe = m_inputPipe!;
+                AnalogItemState<double> inputFlow = inputPipe.FlowTransmitter1!.Output!;
+                Opc.Ua.Range? inputFlowEURange = inputFlow.EURange?.Value;
+                AnalogItemState<double> inputValve = inputPipe.Valve!.Input!;
+                AnalogItemState<double> outputFlow = m_outputPipe!.FlowTransmitter2!.Output!;
 
                 // adjust level.
                 drumLevelOutput.Value = Adjust(

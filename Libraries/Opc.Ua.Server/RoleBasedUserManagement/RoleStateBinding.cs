@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
             m_nodeManager = nodeManager;
             m_roleManager = roleManager;
             m_auditServer = auditServer;
-            m_logger = (nodeManager.Server as IServerInternal)?.Telemetry?.CreateLogger<RoleStateBinding>()
+            m_logger = nodeManager.Server?.Telemetry?.CreateLogger<RoleStateBinding>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RoleStateBinding>.Instance;
         }
 
@@ -89,6 +89,12 @@ namespace Opc.Ua.Server
         /// events. Returns the binding instance so the caller can dispose it
         /// on server shutdown.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeManager"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="roleManager"/> is null.
+        /// </exception>
         public static RoleStateBinding? Bind(
             AsyncCustomNodeManager nodeManager,
             IRoleManager roleManager,
@@ -104,7 +110,7 @@ namespace Opc.Ua.Server
             }
 
             RoleSetState? roleSet = nodeManager.FindPredefinedNode<RoleSetState>(
-                Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet);
+                ObjectIds.Server_ServerCapabilities_RoleSet);
             if (roleSet == null)
             {
                 return null;
@@ -169,7 +175,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId,
+                var targetId = ExpandedNodeId.ToNodeId(reference.TargetId,
                     m_nodeManager.SystemContext.NamespaceUris);
                 if (targetId.IsNull)
                 {
@@ -312,58 +318,31 @@ namespace Opc.Ua.Server
         {
             ISystemContext context = m_nodeManager.SystemContext;
 
-            if (roleState.AddIdentity == null)
-            {
-                roleState.AddIdentity = PromoteMethodChild(
+            roleState.AddIdentity ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.AddIdentity,
                     parent => new AddIdentityMethodState(parent));
-            }
-            if (roleState.RemoveIdentity == null)
-            {
-                roleState.RemoveIdentity = PromoteMethodChild(
+            roleState.RemoveIdentity ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.RemoveIdentity,
                     parent => new RemoveIdentityMethodState(parent));
-            }
-            if (roleState.AddApplication == null)
-            {
-                roleState.AddApplication = PromoteMethodChild(
+            roleState.AddApplication ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.AddApplication,
                     parent => new AddApplicationMethodState(parent));
-            }
-            if (roleState.RemoveApplication == null)
-            {
-                roleState.RemoveApplication = PromoteMethodChild(
+            roleState.RemoveApplication ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.RemoveApplication,
                     parent => new RemoveApplicationMethodState(parent));
-            }
-            if (roleState.AddEndpoint == null)
-            {
-                roleState.AddEndpoint = PromoteMethodChild(
+            roleState.AddEndpoint ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.AddEndpoint,
                     parent => new AddEndpointMethodState(parent));
-            }
-            if (roleState.RemoveEndpoint == null)
-            {
-                roleState.RemoveEndpoint = PromoteMethodChild(
+            roleState.RemoveEndpoint ??= PromoteMethodChild(
                     m_nodeManager, context, roleState, BrowseNames.RemoveEndpoint,
                     parent => new RemoveEndpointMethodState(parent));
-            }
 
-            if (roleState.ApplicationsExclude == null)
-            {
-                roleState.ApplicationsExclude = PromoteBoolPropertyChild(
+            roleState.ApplicationsExclude ??= PromoteBoolPropertyChild(
                     m_nodeManager, context, roleState, BrowseNames.ApplicationsExclude);
-            }
-            if (roleState.EndpointsExclude == null)
-            {
-                roleState.EndpointsExclude = PromoteBoolPropertyChild(
+            roleState.EndpointsExclude ??= PromoteBoolPropertyChild(
                     m_nodeManager, context, roleState, BrowseNames.EndpointsExclude);
-            }
-            if (roleState.CustomConfiguration == null)
-            {
-                roleState.CustomConfiguration = PromoteBoolPropertyChild(
+            roleState.CustomConfiguration ??= PromoteBoolPropertyChild(
                     m_nodeManager, context, roleState, BrowseNames.CustomConfiguration);
-            }
         }
 
         private static TTyped? PromoteMethodChild<TTyped>(
@@ -418,7 +397,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            PropertyState<bool> active = PropertyState<bool>.With<VariantBuilder>(parent);
+            var active = PropertyState<bool>.With<VariantBuilder>(parent);
             active.Create(context, passiveVar);
             parent.ReplaceChild(context, active);
             manager.ReplacePredefinedNode(active.NodeId, active);
@@ -443,25 +422,25 @@ namespace Opc.Ua.Server
 
         private NodeValueEventHandler WriteApplicationsExcludeHandler(NodeId roleId)
         {
-            return (ISystemContext context, NodeState node, NumericRange indexRange,
-                    QualifiedName dataEncoding, ref Variant value,
-                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+            return (context, node, indexRange,
+                    dataEncoding, ref value,
+                    ref statusCode, ref timestamp) =>
                 OnWriteExclude(context, roleId, ref value, isApplications: true);
         }
 
         private NodeValueEventHandler WriteEndpointsExcludeHandler(NodeId roleId)
         {
-            return (ISystemContext context, NodeState node, NumericRange indexRange,
-                    QualifiedName dataEncoding, ref Variant value,
-                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+            return (context, node, indexRange,
+                    dataEncoding, ref value,
+                    ref statusCode, ref timestamp) =>
                 OnWriteExclude(context, roleId, ref value, isApplications: false);
         }
 
         private NodeValueEventHandler WriteCustomConfigurationHandler(NodeId roleId)
         {
-            return (ISystemContext context, NodeState node, NumericRange indexRange,
-                    QualifiedName dataEncoding, ref Variant value,
-                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+            return (context, node, indexRange,
+                    dataEncoding, ref value,
+                    ref statusCode, ref timestamp) =>
                 OnWriteCustomConfiguration(context, roleId, ref value);
         }
 
@@ -472,30 +451,12 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            if (roleState.Identities != null)
-            {
-                roleState.Identities.Value = ArrayOf.Wrapped(entry.Identities.ToArray());
-            }
-            if (roleState.Applications != null)
-            {
-                roleState.Applications.Value = ArrayOf.Wrapped(entry.Applications.ToArray());
-            }
-            if (roleState.ApplicationsExclude != null)
-            {
-                roleState.ApplicationsExclude.Value = entry.ApplicationsExclude;
-            }
-            if (roleState.Endpoints != null)
-            {
-                roleState.Endpoints.Value = ArrayOf.Wrapped(entry.Endpoints.ToArray());
-            }
-            if (roleState.EndpointsExclude != null)
-            {
-                roleState.EndpointsExclude.Value = entry.EndpointsExclude;
-            }
-            if (roleState.CustomConfiguration != null)
-            {
-                roleState.CustomConfiguration.Value = entry.CustomConfiguration;
-            }
+            roleState.Identities?.Value = ArrayOf.Wrapped(entry.Identities.ToArray());
+            roleState.Applications?.Value = ArrayOf.Wrapped(entry.Applications.ToArray());
+            roleState.ApplicationsExclude?.Value = entry.ApplicationsExclude;
+            roleState.Endpoints?.Value = ArrayOf.Wrapped(entry.Endpoints.ToArray());
+            roleState.EndpointsExclude?.Value = entry.EndpointsExclude;
+            roleState.CustomConfiguration?.Value = entry.CustomConfiguration;
             roleState.ClearChangeMasks(m_nodeManager.SystemContext, includeChildren: true);
         }
 
@@ -652,7 +613,7 @@ namespace Opc.Ua.Server
             // and inverse references for every materialized child.
             // Pass the spec-defined BrowseName so the standard browse-path
             // lookups (e.g. "/AddIdentity") match the instance.
-            ushort opcUaNs = 0;
+            const ushort opcUaNs = 0;
             roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(
                 roleState, new QualifiedName(BrowseNames.AddIdentity, opcUaNs));
             AssignChildNodeId(context, roleState.AddIdentity);
@@ -778,7 +739,7 @@ namespace Opc.Ua.Server
             // compatible if the runtime resequences known namespaces.
             int opcUaNsIndex = context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/");
             ushort ns = opcUaNsIndex >= 0 ? (ushort)opcUaNsIndex : (ushort)0;
-            PropertyState<bool> property = PropertyState<bool>.With<VariantBuilder>(parent);
+            var property = PropertyState<bool>.With<VariantBuilder>(parent);
             property.BrowseName = new QualifiedName(browseName, ns);
             property.DisplayName = new LocalizedText(browseName);
             property.SymbolicName = browseName;
@@ -796,7 +757,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant ruleVariant = Variant.FromStructure(rule);
+            var ruleVariant = Variant.FromStructure(rule);
             var result = new AddIdentityMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -820,7 +781,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant ruleVariant = Variant.FromStructure(rule);
+            var ruleVariant = Variant.FromStructure(rule);
             var result = new RemoveIdentityMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -844,7 +805,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant uriVariant = Variant.From(applicationUri);
+            var uriVariant = Variant.From(applicationUri);
             var result = new AddApplicationMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -868,7 +829,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant uriVariant = Variant.From(applicationUri);
+            var uriVariant = Variant.From(applicationUri);
             var result = new RemoveApplicationMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -892,7 +853,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant epVariant = Variant.FromStructure(endpoint);
+            var epVariant = Variant.FromStructure(endpoint);
             var result = new AddEndpointMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))
@@ -916,7 +877,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            Variant epVariant = Variant.FromStructure(endpoint);
+            var epVariant = Variant.FromStructure(endpoint);
             var result = new RemoveEndpointMethodStateResult();
             ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
             if (ServiceResult.IsBad(auth))

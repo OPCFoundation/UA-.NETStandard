@@ -105,38 +105,40 @@ namespace Opc.Ua.Core.Security.Tests
             // session establishment. Either Connected=true or any
             // failure unrelated to the cert (e.g. socket reset) is
             // acceptable.
-            await using CertSessionContext ctx = await CertSessionContext.CreateAsync(
+            CertSessionContext ctx = await CertSessionContext.CreateAsync(
                 cert, appUri, Telemetry).ConfigureAwait(false);
-
-            EndpointDescription noneEndpoint = await GetNoneEndpointAsync().ConfigureAwait(false);
-            if (noneEndpoint == null)
+            await using (ctx.ConfigureAwait(false))
             {
-                Assert.Ignore("Server does not expose a SecurityMode.None endpoint.");
-            }
-
-            var endpointConfig = EndpointConfiguration.Create(ctx.ClientConfig);
-            endpointConfig.OperationTimeout = 10000;
-            var configured = new ConfiguredEndpoint(null, noneEndpoint, endpointConfig);
-
-            ISession session = null;
-            try
-            {
-                session = await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
-                Assert.That(session.Connected, Is.True);
-            }
-            finally
-            {
-                if (session != null)
+                EndpointDescription noneEndpoint = await GetNoneEndpointAsync().ConfigureAwait(false);
+                if (noneEndpoint == null)
                 {
-                    try
+                    Assert.Ignore("Server does not expose a SecurityMode.None endpoint.");
+                }
+
+                var endpointConfig = EndpointConfiguration.Create(ctx.ClientConfig);
+                endpointConfig.OperationTimeout = 10000;
+                var configured = new ConfiguredEndpoint(null, noneEndpoint, endpointConfig);
+
+                ISession session = null;
+                try
+                {
+                    session = await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
+                    Assert.That(session.Connected, Is.True);
+                }
+                finally
+                {
+                    if (session != null)
                     {
-                        await session.CloseAsync(5000, true, CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            await session.CloseAsync(5000, true, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // best effort
+                        }
+                        session.Dispose();
                     }
-                    catch
-                    {
-                        // best effort
-                    }
-                    session.Dispose();
                 }
             }
         }

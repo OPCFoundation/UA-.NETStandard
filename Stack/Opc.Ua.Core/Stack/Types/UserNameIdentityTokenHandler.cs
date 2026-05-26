@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -222,7 +222,7 @@ namespace Opc.Ua
                     context,
                     securityPolicyUri,
                     certificate,
-                    receiverNonce!);
+                    receiverNonce);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
                     encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
                 {

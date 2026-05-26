@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua;
 using Opc.Ua.Server.Fluent;
 
 namespace Calc
@@ -69,7 +67,7 @@ namespace Calc
             // Sync int+int→int — exercises Variant.TryGetValue<int> on
             // each input arg and Variant.From<int> on the boxed result.
             builder.Calculator.Add
-                .OnCall((int a, int b) => a + b);
+                .OnCall((a, b) => a + b);
 
             // Async double+double→double — exercises the typed async
             // OnCall overload (Func<double, double, CancellationToken,
@@ -77,7 +75,7 @@ namespace Calc
             // AsyncCustomNodeManager.CallAsync, plus Variant.From<double>
             // on the boxed result.
             builder.Calculator.Multiply
-                .OnCall(async (double x, double y, CancellationToken ct) =>
+                .OnCall(async (x, y, ct) =>
                 {
                     await Task.Yield();
                     ct.ThrowIfCancellationRequested();
@@ -89,7 +87,7 @@ namespace Calc
             // inputs to empty so the handler is well-defined when a
             // client passes a null Variant in either slot.
             builder.Calculator.Concat
-                .OnCall((string left, string right) =>
+                .OnCall((left, right) =>
                     (left ?? string.Empty) + (right ?? string.Empty));
         }
     }

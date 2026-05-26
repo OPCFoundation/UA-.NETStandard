@@ -50,8 +50,10 @@ namespace Opc.Ua.Lds.Server
     public sealed class RegisteredServerStore : IDisposable
     {
         private readonly SemaphoreSlim m_lock = new(1, 1);
+
         private readonly Dictionary<string, RegistrationEntry> m_byUri
             = new(StringComparer.Ordinal);
+
         private readonly List<ServerOnNetworkRecord> m_records = [];
         private readonly ILogger m_logger;
         private uint m_nextRecordId = 1;
@@ -110,7 +112,7 @@ namespace Opc.Ua.Lds.Server
             m_lock.Wait();
             try
             {
-                return m_byUri.Values.Select(Clone).ToList();
+                return [.. m_byUri.Values.Select(Clone)];
             }
             finally
             {
@@ -160,6 +162,7 @@ namespace Opc.Ua.Lds.Server
         /// <paramref name="server"/>'s state. Returns the live registration
         /// (post-merge) or <c>null</c> if it was removed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
         public async Task<RegistrationEntry> RegisterAsync(
             RegisteredServer server,
             MdnsDiscoveryConfiguration mdnsConfig,
@@ -176,8 +179,8 @@ namespace Opc.Ua.Lds.Server
                 string uri = server.ServerUri;
 
                 // semaphore file: if path is set but file is missing, drop the registration
-                bool semaphoreValid = string.IsNullOrEmpty(server.SemaphoreFilePath)
-                    || File.Exists(server.SemaphoreFilePath);
+                bool semaphoreValid = string.IsNullOrEmpty(server.SemaphoreFilePath) ||
+                    File.Exists(server.SemaphoreFilePath);
 
                 if (!server.IsOnline || !semaphoreValid)
                 {
@@ -201,12 +204,12 @@ namespace Opc.Ua.Lds.Server
 
                 entry.ProductUri = server.ProductUri;
                 entry.ServerNames = server.ServerNames.IsNull
-                    ? new List<LocalizedText>()
+                    ? []
                     : server.ServerNames.ToList();
                 entry.ServerType = server.ServerType;
                 entry.GatewayServerUri = server.GatewayServerUri;
                 entry.DiscoveryUrls = server.DiscoveryUrls.IsNull
-                    ? new List<string>()
+                    ? []
                     : server.DiscoveryUrls.ToList();
                 entry.SemaphoreFilePath = server.SemaphoreFilePath;
                 entry.IsOnline = true;
@@ -216,7 +219,7 @@ namespace Opc.Ua.Lds.Server
                 {
                     entry.MdnsServerName = mdnsConfig.MdnsServerName;
                     entry.ServerCapabilities = mdnsConfig.ServerCapabilities.IsNull
-                        ? new List<string>()
+                        ? []
                         : mdnsConfig.ServerCapabilities.ToList();
 
                     UpdateNetworkRecordsCore(entry);
@@ -249,8 +252,8 @@ namespace Opc.Ua.Lds.Server
                 var result = new List<ApplicationDescription>(m_byUri.Count);
                 foreach (RegistrationEntry e in m_byUri.Values)
                 {
-                    if (serverUriFilter is { Count: > 0 }
-                        && !serverUriFilter.Contains(e.ServerUri))
+                    if (serverUriFilter is { Count: > 0 } &&
+                        !serverUriFilter.Contains(e.ServerUri))
                     {
                         continue;
                     }
@@ -303,15 +306,14 @@ namespace Opc.Ua.Lds.Server
                     source = source.Take((int)maxRecordsToReturn);
                 }
 
-                IList<ServerOnNetwork> dto = source
+                IList<ServerOnNetwork> dto = [.. source
                     .Select(r => new ServerOnNetwork
                     {
                         RecordId = r.RecordId,
                         ServerName = r.ServerName,
                         DiscoveryUrl = r.DiscoveryUrl,
                         ServerCapabilities = [.. r.ServerCapabilities]
-                    })
-                    .ToList();
+                    })];
 
                 return (dto, m_lastCounterResetTime);
             }
@@ -325,6 +327,7 @@ namespace Opc.Ua.Lds.Server
         /// Adds or refreshes mDNS-observed peer records. Called by
         /// <see cref="MulticastDiscovery"/> when service discoveries occur.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="discoveryUrl"/> is null or empty.</exception>
         public void UpsertMulticastRecord(
             string serverUri,
             string serverName,
@@ -340,8 +343,8 @@ namespace Opc.Ua.Lds.Server
             try
             {
                 ServerOnNetworkRecord existing = m_records.FirstOrDefault(r =>
-                    r.ObservedViaMulticast
-                    && string.Equals(r.DiscoveryUrl, discoveryUrl, StringComparison.Ordinal));
+                    r.ObservedViaMulticast &&
+                    string.Equals(r.DiscoveryUrl, discoveryUrl, StringComparison.Ordinal));
 
                 if (existing != null)
                 {
@@ -376,10 +379,10 @@ namespace Opc.Ua.Lds.Server
             m_lock.Wait();
             try
             {
-                List<string> staleUris = m_byUri.Values
+                var staleUris = m_byUri.Values
                     .Where(e =>
-                        nowUtc - e.LastSeenUtc > RegistrationLifetime
-                        || (!string.IsNullOrEmpty(e.SemaphoreFilePath) && !File.Exists(e.SemaphoreFilePath)))
+                        nowUtc - e.LastSeenUtc > RegistrationLifetime ||
+                        (!string.IsNullOrEmpty(e.SemaphoreFilePath) && !File.Exists(e.SemaphoreFilePath)))
                     .Select(e => e.ServerUri)
                     .ToList();
 
@@ -390,8 +393,8 @@ namespace Opc.Ua.Lds.Server
                 }
 
                 m_records.RemoveAll(r =>
-                    r.ObservedViaMulticast
-                    && nowUtc - r.LastSeenUtc > MulticastRecordLifetime);
+                    r.ObservedViaMulticast &&
+                    nowUtc - r.LastSeenUtc > MulticastRecordLifetime);
             }
             finally
             {
@@ -403,6 +406,8 @@ namespace Opc.Ua.Lds.Server
         /// Test seam: directly insert a registration without protocol validation.
         /// Used by the LdsTestFixture to deterministically populate state.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="entry"/> is null.</exception>
+        /// <exception cref="ArgumentException">The <see cref="RegistrationEntry.ServerUri"/> of <paramref name="entry"/> is null or empty.</exception>
         internal void SeedRegistration(RegistrationEntry entry)
         {
             if (entry == null)
@@ -418,8 +423,8 @@ namespace Opc.Ua.Lds.Server
             try
             {
                 m_byUri[entry.ServerUri] = entry;
-                if (!string.IsNullOrEmpty(entry.MdnsServerName)
-                    && entry.ServerCapabilities is { Count: > 0 })
+                if (!string.IsNullOrEmpty(entry.MdnsServerName) &&
+                    entry.ServerCapabilities is { Count: > 0 })
                 {
                     UpdateNetworkRecordsCore(entry);
                 }
@@ -466,8 +471,8 @@ namespace Opc.Ua.Lds.Server
             // Replace any prior records for this ServerUri originating from
             // explicit registration (preserve mDNS-observed records).
             m_records.RemoveAll(r =>
-                !r.ObservedViaMulticast
-                && string.Equals(r.ServerUri, entry.ServerUri, StringComparison.Ordinal));
+                !r.ObservedViaMulticast &&
+                string.Equals(r.ServerUri, entry.ServerUri, StringComparison.Ordinal));
 
             foreach (string url in entry.DiscoveryUrls)
             {
@@ -491,8 +496,8 @@ namespace Opc.Ua.Lds.Server
         private void RemoveNetworkRecordsForUriCore(string serverUri)
         {
             m_records.RemoveAll(r =>
-                !r.ObservedViaMulticast
-                && string.Equals(r.ServerUri, serverUri, StringComparison.Ordinal));
+                !r.ObservedViaMulticast &&
+                string.Equals(r.ServerUri, serverUri, StringComparison.Ordinal));
         }
 
         private static LocalizedText SelectName(
@@ -520,30 +525,36 @@ namespace Opc.Ua.Lds.Server
             return names[0];
         }
 
-        private static RegistrationEntry Clone(RegistrationEntry e) => new()
+        private static RegistrationEntry Clone(RegistrationEntry e)
         {
-            ServerUri = e.ServerUri,
-            ProductUri = e.ProductUri,
-            ServerNames = [.. e.ServerNames],
-            ServerType = e.ServerType,
-            GatewayServerUri = e.GatewayServerUri,
-            DiscoveryUrls = [.. e.DiscoveryUrls],
-            SemaphoreFilePath = e.SemaphoreFilePath,
-            IsOnline = e.IsOnline,
-            LastSeenUtc = e.LastSeenUtc,
-            ServerCapabilities = [.. e.ServerCapabilities],
-            MdnsServerName = e.MdnsServerName
-        };
+            return new()
+            {
+                ServerUri = e.ServerUri,
+                ProductUri = e.ProductUri,
+                ServerNames = [.. e.ServerNames],
+                ServerType = e.ServerType,
+                GatewayServerUri = e.GatewayServerUri,
+                DiscoveryUrls = [.. e.DiscoveryUrls],
+                SemaphoreFilePath = e.SemaphoreFilePath,
+                IsOnline = e.IsOnline,
+                LastSeenUtc = e.LastSeenUtc,
+                ServerCapabilities = [.. e.ServerCapabilities],
+                MdnsServerName = e.MdnsServerName
+            };
+        }
 
-        private static ServerOnNetworkRecord Clone(ServerOnNetworkRecord r) => new()
+        private static ServerOnNetworkRecord Clone(ServerOnNetworkRecord r)
         {
-            RecordId = r.RecordId,
-            ServerUri = r.ServerUri,
-            ServerName = r.ServerName,
-            DiscoveryUrl = r.DiscoveryUrl,
-            ServerCapabilities = [.. r.ServerCapabilities],
-            LastSeenUtc = r.LastSeenUtc,
-            ObservedViaMulticast = r.ObservedViaMulticast
-        };
+            return new()
+            {
+                RecordId = r.RecordId,
+                ServerUri = r.ServerUri,
+                ServerName = r.ServerName,
+                DiscoveryUrl = r.DiscoveryUrl,
+                ServerCapabilities = [.. r.ServerCapabilities],
+                LastSeenUtc = r.LastSeenUtc,
+                ObservedViaMulticast = r.ObservedViaMulticast
+            };
+        }
     }
 }

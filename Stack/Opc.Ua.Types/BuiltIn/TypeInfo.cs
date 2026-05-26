@@ -1218,9 +1218,7 @@ namespace Opc.Ua
                 case BuiltInType.ExtensionObject:
                     return new SystemType<ExtensionObject>(builtInType);
                 case BuiltInType.Number:
-                    return new SystemType<Variant>(builtInType);
                 case BuiltInType.Integer:
-                    return new SystemType<Variant>(builtInType);
                 case BuiltInType.UInteger:
                     return new SystemType<Variant>(builtInType);
                 case BuiltInType.Enumeration:

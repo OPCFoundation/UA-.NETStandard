@@ -152,7 +152,7 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
-        public Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; private set; }
+        public UserManagement.IUserManagement? UserManagement { get; private set; }
 
         /// <summary>
         /// The subscription manager to use with the server.
@@ -253,12 +253,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void SetRoleManager(IRoleManager roleManager)
         {
-            if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
-            RoleManager = roleManager;
+            RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         }
 
         /// <inheritdoc/>
-        public void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement)
+        public void SetUserManagement(UserManagement.IUserManagement userManagement)
         {
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
         }

@@ -454,10 +454,19 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task ReconnectUsesBackoffDelays()
         {
+            // Use 100 ms initial delay so the recorded gaps are dominated
+            // by the configured exponential backoff rather than by
+            // scheduler jitter. On constrained runners (notably macOS
+            // hosted agents) a 10 ms initial delay produces gaps in the
+            // 20–120 ms range where ~10 ms thread-pool scheduler noise
+            // can violate the `gap2 >= gap1 * 0.8` invariant the test is
+            // checking. The 100 ms / 200 ms / 400 ms sequence keeps the
+            // total test time bounded (~700 ms) while moving the
+            // expected gaps well above scheduler precision.
             var policy = new ReconnectPolicy
             {
                 Strategy = BackoffStrategy.Exponential,
-                InitialDelay = TimeSpan.FromMilliseconds(10),
+                InitialDelay = TimeSpan.FromMilliseconds(100),
                 MaxDelay = TimeSpan.FromSeconds(5),
                 JitterFactor = 0.0,
                 MaxRetries = 5

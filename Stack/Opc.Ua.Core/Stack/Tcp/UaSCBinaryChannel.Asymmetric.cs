@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -84,11 +84,7 @@ namespace Opc.Ua.Bindings
         protected string SecurityPolicyUri
         {
             get => SecurityPolicy?.Uri ?? string.Empty;
-
-            private set
-            {
-                SecurityPolicy = SecurityPolicies.GetInfo(value);
-            }
+            private set => SecurityPolicy = SecurityPolicies.GetInfo(value);
         }
 
         /// <summary>
@@ -875,7 +871,8 @@ namespace Opc.Ua.Bindings
                 secureChannelId = decoder.ReadUInt32(null);
                 securityPolicyUri = decoder.ReadString(
                     null,
-                    TcpMessageLimits.MaxSecurityPolicyUriSize) ?? SecurityPolicies.None;
+                    TcpMessageLimits.MaxSecurityPolicyUriSize) ??
+                    SecurityPolicies.None;
                 certificateData = decoder.ReadByteString(
                     TcpMessageLimits.MaxCertificateSize);
                 thumbprintData = decoder.ReadByteString(

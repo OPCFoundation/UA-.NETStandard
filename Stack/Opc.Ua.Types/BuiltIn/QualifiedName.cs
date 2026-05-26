@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -399,13 +399,8 @@ namespace Opc.Ua
         /// table.</exception>
         public static QualifiedName ParseLongForm(string text, NamespaceTable namespaceTable)
         {
-            if (namespaceTable == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceTable));
-            }
-
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
-            context.NamespaceUris = namespaceTable;
+            var context = ServiceMessageContext.CreateEmpty(null!);
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
 
             // Parse(IServiceMessageContext, string, bool) is already strict on
             // unresolved nsu= URIs (throws BadNodeIdInvalid). updateTables: false
