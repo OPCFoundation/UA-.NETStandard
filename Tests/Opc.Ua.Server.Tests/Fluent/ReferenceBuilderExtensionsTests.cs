@@ -273,5 +273,134 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(
                 () => nb.AddReference(ReferenceTypeIds.Organizes, false, NodeId.Null));
         }
+
+        [Test]
+        public void AddReferenceNullBuilderThrowsArgumentNullException()
+        {
+            (_, _, BaseDataVariableState t1, _) = CreateBuilder();
+            Assert.Throws<ArgumentNullException>(
+                () => ((INodeBuilder)null!).AddReference(
+                    ReferenceTypeIds.Organizes, false, t1.NodeId));
+        }
+
+        [Test]
+        public void AddObjectNullParentThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(
+                () => ((INodeBuilder)null!).AddObject(new QualifiedName("X", kNs)));
+        }
+
+        [Test]
+        public void AddObjectReturnedBuilderExposesNodeAndOwnerBuilder()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+
+            Assert.That(child.Builder, Is.SameAs(b));
+            Assert.That(((INodeBuilder)child).Node, Is.SameAs(child.Node));
+        }
+
+        [Test]
+        public void AddObjectAsCastsToBaseType()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+            INodeBuilder<NodeState> upcast = child.As<NodeState>();
+
+            Assert.That(upcast.Node, Is.SameAs(child.Node));
+        }
+
+        [Test]
+        public void AddObjectAsThrowsOnTypeMismatch()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => child.As<BaseDataVariableState>())!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void AddObjectOnReadOnNonVariableThrowsBadInvalidArgument()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => child.OnRead((NodeValueSimpleEventHandler)((ISystemContext c, NodeState n, ref Variant v) => ServiceResult.Good)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void AddObjectOnCallOnNonMethodThrowsBadInvalidArgument()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => child.OnCall((GenericMethodCalledEventHandler2)((_, _, _, _, _) => ServiceResult.Good)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void AddObjectChildMissingThrowsBadNodeIdUnknown()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => child.Child(new QualifiedName("DoesNotExist", kNs)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void AddObjectVariableOnNonVariableChildThrowsBadTypeMismatch()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> parent = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+            // Attach a non-variable child.
+            parent.AddObject(new QualifiedName("SubObj", kNs));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => parent.Variable<int>(new QualifiedName("SubObj", kNs)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void AddObjectOnNodeAddedInvokesHandlerSynchronously()
+        {
+            (NodeManagerBuilder b, _, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> child = nb.AddObject(
+                new QualifiedName("Group1", kNs));
+
+            NodeState? captured = null;
+            child.OnNodeAdded((_, n) => captured = n);
+
+            Assert.That(captured, Is.SameAs(child.Node));
+        }
     }
 }

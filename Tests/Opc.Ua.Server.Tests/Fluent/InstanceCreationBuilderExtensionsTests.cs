@@ -224,5 +224,156 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new QualifiedName("Sub", kNs));
             Assert.That(sub.Node.Parent, Is.SameAs(typed.Node));
         }
+
+        [Test]
+        public void CreateInstanceFactoryReceivesParentNode()
+        {
+            (NodeManagerBuilder b, BaseObjectState root) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            NodeState? observed = null;
+            nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p =>
+                {
+                    observed = p;
+                    return new BaseObjectState(p);
+                });
+
+            Assert.That(observed, Is.SameAs(root));
+        }
+
+        [Test]
+        public void CreateInstanceWithTypeDefNullParentThrows()
+        {
+            Assert.Throws<ArgumentNullException>(
+                () => ((INodeBuilder)null!).CreateInstance(
+                    new QualifiedName("X", kNs),
+                    new NodeId(1024u, kNs),
+                    p => new BaseObjectState(p)));
+        }
+
+        [Test]
+        public void CreateInstanceWithTypeDefNullBrowseNameThrows()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            Assert.Throws<ArgumentNullException>(
+                () => nb.CreateInstance<BaseObjectState>(
+                    QualifiedName.Null,
+                    new NodeId(1024u, kNs),
+                    p => new BaseObjectState(p)));
+        }
+
+        [Test]
+        public void CreateInstanceWithTypeDefNullFactoryThrows()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            Assert.Throws<ArgumentNullException>(
+                () => nb.CreateInstance<BaseObjectState>(
+                    new QualifiedName("X", kNs),
+                    new NodeId(1024u, kNs),
+                    (Func<NodeState, BaseObjectState>)null!));
+        }
+
+        [Test]
+        public void ConfigureNullActionThrowsArgumentNullException()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            IInstanceBuilder<BaseObjectState> ib = nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p => new BaseObjectState(p));
+
+            Assert.Throws<ArgumentNullException>(
+                () => ib.Configure(null!));
+        }
+
+        [Test]
+        public void AsNodeChildLookupFindsAttachedChild()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> typed = nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p => new BaseObjectState(p))
+                .AsNode();
+
+            INodeBuilder<BaseObjectState> sub = typed.AddObject(
+                new QualifiedName("Sub", kNs));
+            INodeBuilder found = typed.Child(new QualifiedName("Sub", kNs));
+
+            Assert.That(found.Node, Is.SameAs(sub.Node));
+        }
+
+        [Test]
+        public void AsNodeChildLookupMissingThrowsBadNodeIdUnknown()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> typed = nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p => new BaseObjectState(p))
+                .AsNode();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => typed.Child(new QualifiedName("DoesNotExist", kNs)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void AsNodeAsThrowsOnTypeMismatch()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> typed = nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p => new BaseObjectState(p))
+                .AsNode();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => typed.As<BaseDataVariableState>())!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void AsNodeOnReadOnNonVariableThrowsBadInvalidArgument()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> typed = nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p => new BaseObjectState(p))
+                .AsNode();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => typed.OnRead((NodeValueSimpleEventHandler)((ISystemContext c, NodeState n, ref Variant v) => ServiceResult.Good)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void AsNodeOnNodeAddedInvokesHandlerSynchronously()
+        {
+            (NodeManagerBuilder b, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            INodeBuilder<BaseObjectState> typed = nb.CreateInstance(
+                new QualifiedName("Pump#2", kNs),
+                p => new BaseObjectState(p))
+                .AsNode();
+
+            NodeState? captured = null;
+            typed.OnNodeAdded((_, n) => captured = n);
+
+            Assert.That(captured, Is.SameAs(typed.Node));
+        }
     }
 }

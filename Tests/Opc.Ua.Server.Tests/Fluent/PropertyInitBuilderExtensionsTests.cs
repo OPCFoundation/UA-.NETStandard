@@ -239,5 +239,119 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.That(chain, Is.SameAs(typed));
         }
+
+        private static (NodeManagerBuilder Builder, BaseDataVariableState Prop)
+            CreateBuilderWithDataVariable(string browseName)
+        {
+            SystemContext ctx = CreateContext();
+
+            var root = new BaseObjectState(parent: null)
+            {
+                NodeId = new NodeId("Root", kNs),
+                BrowseName = new QualifiedName("Root", kNs),
+                DisplayName = new LocalizedText("Root")
+            };
+
+            var prop = new BaseDataVariableState(root)
+            {
+                NodeId = new NodeId("Root." + browseName, kNs),
+                BrowseName = new QualifiedName(browseName, kNs),
+                DisplayName = new LocalizedText(browseName),
+                DataType = DataTypeIds.BaseDataType,
+                ValueRank = ValueRanks.Scalar
+            };
+            root.AddChild(prop);
+
+            var roots = new Dictionary<QualifiedName, NodeState> { [root.BrowseName] = root };
+            var byId = new Dictionary<NodeId, NodeState>
+            {
+                [root.NodeId] = root,
+                [prop.NodeId] = prop
+            };
+
+            var builder = new NodeManagerBuilder(
+                ctx,
+                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                defaultNamespaceIndex: kNs,
+                rootResolver: q => roots.TryGetValue(q, out NodeState? n) ? n! : null!,
+                nodeIdResolver: id => byId.TryGetValue(id, out NodeState? n) ? n! : null!,
+                typeIdResolver: _ => []);
+
+            return (builder, prop);
+        }
+
+        [Test]
+        public void WithPropertyBoolSetsValue()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState prop) =
+                CreateBuilderWithDataVariable("Enabled");
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty("Enabled", true);
+
+            Assert.That(prop.WrappedValue.AsBoxedObject(), Is.True);
+        }
+
+        [Test]
+        public void WithPropertyDoubleSetsValue()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState prop) =
+                CreateBuilderWithDataVariable("Pressure");
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty("Pressure", 3.14);
+
+            Assert.That(prop.WrappedValue.AsBoxedObject(), Is.EqualTo(3.14));
+        }
+
+        [Test]
+        public void WithPropertyLongSetsValue()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState prop) =
+                CreateBuilderWithDataVariable("BigCount");
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty("BigCount", 1234567890123L);
+
+            Assert.That(prop.WrappedValue.AsBoxedObject(), Is.EqualTo(1234567890123L));
+        }
+
+        [Test]
+        public void WithPropertyByteSetsValue()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState prop) =
+                CreateBuilderWithDataVariable("Flags");
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            nb.WithProperty("Flags", (byte)0xAB);
+
+            Assert.That(prop.WrappedValue.AsBoxedObject(), Is.EqualTo((byte)0xAB));
+        }
+
+        [Test]
+        public void WithPropertyNodeIdSetsValue()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState prop) =
+                CreateBuilderWithDataVariable("RefId");
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            var value = new NodeId(42u, kNs);
+            nb.WithProperty("RefId", value);
+
+            Assert.That(prop.WrappedValue.AsBoxedObject(), Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WithPropertyLocalizedTextSetsValue()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState prop) =
+                CreateBuilderWithDataVariable("Description");
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            var value = new LocalizedText("en", "hello");
+            nb.WithProperty("Description", value);
+
+            Assert.That(prop.WrappedValue.AsBoxedObject(), Is.EqualTo(value));
+        }
     }
 }
