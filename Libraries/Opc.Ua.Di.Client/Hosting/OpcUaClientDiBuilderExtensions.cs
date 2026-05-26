@@ -115,6 +115,45 @@ namespace Microsoft.Extensions.DependencyInjection
                 };
             });
 
+            // Lock client factory: callers supply the NodeId of a
+            // LockingServicesType instance; we open the session and
+            // wrap it in a DiLockClient.
+            builder.Services.TryAddSingleton<
+                Func<NodeId, CancellationToken, ValueTask<DiLockClient>>>(sp =>
+            {
+                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires AddClient() to be called first.");
+                ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires an ITelemetryContext.");
+
+                return async (NodeId lockNodeId, CancellationToken ct) =>
+                {
+                    ManagedSession session = await accessor(ct).ConfigureAwait(false);
+                    return new DiLockClient(session, lockNodeId, telemetry);
+                };
+            });
+
+            // Topology client: enumerates DeviceSet / NetworkSet /
+            // DeviceTopology folders. Constructed lazily on first use.
+            builder.Services.TryAddSingleton<
+                Func<CancellationToken, ValueTask<DiTopologyClient>>>(sp =>
+            {
+                var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires AddClient() to be called first.");
+                ITelemetryContext telemetry = sp.GetService<ITelemetryContext>()
+                    ?? throw new InvalidOperationException(
+                        "AddOpcUaDi() requires an ITelemetryContext.");
+
+                return async (CancellationToken ct) =>
+                {
+                    ManagedSession session = await accessor(ct).ConfigureAwait(false);
+                    return new DiTopologyClient(session, telemetry);
+                };
+            });
+
             return builder;
         }
     }
