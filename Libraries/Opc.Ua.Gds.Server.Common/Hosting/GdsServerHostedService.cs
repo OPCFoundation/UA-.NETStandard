@@ -325,14 +325,14 @@ namespace Opc.Ua.Gds.Server.Hosting
                     applications.KeyCredentialRequestStore = m_keyCredentialStore;
                 }
 
-                var nodeManagers = new List<INodeManager> { applications };
+                var nodeManagers = new List<INodeManager> { applications.ToSyncNodeManager() };
 
                 if (m_configurationStore != null)
                 {
                     nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
                         server,
                         configuration,
-                        m_configurationStore));
+                        m_configurationStore).ToSyncNodeManager());
                 }
 
                 return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);

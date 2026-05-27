@@ -131,7 +131,7 @@ namespace Opc.Ua.Gds.Server
                     m_database,
                     m_request,
                     m_certificateGroup,
-                    m_autoApprove)
+                    m_autoApprove).ToSyncNodeManager()
             };
 
             // create master node manager.
