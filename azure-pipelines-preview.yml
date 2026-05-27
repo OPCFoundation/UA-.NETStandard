@@ -42,7 +42,11 @@ stages:
     parameters:
       upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
       config: 'Release'
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
   - template: .azurepipelines/preview.yml
     parameters:
       upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
       config: 'Debug'
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}

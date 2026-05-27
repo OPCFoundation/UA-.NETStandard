@@ -6,16 +6,24 @@ parameters:
   framework: net10.0
   jobnamesuffix: ''
   agents: '@{}'
+  # Caller passes the resolved managed-pool name (empty string when targeting
+  # Microsoft-hosted agents) and the Windows image alias to use as either the
+  # pool ImageOverride demand or the hosted vmImage.  Passing these as
+  # parameters avoids relying on root-pipeline variables defined inside
+  # ${{ if ... }}: blocks, which aren't reliably visible to included
+  # templates at compile-time.
+  poolName: ''
+  windowsImage: 'windows-2025-vs2026'
 jobs:
 - job: buildprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Build Jobs
   pool:
-    ${{ if ne(variables.poolName, '') }}:
-      name: ${{ variables.poolName }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
       demands:
-        - ImageOverride -equals ${{ variables.windowsImage }}
+        - ImageOverride -equals ${{ parameters.windowsImage }}
     ${{ else }}:
-      vmImage: ${{ variables.windowsImage }}
+      vmImage: ${{ parameters.windowsImage }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -34,8 +42,8 @@ jobs:
   strategy:
     matrix: $[dependencies.buildprep${{ parameters.jobnamesuffix }}.outputs['buildmatrix.jobMatrix'] ]
   pool:
-    ${{ if ne(variables.poolName, '') }}:
-      name: ${{ variables.poolName }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
       demands:
         - ImageOverride -equals $(poolImage)
     ${{ else }}:
@@ -62,7 +70,7 @@ jobs:
       arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Release Pack
-    condition: eq(variables['poolImage'], '${{ variables.windowsImage }}')
+    condition: eq(variables['poolImage'], '${{ parameters.windowsImage }}')
     inputs:
       command: pack
       packagesToPack:  '**/Opc.Ua.*.csproj'
@@ -76,7 +84,7 @@ jobs:
       arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Debug Pack
-    condition: eq(variables['poolImage'], '${{ variables.windowsImage }}')
+    condition: eq(variables['poolImage'], '${{ parameters.windowsImage }}')
     inputs:
       command: pack
       packagesToPack:  '**/Opc.Ua.*.csproj'

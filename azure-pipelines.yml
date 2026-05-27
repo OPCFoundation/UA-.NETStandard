@@ -57,6 +57,7 @@ stages:
   - template: .azurepipelines/sln.yml
     parameters:
       poolImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.poolName }}
       jobnamesuffix: win2025
       # PR builds compile only UA.slnx; master/scheduled/manual/fork-PR builds
       # discover every *.slnx in the repository automatically.
@@ -73,6 +74,8 @@ stages:
     parameters:
       buildoption: '-p:NoHttps=true'
       agents: '@{ linux = "${{ variables.linuxImage }}" }'
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testfastpr
   dependsOn: []
   displayName: 'Fast PR test'
@@ -83,6 +86,8 @@ stages:
       framework: net48
       agents: '@{ windows = "${{ variables.windowsImage }}" }'
       jobnamesuffix: net48
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -101,6 +106,8 @@ stages:
       configuration: Release
       agents: '@{ windows = "${{ variables.windowsImage }}"; linux="${{ variables.linuxImage }}"}'
       jobnamesuffix: net100aot
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
@@ -111,6 +118,8 @@ stages:
       framework: net10.0
       configuration: Debug
       jobnamesuffix: net100debug
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
   - ${{ if parameters.managedPool }}:
@@ -131,6 +140,8 @@ stages:
       framework: net9.0
       configuration: Release
       jobnamesuffix: net90
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
   - ${{ if parameters.managedPool }}:
@@ -151,6 +162,8 @@ stages:
       framework: net8.0
       configuration: Release
       jobnamesuffix: net80
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
   - ${{ if parameters.managedPool }}:
@@ -173,6 +186,8 @@ stages:
       jobnamesuffix: net472
       agents: '@{ windows = "${{ variables.windowsImage }}" }'
       customtestarget: net472
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testnetstandard20
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.0'
@@ -185,6 +200,8 @@ stages:
       jobnamesuffix: netstandard20
       agents: '@{ windows = "${{ variables.windowsImage }}"}'
       customtestarget: netstandard2.0
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
 - stage: testnetstandard21
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.1'
@@ -196,6 +213,8 @@ stages:
       configuration: Release
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
       ${{ if parameters.managedPool }}:
         agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
   - ${{ if parameters.managedPool }}:
@@ -221,3 +240,4 @@ stages:
         poolImage: 'ubuntu-22.04'
       framework: net10.0
       jobnamesuffix: net100cc
+      poolName: ${{ variables.poolName }}

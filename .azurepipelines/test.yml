@@ -12,16 +12,21 @@ parameters:
   # Use this for stages that target macOS, which the managed pool does not
   # provide.
   hosted: false
+  # See ci.yml: passing pool config via parameters because root-pipeline
+  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
+  # included templates at compile-time.
+  poolName: ''
+  windowsImage: 'windows-2025-vs2026'
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
   pool:
-    ${{ if and(ne(variables.poolName, ''), not(parameters.hosted)) }}:
-      name: ${{ variables.poolName }}
+    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+      name: ${{ parameters.poolName }}
       demands:
-        - ImageOverride -equals ${{ variables.windowsImage }}
+        - ImageOverride -equals ${{ parameters.windowsImage }}
     ${{ else }}:
-      vmImage: 'windows-2025-vs2026'
+      vmImage: ${{ parameters.windowsImage }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -48,8 +53,8 @@ jobs:
     ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
-    ${{ if and(ne(variables.poolName, ''), not(parameters.hosted)) }}:
-      name: ${{ variables.poolName }}
+    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+      name: ${{ parameters.poolName }}
       demands:
         - ImageOverride -equals $(poolImage)
     ${{ else }}:
