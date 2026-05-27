@@ -1889,7 +1889,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 $"expected at least one inter-publish interval, observed {s_publishTimestamps.Count} publish(es) " +
                 $"over {publishTimeInSeconds}s at {metaDataUpdateTime}ms cadence");
 
-            double[] sortedIntervals = [.. intervalsMs.Order()];
+            double[] sortedIntervals = [.. intervalsMs];
+            Array.Sort(sortedIntervals);
             double median = sortedIntervals[sortedIntervals.Length / 2];
             double maxDeviationMs = Math.Max(metaDataUpdateTime * 0.25, 50.0);
 
