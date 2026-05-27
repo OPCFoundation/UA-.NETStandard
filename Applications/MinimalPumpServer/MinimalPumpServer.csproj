@@ -30,9 +30,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
   <!-- DI NodeSet2 — provided for cross-namespace type resolution by
-       the source generator only. ModelSourceGeneratorIgnore=true tells
-       the generator NOT to emit AddOpcUaDi locally; the AddOpcUaDi
-       extension comes from the Opc.Ua.Di library reference. -->
+       the source generator. The [assembly: ModelSnapshotAttribute]
+       on Opc.Ua.Di already exposes the type hierarchy, but full
+       elimination of this file requires the snapshot to also carry
+       InstanceDesign children of the inherited types (so the
+       generator can skip re-emitting properties already declared on
+       the upstream parent). Tracked in
+       plans/C7-cross-assembly-model-snapshot.md §"Open questions". -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Di.NodeSet2.xml">
       <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>

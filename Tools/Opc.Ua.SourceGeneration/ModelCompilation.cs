@@ -60,7 +60,8 @@ namespace Opc.Ua.SourceGeneration
             CompilationOptions compilationOptions,
             ImmutableArray<ModelDependencyReference> referencedModels,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
-            ILogger logger)
+            ILogger logger,
+            ImmutableArray<ReferencedModelSnapshot> referencedSnapshots = default)
         {
             m_context = context;
             m_input = inputFiles;
@@ -69,6 +70,9 @@ namespace Opc.Ua.SourceGeneration
             m_compilationOptions = compilationOptions;
             m_nodeManagerBindings = nodeManagerBindings;
             m_referencedModels = referencedModels;
+            m_referencedSnapshots = referencedSnapshots.IsDefault
+                ? ImmutableArray<ReferencedModelSnapshot>.Empty
+                : referencedSnapshots;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
 
@@ -163,6 +167,8 @@ namespace Opc.Ua.SourceGeneration
                 // so the downstream generators can apply override resolution.
                 System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
                     referencedModels = BuildReferencedModelMap();
+                System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>
+                    referencedSnapshots = BuildReferencedSnapshotMap();
 
                 nodesets.GenerateCode(
                     sourceFiles.WithFallback(vfs),
@@ -172,7 +178,8 @@ namespace Opc.Ua.SourceGeneration
                     m_options.UseAllowSubtypes,
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
-                    bindings.Count > 0 ? reportBinding : null);
+                    bindings.Count > 0 ? reportBinding : null,
+                    referencedSnapshots);
 
                 // Process any remaining design files
                 new DesignFileCollection
@@ -286,12 +293,42 @@ namespace Opc.Ua.SourceGeneration
             return map;
         }
 
+        /// <summary>
+        /// Build a per-URI dictionary of the deserialised model snapshots
+        /// scanned from referenced assemblies. Snapshots with unknown
+        /// versions or malformed payloads are silently dropped.
+        /// </summary>
+        private System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>
+            BuildReferencedSnapshotMap()
+        {
+            if (m_referencedSnapshots.IsDefaultOrEmpty)
+            {
+                return ImmutableDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>.Empty;
+            }
+            var map = new System.Collections.Generic.Dictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>(
+                StringComparer.Ordinal);
+            foreach (ReferencedModelSnapshot candidate in m_referencedSnapshots)
+            {
+                Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1 decoded = candidate.GetSnapshot();
+                if (decoded == null)
+                {
+                    continue;
+                }
+                if (!map.ContainsKey(candidate.ModelUri))
+                {
+                    map[candidate.ModelUri] = decoded;
+                }
+            }
+            return map;
+        }
+
         private readonly SourceProductionContext m_context;
         private readonly ImmutableArray<(AdditionalText, NodesetFileOptions)> m_input;
         private readonly ImmutableArray<AdditionalText> m_identifierFiles;
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
         private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
+        private readonly ImmutableArray<ReferencedModelSnapshot> m_referencedSnapshots;
         private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly SourceGeneratorTelemetry m_telemetry;
     }

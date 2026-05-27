@@ -193,6 +193,31 @@ namespace Opc.Ua.SourceGeneration
             ITelemetryContext telemetry,
             bool useAllowSubtypes = true)
         {
+            return OpenModelDesign(
+                fileSystem,
+                designFiles,
+                exclusions,
+                telemetry,
+                useAllowSubtypes,
+                referencedSnapshots: null);
+        }
+
+        /// <summary>
+        /// Validates the model design files, optionally importing
+        /// per-namespace model snapshots from referenced assemblies
+        /// before validation. The snapshots pre-populate the
+        /// validator's node table so downstream models can resolve
+        /// upstream types without an explicit <c>AdditionalFiles</c>
+        /// entry for them.
+        /// </summary>
+        public static IModelDesign OpenModelDesign(
+            this IFileSystem fileSystem,
+            DesignFileCollection designFiles,
+            IReadOnlyList<string> exclusions,
+            ITelemetryContext telemetry,
+            bool useAllowSubtypes,
+            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1> referencedSnapshots)
+        {
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
                 fileSystem,
@@ -206,6 +231,15 @@ namespace Opc.Ua.SourceGeneration
                 ModelVersion = options.ModelVersion,
                 ModelPublicationDate = options.ModelPublicationDate
             };
+
+            if (referencedSnapshots != null)
+            {
+                foreach (KeyValuePair<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1> entry in referencedSnapshots)
+                {
+                    if (entry.Value == null) { continue; }
+                    validator.ImportSnapshot(entry.Value, prefix: null, name: null);
+                }
+            }
 
             string identifierFilePath = designFiles.IdentifierFilePath;
             validator.Validate(

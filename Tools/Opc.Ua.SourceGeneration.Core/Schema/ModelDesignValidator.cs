@@ -45,7 +45,7 @@ namespace Opc.Ua.Schema.Model
     /// <summary>
     /// Generates files used to describe data types.
     /// </summary>
-    public class ModelDesignValidator : SchemaValidator, IModelDesign
+    public partial class ModelDesignValidator : SchemaValidator, IModelDesign
     {
         /// <summary>
         /// Create model design validator
@@ -347,6 +347,14 @@ namespace Opc.Ua.Schema.Model
             LoadBuiltInModel();
 
             m_designFilePaths[Ua.Types.Namespaces.OpcUa] = string.Empty;
+
+            // Apply any snapshots that were registered via ImportSnapshot()
+            // before validation began. Their type entries become visible
+            // to the dependency-loading pass below, so downstream
+            // NodeSet2/ModelDesign inputs can resolve cross-namespace
+            // references (e.g. BaseType lookups) without those upstream
+            // models being present in AdditionalFiles.
+            ApplyPendingSnapshots();
 
             // load the design files.
             List<Namespace> namespaces = GetNamespaceList(designFilePaths);

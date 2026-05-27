@@ -74,6 +74,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
                     .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+            IncrementalValueProvider<ImmutableArray<ReferencedModelSnapshot>> referencedSnapshots =
+                context.CompilationProvider
+                    .Select((c, _) => ReferencedModelSnapshotScanner.Scan(c));
 
             IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
                 context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -89,16 +92,18 @@ namespace Opc.Ua.SourceGeneration
                     .Combine(options)
                     .Combine(settings)
                     .Combine(referencedModels)
-                    .Combine(nodeManagerBindings),
+                    .Combine(nodeManagerBindings)
+                    .Combine(referencedSnapshots),
                 (context, combination) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left.Right,
                     combination.Left.Left.Left.Left.Right,
                     combination.Left.Left.Left.Right,
                     combination.Left.Left.Right,
                     combination.Left.Right,
-                    combination.Right,
-                    Logger).Emit(context.CancellationToken));
+                    Logger,
+                    combination.Right).Emit(context.CancellationToken));
 
             IncrementalValueProvider<bool> publicDataTypeExtensions =
                 context.AnalyzerConfigOptionsProvider

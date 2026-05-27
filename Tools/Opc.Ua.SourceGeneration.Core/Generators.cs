@@ -340,6 +340,13 @@ namespace Opc.Ua.SourceGeneration
         /// Optional callback invoked for each binding-related warning or
         /// error (e.g. unmatched URI, ambiguous fallback).
         /// </param>
+        /// <param name="referencedSnapshots">
+        /// Per-URI model snapshots recovered from referenced assemblies
+        /// via <c>ReferencedModelSnapshotScanner</c>. When present, the
+        /// validator pre-imports these snapshots so downstream models can
+        /// resolve upstream types without an explicit
+        /// <c>AdditionalFiles</c> entry for them.
+        /// </param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
             IFileSystem fileSystem,
@@ -349,7 +356,8 @@ namespace Opc.Ua.SourceGeneration
             bool useAllowSubtypes = false,
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null)
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
+            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1> referencedSnapshots = null)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -400,7 +408,8 @@ namespace Opc.Ua.SourceGeneration
                     model,
                     options.Exclusions,
                     telemetry,
-                    useAllowSubtypes);
+                    useAllowSubtypes,
+                    referencedSnapshots);
 
                 // Cross-namespace prefix override: when a referenced
                 // assembly publishes a model under a specific C# prefix,
