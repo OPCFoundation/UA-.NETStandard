@@ -76,9 +76,9 @@ namespace Opc.Ua.Server.UserDatabase
         IReadOnlyList<string> GetUserNames();
 
         /// <summary>
-        /// Changes the password of an existing users.
+        /// Changes the password of an existing user.
         /// </summary>
-        /// <returns>true if change was successfull</returns>
+        /// <returns>true if change was successful</returns>
         bool ChangePassword(
             string userName,
             ReadOnlySpan<byte> oldPassword,
