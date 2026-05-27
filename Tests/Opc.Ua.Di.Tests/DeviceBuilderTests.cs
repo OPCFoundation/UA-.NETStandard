@@ -35,7 +35,7 @@ using Opc.Ua.Di.Server.Builders;
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>
-    /// End-to-end tests for the Phase 8B device builder
+    /// End-to-end tests for the device builder
     /// (<see cref="IDeviceBuilder{TDevice}"/> on
     /// <see cref="DiNodeManager"/>).
     /// </summary>

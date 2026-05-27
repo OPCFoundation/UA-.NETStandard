@@ -34,8 +34,8 @@ using Opc.Ua.Di.Client;
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>
-    /// Argument-validation tests for the typed client helpers added in
-    /// Phase 8D (<see cref="DiLockClient"/>, <see cref="DiTopologyClient"/>).
+    /// Argument-validation tests for the typed client helpers
+    /// (<see cref="DiLockClient"/>, <see cref="DiTopologyClient"/>).
     /// End-to-end behaviour against a live server is covered by
     /// integration tests; this fixture verifies the construction
     /// contract.

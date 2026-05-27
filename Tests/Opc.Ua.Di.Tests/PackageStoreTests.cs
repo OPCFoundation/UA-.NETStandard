@@ -40,7 +40,7 @@ namespace Opc.Ua.Di.Tests
     /// <summary>
     /// Unit tests for the software-package storage layer
     /// (<see cref="MemoryPackageStore"/>,
-    /// <see cref="FileSystemPackageStore"/>) introduced in Phase 8E.
+    /// <see cref="FileSystemPackageStore"/>).
     /// </summary>
     [TestFixture]
     [Category("DI")]
