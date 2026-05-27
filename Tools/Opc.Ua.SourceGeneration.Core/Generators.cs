@@ -612,6 +612,8 @@ namespace Opc.Ua.SourceGeneration
             }
             var modelDependencyGenerator = new ModelDependencyGenerator(context);
             modelDependencyGenerator.Emit();
+            var modelSnapshotGenerator = new ModelSnapshotGenerator(context);
+            modelSnapshotGenerator.Emit();
         }
     }
 }
