@@ -43,35 +43,36 @@ The server-side counterpart lives in `Opc.Ua.Server.Alarms`:
 
 ### Auto-emit from `CreateNode` and `DeleteNode`
 
-`CustomNodeManager.CreateNode(...)` and `DeleteNode(...)` (and their
-async counterparts on `AsyncCustomNodeManager`) automatically record
-the change in a per-instance `ModelChangeAggregator` and emit a
+`AsyncCustomNodeManager.CreateNodeAsync(...)` and `DeleteNodeAsync(...)`
+(and the sync-compat overloads on `CustomNodeManager`) automatically
+record the change in a per-instance `ModelChangeAggregator` and emit a
 `GeneralModelChangeEvent` at the end of the call.
 
 ```csharp
-public class MyNodeManager : CustomNodeManager2
+public class MyNodeManager : AsyncCustomNodeManager
 {
-    public void AddDeviceTwin(NodeId parent, string name)
+    public async ValueTask AddDeviceTwinAsync(NodeId parent, string name, CancellationToken ct)
     {
         var device = new BaseObjectState(null);
-        // CreateNode emits a GeneralModelChangeEvent with verbs
+        // CreateNodeAsync emits a GeneralModelChangeEvent with verbs
         //   NodeAdded(device.NodeId) + ReferenceAdded(parent)
-        NodeId id = CreateNode(SystemContext, parent,
+        NodeId id = await CreateNodeAsync(SystemContext, parent,
             ReferenceTypeIds.HasComponent,
             new QualifiedName(name, NamespaceIndex),
-            device);
+            device,
+            ct).ConfigureAwait(false);
     }
 }
 ```
 
 If your node manager mutates the address space without going through
-`CreateNode` / `DeleteNode` (for example by editing an in-memory
-`NodeStateCollection`), you can either:
+`CreateNodeAsync` / `DeleteNodeAsync` (for example by editing an
+in-memory `NodeStateCollection`), you can either:
 
 1. **Opt out of auto-emit and drive it yourself:**
 
    ```csharp
-   public class MyNodeManager : CustomNodeManager2
+   public class MyNodeManager : AsyncCustomNodeManager
    {
        public MyNodeManager(...)
        {
@@ -130,13 +131,12 @@ spec values):
 
 ### Semantic change events
 
-`RaiseSemanticChangeEvent(...)` (existing in 1.6) emits
-`SemanticChangeEventType` for property semantics changes — for
-example when an EngineeringUnit, EURange, or Description changes
-in a way that affects the meaning of a value. This is independent of
-`GeneralModelChangeEvent`; both are subtypes of
-`BaseModelChangeEventType` and both are observed by the client-side
-tracker.
+`RaiseSemanticChangeEvent(...)` emits `SemanticChangeEventType` for
+property semantics changes — for example when an EngineeringUnit,
+EURange, or Description changes in a way that affects the meaning
+of a value. This is independent of `GeneralModelChangeEvent`; both
+are subtypes of `BaseModelChangeEventType` and both are observed by
+the client-side tracker.
 
 ## Client side: tracking model changes
 
@@ -263,11 +263,6 @@ class MyInvalidatingCache : INodeCache
     // ... delegate everything else to m_inner ...
 }
 ```
-
-> **Breaking change in 1.6.** `InvalidateNode` is a **new required
-> member** on `INodeCache`. Custom `INodeCache` implementations must
-> add it; the simplest implementation is to call `Clear()`. See the
-> [Migration Guide](MigrationGuide.md#address-space-model-change-tracking).
 
 ## Reference
 

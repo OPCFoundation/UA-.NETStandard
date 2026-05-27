@@ -19,9 +19,21 @@ with two complementary modes that can be mixed in a single chain:
 
 Both modes share the same lifecycle surface (`WithInitialState`,
 `OnEnterState`, `OnExitState`, `OnTransition`, `OnBeforeTransition`,
-`WithCause`, `WithTimedTransition`, `ConfigureStateMachine`). The
-definition methods (`AddState`, `AddTransition`, `OnCause`,
-`UseElementNamespace`) are only available in definition mode.
+`WithCause`, `WithTimedTransition`, `ConfigureStateMachine`). Async
+overloads — `OnEnterStateAsync`, `OnExitStateAsync`,
+`OnTransitionAsync` — accept `Func<ISystemContext, TState,
+CancellationToken, ValueTask>` (or the four-arg form for transition
+observers) and are invoked **fire-and-forget on the thread pool**
+from the synchronous transition path. The handler therefore runs on
+a fully-async path (no `GetAwaiter().GetResult()` / `Wait()` /
+`.Result` anywhere) without blocking the transition or the calling
+client. Exceptions thrown from an async handler are captured and
+logged via `Debug.WriteLine`. Pre-transition guards
+(`OnBeforeTransition`, `When*`) intentionally remain sync-only
+because they must veto the transition synchronously before the
+state-machine state mutation completes. The definition methods
+(`AddState`, `AddTransition`, `OnCause`, `UseElementNamespace`) are
+only available in definition mode.
 
 ## Quick reference
 

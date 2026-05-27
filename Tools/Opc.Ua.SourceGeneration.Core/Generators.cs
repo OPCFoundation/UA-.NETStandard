@@ -473,25 +473,22 @@ namespace Opc.Ua.SourceGeneration
                 // Opc.Ua.Core) so they are only emitted in the Stack
                 // path (which runs against Opc.Ua.Core), not in the
                 // Models path (which runs against Opc.Ua.Core.Types).
-                if (!options.OmitEventRecords)
+                var stackRecordContext = new GeneratorContext
                 {
-                    var stackRecordContext = new GeneratorContext
+                    FileSystem = generatorContext.FileSystem,
+                    OutputFolder = generatorContext.OutputFolder,
+                    ModelDesign = generatorContext.ModelDesign,
+                    Telemetry = generatorContext.Telemetry,
+                    Options = new GeneratorOptions
                     {
-                        FileSystem = generatorContext.FileSystem,
-                        OutputFolder = generatorContext.OutputFolder,
-                        ModelDesign = generatorContext.ModelDesign,
-                        Telemetry = generatorContext.Telemetry,
-                        Options = new GeneratorOptions
-                        {
-                            OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
-                            Exclusions = options.Exclusions,
-                            Cancellation = options.Cancellation,
-                            UseUtf8StringLiterals = options.UseUtf8StringLiterals
-                        }
-                    };
-                    var stackRecordGenerator = new EventRecordGenerator(stackRecordContext);
-                    stackRecordGenerator.Emit();
-                }
+                        OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
+                        Exclusions = options.Exclusions,
+                        Cancellation = options.Cancellation,
+                        UseUtf8StringLiterals = options.UseUtf8StringLiterals
+                    }
+                };
+                var stackRecordGenerator = new EventRecordGenerator(stackRecordContext);
+                stackRecordGenerator.Emit();
             }
 
             if ((generatorType & StackGenerationType.Models) != 0)

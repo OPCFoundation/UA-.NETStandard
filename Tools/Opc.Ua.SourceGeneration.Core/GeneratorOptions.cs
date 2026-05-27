@@ -111,14 +111,6 @@ namespace Opc.Ua.SourceGeneration
             = new Dictionary<string, string>();
 
         /// <summary>
-        /// When set to <c>true</c>, the <see cref="EventRecordGenerator"/>
-        /// is suppressed and no <c>*Record</c> classes are emitted for
-        /// event types. Off by default — records are emitted for every
-        /// <c>ObjectType</c> that derives from <c>BaseEventType</c>.
-        /// </summary>
-        public bool OmitEventRecords { get; set; }
-
-        /// <summary>
         /// Optional override for the C# namespace used by classes
         /// emitted by the <see cref="EventRecordGenerator"/>. When
         /// unset, the model's target namespace prefix is used.

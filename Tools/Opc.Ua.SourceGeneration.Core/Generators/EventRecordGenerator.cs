@@ -22,11 +22,9 @@ namespace Opc.Ua.SourceGeneration
     /// init-only property per directly-declared field on the type.
     /// </summary>
     /// <remarks>
-    /// This generator runs by default for every model; consumers can
-    /// suppress it by setting
-    /// <see cref="GeneratorOptions.OmitEventRecords"/> to <c>true</c>.
-    /// The output namespace defaults to the model's target namespace
-    /// prefix and can be overridden via
+    /// This generator runs by default for every model. The output
+    /// namespace defaults to the model's target namespace prefix and
+    /// can be overridden via
     /// <see cref="GeneratorOptions.EventRecordNamespace"/>. When a
     /// record must derive from a parent record emitted in a different
     /// assembly the

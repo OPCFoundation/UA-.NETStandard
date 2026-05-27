@@ -99,5 +99,90 @@ namespace Opc.Ua.SourceGeneration
             }
 
             """);
+
+        /// <summary>
+        /// One lazy + cached typed accessor for an <c>&lt;opc:Object&gt;</c>
+        /// child of a parent <c>ObjectType</c>. The generated method
+        /// resolves the child's NodeId on first call via
+        /// <c>TranslateBrowsePathsToNodeIds</c> under
+        /// <c>HasComponent</c>, constructs the typed proxy, and caches
+        /// it for subsequent calls. Returns <c>null</c> for optional
+        /// children the server does not expose.
+        /// </summary>
+        public static readonly TemplateString ChildAccessor = TemplateString.Parse(
+            $$"""
+
+            /// <summary>
+            /// Returns the typed proxy for the <c>{{Tokens.BrowseName}}</c> child Object
+            /// of type <c>{{Tokens.TypeName}}</c>. Lazily resolved on first call (one
+            /// TranslateBrowsePath round-trip) and cached for
+            /// subsequent calls. Returns <c>null</c> when the server
+            /// does not expose the child (Optional children, missing
+            /// namespace, BadNotFound result, ...).
+            /// </summary>
+            /// <param name="telemetry">Telemetry context for the
+            /// returned child proxy.</param>
+            /// <param name="ct">Cancellation token.</param>
+            public {{Tokens.AccessModifier}}async global::System.Threading.Tasks.ValueTask<{{Tokens.ClassName}}?> Get{{Tokens.BrowseName}}Async(
+                global::Opc.Ua.ITelemetryContext telemetry,
+                global::System.Threading.CancellationToken ct = default)
+            {
+                lock ({{Tokens.FieldName}}Lock)
+                {
+                    if ({{Tokens.FieldName}} != null)
+                    {
+                        return {{Tokens.FieldName}};
+                    }
+                }
+                int nsIdx = Session.MessageContext.NamespaceUris.GetIndex("{{Tokens.BrowseNameNamespaceUri}}");
+                if (nsIdx < 0)
+                {
+                    return null;
+                }
+                var paths = global::Opc.Ua.ArrayOf.Wrapped(new[]
+                {
+                    new global::Opc.Ua.BrowsePath
+                    {
+                        StartingNode = ObjectId,
+                        RelativePath = new global::Opc.Ua.RelativePath
+                        {
+                            Elements =
+                            [
+                                new global::Opc.Ua.RelativePathElement
+                                {
+                                    ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
+                                    IncludeSubtypes = true,
+                                    TargetName = new global::Opc.Ua.QualifiedName("{{Tokens.BrowseName}}", (ushort)nsIdx)
+                                }
+                            ]
+                        }
+                    }
+                });
+                var response = await Session.TranslateBrowsePathsToNodeIdsAsync(
+                    null, paths, ct).ConfigureAwait(false);
+                if (response.Results.Count == 0 ||
+                    global::Opc.Ua.StatusCode.IsBad(response.Results[0].StatusCode) ||
+                    response.Results[0].Targets.Count == 0)
+                {
+                    return null;
+                }
+                global::Opc.Ua.NodeId childId = global::Opc.Ua.ExpandedNodeId.ToNodeId(
+                    response.Results[0].Targets[0].TargetId,
+                    Session.MessageContext.NamespaceUris);
+                if (childId.IsNull)
+                {
+                    return null;
+                }
+                var proxy = new {{Tokens.ClassName}}(Session, childId, telemetry);
+                lock ({{Tokens.FieldName}}Lock)
+                {
+                    return {{Tokens.FieldName}} ??= proxy;
+                }
+            }
+            #pragma warning disable CS0649  // field never assigned — assigned in Get*Async
+            private {{Tokens.ClassName}}? {{Tokens.FieldName}};
+            #pragma warning restore CS0649
+            private readonly object {{Tokens.FieldName}}Lock = new();
+            """);
     }
 }

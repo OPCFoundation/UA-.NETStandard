@@ -34,7 +34,8 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             {{Tokens.CodeHeader}}
 
-            #nullable enable
+            #nullable enable annotations
+            #nullable disable warnings
 
             namespace {{Tokens.Namespace}}
             {

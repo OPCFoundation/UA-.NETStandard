@@ -343,6 +343,99 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 "second handler should run even if the first threw");
         }
 
+        [Test]
+        public async System.Threading.Tasks.Task OnEnterStateAsyncFiresWhenStateChanges()
+        {
+            var signaled = new System.Threading.Tasks.TaskCompletionSource<bool>(
+                System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            FluentFiniteStateMachineState sm = BuildOnOffMachine()
+                .WithInitialState(1)
+                .OnEnterStateAsync(2, async (ctx, m, ct) =>
+                {
+                    await System.Threading.Tasks.Task.Yield();
+                    signaled.TrySetResult(true);
+                })
+                .StateMachine;
+
+            sm.DoTransition(m_context, transitionId: 10, causeId: 0,
+                inputArguments: default, outputArguments: []);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            cts.Token.Register(() => signaled.TrySetCanceled());
+            await signaled.Task.ConfigureAwait(false);
+            Assert.That(CurrentStateId(sm), Is.EqualTo(2u));
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task OnExitStateAsyncFiresWhenLeavingState()
+        {
+            var signaled = new System.Threading.Tasks.TaskCompletionSource<bool>(
+                System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            FluentFiniteStateMachineState sm = BuildOnOffMachine()
+                .WithInitialState(1)
+                .OnExitStateAsync(1, async (ctx, m, ct) =>
+                {
+                    await System.Threading.Tasks.Task.Yield();
+                    signaled.TrySetResult(true);
+                })
+                .StateMachine;
+
+            sm.DoTransition(m_context, transitionId: 10, causeId: 0,
+                inputArguments: default, outputArguments: []);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            cts.Token.Register(() => signaled.TrySetCanceled());
+            await signaled.Task.ConfigureAwait(false);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task OnTransitionAsyncReceivesFromAndToIds()
+        {
+            var signaled = new System.Threading.Tasks.TaskCompletionSource<(uint from, uint to)>(
+                System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            FluentFiniteStateMachineState sm = BuildOnOffMachine()
+                .WithInitialState(1)
+                .OnTransitionAsync(async (ctx, m, from, to, ct) =>
+                {
+                    await System.Threading.Tasks.Task.Yield();
+                    signaled.TrySetResult((from, to));
+                })
+                .StateMachine;
+
+            sm.DoTransition(m_context, transitionId: 10, causeId: 0,
+                inputArguments: default, outputArguments: []);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            cts.Token.Register(() => signaled.TrySetCanceled());
+            (uint from, uint to) = await signaled.Task.ConfigureAwait(false);
+            Assert.That(from, Is.EqualTo(1u));
+            Assert.That(to, Is.EqualTo(2u));
+        }
+
+        [Test]
+        public void OnEnterStateAsyncRejectsNullHandler()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> b = BuildOnOffMachine();
+            Assert.That(() => b.OnEnterStateAsync(1, null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void OnExitStateAsyncRejectsNullHandler()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> b = BuildOnOffMachine();
+            Assert.That(() => b.OnExitStateAsync(1, null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void OnTransitionAsyncRejectsNullHandler()
+        {
+            StateMachineBuilder<FluentFiniteStateMachineState> b = BuildOnOffMachine();
+            Assert.That(() => b.OnTransitionAsync(null!),
+                Throws.ArgumentNullException);
+        }
+
         private StateMachineBuilder<FluentFiniteStateMachineState> BuildOnOffMachine()
         {
             return StateMachineTestFixtures.NewBuilder(m_context)

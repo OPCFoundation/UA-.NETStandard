@@ -284,6 +284,26 @@ namespace Opc.Ua.Server.StateMachines
         }
 
         /// <summary>
+        /// Async overload of <see cref="OnEnterState"/>. The handler
+        /// is invoked fire-and-forget on the thread pool from the sync
+        /// transition path, so the handler runs on a fully-async path
+        /// (no <c>GetAwaiter().GetResult()</c> / <c>Wait()</c> /
+        /// <c>Result</c>) and never blocks the transition. Exceptions
+        /// are captured and logged.
+        /// </summary>
+#pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
+        public StateMachineBuilder<TState> OnEnterStateAsync(
+            uint stateId,
+            Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler)
+#pragma warning restore RCS1047
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            FreezeDefinition();
+            m_dispatcher.AddEnterStateHandlerAsync(stateId, handler);
+            return this;
+        }
+
+        /// <summary>
         /// Registers a handler invoked when the state machine leaves
         /// the given state.
         /// </summary>
@@ -294,6 +314,22 @@ namespace Opc.Ua.Server.StateMachines
             ArgumentNullException.ThrowIfNull(handler);
             FreezeDefinition();
             m_dispatcher.AddExitStateHandler(stateId, handler);
+            return this;
+        }
+
+        /// <summary>
+        /// Async overload of <see cref="OnExitState"/>. See
+        /// <see cref="OnEnterStateAsync"/> for invocation semantics.
+        /// </summary>
+#pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
+        public StateMachineBuilder<TState> OnExitStateAsync(
+            uint stateId,
+            Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler)
+#pragma warning restore RCS1047
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            FreezeDefinition();
+            m_dispatcher.AddExitStateHandlerAsync(stateId, handler);
             return this;
         }
 
@@ -309,6 +345,21 @@ namespace Opc.Ua.Server.StateMachines
             ArgumentNullException.ThrowIfNull(handler);
             FreezeDefinition();
             m_dispatcher.AddTransitionObserver(handler);
+            return this;
+        }
+
+        /// <summary>
+        /// Async overload of <see cref="OnTransition"/>. See
+        /// <see cref="OnEnterStateAsync"/> for invocation semantics.
+        /// </summary>
+#pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
+        public StateMachineBuilder<TState> OnTransitionAsync(
+            Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask> handler)
+#pragma warning restore RCS1047
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            FreezeDefinition();
+            m_dispatcher.AddTransitionObserverAsync(handler);
             return this;
         }
 
@@ -1045,6 +1096,22 @@ namespace Opc.Ua.Server.StateMachines
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
         private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
         private readonly Dictionary<uint, TimedTransitionEntry> m_timedTransitions = [];
+        // Async observer counterparts. Scheduled fire-and-forget from
+        // the sync transition path (which itself remains sync since
+        // FiniteStateMachineState.DoTransition is sync). Each invocation
+        // runs on the thread pool with ConfigureAwait(false), so no
+        // sync-over-async wait occurs anywhere; exceptions are
+        // captured and logged via Debug.WriteLine in line with the
+        // existing SafeInvoke pattern.
+        private readonly Dictionary<uint,
+            List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>>
+                m_enterHandlersAsync = [];
+        private readonly Dictionary<uint,
+            List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>>
+                m_exitHandlersAsync = [];
+        private readonly
+            List<Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask>>
+                m_transitionObserversAsync = [];
 
         private readonly StateMachineTransitionHandler? m_originalBefore;
         private readonly StateMachineTransitionHandler? m_originalAfter;
@@ -1097,6 +1164,47 @@ namespace Opc.Ua.Server.StateMachines
             Action<ISystemContext, TState, uint, uint> handler)
         {
             m_transitionObservers.Add(handler);
+            EnsureInstalled();
+        }
+
+#pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
+        public void AddEnterStateHandlerAsync(
+            uint stateId,
+            Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler)
+#pragma warning restore RCS1047
+        {
+            if (!m_enterHandlersAsync.TryGetValue(stateId,
+                out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? list))
+            {
+                list = [];
+                m_enterHandlersAsync[stateId] = list;
+            }
+            list.Add(handler);
+            EnsureInstalled();
+        }
+
+#pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
+        public void AddExitStateHandlerAsync(
+            uint stateId,
+            Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler)
+#pragma warning restore RCS1047
+        {
+            if (!m_exitHandlersAsync.TryGetValue(stateId,
+                out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? list))
+            {
+                list = [];
+                m_exitHandlersAsync[stateId] = list;
+            }
+            list.Add(handler);
+            EnsureInstalled();
+        }
+
+#pragma warning disable RCS1047 // 'Async' suffix marks the registered callback as async, not this registration method.
+        public void AddTransitionObserverAsync(
+            Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask> handler)
+#pragma warning restore RCS1047
+        {
+            m_transitionObserversAsync.Add(handler);
             EnsureInstalled();
         }
 
@@ -1226,10 +1334,23 @@ namespace Opc.Ua.Server.StateMachines
                     SafeInvoke(() => h(context, m_stateMachine));
                 }
             }
+            if (from != 0 && m_exitHandlersAsync.TryGetValue(from,
+                out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? exitListAsync))
+            {
+                foreach (Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> h in exitListAsync)
+                {
+                    Schedule(h, context, fromAt: from, toAt: 0);
+                }
+            }
 
             foreach (Action<ISystemContext, TState, uint, uint> observer in m_transitionObservers)
             {
                 SafeInvoke(() => observer(context, m_stateMachine, from, to));
+            }
+            foreach (Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask>
+                observer in m_transitionObserversAsync)
+            {
+                Schedule(observer, context, from, to);
             }
 
             if (to != 0 && m_enterHandlers.TryGetValue(to, out List<Action<ISystemContext, TState>>? enterList))
@@ -1237,6 +1358,14 @@ namespace Opc.Ua.Server.StateMachines
                 foreach (Action<ISystemContext, TState> h in enterList)
                 {
                     SafeInvoke(() => h(context, m_stateMachine));
+                }
+            }
+            if (to != 0 && m_enterHandlersAsync.TryGetValue(to,
+                out List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>? enterListAsync))
+            {
+                foreach (Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> h in enterListAsync)
+                {
+                    Schedule(h, context, fromAt: 0, toAt: to);
                 }
             }
 
@@ -1313,6 +1442,48 @@ namespace Opc.Ua.Server.StateMachines
                 Debug.WriteLine(
                     $"StateMachineBuilder lifecycle handler threw: {ex}");
             }
+        }
+
+        private void Schedule(
+            Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler,
+            ISystemContext context,
+            uint fromAt,
+            uint toAt)
+        {
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    await handler(context, m_stateMachine, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(
+                        "StateMachineBuilder async lifecycle handler " +
+                        $"(from={fromAt}, to={toAt}) threw: {ex}");
+                }
+            });
+        }
+
+        private void Schedule(
+            Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask> handler,
+            ISystemContext context,
+            uint from,
+            uint to)
+        {
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    await handler(context, m_stateMachine, from, to, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(
+                        "StateMachineBuilder async transition observer " +
+                        $"(from={from}, to={to}) threw: {ex}");
+                }
+            });
         }
 
         private sealed class TimedTransitionEntry

@@ -56,7 +56,7 @@
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
     - [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
-    - [Part 9 Alarms and Conditions](#part-9-alarms-and-conditions)
+    - [Alarms and Conditions](#alarms-and-conditions)
       - [`AlarmConditionState` state-transition behavior](#alarmconditionstate-state-transition-behavior)
       - [Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`](#auto-emit-generalmodelchangeevent-from-customnodemanager)
     - [Address-space model change tracking](#address-space-model-change-tracking)
@@ -1391,104 +1391,9 @@ ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
 bool isType = await cache.IsTypeOfAsync(sub, super);
 ```
 
-### Part 9 Alarms and Conditions
+### Alarms and Conditions
 
-Version 1.6 completes server- and client-side support for OPC UA
-Part 9. The new APIs are additive — `AlarmClient`,
-`AlarmEventDecoder`, `AlarmEventFilterBuilder`, `AlarmGroup`,
-`AlarmSuppressionEngine`, `AlarmRateTracker`, the typed alarm
-record hierarchy — and most of it requires no migration. See
-[Alarms and Conditions](AlarmsAndConditions.md) for the developer
-guide.
-
-Four changes require attention.
-
-#### Event-record types are now source-generated (breaking)
-
-Decoded alarm/condition records have moved from hand-coded classes
-in `Opc.Ua.Client.Alarms` to **source-generated** records in
-`Opc.Ua` (emitted by the `EventRecordGenerator` for every ObjectType
-that derives from `BaseEventType` — including any vendor extensions
-in your own model). The hand-coded `TypedAlarmRecords.cs` file is
-removed.
-
-Rename your record references:
-
-| Was (≤ 1.5.378 + early 1.6 preview) | Is (1.6) |
-|---|---|
-| `Opc.Ua.Client.Alarms.ConditionRecord` | `Opc.Ua.ConditionTypeRecord` |
-| `Opc.Ua.Client.Alarms.AcknowledgeableConditionRecord` | `Opc.Ua.AcknowledgeableConditionTypeRecord` |
-| `Opc.Ua.Client.Alarms.AlarmRecord` | `Opc.Ua.AlarmConditionTypeRecord` |
-| `Opc.Ua.Client.Alarms.DialogRecord` | `Opc.Ua.DialogConditionTypeRecord` |
-| `Opc.Ua.Client.Alarms.LimitAlarmRecord` | `Opc.Ua.LimitAlarmTypeRecord` |
-| `Opc.Ua.Client.Alarms.ExclusiveLimitAlarmRecord` | `Opc.Ua.ExclusiveLimitAlarmTypeRecord` |
-| `Opc.Ua.Client.Alarms.NonExclusiveLimitAlarmRecord` | `Opc.Ua.NonExclusiveLimitAlarmTypeRecord` |
-| `Opc.Ua.Client.Alarms.DiscreteAlarmRecord` | `Opc.Ua.DiscreteAlarmTypeRecord` |
-| `Opc.Ua.Client.Alarms.OffNormalAlarmRecord` | `Opc.Ua.OffNormalAlarmTypeRecord` |
-| `Opc.Ua.Client.Alarms.CertificateExpirationAlarmRecord` | `Opc.Ua.CertificateExpirationAlarmTypeRecord` |
-| `Opc.Ua.Client.Alarms.DiscrepancyAlarmRecord` | `Opc.Ua.DiscrepancyAlarmTypeRecord` |
-
-The record property surface area is unchanged — the same property
-names (`EventId`, `EventType`, `SourceNode`, `ConditionId`,
-`AckedStateId`, `ActiveStateId`, …) flow through the generated
-inheritance chain. `ConditionTypeRecord.ConditionId` is preserved as
-a hand-written `partial record` alias for `SourceNode` so existing
-call sites continue to work after renaming.
-
-Three minor behavioral notes:
-
-* Built-in INullable types (`NodeId`, `ByteString`, `LocalizedText`,
-  `QualifiedName`, `ExpandedNodeId`, `Variant`, …) are exposed
-  **non-nullable** on the generated records. Replace
-  `record.SourceNode == null` with `record.SourceNode.IsNull`. The
-  `?` annotation on these properties was removed in line with the
-  stack-wide INullable convention.
-* `Time` and `ReceiveTime` are now `DateTime?` (matching the OPC UA
-  spec — these can be absent from an event notification). Treat
-  `null` as "timestamp not delivered".
-* `Severity` and `Retain` are now `ushort?` / `bool?` (same
-  reasoning).
-
-Vendor types automatically generate their own records. A custom
-`VibrationAlarmType : AlarmConditionType` in your NodeSet produces
-a `VibrationAlarmTypeRecord : AlarmConditionTypeRecord` in your
-target namespace with every declared field exposed. Add convenience
-members via a hand-written `partial record VibrationAlarmTypeRecord
-{ ... }` next to your generated types.
-
-#### `AlarmClient` now requires `ITelemetryContext` (breaking)
-
-`AlarmClient` was reworked to delegate every Part 9 method call to
-the matching source-generated `*TypeClient` proxy
-(`ConditionTypeClient`, `AcknowledgeableConditionTypeClient`,
-`AlarmConditionTypeClient`, `DialogConditionTypeClient`,
-`ShelvedStateMachineTypeClient`). The proxy base
-(`ObjectTypeClient`) requires a non-null telemetry context, so the
-`AlarmClient` ctor and the `GetAlarmClient` extension now take one
-too:
-
-```csharp
-// Was:
-AlarmClient alarms = new AlarmClient(session);
-AlarmClient alarms = session.GetAlarmClient();
-
-// Is:
-AlarmClient alarms = new AlarmClient(session, telemetry);
-AlarmClient alarms = session.GetAlarmClient(telemetry);
-```
-
-DI consumers are unaffected — the `AlarmClientFactory` (registered
-by `builder.AddAlarms()`) already threads the host's telemetry into
-the client:
-
-```csharp
-var factory = sp.GetRequiredService<AlarmClientFactory>();
-AlarmClient alarms = factory.Create(session); // unchanged
-```
-
-The public `IAlarmOperations` / `IDialogConditionOperations`
-interfaces — every method that takes a `NodeId conditionId` —
-are unchanged.
+Two changes require attention.
 
 #### `AlarmConditionState` state-transition behavior
 
@@ -1560,37 +1465,6 @@ The aggregator API (`ModelChangeAggregator.RecordNodeAdded/Deleted/
 ReferenceAdded/ReferenceDeleted/DataTypeChanged`, `Drain`,
 `HasPending`) is also available for manual control — see
 [Model Change Tracking](ModelChangeTracking.md).
-
-### Part 16 state machines (additive)
-
-Version 1.6 adds a generic, extensible Part 16 state-machine API
-on top of the source-generated `*TypeClient` proxies (client) and
-the existing `FiniteStateMachineState` server base:
-
-* **Client**: extension methods on
-  `StateMachineTypeClient` / `FiniteStateMachineTypeClient`
-  (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`,
-  `WaitForStateAsync`, `GetAvailableStatesAsync`,
-  `GetAvailableTransitionsAsync`). Vendor proxies that derive from
-  these base proxies inherit the API automatically.
-* **Server**: unified fluent `StateMachineBuilder` with two modes —
-  *definition* (`StateMachineBuilder.Create(parent, ctx, nodeId,
-  browseName).AddState(...).AddTransition(...).OnCause(...)` for
-  vendors who want a Part 16 state machine without subclassing
-  `FiniteStateMachineState` and hand-rolling the four protected
-  table overrides) and *lifecycle* (`StateMachineBuilder.For(sm,
-  ctx)` or `INodeBuilder<TState>.AsStateMachine()` for attaching
-  `OnEnterState` / `OnExitState` / `OnTransition` /
-  `OnBeforeTransition` / `WithCause` / `WithTimedTransition`
-  behavior to a stack-shipped or generator-emitted FSM).
-* **Alarms alignment**: `AlarmClient.GetShelvingStateAsync` /
-  `ObserveShelvingTransitionsAsync` surface the new API for the
-  `ShelvingState` child of every alarm condition.
-
-Purely additive — see [State Machines](StateMachines.md). The
-standard `ShelvedStateMachineState` / `ExclusiveLimitStateMachineState`
-/ `ProgramStateMachineState` server classes keep their hardcoded
-tables (authoritative for the standard NodeSet).
 
 ### Address-space model change tracking
 
