@@ -794,20 +794,17 @@ protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
 ```
 
 Source-generated models are AOT-friendly, deterministic, and produce
-typed `*State` / `*Client` proxies. Use this whenever a model is part
-of a stable, redistributable library.
+typed `*State` / `*Client` proxies. **This is the recommended mode for
+every model the application controls** — companion specs ship as
+project references; locally-owned NodeSet2 XMLs are wired through
+`<AdditionalFiles>` so the source generator emits the same typed
+surface inside the consuming assembly.
 
-`ImportNodeSet(Stream)` / `ImportEmbeddedNodeSet(...)` overloads still
-exist as a fallback when:
-
-- the consumer needs to load an unverified third-party NodeSet2 at
-  runtime; or
-- the spec is not yet packaged as a source-generated library.
-
-The fallback path is what `Applications/MinimalPumpServer` uses today
-for the Machinery + Pumps specs while
-[plans/SourceGeneratedCompanionSpecLibraries.md](plans/SourceGeneratedCompanionSpecLibraries.md)
-tracks the conversion to libraries.
+`ImportNodeSet(Stream)` / `ImportEmbeddedNodeSet(...)` overloads
+remain for one narrow scenario: loading an unverified third-party
+NodeSet2 that is only available at runtime (for example, a tenant
+upload received by a multi-tenant server). New code should default to
+source generation.
 
 Sources run in registration order so later additions can layer on top
 of earlier ones.

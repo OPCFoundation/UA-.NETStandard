@@ -52,8 +52,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void EnumerateDevicesAsyncThrowsOnNullSession()
         {
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await DiDiscoveryClient.EnumerateDevicesAsync(
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => DiDiscoveryClient.EnumerateDevicesAsync(
                     null!, NullTelemetry()))!;
             Assert.That(ex.ParamName, Is.EqualTo("session"));
         }
@@ -62,8 +62,8 @@ namespace Opc.Ua.Di.Tests
         public void EnumerateDevicesAsyncThrowsOnNullTelemetry()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await DiDiscoveryClient.EnumerateDevicesAsync(
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => DiDiscoveryClient.EnumerateDevicesAsync(
                     sessionMock.Object, null!))!;
             Assert.That(ex.ParamName, Is.EqualTo("telemetry"));
         }
@@ -75,9 +75,9 @@ namespace Opc.Ua.Di.Tests
             BrowseDescription? captured = null;
             SetupBrowseEmpty(sessionMock, d => captured = d);
 
-            IReadOnlyList<DeviceEntry> result =
-                await DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry());
+            List<DeviceEntry> result = await ToListAsync(
+                DiDiscoveryClient.EnumerateDevicesAsync(
+                    sessionMock.Object, NullTelemetry()));
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(Opc.Ua.ObjectIds.ObjectsFolder));
@@ -94,9 +94,9 @@ namespace Opc.Ua.Di.Tests
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupBrowseEmpty(sessionMock);
 
-            IReadOnlyList<DeviceEntry> result =
-                await DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry());
+            List<DeviceEntry> result = await ToListAsync(
+                DiDiscoveryClient.EnumerateDevicesAsync(
+                    sessionMock.Object, NullTelemetry()));
 
             Assert.That(result, Is.Empty);
         }
@@ -125,9 +125,9 @@ namespace Opc.Ua.Di.Tests
             // empty (no targets → empty deviceClass).
             SetupTranslateBrowsePathsEmpty(sessionMock);
 
-            IReadOnlyList<DeviceEntry> result =
-                await DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry());
+            List<DeviceEntry> result = await ToListAsync(
+                DiDiscoveryClient.EnumerateDevicesAsync(
+                    sessionMock.Object, NullTelemetry()));
 
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].DeviceId, Is.EqualTo(deviceNodeId));
@@ -147,9 +147,9 @@ namespace Opc.Ua.Di.Tests
                 first: new[] { nonDeviceRef },
                 rest: Array.Empty<ReferenceDescription>());
 
-            IReadOnlyList<DeviceEntry> result =
-                await DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry());
+            List<DeviceEntry> result = await ToListAsync(
+                DiDiscoveryClient.EnumerateDevicesAsync(
+                    sessionMock.Object, NullTelemetry()));
 
             Assert.That(result, Is.Empty);
         }
@@ -188,15 +188,26 @@ namespace Opc.Ua.Di.Tests
                     }.ToArrayOf()
                 });
 
-            IReadOnlyList<DeviceEntry> result =
-                await DiDiscoveryClient.EnumerateDevicesAsync(
-                    sessionMock.Object, NullTelemetry());
+            List<DeviceEntry> result = await ToListAsync(
+                DiDiscoveryClient.EnumerateDevicesAsync(
+                    sessionMock.Object, NullTelemetry()));
 
             Assert.That(result, Is.Empty);
             // Depth 0, 1, 2, 3 each invoke BrowseAsync once before the
             // depth > 3 guard stops further recursion.
             Assert.That(browseCalls, Is.EqualTo(4),
                 "Recursion must stop at maxDepth=3 (4 invocations).");
+        }
+
+        private static async Task<List<DeviceEntry>> ToListAsync(
+            IAsyncEnumerable<DeviceEntry> source)
+        {
+            var list = new List<DeviceEntry>();
+            await foreach (DeviceEntry entry in source)
+            {
+                list.Add(entry);
+            }
+            return list;
         }
 
         private static ReferenceDescription MakeReference(

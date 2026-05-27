@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -44,14 +45,17 @@ namespace Opc.Ua.Di.Client
     public static class DiDiscoveryClient
     {
         /// <summary>
-        /// Enumerates all <c>DeviceType</c> instances below the
-        /// <c>Objects</c> folder on the connected server.
+        /// Asynchronously streams every <c>DeviceType</c> instance
+        /// reachable below the <c>Objects</c> folder on the connected
+        /// server. Devices are yielded as they are discovered so callers
+        /// can begin processing without waiting for the entire browse
+        /// recursion to complete.
         /// </summary>
         /// <param name="session">An open OPC UA session.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="ct">Cancellation token.</param>
-        /// <returns>A list of discovered device entries.</returns>
-        public static async ValueTask<IReadOnlyList<DeviceEntry>> EnumerateDevicesAsync(
+        /// <returns>An asynchronous stream of discovered device entries.</returns>
+        public static IAsyncEnumerable<DeviceEntry> EnumerateDevicesAsync(
             ISession session,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
@@ -59,34 +63,38 @@ namespace Opc.Ua.Di.Client
             if (session is null) { throw new ArgumentNullException(nameof(session)); }
             if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
 
-            ExpandedNodeId deviceTypeId = global::Opc.Ua.Di.ObjectTypeIds.DeviceType;
-            List<DeviceEntry> devices = new();
+            return EnumerateDevicesAsyncCore(session, ct);
+        }
 
-            // Browse the Objects folder for all child objects.
-            await BrowseForDevicesAsync(
+        private static async IAsyncEnumerable<DeviceEntry> EnumerateDevicesAsyncCore(
+            ISession session,
+            [EnumeratorCancellation] CancellationToken ct)
+        {
+            ExpandedNodeId deviceTypeId = global::Opc.Ua.Di.ObjectTypeIds.DeviceType;
+
+            await foreach (DeviceEntry entry in BrowseForDevicesAsync(
                 session,
                 Opc.Ua.ObjectIds.ObjectsFolder,
                 deviceTypeId,
-                devices,
                 depth: 0,
                 maxDepth: 3,
-                ct).ConfigureAwait(false);
-
-            return devices;
+                ct).ConfigureAwait(false))
+            {
+                yield return entry;
+            }
         }
 
-        private static async ValueTask BrowseForDevicesAsync(
+        private static async IAsyncEnumerable<DeviceEntry> BrowseForDevicesAsync(
             ISession session,
             NodeId parentId,
             ExpandedNodeId deviceTypeId,
-            List<DeviceEntry> devices,
             int depth,
             int maxDepth,
-            CancellationToken ct)
+            [EnumeratorCancellation] CancellationToken ct)
         {
             if (depth > maxDepth)
             {
-                return;
+                yield break;
             }
 
             (_, _, ArrayOf<ReferenceDescription> references) = await session.BrowseAsync(
@@ -120,21 +128,23 @@ namespace Opc.Ua.Di.Client
                         reference.DisplayName.Text ?? string.Empty;
                     string deviceClass = await ReadDeviceClassAsync(
                         session, targetId, ct).ConfigureAwait(false);
-                    devices.Add(new DeviceEntry(
-                        targetId, displayName, deviceClass));
+                    yield return new DeviceEntry(
+                        targetId, displayName, deviceClass);
                 }
                 else
                 {
                     // Recurse into non-device objects to find nested
                     // devices (e.g. under organizational folders).
-                    await BrowseForDevicesAsync(
+                    await foreach (DeviceEntry nested in BrowseForDevicesAsync(
                         session,
                         targetId,
                         deviceTypeId,
-                        devices,
                         depth + 1,
                         maxDepth,
-                        ct).ConfigureAwait(false);
+                        ct).ConfigureAwait(false))
+                    {
+                        yield return nested;
+                    }
                 }
             }
         }

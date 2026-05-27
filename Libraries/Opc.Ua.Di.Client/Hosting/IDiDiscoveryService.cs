@@ -29,7 +29,6 @@
 
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Di.Client.Hosting
 {
@@ -44,16 +43,19 @@ namespace Opc.Ua.Di.Client.Hosting
     public interface IDiDiscoveryService
     {
         /// <summary>
-        /// Enumerates all <c>DeviceType</c> instances (including
-        /// subtypes) reachable from the <c>Objects</c> folder on the
-        /// connected server.
+        /// Asynchronously streams every <c>DeviceType</c> instance
+        /// (including subtypes) reachable from the <c>Objects</c>
+        /// folder on the connected server. Devices are yielded as they
+        /// are discovered so callers can begin processing without
+        /// waiting for the entire browse recursion to complete.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>
-        /// A list of discovered devices, each carrying the device
-        /// NodeId, display name, and detected type definition.
+        /// An asynchronous stream of discovered devices, each
+        /// carrying the device NodeId, display name, and detected
+        /// type definition.
         /// </returns>
-        ValueTask<IReadOnlyList<DeviceEntry>> EnumerateDevicesAsync(
+        IAsyncEnumerable<DeviceEntry> EnumerateDevicesAsync(
             CancellationToken cancellationToken = default);
     }
 }

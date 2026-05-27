@@ -35,8 +35,8 @@ namespace Opc.Ua.Di.Server.Topology
     /// <summary>
     /// Default <see cref="IDeviceTopology"/> implementation backed by a
     /// <see cref="DiNodeManager"/>'s predefined-node dictionary. Cheap to
-    /// construct (lookups happen on demand) and safe to use across
-    /// configuration and runtime phases.
+    /// construct (lookups happen on demand) and safe to use both during
+    /// address-space configuration and at runtime.
     /// </summary>
     public sealed class DiDeviceTopology : IDeviceTopology
     {

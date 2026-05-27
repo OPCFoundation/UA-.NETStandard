@@ -74,7 +74,7 @@ namespace Opc.Ua.Di.Tests
         {
             // Verify EnumerateDevicesAsync awaits the accessor by
             // having the accessor throw a sentinel exception — the
-            // exception must surface to the caller.
+            // exception must surface when iteration starts.
             int accessorCalls = 0;
             var sentinel = new InvalidOperationException("accessor-called");
             Func<CancellationToken, Task<ManagedSession>> accessor = _ =>
@@ -87,7 +87,12 @@ namespace Opc.Ua.Di.Tests
                 accessor, new Mock<ITelemetryContext>().Object);
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await service.EnumerateDevicesAsync())!;
+                async () =>
+                {
+                    await foreach (var _ in service.EnumerateDevicesAsync())
+                    {
+                    }
+                })!;
             Assert.That(ex, Is.SameAs(sentinel));
             Assert.That(accessorCalls, Is.EqualTo(1));
         }
@@ -109,7 +114,12 @@ namespace Opc.Ua.Di.Tests
             cts.Cancel();
 
             Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await service.EnumerateDevicesAsync(cts.Token));
+                async () =>
+                {
+                    await foreach (var _ in service.EnumerateDevicesAsync(cts.Token))
+                    {
+                    }
+                });
             Assert.That(capturedToken, Is.EqualTo(cts.Token));
         }
     }

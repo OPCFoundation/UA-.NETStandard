@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -55,15 +56,18 @@ namespace Opc.Ua.Di.Client.Hosting
                 ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
-        public async ValueTask<IReadOnlyList<DeviceEntry>> EnumerateDevicesAsync(
-            CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<DeviceEntry> EnumerateDevicesAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             ManagedSession session = await m_sessionAccessor(cancellationToken)
                 .ConfigureAwait(false);
 
-            return await DiDiscoveryClient
+            await foreach (DeviceEntry entry in DiDiscoveryClient
                 .EnumerateDevicesAsync(session, m_telemetry, cancellationToken)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))
+            {
+                yield return entry;
+            }
         }
     }
 }

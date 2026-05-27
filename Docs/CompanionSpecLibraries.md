@@ -259,7 +259,7 @@ Use a `BrowseDescription` filtered on the model's TypeDefinitionId to
 discover all instances of a given type:
 
 ```csharp
-public static async ValueTask<IReadOnlyList<(NodeId Id, string Name)>>
+public static IAsyncEnumerable<(NodeId Id, string Name)>
     EnumerateDevicesAsync(
         ISession session, ITelemetryContext telemetry,
         CancellationToken ct = default)
@@ -445,9 +445,7 @@ public sealed class MyAppService(
 {
     public async Task ReportAsync(CancellationToken ct)
     {
-        IReadOnlyList<DeviceEntry> devices = await discovery
-            .EnumerateDevicesAsync(ct);
-        foreach (var entry in devices)
+        await foreach (DeviceEntry entry in discovery.EnumerateDevicesAsync(ct))
         {
             DiDeviceClient device = await deviceFactory(entry.DeviceId, ct);
             DeviceIdentification id = await device.ReadIdentificationAsync(ct);

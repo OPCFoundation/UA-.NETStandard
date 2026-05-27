@@ -41,7 +41,7 @@ UaExpert) to explore the simulated pump.
 | Feature | Where |
 |---------|-------|
 | `AddOpcUa().AddServer(...).AddNodeManager<T>()` hosting | `Program.cs` |
-| Multi-model composition (DI library + 2 NodeSet2 XMLs) | `PumpNodeManager.cs` `LoadPredefinedNodesAsync` |
+| Multi-model composition (DI library + locally source-generated Machinery + Pumps) | `PumpNodeManager.cs` `LoadPredefinedNodesAsync` |
 | Identification properties via `WithProperty(name, value)` | `PumpNodeManager.Configure.cs` `WithIdentification` |
 | Engineering units / EURange via `WithEngineeringUnits` / `WithEURange` | `WithMeasurements` |
 | 250 ms simulation tick via `Simulation(...).OnTick(...)` | `Configure` → `AdvanceSimulation` |
@@ -61,22 +61,30 @@ MinimalPumpServer/
 │                                    # + CreateAddressSpaceAsync (builder setup)
 ├── PumpNodeManager.Configure.cs     # partial — fluent wiring + simulation tick
 ├── MinimalPumpServer.csproj         # ProjectReference to Opc.Ua.Di model lib
-│                                    # Embedded Machinery + Pumps NodeSet2 XMLs
+│                                    # AdditionalFiles for Machinery + Pumps
+│                                    # NodeSet2 (consumed by source generator)
 ├── Model/
-│   ├── Opc.Ua.Machinery.NodeSet2.xml
-│   └── Opc.Ua.Pumps.NodeSet2.xml    # 6.4 MB — the OPC 40223 spec deliverable
+│   ├── Opc.Ua.Machinery.NodeSet2.xml  # AdditionalFiles — build-time only
+│   └── Opc.Ua.Pumps.NodeSet2.xml      # AdditionalFiles — build-time only
 └── Properties/AssemblyInfo.cs
 ```
 
 The `Opc.Ua.Di` model library is consumed as a project reference (its
 types live under the `Opc.Ua.Di` namespace and are source-generated
-from the ModelDesign XML).
+from the ModelDesign XML). Cross-namespace references from Machinery
+and Pumps to DI types resolve through the
+`[assembly: ModelSnapshotAttribute]` carried in the `Opc.Ua.Di`
+assembly — no DI NodeSet2 XML needed in this project.
 
-The Machinery and Pumps NodeSet2 XMLs are embedded resources loaded at
-runtime via `ModelLoaderBuilder.ImportEmbeddedNodeSet(...)` because no
-source-generated `Opc.Ua.Machinery` / `Opc.Ua.Pumps` library exists
-yet. Converting them to source-generated libraries (mirroring
-`Opc.Ua.Di`) is tracked by
+The Machinery and Pumps NodeSet2 XMLs are **source-generated locally
+inside this assembly** via the `<AdditionalFiles>` plumbing in the
+`.csproj`. The generator emits typed `*State` classes, NodeId tables,
+and the `AddOpcUaMachinery` / `AddOpcUaPumps` extension methods that
+`LoadPredefinedNodesAsync` calls. No runtime XML loading happens — the
+`Model/` folder is a build-time input only. Promoting those two models
+to standalone `Libraries/Opc.Ua.Machinery/` / `Libraries/Opc.Ua.Pumps/`
+projects (so consumer assemblies can reference them like `Opc.Ua.Di`)
+is tracked by
 [plans/SourceGeneratedCompanionSpecLibraries.md](../../plans/SourceGeneratedCompanionSpecLibraries.md).
 
 ## Inspecting / extending the sample

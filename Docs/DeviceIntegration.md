@@ -452,7 +452,9 @@ This registers four DI-friendly services that wrap the lazy
 `ManagedSession` accessor produced by `AddClient(...)`:
 
 - `IDiDiscoveryService` — recursive device discovery from the
-  `Objects` folder.
+  `Objects` folder; streams `DeviceEntry` records as
+  `IAsyncEnumerable<DeviceEntry>` so callers can begin processing
+  before the browse completes.
 - `Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>` —
   validates a device NodeId and returns a typed client.
 - `Func<NodeId, CancellationToken, ValueTask<DiLockClient>>` —
