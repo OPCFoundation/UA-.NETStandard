@@ -70,6 +70,12 @@ namespace Opc.Ua.Server.UserDatabase
         ICollection<Role> GetUserRoles(string userName);
 
         /// <summary>
+        /// Returns a snapshot of all user names stored in the database.
+        /// </summary>
+        /// <returns>The user names currently stored in the database.</returns>
+        IReadOnlyList<string> GetUserNames();
+
+        /// <summary>
         /// Changes the password of an existing users.
         /// </summary>
         /// <returns>true if change was successfull</returns>

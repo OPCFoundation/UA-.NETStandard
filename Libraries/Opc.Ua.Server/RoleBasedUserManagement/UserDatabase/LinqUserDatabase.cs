@@ -183,6 +183,12 @@ namespace Opc.Ua.Server.UserDatabase
         }
 
         /// <inheritdoc/>
+        public IReadOnlyList<string> GetUserNames()
+        {
+            return [.. m_users.Keys];
+        }
+
+        /// <inheritdoc/>
         public bool ChangePassword(string userName, ReadOnlySpan<byte> oldPassword, ReadOnlySpan<byte> newPassword)
         {
             if (string.IsNullOrEmpty(userName))

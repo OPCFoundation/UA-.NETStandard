@@ -117,5 +117,20 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.That(result, Is.False);
         }
+
+        [Test]
+        public void GetUserNamesReturnsCreatedUsers()
+        {
+            // Arrange
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser1", "PW"u8, [Role.AuthenticatedUser]);
+            usersDb.CreateUser("TestUser2", "PW2"u8, [Role.Engineer]);
+
+            // Act
+            IReadOnlyList<string> userNames = usersDb.GetUserNames();
+
+            // Assert
+            Assert.That(userNames, Is.EquivalentTo(new[] { "TestUser1", "TestUser2" }));
+        }
     }
 }

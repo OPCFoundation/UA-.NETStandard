@@ -83,6 +83,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void SnapshotUsers_StartsWithAllCustomDatabaseUsers()
+        {
+            var database = new TestUserDatabase(["alice", "bob"]);
+
+            using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
+
+            IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
+            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "alice", "bob" }));
+            Assert.That(users.All(u => u.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
+        }
+
+        [Test]
         public void AddUser_DuplicateUserName_ReturnsBadAlreadyExists()
         {
             using UserManagementImpl um = CreateManager();
@@ -457,6 +469,46 @@ namespace Opc.Ua.Server.Tests
             ServiceResult result = um.AddUser("alice", "Has!Special",
                 UserConfigurationMask.None, string.Empty);
             Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        private sealed class TestUserDatabase : IUserDatabase
+        {
+            private readonly IReadOnlyList<string> m_userNames;
+
+            public TestUserDatabase(IReadOnlyList<string> userNames)
+            {
+                m_userNames = userNames;
+            }
+
+            public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public bool DeleteUser(string userName)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public ICollection<Role> GetUserRoles(string userName)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public IReadOnlyList<string> GetUserNames()
+            {
+                return m_userNames;
+            }
+
+            public bool ChangePassword(string userName, ReadOnlySpan<byte> oldPassword, ReadOnlySpan<byte> newPassword)
+            {
+                throw new System.NotSupportedException();
+            }
         }
     }
 }

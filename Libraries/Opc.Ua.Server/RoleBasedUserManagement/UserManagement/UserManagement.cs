@@ -433,19 +433,14 @@ namespace Opc.Ua.Server.UserManagement
 
         private void LoadUsersFromDatabase()
         {
-            if (m_userDatabase is not LinqUserDatabase userDatabase)
+            foreach (string userName in m_userDatabase.GetUserNames())
             {
-                return;
-            }
-
-            foreach (LinqUserDatabase.User user in userDatabase.Users)
-            {
-                if (string.IsNullOrEmpty(user.UserName))
+                if (string.IsNullOrEmpty(userName))
                 {
                     continue;
                 }
 
-                m_metadata[user.UserName] = new UserMetadata(
+                m_metadata[userName] = new UserMetadata(
                     UserConfigurationMask.None,
                     string.Empty);
             }
