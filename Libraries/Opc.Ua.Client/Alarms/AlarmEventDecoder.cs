@@ -54,15 +54,16 @@ namespace Opc.Ua.Client.Alarms
     /// automatically.
     /// </para>
     /// <para>
-    /// <b>Future work (tracked separately):</b> the dispatch +
-    /// per-field marshalling logic in this class is hand-rolled.
-    /// A natural follow-up is to generate the decoder alongside the
-    /// records — emitting one <c>{Type}TypeRecordDecoder</c> per
-    /// generated event-record type with a <see cref="StandardFields"/>
-    /// equivalent and a typed populator. That would extend coverage
-    /// to vendor alarm subtypes automatically. The current hand-rolled
-    /// decoder covers the standard alarm/condition subtypes; vendor
-    /// types fall through as the closest standard subtype.
+    /// This decoder uses a heuristic dispatch — it inspects which
+    /// fields are populated to pick the most specific record subtype.
+    /// For Part 9 alarm conditions this is reliable because each
+    /// subtype introduces unique fields (Dialog: Prompt;
+    /// CertificateExpiration: Certificate; etc.). For
+    /// <c>EventType</c>-keyed dispatch backed by the source-generated
+    /// per-type decoders (<c>{Type}TypeRecord.Decoder.Decode</c>),
+    /// use <see cref="EventRecordDecoderRegistry.Default"/> instead.
+    /// That path scales to vendor types without hand-rolled changes
+    /// here.
     /// </para>
     /// </remarks>
     public static class AlarmEventDecoder

@@ -469,6 +469,42 @@ alias for `SourceNode` — Part 9 of the OPC UA specification defines
 the "ConditionId" as the NodeId of the condition object that fired
 the event, which is reported through the `SourceNode` event field.
 
+### Source-generated decoders + `EventRecordDecoderRegistry`
+
+Every record emitted by the `EventRecordGenerator` also exposes a
+nested `static class Decoder` with a positional `StandardFields`
+table and a `Decode(IReadOnlyList<Variant>)` method that populates
+own + inherited init-only properties. A per-file
+`Register{ModelPrefix}Decoders(this EventRecordDecoderRegistry)`
+extension registers every emitted decoder with a caller-supplied
+registry.
+
+The process-wide `EventRecordDecoderRegistry.Default` ships with the
+standard UA model pre-registered. It routes by the event's
+`EventType` field (rather than the heuristic-based field-presence
+dispatch in `AlarmEventDecoder`) and walks the OPC UA event-type
+hierarchy through an optional `SuperTypeResolver` when the exact
+type is not registered. Vendor models register their generated
+extensions via `Register{Prefix}Decoders` or
+`CreateChildScope().Register{Prefix}Decoders()` for test isolation.
+
+```csharp
+// EventType-keyed dispatch backed by source-generated decoders:
+EventRecord? rec = EventRecordDecoderRegistry.Default.Decode(eventFields);
+
+// Vendor scenario — register extra decoders on an app-scoped child:
+var app = EventRecordDecoderRegistry.Default
+    .CreateChildScope()
+    .RegisterMyVendorDecoders();
+EventRecord? vendorRec = app.Decode(eventFields);
+```
+
+Choose between the two paths based on use case: `AlarmEventDecoder`
+when you need Part 9 alarm subtype heuristics (the existing
+behavior); `EventRecordDecoderRegistry` when you need
+`EventType`-keyed dispatch that extends transparently to vendor
+event types.
+
 ### `AlarmEventFilterBuilder`
 
 `AlarmEventFilterBuilder` produces an `EventFilter` whose select-clause

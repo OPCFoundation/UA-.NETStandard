@@ -14,6 +14,17 @@ namespace Opc.Ua.SourceGeneration
     /// inherited fields come from the parent record class. The
     /// generated chain mirrors the OPC UA event-type hierarchy.
     /// </summary>
+    /// <remarks>
+    /// In addition to the record class, each emitted record contains
+    /// a nested <c>public static class Decoder</c> with a positional
+    /// <c>StandardFields</c> browse-path table and a
+    /// <c>Decode(IReadOnlyList&lt;Variant&gt;)</c> method that
+    /// populates every property (own + inherited) from positional
+    /// variant reads. A per-file
+    /// <c>Register{ModelPrefix}Decoders(this EventRecordDecoderRegistry)</c>
+    /// extension method registers every emitted decoder against a
+    /// caller-supplied <c>Opc.Ua.EventRecordDecoderRegistry</c>.
+    /// </remarks>
     internal static class EventRecordTemplates
     {
         /// <summary>
@@ -28,6 +39,8 @@ namespace Opc.Ua.SourceGeneration
             namespace {{Tokens.Namespace}}
             {
                 {{Tokens.ListOfTypes}}
+
+                {{Tokens.ListOfActivatorRegistrations}}
             }
 
             """);
@@ -48,6 +61,49 @@ namespace Opc.Ua.SourceGeneration
             public partial record {{Tokens.ClassName}} : {{Tokens.BaseClassName}}
             {
                 {{Tokens.ListOfProperties}}
+
+                /// <summary>
+                /// Source-generated positional decoder for
+                /// <see cref="{{Tokens.ClassName}}"/>. Reads variant fields
+                /// at indices fixed by <see cref="StandardFields"/> and
+                /// populates every own + inherited init-only property.
+                /// </summary>
+                public {{Tokens.AccessModifier}}static class Decoder
+                {
+                    /// <summary>
+                    /// Browse paths in positional order. The composed
+                    /// registry layout (and any filter built from it)
+                    /// uses the same positional convention; the
+                    /// runtime remaps from the composed positions
+                    /// before calling <see cref="Decode"/>.
+                    /// </summary>
+                    public static readonly global::Opc.Ua.QualifiedName[][] StandardFields =
+                    [
+                        {{Tokens.ListOfFields}}
+                    ];
+
+                    /// <summary>
+                    /// Decodes <paramref name="fields"/> into a
+                    /// <see cref="{{Tokens.ClassName}}"/>.
+                    /// </summary>
+                    /// <param name="fields">Positional variant array
+                    /// matching <see cref="StandardFields"/>.</param>
+                    /// <returns><c>null</c> when
+                    /// <paramref name="fields"/> is null or empty;
+                    /// a fully populated record otherwise.</returns>
+                    public static {{Tokens.ClassName}}? Decode(
+                        global::System.Collections.Generic.IReadOnlyList<global::Opc.Ua.Variant> fields)
+                    {
+                        if (fields == null || fields.Count == 0)
+                        {
+                            return null;
+                        }
+                        return new {{Tokens.ClassName}}
+                        {
+                            {{Tokens.ListOfDecodedFields}}
+                        };
+                    }
+                }
             }
 
             """);
@@ -60,6 +116,65 @@ namespace Opc.Ua.SourceGeneration
 
             /// <summary>{{Tokens.Description}}</summary>
             public {{Tokens.DataType}} {{Tokens.PropertyName}} { get; init; }
+            """);
+
+        /// <summary>
+        /// One <c>QualifiedName[]</c> entry per StandardFields row.
+        /// For TwoStateVariable children the path has two segments
+        /// (the variable + its <c>Id</c> property).
+        /// </summary>
+        public static readonly TemplateString StandardFieldEntry = TemplateString.Parse(
+            $$"""
+            {{Tokens.ChildPath}},
+            """);
+
+        /// <summary>
+        /// One property assignment per StandardFields position.
+        /// </summary>
+        public static readonly TemplateString DecodedField = TemplateString.Parse(
+            $$"""
+            {{Tokens.PropertyName}} = global::Opc.Ua.EventRecordFieldReaders.{{Tokens.ClientMethod}}(fields, {{Tokens.FieldIndex}}),
+            """);
+
+        /// <summary>
+        /// Per-file static class that registers every emitted decoder
+        /// onto a caller-supplied <c>Opc.Ua.EventRecordDecoderRegistry</c>.
+        /// </summary>
+        public static readonly TemplateString RegistrationExtension = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Registration extensions for the source-generated event
+            /// record decoders in this file. The
+            /// <c>{{Tokens.ClientMethod}}</c> extension method is idempotent
+            /// via <c>EventRecordDecoderRegistry.TryRegister</c> so
+            /// duplicate calls are safe.
+            /// </summary>
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            public static class {{Tokens.ClassName}}
+            {
+                /// <summary>
+                /// Registers every event-record decoder in this model
+                /// with <paramref name="registry"/>. Returns the
+                /// registry for chaining.
+                /// </summary>
+                public static global::Opc.Ua.EventRecordDecoderRegistry {{Tokens.ClientMethod}}(
+                    this global::Opc.Ua.EventRecordDecoderRegistry registry)
+                {
+                    {{Tokens.ListOfActivatorRegistrations}}
+                    return registry;
+                }
+            }
+            """);
+
+        /// <summary>
+        /// One <c>TryRegister</c> call per emitted record decoder.
+        /// </summary>
+        public static readonly TemplateString DecoderRegistration = TemplateString.Parse(
+            $$"""
+            registry.TryRegister(
+                global::Opc.Ua.ObjectTypeIds.{{Tokens.SymbolicName}},
+                {{Tokens.ClassName}}.Decoder.StandardFields,
+                {{Tokens.ClassName}}.Decoder.Decode);
             """);
     }
 }

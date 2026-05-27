@@ -56,12 +56,22 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string outputNamespace = GetOutputNamespace();
+            // Use the namespace Name (identifier-safe) rather than
+            // Prefix (which may contain dots like "Opc.Ua") for the
+            // generated C# class + method names.
+            string modelPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
+            string identifierPrefix = m_context.ModelDesign.TargetNamespace.Name
+                ?? modelPrefix.Replace(".", string.Empty);
+            string registrationClassName = CoreUtils.Format(
+                "{0}EventRecordDecoders", identifierPrefix);
+            string registrationMethodName = CoreUtils.Format(
+                "Register{0}Decoders", identifierPrefix);
 
             string fileName = Path.Combine(
                 m_context.OutputFolder,
                 CoreUtils.Format(
                     "{0}.EventRecords.g.cs",
-                    m_context.ModelDesign.TargetNamespace.Prefix));
+                    modelPrefix));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -73,6 +83,20 @@ namespace Opc.Ua.SourceGeneration
                 EventRecordTemplates.RecordClass,
                 types,
                 WriteTemplate_RecordClass);
+
+            template.AddReplacement(
+                Tokens.ListOfActivatorRegistrations,
+                EventRecordTemplates.RegistrationExtension,
+                new[]
+                {
+                    new RegistrationContext
+                    {
+                        Types = types,
+                        ClassName = registrationClassName,
+                        MethodName = registrationMethodName
+                    }
+                },
+                WriteTemplate_RegistrationExtension);
 
             template.Render();
             return [fileName.AsTextFileResource()];
@@ -141,18 +165,118 @@ namespace Opc.Ua.SourceGeneration
             string typeName = objectType.SymbolicName.Name;
             string className = CoreUtils.Format("{0}Record", typeName);
             string baseClassName = ResolveBaseRecordName(objectType);
+            // The root record (BaseEventTypeRecord) derives from
+            // EventRecord, which has no nested Decoder — no 'new'
+            // needed. Every subtype hides its parent's nested
+            // Decoder, so 'new' is required to suppress CS0108.
+            string newModifier = baseClassName == kRootBaseRecord
+                ? string.Empty
+                : "new ";
 
             context.Template.AddReplacement(Tokens.SymbolicName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, className);
             context.Template.AddReplacement(Tokens.BaseClassName, baseClassName);
+            context.Template.AddReplacement(Tokens.AccessModifier, newModifier);
 
-            List<FieldEntry> fields = CollectDeclaredFields(objectType);
+            List<FieldEntry> ownFields = CollectDeclaredFields(objectType);
             context.Template.AddReplacement(
                 Tokens.ListOfProperties,
                 EventRecordTemplates.FieldProperty,
-                fields,
+                ownFields,
                 WriteTemplate_FieldProperty);
 
+            // Decoder reads the full inherited + own field list at
+            // stable positions. Inherited fields come first, in
+            // root-to-leaf order; own fields trail.
+            List<FieldEntry> allFields = CollectAllFieldsInOrder(objectType);
+            // Assign stable positional indices for the decoder.
+            for (int i = 0; i < allFields.Count; i++)
+            {
+                allFields[i].FieldIndex = i;
+            }
+
+            context.Template.AddReplacement(
+                Tokens.ListOfFields,
+                EventRecordTemplates.StandardFieldEntry,
+                allFields,
+                WriteTemplate_StandardFieldEntry);
+
+            // Skip fields without a known reader — Variant fallback
+            // types have no helper, so the property defaults to its
+            // record-default value.
+            List<FieldEntry> decodedFields = [];
+            foreach (FieldEntry field in allFields)
+            {
+                if (!string.IsNullOrEmpty(field.ReaderMethod))
+                {
+                    decodedFields.Add(field);
+                }
+            }
+            context.Template.AddReplacement(
+                Tokens.ListOfDecodedFields,
+                EventRecordTemplates.DecodedField,
+                decodedFields,
+                WriteTemplate_DecodedField);
+
+            return context.Template.Render();
+        }
+
+        private static bool WriteTemplate_StandardFieldEntry(IWriteContext context)
+        {
+            if (context.Target is not FieldEntry field)
+            {
+                return false;
+            }
+            string path = field.IsTwoStateVariableId
+                ? CoreUtils.Format(
+                    "[global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{0}), global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)]",
+                    field.BrowseName)
+                : CoreUtils.Format(
+                    "[global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{0})]",
+                    field.BrowseName);
+            context.Template.AddReplacement(Tokens.ChildPath, path);
+            return context.Template.Render();
+        }
+
+        private static bool WriteTemplate_DecodedField(IWriteContext context)
+        {
+            if (context.Target is not FieldEntry field)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(Tokens.PropertyName, field.PropertyName);
+            context.Template.AddReplacement(Tokens.ClientMethod, field.ReaderMethod);
+            context.Template.AddReplacement(Tokens.FieldIndex, field.FieldIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return context.Template.Render();
+        }
+
+        private static bool WriteTemplate_RegistrationExtension(IWriteContext context)
+        {
+            if (context.Target is not RegistrationContext reg)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(Tokens.ClassName, reg.ClassName);
+            context.Template.AddReplacement(Tokens.ClientMethod, reg.MethodName);
+            context.Template.AddReplacement(
+                Tokens.ListOfActivatorRegistrations,
+                EventRecordTemplates.DecoderRegistration,
+                reg.Types,
+                WriteTemplate_DecoderRegistration);
+            return context.Template.Render();
+        }
+
+        private static bool WriteTemplate_DecoderRegistration(IWriteContext context)
+        {
+            if (context.Target is not ObjectTypeDesign type)
+            {
+                return false;
+            }
+            string typeName = type.SymbolicName.Name;
+            context.Template.AddReplacement(Tokens.SymbolicName, typeName);
+            context.Template.AddReplacement(
+                Tokens.ClassName,
+                CoreUtils.Format("{0}Record", typeName));
             return context.Template.Render();
         }
 
@@ -186,6 +310,56 @@ namespace Opc.Ua.SourceGeneration
         private List<FieldEntry> CollectDeclaredFields(ObjectTypeDesign type)
         {
             HashSet<string> inheritedNames = CollectInheritedFieldNames(type);
+            return CollectFieldsAtLevel(type, inheritedNames);
+        }
+
+        /// <summary>
+        /// Collects the full field list (inherited + own) in root-to-
+        /// leaf inheritance order. Used by the Decoder template to
+        /// emit positional <c>StandardFields</c> entries and matching
+        /// positional reads. Indices are stable: index <c>0</c> is the
+        /// root ancestor's first field, the last index is the type's
+        /// own last field.
+        /// </summary>
+        private List<FieldEntry> CollectAllFieldsInOrder(ObjectTypeDesign type)
+        {
+            // Walk parent chain to the BaseEventType, collecting the
+            // chain root-to-leaf.
+            var chain = new List<ObjectTypeDesign>();
+            for (TypeDesign current = type;
+                current is ObjectTypeDesign cot;
+                current = current.BaseTypeNode)
+            {
+                chain.Insert(0, cot);
+                if (cot.SymbolicId == kBaseEventTypeId)
+                {
+                    break;
+                }
+            }
+
+            var seen = new HashSet<string>(System.StringComparer.Ordinal);
+            var fields = new List<FieldEntry>();
+            foreach (ObjectTypeDesign level in chain)
+            {
+                foreach (FieldEntry field in CollectFieldsAtLevel(level, seen))
+                {
+                    fields.Add(field);
+                    seen.Add(field.BrowseName);
+                }
+            }
+            return fields;
+        }
+
+        /// <summary>
+        /// Shared implementation used by both <see cref="CollectDeclaredFields"/>
+        /// (with a parent-suppression set) and
+        /// <see cref="CollectAllFieldsInOrder"/> (which threads its own
+        /// seen-set across levels).
+        /// </summary>
+        private List<FieldEntry> CollectFieldsAtLevel(
+            ObjectTypeDesign type,
+            HashSet<string> suppressed)
+        {
             var fields = new List<FieldEntry>();
             InstanceDesign[] children = type.Children?.Items;
             if (children == null)
@@ -213,19 +387,23 @@ namespace Opc.Ua.SourceGeneration
 
                 // Promoted / re-declared on a subtype: emit nothing —
                 // the parent record already declares the property.
-                if (inheritedNames.Contains(browseName))
+                if (suppressed.Contains(browseName))
                 {
                     continue;
                 }
 
                 if (child is PropertyDesign property)
                 {
+                    string dotnet = MapDataType(property.DataTypeNode, property.ValueRank);
                     fields.Add(new FieldEntry
                     {
                         PropertyName = browseName,
-                        DotNetType = MapDataType(property.DataTypeNode, property.ValueRank),
+                        DotNetType = dotnet,
                         Description = SanitizeDescription(
-                            property.Description?.Value)
+                            property.Description?.Value),
+                        BrowseName = browseName,
+                        ReaderMethod = MapReaderMethod(dotnet),
+                        IsTwoStateVariableId = false
                     });
                     continue;
                 }
@@ -240,17 +418,24 @@ namespace Opc.Ua.SourceGeneration
                             PropertyName = CoreUtils.Format("{0}Id", browseName),
                             DotNetType = "bool?",
                             Description = SanitizeDescription(
-                                $"Id of the {browseName} TwoStateVariable.")
+                                $"Id of the {browseName} TwoStateVariable."),
+                            BrowseName = browseName,
+                            ReaderMethod = "GetNullableBool",
+                            IsTwoStateVariableId = true
                         });
                         continue;
                     }
 
+                    string dotnetVar = MapDataType(variable.DataTypeNode, variable.ValueRank);
                     fields.Add(new FieldEntry
                     {
                         PropertyName = browseName,
-                        DotNetType = MapDataType(variable.DataTypeNode, variable.ValueRank),
+                        DotNetType = dotnetVar,
                         Description = SanitizeDescription(
-                            variable.Description?.Value)
+                            variable.Description?.Value),
+                        BrowseName = browseName,
+                        ReaderMethod = MapReaderMethod(dotnetVar),
+                        IsTwoStateVariableId = false
                     });
                     continue;
                 }
@@ -360,6 +545,33 @@ namespace Opc.Ua.SourceGeneration
                 case "LocalizedText": return "global::Opc.Ua.LocalizedText";
                 case "StatusCode": return "global::Opc.Ua.StatusCode";
                 default: return "global::Opc.Ua.Variant";
+            }
+        }
+
+        /// <summary>
+        /// Maps the emitted .NET type to the corresponding
+        /// <c>EventRecordFieldReaders</c> helper method name. Used
+        /// by the decoder template to emit positional reads.
+        /// Returns <c>null</c> for types without a matching reader —
+        /// the generated decoder falls back to a no-op default for
+        /// those fields (and notably the <c>Variant</c> fallback for
+        /// unmapped data types is not populated).
+        /// </summary>
+        private static string MapReaderMethod(string dotnetType)
+        {
+            switch (dotnetType)
+            {
+                case "bool?": return "GetNullableBool";
+                case "double?": return "GetNullableDouble";
+                case "global::System.DateTime?": return "GetNullableDateTime";
+                case "string?": return "GetString";
+                case "ushort?": return "GetUInt16";
+                case "global::Opc.Ua.ByteString": return "GetByteString";
+                case "global::Opc.Ua.NodeId": return "GetNodeId";
+                case "global::Opc.Ua.LocalizedText": return "GetLocalizedText";
+                case "global::Opc.Ua.StatusCode": return "GetStatusCode";
+                case "global::Opc.Ua.LocalizedText[]?": return "GetLocalizedTextArray";
+                default: return null;
             }
         }
 
@@ -474,13 +686,29 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// One row in the generated property list. Surfaces only the
-        /// data needed by the FieldProperty template.
+        /// data needed by the FieldProperty + Decoder templates.
         /// </summary>
         private sealed class FieldEntry
         {
             public string PropertyName { get; set; }
             public string DotNetType { get; set; }
             public string Description { get; set; }
+            public string BrowseName { get; set; }
+            public string ReaderMethod { get; set; }
+            public bool IsTwoStateVariableId { get; set; }
+            public int FieldIndex { get; set; }
+        }
+
+        /// <summary>
+        /// Aggregates the per-file registration extension template
+        /// state. Used as the iteration target for
+        /// <see cref="EventRecordTemplates.RegistrationExtension"/>.
+        /// </summary>
+        private sealed class RegistrationContext
+        {
+            public List<ObjectTypeDesign> Types { get; set; }
+            public string ClassName { get; set; }
+            public string MethodName { get; set; }
         }
 
         private static readonly XmlQualifiedName kBaseEventTypeId =
