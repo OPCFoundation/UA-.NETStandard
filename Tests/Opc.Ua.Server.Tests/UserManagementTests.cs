@@ -30,6 +30,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
 using UserManagementImpl = Opc.Ua.Server.UserManagement.UserManagement;
@@ -65,6 +66,20 @@ namespace Opc.Ua.Server.Tests
             Assert.That(users, Has.Count.EqualTo(1));
             Assert.That(users[0].UserName, Is.EqualTo("alice"));
             Assert.That(users[0].Description, Is.EqualTo("Tester"));
+        }
+
+        [Test]
+        public void SnapshotUsers_StartsWithAllDatabaseUsers()
+        {
+            var database = new LinqUserDatabase();
+            Assert.That(database.CreateUser("alice", "secret"u8, [Role.AuthenticatedUser]), Is.True);
+            Assert.That(database.CreateUser("bob", "secret2"u8, [Role.AuthenticatedUser]), Is.True);
+
+            using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
+
+            IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
+            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "alice", "bob" }));
+            Assert.That(users.All(u => u.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
         }
 
         [Test]

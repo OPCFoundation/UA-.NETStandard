@@ -397,6 +397,13 @@ namespace Opc.Ua.Server
                     serverInternal.UserManagement,
                     serverInternal.SessionManager);
             }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
+                    .AsTask().GetAwaiter().GetResult();
+            }
         }
 
         ///<inheritdoc/>
