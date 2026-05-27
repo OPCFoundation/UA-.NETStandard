@@ -198,6 +198,17 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 byte[] buffer = new byte[81920];
                 int bytesRead;
+#if NETFRAMEWORK
+                while ((bytesRead = await payload
+                    .ReadAsync(buffer, 0, buffer.Length, cancellationToken)
+                    .ConfigureAwait(false)) > 0)
+                {
+                    await payloadStream
+                        .WriteAsync(buffer, 0, bytesRead, cancellationToken)
+                        .ConfigureAwait(false);
+                    size += bytesRead;
+                }
+#else
                 while ((bytesRead = await payload
                     .ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)
                     .ConfigureAwait(false)) > 0)
@@ -207,6 +218,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                         .ConfigureAwait(false);
                     size += bytesRead;
                 }
+#endif
                 await payloadStream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 

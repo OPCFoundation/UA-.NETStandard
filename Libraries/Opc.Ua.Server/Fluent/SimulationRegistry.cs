@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,8 +38,8 @@ namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
     /// Manager-owned registry of periodic simulation loops. Each loop is
-    /// driven by a <see cref="PeriodicTimer"/> and survives until the
-    /// owning <see cref="FluentNodeManagerBase"/> is disposed.
+    /// driven by a periodic timer and survives until the owning
+    /// <see cref="FluentNodeManagerBase"/> is disposed.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -52,6 +53,16 @@ namespace Opc.Ua.Server.Fluent
     /// Exceptions inside tick handlers are caught and logged; they do
     /// not kill the loop. <see cref="Dispose"/> cancels every loop and
     /// awaits them (bounded by a small grace period) before returning.
+    /// </para>
+    /// <para>
+    /// On <c>net6.0</c> and later, the loop uses
+    /// <c>System.Threading.PeriodicTimer</c>. On older targets
+    /// (<c>net472</c>, <c>net48</c>, <c>netstandard2.1</c>) the loop
+    /// falls back to a
+    /// <see cref="Task.Delay(TimeSpan, CancellationToken)"/> loop with
+    /// drift compensation. Both paths use
+    /// <see cref="Stopwatch.GetTimestamp"/> as the monotonic time
+    /// source.
     /// </para>
     /// </remarks>
     internal sealed class SimulationRegistry : IDisposable
@@ -219,41 +230,75 @@ namespace Opc.Ua.Server.Fluent
 
             RunningTask = Task.Run(async () =>
             {
-                using var timer = new PeriodicTimer(interval);
-                long lastTicks = Environment.TickCount64;
+                long lastTimestamp = Stopwatch.GetTimestamp();
                 try
                 {
+#if NET6_0_OR_GREATER
+                    using var timer = new PeriodicTimer(interval);
                     while (await timer.WaitForNextTickAsync(cancellationToken)
                         .ConfigureAwait(false))
                     {
-                        long now = Environment.TickCount64;
-                        var elapsed = TimeSpan.FromMilliseconds(now - lastTicks);
-                        lastTicks = now;
+                        long now = Stopwatch.GetTimestamp();
+                        TimeSpan elapsed = TimestampToTimeSpan(now - lastTimestamp);
+                        lastTimestamp = now;
 
-                        foreach (Func<ISystemContext, TimeSpan, CancellationToken, ValueTask> h in handlers)
-                        {
-                            try
-                            {
-                                await h(context, elapsed, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                throw;
-                            }
-                            catch (Exception ex)
-                            {
-                                logger?.LogError(ex,
-                                    "Simulation tick handler threw; loop continues.");
-                            }
-                        }
+                        await InvokeHandlersAsync(
+                                handlers, context, elapsed, cancellationToken, logger)
+                            .ConfigureAwait(false);
                     }
+#else
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+
+                        long now = Stopwatch.GetTimestamp();
+                        TimeSpan elapsed = TimestampToTimeSpan(now - lastTimestamp);
+                        lastTimestamp = now;
+
+                        await InvokeHandlersAsync(
+                                handlers, context, elapsed, cancellationToken, logger)
+                            .ConfigureAwait(false);
+                    }
+#endif
                 }
                 catch (OperationCanceledException)
                 {
                     // expected on shutdown
                 }
             }, cancellationToken);
+        }
+
+        private static async ValueTask InvokeHandlersAsync(
+            List<Func<ISystemContext, TimeSpan, CancellationToken, ValueTask>> handlers,
+            ISystemContext context,
+            TimeSpan elapsed,
+            CancellationToken cancellationToken,
+            ILogger? logger)
+        {
+            foreach (Func<ISystemContext, TimeSpan, CancellationToken, ValueTask> h in handlers)
+            {
+                try
+                {
+                    await h(context, elapsed, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex,
+                        "Simulation tick handler threw; loop continues.");
+                }
+            }
+        }
+
+        private static TimeSpan TimestampToTimeSpan(long delta)
+        {
+            // Convert Stopwatch ticks to TimeSpan ticks. Stopwatch.Frequency
+            // is per-second; TimeSpan.TicksPerSecond = 10_000_000.
+            double seconds = (double)delta / Stopwatch.Frequency;
+            return TimeSpan.FromSeconds(seconds);
         }
 
         private readonly SimulationRegistry m_registry;

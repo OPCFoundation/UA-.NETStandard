@@ -44,7 +44,7 @@ namespace Opc.Ua.Server.Fluent
     /// callers obtain a builder via the
     /// <see cref="SimulationBuilderExtensions.Simulation(INodeManagerBuilder, TimeSpan)"/>
     /// extension on <see cref="INodeManagerBuilder"/>. The handler is
-    /// invoked off a <see cref="PeriodicTimer"/>; exceptions inside the
+    /// invoked off a periodic timer; exceptions inside the
     /// handler are logged and do not kill the loop.
     /// </para>
     /// </remarks>

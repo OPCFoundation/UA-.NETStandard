@@ -113,7 +113,11 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             if (payload == null) { throw new ArgumentNullException(nameof(payload)); }
 
             using var buffer = new MemoryStream();
+#if NETFRAMEWORK
+            await payload.CopyToAsync(buffer, 81920, cancellationToken).ConfigureAwait(false);
+#else
             await payload.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+#endif
             byte[] bytes = buffer.ToArray();
 
             SoftwarePackage final = metadata with
