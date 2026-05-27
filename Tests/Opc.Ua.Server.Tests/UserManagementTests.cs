@@ -106,13 +106,13 @@ namespace Opc.Ua.Server.Tests
             using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
 
             IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
+            UserManagementDataType alice = users.Single(u => u.UserName == "alice");
+            UserManagementDataType bob = users.Single(u => u.UserName == "bob");
             Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(s_defaultUserNames));
-            Assert.That(users.Single(u => u.UserName == "alice").UserConfiguration,
-                Is.EqualTo((uint)UserConfigurationMask.MustChangePassword));
-            Assert.That(users.Single(u => u.UserName == "alice").Description, Is.EqualTo("Alice Description"));
-            Assert.That(users.Single(u => u.UserName == "bob").UserConfiguration,
-                Is.EqualTo((uint)UserConfigurationMask.Disabled));
-            Assert.That(users.Single(u => u.UserName == "bob").Description, Is.EqualTo("Bob Description"));
+            Assert.That(alice.UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.MustChangePassword));
+            Assert.That(alice.Description, Is.EqualTo("Alice Description"));
+            Assert.That(bob.UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.Disabled));
+            Assert.That(bob.Description, Is.EqualTo("Bob Description"));
         }
 
         [Test]

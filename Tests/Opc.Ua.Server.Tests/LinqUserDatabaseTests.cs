@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.That(users.Select(user => user.UserName), Is.EquivalentTo(s_createdUsers));
             Assert.That(users.All(user => user.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
-            Assert.That(users.All(user => user.Description.Length == 0), Is.True);
+            Assert.That(users.Select(user => user.Description), Is.All.Empty);
         }
     }
 }
