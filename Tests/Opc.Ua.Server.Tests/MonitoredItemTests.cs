@@ -268,7 +268,7 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
                 .Returns(queueFactory);
 
-            var nodeMangerMock = new Mock<INodeManager>();
+            var nodeMangerMock = new Mock<IAsyncNodeManager>();
 
             return new MonitoredItem(
                 serverMock.Object,

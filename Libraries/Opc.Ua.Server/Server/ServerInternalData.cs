@@ -896,7 +896,7 @@ namespace Opc.Ua.Server
 
             var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
             configurationNodeManager?.CreateServerConfiguration(
-                DefaultSystemContext,
+                    DefaultSystemContext,
                 m_configuration);
 
             // Initialize history capabilities and update Server EventNotifier accordingly

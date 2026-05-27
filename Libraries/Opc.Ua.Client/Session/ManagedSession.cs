@@ -723,13 +723,8 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             StateMachine.RequestClose();
-            Session? session = m_session;
-            if (session != null)
-            {
-                return await session.CloseAsync(
-                    timeout, closeChannel, ct)
-                    .ConfigureAwait(false);
-            }
+
+            await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);            
 
             return StatusCodes.Good;
         }

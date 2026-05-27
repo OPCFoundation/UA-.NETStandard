@@ -43,7 +43,7 @@ namespace Opc.Ua
     /// </para>
     /// <para>
     /// The pool never blocks. A <see cref="Get"/> miss falls through to
-    /// <c>new T()</c>. A <see cref="Return"/> beyond the configured
+    /// the factory delegate. A <see cref="Return"/> beyond the configured
     /// maximum drops the instance to the GC. Callers are responsible for
     /// resetting instance state before returning.
     /// </para>
@@ -55,6 +55,7 @@ namespace Opc.Ua
         private T? m_firstItem;
         private readonly T?[] m_items;
         private readonly int m_maximumRetained;
+        private readonly Func<T> m_factory;
 
         /// <summary>
         /// Create a new pool that retains up to <paramref name="maximumRetained"/>
@@ -65,13 +66,18 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="maximumRetained">Upper bound on instances held by
         /// the pool. Must be positive.</param>
-        public BoundedObjectPool(int maximumRetained)
+        /// <param name="factory">Optional factory delegate used to create new
+        /// instances on a pool miss. When <see langword="null"/> a direct
+        /// <c>new T()</c> call is compiled as a lambda, avoiding the
+        /// reflection overhead of the generic <c>new T()</c> constraint.</param>
+        public BoundedObjectPool(int maximumRetained, Func<T>? factory = null)
         {
             if (maximumRetained <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maximumRetained));
             }
             m_maximumRetained = maximumRetained;
+            m_factory = factory ?? (() => new T());
             // Subtract one for the first-item slot. If the cap is 1 we
             // keep an empty shared array and rely on the fast slot alone.
             m_items = new T?[maximumRetained - 1];
@@ -85,8 +91,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// Rent an instance from the pool. Returns a recycled instance
-        /// on a hit; otherwise constructs a fresh instance via
-        /// <c>new T()</c>.
+        /// on a hit; otherwise constructs a fresh instance via the
+        /// factory delegate.
         /// </summary>
         public T Get()
         {
@@ -108,7 +114,7 @@ namespace Opc.Ua
                 }
             }
 
-            return new T();
+            return m_factory();
         }
 
         /// <summary>
