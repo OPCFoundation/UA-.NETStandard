@@ -594,8 +594,8 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.ReceivedSequenceNumbers,
                     Is.EqualTo(new uint[] { 1, 2, 3, 4, 5 }));
                 Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
-                Assert.That(sut.MissingMessageCount, Is.EqualTo(0));
-                Assert.That(sut.RepublishMessageCount, Is.EqualTo(0));
+                Assert.That(sut.MissingMessageCount, Is.Zero);
+                Assert.That(sut.RepublishMessageCount, Is.Zero);
                 m_mockServices.Verify(
                     c => c.RepublishAsync(
                         It.IsAny<RequestHeader>(),
@@ -664,8 +664,8 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.ReceivedSequenceNumbers,
                     Is.EqualTo(new uint[] { 3, 4, 5 }));
                 Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
-                Assert.That(sut.MissingMessageCount, Is.EqualTo(0));
-                Assert.That(sut.RepublishMessageCount, Is.EqualTo(0));
+                Assert.That(sut.MissingMessageCount, Is.Zero);
+                Assert.That(sut.RepublishMessageCount, Is.Zero);
                 m_mockServices.Verify(
                     c => c.RepublishAsync(
                         It.IsAny<RequestHeader>(),
