@@ -1,15 +1,11 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-> **Status**: phases P1 – P5 and PI shipped. The full identity surface (server
-> `IServerIdentityRegistry` + default authenticators, client
-> `IClientIdentityProvider` + `Session.UpdateIdentityAsync` with
-> proactive refresh, Part 18 §4.4.4 `GroupId` / `Role` claim mapping,
-> in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, full
-> `Microsoft.Extensions.DependencyInjection` integration with
-> `appsettings.json` binding, and in-box sample migration) is available.
-> `AuthorizationServiceType` modernisation (P6), KeyCredential push +
-> bridge (P7), and sibling-package design (P8) remain. See
-> [Roadmap](#roadmap) below.
+> **Status**: phases P1 – P7, PI, G1, and G2 are shipped on `kube`.
+> The server registry, default authenticators, client providers, DI
+> integration, GDS hosted-service consumption, reference-sample migration,
+> modern AuthorizationService token flow, KeyCredential Push binding, and
+> experimental KeyCredential bridge are available. The sibling-package
+> documents added in P8 are design-only notes for future packages.
 
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
@@ -42,10 +38,9 @@ The model **does not replace** the existing
 [`IUserIdentity`](../Stack/Opc.Ua.Core/Stack/Client/IUserIdentity.cs) /
 [`IUserIdentityTokenHandler`](../Stack/Opc.Ua.Core/Stack/Types/IUserIdentityTokenHandler.cs)
 contracts that ship on the wire — those are still the canonical
-on-the-wire types. The provider model layers on top, so you can stage
-adoption: keep your existing
-`SessionManager.ImpersonateUser` callback running while you migrate one
-token type at a time to an `IUserTokenAuthenticator`.
+on-the-wire types. The provider model layers on top of those types so
+legacy callbacks keep working during migration, while new code can
+register `IUserTokenAuthenticator` instances directly.
 
 ## Quick start — DI
 
@@ -503,9 +498,8 @@ The three outcomes:
   `RecordFailedAuthentication` path (P2 wires this).
 * `AuthenticationResult.NotHandled` — the authenticator does not own
   this token type / profile. The registry moves on to the next
-  authenticator and ultimately falls back to the legacy
-  `SessionManager.ImpersonateUser` event when no authenticator claimed
-  the token.
+  authenticator and ultimately falls back to the legacy callback when no
+  authenticator claimed the token.
 
 ### `IServerIdentityRegistry` — composing authenticators
 
@@ -528,13 +522,19 @@ catch-all (useful when bridging to a legacy `ITokenValidator`).
 
 ### Claims surface — wiring `IdentityCriteriaType.GroupId` and `Role`
 
-`IRoleManager.ResolveGrantedRoles` will (P3) probe the returned
-identity for `IIdentityClaims` and use it to satisfy the OPC 10000-18
-§4.4.4 `GroupId` and `Role` identity criteria — neither of which works
-today (`GroupId` returns `false` unconditionally, `Role` matches
-already-granted role NodeIds which contradicts the spec). Authenticators
-should populate the claims surface even though the role-mapping
-consumer isn't wired yet; P3 will pick it up automatically.
+`IRoleManager.ResolveGrantedRoles` probes returned identities for
+`IIdentityClaims` and uses that surface to satisfy OPC 10000-18 §4.4.4
+claim criteria:
+
+* `IdentityCriteriaType.GroupId` matches entries in `IIdentityClaims.Groups`.
+* `IdentityCriteriaType.Role` matches entries in `IIdentityClaims.Roles`.
+  The criterion may be either `roleName` or issuer-qualified as
+  `issuerUri/roleName`; the issuer-qualified form also checks
+  `IIdentityClaims.Issuer`.
+
+Authenticators should populate `IIdentityClaims` when the token contains
+claims. Role assignment remains a role-manager decision; authenticators
+validate credentials and return an identity.
 
 ```csharp
 internal sealed class JwtUserIdentity : IUserIdentity, IIdentityClaims
@@ -555,16 +555,14 @@ internal sealed class JwtUserIdentity : IUserIdentity, IIdentityClaims
         Subject = subject;
     }
 
-    // IUserIdentity surface…
     public string DisplayName => Subject;
     public string PolicyId => TokenHandler.Token.PolicyId;
     public UserTokenType TokenType => UserTokenType.IssuedToken;
-    public XmlQualifiedName IssuedTokenType => /* parsed from handler */;
+    public XmlQualifiedName IssuedTokenType => IssuedTokenType.JWT;
     public bool SupportsSignatures => false;
-    public ArrayOf<NodeId> GrantedRoleIds => default; // RoleManager fills this.
+    public ArrayOf<NodeId> GrantedRoleIds => default;
     public IUserIdentityTokenHandler TokenHandler { get; }
 
-    // IIdentityClaims surface…
     public IReadOnlyDictionary<string, object> Claims { get; }
     public IReadOnlyList<string> Groups { get; }
     public IReadOnlyList<string> Roles { get; }
@@ -573,21 +571,17 @@ internal sealed class JwtUserIdentity : IUserIdentity, IIdentityClaims
 }
 ```
 
-When P3 ships, the same identity instance feeds an
-`IdentityMappingRuleType` like:
+A role rule such as `CriteriaType = IdentityCriteriaType.GroupId` and
+`Criteria = "engineering-leads"` matches when `Groups` contains
+`engineering-leads`. See [Role-Based Security](RoleBasedUserManagement.md)
+for a worked Entra JWT example.
 
-```
-CriteriaType = GroupId, Criteria = "engineering-leads"
-```
+### `ITokenIssuer` — server-side JWT issuance
 
-— and the rule matches when `Groups` contains `engineering-leads`.
-
-### `ITokenIssuer` — server-side JWT issuance (P6 wires this)
-
-The `ITokenIssuer` interface is the server-side counterpart of
-`IAccessTokenProvider`. P6 will use it to back the modern Part 12 v1.05
-`AuthorizationServiceType.StartRequestToken` / `FinishRequestToken`
-flow. You can implement it now to test against a GDS in isolation:
+`ITokenIssuer` is the server-side counterpart of `IAccessTokenProvider`.
+It backs the modern Part 12 v1.05 `AuthorizationServiceType`
+`StartRequestToken` / `FinishRequestToken` flow and the legacy
+`RequestAccessToken` compatibility path.
 
 ```csharp
 public sealed class EcdsaJwtIssuer : ITokenIssuer
@@ -599,10 +593,7 @@ public sealed class EcdsaJwtIssuer : ITokenIssuer
         TokenIssuanceRequest request,
         CancellationToken ct = default)
     {
-        // 1. Build the JWS header + payload (sub, aud, exp, iss, …).
-        // 2. Sign with your ECDSA / RSA / KMS key.
-        // 3. Return as an AccessToken.
-        byte[] jws = SignJws(request);
+        byte[] jws = await SignJwsAsync(request, ct).ConfigureAwait(false);
         return new AccessToken(
             Profiles.JwtUserToken,
             jws,
@@ -611,6 +602,10 @@ public sealed class EcdsaJwtIssuer : ITokenIssuer
     }
 }
 ```
+
+GDS hosts register the default issuer with `WithAuthorizationService(...)`
+or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
+[AuthorizationService](AuthorizationService.md).
 
 ### `IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation
 
@@ -639,94 +634,243 @@ using var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
 bool isValid = key.VerifySignature(signingInputBytes, signatureBytes);
 ```
 
-## Recipes
+## How-to: server-side authentication
 
-### "I just want anonymous + username+password to start"
-
-That is the historical `SessionManager.ImpersonateUser` shape and it
-**still works**, but the event is now `[Obsolete]`. New code should
-register `IUserTokenAuthenticator` instances via DI or
-`server.CurrentInstance.IdentityRegistry.Register(...)`; see the
-`ReferenceServer` and `GlobalDiscoverySampleServer` samples for the
-in-box migration pattern.
-
-### "I want to validate Entra (Azure AD) JWTs"
-
-Implement an `IIssuerKeyResolver` that fetches the tenant's signing
-keys from
-`https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys`,
-cache them, and pass them to the `JwtAuthenticator` (P2). For the
-client side, implement an `IAccessTokenProvider` that wraps
-`Microsoft.Identity.Client` (MSAL) and acquires tokens via
-`AcquireTokenForClient` (client credentials) or
-`AcquireTokenInteractive` (user flows). The
-`AuthorizationServerMetadata.AuthorityUri` and `ResourceUri` give you
-exactly the inputs MSAL needs.
-
-A sibling package `Opc.Ua.Identity.Entra` is reserved for this in P8.
-
-### "I want to use a GDS-issued KeyCredential as my OPC UA identity"
-
-That is a vendor extension under
-`urn:opcfoundation:netstandard:profile:authentication:keycredential` —
-the OPC UA specification does not define a §8 KeyCredential → §6.5
-IssuedIdentityToken bridge. P7 ships an experimental implementation
-explicitly marked as not spec-conformant. Use it for closed
-deployments where the same GDS issues both broker credentials and
-OPC UA session credentials.
-
-For standards-conformant flows, use `AuthorizationServiceType` (P6)
-which issues real JWTs.
-
-### "I'm hosting in ASP.NET Core and have an `ITokenAcquisition`"
-
-Wrap it in an `IAccessTokenProvider`. Its `AcquireAsync` body looks
-roughly like:
+Use DI when the .NET Generic Host owns the server. This example wires the
+shipped defaults, a custom authenticator, and a trusted JWT issuer.
 
 ```csharp
-public async ValueTask<AccessToken> AcquireAsync(
-    AuthorizationServerMetadata meta, CancellationToken ct)
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.Identity;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
+
+services.AddOpcUa()
+    .AddServer(o =>
+    {
+        o.ApplicationName = "MyServer";
+        o.ApplicationUri = "urn:example:my-server";
+        o.EndpointUrls.Add("opc.tcp://localhost:4840");
+    })
+    .AddIdentityAuthenticator<MyAuthenticator>()
+    .AddDefaultIdentityAuthenticators(o =>
+    {
+        o.EnableAnonymous = true;
+        o.EnableUserNamePassword = true;
+        o.EnableX509 = true;
+        o.EnableJwt = true;
+        o.ExpectedAudience = "urn:example:my-server";
+    })
+    .AddJwtIssuer(o =>
+    {
+        o.IssuerUri = "https://issuer.example";
+        o.JwksUri = "https://issuer.example/.well-known/jwks.json";
+        o.Audience = "urn:example:my-server";
+    });
+
+public sealed class MyAuthenticator : IUserTokenAuthenticator
 {
-    var result = await m_tokenAcquisition.GetAccessTokenForUserAsync(
-        scopes: meta.Scopes,
-        tenantId: meta.AdditionalFields.GetValueOrDefault("tenant_id")?.GetString());
-    byte[] bytes = Encoding.UTF8.GetBytes(result);
-    return new AccessToken(Profiles.JwtUserToken, bytes,
-        DateTime.UtcNow.AddMinutes(55), m_currentUser?.Identity?.Name ?? "");
+    public UserTokenType TokenType => UserTokenType.UserName;
+    public string? IssuedTokenProfileUri => null;
+
+    public ValueTask<AuthenticationResult> AuthenticateAsync(
+        AuthenticationContext context, CancellationToken ct = default)
+    {
+        if (context.TokenHandler is not UserNameIdentityTokenHandler userName)
+        {
+            return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+        }
+
+        bool ok = userName.UserName == "alice" &&
+            !Utils.Utf8IsNullOrEmpty(userName.DecryptedPassword);
+        return new ValueTask<AuthenticationResult>(ok
+            ? AuthenticationResult.Accept(new UserIdentity(userName))
+            : AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied)));
+    }
 }
 ```
 
-A sibling package `Opc.Ua.Identity.AspNetCore` is reserved for this in P8.
+Manual hosts can register against the running server instance. Prefer DI
+for hosted applications, but this is useful for existing `StandardServer`
+subclasses:
 
-## Roadmap
+```csharp
+server.CurrentInstance.IdentityRegistry.Register(new MyAuthenticator());
+server.CurrentInstance.IdentityRegistry.Register(
+    new JwtAuthenticator(keyResolver, expectedAudience: "urn:example:my-server"));
+```
 
-| Phase | Status | Adds |
-|-------|--------|------|
-| **P1** | ✅ shipped (`735dcd87`) | Interfaces + `AuthorizationServerMetadata` parser + `ServerIdentityRegistry` + `IssuerVerificationKey` helper. No behaviour change. |
-| **P2** | ✅ shipped (`f097f7e2`) | `SessionManager` routes incoming tokens through the registry first, falls back to the existing `ImpersonateUser` event when no authenticator matches. Default `Anonymous`, `UserNamePassword`, `X509`, `Jwt` authenticators in `Opc.Ua.Server`. |
-| **P3** | ✅ shipped (`4ecdeb53`) | `IRoleManager.ResolveGrantedRoles` probes `IIdentityClaims` to wire OPC 10000-18 §4.4.4 `GroupId` + `Role` criteria correctly (forced spec-correct migration — the previous behaviour was never released). |
-| **P4** | ✅ shipped (`df56442d`) | Client side: `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` + proactive refresh scheduler + `ManagedSessionOptions.IdentityProvider` (eager `Identity` setter is `[Obsolete]`). |
-| **PI** | ✅ shipped (`c8ff0d48`, `c4848919`, `fbc32fe8`, `1d5cfe7a`, `b113a5c1`) | DI integration completeness: `OpcUaServerIdentityOptions`, `OpcUaClientIdentityOptions`, `JwtIssuerOptions`, in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, `JwtBearerAccessTokenProvider`, `IConfiguration` overloads on `ConfigureRoles` / `AddDefaultIdentityAuthenticators` / `AddJwtIssuer`, GDS forwarders. Identity is now fully reachable from `appsettings.json`. |
-| **P5** | ✅ shipped | `ReferenceServer`, `GlobalDiscoverySampleServer`, and `ConsoleReferenceClient` migrated to the provider model. `SessionManager.ImpersonateUser` event is marked `[Obsolete]` (functional but discouraged). |
-| **P6** | pending | Modern Part 12 v1.05 `AuthorizationServiceType.StartRequestToken` / `FinishRequestToken` flow with `ITokenIssuer` backing. `RequestAccessToken` stays available but `[Obsolete]` (deprecated in v1.05 per spec). |
-| **P7** | pending | `KeyCredentialConfigurationFolderType` Push model wiring + experimental KeyCredential → IssuedIdentityToken bridge under a vendor profile URI. |
-| **P8** | pending | Sibling packages design notes for `Opc.Ua.Identity.{Entra,Oidc,Windows,AspNetCore}`. |
+`GdsServerHostedService` consumes the same DI registrations, so a GDS host
+uses `.AddIdentityAuthenticator<T>()`, `.AddDefaultIdentityAuthenticators()`,
+and `.AddJwtIssuer(...)` exactly like a regular server.
+
+## How-to: client-side provider selection
+
+The shipped client providers are composable. `CompositeClientIdentityProvider`
+tries providers in order and picks the first one that satisfies the server's
+selected `UserTokenPolicy`.
+
+```csharp
+using Opc.Ua;
+using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
+
+ISecretRegistry secrets = BuildSecretRegistry();
+IAccessTokenProvider accessTokens = BuildAccessTokenProvider();
+ICertificateProvider certificates = configuration.CertificateManager.CertificateProvider;
+ICertificatePasswordProvider passwords = new CertificatePasswordProvider();
+
+IClientIdentityProvider provider = new CompositeClientIdentityProvider(
+    new UserNamePasswordIdentityProvider(
+        "alice",
+        secrets,
+        new SecretIdentifier("alice-password", "InMemory")),
+    new X509ClientIdentityProvider(
+        new CertificateIdentifier
+        {
+            StoreType = CertificateStoreType.Directory,
+            StorePath = "pki/user",
+            SubjectName = "CN=Alice"
+        },
+        passwords,
+        certificates),
+    new IssuedTokenIdentityProvider(accessTokens, Profiles.JwtUserToken));
+
+await session.UpdateIdentityAsync(provider, ct).ConfigureAwait(false);
+```
+
+The access-token-backed shipped type is `IssuedTokenIdentityProvider`, which
+wraps an `IAccessTokenProvider` and materializes a UA `IssuedIdentityToken`
+for `ActivateSession`. Earlier design notes that used the name
+`AccessTokenIdentityProvider` should map to this shipped type.
+
+For managed clients, put the same provider on
+`ManagedSessionOptions.IdentityProvider` so `ManagedSession` can refresh
+proactively:
+
+```csharp
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    IdentityProvider = provider
+};
+
+ISessionFactory sessionFactory = sp.GetRequiredService<ISessionFactory>();
+ManagedSession managed = await ManagedSession.CreateAsync(
+    configuration, endpoint, sessionFactory, identityProvider: provider, ct: ct);
+```
+
+## How-to: migrate from `SessionManager.ImpersonateUser`
+
+The event remains as a compatibility fallback, but it is marked
+`[Obsolete]`. New code should move validation into one
+`IUserTokenAuthenticator` per token type. See
+[Migration Guide — User Identity Providers](MigrationGuide.md#user-identity-providers)
+for the full migration table.
+
+### 1. Legacy event code
+
+```csharp
+server.CurrentInstance.SessionManager.ImpersonateUser +=
+    SessionManager_ImpersonateUser;
+
+private void SessionManager_ImpersonateUser(
+    Session session, ImpersonateEventArgs args)
+{
+    if (args.NewIdentity is UserNameIdentityToken userName &&
+        ValidatePassword(userName.UserName, userName.DecryptedPassword))
+    {
+        args.Identity = new UserIdentity(userName);
+        return;
+    }
+
+    args.Identity = null;
+}
+```
+
+### 2. Implement an authenticator for that token type
+
+```csharp
+public sealed class MyUserNameAuthenticator : IUserTokenAuthenticator
+{
+    public UserTokenType TokenType => UserTokenType.UserName;
+    public string? IssuedTokenProfileUri => null;
+
+    public ValueTask<AuthenticationResult> AuthenticateAsync(
+        AuthenticationContext context, CancellationToken ct = default)
+    {
+        if (context.TokenHandler is not UserNameIdentityTokenHandler userName)
+        {
+            return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+        }
+
+        return new ValueTask<AuthenticationResult>(
+            ValidatePassword(userName.UserName, userName.DecryptedPassword)
+                ? AuthenticationResult.Accept(new UserIdentity(userName))
+                : AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied)));
+    }
+}
+```
+
+### 3. Register via DI or the server registry
+
+```csharp
+services.AddOpcUa()
+    .AddServer(o => o.ApplicationUri = "urn:example:my-server")
+    .AddIdentityAuthenticator<MyUserNameAuthenticator>();
+
+// Non-DI host:
+server.CurrentInstance.IdentityRegistry.Register(new MyUserNameAuthenticator());
+```
+
+Migrate one token type at a time. If no authenticator handles a token, the
+registry falls back to the obsolete event so existing deployments can stage
+the change safely.
+
+## Where each authenticator lives
+
+| Authenticator | File path | Package / assembly | TFM support | Notes |
+|---|---|---|---|---|
+| `AnonymousAuthenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\AnonymousAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Enabled by `AddDefaultIdentityAuthenticators()` when `EnableAnonymous` is true. |
+| `UserNamePasswordAuthenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\UserNamePasswordAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Requires `IUserDatabase` and `IUserManagement`. |
+| `X509Authenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\X509Authenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Uses `ICertificateValidatorEx` and the configured user trust list. |
+| `JwtAuthenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\JwtAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Validates `Profiles.JwtUserToken` via `IIssuerKeyResolver`. |
+| `KeyCredentialBridgeAuthenticator` (experimental) | `Libraries/Opc.Ua.Server\Identity\Authenticators\KeyCredentialBridgeAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` (`[Experimental]` attribute on `net8.0+`) | Vendor profile only; not an OPC UA conformance claim. |
+
+## History
+
+| Phase | Commit | Summary |
+|---|---|---|
+| P1 | `735dcd87` | Added identity-provider interfaces, metadata parsing, registry, and verification-key helpers. |
+| P2 | `f097f7e2` | Routed `SessionManager` authentication through the registry and added default anonymous, username/password, X.509, and JWT authenticators. |
+| P3 | `4ecdeb53` | Fixed Part 18 `GroupId` and access-token `Role` criteria to consume `IIdentityClaims`. |
+| P4 | `df56442d` | Added client identity providers, `Session.UpdateIdentityAsync`, and `ManagedSession` refresh integration. |
+| PI | `c8ff0d48` … `073bb377` | Completed DI integration, options binding, JWT issuer configuration, and client composite provider wiring. |
+| G1 | `9da3a6c4` | Made `GdsServerHostedService` consume identity authenticator registrations. |
+| G2 | `c6579e26` | Re-enabled the two previously flaky P4 identity-refresh tests. |
+| P5 | `db27d632` | Migrated reference samples to the registry and marked `SessionManager.ImpersonateUser` obsolete. |
+| P6 | `c3fb4414` | Shipped the modern `StartRequestToken` / `FinishRequestToken` AuthorizationService flow and `ITokenIssuer`. |
+| P7 | `64a1f8c4` | Shipped KeyCredential Push and the experimental KeyCredential bridge authenticator. |
 
 ## See also
 
+* [Migration Guide — User Identity Providers](MigrationGuide.md#user-identity-providers)
+  for source migrations from obsolete identity APIs.
 * [Migration Guide — User Identity Token Handlers](MigrationGuide.md#user-identity-token-handlers)
-  for the 1.6 token-handler async / non-disposable refactor that this
-  builds on.
+  for the 1.6 token-handler async / non-disposable refactor.
 * [Role-Based Security (OPC UA Part 18)](RoleBasedUserManagement.md) for
   the role-mapping layer that consumes `IIdentityClaims`.
 * [AuthorizationService](AuthorizationService.md) for the OPC 10000-12 §9
-  service that issues access tokens (P6 will modernize this).
+  service that issues access tokens.
 * [KeyCredentialService](KeyCredentialService.md) for the OPC 10000-12 §8
-  service that provisions credentials for non-OPC-UA brokers (P7
-  experimental bridge).
-* [Sessions](Sessions.md) for the `Session` / `ManagedSession`
-  reconnection and reactivation mechanics that interact with token
-  refresh.
+  service, Push model, and experimental bridge.
+* [Dependency Injection](DependencyInjection.md) for the `services.AddOpcUa()`
+  hosting surface.
+* Design-only sibling-package notes:
+  [Entra](IdentityProviders.Entra.md), [OIDC](IdentityProviders.Oidc.md),
+  [Windows](IdentityProviders.Windows.md), and
+  [AspNetCore](IdentityProviders.AspNetCore.md).
 * OPC UA specification references:
   * [Part 4 §6.2 — Authorization Services](https://reference.opcfoundation.org/Core/Part4/v105/docs/6.2)
   * [Part 4 §7.40 — UserIdentityToken parameters](https://reference.opcfoundation.org/Core/Part4/v105/docs/7.40)

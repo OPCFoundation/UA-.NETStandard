@@ -13,7 +13,7 @@ Here is a list of available documentation for different topics:
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Observability](Observability.md) support in the stack.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
-* Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows. Layers on top of the historical `SessionManager.ImpersonateUser` callback without breaking it.
+* Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
@@ -21,6 +21,18 @@ Here is a list of available documentation for different topics:
 * Source generated [NodeManagers](SourceGeneratedNodeManagers.md) - Emit an `AsyncCustomNodeManager` from a model design XML and wire callbacks via the fluent `INodeManagerBuilder` API; supports NativeAOT single-file servers (sample: [MinimalBoilerServer](../Applications/MinimalBoilerServer)).
 * [Alias Names](AliasNames.md) - Full server + client support for the OPC UA Part 17 alias-name model (`AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`, `LastChange`).
 * [Dependency Injection](DependencyInjection.md) - The unified `services.AddOpcUa()` / `IOpcUaBuilder` surface for hosting OPC UA components in `Microsoft.Extensions.DependencyInjection` / the .NET Generic Host (servers as `IHostedService`, options via `Action<T>` or `IConfiguration`, AOT-friendly).
+* [AuthorizationService](AuthorizationService.md) - Modern Part 12 `StartRequestToken` / `FinishRequestToken`, `ITokenIssuer`, and GDS token issuance.
+* [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
+
+
+## Identity Providers — sibling packages
+
+Design-only notes for future identity-provider packages:
+
+* [Entra identity provider design](IdentityProviders.Entra.md) — MSAL-backed `IAccessTokenProvider`, `IClientIdentityProvider`, and Entra JWKS resolver.
+* [OIDC identity provider design](IdentityProviders.Oidc.md) — generic discovery, PKCE, JWKS rotation, and refresh-token storage hooks.
+* [Windows identity provider design](IdentityProviders.Windows.md) — Windows Integrated / Kerberos with Negotiate and PAC group SID extraction.
+* [ASP.NET Core identity provider design](IdentityProviders.AspNetCore.md) — `Microsoft.Identity.Web` `ITokenAcquisition` adapter and token-store integration.
 
 ## Reference application related
 
@@ -42,3 +54,6 @@ Starting with version 1.5.375.XX the Windows Forms reference client & reference 
 * [GDS Developer Guide](GDS.md) — Application registration, certificate management (pull & push models), roles and authorization, provider implementation, end-to-end examples.
 * [KeyCredentialService](KeyCredentialService.md) — Credential issuance for non-OPC UA services (MQTT, REST), IKeyCredentialRequestStore provider guide, ISecretStore integration.
 * [AuthorizationService](AuthorizationService.md) — OAuth2-style access token issuance, IAccessTokenProvider implementation guide.
+* [Role-Based Security](RoleBasedUserManagement.md) — Part 18 roles and claim-based identity-mapping rules.
+* [Identity Providers](IdentityProviders.md) — server and client identity-provider architecture.
+* [Dependency Injection](DependencyInjection.md) — DI hosting and identity registration extensions.

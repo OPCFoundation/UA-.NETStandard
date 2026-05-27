@@ -56,6 +56,42 @@ Every mutator returns a `ServiceResult` that mirrors the spec-defined status cod
 > - `IdentityCriteriaType.GroupId` probes the returned `IUserIdentity` for `Opc.Ua.Identity.IIdentityClaims` (see [Identity Providers](IdentityProviders.md)) and matches `IIdentityClaims.Groups`.
 > - `IdentityCriteriaType.Role` matches roles asserted **inside the access token** via `IIdentityClaims.Roles`, optionally prefixed by the issuer URI as `iss/roleName`, per Part 18 4.4.4.
 
+
+### Authoring an identity-mapping rule with claims
+
+JWT authenticators that return an identity implementing `IIdentityClaims`
+allow Part 18 rules to match Entra-style claims. The in-box
+`RoleManager` treats entries in a role's `Identities` collection as OR
+criteria, per the standard `IdentityMappingRuleType[]` shape. Add one
+entry for each accepted claim value:
+
+```csharp
+IRoleManager roles = server.CurrentInstance.RoleManager;
+
+roles.AddIdentity(
+    ObjectIds.WellKnownRole_Engineer,
+    new IdentityMappingRuleType
+    {
+        CriteriaType = IdentityCriteriaType.Role,
+        Criteria = "https://login.microsoftonline.com/{tenant}/v2.0/OpcUa.Engineer"
+    });
+
+roles.AddIdentity(
+    ObjectIds.WellKnownRole_Engineer,
+    new IdentityMappingRuleType
+    {
+        CriteriaType = IdentityCriteriaType.GroupId,
+        Criteria = "00000000-1111-2222-3333-444444444444"
+    });
+```
+
+The first rule matches an access-token role claim `OpcUa.Engineer` only
+when `IIdentityClaims.Issuer` is the Entra issuer. The second matches a
+`groups` claim containing the Entra group object id. If your policy must
+require both a role and a group simultaneously, implement a custom
+`IRoleManager` (or a custom authorization layer) because the shipped
+`RoleConfigurationOptions` DTO does not define an AND-rule collection.
+
 ### RoleConfigurationChanged event
 
 `IRoleManager.RoleConfigurationChanged` fires after every successful mutation with the role NodeId and a `RoleConfigurationChangeKind`. Integrators can subscribe to:
@@ -83,7 +119,7 @@ Per Part 3 4.9 and Part 18 4.3 the default `RoleManager` rules already grant:
 - `AuthenticatedUser` for any session with a non-anonymous token;
 - `TrustedApplication` when the session was authenticated with a trusted ApplicationInstance certificate over a signed channel.
 
-Integrators returning a `RoleBasedIdentity` from `SessionManager_ImpersonateUser` layer additional roles on top of those defaults.
+Additional identity-mapping rules are evaluated by `IRoleManager.ResolveGrantedRoles` after authentication. New integrations should expose claims through `IIdentityClaims` and add `IdentityMappingRuleType` entries to the role manager.
 
 ### User Management (Part 18 §5)
 

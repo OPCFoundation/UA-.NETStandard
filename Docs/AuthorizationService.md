@@ -65,6 +65,55 @@ builder.WithAuthorizationService<MyTokenIssuer>(o =>
 
 `MyTokenIssuer` implements `Opc.Ua.Identity.ITokenIssuer`. The default `EcdsaJwtIssuer` signs hand-rolled RFC 7515 JWS tokens with ECDSA (`ES256`/`ES384`/`ES512`) or RSA (`RS256` default; RSA-PSS supported by custom issuers) without adding a JWT package dependency.
 
+### Custom `ITokenIssuer` for cloud or HSM signing
+
+Use `WithAuthorizationService<TIssuer>()` when the signing key is not
+resident in the process (for example Azure Key Vault, AWS KMS, an HSM, or
+a corporate token service). The issuer builds the JWS header/payload and
+delegates the signing operation to the external service.
+
+```csharp
+public sealed class CloudKmsTokenIssuer : ITokenIssuer
+{
+    public string IssuerUri => "https://issuer.example/gds";
+    public string ProfileUri => Profiles.JwtUserToken;
+
+    public async ValueTask<AccessToken> IssueAsync(
+        TokenIssuanceRequest request,
+        CancellationToken ct = default)
+    {
+        byte[] signingInput = BuildJwtSigningInput(request);
+        byte[] signature = await SignWithKeyVaultOrKmsAsync(signingInput, ct)
+            .ConfigureAwait(false);
+        byte[] compactJws = CombineCompactJws(signingInput, signature);
+
+        return new AccessToken(
+            Profiles.JwtUserToken,
+            compactJws,
+            DateTime.UtcNow + request.RequestedLifetime,
+            request.Subject);
+    }
+}
+
+services.AddOpcUa()
+    .AddGdsServer(o => o.ApplicationUri = "urn:example:gds")
+    .WithAuthorizationService<CloudKmsTokenIssuer>(o =>
+    {
+        o.SigningCertificate = new CertificateIdentifier
+        {
+            StoreType = CertificateStoreType.Directory,
+            StorePath = "%LocalApplicationData%/OPC Foundation/GDS/pki/own",
+            SubjectName = "CN=GlobalDiscoveryServer"
+        };
+        o.IssuerUri = "https://issuer.example/gds";
+        o.AllowedAudiences.Add("urn:target-server");
+    });
+```
+
+The `SigningCertificate` option still advertises the issuer identity and
+key material expected by local verifiers; the custom issuer decides how
+the actual signature is produced.
+
 ## Server-side abstraction
 
 `Opc.Ua.Gds.Server.IAccessTokenProvider` backs the GDS method handlers:

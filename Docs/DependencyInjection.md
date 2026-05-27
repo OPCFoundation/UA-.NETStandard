@@ -50,6 +50,8 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 | `AddDefaultIdentityAuthenticators(...)`       | server, gds              | `OpcUa:Server:Identity:Defaults` |
 | `AddIdentityAuthenticator<T>()`               | server, gds              | —                                |
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
+| `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
+| `WithKeyCredentialPush(...)`                  | server                   | —                                |
 | `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
 | `AddIdentityProvider(...)` / `<T>()`          | client                   | `OpcUa:Client:Identity`          |
 | `AddAccessTokenProvider(...)` / `<T>()`       | client                   | —                                |
@@ -281,8 +283,8 @@ the hosted service falls back to a single `Anonymous` policy.
 > [Identity Providers](IdentityProviders.md). This section covers only
 > the DI bindings.
 
-`builder.AddServer(...)` exposes four identity-related extension
-methods on `IOpcUaServerBuilder`:
+`builder.AddServer(...)` exposes identity-related extension methods on
+`IOpcUaServerBuilder`:
 
 | Extension | Purpose |
 |---|---|
@@ -290,6 +292,7 @@ methods on `IOpcUaServerBuilder`:
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
 | `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
 | `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
+| `WithKeyCredentialPush(Action<KeyCredentialPushOptions>?)` | Enables the Part 12 §8 resource-server Push binding and registers an `IKeyCredentialStore` if none is supplied. |
 
 Configuration binding under `OpcUa:Server:Identity`:
 
@@ -557,6 +560,7 @@ services
     .AddCertificateRequest<MyCertificateRequest>()
     .AddUserDatabase<MyUserDatabase>();
     // Optionally:
+    // .WithAuthorizationService<MyTokenIssuer>(o => o.IssuerUri = "urn:my-gds")
     // .AddAccessTokenProvider<MyAccessTokenProvider>()
     // .AddKeyCredentialRequestStore<MyKeyCredentialRequestStore>()
     // .AddConfigurationDataStore<MyConfigurationDataStore>();
@@ -592,6 +596,9 @@ services
 
 `Action<>` and `IConfiguration` overloads are available for
 `ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+`WithAuthorizationService(...)` enables the default `EcdsaJwtIssuer`;
+`WithAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
+for cloud KMS, HSM, or external token-service signing.
 
 `GdsServerHostedService` consumes these forwarded registrations during
 startup and adds them to the same identity registry used by regular OPC

@@ -493,6 +493,7 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | Revoke | ✅ | `OnKeyCredentialRevoke` |
 | InMemoryKeyCredentialRequestStore | ✅ | `IKeyCredentialRequestStore.cs` |
 | Client proxy | ✅ | `KeyCredentialServiceClient.cs` |
+| KeyCredential Push binding | ✅ | `WithKeyCredentialPush` / `KeyCredentialPushSubject` |
 
 ## AuthorizationService (§9)
 

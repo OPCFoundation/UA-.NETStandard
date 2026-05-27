@@ -705,6 +705,143 @@ secrets through the new `ISecretStore` abstraction (see *Secrets*
 below) so secure clearing becomes the store's responsibility, with no
 public surface change.
 
+### User Identity Providers
+
+The identity-provider redesign is a source-level migration only. The OPC UA
+wire token types and `ActivateSession` service behavior are unchanged, so
+servers and clients can roll forward independently. Obsolete members remain
+functional while you migrate to the provider model.
+
+#### Obsolete markers introduced by the shipped phases
+
+| Obsolete API | Replacement |
+|---|---|
+| `ISessionManager.ImpersonateUser` | Implement `IUserTokenAuthenticator` and register it with `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. |
+| `SessionManager.ImpersonateUser` | Same replacement; the event remains a fallback after the registry declines a token. |
+| `ManagedSessionOptions.Identity` | Set `ManagedSessionOptions.IdentityProvider` so long-lived sessions can reacquire expiring identities. |
+| `AuthorizationServiceClient.RequestAccessTokenAsync` | Use `StartRequestTokenAsync` followed by `FinishRequestTokenAsync`. |
+| `Opc.Ua.Gds.Server.IAccessTokenProvider.RequestAccessTokenAsync` | Implement `StartRequestTokenAsync` and `FinishRequestTokenAsync`; keep the legacy method as a compatibility shim if you serve v1.04 clients. |
+
+#### `SessionManager.ImpersonateUser` → registry authenticators
+
+Legacy event wiring:
+
+```csharp
+server.CurrentInstance.SessionManager.ImpersonateUser +=
+    SessionManager_ImpersonateUser;
+
+private void SessionManager_ImpersonateUser(
+    Session session, ImpersonateEventArgs args)
+{
+    if (args.NewIdentity is UserNameIdentityToken token &&
+        ValidatePassword(token.UserName, token.DecryptedPassword))
+    {
+        args.Identity = new UserIdentity(token);
+    }
+}
+```
+
+Modern authenticator plus DI registration:
+
+```csharp
+public sealed class MyUserNameAuthenticator : IUserTokenAuthenticator
+{
+    public UserTokenType TokenType => UserTokenType.UserName;
+    public string? IssuedTokenProfileUri => null;
+
+    public ValueTask<AuthenticationResult> AuthenticateAsync(
+        AuthenticationContext context, CancellationToken ct = default)
+    {
+        if (context.TokenHandler is not UserNameIdentityTokenHandler userName)
+        {
+            return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+        }
+
+        return new ValueTask<AuthenticationResult>(
+            ValidatePassword(userName.UserName, userName.DecryptedPassword)
+                ? AuthenticationResult.Accept(new UserIdentity(userName))
+                : AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied)));
+    }
+}
+
+services.AddOpcUa()
+    .AddServer(o => o.ApplicationUri = "urn:example:server")
+    .AddIdentityAuthenticator<MyUserNameAuthenticator>();
+
+// Manual host alternative:
+server.CurrentInstance.IdentityRegistry.Register(new MyUserNameAuthenticator());
+```
+
+Repeat the pattern per token type: `UserTokenType.UserName`,
+`UserTokenType.Certificate`, `UserTokenType.IssuedToken` with
+`IssuedTokenProfileUri = Profiles.JwtUserToken`, or a vendor profile such
+as the experimental KeyCredential bridge.
+
+#### `ManagedSessionOptions.Identity` → `IdentityProvider`
+
+Before, an eager identity was fixed for the lifetime of the managed session:
+
+```csharp
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    Identity = new UserIdentity("alice", passwordBytes)
+};
+```
+
+After, use a lazy provider. `ManagedSession` refreshes by calling
+`Session.UpdateIdentityAsync` before `provider.ExpiresAt` where possible:
+
+```csharp
+IClientIdentityProvider provider = new CompositeClientIdentityProvider(
+    new UserNamePasswordIdentityProvider(
+        "alice",
+        secretRegistry,
+        new SecretIdentifier("alice-password", "InMemory")),
+    new IssuedTokenIdentityProvider(accessTokenProvider));
+
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    IdentityProvider = provider
+};
+```
+
+#### `RequestAccessTokenAsync` → `StartRequestTokenAsync` / `FinishRequestTokenAsync`
+
+Legacy one-shot client call:
+
+```csharp
+string jwt = await authorizationClient.RequestAccessTokenAsync(
+    identityToken,
+    resourceId: "urn:target-server",
+    ct);
+```
+
+Modern Part 12 v1.05 flow:
+
+```csharp
+(ByteString serviceData, Guid requestId) =
+    await authorizationClient.StartRequestTokenAsync(
+        resourceId: "urn:target-server",
+        policyId: "jwt",
+        requestorData: ByteString.Empty,
+        ct);
+
+(string jwt, DateTime expiresAt, string? refreshToken, DateTime refreshExpiresAt) =
+    await authorizationClient.FinishRequestTokenAsync(
+        requestId,
+        Array.Empty<string>().ToArrayOf(),
+        identityToken,
+        userTokenSignature: new SignatureData(),
+        ct);
+```
+
+Server-side providers should move the authorization decision into
+`StartRequestTokenAsync`, store the pending request id, and have
+`FinishRequestTokenAsync` call an `ITokenIssuer`. Keep
+`RequestAccessTokenAsync` as a thin shim only for legacy clients.
+
 ### Secrets — caller-supplied passwords go through a secret registry
 
 A new low-level abstraction layer carries caller-supplied secrets

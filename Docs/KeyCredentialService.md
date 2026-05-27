@@ -188,13 +188,13 @@ appNodeManager.KeyCredentialRequestStore =
     new InMemoryKeyCredentialRequestStore(mySecretStore);
 ```
 
-## Push vs Pull
+## Decision matrix: Push vs Pull vs Bridge
 
-| Scenario | Use | Why |
-|---|---|---|
-| A client/application asks a GDS to issue a credential for a target resource. | Pull (`KeyCredentialServiceType`) | The GDS owns approval and issuance; the caller retrieves the issued secret with `FinishRequest`. |
-| An administrator provisions or rotates credentials on a resource server. | Push (`KeyCredentialConfigurationFolderType`) | The resource server stores the credential locally and exposes `CreateCredential`, `UpdateCredential`, and `DeleteCredential` for secure administration. |
-| Closed deployment wants to use a KeyCredential as an OPC UA user identity. | Experimental bridge | Non-standard vendor extension; only use when all clients and servers are under one administrative boundary. |
+| Model | Primary actor | Use when | Standard / conformance posture |
+|---|---|---|---|
+| Pull (`KeyCredentialServiceType`) | Client/application asks a GDS to issue a credential. | The GDS owns approval and issuance; the caller later retrieves the issued secret with `FinishRequest`. | OPC 10000-12 §8 KeyCredentialService. |
+| Push (`KeyCredentialConfigurationFolderType`) | Administrator or provisioning agent writes credentials to a resource server. | A resource server must store, rotate, or delete credentials locally through `CreateCredential`, `UpdateCredential`, and `DeleteCredential`. | OPC 10000-12 §8 Push model; enabled with `WithKeyCredentialPush()`. |
+| Bridge (`KeyCredentialBridgeAuthenticator`) | OPC UA client presents a KeyCredential proof as an issued identity token. | Closed deployments need an interim bridge between GDS-issued secrets and UA session authentication. | **Experimental vendor extension only; not a Part 6 §6.5.3 conformance claim.** |
 
 ## Resource Server Push Binding
 
@@ -227,7 +227,9 @@ a durable secret store before calling `WithKeyCredentialPush()`.
 > **WARNING — EXPERIMENTAL**: `KeyCredentialBridgeAuthenticator` is a
 > vendor extension under
 > `urn:opcfoundation:netstandard:profile:authentication:keycredential`.
-> It is **not** a Part 6 §6.5.3 conformance claim. Use it only in closed
+> It is **not** a Part 6 §6.5.3 conformance claim. Deployments that
+> claim OPC UA conformance **MUST NOT** use this bridge as their
+> standards-conformant user-token mechanism. Use it only in closed
 > deployments where the GDS, resource server, and clients are controlled
 > by the same operator.
 
