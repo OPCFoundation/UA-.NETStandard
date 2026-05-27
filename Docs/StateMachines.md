@@ -408,14 +408,66 @@ await foreach (FiniteStateSnapshot snap in parent
 `SubMachine: FiniteStateSnapshot?` field carrying the snapshot of
 the parent's currently-active sub-SM (or `null` if none).
 `ObserveEffectiveStateAsync` yields a combined snapshot each time
-the parent transitions, with the sub-SM snapshot freshly read on
-each transition.
+**either** the parent transitions **or** the parent's currently-active
+sub-SM transitions:
 
-**v1 limitation**: sub-SM transitions that occur **between** parent
-transitions are not surfaced as separate yielded snapshots. To
-observe a sub-SM's own transitions independently, resolve it via
-`GetSubStateMachineAsync` and use its
-`ObserveFiniteTransitionsAsync`.
+* On every parent transition the yield carries the latest known
+  snapshot of the sub-SM attached to the new state (or `null` if
+  none).
+* On every sub-SM transition that occurs while the parent is in the
+  state that owns the sub-SM, the yield carries the new sub-SM
+  snapshot. Sub-SM transitions occurring while the parent is in a
+  different state are silently discarded.
+
+Under the hood all discovered sub-SMs are subscribed once up-front and
+their notifications are multiplexed through a `Channel<T>`; sub-SM
+events are filtered against the parent's currently-active state.
+
+### Client side — typed sub-SM accessors (generated)
+
+For every `<opc:Object>` child declared on a generator-emitted
+ObjectType, the source generator now emits a typed, lazily-resolved
+accessor on the parent type's client. For state-machine types, this
+gives ergonomic access to known sub-SMs without needing to know the
+state NodeId:
+
+```csharp
+// Generated on AlarmConditionTypeClient:
+ShelvedStateMachineTypeClient? shelving = await alarm
+    .GetShelvingStateAsync(telemetry, ct);
+
+// Generated on ExclusiveLimitAlarmTypeClient:
+ExclusiveLimitStateMachineTypeClient? limit = await alarm
+    .GetLimitStateAsync(telemetry, ct);
+```
+
+Properties of the generated accessor:
+
+* **Typed** — returns the concrete sub-SM proxy type, not the generic
+  `FiniteStateMachineTypeClient`.
+* **Lazy** — first call resolves the child NodeId via
+  `TranslateBrowsePathsToNodeIds` against the parent's `ObjectId`.
+  Optional children (`ModellingRule="Optional"`) that aren't exposed
+  by the server yield `null`.
+* **Cached** — subsequent calls return the same instance without
+  another browse round-trip. The cache is per-parent-instance.
+
+Vendor models that add their own `<opc:Object>` children on a custom
+ObjectType benefit automatically; the generator emits the same shape
+for every Object child it encounters.
+
+### Per-spec `HasSubStateMachine` placement (deferred)
+
+Part 16 §B.3 places the `HasSubStateMachine` reference on the parent
+state node, not the FSM root. The fluent builder currently attaches
+the reference from the FSM root because `FluentFiniteStateMachineState`
+does not materialize per-state instance NodeStates — state nodes are
+shared across all instances of the type. Browsing
+`HasSubStateMachine` from the FSM root via `GetSubStateMachineAsync`
+and the typed accessors above works against this wiring; clients that
+strictly browse from the state node will not discover the sub-SM. A
+future iteration may materialize per-state instance nodes to align
+with the spec; this is tracked but deliberately deferred.
 
 ## Extensibility recipes
 

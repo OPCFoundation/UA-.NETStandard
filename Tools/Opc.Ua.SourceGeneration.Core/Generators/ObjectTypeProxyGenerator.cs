@@ -261,9 +261,11 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Walks the supertype chain of <paramref name="objectType"/> and
-        /// returns the union of the browse names of every method
-        /// declared anywhere above it. Used to decide which generated
-        /// methods need the C# <c>new</c> modifier (method shadowing).
+        /// returns the union of the emitted C# member names of every
+        /// method declared anywhere above it. Used to decide which
+        /// generated methods need the C# <c>new</c> modifier (method
+        /// shadowing). Method names are emitted as
+        /// <c>{methodSymbolicName}Async</c>.
         /// </summary>
         private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
         {
@@ -276,7 +278,34 @@ namespace Opc.Ua.SourceGeneration
                     string name = method.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
-                        names.Add(name);
+                        names.Add(name + "Async");
+                    }
+                }
+                current = parent.BaseTypeNode;
+            }
+            return names;
+        }
+
+        /// <summary>
+        /// Walks the supertype chain and returns the union of the
+        /// emitted C# accessor names for Object children declared
+        /// anywhere above <paramref name="objectType"/>. The generated
+        /// subtype accessor uses the C# <c>new</c> modifier to hide
+        /// the parent's accessor (same emitted name). Child accessors
+        /// are emitted as <c>Get{childBrowseName}Async</c>.
+        /// </summary>
+        private HashSet<string> CollectInheritedObjectChildNames(ObjectTypeDesign objectType)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            TypeDesign current = objectType.BaseTypeNode;
+            while (current is ObjectTypeDesign parent)
+            {
+                foreach (ObjectDesign child in GetDeclaredObjectChildren(parent))
+                {
+                    string name = child.SymbolicName?.Name;
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        names.Add("Get" + name + "Async");
                     }
                 }
                 current = parent.BaseTypeNode;
@@ -301,6 +330,9 @@ namespace Opc.Ua.SourceGeneration
             // Stash inherited method names so LoadTemplate_Method can
             // emit the C# 'new' modifier on shadowed methods.
             m_inheritedMethodNames = CollectInheritedMethodNames(objectType);
+            // And inherited Object child names so the Object accessor
+            // emitter does the same.
+            m_inheritedObjectChildNames = CollectInheritedObjectChildNames(objectType);
 
             context.Template.AddReplacement(Tokens.SymbolicName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, className);
@@ -312,7 +344,251 @@ namespace Opc.Ua.SourceGeneration
                 methods,
                 LoadTemplate_Method);
 
+            List<ObjectDesign> objectChildren = GetDeclaredObjectChildren(objectType);
+            // Compute the same-class own-method emitted names so the
+            // child accessor emitter can detect collisions on this
+            // class (child accessor emits Get{X}Async; method emits
+            // {Name}Async). Without this, a method named 'GetFoo' and
+            // a child named 'Foo' would both produce GetFooAsync.
+            HashSet<string> declaredEmittedMethodNames = [];
+            foreach (MethodDesign m in methods)
+            {
+                if (!string.IsNullOrEmpty(m.SymbolicName?.Name))
+                {
+                    declaredEmittedMethodNames.Add(m.SymbolicName.Name + "Async");
+                }
+            }
+            m_inheritedAccessorNames = declaredEmittedMethodNames;
+            context.Template.AddReplacement(
+                Tokens.ListOfChildren,
+                objectChildren,
+                LoadTemplate_ObjectChildAccessor);
+
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Returns the Object children declared directly on the type
+        /// (excludes inherited children — they are surfaced via the
+        /// proxy inheritance chain). Each child becomes a typed,
+        /// lazily-resolved accessor on the parent's generated client.
+        /// </summary>
+        private List<ObjectDesign> GetDeclaredObjectChildren(ObjectTypeDesign objectType)
+        {
+            var result = new List<ObjectDesign>();
+            InstanceDesign[] children = objectType.Children?.Items;
+            if (children == null)
+            {
+                return result;
+            }
+            foreach (InstanceDesign child in children)
+            {
+                if (child is not ObjectDesign objectChild)
+                {
+                    continue;
+                }
+                if (m_context.ModelDesign.IsExcluded(objectChild))
+                {
+                    continue;
+                }
+                if (objectChild.TypeDefinitionNode is not ObjectTypeDesign)
+                {
+                    continue;
+                }
+                if (string.IsNullOrEmpty(objectChild.SymbolicName?.Name))
+                {
+                    continue;
+                }
+                result.Add(objectChild);
+            }
+            result.Sort(static (a, b) => string.CompareOrdinal(
+                a.SymbolicName?.Name,
+                b.SymbolicName?.Name));
+            return result;
+        }
+
+        /// <summary>
+        /// Emits a lazy, cached typed accessor for one Object child of
+        /// the parent type. Returns null when name collides with an
+        /// already-emitted method on this type.
+        /// </summary>
+        private TemplateString LoadTemplate_ObjectChildAccessor(ILoadContext context)
+        {
+            if (context.Target is not ObjectDesign objectChild)
+            {
+                return null;
+            }
+            if (objectChild.TypeDefinitionNode is not ObjectTypeDesign typeDef)
+            {
+                return null;
+            }
+            string childBrowseName = objectChild.SymbolicName.Name;
+            string emittedName = "Get" + childBrowseName + "Async";
+            // Guard against collisions with methods emitted on the
+            // same class (would produce duplicate emittedName).
+            if (m_inheritedAccessorNames != null &&
+                m_inheritedAccessorNames.Contains(emittedName))
+            {
+                return null;
+            }
+
+            string typeName = typeDef.SymbolicName?.Name;
+            if (string.IsNullOrEmpty(typeName))
+            {
+                return null;
+            }
+            string typeNamespace = ResolveProxyNamespaceForType(typeDef);
+            string clientType = CoreUtils.Format(
+                "global::{0}.{1}Client", typeNamespace, typeName);
+
+            // Browse-name namespace URI: use the child's declared
+            // namespace if present, otherwise the model's target
+            // namespace.
+            string browseNameNamespaceUri = objectChild.SymbolicName?.Namespace;
+            if (string.IsNullOrEmpty(browseNameNamespaceUri))
+            {
+                browseNameNamespaceUri = m_context.ModelDesign.TargetNamespace?.Value;
+            }
+
+            string fieldName = CoreUtils.Format("m_{0}", LowerFirst(childBrowseName));
+            string lockName = CoreUtils.Format("{0}Lock", fieldName);
+            // 'new' is needed if the EMITTED name shadows ANY
+            // inherited emitted member (a sibling child accessor or
+            // an inherited method). Without this, hiding an inherited
+            // method 'GetFoo' (emitted as GetFooAsync) from a subtype
+            // child 'Foo' (emitted as GetFooAsync) triggers CS0108.
+            bool isShadow = (m_inheritedObjectChildNames != null &&
+                m_inheritedObjectChildNames.Contains(emittedName)) ||
+                (m_inheritedMethodNames != null &&
+                m_inheritedMethodNames.Contains(emittedName));
+
+            context.Out.WriteLine();
+            context.Out.WriteLine("/// <summary>");
+            context.Out.WriteLine(
+                "/// Returns the typed proxy for the <c>{0}</c> child Object",
+                childBrowseName);
+            context.Out.WriteLine(
+                "/// of type <c>{0}</c>. Lazily resolved on first call (one",
+                typeName);
+            context.Out.WriteLine(
+                "/// TranslateBrowsePath round-trip) and cached for");
+            context.Out.WriteLine(
+                "/// subsequent calls. Returns <c>null</c> when the server");
+            context.Out.WriteLine(
+                "/// does not expose the child (Optional children, missing");
+            context.Out.WriteLine(
+                "/// namespace, BadNotFound result, …).");
+            context.Out.WriteLine("/// </summary>");
+            context.Out.WriteLine(
+                "/// <param name=\"telemetry\">Telemetry context for the");
+            context.Out.WriteLine(
+                "/// returned child proxy.</param>");
+            context.Out.WriteLine(
+                "/// <param name=\"ct\">Cancellation token.</param>");
+            context.Out.WriteLine(
+                "public {0}async global::System.Threading.Tasks.ValueTask<{1}?> Get{2}Async(",
+                isShadow ? "new " : string.Empty,
+                clientType,
+                childBrowseName);
+            context.Out.WriteLine(
+                "    global::Opc.Ua.ITelemetryContext telemetry,");
+            context.Out.WriteLine(
+                "    global::System.Threading.CancellationToken ct = default)");
+            context.Out.WriteLine("{");
+            context.Out.WriteLine("    lock ({0})", lockName);
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine("        if ({0} != null)", fieldName);
+            context.Out.WriteLine("        {");
+            context.Out.WriteLine("            return {0};", fieldName);
+            context.Out.WriteLine("        }");
+            context.Out.WriteLine("    }");
+            context.Out.WriteLine(
+                "    int nsIdx = Session.MessageContext.NamespaceUris.GetIndex(\"{0}\");",
+                browseNameNamespaceUri);
+            context.Out.WriteLine("    if (nsIdx < 0)");
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine("        return null;");
+            context.Out.WriteLine("    }");
+            context.Out.WriteLine(
+                "    var paths = global::Opc.Ua.ArrayOf.Wrapped(new[]");
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine(
+                "        new global::Opc.Ua.BrowsePath");
+            context.Out.WriteLine("        {");
+            context.Out.WriteLine("            StartingNode = ObjectId,");
+            context.Out.WriteLine(
+                "            RelativePath = new global::Opc.Ua.RelativePath");
+            context.Out.WriteLine("            {");
+            context.Out.WriteLine("                Elements =");
+            context.Out.WriteLine("                [");
+            context.Out.WriteLine(
+                "                    new global::Opc.Ua.RelativePathElement");
+            context.Out.WriteLine("                    {");
+            context.Out.WriteLine(
+                "                        ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,");
+            context.Out.WriteLine(
+                "                        IncludeSubtypes = true,");
+            context.Out.WriteLine(
+                "                        TargetName = new global::Opc.Ua.QualifiedName(\"{0}\", (ushort)nsIdx)",
+                childBrowseName);
+            context.Out.WriteLine("                    }");
+            context.Out.WriteLine("                ]");
+            context.Out.WriteLine("            }");
+            context.Out.WriteLine("        }");
+            context.Out.WriteLine("    });");
+            context.Out.WriteLine(
+                "    var response = await Session.TranslateBrowsePathsToNodeIdsAsync(");
+            context.Out.WriteLine(
+                "        null, paths, ct).ConfigureAwait(false);");
+            context.Out.WriteLine(
+                "    if (response.Results.Count == 0 ||");
+            context.Out.WriteLine(
+                "        global::Opc.Ua.StatusCode.IsBad(response.Results[0].StatusCode) ||");
+            context.Out.WriteLine(
+                "        response.Results[0].Targets.Count == 0)");
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine("        return null;");
+            context.Out.WriteLine("    }");
+            context.Out.WriteLine(
+                "    global::Opc.Ua.NodeId childId = global::Opc.Ua.ExpandedNodeId.ToNodeId(");
+            context.Out.WriteLine(
+                "        response.Results[0].Targets[0].TargetId,");
+            context.Out.WriteLine(
+                "        Session.MessageContext.NamespaceUris);");
+            context.Out.WriteLine("    if (childId.IsNull)");
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine("        return null;");
+            context.Out.WriteLine("    }");
+            context.Out.WriteLine(
+                "    var proxy = new {0}(Session, childId, telemetry);",
+                clientType);
+            context.Out.WriteLine("    lock ({0})", lockName);
+            context.Out.WriteLine("    {");
+            context.Out.WriteLine("        return {0} ??= proxy;", fieldName);
+            context.Out.WriteLine("    }");
+            context.Out.WriteLine("}");
+            // Backing field + lock for the cached typed proxy. Emitted
+            // AFTER the method so the XML doc comments above bind to
+            // the method, not to these private members.
+            context.Out.WriteLine("#pragma warning disable CS0649  // field never assigned — assigned in Get*Async");
+            context.Out.WriteLine("private {0}? {1};", clientType, fieldName);
+            context.Out.WriteLine("#pragma warning restore CS0649");
+            context.Out.WriteLine("private readonly object {0} = new();", lockName);
+
+            return null;
+        }
+
+        private static string LowerFirst(string s)
+        {
+            if (string.IsNullOrEmpty(s))
+            {
+                return s;
+            }
+            if (char.IsLower(s[0]))
+            {
+                return s;
+            }
+            return char.ToLowerInvariant(s[0]) + s.Substring(1);
         }
 
         /// <summary>
@@ -344,7 +620,7 @@ namespace Opc.Ua.SourceGeneration
                 outputs, targetNamespace, namespaces);
 
             bool isShadow = m_inheritedMethodNames != null &&
-                m_inheritedMethodNames.Contains(methodName);
+                m_inheritedMethodNames.Contains(methodName + "Async");
 
             // ----------------------------------------------------------------
             // XML doc and signature
@@ -724,5 +1000,7 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly IGeneratorContext m_context;
         private HashSet<string> m_inheritedMethodNames;
+        private HashSet<string> m_inheritedAccessorNames;
+        private HashSet<string> m_inheritedObjectChildNames;
     }
 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -579,18 +580,20 @@ namespace Opc.Ua.Client.StateMachines
         }
 
         /// <summary>
-        /// Yields a combined snapshot whenever the parent transitions.
-        /// The <see cref="FiniteStateSnapshot.SubMachine"/> field on
-        /// the yielded snapshot carries the sub-state-machine's
-        /// current snapshot when the parent's current state has an
-        /// attached sub-SM, or <c>null</c> otherwise.
+        /// Yields a combined snapshot whenever the parent transitions
+        /// OR when the parent's currently-active sub-state-machine
+        /// transitions. The <see cref="FiniteStateSnapshot.SubMachine"/>
+        /// field on the yielded snapshot carries the sub-SM's current
+        /// snapshot when the parent's current state has an attached
+        /// sub-SM, or <c>null</c> otherwise.
         /// </summary>
         /// <remarks>
-        /// V1 limitation: sub-SM transitions that occur BETWEEN
-        /// parent transitions are not surfaced as separate yielded
-        /// snapshots. To observe sub-SM transitions independently,
-        /// resolve the sub-SM via <see cref="GetSubStateMachineAsync"/>
-        /// and call its <see cref="ObserveFiniteTransitionsAsync"/>.
+        /// All discovered sub-SMs are subscribed up-front so the
+        /// implementation does not need to dynamically subscribe /
+        /// unsubscribe as the parent transitions — that pattern races
+        /// with fast sub-SM events. Sub-SM events arriving while the
+        /// parent is NOT in the state that owns that sub-SM are
+        /// discarded.
         /// </remarks>
         public static IAsyncEnumerable<FiniteStateSnapshot>
             ObserveEffectiveStateAsync(
@@ -620,25 +623,165 @@ namespace Opc.Ua.Client.StateMachines
                 MonitoringOptions? options,
                 [EnumeratorCancellation] CancellationToken ct)
         {
-            await foreach (FiniteStateSnapshot parentSnap in parent
-                .ObserveFiniteTransitionsAsync(streaming, options, ct)
-                .ConfigureAwait(false))
+            // Discover all sub-SMs up front. Map parent-state NodeId
+            // → sub-SM client; both are needed to filter incoming
+            // sub-SM events to only those for the currently-active
+            // sub-SM.
+            IReadOnlyList<FiniteStateInfo> states =
+                await parent.GetAvailableStatesAsync(ct).ConfigureAwait(false);
+
+            var subSmByState = new Dictionary<NodeId, FiniteStateMachineTypeClient>();
+            foreach (FiniteStateInfo info in states)
             {
-                FiniteStateSnapshot? subSnap = null;
-                if (!parentSnap.CurrentStateId.IsNull)
+                FiniteStateMachineTypeClient? sub =
+                    await parent.GetSubStateMachineAsync(
+                        info.NodeId, telemetry, ct).ConfigureAwait(false);
+                if (sub != null)
                 {
-                    FiniteStateMachineTypeClient? sub =
-                        await parent.GetSubStateMachineAsync(
-                            parentSnap.CurrentStateId, telemetry, ct)
-                            .ConfigureAwait(false);
-                    if (sub != null)
+                    subSmByState[info.NodeId] = sub;
+                }
+            }
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var channel = System.Threading.Channels.Channel.CreateUnbounded<TaggedSnapshot>(
+                new System.Threading.Channels.UnboundedChannelOptions
+                {
+                    SingleReader = true
+                });
+
+            // Background pump tasks — one per source stream. The
+            // parent pump is always present; the sub-SM pumps run
+            // only for discovered sub-SMs.
+            var pumpTasks = new List<Task>(1 + subSmByState.Count)
+            {
+                PumpAsync(
+                    parent.ObserveFiniteTransitionsAsync(streaming, options, linkedCts.Token),
+                    parentAttachedTo: NodeId.Null,
+                    channel.Writer,
+                    linkedCts.Token)
+            };
+            foreach (KeyValuePair<NodeId, FiniteStateMachineTypeClient> kv in subSmByState)
+            {
+                pumpTasks.Add(PumpAsync(
+                    kv.Value.ObserveFiniteTransitionsAsync(streaming, options, linkedCts.Token),
+                    parentAttachedTo: kv.Key,
+                    channel.Writer,
+                    linkedCts.Token));
+            }
+
+            // When all pumps complete, close the channel so the reader
+            // exits. Propagate the first pump fault (other than
+            // cancellation, which is the normal shutdown path) so the
+            // reader observes it as a fault rather than as a silent
+            // end-of-stream.
+            _ = Task.WhenAll(pumpTasks).ContinueWith(
+                t =>
+                {
+                    Exception? fault = null;
+                    if (t.IsFaulted && t.Exception != null)
                     {
-                        subSnap = await sub.GetCurrentFiniteStateAsync(ct)
-                            .ConfigureAwait(false);
+                        // Filter out cancellation noise; surface any
+                        // other pump fault.
+                        Exception? real = t.Exception.Flatten().InnerExceptions
+                            .FirstOrDefault(e => e is not OperationCanceledException);
+                        fault = real;
+                    }
+                    channel.Writer.TryComplete(fault);
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            // Reader loop: maintain current parent state + last sub-SM
+            // snapshot per attached state. Yield combined snapshot on
+            // every accepted event.
+            FiniteStateSnapshot? latestParent = null;
+            NodeId currentParentStateId = NodeId.Null;
+            var latestSubByState = new Dictionary<NodeId, FiniteStateSnapshot>();
+
+            try
+            {
+                while (await channel.Reader.WaitToReadAsync(linkedCts.Token).ConfigureAwait(false))
+                {
+                    while (channel.Reader.TryRead(out TaggedSnapshot? tagged))
+                    {
+                        if (tagged.ParentAttachedTo.IsNull)
+                        {
+                            // Parent transition. Update tracking state
+                            // and yield with the active sub-SM's
+                            // latest known snapshot (or null if no
+                            // sub-SM attached to the new state).
+                            latestParent = tagged.Snapshot;
+                            currentParentStateId = tagged.Snapshot.CurrentStateId;
+                            FiniteStateSnapshot? activeSub =
+                                latestSubByState.TryGetValue(currentParentStateId, out FiniteStateSnapshot? known)
+                                    ? known
+                                    : null;
+                            yield return latestParent with { SubMachine = activeSub };
+                        }
+                        else
+                        {
+                            // Sub-SM transition. Remember the snapshot
+                            // for that sub-SM. Yield only if THIS
+                            // sub-SM is the one currently active in
+                            // the parent.
+                            latestSubByState[tagged.ParentAttachedTo] = tagged.Snapshot;
+                            if (NodeId.Equals(currentParentStateId, tagged.ParentAttachedTo) &&
+                                latestParent != null)
+                            {
+                                yield return latestParent with { SubMachine = tagged.Snapshot };
+                            }
+                        }
                     }
                 }
-                yield return parentSnap with { SubMachine = subSnap };
+            }
+            finally
+            {
+                linkedCts.Cancel();
+                try
+                {
+                    await Task.WhenAll(pumpTasks).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected on shutdown — pumps observe the linked
+                    // CTS cancellation. Non-cancellation pump faults
+                    // are surfaced through the channel completion
+                    // above; we deliberately do NOT swallow them
+                    // here.
+                }
             }
         }
+
+        private static async Task PumpAsync(
+            IAsyncEnumerable<FiniteStateSnapshot> source,
+            NodeId parentAttachedTo,
+            System.Threading.Channels.ChannelWriter<TaggedSnapshot> writer,
+            CancellationToken ct)
+        {
+            try
+            {
+                await foreach (FiniteStateSnapshot snap in source
+                    .WithCancellation(ct).ConfigureAwait(false))
+                {
+                    await writer.WriteAsync(
+                        new TaggedSnapshot(parentAttachedTo, snap), ct)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on shutdown.
+            }
+        }
+
+        /// <summary>
+        /// Wraps a yielded snapshot together with the parent-state
+        /// NodeId it is attached to. <see cref="NodeId.Null"/> tags
+        /// identify parent snapshots; non-null tags identify sub-SM
+        /// snapshots that only yield when the parent's current state
+        /// matches <see cref="ParentAttachedTo"/>.
+        /// </summary>
+        private sealed record TaggedSnapshot(NodeId ParentAttachedTo, FiniteStateSnapshot Snapshot);
     }
 }

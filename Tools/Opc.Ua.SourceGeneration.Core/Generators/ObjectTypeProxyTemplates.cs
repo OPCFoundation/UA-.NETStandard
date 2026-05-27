@@ -95,6 +95,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                 }
                 {{Tokens.MethodList}}
+                {{Tokens.ListOfChildren}}
             }
 
             """);

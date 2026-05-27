@@ -123,6 +123,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfUpdateChildrenChangeMasks => nameof(ListOfUpdateChildrenChangeMasks);
         public static string ListOfValues => nameof(ListOfValues);
         public static string ListOfActivatorRegistrations => nameof(ListOfActivatorRegistrations);
+        public static string ListOfChildren => nameof(ListOfChildren);
         public static string MethodList => nameof(MethodList);
         public static string Name => nameof(Name);
         public static string IsOptional => nameof(IsOptional);

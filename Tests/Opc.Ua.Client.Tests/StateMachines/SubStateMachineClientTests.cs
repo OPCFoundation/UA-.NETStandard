@@ -152,6 +152,133 @@ namespace Opc.Ua.Client.Tests.StateMachines
             Assert.That(outer.SubMachine, Is.SameAs(inner));
         }
 
+        [Test]
+        public async Task ObserveEffectiveStateAsyncYieldsNothingWhenNoStatesAndNoTransitionResolution()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+            ITelemetryContext tel = NUnitTelemetryContext.Create();
+
+            // BrowseAsync (called by GetAvailableStatesAsync) returns
+            // empty: no states, hence no sub-SMs to discover.
+            SetupBrowseEmpty(sessionMock);
+
+            // TranslateBrowsePathsToNodeIds (called by the parent
+            // ObserveFiniteTransitionsAsync's resolve step) returns
+            // empty results: parent CurrentState/Id won't resolve, so
+            // ObserveFiniteTransitionsAsync yields nothing.
+            SetupTranslateAllEmpty(sessionMock);
+
+            int yielded = 0;
+            await foreach (FiniteStateSnapshot _ in client
+                .ObserveEffectiveStateAsync(new EmptyStreamingSubscription(), tel)
+                .ConfigureAwait(false))
+            {
+                yielded++;
+            }
+            Assert.That(yielded, Is.Zero);
+        }
+
+        [Test]
+        public void ObserveEffectiveStateAsyncRespectsCancellationDuringDiscovery()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            FiniteStateMachineTypeClient client = CreateClient(sessionMock);
+            ITelemetryContext tel = NUnitTelemetryContext.Create();
+
+            // Make Browse honour cancellation: callers cancel the CT
+            // before discovery can complete.
+            sessionMock.Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, _, ct) =>
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = ArrayOf.Wrapped(Array.Empty<BrowseResult>()),
+                            DiagnosticInfos = default
+                        });
+                    });
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                async () =>
+                {
+                    await foreach (FiniteStateSnapshot _ in client
+                        .ObserveEffectiveStateAsync(
+                            new EmptyStreamingSubscription(), tel, options: null, ct: cts.Token)
+                        .ConfigureAwait(false))
+                    {
+                    }
+                },
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        private static void SetupBrowseEmpty(Mock<ISessionClient> sessionMock)
+        {
+            sessionMock.Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, descriptions, _) =>
+                    {
+                        var results = new BrowseResult[descriptions.Count];
+                        for (int i = 0; i < results.Length; i++)
+                        {
+                            results[i] = new BrowseResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                References = default
+                            };
+                        }
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = ArrayOf.Wrapped(results),
+                            DiagnosticInfos = default
+                        });
+                    });
+        }
+
+        private static void SetupTranslateAllEmpty(Mock<ISessionClient> sessionMock)
+        {
+            sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, requests, _) =>
+                    {
+                        var results = new BrowsePathResult[requests.Count];
+                        for (int i = 0; i < results.Length; i++)
+                        {
+                            results[i] = new BrowsePathResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                Targets = default
+                            };
+                        }
+                        return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                            new TranslateBrowsePathsToNodeIdsResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = ArrayOf.Wrapped(results),
+                                DiagnosticInfos = default
+                            });
+                    });
+        }
+
         private sealed class EmptyStreamingSubscription : IStreamingSubscription
         {
             public async IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
