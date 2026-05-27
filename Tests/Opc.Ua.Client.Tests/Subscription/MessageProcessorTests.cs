@@ -548,6 +548,171 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// V2 equivalent of the classic-engine regression captured by
+        /// <c>OldMessagesAbandonedAfterRepublishTimeoutInSequentialModeAsync</c>
+        /// (currently <c>[Explicit]</c> in <c>Classic/SubscriptionUnitTests.cs</c>).
+        /// </summary>
+        /// <remarks>
+        /// Mirrors the classic test's exact arrival order — <c>[3]</c>,
+        /// <c>[2]</c>, <c>[4]</c>, <c>[1]</c>, <c>[5]</c> — but queues all five
+        /// while the worker is blocked. The new <see cref="MessageProcessor"/>
+        /// uses <see cref="System.Threading.Channels.Channel.CreateUnboundedPrioritized"/>
+        /// keyed by <see cref="NotificationMessage.SequenceNumber"/>, so the
+        /// burst is transparently re-ordered and drained as
+        /// <c>[1, 2, 3, 4, 5]</c> with no republishes — the reliability
+        /// guarantee the classic engine fails to provide.
+        /// </remarks>
+        [Test]
+        public async Task OutOfOrderArrivalsReorderedByPriorityChannelAsync()
+        {
+            var availableSequenceNumbers = new List<uint> { 1, 2, 3, 4, 5 };
+            var stringTable = new List<string> { "test" };
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 11
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                // Arrange: pin the worker on the first delivery so all five
+                // messages queue up under the priority channel before any
+                // are drained.
+                sut.Block.Wait();
+                foreach (uint seq in new uint[] { 3, 2, 4, 1, 5 })
+                {
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(seq),
+                        availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                }
+                sut.Block.Release();
+
+                // Act
+                await WaitForLastSeqNumberAsync(sut, 5).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 1, 2, 3, 4, 5 }));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(0));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(0));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// V2 equivalent of the classic-engine regression captured by
+        /// <c>OldMessagesAbandonedAfterRepublishTimeoutInSequentialModeAsync</c>,
+        /// stressed in serial timing instead of as a burst.
+        /// </summary>
+        /// <remarks>
+        /// Same arrival order — <c>[3]</c>, <c>[2]</c>, <c>[4]</c>, <c>[1]</c>,
+        /// <c>[5]</c> — but each forward-progressing push waits for delivery
+        /// before the next is queued. The V2 engine's monotonic dedup gate
+        /// (<c>LastDataSequenceNumberProcessed</c>) silently discards the
+        /// stale <c>[2]</c> and <c>[1]</c> instead of re-inserting them
+        /// out of order; <c>[3, 4, 5]</c> are delivered in strict ascending
+        /// order with no republishes.
+        /// </remarks>
+        [Test]
+        public async Task LateArrivalsDiscardedAfterDedupGateAdvancedAsync()
+        {
+            var availableSequenceNumbers = new List<uint>();
+            var stringTable = new List<string> { "test" };
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 12
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                // [3]: first data message after create. The empty
+                // AvailableInRetransmissionQueue suppresses the
+                // first-after-create speculative republish path, so [3]
+                // goes straight to the handler.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3),
+                    availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 3).ConfigureAwait(false);
+
+                // [2] is strictly behind LastDataSeq=3. Queue [2] then [4]
+                // back-to-back; the priority channel picks [2] first
+                // (lowest SequenceNumber) so the worker reads [2], discards
+                // it silently, then reads [4] and delivers it. Waiting for
+                // LastSeq == 4 confirms both happened in that order.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2),
+                    availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4),
+                    availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 4).ConfigureAwait(false);
+
+                // Same shape for [1] (even staler) followed by [5].
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1),
+                    availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(5),
+                    availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 5).ConfigureAwait(false);
+
+                // Assert: only forward-progressing messages were delivered,
+                // in strict order; the late [2] and [1] were discarded.
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 3, 4, 5 }));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(0));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(0));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        private static NotificationMessage BuildDataChangeMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems =
+                        [
+                            new MonitoredItemNotification()
+                        ]
+                    })
+                ]
+            };
+        }
+
+        private static async Task WaitForLastSeqNumberAsync(
+            TestMessageProcessor sut,
+            uint expected,
+            int timeoutSeconds = 5)
+        {
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            while (sut.LastSequenceNumberProcessed < expected)
+            {
+                if (DateTimeOffset.UtcNow > deadline)
+                {
+                    Assert.Fail(
+                        $"Timeout: LastSequenceNumberProcessed = {sut.LastSequenceNumberProcessed}, " +
+                        $"expected = {expected}, received = " +
+                        $"[{string.Join(",", sut.ReceivedSequenceNumbers)}]");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
         private sealed class TestMessageProcessor : MessageProcessor
         {
             public TestMessageProcessor(ISubscriptionServiceSetClientMethods session,
