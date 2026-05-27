@@ -184,7 +184,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask DecryptAsync(
+        public async ValueTask DecryptAsync(
             Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
@@ -207,7 +207,7 @@ namespace Opc.Ua
             {
                 DecryptedPassword = new byte[m_token.Password.Length];
                 Array.Copy(m_token.Password.ToArray(), DecryptedPassword, m_token.Password.Length);
-                return default;
+                return;
             }
 
             // handle RSA encryption.
@@ -227,7 +227,7 @@ namespace Opc.Ua
                     encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
-                    return default;
+                    return;
                 }
 
                 var encryptedData = new EncryptedData
@@ -246,7 +246,7 @@ namespace Opc.Ua
                 if (decryptedPassword == null)
                 {
                     DecryptedPassword = null;
-                    return default;
+                    return;
                 }
 
                 // verify the sender's nonce.
@@ -286,7 +286,11 @@ namespace Opc.Ua
                     senderNonce: null!,
                     validator: validator);
 
-                if (!secret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
+                (bool ok, byte[]? decryptedSecret) = await secret.TryDecryptAsync(
+                    m_token.Password.ToArray()!,
+                    receiverNonce?.Data!,
+                    ct).ConfigureAwait(false);
+                if (!ok)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
@@ -295,8 +299,6 @@ namespace Opc.Ua
 
                 DecryptedPassword = decryptedSecret;
             }
-
-            return default;
         }
 
         /// <inheritdoc/>

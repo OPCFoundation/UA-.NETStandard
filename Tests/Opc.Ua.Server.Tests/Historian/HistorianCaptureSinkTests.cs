@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -89,7 +93,7 @@ namespace Opc.Ua.Server.Tests.Historian
             v.ClearChangeMasks(fixture.SystemContext, includeChildren: false);
 
             await Task.Delay(50).ConfigureAwait(false);
-            Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.EqualTo(0));
+            Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.Zero);
         }
 
         [Test]
@@ -136,7 +140,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             await WaitForArchiveCountAsync(fixture.Provider, v.NodeId, 4).ConfigureAwait(false);
             Assert.That(counting.BulkCalls, Is.GreaterThanOrEqualTo(1));
-            Assert.That(counting.PerNodeCalls, Is.EqualTo(0),
+            Assert.That(counting.PerNodeCalls, Is.Zero,
                 "Bulk-capable provider should never see per-node InsertAsync from the capture pipeline.");
         }
 
@@ -170,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 baseTime: new DateTime(2025, 1, 1, 0, 0, 1, DateTimeKind.Utc));
 
             await Task.Delay(50).ConfigureAwait(false);
-            Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.EqualTo(0));
+            Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.Zero);
         }
 
         [Test]

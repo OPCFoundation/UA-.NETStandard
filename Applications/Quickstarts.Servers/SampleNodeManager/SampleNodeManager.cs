@@ -254,7 +254,9 @@ namespace Opc.Ua.Sample
             // must release the lock before removing cross references to other node managers.
             if (referencesToRemove.Count > 0)
             {
+#pragma warning disable CS0618 // sync RemoveReferences obsolete; this Quickstart still uses sync DeleteNode flow.
                 Server.NodeManager.RemoveReferences(referencesToRemove);
+#pragma warning restore CS0618
             }
 
             return found;

@@ -1585,12 +1585,14 @@ namespace Opc.Ua.Server
                 {
                     if (!serverNamespacesReference.IsInverse)
                     {
-                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references
+                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references.
+                        // Use sync GetManagerHandle to resolve the node across node managers; the
+                        // SyncNodeManagerAdapter shim performs any required async-to-sync hop.
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
                             Server.NamespaceUris);
-                        if (Server.NodeManager.FindNodeInAddressSpaceAsync(
-                            nameSpaceNodeId).AsTask().GetAwaiter().GetResult() is not NamespaceMetadataState namespaceMetadata)
+                        if (Server.NodeManager.GetManagerHandle(nameSpaceNodeId, out INodeManager? _) is not NodeHandle handle ||
+                            handle.Node is not NamespaceMetadataState namespaceMetadata)
                         {
                             continue;
                         }

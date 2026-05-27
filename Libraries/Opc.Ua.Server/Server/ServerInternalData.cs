@@ -548,6 +548,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        [Obsolete("Use CloseSessionAsync instead.")]
         public void CloseSession(
             OperationContext context,
             NodeId sessionId,
