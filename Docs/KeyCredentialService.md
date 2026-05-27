@@ -7,11 +7,11 @@ non-OPC UA services such as MQTT brokers or REST APIs.
 
 > **Scope note**: this service is for credentials targeting **non-OPC
 > UA** resources (MQTT brokers, REST APIs, etc. — see `ResourceUri`
-> + `ProfileUris` on `KeyCredentialServiceType`). Using a
-> KeyCredential as an OPC UA session identity is **not defined by the
-> spec**; a future release will offer that as an experimental vendor
-> extension under a non-standard profile URI. For standards-conformant
-> OPC UA session authentication, use
+> + `ProfileUris` on `KeyCredentialServiceType`). The optional bridge
+> authenticator described below is **EXPERIMENTAL** under the vendor URI
+> `urn:opcfoundation:netstandard:profile:authentication:keycredential`;
+> it is **not** an OPC UA Part 6 §6.5.3 conformance claim. For
+> standards-conformant OPC UA session authentication, use
 > [AuthorizationService](AuthorizationService.md) (JWT) and the
 > [Identity Providers](IdentityProviders.md) infrastructure.
 
@@ -187,6 +187,60 @@ var appNodeManager = new ApplicationsNodeManager(server, configuration, ...);
 appNodeManager.KeyCredentialRequestStore =
     new InMemoryKeyCredentialRequestStore(mySecretStore);
 ```
+
+## Push vs Pull
+
+| Scenario | Use | Why |
+|---|---|---|
+| A client/application asks a GDS to issue a credential for a target resource. | Pull (`KeyCredentialServiceType`) | The GDS owns approval and issuance; the caller retrieves the issued secret with `FinishRequest`. |
+| An administrator provisions or rotates credentials on a resource server. | Push (`KeyCredentialConfigurationFolderType`) | The resource server stores the credential locally and exposes `CreateCredential`, `UpdateCredential`, and `DeleteCredential` for secure administration. |
+| Closed deployment wants to use a KeyCredential as an OPC UA user identity. | Experimental bridge | Non-standard vendor extension; only use when all clients and servers are under one administrative boundary. |
+
+## Resource Server Push Binding
+
+A regular OPC UA resource server can opt in to the Part 12 §8 Push model
+with `WithKeyCredentialPush()`. The binding mounts on the standard
+`ServerConfiguration/KeyCredentialConfiguration` folder by default and
+stores secrets through `IKeyCredentialStore` (default:
+`InMemoryKeyCredentialStore` backed by `ISecretStore`).
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.Server.Hosting;
+
+services.AddOpcUa()
+    .AddServer(options =>
+    {
+        options.ApplicationUri = "urn:my-resource-server";
+        options.ProductUri = "uri:my-company:resource-server";
+        options.EndpointUrls.Add("opc.tcp://localhost:4840");
+    })
+    .WithKeyCredentialPush();
+```
+
+Production deployments should register an `IKeyCredentialStore` backed by
+a durable secret store before calling `WithKeyCredentialPush()`.
+
+## Experimental KeyCredential Issued-Token Bridge
+
+> **WARNING — EXPERIMENTAL**: `KeyCredentialBridgeAuthenticator` is a
+> vendor extension under
+> `urn:opcfoundation:netstandard:profile:authentication:keycredential`.
+> It is **not** a Part 6 §6.5.3 conformance claim. Use it only in closed
+> deployments where the GDS, resource server, and clients are controlled
+> by the same operator.
+
+The bridge lets a server validate a JSON issued-token payload containing
+a `credentialId`, nonce timestamp, and HMAC proof. The server looks up
+the credential in `IKeyCredentialStore`, validates the proof with the
+stored secret, and returns an identity populated from the credential's
+subject claims.
+
+Client-side, `GdsKeyCredentialAccessTokenProvider` adapts a
+`KeyCredentialServiceClient` to `IAccessTokenProvider`, so the standard
+`IssuedTokenIdentityProvider` can materialize a UA `IssuedIdentityToken`
+for the bridge profile.
 
 ## Audit Events
 

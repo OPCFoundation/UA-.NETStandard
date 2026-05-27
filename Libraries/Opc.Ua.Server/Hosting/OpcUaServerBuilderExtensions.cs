@@ -268,6 +268,36 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Enables the OPC 10000-12 §8 resource-server KeyCredential push model.
+        /// </summary>
+        public static IOpcUaServerBuilder WithKeyCredentialPush(
+            this IOpcUaServerBuilder builder,
+            Action<KeyCredentialPushOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            if (configure != null)
+            {
+                builder.Services.AddOptions<KeyCredentialPushOptions>().Configure(configure);
+            }
+            else
+            {
+                builder.Services.AddOptions<KeyCredentialPushOptions>();
+            }
+
+            builder.Services.TryAddSingleton<IKeyCredentialStore>(sp =>
+                new InMemoryKeyCredentialStore(
+                    sp.GetService<ISecretStore>() ?? new InMemorySecretStore("KeyCredentialPush")));
+            builder.Services.AddSingleton(sp => new KeyCredentialPushSubject(
+                sp.GetRequiredService<IKeyCredentialStore>(),
+                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the built-in identity authenticators that can be resolved from DI and server state.
         /// </summary>
         public static IOpcUaServerBuilder AddDefaultIdentityAuthenticators(

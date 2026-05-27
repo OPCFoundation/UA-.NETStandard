@@ -502,6 +502,53 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public async ValueTask BindKeyCredentialPushAsync(
+            KeyCredentialPushSubject subject,
+            CancellationToken cancellationToken = default)
+        {
+            if (subject == null)
+            {
+                throw new ArgumentNullException(nameof(subject));
+            }
+
+            NodeState? node = FindPredefinedNode<NodeState>(
+                KeyCredentialPushSubject.StandardConfigurationFolderNodeId);
+            if (node == null)
+            {
+                node = await Server.NodeManager
+                    .FindNodeInAddressSpaceAsync(KeyCredentialPushSubject.StandardConfigurationFolderNodeId)
+                    .ConfigureAwait(false);
+            }
+
+            if (node is not KeyCredentialConfigurationFolderState folder)
+            {
+                if (node is not BaseObjectState passiveNode)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdUnknown,
+                        "The standard KeyCredentialConfiguration folder is not present.");
+                }
+
+                folder = new KeyCredentialConfigurationFolderState(passiveNode.Parent);
+                folder.Create(SystemContext, passiveNode);
+                passiveNode.Parent?.ReplaceChild(SystemContext, folder);
+                await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await subject.BindAsync(
+                    folder,
+                    SystemContext,
+                    (state, ct) => AddPredefinedNodeAsync(SystemContext, state, ct),
+                    async (state, ct) =>
+                    {
+                        await DeleteNodeAsync(SystemContext, state.NodeId, ct).ConfigureAwait(false);
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             HasApplicationSecureAdminAccess(context, null!);

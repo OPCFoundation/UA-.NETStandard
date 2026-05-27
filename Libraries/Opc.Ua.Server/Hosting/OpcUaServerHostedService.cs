@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
         private readonly IServiceProvider m_services;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
@@ -74,6 +75,7 @@ namespace Opc.Ua.Server.Hosting
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
             IServiceProvider services,
             ILogger<OpcUaServerHostedService> logger)
         {
@@ -92,6 +94,8 @@ namespace Opc.Ua.Server.Hosting
             m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
             m_identityRegistrations = identityRegistrations ??
                 throw new ArgumentNullException(nameof(identityRegistrations));
+            m_keyCredentialPushSubjects = keyCredentialPushSubjects ??
+                throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -227,6 +231,7 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
 
             foreach (string url in urls)
@@ -241,6 +246,21 @@ namespace Opc.Ua.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
+            }
+        }
+
+        private async Task BindKeyCredentialPushAsync(CancellationToken ct)
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            foreach (KeyCredentialPushSubject subject in m_keyCredentialPushSubjects)
+            {
+                await m_server.CurrentInstance.ConfigurationNodeManager
+                    .BindKeyCredentialPushAsync(subject, ct)
+                    .ConfigureAwait(false);
             }
         }
 
