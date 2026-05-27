@@ -7,15 +7,19 @@ parameters:
   agents: '@{}'
   jobnamesuffix: ''
   customtestarget: ''
+  # Set hosted=true to force all jobs in this template invocation onto
+  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+  # Use this for stages that target macOS, which the managed pool does not
+  # provide.
+  hosted: false
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
   pool:
-    ${{ if ne(variables.poolName, '') }}:
+    ${{ if and(ne(variables.poolName, ''), not(parameters.hosted)) }}:
       name: ${{ variables.poolName }}
-      ${{ if ne(variables.poolVmImage, '') }}:
-        demands:
-          - ImageOverride -equals ${{ variables.poolVmImage }}
+      demands:
+        - ImageOverride -equals ${{ variables.windowsImage }}
     ${{ else }}:
       vmImage: 'windows-2025-vs2026'
   variables:
@@ -44,11 +48,10 @@ jobs:
     ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
-    ${{ if ne(variables.poolName, '') }}:
+    ${{ if and(ne(variables.poolName, ''), not(parameters.hosted)) }}:
       name: ${{ variables.poolName }}
-      ${{ if ne(variables.poolVmImage, '') }}:
-        demands:
-          - ImageOverride -equals ${{ variables.poolVmImage }}
+      demands:
+        - ImageOverride -equals $(poolImage)
     ${{ else }}:
       vmImage: $(poolImage)
   steps:

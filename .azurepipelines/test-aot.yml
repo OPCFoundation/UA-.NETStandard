@@ -5,17 +5,21 @@ parameters:
   configuration: 'Release'
   agents: '@{}'
   jobnamesuffix: ''
+  # Set hosted=true to force all jobs in this template invocation onto
+  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+  # Use this for stages that target macOS, which the managed pool does not
+  # provide.
+  hosted: false
 jobs:
 - job: testaotprep${{ parameters.jobnamesuffix }}
   displayName: Prepare AoT Test Jobs ${{ parameters.configuration }}
   pool:
-    ${{ if ne(variables.poolName, '') }}:
+    ${{ if and(ne(variables.poolName, ''), not(parameters.hosted)) }}:
       name: ${{ variables.poolName }}
-      ${{ if ne(variables.poolVmImage, '') }}:
-        demands:
-          - ImageOverride -equals ${{ variables.poolVmImage }}
+      demands:
+        - ImageOverride -equals ${{ variables.windowsImage }}
     ${{ else }}:
-      vmImage: 'windows-2025-vs2026'
+      vmImage: ${{ variables.windowsImage }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -37,11 +41,10 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   pool:
-    ${{ if ne(variables.poolName, '') }}:
+    ${{ if and(ne(variables.poolName, ''), not(parameters.hosted)) }}:
       name: ${{ variables.poolName }}
-      ${{ if ne(variables.poolVmImage, '') }}:
-        demands:
-          - ImageOverride -equals ${{ variables.poolVmImage }}
+      demands:
+        - ImageOverride -equals $(poolImage)
     ${{ else }}:
       vmImage: $(poolImage)
   steps:
