@@ -109,5 +109,17 @@ namespace Opc.Ua.SourceGeneration
         /// </remarks>
         public IDictionary<string, string> ObjectTypeProxyExternalNamespaces { get; }
             = new Dictionary<string, string>();
+
+        /// <summary>
+        /// When <c>false</c>, suppress the emission of the
+        /// <c>{prefix}.ModelDependencies.g.cs</c> and
+        /// <c>{prefix}.ModelSnapshot.g.cs</c> files. The consuming
+        /// generator decides whether emission is appropriate
+        /// (typically only for assemblies that will be referenced as
+        /// libraries). Default <c>true</c> preserves existing
+        /// behaviour for direct invokers of the Core API (tests, the
+        /// model-compiler CLI).
+        /// </summary>
+        public bool EmitDependencyMetadata { get; set; } = true;
     }
 }

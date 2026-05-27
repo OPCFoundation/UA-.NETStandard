@@ -193,9 +193,39 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Kind = SnapshotNodeKind.ObjectType,
                 Children =
                 [
-                    new SnapshotChild("Manufacturer", "Manufacturer", modellingRule: 1, instanceKind: 3),
-                    new SnapshotChild("SerialNumber", "SerialNumber", modellingRule: 2, instanceKind: 3),
-                    new SnapshotChild("<GroupIdentifier>", "GroupIdentifier", modellingRule: 3, instanceKind: 1)
+                    new SnapshotChild
+                    {
+                        BrowseName = "Manufacturer",
+                        SymbolicName = "Manufacturer",
+                        TypeDefinitionName = "PropertyType",
+                        TypeDefinitionNamespace = "http://opcfoundation.org/UA/",
+                        DataTypeName = "LocalizedText",
+                        DataTypeNamespace = "http://opcfoundation.org/UA/",
+                        ValueRank = -1,
+                        ModellingRule = 1,
+                        InstanceKind = 3
+                    },
+                    new SnapshotChild
+                    {
+                        BrowseName = "SerialNumber",
+                        SymbolicName = "SerialNumber",
+                        TypeDefinitionName = "PropertyType",
+                        TypeDefinitionNamespace = "http://opcfoundation.org/UA/",
+                        DataTypeName = "String",
+                        DataTypeNamespace = "http://opcfoundation.org/UA/",
+                        ValueRank = -1,
+                        ModellingRule = 2,
+                        InstanceKind = 3
+                    },
+                    new SnapshotChild
+                    {
+                        BrowseName = "<GroupIdentifier>",
+                        SymbolicName = "GroupIdentifier",
+                        TypeDefinitionName = "FunctionalGroupType",
+                        TypeDefinitionNamespace = "http://opcfoundation.org/UA/DI/",
+                        ModellingRule = 3,
+                        InstanceKind = 1
+                    }
                 ]
             });
 
@@ -204,11 +234,65 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes, Has.Count.EqualTo(1));
             Assert.That(decoded.Nodes[0].Children, Has.Count.EqualTo(3));
-            Assert.That(decoded.Nodes[0].Children[0].BrowseName, Is.EqualTo("Manufacturer"));
-            Assert.That(decoded.Nodes[0].Children[0].ModellingRule, Is.EqualTo((byte)1));
-            Assert.That(decoded.Nodes[0].Children[0].InstanceKind, Is.EqualTo((byte)3));
-            Assert.That(decoded.Nodes[0].Children[2].BrowseName, Is.EqualTo("<GroupIdentifier>"));
-            Assert.That(decoded.Nodes[0].Children[2].ModellingRule, Is.EqualTo((byte)3));
+
+            SnapshotChild mfg = decoded.Nodes[0].Children[0];
+            Assert.That(mfg.BrowseName, Is.EqualTo("Manufacturer"));
+            Assert.That(mfg.TypeDefinitionName, Is.EqualTo("PropertyType"));
+            Assert.That(mfg.TypeDefinitionNamespace, Is.EqualTo("http://opcfoundation.org/UA/"));
+            Assert.That(mfg.DataTypeName, Is.EqualTo("LocalizedText"));
+            Assert.That(mfg.ValueRank, Is.EqualTo(-1));
+            Assert.That(mfg.ModellingRule, Is.EqualTo((byte)1));
+            Assert.That(mfg.InstanceKind, Is.EqualTo((byte)3));
+
+            SnapshotChild grp = decoded.Nodes[0].Children[2];
+            Assert.That(grp.BrowseName, Is.EqualTo("<GroupIdentifier>"));
+            Assert.That(grp.ModellingRule, Is.EqualTo((byte)3));
+            Assert.That(grp.TypeDefinitionNamespace, Is.EqualTo("http://opcfoundation.org/UA/DI/"));
+        }
+
+        [Test]
+        public void WriteThenRead_RoundTripsMethodArgs()
+        {
+            var snapshot = new ModelSnapshotV1 { ModelUri = "http://example.org/UA/WithMethod/" };
+            snapshot.Nodes.Add(new SnapshotNode
+            {
+                SymbolicName = "ServiceType",
+                SymbolicNamespace = "http://example.org/UA/WithMethod/",
+                ClassName = "Service",
+                Kind = SnapshotNodeKind.ObjectType,
+                Children =
+                [
+                    new SnapshotChild
+                    {
+                        BrowseName = "InitLock",
+                        SymbolicName = "InitLock",
+                        TypeDefinitionName = "InitLockMethodType",
+                        TypeDefinitionNamespace = "http://opcfoundation.org/UA/DI/",
+                        ModellingRule = 1,
+                        InstanceKind = 4,
+                        InputArguments =
+                        [
+                            new SnapshotMethodArg("Context", "String", "http://opcfoundation.org/UA/", -1)
+                        ],
+                        OutputArguments =
+                        [
+                            new SnapshotMethodArg("InitLockStatus",
+                                "Int32", "http://opcfoundation.org/UA/", -1)
+                        ]
+                    }
+                ]
+            });
+
+            string payload = snapshot.ToBase64Payload();
+            ModelSnapshotV1 decoded = ModelSnapshotV1.FromBase64Payload(payload);
+            Assert.That(decoded, Is.Not.Null);
+            SnapshotChild method = decoded.Nodes[0].Children[0];
+            Assert.That(method.InstanceKind, Is.EqualTo((byte)4));
+            Assert.That(method.InputArguments, Has.Count.EqualTo(1));
+            Assert.That(method.InputArguments[0].Name, Is.EqualTo("Context"));
+            Assert.That(method.InputArguments[0].DataTypeName, Is.EqualTo("String"));
+            Assert.That(method.OutputArguments, Has.Count.EqualTo(1));
+            Assert.That(method.OutputArguments[0].Name, Is.EqualTo("InitLockStatus"));
         }
 
         private static ModelSnapshotV1 BuildSampleSnapshot()

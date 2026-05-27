@@ -12,6 +12,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorObjectTypeProxyNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorUseTypeDefinitionModellingRules" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorGenerateNodeManager" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorEmitDependencyMetadata" />
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />

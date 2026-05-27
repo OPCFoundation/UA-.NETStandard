@@ -81,31 +81,60 @@ namespace Opc.Ua.SourceGeneration.Snapshot
     }
 
     /// <summary>
-    /// Reduced view of an <c>InstanceDesign</c> child carried in a
-    /// snapshot type. Just enough metadata for downstream generators
-    /// to detect inherited members (so they can emit <c>new</c> or
-    /// skip re-emission of properties already declared on the
-    /// snapshot parent).
+    /// A method input or output argument carried in a snapshot.
     /// </summary>
-    public readonly struct SnapshotChild
+    public readonly struct SnapshotMethodArg
     {
-        /// <summary>Browse name of the child (e.g. "Manufacturer").</summary>
-        public string BrowseName { get; }
-        /// <summary>Symbolic name (often equal to BrowseName).</summary>
-        public string SymbolicName { get; }
-        /// <summary>Modelling rule (0=None, 1=Mandatory, 2=Optional, 3=OptionalPlaceholder, 4=MandatoryPlaceholder, 5=ExposesItsArray).</summary>
-        public byte ModellingRule { get; }
-        /// <summary>Kind: 1=Object 2=Variable 3=Property 4=Method.</summary>
-        public byte InstanceKind { get; }
+        /// <summary>Argument name.</summary>
+        public string Name { get; }
+        /// <summary>DataType name (qualified).</summary>
+        public string DataTypeName { get; }
+        /// <summary>DataType namespace URI.</summary>
+        public string DataTypeNamespace { get; }
+        /// <summary>Value rank.</summary>
+        public int ValueRank { get; }
 
         /// <summary>Constructor.</summary>
-        public SnapshotChild(string browseName, string symbolicName, byte modellingRule, byte instanceKind)
+        public SnapshotMethodArg(string name, string dataTypeName, string dataTypeNamespace, int valueRank)
         {
-            BrowseName = browseName ?? string.Empty;
-            SymbolicName = symbolicName ?? string.Empty;
-            ModellingRule = modellingRule;
-            InstanceKind = instanceKind;
+            Name = name ?? string.Empty;
+            DataTypeName = dataTypeName ?? string.Empty;
+            DataTypeNamespace = dataTypeNamespace ?? string.Empty;
+            ValueRank = valueRank;
         }
+    }
+
+    /// <summary>
+    /// Reduced view of an <c>InstanceDesign</c> child carried in a
+    /// snapshot type. Carries enough metadata for downstream
+    /// generators to set <c>OveriddenNode</c> + <c>TypeDefinitionNode</c>
+    /// / <c>DataTypeNode</c> on consumer's re-declared inherited
+    /// members.
+    /// </summary>
+    public sealed class SnapshotChild
+    {
+        /// <summary>Browse name of the child.</summary>
+        public string BrowseName { get; set; } = string.Empty;
+        /// <summary>Symbolic name (often equal to BrowseName).</summary>
+        public string SymbolicName { get; set; } = string.Empty;
+        /// <summary>TypeDefinition name (for all kinds). Empty when not declared.</summary>
+        public string TypeDefinitionName { get; set; } = string.Empty;
+        /// <summary>TypeDefinition namespace URI.</summary>
+        public string TypeDefinitionNamespace { get; set; } = string.Empty;
+        /// <summary>DataType name (variables only). Empty when not applicable.</summary>
+        public string DataTypeName { get; set; } = string.Empty;
+        /// <summary>DataType namespace URI (variables only).</summary>
+        public string DataTypeNamespace { get; set; } = string.Empty;
+        /// <summary>Value rank (variables only; <c>Scalar = 0</c> per <c>Opc.Ua.ValueRanks</c>).</summary>
+        public int ValueRank { get; set; }
+        /// <summary>Modelling rule (0=None, 1=Mandatory, 2=Optional, 3=OptionalPlaceholder, 4=MandatoryPlaceholder, 5=ExposesItsArray).</summary>
+        public byte ModellingRule { get; set; }
+        /// <summary>Instance kind: 1=Object 2=Variable 3=Property 4=Method.</summary>
+        public byte InstanceKind { get; set; }
+        /// <summary>Input arguments (methods only).</summary>
+        public IReadOnlyList<SnapshotMethodArg> InputArguments { get; set; } = Array.Empty<SnapshotMethodArg>();
+        /// <summary>Output arguments (methods only).</summary>
+        public IReadOnlyList<SnapshotMethodArg> OutputArguments { get; set; } = Array.Empty<SnapshotMethodArg>();
     }
 
     /// <summary>
@@ -252,8 +281,29 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                 {
                     WriteString(writer, child.BrowseName);
                     WriteString(writer, child.SymbolicName);
+                    WriteString(writer, child.TypeDefinitionName);
+                    WriteString(writer, child.TypeDefinitionNamespace);
+                    WriteString(writer, child.DataTypeName);
+                    WriteString(writer, child.DataTypeNamespace);
+                    writer.Write(child.ValueRank);
                     writer.Write(child.ModellingRule);
                     writer.Write(child.InstanceKind);
+                    writer.Write(child.InputArguments.Count);
+                    foreach (SnapshotMethodArg a in child.InputArguments)
+                    {
+                        WriteString(writer, a.Name);
+                        WriteString(writer, a.DataTypeName);
+                        WriteString(writer, a.DataTypeNamespace);
+                        writer.Write(a.ValueRank);
+                    }
+                    writer.Write(child.OutputArguments.Count);
+                    foreach (SnapshotMethodArg a in child.OutputArguments)
+                    {
+                        WriteString(writer, a.Name);
+                        WriteString(writer, a.DataTypeName);
+                        WriteString(writer, a.DataTypeNamespace);
+                        writer.Write(a.ValueRank);
+                    }
                 }
             }
         }
@@ -315,11 +365,57 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                     var children = new SnapshotChild[childCount];
                     for (int j = 0; j < childCount; j++)
                     {
-                        children[j] = new SnapshotChild(
-                            ReadString(reader),
-                            ReadString(reader),
-                            reader.ReadByte(),
-                            reader.ReadByte());
+                        var c = new SnapshotChild
+                        {
+                            BrowseName = ReadString(reader),
+                            SymbolicName = ReadString(reader),
+                            TypeDefinitionName = ReadString(reader),
+                            TypeDefinitionNamespace = ReadString(reader),
+                            DataTypeName = ReadString(reader),
+                            DataTypeNamespace = ReadString(reader),
+                            ValueRank = reader.ReadInt32(),
+                            ModellingRule = reader.ReadByte(),
+                            InstanceKind = reader.ReadByte()
+                        };
+                        int inCount = reader.ReadInt32();
+                        if (inCount < 0 || inCount > 100)
+                        {
+                            throw new InvalidDataException(
+                                "ModelSnapshotV1: invalid input arg count " + inCount);
+                        }
+                        if (inCount > 0)
+                        {
+                            var args = new SnapshotMethodArg[inCount];
+                            for (int k = 0; k < inCount; k++)
+                            {
+                                args[k] = new SnapshotMethodArg(
+                                    ReadString(reader),
+                                    ReadString(reader),
+                                    ReadString(reader),
+                                    reader.ReadInt32());
+                            }
+                            c.InputArguments = args;
+                        }
+                        int outCount = reader.ReadInt32();
+                        if (outCount < 0 || outCount > 100)
+                        {
+                            throw new InvalidDataException(
+                                "ModelSnapshotV1: invalid output arg count " + outCount);
+                        }
+                        if (outCount > 0)
+                        {
+                            var args = new SnapshotMethodArg[outCount];
+                            for (int k = 0; k < outCount; k++)
+                            {
+                                args[k] = new SnapshotMethodArg(
+                                    ReadString(reader),
+                                    ReadString(reader),
+                                    ReadString(reader),
+                                    reader.ReadInt32());
+                            }
+                            c.OutputArguments = args;
+                        }
+                        children[j] = c;
                     }
                     node.Children = children;
                 }

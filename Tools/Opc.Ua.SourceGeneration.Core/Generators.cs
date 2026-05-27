@@ -619,10 +619,13 @@ namespace Opc.Ua.SourceGeneration
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
             }
-            var modelDependencyGenerator = new ModelDependencyGenerator(context);
-            modelDependencyGenerator.Emit();
-            var modelSnapshotGenerator = new ModelSnapshotGenerator(context);
-            modelSnapshotGenerator.Emit();
+            if (context.Options?.EmitDependencyMetadata != false)
+            {
+                var modelDependencyGenerator = new ModelDependencyGenerator(context);
+                modelDependencyGenerator.Emit();
+                var modelSnapshotGenerator = new ModelSnapshotGenerator(context);
+                modelSnapshotGenerator.Emit();
+            }
         }
     }
 }

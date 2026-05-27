@@ -29,26 +29,15 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
-  <!-- DI NodeSet2 — provided for cross-namespace InstanceDesign
-       resolution by the source generator. The
-       [assembly: ModelSnapshotAttribute] on Opc.Ua.Di carries the
-       full type hierarchy + child placeholders, but the validator's
-       child-materialisation path requires the original NodeSet2 for
-       complete Hierarchy + OveriddenNode wiring; bypassing it
-       triggers NRE during code emission. Future enrichment of the
-       snapshot integration (full hierarchy resolution against
-       referenced types) will allow removing this entry; tracked in
-       plans/C7-cross-assembly-model-snapshot.md §"Phase G follow-up". -->
-  <ItemGroup>
-    <AdditionalFiles Include="Model\Opc.Ua.Di.NodeSet2.xml">
-      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
-    </AdditionalFiles>
-  </ItemGroup>
   <!-- Machinery + Pumps NodeSet2 XMLs — source-generated locally
        (no library refs needed). The generator emits typed classes,
        NodeId tables, and AddOpcUaMachinery / AddOpcUaPumps extension
        methods in the Opc.Ua.Machinery and Opc.Ua.Pumps namespaces
-       (internal to this assembly). -->
+       (internal to this assembly).
+
+       Cross-namespace type references to DI types resolve via the
+       [assembly: ModelSnapshotAttribute] carried in the Opc.Ua.Di
+       assembly — no DI NodeSet2 XML needed here. -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>

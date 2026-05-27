@@ -115,7 +115,8 @@ namespace Opc.Ua.SourceGeneration
                             ? null
                             : m_options.ObjectTypeProxyNamespace,
                     UseTypeDefinitionModellingRules =
-                        m_options.UseTypeDefinitionModellingRules
+                        m_options.UseTypeDefinitionModellingRules,
+                    EmitDependencyMetadata = ResolveEmitDependencyMetadata()
                 };
 
                 // Load all available nodeset files from the input
@@ -320,6 +321,23 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return map;
+        }
+
+        /// <summary>
+        /// Resolve whether the model-dependency / model-snapshot
+        /// assembly attributes should be emitted, honouring the
+        /// compilation's OutputKind in <c>Auto</c> mode.
+        /// </summary>
+        private bool ResolveEmitDependencyMetadata()
+        {
+            return m_options.EmitDependencyMetadata switch
+            {
+                EmitDependencyMetadataMode.Always => true,
+                EmitDependencyMetadataMode.Never => false,
+                _ => m_compilationOptions.OutputKind is
+                        OutputKind.DynamicallyLinkedLibrary or
+                        OutputKind.NetModule
+            };
         }
 
         private readonly SourceProductionContext m_context;

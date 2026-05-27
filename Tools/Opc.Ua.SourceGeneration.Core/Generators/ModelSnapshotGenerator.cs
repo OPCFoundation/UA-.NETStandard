@@ -192,11 +192,27 @@ namespace Opc.Ua.SourceGeneration
                                 ModellingRule.ExposesItsArray => (byte)5,
                                 _ => (byte)0
                             };
-                            children.Add(new SnapshotChild(
-                                browseName: child.BrowseName ?? child.SymbolicName?.Name ?? string.Empty,
-                                symbolicName: child.SymbolicName?.Name ?? string.Empty,
-                                modellingRule: modellingRule,
-                                instanceKind: instanceKind));
+                            var entryChild = new SnapshotChild
+                            {
+                                BrowseName = child.BrowseName ?? child.SymbolicName?.Name ?? string.Empty,
+                                SymbolicName = child.SymbolicName?.Name ?? string.Empty,
+                                TypeDefinitionName = child.TypeDefinition?.Name ?? string.Empty,
+                                TypeDefinitionNamespace = child.TypeDefinition?.Namespace ?? string.Empty,
+                                ModellingRule = modellingRule,
+                                InstanceKind = instanceKind
+                            };
+                            if (child is VariableDesign variable)
+                            {
+                                entryChild.DataTypeName = variable.DataType?.Name ?? string.Empty;
+                                entryChild.DataTypeNamespace = variable.DataType?.Namespace ?? string.Empty;
+                                entryChild.ValueRank = (int)variable.ValueRank;
+                            }
+                            else if (child is MethodDesign method)
+                            {
+                                entryChild.InputArguments = SnapshotMethodArgs(method.InputArguments);
+                                entryChild.OutputArguments = SnapshotMethodArgs(method.OutputArguments);
+                            }
+                            children.Add(entryChild);
                         }
                         if (children.Count > 0)
                         {
@@ -220,6 +236,25 @@ namespace Opc.Ua.SourceGeneration
             return value
                 .Replace("\\", "\\\\", StringComparison.Ordinal)
                 .Replace("\"", "\\\"", StringComparison.Ordinal);
+        }
+
+        private static IReadOnlyList<SnapshotMethodArg> SnapshotMethodArgs(Parameter[] args)
+        {
+            if (args == null || args.Length == 0)
+            {
+                return [];
+            }
+            var result = new List<SnapshotMethodArg>(args.Length);
+            foreach (Parameter a in args)
+            {
+                if (a == null) { continue; }
+                result.Add(new SnapshotMethodArg(
+                    name: a.Name ?? string.Empty,
+                    dataTypeName: a.DataType?.Name ?? string.Empty,
+                    dataTypeNamespace: a.DataType?.Namespace ?? string.Empty,
+                    valueRank: (int)a.ValueRank));
+            }
+            return result;
         }
 
         private readonly IGeneratorContext m_context;
