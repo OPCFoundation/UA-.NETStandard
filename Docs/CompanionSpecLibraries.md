@@ -275,25 +275,79 @@ implementation.
 ## 4. The host application
 
 A consumer combines one or more model libraries (DI here) with
-runtime-loaded NodeSet2 XMLs for upper-layer companion specs that
-reference DI:
+either upper-layer companion-spec libraries (when available) or
+**locally source-generated** types from NodeSet2 / ModelDesign
+inputs embedded in the consuming application.
+
+### Source-generated locally (preferred — no runtime XML parsing)
+
+When ModelDesign XMLs or NodeSet2 files are added to the application
+project as `<AdditionalFiles>`, the source generator emits typed
+classes and `AddXxx(NodeStateCollection, ISystemContext)` extension
+methods that consumers wire into `ModelLoaderBuilder`:
+
+```xml
+<ItemGroup>
+  <!-- DI provided via ProjectReference; do not regenerate locally. -->
+  <AdditionalFiles Include="Model/Opc.Ua.Di.NodeSet2.xml">
+    <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
+  </AdditionalFiles>
+  <!-- Source-generate Machinery + Pumps locally. -->
+  <AdditionalFiles Include="Model/Opc.Ua.Machinery.NodeSet2.xml">
+    <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
+  </AdditionalFiles>
+  <AdditionalFiles Include="Model/Opc.Ua.Pumps.NodeSet2.xml">
+    <ModelSourceGeneratorPrefix>Opc.Ua.Pumps</ModelSourceGeneratorPrefix>
+  </AdditionalFiles>
+</ItemGroup>
+```
+
+The `LoadPredefinedNodesAsync` override then has no runtime XML
+parsing — the generator-emitted `AddOpcUaMachinery` /
+`AddOpcUaPumps` extension methods stamp the predefined nodes:
 
 ```csharp
 protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
     ISystemContext context, CancellationToken ct = default)
 {
-    Assembly asm = typeof(PumpNodeManager).Assembly;
     NodeStateCollection nodes = new ModelLoaderBuilder()
         .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))
-        .ImportEmbeddedNodeSet(asm, "Opc.Ua.Machinery.NodeSet2.xml")
-        .ImportEmbeddedNodeSet(asm, "Opc.Ua.Pumps.NodeSet2.xml")
+        .AddModel((coll, ctx) => coll.AddOpcUaMachinery(ctx))
+        .AddModel((coll, ctx) => coll.AddOpcUaPumps(ctx))
         .Build(new NodeStateCollection(), context);
     return new ValueTask<NodeStateCollection>(nodes);
 }
 ```
 
+This pattern is used by `Applications/MinimalPumpServer` and is
+equivalent to a library-per-spec layout but avoids splitting the
+consumer into multiple assemblies. Cross-namespace type references
+(e.g. Machinery types inheriting from DI types) resolve correctly
+because the generator reads `[assembly: ModelDependencyAttribute]`
+from referenced assemblies and rewrites dependency prefixes
+accordingly — see `Docs/ModelDependencies.md`.
+
+### Runtime NodeSet2 import fallback
+
+For cases where neither a library reference nor a local source-gen
+input is acceptable (e.g. dynamic / pluggable specs not known at
+compile time), the runtime `IModelLoaderBuilder.ImportNodeSet`
+overload accepts an embedded resource stream:
+
+```csharp
+Assembly asm = typeof(PumpNodeManager).Assembly;
+NodeStateCollection nodes = new ModelLoaderBuilder()
+    .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))
+    .ImportEmbeddedNodeSet(asm, "Opc.Ua.Machinery.NodeSet2.xml")
+    .Build(new NodeStateCollection(), context);
+```
+
+This path parses the NodeSet2 XML at startup, so it costs more
+allocations and CPU. Prefer the source-generated path whenever the
+spec is known at compile time.
+
 See `Applications/MinimalPumpServer/PumpNodeManager.cs` for the full
-end-to-end consumer.
+end-to-end source-generated consumer.
 
 ## 4a. DI hosting integration (`AddOpcUa()` extensions)
 

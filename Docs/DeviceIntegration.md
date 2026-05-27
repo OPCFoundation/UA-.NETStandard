@@ -9,6 +9,7 @@ plugs it together.
 - [Library layout](#library-layout)
 - [Quick start](#quick-start)
 - [Device builder](#device-builder)
+- [Device sub-type extensions](#device-sub-type-extensions)
 - [Hosting integration](#hosting-integration)
 - [Lock service](#lock-service)
 - [Software update](#software-update)
@@ -248,6 +249,86 @@ free. They typically override `ResolveDefaultDeviceParent()` to
 return the companion-spec-specific container (`Machines` folder,
 etc.) and supply their own typed factories to
 `CreateDeviceAsync<TPumpType>(...)`.
+
+## Device sub-type extensions
+
+Three extension surfaces on top of `IDeviceBuilder<TDevice>` cover
+optional OPC 10000-100 features:
+
+### Software / Block / ConfigurableObject (§5.4 advanced sub-types)
+
+`DeviceBuilderTypeExtensions` adds typed materialisation helpers for
+the §5.4 sub-types that are not provided by `WithDeviceType` itself:
+
+```csharp
+SoftwareState           sw    = builder.AddSoftware(qn("Firmware"));
+BlockState              blk   = builder.AddBlock(qn("InputBlock"));
+ConfigurableObjectState cfg   = builder.AddConfigurableObject(qn("DriverFolder"));
+```
+
+Each helper creates a typed child under the device, stamps a
+manager-assigned `NodeId` via `INodeIdFactory`, sets the
+`HasComponent` reference, registers the child via
+`AddPredefinedNodeAsync`, and invokes an optional `configure`
+callback. The returned typed state is ready for further
+configuration through the standard `NodeState` APIs.
+
+### Lifetime indication (§10.6)
+
+`DeviceBuilderLifetimeExtensions.AddLifetimeIndication` creates a
+`LifetimeVariableState` under the device with a
+`LifetimeIndicationKind` classifier covering all six §10.6 indication
+sub-types:
+
+```csharp
+device.AddLifetimeIndication(
+    qn("OperatingHours"),
+    LifetimeIndicationKind.Time,
+    startValue: 0.0);
+
+device.AddLifetimeIndication(
+    qn("PartsProduced"),
+    LifetimeIndicationKind.NumberOfParts,
+    startValue: 0.0);
+```
+
+The classifier enum maps directly to OPC 10000-100 ObjectType ids:
+
+| `LifetimeIndicationKind` | OPC UA ObjectType |
+|---|---|
+| `Time`             | `TimeIndicationType` |
+| `NumberOfParts`    | `NumberOfPartsIndicationType` |
+| `NumberOfUsages`   | `NumberOfUsagesIndicationType` |
+| `Length`           | `LengthIndicationType` |
+| `Diameter`         | `DiameterIndicationType` |
+| `SubstanceVolume`  | `SubstanceVolumeIndicationType` |
+
+`DeviceBuilderLifetimeExtensions.ResolveIndicationTypeId(kind,
+namespaceUris)` resolves the matching NodeId at runtime when
+applications need to materialise the indication classifier object
+themselves.
+
+### Support info (§5.15)
+
+`DeviceBuilderSupportInfoExtensions.WithSupportInfo` creates an
+`ISupportInfoState` child on the device (idempotent — re-uses the
+existing instance on subsequent calls) and yields it through a
+configure callback. The interface exposes
+`DocumentationFiles` / `ImageSet` / `ProtocolSupport` folder
+properties; consumers populate them by attaching `FileState` or
+`BaseObjectState` children through the standard `NodeState` API.
+File-backed children commonly use `FileState` wired to an
+`IFileSystemProvider` from `Libraries/Opc.Ua.Server/FileSystem`.
+
+```csharp
+device.WithSupportInfo(info =>
+{
+    info.Description = new LocalizedText("Support information for device 1");
+    // attach FileState children for DocumentationFiles / ImageSet
+    // / ProtocolSupport folders here, using IFileSystemProvider
+    // for content backing.
+});
+```
 
 ## Hosting integration
 
@@ -763,6 +844,7 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 - `ComponentType` (§5.3) — abstract; materialised via `IDeviceBuilder`.
 - `DeviceType` (§5.4) — `IDeviceBuilder.WithDeviceType<TDeviceState>(factory)`.
+- `SoftwareType`, `BlockType`, `ConfigurableObjectType` (§5.4 advanced sub-types) — `IDeviceBuilder.AddSoftware`, `AddBlock`, `AddConfigurableObject`.
 
 ### Topology references
 
@@ -799,6 +881,11 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 - `PrepareForUpdateStateMachineType` (§10.3.7), `InstallationStateMachineType` (§10.3.8), `PowerCycleStateMachineType` (§10.3.9), `ConfirmationStateMachineType` (§10.3.10) — generated proxies driven by the application.
 - Storage abstraction: `ISoftwarePackageStore` with `MemoryPackageStore` and `FileSystemPackageStore` implementations.
 
+### Support info & lifetime indication
+
+- `ISupportInfoType` (§5.15) — `IDeviceBuilder.WithSupportInfo(configure)`. Backing folders `DocumentationFiles` / `ImageSet` / `ProtocolSupport` accept `FileState` / `BaseObjectState` children; file content commonly backed by `IFileSystemProvider`.
+- `LifetimeVariableType` + 6 indication sub-types (§10.6) — `IDeviceBuilder.AddLifetimeIndication(kind, …)`. Classifier kinds: `Time`, `NumberOfParts`, `NumberOfUsages`, `Length`, `Diameter`, `SubstanceVolume`.
+
 ### NAMUR alarms (§10.2)
 
 - `DeviceHealthDiagnosticAlarmType` (abstract) and the four concrete alarm types (`FailureAlarmType`, `CheckFunctionAlarmType`, `OffSpecAlarmType`, `MaintenanceRequiredAlarmType`) — generated proxies wired via the fluent `IAlarmBuilder<TState>` + `ActivatesAlarm` patterns from `Libraries/Opc.Ua.Server/Fluent`.
@@ -809,11 +896,8 @@ All DI DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `LocationIndicatio
 
 ### Not yet implemented
 
-- `ISupportInfoType` (§5.15) — DeviceTypeImage, Documentation, ProtocolSupport, ImageSet folders.
-- `SoftwareType`, `BlockType`, `ConfigurableObjectType` (§5.4 advanced subtypes).
 - `SoftwareFolderType` (§10.3.5) — multi-version repository.
 - `TransferServicesType` (§10.4) — parameter set transfer.
-- `LifetimeVariableType` and the 7 lifetime indication subtypes (§10.6).
 
 ## See also
 
