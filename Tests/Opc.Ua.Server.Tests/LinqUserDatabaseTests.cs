@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
 
@@ -122,7 +123,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void GetUserNamesReturnsCreatedUsers()
+        public void GetUsersReturnsCreatedUsers()
         {
             // Arrange
             var usersDb = new LinqUserDatabase();
@@ -130,10 +131,12 @@ namespace Opc.Ua.Server.Tests
             usersDb.CreateUser("TestUser2", "PW2"u8, [Role.Engineer]);
 
             // Act
-            IReadOnlyList<string> userNames = usersDb.GetUserNames();
+            IReadOnlyList<UserManagementDataType> users = usersDb.GetUsers();
 
             // Assert
-            Assert.That(userNames, Is.EquivalentTo(s_createdUsers));
+            Assert.That(users.Select(user => user.UserName), Is.EquivalentTo(s_createdUsers));
+            Assert.That(users.All(user => user.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
+            Assert.That(users.All(user => user.Description.Length == 0), Is.True);
         }
     }
 }

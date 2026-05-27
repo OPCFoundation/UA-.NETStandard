@@ -433,16 +433,16 @@ namespace Opc.Ua.Server.UserManagement
 
         private void LoadUsersFromDatabase()
         {
-            foreach (string userName in m_userDatabase.GetUserNames())
+            foreach (UserManagementDataType user in m_userDatabase.GetUsers())
             {
-                if (string.IsNullOrEmpty(userName))
+                if (string.IsNullOrEmpty(user.UserName))
                 {
                     continue;
                 }
 
-                m_metadata[userName] = new UserMetadata(
-                    UserConfigurationMask.None,
-                    string.Empty);
+                m_metadata[user.UserName] = new UserMetadata(
+                    (UserConfigurationMask)user.UserConfiguration,
+                    user.Description ?? string.Empty);
             }
         }
 

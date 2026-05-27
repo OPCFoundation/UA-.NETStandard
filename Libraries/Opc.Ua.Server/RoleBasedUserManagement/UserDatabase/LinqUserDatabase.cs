@@ -183,9 +183,17 @@ namespace Opc.Ua.Server.UserDatabase
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<string> GetUserNames()
+        public IReadOnlyList<UserManagementDataType> GetUsers()
         {
-            return [.. m_users.Keys];
+            return
+            [
+                .. m_users.Values.Select(user => new UserManagementDataType
+                {
+                    UserName = user.UserName,
+                    UserConfiguration = (uint)UserConfigurationMask.None,
+                    Description = string.Empty
+                })
+            ];
         }
 
         /// <inheritdoc/>

@@ -87,13 +87,32 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SnapshotUsers_StartsWithAllCustomDatabaseUsers()
         {
-            var database = new TestUserDatabase(s_defaultUserNames);
+            var database = new TestUserDatabase(
+                [
+                    new UserManagementDataType
+                    {
+                        UserName = "alice",
+                        UserConfiguration = (uint)UserConfigurationMask.MustChangePassword,
+                        Description = "Alice Description"
+                    },
+                    new UserManagementDataType
+                    {
+                        UserName = "bob",
+                        UserConfiguration = (uint)UserConfigurationMask.Disabled,
+                        Description = "Bob Description"
+                    }
+                ]);
 
             using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
 
             IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
             Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(s_defaultUserNames));
-            Assert.That(users.All(u => u.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
+            Assert.That(users.Single(u => u.UserName == "alice").UserConfiguration,
+                Is.EqualTo((uint)UserConfigurationMask.MustChangePassword));
+            Assert.That(users.Single(u => u.UserName == "alice").Description, Is.EqualTo("Alice Description"));
+            Assert.That(users.Single(u => u.UserName == "bob").UserConfiguration,
+                Is.EqualTo((uint)UserConfigurationMask.Disabled));
+            Assert.That(users.Single(u => u.UserName == "bob").Description, Is.EqualTo("Bob Description"));
         }
 
         [Test]
@@ -475,11 +494,11 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class TestUserDatabase : IUserDatabase
         {
-            private readonly IReadOnlyList<string> m_userNames;
+            private readonly IReadOnlyList<UserManagementDataType> m_users;
 
-            public TestUserDatabase(IReadOnlyList<string> userNames)
+            public TestUserDatabase(IReadOnlyList<UserManagementDataType> users)
             {
-                m_userNames = userNames;
+                m_users = users;
             }
 
             public bool CreateUser(string userName, System.ReadOnlySpan<byte> password, ICollection<Role> roles)
@@ -502,9 +521,9 @@ namespace Opc.Ua.Server.Tests
                 throw new System.NotSupportedException();
             }
 
-            public IReadOnlyList<string> GetUserNames()
+            public IReadOnlyList<UserManagementDataType> GetUsers()
             {
-                return m_userNames;
+                return m_users;
             }
 
             public bool ChangePassword(
