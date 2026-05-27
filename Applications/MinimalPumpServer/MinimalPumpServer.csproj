@@ -29,27 +29,27 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
-  <!-- Machinery NodeSet2 — loaded at runtime by the sample.
-       Future work: convert to a source-generated Opc.Ua.Machinery
-       library (see plans/SourceGeneratedCompanionSpecLibraries.md). -->
+  <!-- DI NodeSet2 — provided for cross-namespace type resolution by
+       the source generator only. ModelSourceGeneratorIgnore=true tells
+       the generator NOT to emit AddOpcUaDi locally; the AddOpcUaDi
+       extension comes from the Opc.Ua.Di library reference. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.Di.NodeSet2.xml">
+      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
+    </AdditionalFiles>
+  </ItemGroup>
+  <!-- Machinery + Pumps NodeSet2 XMLs — source-generated locally
+       (no library refs needed). The generator emits typed classes,
+       NodeId tables, and AddOpcUaMachinery / AddOpcUaPumps extension
+       methods in the Opc.Ua.Machinery and Opc.Ua.Pumps namespaces
+       (internal to this assembly). -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
-      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
-    <EmbeddedResource Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
-      <LogicalName>Opc.Ua.Machinery.NodeSet2.xml</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
-  <!-- Pumps NodeSet2 — loaded at runtime by the sample.
-       Future work: convert to a source-generated Opc.Ua.Pumps
-       library (see plans/SourceGeneratedCompanionSpecLibraries.md). -->
-  <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.xml">
-      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Pumps</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
-    <EmbeddedResource Include="Model\Opc.Ua.Pumps.NodeSet2.xml">
-      <LogicalName>Opc.Ua.Pumps.NodeSet2.xml</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
   <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>

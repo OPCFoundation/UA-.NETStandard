@@ -96,7 +96,7 @@ namespace Opc.Ua.SourceGeneration
             string selfVersion = m_context.ModelDesign.TargetVersion ?? target.Version;
             string selfPubDate = FormatDate(m_context.ModelDesign.TargetPublicationDate)
                 ?? target.PublicationDate;
-            entries.Add(new Entry(target.Value, target.Prefix, selfVersion, selfPubDate));
+            entries.Add(new Entry(target.Value, target.Prefix, selfVersion, selfPubDate, target.Name));
             seen.Add(target.Value);
 
             // Re-emit dependencies declared on the model (transitive closure).
@@ -117,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                entries.Add(new Entry(ns.Value, ns.Prefix, ns.Version, ns.PublicationDate));
+                entries.Add(new Entry(ns.Value, ns.Prefix, ns.Version, ns.PublicationDate, ns.Name));
             }
 
             // Re-emit the closure picked up from referenced assemblies so
@@ -138,7 +138,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                entries.Add(new Entry(r.ModelUri, r.Prefix, r.Version, r.PublicationDate));
+                entries.Add(new Entry(r.ModelUri, r.Prefix, r.Version, r.PublicationDate, r.Name));
             }
 
             return entries;
@@ -157,6 +157,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ModelPublicationDate,
                 FormatNullableLiteral(entry.PublicationDate));
+            context.Template.AddReplacement(Tokens.ModelName, FormatNullableLiteral(entry.Name));
 
             return context.Template.Render();
         }
@@ -184,7 +185,8 @@ namespace Opc.Ua.SourceGeneration
             string ModelUri,
             string Prefix,
             string Version,
-            string PublicationDate);
+            string PublicationDate,
+            string Name);
 
         private readonly IGeneratorContext m_context;
     }

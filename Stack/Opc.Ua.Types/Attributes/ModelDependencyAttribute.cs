@@ -67,16 +67,24 @@ namespace Opc.Ua
         /// declared none.</param>
         /// <param name="publicationDate">The model publication date string
         /// (ISO-8601 preferred). May be null.</param>
+        /// <param name="name">The C# identifier used for the model name
+        /// constant inside the assembly's <c>Namespaces</c> class
+        /// (e.g. <c>OpcUaDi</c>). When supplied, downstream generators
+        /// emit cross-namespace constant references as
+        /// <c>global::{Prefix}.Namespaces.{Name}</c>; when null they
+        /// fall back to a name derived from the model URI.</param>
         public ModelDependencyAttribute(
             string modelUri,
             string prefix,
             string? version = null,
-            string? publicationDate = null)
+            string? publicationDate = null,
+            string? name = null)
         {
             ModelUri = modelUri;
             Prefix = prefix;
             Version = version;
             PublicationDate = publicationDate;
+            Name = name;
         }
 
         /// <summary>
@@ -104,5 +112,13 @@ namespace Opc.Ua
         /// at the same <see cref="Version"/>.
         /// </summary>
         public string? PublicationDate { get; }
+
+        /// <summary>
+        /// The C# identifier used for the model's name constant inside
+        /// the assembly's <c>Namespaces</c> class (e.g. <c>OpcUaDi</c>).
+        /// Null when not supplied; downstream generators then derive a
+        /// name from the URI.
+        /// </summary>
+        public string? Name { get; }
     }
 }

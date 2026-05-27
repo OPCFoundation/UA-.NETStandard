@@ -63,7 +63,8 @@ namespace Opc.Ua.SourceGeneration
                 "{{Tokens.ModelUri}}",
                 "{{Tokens.Prefix}}",
                 {{Tokens.ModelVersion}},
-                {{Tokens.ModelPublicationDate}})]
+                {{Tokens.ModelPublicationDate}},
+                {{Tokens.ModelName}})]
 
             """);
     }

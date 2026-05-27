@@ -216,11 +216,18 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (string.Equals(ns.Prefix, dep.Prefix, StringComparison.Ordinal))
+                if (!string.Equals(ns.Prefix, dep.Prefix, StringComparison.Ordinal))
                 {
-                    continue;
+                    ns.Prefix = dep.Prefix;
                 }
-                ns.Prefix = dep.Prefix;
+                // Also align the namespace Name with the referenced assembly's
+                // Namespaces class identifier so that cross-namespace constant
+                // references like `global::{Prefix}.Namespaces.{Name}` resolve.
+                if (!string.IsNullOrEmpty(dep.Name) &&
+                    !string.Equals(ns.Name, dep.Name, StringComparison.Ordinal))
+                {
+                    ns.Name = dep.Name;
+                }
             }
         }
 

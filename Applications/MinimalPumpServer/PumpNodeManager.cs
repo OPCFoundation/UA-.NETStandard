@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -38,6 +36,8 @@ using Opc.Ua;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
+using Opc.Ua.Machinery;
+using Opc.Ua.Pumps;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
@@ -104,19 +104,17 @@ namespace Pumps
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            // Compose the predefined-node tree from:
-            // - the source-generated Opc.Ua.Di model (referenced library);
-            // - the Machinery + Pumps NodeSet2 XMLs embedded in this
-            //   sample assembly.
-            //
-            // Converting Machinery and Pumps to source-generated
-            // libraries (mirroring Opc.Ua.Di) is tracked by
-            // plans/SourceGeneratedCompanionSpecLibraries.md.
-            Assembly assembly = typeof(PumpNodeManager).Assembly;
+            // Compose the predefined-node tree from three source-generated
+            // models, in dependency order:
+            //  - Opc.Ua.Di     (referenced library)
+            //  - Opc.Ua.Machinery (source-generated inside this assembly)
+            //  - Opc.Ua.Pumps     (source-generated inside this assembly)
+            // No runtime XML loading — the NodeSet2 XMLs ship only as
+            // <AdditionalFiles> for the source generator.
             NodeStateCollection nodes = new ModelLoaderBuilder()
                 .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))
-                .ImportEmbeddedNodeSet(assembly, "Opc.Ua.Machinery.NodeSet2.xml")
-                .ImportEmbeddedNodeSet(assembly, "Opc.Ua.Pumps.NodeSet2.xml")
+                .AddModel((coll, ctx) => coll.AddOpcUaMachinery(ctx))
+                .AddModel((coll, ctx) => coll.AddOpcUaPumps(ctx))
                 .Build(new NodeStateCollection(), context);
 
             return new ValueTask<NodeStateCollection>(nodes);

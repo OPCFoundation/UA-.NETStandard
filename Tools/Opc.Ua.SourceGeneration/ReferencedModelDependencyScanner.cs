@@ -88,12 +88,14 @@ namespace Opc.Ua.SourceGeneration
                     string version = args.Length > 2 ? args[2].Value as string : null;
                     string publicationDate =
                         args.Length > 3 ? args[3].Value as string : null;
+                    string name = args.Length > 4 ? args[4].Value as string : null;
                     results.Add(new ModelDependencyReference(
                         assembly.Identity.Name,
                         modelUri,
                         prefix,
                         version,
-                        publicationDate));
+                        publicationDate,
+                        name));
                 }
             }
             return results.ToImmutable();

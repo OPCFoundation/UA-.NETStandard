@@ -183,6 +183,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfModelDependencies => nameof(ListOfModelDependencies);
         public static string ModelVersion => nameof(ModelVersion);
         public static string ModelPublicationDate => nameof(ModelPublicationDate);
+        public static string ModelName => nameof(ModelName);
         public static string AccessModifier => nameof(AccessModifier);
         public static string IdentifierReflection => nameof(IdentifierReflection);
         public static string ListOfNodeStateInitializers => nameof(ListOfNodeStateInitializers);

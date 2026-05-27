@@ -626,6 +626,10 @@ namespace Opc.Ua.Schema.Model
             }
 
             output.ClassName = output.SymbolicName.Name;
+            if (output.ClassName.EndsWith("Type", StringComparison.Ordinal))
+            {
+                output.ClassName = output.ClassName[..^"Type".Length];
+            }
             output.IsAbstract = input.IsAbstract;
 
             foreach (Export.Reference ii in input.References)

@@ -46,13 +46,15 @@ namespace Opc.Ua.SourceGeneration
             string modelUri,
             string prefix,
             string version,
-            string publicationDate)
+            string publicationDate,
+            string name = null)
         {
             AssemblyName = assemblyName ?? string.Empty;
             ModelUri = modelUri ?? string.Empty;
             Prefix = prefix ?? string.Empty;
             Version = version ?? string.Empty;
             PublicationDate = publicationDate ?? string.Empty;
+            Name = name ?? string.Empty;
         }
 
         /// <summary>
@@ -75,6 +77,10 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>The model publication date (ISO-8601; may be empty).</summary>
         public string PublicationDate { get; }
 
+        /// <summary>The C# identifier used for the model's name constant inside
+        /// the referenced assembly's <c>Namespaces</c> class (may be empty).</summary>
+        public string Name { get; }
+
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)
         {
@@ -83,7 +89,8 @@ namespace Opc.Ua.SourceGeneration
                 string.Equals(ModelUri, other.ModelUri, StringComparison.Ordinal) &&
                 string.Equals(Prefix, other.Prefix, StringComparison.Ordinal) &&
                 string.Equals(Version, other.Version, StringComparison.Ordinal) &&
-                string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal);
+                string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal) &&
+                string.Equals(Name, other.Name, StringComparison.Ordinal);
         }
 
         /// <inheritdoc/>
@@ -102,6 +109,7 @@ namespace Opc.Ua.SourceGeneration
                 hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Prefix);
                 hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Version);
                 hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(PublicationDate);
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Name);
                 return hash;
             }
         }

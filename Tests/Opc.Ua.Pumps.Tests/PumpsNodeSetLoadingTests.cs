@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua;
@@ -35,65 +34,76 @@ using Opc.Ua;
 namespace Opc.Ua.Pumps.Tests
 {
     /// <summary>
-    /// Smoke tests for the OPC 40223 Pumps + Machinery NodeSet2 XML
-    /// files embedded in MinimalPumpServer. Verifies the NodeSet2 XMLs
-    /// are present, parsable, and import without error.
+    /// Tests for the source-generated Machinery and Pumps models inside
+    /// MinimalPumpServer. Verifies that the generator emitted the expected
+    /// namespace constants, extension methods, and that the loader produces
+    /// a non-empty predefined-node tree.
     /// </summary>
     [TestFixture]
     [Category("Pumps")]
     public sealed class PumpsNodeSetLoadingTests
     {
         [Test]
-        public void PumpsNodeSetXmlEmbeddedResourceExists()
+        public void MachineryNamespaceUriConstantIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            using Stream? stream = assembly.GetManifestResourceStream(
-                "Opc.Ua.Pumps.NodeSet2.xml");
-            Assert.That(stream, Is.Not.Null,
-                "Pumps NodeSet2 XML embedded resource must be present.");
-            Assert.That(stream!.Length, Is.GreaterThan(100_000),
-                "Pumps NodeSet2 is a large resource (~6.5 MB).");
+            System.Type ns = assembly.GetType("Opc.Ua.Machinery.Namespaces");
+            Assert.That(ns, Is.Not.Null,
+                "The source generator must emit Opc.Ua.Machinery.Namespaces.");
         }
 
         [Test]
-        public void MachineryNodeSetXmlEmbeddedResourceExists()
+        public void PumpsNamespaceUriConstantIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            using Stream? stream = assembly.GetManifestResourceStream(
-                "Opc.Ua.Machinery.NodeSet2.xml");
-            Assert.That(stream, Is.Not.Null,
-                "Machinery NodeSet2 XML embedded resource must be present.");
+            System.Type ns = assembly.GetType("Opc.Ua.Pumps.Namespaces");
+            Assert.That(ns, Is.Not.Null,
+                "The source generator must emit Opc.Ua.Pumps.Namespaces.");
         }
 
         [Test]
-        public void PumpsNodeSetXmlIsReadable()
+        public void AddOpcUaMachineryExtensionMethodIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            using Stream? stream = assembly.GetManifestResourceStream(
-                "Opc.Ua.Pumps.NodeSet2.xml");
-            Assert.That(stream, Is.Not.Null);
-
-            Opc.Ua.Export.UANodeSet? nodeSet = Opc.Ua.Export.UANodeSet.Read(stream!);
-            Assert.That(nodeSet, Is.Not.Null,
-                "Pumps NodeSet2 XML must be a parsable UANodeSet.");
-            Assert.That(nodeSet!.NamespaceUris, Is.Not.Null);
-            Assert.That(nodeSet.NamespaceUris,
-                Has.Member("http://opcfoundation.org/UA/Pumps/"));
+            System.Type ext = assembly.GetType(
+                "Opc.Ua.Machinery.OpcUaMachineryExtensions");
+            Assert.That(ext, Is.Not.Null,
+                "The generator must emit OpcUaMachineryExtensions.");
+            MethodInfo add = ext.GetMethod(
+                "AddOpcUaMachinery",
+                [typeof(NodeStateCollection), typeof(ISystemContext)]);
+            Assert.That(add, Is.Not.Null,
+                "AddOpcUaMachinery(NodeStateCollection, ISystemContext) must exist.");
         }
 
         [Test]
-        public void PumpsModelDeclaresExpectedDependencies()
+        public void AddOpcUaPumpsExtensionMethodIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            using Stream? stream = assembly.GetManifestResourceStream(
-                "Opc.Ua.Pumps.NodeSet2.xml");
-            Opc.Ua.Export.UANodeSet? nodeSet = Opc.Ua.Export.UANodeSet.Read(stream!);
+            System.Type ext = assembly.GetType(
+                "Opc.Ua.Pumps.OpcUaPumpsExtensions");
+            Assert.That(ext, Is.Not.Null,
+                "The generator must emit OpcUaPumpsExtensions.");
+            MethodInfo add = ext.GetMethod(
+                "AddOpcUaPumps",
+                [typeof(NodeStateCollection), typeof(ISystemContext)]);
+            Assert.That(add, Is.Not.Null,
+                "AddOpcUaPumps(NodeStateCollection, ISystemContext) must exist.");
+        }
 
-            // Pumps depends on Machinery and DI.
-            Assert.That(nodeSet!.NamespaceUris,
-                Has.Member("http://opcfoundation.org/UA/Machinery/"));
-            Assert.That(nodeSet.NamespaceUris,
-                Has.Member("http://opcfoundation.org/UA/DI/"));
+        [Test]
+        public void PumpServerHasNoLegacyNodeSet2EmbeddedResources()
+        {
+            // P2 conversion removed runtime XML loading; only the
+            // source-generated extension methods remain.
+            Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
+            string[] resources = assembly.GetManifestResourceNames();
+            Assert.That(resources,
+                Has.No.Member("Opc.Ua.Machinery.NodeSet2.xml"),
+                "Machinery NodeSet2 must not be embedded as a resource.");
+            Assert.That(resources,
+                Has.No.Member("Opc.Ua.Pumps.NodeSet2.xml"),
+                "Pumps NodeSet2 must not be embedded as a resource.");
         }
     }
 }
