@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 .Build();
         }
 
-        private static IReadOnlyList<string> CaptureServerDelta(Action<IOpcUaServerBuilder> configure)
+        private static string[] CaptureServerDelta(Action<IOpcUaServerBuilder> configure)
         {
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa()
@@ -217,7 +217,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return DescribeDelta(services, beforeCount);
         }
 
-        private static IReadOnlyList<string> CaptureGdsDelta(Action<IGdsServerBuilder> configure)
+        private static string[] CaptureGdsDelta(Action<IGdsServerBuilder> configure)
         {
             var services = new ServiceCollection();
             IGdsServerBuilder builder = services.AddOpcUa()
@@ -229,7 +229,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return DescribeDelta(services, beforeCount);
         }
 
-        private static IReadOnlyList<string> DescribeDelta(IServiceCollection services, int startIndex)
+        private static string[] DescribeDelta(IServiceCollection services, int startIndex)
         {
             return services.Skip(startIndex)
                 .Select(Describe)
@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return type?.FullName ?? string.Empty;
         }
 
-        private sealed class StubAuthenticator : IUserTokenAuthenticator
+        public sealed class StubAuthenticator : IUserTokenAuthenticator
         {
             public UserTokenType TokenType => UserTokenType.Anonymous;
 

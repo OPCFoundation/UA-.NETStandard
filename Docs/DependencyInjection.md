@@ -593,15 +593,9 @@ services
 `Action<>` and `IConfiguration` overloads are available for
 `ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
 
-> **Known gap**: `GdsServerHostedService` does not yet consume the
-> identity-authenticator registrations the forwarders deposit into DI.
-> The forwarder API exists and the registrations are produced (verified
-> by `GdsIdentityForwardingTests`), but the GDS hosted service needs to
-> be extended to read them and register them on
-> `IServerInternal.IdentityRegistry` during startup the same way
-> `OpcUaServerHostedService` does. Tracked alongside the P5–P8
-> reference-server migration in `plan.md`. The forwarders are safe to
-> call today; they just don't take effect at runtime yet.
+`GdsServerHostedService` consumes these forwarded registrations during
+startup and adds them to the same identity registry used by regular OPC
+UA hosted servers.
 
 See [Identity Providers](IdentityProviders.md) for the full reference.
 

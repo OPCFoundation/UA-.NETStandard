@@ -218,18 +218,9 @@ services.AddOpcUa()
     .AddDefaultIdentityAuthenticators(opt => opt.EnableJwt = false);
 ```
 
-> **Known gap**: `GdsServerHostedService` does not yet consume the
-> identity-authenticator registrations the forwarders deposit into DI.
-> The forwarder API exists and the registrations are produced (verified
-> by `GdsIdentityForwardingTests`), but the GDS hosted service needs to
-> be extended to read them and call
-> `IServerInternal.IdentityRegistry.Register(...)` during start-up the
-> same way `OpcUaServerHostedService` does. Until that ships, configure
-> identity by reaching the regular server builder directly (the
-> `AddIdentityAuthenticator<T>` registrations themselves are valid and
-> can be picked up by a custom GDS hosted service derived from
-> `GlobalDiscoverySampleServer`). Tracked under the P5–P8 reference-
-> server migration work in `plan.md`.
+`GdsServerHostedService` consumes the forwarded authenticator
+registrations during start-up and registers them with the same identity
+registry used by the regular hosted server.
 
 ### Configuration reference
 

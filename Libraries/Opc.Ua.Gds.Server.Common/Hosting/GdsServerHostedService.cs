@@ -38,7 +38,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Identity;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 
 #nullable enable
@@ -65,6 +67,8 @@ namespace Opc.Ua.Gds.Server.Hosting
         private readonly ICertificateRequest m_certificateRequest;
         private readonly ICertificateGroup m_certificateGroup;
         private readonly IUserDatabase m_userDatabase;
+        private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IServiceProvider m_services;
         private readonly IAccessTokenProvider? m_accessTokenProvider;
         private readonly IKeyCredentialRequestStore? m_keyCredentialStore;
         private readonly IConfigurationDataStore? m_configurationStore;
@@ -86,6 +90,8 @@ namespace Opc.Ua.Gds.Server.Hosting
             ICertificateRequest certificateRequest,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IServiceProvider services,
             ILogger<GdsServerHostedService> logger,
             IAccessTokenProvider? accessTokenProvider = null,
             IKeyCredentialRequestStore? keyCredentialStore = null,
@@ -105,6 +111,9 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_certificateGroup = certificateGroup
                 ?? throw new ArgumentNullException(nameof(certificateGroup));
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
+            m_identityRegistrations = identityRegistrations ??
+                throw new ArgumentNullException(nameof(identityRegistrations));
+            m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_accessTokenProvider = accessTokenProvider;
             m_keyCredentialStore = keyCredentialStore;
@@ -192,6 +201,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_options.AutoApprove);
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            RegisterIdentityAuthenticators();
 
             foreach (string url in urls)
             {
@@ -205,6 +215,29 @@ namespace Opc.Ua.Gds.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
+            }
+        }
+
+        private void RegisterIdentityAuthenticators()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            ICertificateValidatorEx? certificateValidator =
+                m_application?.ApplicationConfiguration?.CertificateManager as ICertificateValidatorEx;
+
+            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
+            {
+                foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
+                    m_services,
+                    certificateValidator))
+                {
+                    // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
+                    // validates one fixed IssuerUri through its resolver.
+                    m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                }
             }
         }
 
