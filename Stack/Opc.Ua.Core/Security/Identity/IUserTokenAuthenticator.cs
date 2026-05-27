@@ -33,6 +33,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Identity
 {
@@ -181,11 +182,19 @@ namespace Opc.Ua.Identity
     /// <param name="MessageContext">
     /// Encoder factories + telemetry.
     /// </param>
+    /// <param name="ChannelCertificate">
+    /// The ApplicationInstance certificate bound to the secure channel, when supplied by the client.
+    /// </param>
+    /// <param name="ChannelApplicationUri">
+    /// The ApplicationUri from the session diagnostics for the connecting application, when known.
+    /// </param>
     public readonly record struct AuthenticationContext(
         IUserIdentityTokenHandler TokenHandler,
         UserTokenPolicy UserTokenPolicy,
         EndpointDescription EndpointDescription,
-        IServiceMessageContext MessageContext);
+        IServiceMessageContext MessageContext,
+        Certificate? ChannelCertificate = null,
+        string? ChannelApplicationUri = null);
 
     /// <summary>
     /// Validates a single OPC UA user identity token type / profile.

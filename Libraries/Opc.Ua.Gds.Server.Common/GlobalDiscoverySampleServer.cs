@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -102,8 +103,15 @@ namespace Opc.Ua.Gds.Server
         {
             base.OnServerStarted(server);
 
+            server.IdentityRegistry.Register(new AnonymousAuthenticator());
             server.IdentityRegistry.Register(new GlobalDiscoverySampleUserNameAuthenticator(this));
             server.IdentityRegistry.Register(new GlobalDiscoverySampleX509Authenticator(this));
+            server.IdentityRegistry.RegisterAugmenter(
+                new GdsApplicationSelfAdminProvider(
+                    m_database,
+                    server.Telemetry.CreateLogger<GdsApplicationSelfAdminProvider>(),
+                    server.NamespaceUris,
+                    IsApplicationCertificateRegistered));
         }
 
         /// <summary>
@@ -191,35 +199,56 @@ namespace Opc.Ua.Gds.Server
                             new LocalizedText(info)));
                 }
 
-                // check for a user name token.
-                if (context.UserIdentity.TokenType == UserTokenType.UserName)
-                {
-                    lock (m_contextLock)
-                    {
-                        m_contexts.Add(context.RequestId, new ImpersonationContext());
-                    }
-                }
             }
 
             return context;
         }
 
-        /// <summary>
-        /// This method is called in a finally block at the end of request processing
-        /// (i.e. called even on exception).
-        /// </summary>
-        protected override void OnRequestComplete(OperationContext context)
+        private bool IsApplicationCertificateRegistered(Certificate applicationInstanceCertificate)
         {
-            lock (m_contextLock)
+            if (applicationInstanceCertificate == null)
             {
-                if (m_contexts.TryGetValue(
-                    context.RequestId,
-                    out _))
+                throw new ArgumentNullException(nameof(applicationInstanceCertificate));
+            }
+
+            GlobalDiscoveryServerConfiguration configuration =
+                Configuration!.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                ?? new GlobalDiscoveryServerConfiguration();
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.ApplicationCertificatesStorePath!);
+            using (ICertificateStore applicationsStore =
+                certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
+            {
+                using CertificateCollection matchingCerts = applicationsStore
+                    .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
+                    .GetAwaiter()
+                    .GetResult();
+
+                if (matchingCerts.Count == 0)
                 {
-                    m_contexts.Remove(context.RequestId);
+                    return false;
                 }
             }
-            base.OnRequestComplete(context);
+
+            certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.AuthoritiesStorePath!);
+            using (ICertificateStore authoritiesStore =
+                certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
+            {
+                IEnumerable<X509CRL> certificateRevocationLists = authoritiesStore
+                    .EnumerateCRLsAsync()
+                    .GetAwaiter()
+                    .GetResult();
+                foreach (X509CRL crl in certificateRevocationLists)
+                {
+                    if (crl.IsRevoked(applicationInstanceCertificate))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -403,8 +432,6 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];
-        private readonly Lock m_contextLock = new();
         private readonly IApplicationsDatabase m_database;
         private readonly ICertificateRequest m_request;
         private readonly ICertificateGroup m_certificateGroup;

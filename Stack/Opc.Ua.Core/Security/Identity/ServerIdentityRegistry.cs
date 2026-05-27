@@ -115,6 +115,32 @@ namespace Opc.Ua.Identity
         }
 
         /// <inheritdoc/>
+        public void RegisterAugmenter(IIdentityAugmenter augmenter)
+        {
+            if (augmenter == null)
+            {
+                throw new ArgumentNullException(nameof(augmenter));
+            }
+            lock (m_lock)
+            {
+                m_augmenters.Add(augmenter);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool UnregisterAugmenter(IIdentityAugmenter augmenter)
+        {
+            if (augmenter == null)
+            {
+                throw new ArgumentNullException(nameof(augmenter));
+            }
+            lock (m_lock)
+            {
+                return m_augmenters.Remove(augmenter);
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<AuthenticationResult> AuthenticateAsync(
             AuthenticationContext context,
             CancellationToken ct = default)
@@ -150,6 +176,28 @@ namespace Opc.Ua.Identity
 
                 if (result.Outcome != AuthenticationOutcome.NotHandled)
                 {
+                    if (result.Outcome == AuthenticationOutcome.Accepted && result.Identity != null)
+                    {
+                        IIdentityAugmenter[] augSnapshot;
+                        lock (m_lock)
+                        {
+                            augSnapshot = [.. m_augmenters];
+                        }
+
+                        IUserIdentity identity = result.Identity;
+                        foreach (IIdentityAugmenter augmenter in augSnapshot)
+                        {
+                            identity = await augmenter.AugmentAsync(identity, context, ct).ConfigureAwait(false);
+                            if (identity == null)
+                            {
+                                throw new InvalidOperationException(
+                                    $"IIdentityAugmenter '{augmenter.GetType().Name}' returned null; must return either the unchanged identity or a wrapped one.");
+                            }
+                        }
+
+                        return AuthenticationResult.Accept(identity);
+                    }
+
                     return result;
                 }
             }
@@ -167,5 +215,6 @@ namespace Opc.Ua.Identity
         private readonly Lock m_lock = new();
         private readonly Dictionary<string, IUserTokenAuthenticator> m_byKey = new(StringComparer.Ordinal);
         private readonly List<IUserTokenAuthenticator> m_order = [];
+        private readonly List<IIdentityAugmenter> m_augmenters = [];
     }
 }

@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests.Identity
         public async Task AuthenticateAsyncMustChangePasswordAcceptedAndActivationStatusHonoured()
         {
             var userDatabase = new LinqUserDatabase();
-            var userManagement = new UserManagementFacade(userDatabase);
+            using var userManagement = new UserManagementFacade(userDatabase);
             ServiceResult addResult = userManagement.AddUser(
                 "alice",
                 "password",

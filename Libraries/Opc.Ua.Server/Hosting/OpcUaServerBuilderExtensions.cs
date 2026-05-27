@@ -268,6 +268,45 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a server-side identity augmenter and adds it to the server registry on startup.
+        /// </summary>
+        public static IOpcUaServerBuilder AddIdentityAugmenter<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAugmenter>(
+                this IOpcUaServerBuilder builder)
+            where TAugmenter : class, IIdentityAugmenter
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddSingleton<TAugmenter>();
+            builder.Services.AddSingleton(new OpcUaServerIdentityAugmenterRegistration(
+                sp => sp.GetRequiredService<TAugmenter>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a server-side identity augmenter factory and adds it to the server registry on startup.
+        /// </summary>
+        public static IOpcUaServerBuilder AddIdentityAugmenter(
+            this IOpcUaServerBuilder builder,
+            Func<IServiceProvider, IIdentityAugmenter> factory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (factory is null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            builder.Services.AddSingleton(new OpcUaServerIdentityAugmenterRegistration(factory));
+            return builder;
+        }
+
+        /// <summary>
         /// Enables the OPC 10000-12 §8 resource-server KeyCredential push model.
         /// </summary>
         public static IOpcUaServerBuilder WithKeyCredentialPush(

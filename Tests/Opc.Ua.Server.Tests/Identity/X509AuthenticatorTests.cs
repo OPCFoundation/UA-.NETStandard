@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.Identity
             });
         }
 
-        private static AuthenticationContext CreateContext(IUserIdentityTokenHandler handler)
+        private static AuthenticationContext CreateContext(X509IdentityTokenHandler handler)
         {
             return new AuthenticationContext(
                 handler,

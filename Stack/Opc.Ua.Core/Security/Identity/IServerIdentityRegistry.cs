@@ -82,6 +82,16 @@ namespace Opc.Ua.Identity
         bool Unregister(IUserTokenAuthenticator authenticator);
 
         /// <summary>
+        /// Register an augmenter to run after a successful authenticator returns Accepted.
+        /// </summary>
+        void RegisterAugmenter(IIdentityAugmenter augmenter);
+
+        /// <summary>
+        /// Removes a previously-registered augmenter. Returns true when removed.
+        /// </summary>
+        bool UnregisterAugmenter(IIdentityAugmenter augmenter);
+
+        /// <summary>
         /// Dispatch the supplied <paramref name="context"/> to the
         /// matching authenticator. Returns
         /// <see cref="AuthenticationResult.NotHandled"/> when no

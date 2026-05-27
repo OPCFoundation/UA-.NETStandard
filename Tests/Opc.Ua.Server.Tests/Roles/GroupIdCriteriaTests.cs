@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
@@ -39,12 +40,15 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class GroupIdCriteriaTests
     {
+        private static readonly string[] s_engineeringLeadGroups = ["engineering-leads"];
+        private static readonly string[] s_operatorGroups = ["operators"];
+
         [Test]
         public void ResolveGrantedRoles_GroupClaimMatchingCriteria_GrantsRole()
         {
             AssertMessageContextCanBeCreated();
             using var manager = CreateManagerWithGroupRule("engineering-leads");
-            var identity = new ClaimsTestIdentity(groups: new[] { "engineering-leads" });
+            var identity = new ClaimsTestIdentity(groups: s_engineeringLeadGroups);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
 
@@ -56,7 +60,7 @@ namespace Opc.Ua.Server.Tests
         {
             AssertMessageContextCanBeCreated();
             using var manager = CreateManagerWithGroupRule("engineering-leads");
-            var identity = new ClaimsTestIdentity(groups: new[] { "operators" });
+            var identity = new ClaimsTestIdentity(groups: s_operatorGroups);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
 
@@ -80,7 +84,7 @@ namespace Opc.Ua.Server.Tests
         {
             AssertMessageContextCanBeCreated();
             using var manager = CreateManagerWithGroupRule("engineering-leads");
-            var identity = new ClaimsTestIdentity(groups: new string[0]);
+            var identity = new ClaimsTestIdentity(groups: Array.Empty<string>());
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
 

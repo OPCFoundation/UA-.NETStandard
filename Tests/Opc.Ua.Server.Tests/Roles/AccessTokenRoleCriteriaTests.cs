@@ -38,12 +38,14 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class AccessTokenRoleCriteriaTests
     {
+        private static readonly string[] s_engineerRoles = ["Engineer"];
+
         [Test]
         public void ResolveGrantedRoles_BareAccessTokenRoleMatchingCriteria_GrantsRole()
         {
             AssertMessageContextCanBeCreated();
             using var manager = CreateManagerWithRoleRule("Engineer");
-            var identity = new ClaimsTestIdentity(roles: new[] { "Engineer" });
+            var identity = new ClaimsTestIdentity(roles: s_engineerRoles);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
 
@@ -56,7 +58,7 @@ namespace Opc.Ua.Server.Tests
             AssertMessageContextCanBeCreated();
             using var manager = CreateManagerWithRoleRule("https://idp.example.com/Engineer");
             var identity = new ClaimsTestIdentity(
-                roles: new[] { "Engineer" },
+                roles: s_engineerRoles,
                 issuer: "https://idp.example.com");
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
@@ -70,7 +72,7 @@ namespace Opc.Ua.Server.Tests
             AssertMessageContextCanBeCreated();
             using var manager = CreateManagerWithRoleRule("https://idp.example.com/Engineer");
             var identity = new ClaimsTestIdentity(
-                roles: new[] { "Engineer" },
+                roles: s_engineerRoles,
                 issuer: "https://other-idp.example.com");
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
@@ -87,7 +89,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = CreateManagerWithRoleRule(grantedRoleCriteria);
             var identity = new ClaimsTestIdentity(
                 tokenType: UserTokenType.UserName,
-                roles: new[] { "Engineer" });
+                roles: s_engineerRoles);
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Engineer),
                 "Role criteria must read access-token role claims, not already-granted role NodeIds.");

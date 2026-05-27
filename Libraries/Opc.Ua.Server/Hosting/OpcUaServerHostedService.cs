@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
         private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
         private readonly IServiceProvider m_services;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
@@ -75,6 +76,7 @@ namespace Opc.Ua.Server.Hosting
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
             IServiceProvider services,
             ILogger<OpcUaServerHostedService> logger)
@@ -94,6 +96,8 @@ namespace Opc.Ua.Server.Hosting
             m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
             m_identityRegistrations = identityRegistrations ??
                 throw new ArgumentNullException(nameof(identityRegistrations));
+            m_augmenterRegistrations = augmenterRegistrations ??
+                throw new ArgumentNullException(nameof(augmenterRegistrations));
             m_keyCredentialPushSubjects = keyCredentialPushSubjects ??
                 throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
@@ -233,6 +237,7 @@ namespace Opc.Ua.Server.Hosting
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
+            RegisterIdentityAugmenters();
 
             foreach (string url in urls)
             {
@@ -284,6 +289,20 @@ namespace Opc.Ua.Server.Hosting
                     // validates one fixed IssuerUri through its resolver.
                     m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
                 }
+            }
+        }
+
+        private void RegisterIdentityAugmenters()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            foreach (OpcUaServerIdentityAugmenterRegistration registration in m_augmenterRegistrations)
+            {
+                m_server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+                    registration.CreateAugmenter(m_services));
             }
         }
 

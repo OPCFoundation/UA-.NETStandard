@@ -121,6 +121,73 @@ namespace Opc.Ua.Gds.Tests.Hosting
             }
         }
 
+        [Test]
+        public async Task AddIdentityAugmenterRegistersWithRunningGdsIdentityRegistry()
+        {
+            string testRoot = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                nameof(GdsServerHostedServiceTests),
+                Guid.NewGuid().ToString("N"));
+            string pkiRoot = Path.Combine(testRoot, "pki");
+            Directory.CreateDirectory(testRoot);
+
+            var services = new ServiceCollection();
+            var authenticator = new StubAuthenticator();
+            var augmenter = new StubAugmenter();
+            services.AddLogging();
+            services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
+            services.AddSingleton<IApplicationsDatabase>(new StubApplicationsDatabase());
+            services.AddSingleton<ICertificateRequest>(new StubCertificateRequest());
+            services.AddSingleton<ICertificateGroup>(new StubCertificateGroup());
+            services.AddSingleton<IUserDatabase>(new StubUserDatabase());
+
+            services.AddOpcUa()
+                .AddGdsServer(options =>
+                {
+                    options.ApplicationName = "GdsIdentityAugmenterRegistryTest";
+                    options.ApplicationUri = "urn:localhost:gds-identity-augmenter-registry-test";
+                    options.ProductUri = "urn:localhost:gds-identity-augmenter-registry-test:product";
+                    options.PkiRoot = pkiRoot;
+                    options.AutoAcceptUntrustedCertificates = true;
+                    options.IncludeUnsecurePolicyNone = true;
+                    options.EndpointUrls.Add(
+                        "opc.tcp://localhost:" +
+                        GetAvailablePort().ToString(CultureInfo.InvariantCulture) +
+                        "/GdsIdentityAugmenterRegistryTest");
+                })
+                .AddIdentityAuthenticator<StubAuthenticator>()
+                .AddIdentityAugmenter<StubAugmenter>();
+            services.AddSingleton(authenticator);
+            services.AddSingleton(augmenter);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var hostedService = (GdsServerHostedService)provider.GetServices<IHostedService>().Single();
+
+            try
+            {
+                await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+                AuthenticationResult result = await WaitForAuthenticationAsync(hostedService)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+                Assert.That(result.Identity, Is.SameAs(augmenter.Identity));
+                Assert.That(authenticator.CallCount, Is.EqualTo(1));
+                Assert.That(augmenter.CallCount, Is.EqualTo(1));
+                Assert.That(augmenter.InputIdentity, Is.SameAs(authenticator.Identity));
+            }
+            finally
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await hostedService.StopAsync(cts.Token).ConfigureAwait(false);
+
+                if (Directory.Exists(testRoot))
+                {
+                    Directory.Delete(testRoot, recursive: true);
+                }
+            }
+        }
+
         private static async Task<AuthenticationResult> WaitForAuthenticationAsync(
             GdsServerHostedService hostedService)
         {
@@ -162,7 +229,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
         private static AuthenticationContext CreateAuthenticationContext(
             IServiceMessageContext messageContext)
         {
-            var userTokenPolicy = new UserTokenPolicy(UserTokenType.Anonymous);
+            var handler = new IssuedIdentityTokenHandler(
+                Profiles.JwtUserToken,
+                new byte[] { 0x01 });
+            var userTokenPolicy = new UserTokenPolicy(UserTokenType.IssuedToken);
             var endpointDescription = new EndpointDescription
             {
                 SecurityMode = MessageSecurityMode.None,
@@ -170,7 +240,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             };
 
             return new AuthenticationContext(
-                new AnonymousIdentityTokenHandler(),
+                handler,
                 userTokenPolicy,
                 endpointDescription,
                 messageContext);
@@ -196,9 +266,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public int CallCount { get; private set; }
 
-            public UserTokenType TokenType => UserTokenType.Anonymous;
+            public UserTokenType TokenType => UserTokenType.IssuedToken;
 
-            public string IssuedTokenProfileUri => null;
+            public string IssuedTokenProfileUri => Profiles.JwtUserToken;
 
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,
@@ -206,6 +276,25 @@ namespace Opc.Ua.Gds.Tests.Hosting
             {
                 CallCount++;
                 return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(Identity));
+            }
+        }
+
+        private sealed class StubAugmenter : IIdentityAugmenter
+        {
+            public IUserIdentity Identity { get; } = new UserIdentity();
+
+            public int CallCount { get; private set; }
+
+            public IUserIdentity InputIdentity { get; private set; }
+
+            public ValueTask<IUserIdentity> AugmentAsync(
+                IUserIdentity identity,
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                CallCount++;
+                InputIdentity = identity;
+                return new ValueTask<IUserIdentity>(Identity);
             }
         }
 

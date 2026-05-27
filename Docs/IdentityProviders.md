@@ -197,10 +197,11 @@ is registered.
 
 `IGdsServerBuilder` forwards every identity-related extension to the
 underlying server builder (`ConfigureRoles`,
-`AddIdentityAuthenticator<T>`, `AddDefaultIdentityAuthenticators`,
-`AddJwtIssuer` — each with both `Action<>` and `IConfiguration`
-overloads). A GDS host configures identity the same way as a regular
-server, just on the GDS builder:
+`AddIdentityAuthenticator<T>`, `AddIdentityAugmenter<T>`,
+`AddDefaultIdentityAuthenticators`, `AddJwtIssuer` — each with both
+`Action<>` and `IConfiguration` overloads where applicable). A GDS host
+configures identity the same way as a regular server, just on the GDS
+builder:
 
 ```csharp
 services.AddOpcUa()
@@ -208,9 +209,11 @@ services.AddOpcUa()
     .AddDefaultIdentityAuthenticators(opt => opt.EnableJwt = false);
 ```
 
-`GdsServerHostedService` consumes the forwarded authenticator
-registrations during start-up and registers them with the same identity
-registry used by the regular hosted server.
+`GdsServerHostedService` consumes the forwarded authenticator and
+augmenter registrations during start-up and registers them with the same
+identity registry used by the regular hosted server. The GDS default
+authenticator helper also registers `GdsApplicationSelfAdminProvider` so
+SelfAdmin elevation works without custom host code.
 
 ### Configuration reference
 
@@ -268,6 +271,7 @@ separate so each layer can be replaced independently:
 | Layer | Interface | What it does | What it must NOT do |
 |---|---|---|---|
 | **Authentication** | `IUserTokenAuthenticator` | Validates a single token type / profile (password lookup, X.509 trust, JWT signature). Produces an `IUserIdentity`. | Pre-grant Part 18 role NodeIds. |
+| **Augmentation** | `IIdentityAugmenter` | Runs after an accepted authenticator and may wrap the identity with deployment-specific bindings such as GDS ApplicationSelfAdmin. | Validate a token or run after rejection. |
 | **Claim extraction** | `IIdentityClaims` (probe interface on the returned identity) | Surfaces OIDC / JWT / X.509 claims so role mapping has data to work with. | Decide which roles get granted. |
 | **Role mapping** | `IRoleManager.ResolveGrantedRoles` (already exists, see [Role-Based Security](RoleBasedUserManagement.md)) | Applies OPC UA Part 18 §4.4 identity-mapping rules to the claims and emits the granted role NodeIds. | Authenticate the token. |
 
@@ -519,6 +523,41 @@ Authenticators are tried in registration order. For
 tokens; a SAML or Kerberos authenticator on the same channel is left
 to handle the rest. Register with `IssuedTokenProfileUri = null` for a
 catch-all (useful when bridging to a legacy `ITokenValidator`).
+
+### Identity augmenters
+
+`IIdentityAugmenter` is a post-authentication hook. It runs only after
+an authenticator returns `AuthenticationOutcome.Accepted`; `NotHandled`
+and `Rejected` skip the chain. Augmenters may return the same identity
+or wrap it with extra deployment-specific state.
+
+```csharp
+public sealed class MyTenantAugmenter : IIdentityAugmenter
+{
+    public ValueTask<IUserIdentity> AugmentAsync(
+        IUserIdentity identity,
+        AuthenticationContext context,
+        CancellationToken ct = default)
+    {
+        // Inspect context.ChannelCertificate, context.ChannelApplicationUri,
+        // claims, or deployment state, then return identity or a wrapper.
+        return new ValueTask<IUserIdentity>(identity);
+    }
+}
+
+services.AddOpcUa()
+    .AddServer(o => o.ApplicationUri = "urn:my-server")
+    .AddIdentityAugmenter<MyTenantAugmenter>();
+
+// Manual host alternative:
+server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+    new MyTenantAugmenter());
+```
+
+The GDS server ships `GdsApplicationSelfAdminProvider`, an augmenter
+that implements OPC 10000-12 §7.2 ApplicationSelfAdmin by matching the
+secure-channel ApplicationInstance certificate to the registered
+application certificate.
 
 ### Claims surface — wiring `IdentityCriteriaType.GroupId` and `Role`
 

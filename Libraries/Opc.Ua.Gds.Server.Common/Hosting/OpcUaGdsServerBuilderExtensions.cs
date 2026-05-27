@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua;
@@ -227,6 +228,67 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a GDS server-side identity augmenter and adds it to the
+        /// server registry on startup.
+        /// </summary>
+        /// <typeparam name="TAugmenter">The augmenter type.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddIdentityAugmenter<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAugmenter>(
+                this IGdsServerBuilder gdsBuilder)
+            where TAugmenter : class, IIdentityAugmenter
+        {
+            OpcUaServerBuilderExtensions.AddIdentityAugmenter<TAugmenter>(
+                ToServerBuilder(gdsBuilder));
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a GDS server-side identity augmenter factory and adds it
+        /// to the server registry on startup.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="factory">Factory that materialises the augmenter.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="factory"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddIdentityAugmenter(
+            this IGdsServerBuilder gdsBuilder,
+            Func<IServiceProvider, IIdentityAugmenter> factory)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (factory is null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            OpcUaServerBuilderExtensions.AddIdentityAugmenter(serverBuilder, factory);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers the default GDS ApplicationSelfAdmin identity augmenter.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddGdsApplicationSelfAdminProvider(
+            this IGdsServerBuilder gdsBuilder)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            OpcUaServerBuilderExtensions.AddIdentityAugmenter(
+                serverBuilder,
+                sp => new GdsApplicationSelfAdminProvider(
+                    sp.GetRequiredService<IApplicationsDatabase>(),
+                    sp.GetRequiredService<ILogger<GdsApplicationSelfAdminProvider>>()));
+            return gdsBuilder;
+        }
+
+        /// <summary>
         /// Registers the built-in GDS identity authenticators that can be
         /// resolved from DI and server state.
         /// </summary>
@@ -249,6 +311,7 @@ namespace Microsoft.Extensions.DependencyInjection
             OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
                 serverBuilder,
                 configure);
+            AddGdsApplicationSelfAdminProvider(gdsBuilder);
             return gdsBuilder;
         }
 
@@ -299,6 +362,7 @@ namespace Microsoft.Extensions.DependencyInjection
             OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
                 serverBuilder,
                 section);
+            AddGdsApplicationSelfAdminProvider(gdsBuilder);
             return gdsBuilder;
         }
 

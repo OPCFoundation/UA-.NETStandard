@@ -68,6 +68,7 @@ namespace Opc.Ua.Gds.Server.Hosting
         private readonly ICertificateGroup m_certificateGroup;
         private readonly IUserDatabase m_userDatabase;
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
         private readonly IServiceProvider m_services;
         private readonly IAccessTokenProvider? m_accessTokenProvider;
         private readonly AuthorizationServiceManager? m_authorizationServiceManager;
@@ -92,6 +93,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IServiceProvider services,
             ILogger<GdsServerHostedService> logger,
             IAccessTokenProvider? accessTokenProvider = null,
@@ -115,6 +117,8 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
             m_identityRegistrations = identityRegistrations ??
                 throw new ArgumentNullException(nameof(identityRegistrations));
+            m_augmenterRegistrations = augmenterRegistrations ??
+                throw new ArgumentNullException(nameof(augmenterRegistrations));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_accessTokenProvider = accessTokenProvider;
@@ -207,6 +211,7 @@ namespace Opc.Ua.Gds.Server.Hosting
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
+            RegisterIdentityAugmenters();
 
             foreach (string url in urls)
             {
@@ -243,6 +248,20 @@ namespace Opc.Ua.Gds.Server.Hosting
                     // validates one fixed IssuerUri through its resolver.
                     m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
                 }
+            }
+        }
+
+        private void RegisterIdentityAugmenters()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            foreach (OpcUaServerIdentityAugmenterRegistration registration in m_augmenterRegistrations)
+            {
+                m_server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+                    registration.CreateAugmenter(m_services));
             }
         }
 

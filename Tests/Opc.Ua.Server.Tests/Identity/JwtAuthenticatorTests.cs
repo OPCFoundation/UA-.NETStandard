@@ -215,6 +215,7 @@ namespace Opc.Ua.Server.Tests.Identity
             return "\"" + value + "\"";
         }
 
+#pragma warning disable CA2000 // IssuerVerificationKey owns verification keys; TODO: add ownership annotations when available.
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
             RSA publicKey = RSA.Create();
@@ -227,6 +228,7 @@ namespace Opc.Ua.Server.Tests.Identity
             ECDsa publicKey = ECDsa.Create(ecdsa.ExportParameters(false));
             return new IssuerVerificationKey(keyId, publicKey, "ES256");
         }
+#pragma warning restore CA2000
 
         private static string Base64UrlEncode(byte[] bytes)
         {

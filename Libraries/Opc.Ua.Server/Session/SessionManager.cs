@@ -655,50 +655,75 @@ namespace Opc.Ua.Server
                 TokenType = newIdentity.TokenType
             };
 
-            var authCtx = new AuthenticationContext(
-                newIdentity,
-                policy,
-                endpointDescription,
-                m_server.MessageContext);
-
-            AuthenticationResult authResult = await m_server.IdentityRegistry
-                .AuthenticateAsync(authCtx, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (authResult.Outcome == AuthenticationOutcome.Accepted)
+            Certificate? channelCert = null;
+            try
             {
-                return (authResult.Identity, authResult.Identity, null);
-            }
-
-            if (authResult.Outcome == AuthenticationOutcome.Rejected)
-            {
-                return (
-                    null,
-                    null,
-                    authResult.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
-            }
-
-            // check if the application has a callback which validates the identity tokens.
-            lock (m_eventLock)
-            {
-                if (m_ImpersonateUser != null)
+                string? channelAppUri = null;
+                try
                 {
-                    var args = new ImpersonateEventArgs(
-                        newIdentity,
-                        userTokenPolicy,
-                        endpointDescription);
-                    m_ImpersonateUser(session, args);
-
-                    if (ServiceResult.IsBad(args.IdentityValidationError))
+                    Certificate? rawCert = session.ClientCertificate;
+                    if (rawCert != null)
                     {
-                        return (null, null, args.IdentityValidationError);
+                        channelCert = Certificate.FromRawData(rawCert.RawData);
                     }
-
-                    return (args.Identity, args.EffectiveIdentity, null);
+                    channelAppUri = session.SessionDiagnostics?.ClientDescription?.ApplicationUri;
                 }
-            }
+                catch (Exception ex)
+                {
+                    m_logger.LogDebug(ex, "Failed to populate channel context for authentication.");
+                }
 
-            return (null, null, null);
+                var authCtx = new AuthenticationContext(
+                    newIdentity,
+                    policy,
+                    endpointDescription,
+                    m_server.MessageContext,
+                    channelCert,
+                    channelAppUri);
+
+                AuthenticationResult authResult = await m_server.IdentityRegistry
+                    .AuthenticateAsync(authCtx, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (authResult.Outcome == AuthenticationOutcome.Accepted)
+                {
+                    return (authResult.Identity, authResult.Identity, null);
+                }
+
+                if (authResult.Outcome == AuthenticationOutcome.Rejected)
+                {
+                    return (
+                        null,
+                        null,
+                        authResult.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+                }
+
+                // check if the application has a callback which validates the identity tokens.
+                lock (m_eventLock)
+                {
+                    if (m_ImpersonateUser != null)
+                    {
+                        var args = new ImpersonateEventArgs(
+                            newIdentity,
+                            userTokenPolicy,
+                            endpointDescription);
+                        m_ImpersonateUser(session, args);
+
+                        if (ServiceResult.IsBad(args.IdentityValidationError))
+                        {
+                            return (null, null, args.IdentityValidationError);
+                        }
+
+                        return (args.Identity, args.EffectiveIdentity, null);
+                    }
+                }
+
+                return (null, null, null);
+            }
+            finally
+            {
+                channelCert?.Dispose();
+            }
         }
 
         /// <summary>

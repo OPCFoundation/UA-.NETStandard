@@ -49,6 +49,8 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 |-----------------------------------------------|--------------------------|----------------------------------|
 | `AddDefaultIdentityAuthenticators(...)`       | server, gds              | `OpcUa:Server:Identity:Defaults` |
 | `AddIdentityAuthenticator<T>()`               | server, gds              | —                                |
+| `AddIdentityAugmenter<T>()`                   | server, gds              | —                                |
+| `AddGdsApplicationSelfAdminProvider()`        | gds                      | —                                |
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
 | `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
 | `WithKeyCredentialPush(...)`                  | server                   | —                                |
@@ -290,6 +292,7 @@ the hosted service falls back to a single `Anonymous` policy.
 |---|---|
 | `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
+| `AddIdentityAugmenter<TAugmenter>()` | Registers a single custom `IIdentityAugmenter` implementation. The hosted service runs it after accepted authentications. |
 | `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
 | `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
 | `WithKeyCredentialPush(Action<KeyCredentialPushOptions>?)` | Enables the Part 12 §8 resource-server Push binding and registers an `IKeyCredentialStore` if none is supplied. |
@@ -596,6 +599,10 @@ services
 
 `Action<>` and `IConfiguration` overloads are available for
 `ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+`AddIdentityAugmenter<T>()` registers post-authentication identity
+augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
+OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
+`AddDefaultIdentityAuthenticators(...)` helper.
 `WithAuthorizationService(...)` enables the default `EcdsaJwtIssuer`;
 `WithAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
 for cloud KMS, HSM, or external token-service signing.

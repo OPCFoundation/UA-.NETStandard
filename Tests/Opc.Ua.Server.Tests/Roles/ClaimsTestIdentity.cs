@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests
 
         public string Subject { get; }
 
-        private static IReadOnlyDictionary<string, object> BuildClaims(
+        private static Dictionary<string, object> BuildClaims(
             IReadOnlyList<string> groups,
             IReadOnlyList<string> roles,
             string issuer,

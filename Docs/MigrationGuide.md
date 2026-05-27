@@ -717,7 +717,8 @@ functional while you migrate to the provider model.
 | Obsolete API | Replacement |
 |---|---|
 | `ISessionManager.ImpersonateUser` | Implement `IUserTokenAuthenticator` and register it with `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. |
-| `SessionManager.ImpersonateUser` | Same replacement; the event remains a fallback after the registry declines a token. |
+| `SessionManager.ImpersonateUser` | Same replacement; the event remains a fallback after the registry declines a token. SelfAdmin elevation logic should move to `IIdentityAugmenter`. |
+| SelfAdmin logic in an `ImpersonateUser` subscriber | Implement `IIdentityAugmenter` and register it with `services.AddIdentityAugmenter<T>()` or `IdentityRegistry.RegisterAugmenter(...)`. GDS hosts can use `AddGdsApplicationSelfAdminProvider()`. |
 | `ManagedSessionOptions.Identity` | Set `ManagedSessionOptions.IdentityProvider` so long-lived sessions can reacquire expiring identities. |
 | `AuthorizationServiceClient.RequestAccessTokenAsync` | Use `StartRequestTokenAsync` followed by `FinishRequestTokenAsync`. |
 | `Opc.Ua.Gds.Server.IAccessTokenProvider.RequestAccessTokenAsync` | Implement `StartRequestTokenAsync` and `FinishRequestTokenAsync`; keep the legacy method as a compatibility shim if you serve v1.04 clients. |
@@ -776,6 +777,36 @@ Repeat the pattern per token type: `UserTokenType.UserName`,
 `UserTokenType.Certificate`, `UserTokenType.IssuedToken` with
 `IssuedTokenProfileUri = Profiles.JwtUserToken`, or a vendor profile such
 as the experimental KeyCredential bridge.
+
+#### SelfAdmin elevation → identity augmenters
+
+OPC 10000-12 §7.2 ApplicationSelfAdmin now flows through the identity
+augmenter chain after an authenticator accepts the user token. Legacy
+`ImpersonateUser` subscribers that only layered SelfAdmin onto an already
+accepted identity should move that logic to a custom `IIdentityAugmenter`:
+
+```csharp
+public sealed class MySelfAdminAugmenter : IIdentityAugmenter
+{
+    public ValueTask<IUserIdentity> AugmentAsync(
+        IUserIdentity identity,
+        AuthenticationContext context,
+        CancellationToken ct = default)
+    {
+        // Match context.ChannelCertificate / ChannelApplicationUri to
+        // deployment state, then return identity or a wrapper.
+        return new ValueTask<IUserIdentity>(identity);
+    }
+}
+
+services.AddOpcUa()
+    .AddServer(o => o.ApplicationUri = "urn:example:server")
+    .AddIdentityAugmenter<MySelfAdminAugmenter>();
+```
+
+GDS servers can use the built-in `GdsApplicationSelfAdminProvider` via
+`AddGdsApplicationSelfAdminProvider()`; the GDS default authenticator
+helper registers it automatically.
 
 #### `ManagedSessionOptions.Identity` → `IdentityProvider`
 

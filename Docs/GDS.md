@@ -219,7 +219,7 @@ public class EstCertificateGroup : ICertificateGroup
 
 Extend `IUserDatabase` to support the `ApplicationAdmin` role
 (OPC 10000-12 §7.2). The GDS sample server automatically detects
-`IGdsUserDatabase` at impersonation time:
+`IGdsUserDatabase` during username authentication:
 
 ```csharp
 public class MyGdsUserDatabase : LinqUserDatabase, IGdsUserDatabase
@@ -287,6 +287,29 @@ public class FileConfigurationDataStore : IConfigurationDataStore
 | `ApplicationSelfAdmin` | Manage own application's registration |
 | `ApplicationAdmin` | Manage a configured set of applications |
 
+### ApplicationSelfAdmin Privilege
+
+`GdsApplicationSelfAdminProvider` grants `GdsRole.ApplicationSelfAdmin`
+when the secure-channel client certificate matches a certificate stored
+for the registered `ApplicationRecordDataType` found by the channel
+ApplicationUri. The provider is an `IIdentityAugmenter`, so it layers
+SelfAdmin on top of any accepted identity instead of using a custom
+`ImpersonateUser` callback.
+
+For DI-hosted GDS servers the provider is registered with the symmetric
+builder extension:
+
+```csharp
+services.AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddDefaultIdentityAuthenticators(opt => opt.EnableJwt = false)
+    .AddGdsApplicationSelfAdminProvider();
+```
+
+`AddDefaultIdentityAuthenticators(...)` on `IGdsServerBuilder` also
+adds this provider so standard GDS hosts get OPC 10000-12 §7.2
+SelfAdmin behavior automatically.
+
 ### ApplicationAdmin Privilege
 
 The `ApplicationAdmin` role allows a user to administer a specific
@@ -298,7 +321,7 @@ set of applications (not all applications like `DiscoveryAdmin`).
    `IUserDatabase.CreateUser()`
 2. Implement `IGdsUserDatabase.GetAdministeredApplicationIds()` to
    return the `ApplicationId`s the user may administer
-3. During impersonation, `GlobalDiscoverySampleServer` constructs a
+3. During username authentication, `GlobalDiscoverySampleServer` constructs a
    `GdsRoleBasedIdentity` with `AdministeredApplicationIds` populated
 4. `AuthorizationHelper.CheckApplicationAdminPrivilege()` verifies
    the target application is in the user's administered set
