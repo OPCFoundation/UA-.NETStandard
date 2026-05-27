@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
 
@@ -11,6 +12,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class LinqUserDatabaseTests
     {
+        private static readonly string[] s_createdUsers = ["TestUser1", "TestUser2"];
+
         [Test]
         public void CreateInvalidUser()
         {
@@ -130,7 +133,7 @@ namespace Opc.Ua.Server.Tests
             IReadOnlyList<string> userNames = usersDb.GetUserNames();
 
             // Assert
-            Assert.That(userNames, Is.EquivalentTo(new[] { "TestUser1", "TestUser2" }));
+            Assert.That(userNames, Is.EquivalentTo(s_createdUsers));
         }
     }
 }

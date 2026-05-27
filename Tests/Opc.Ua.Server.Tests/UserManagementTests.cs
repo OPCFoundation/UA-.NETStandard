@@ -48,6 +48,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class UserManagementTests
     {
+        private static readonly string[] s_defaultUserNames = ["alice", "bob"];
+
         private static UserManagementImpl CreateManager()
         {
             return new UserManagementImpl(
@@ -78,19 +80,19 @@ namespace Opc.Ua.Server.Tests
             using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
 
             IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
-            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "alice", "bob" }));
+            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(s_defaultUserNames));
             Assert.That(users.All(u => u.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
         }
 
         [Test]
         public void SnapshotUsers_StartsWithAllCustomDatabaseUsers()
         {
-            var database = new TestUserDatabase(["alice", "bob"]);
+            var database = new TestUserDatabase(s_defaultUserNames);
 
             using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
 
             IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
-            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "alice", "bob" }));
+            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(s_defaultUserNames));
             Assert.That(users.All(u => u.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
         }
 
@@ -480,7 +482,7 @@ namespace Opc.Ua.Server.Tests
                 m_userNames = userNames;
             }
 
-            public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
+            public bool CreateUser(string userName, System.ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 throw new System.NotSupportedException();
             }
@@ -490,7 +492,7 @@ namespace Opc.Ua.Server.Tests
                 throw new System.NotSupportedException();
             }
 
-            public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
+            public bool CheckCredentials(string userName, System.ReadOnlySpan<byte> password)
             {
                 throw new System.NotSupportedException();
             }
@@ -505,7 +507,10 @@ namespace Opc.Ua.Server.Tests
                 return m_userNames;
             }
 
-            public bool ChangePassword(string userName, ReadOnlySpan<byte> oldPassword, ReadOnlySpan<byte> newPassword)
+            public bool ChangePassword(
+                string userName,
+                System.ReadOnlySpan<byte> oldPassword,
+                System.ReadOnlySpan<byte> newPassword)
             {
                 throw new System.NotSupportedException();
             }
