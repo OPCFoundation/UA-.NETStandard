@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts
@@ -140,9 +141,9 @@ namespace Quickstarts
         public uint SessionLifeTime { get; set; } = 60 * 1000;
 
         /// <summary>
-        /// The user identity to use to connect to the server.
+        /// The user identity provider to use to connect to the server.
         /// </summary>
-        public IUserIdentity UserIdentity { get; set; } = new UserIdentity();
+        public IClientIdentityProvider IdentityProvider { get; set; } = new AnonymousIdentityProvider();
 
         /// <summary>
         /// Auto accept untrusted certificates.
@@ -263,6 +264,10 @@ namespace Quickstarts
                         endpointDescription!,
                         endpointConfiguration);
 
+                    IUserIdentity userIdentity = await CreateUserIdentityAsync(
+                        endpointDescription!,
+                        ct).ConfigureAwait(false);
+
                     // Create the session factory. - we could take it as parameter or as member
                     var sessionFactory = new DefaultSessionFactory(m_telemetry);
 
@@ -276,7 +281,7 @@ namespace Quickstarts
                             false,
                             m_configuration.ApplicationName!,
                             SessionLifeTime,
-                            UserIdentity,
+                            userIdentity,
                             default,
                             ct)
                         .ConfigureAwait(false);
@@ -315,6 +320,82 @@ namespace Quickstarts
                 Console.WriteLine($"Create Session Error : {ex.Message}");
                 return false;
             }
+        }
+
+        private async ValueTask<IUserIdentity> CreateUserIdentityAsync(
+            EndpointDescription endpointDescription,
+            CancellationToken ct)
+        {
+            var context = new IdentitySelectionContext(
+                endpointDescription,
+                endpointDescription.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>(),
+                m_configuration.CreateMessageContext());
+            UserTokenPolicy identityPolicy = SelectUserTokenPolicy(
+                IdentityProvider,
+                context,
+                endpointDescription);
+            IUserIdentity identity = await IdentityProvider
+                .GetIdentityAsync(identityPolicy, context, ct)
+                .ConfigureAwait(false);
+            identity.TokenHandler.Token.PolicyId = identityPolicy.PolicyId;
+            return identity;
+        }
+
+        private static UserTokenPolicy SelectUserTokenPolicy(
+            IClientIdentityProvider provider,
+            IdentitySelectionContext context,
+            EndpointDescription endpointDescription)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            string tokenSecurityPolicyUri =
+                endpointDescription.SecurityPolicyUri ?? SecurityPolicies.None;
+            UserTokenPolicy? sameEncryptionAlgorithm = null;
+            UserTokenPolicy? unspecifiedSecPolicy = null;
+
+            foreach (UserTokenPolicy policy in context.OfferedPolicies)
+            {
+                if (!provider.CanSatisfy(policy, context))
+                {
+                    continue;
+                }
+
+                if (policy.TokenType == UserTokenType.Anonymous ||
+                    string.Equals(
+                        policy.SecurityPolicyUri,
+                        tokenSecurityPolicyUri,
+                        StringComparison.Ordinal))
+                {
+                    return policy;
+                }
+
+                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
+                {
+                    unspecifiedSecPolicy ??= policy;
+                }
+                else if (HasSameEncryptionAlgorithm(
+                    policy.SecurityPolicyUri!,
+                    tokenSecurityPolicyUri))
+                {
+                    sameEncryptionAlgorithm ??= policy;
+                }
+            }
+
+            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
+        }
+
+        private static bool HasSameEncryptionAlgorithm(
+            string policySecurityPolicyUri,
+            string tokenSecurityPolicyUri)
+        {
+            return CryptoUtils.IsEccPolicy(policySecurityPolicyUri) ==
+                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri);
         }
 
         /// <summary>

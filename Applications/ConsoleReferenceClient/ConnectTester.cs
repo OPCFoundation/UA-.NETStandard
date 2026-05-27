@@ -41,6 +41,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts
@@ -131,7 +132,8 @@ namespace Quickstarts
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
-                var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
+                IClientIdentityProvider userNameProvider = await CreateUserNameProviderAsync(ct)
+                    .ConfigureAwait(false);
 
                 foreach (EndpointDescription ii in endpoints.ToArray()!)
                 {
@@ -145,27 +147,32 @@ namespace Quickstarts
 
                     string thumbprint = x509.Thumbprint!;
 
-                    UserIdentity certificateIdentity = await LoadUserCertificateAsync(
+                    IClientIdentityProvider certificateProvider = await LoadUserCertificateProviderAsync(
                         thumbprint,
                         "password",
                         ct).ConfigureAwait(false);
 
-                    var identities = new List<UserIdentity>
+                    var identityProviders = new List<IClientIdentityProvider>
                     {
-                        new()
+                        new AnonymousIdentityProvider()
                     };
 
                     if (!string.IsNullOrEmpty(kUserName))
                     {
-                        identities.Add(userNameidentity);
+                        identityProviders.Add(userNameProvider);
                     }
                     if (kSupportsX509)
                     {
-                        identities.Add(certificateIdentity);
+                        identityProviders.Add(certificateProvider);
                     }
 
-                    foreach (UserIdentity identity in identities)
+                    foreach (IClientIdentityProvider identityProvider in identityProviders)
                     {
+                        IUserIdentity identity = await CreateUserIdentityAsync(
+                            identityProvider,
+                            ii,
+                            ct).ConfigureAwait(false);
+
                         try
                         {
                             m_logger.LogWarning("{Line}", new string('=', 80));
@@ -257,7 +264,7 @@ namespace Quickstarts
             EndpointConfiguration endpointConfiguration,
             DefaultSessionFactory sessionFactory,
             EndpointDescription endpointDescription,
-            UserIdentity identity,
+            IUserIdentity identity,
             CancellationToken ct)
         {
             var endpoint = new ConfiguredEndpoint(
@@ -274,8 +281,12 @@ namespace Quickstarts
                     false,
                     m_configuration.ApplicationName!,
                     600000,
-                    //new UserIdentity(),
-                    endpointDescription.SecurityMode != MessageSecurityMode.None ? identity : new UserIdentity(),
+                    endpointDescription.SecurityMode != MessageSecurityMode.None
+                        ? identity
+                        : await CreateUserIdentityAsync(
+                            new AnonymousIdentityProvider(),
+                            endpointDescription,
+                            ct).ConfigureAwait(false),
                     default,
                     ct
                 )
@@ -313,7 +324,86 @@ namespace Quickstarts
             }
         }
 
-        private async Task<UserIdentity> LoadUserCertificateAsync(
+        private static async ValueTask<UserNamePasswordIdentityProvider> CreateUserNameProviderAsync(
+            CancellationToken ct)
+        {
+            var passwordStore = new InMemorySecretStore();
+            var passwordId = new SecretIdentifier(
+                "connect-tester-password",
+                passwordStore.StoreType);
+            await passwordStore
+                .SetAsync(passwordId, new UTF8Encoding(false).GetBytes(kPassword), ct)
+                .ConfigureAwait(false);
+            return new UserNamePasswordIdentityProvider(
+                kUserName,
+                new SecretRegistry(passwordStore),
+                passwordId);
+        }
+
+        private async ValueTask<IUserIdentity> CreateUserIdentityAsync(
+            IClientIdentityProvider provider,
+            EndpointDescription endpointDescription,
+            CancellationToken ct)
+        {
+            var context = new IdentitySelectionContext(
+                endpointDescription,
+                endpointDescription.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>(),
+                m_configuration.CreateMessageContext());
+            UserTokenPolicy identityPolicy = SelectUserTokenPolicy(
+                provider,
+                context,
+                endpointDescription);
+            IUserIdentity identity = await provider
+                .GetIdentityAsync(identityPolicy, context, ct)
+                .ConfigureAwait(false);
+            identity.TokenHandler.Token.PolicyId = identityPolicy.PolicyId;
+            return identity;
+        }
+
+        private static UserTokenPolicy SelectUserTokenPolicy(
+            IClientIdentityProvider provider,
+            IdentitySelectionContext context,
+            EndpointDescription endpointDescription)
+        {
+            string tokenSecurityPolicyUri =
+                endpointDescription.SecurityPolicyUri ?? SecurityPolicies.None;
+            UserTokenPolicy? sameEncryptionAlgorithm = null;
+            UserTokenPolicy? unspecifiedSecPolicy = null;
+
+            foreach (UserTokenPolicy policy in context.OfferedPolicies)
+            {
+                if (!provider.CanSatisfy(policy, context))
+                {
+                    continue;
+                }
+
+                if (policy.TokenType == UserTokenType.Anonymous ||
+                    string.Equals(
+                        policy.SecurityPolicyUri,
+                        tokenSecurityPolicyUri,
+                        StringComparison.Ordinal))
+                {
+                    return policy;
+                }
+
+                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
+                {
+                    unspecifiedSecPolicy ??= policy;
+                }
+                else if (CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) ==
+                    CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri))
+                {
+                    sameEncryptionAlgorithm ??= policy;
+                }
+            }
+
+            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
+        }
+
+        private async Task<IClientIdentityProvider> LoadUserCertificateProviderAsync(
             string thumbprint,
             string password,
             CancellationToken ct)
@@ -336,11 +426,10 @@ namespace Quickstarts
                 StoreType = store.StoreType
             };
 
-            return await UserIdentity.CreateAsync(
+            return new X509ClientIdentityProvider(
                 cid,
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
-                m_configuration.CertificateManager.CertificateProvider,
-                ct).ConfigureAwait(false);
+                m_configuration.CertificateManager.CertificateProvider);
 #else
             throw new NotSupportedException("User certificate identity requires net8.0 or greater.");
 #endif

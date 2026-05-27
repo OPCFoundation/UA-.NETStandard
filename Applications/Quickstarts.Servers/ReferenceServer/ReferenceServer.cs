@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Identity;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -428,9 +429,7 @@ namespace Quickstarts.ReferenceServer
         {
             base.OnServerStarted(server);
 
-            // request notifications when the user identity is changed. all valid users are accepted by default.
-            server.SessionManager.ImpersonateUser
-                += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
+            RegisterIdentityAuthenticators(server);
 
             try
             {
@@ -509,73 +508,6 @@ namespace Quickstarts.ReferenceServer
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Called when a client tries to change its user identity.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
-        {
-            // check for a user name token.
-
-            if (args.UserIdentityTokenHandler is UserNameIdentityTokenHandler userNameToken)
-            {
-                args.Identity = VerifyPassword(userNameToken);
-
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "Username Token Accepted: {Identity}",
-                    args.Identity?.DisplayName);
-
-                return;
-            }
-
-            // check for x509 user token.
-
-            if (args.UserIdentityTokenHandler is X509IdentityTokenHandler x509Token)
-            {
-                VerifyX509IdentityToken(x509Token);
-                // set AuthenticatedUser role for accepted certificate authentication
-                args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser],
-                    ServerInternal.MessageContext.NamespaceUris);
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "X509 Token Accepted: {Identity}",
-                    args.Identity.DisplayName);
-
-                return;
-            }
-
-            // check for issued identity token.
-            if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
-            {
-                // set AuthenticatedUser role for accepted identity token
-                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken)!,
-                    [Role.AuthenticatedUser],
-                    ServerInternal.MessageContext.NamespaceUris);
-                return;
-            }
-
-            // check for anonymous token.
-            if (args.UserIdentityTokenHandler is AnonymousIdentityTokenHandler or null)
-            {
-                // allow anonymous authentication and set Anonymous role for this authentication
-                var identity = new UserIdentity();
-                args.Identity = new RoleBasedIdentity(
-                    identity,
-                    [Role.Anonymous],
-                    ServerInternal.MessageContext.NamespaceUris);
-                return;
-            }
-
-            // unsupported identity token type.
-            throw ServiceResultException.Create(
-                StatusCodes.BadIdentityTokenInvalid,
-                "Not supported user token type: {0}.",
-                args.UserIdentityTokenHandler.TokenType);
         }
 
         /// <summary>
@@ -771,6 +703,159 @@ namespace Quickstarts.ReferenceServer
                         LoadServerProperties().ProductUri,
                         new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
+            }
+        }
+
+        private void RegisterIdentityAuthenticators(IServerInternal server)
+        {
+            server.IdentityRegistry.Register(new AnonymousAuthenticator());
+            server.IdentityRegistry.Register(new ReferenceServerUserNameAuthenticator(this));
+            server.IdentityRegistry.Register(new ReferenceServerX509Authenticator(this));
+            server.IdentityRegistry.Register(new ReferenceServerJwtAuthenticator(this));
+        }
+
+        private sealed class ReferenceServerUserNameAuthenticator : IUserTokenAuthenticator
+        {
+            private readonly ReferenceServer m_server;
+
+            public ReferenceServerUserNameAuthenticator(ReferenceServer server)
+            {
+                m_server = server ?? throw new ArgumentNullException(nameof(server));
+            }
+
+            public UserTokenType TokenType => UserTokenType.UserName;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (context.TokenHandler is not UserNameIdentityTokenHandler userNameToken)
+                {
+                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+                }
+
+                return new ValueTask<AuthenticationResult>(AuthenticateUserName(userNameToken));
+            }
+
+            private AuthenticationResult AuthenticateUserName(UserNameIdentityTokenHandler userNameToken)
+            {
+                try
+                {
+                    RoleBasedIdentity identity = m_server.VerifyPassword(userNameToken);
+                    m_server.m_logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Username Token Accepted: {Identity}",
+                        identity.DisplayName);
+                    return AuthenticationResult.Accept(identity);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return AuthenticationResult.Reject(ex.Result);
+                }
+            }
+        }
+
+        private sealed class ReferenceServerX509Authenticator : IUserTokenAuthenticator
+        {
+            private readonly ReferenceServer m_server;
+
+            public ReferenceServerX509Authenticator(ReferenceServer server)
+            {
+                m_server = server ?? throw new ArgumentNullException(nameof(server));
+            }
+
+            public UserTokenType TokenType => UserTokenType.Certificate;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (context.TokenHandler is not X509IdentityTokenHandler x509Token)
+                {
+                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+                }
+
+                return new ValueTask<AuthenticationResult>(AuthenticateX509(x509Token));
+            }
+
+            private AuthenticationResult AuthenticateX509(X509IdentityTokenHandler x509Token)
+            {
+                try
+                {
+                    m_server.VerifyX509IdentityToken(x509Token);
+                    var identity = new RoleBasedIdentity(
+                        new UserIdentity(x509Token),
+                        [Role.AuthenticatedUser],
+                        m_server.ServerInternal.MessageContext.NamespaceUris);
+                    m_server.m_logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "X509 Token Accepted: {Identity}",
+                        identity.DisplayName);
+                    return AuthenticationResult.Accept(identity);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return AuthenticationResult.Reject(ex.Result);
+                }
+            }
+        }
+
+        private sealed class ReferenceServerJwtAuthenticator : IUserTokenAuthenticator
+        {
+            private readonly ReferenceServer m_server;
+
+            public ReferenceServerJwtAuthenticator(ReferenceServer server)
+            {
+                m_server = server ?? throw new ArgumentNullException(nameof(server));
+            }
+
+            public UserTokenType TokenType => UserTokenType.IssuedToken;
+
+            public string? IssuedTokenProfileUri => Profiles.JwtUserToken;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (context.TokenHandler is not IssuedIdentityTokenHandler issuedToken ||
+                    issuedToken.IssuedTokenType != IssuedTokenType.JWT)
+                {
+                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+                }
+
+                return new ValueTask<AuthenticationResult>(AuthenticateJwt(issuedToken));
+            }
+
+            private AuthenticationResult AuthenticateJwt(IssuedIdentityTokenHandler issuedToken)
+            {
+                try
+                {
+                    IUserIdentity? identity = m_server.VerifyIssuedToken(issuedToken);
+                    if (identity == null)
+                    {
+                        return AuthenticationResult.Reject(
+                            new ServiceResult(
+                                StatusCodes.BadIdentityTokenRejected,
+                                new LocalizedText("No token validator is configured.")));
+                    }
+
+                    return AuthenticationResult.Accept(
+                        new RoleBasedIdentity(
+                            identity,
+                            [Role.AuthenticatedUser],
+                            m_server.ServerInternal.MessageContext.NamespaceUris));
+                }
+                catch (ServiceResultException ex)
+                {
+                    return AuthenticationResult.Reject(ex.Result);
+                }
             }
         }
 

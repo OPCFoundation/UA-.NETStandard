@@ -30,11 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
@@ -102,9 +102,8 @@ namespace Opc.Ua.Gds.Server
         {
             base.OnServerStarted(server);
 
-            // request notifications when the user identity is changed. all valid users
-            // are accepted by default.
-            server.SessionManager.ImpersonateUser += SessionManager_ImpersonateUser;
+            server.IdentityRegistry.Register(new GlobalDiscoverySampleUserNameAuthenticator(this));
+            server.IdentityRegistry.Register(new GlobalDiscoverySampleX509Authenticator(this));
         }
 
         /// <summary>
@@ -224,112 +223,6 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// Called when a client tries to change its user identity.
-        /// </summary>
-        private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
-        {
-            // check for a user name token
-            if (args.UserIdentityTokenHandler is UserNameIdentityTokenHandler userNameToken &&
-                VerifyPassword(userNameToken))
-            {
-                IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
-
-                // When the user database implements IGdsUserDatabase,
-                // look up the ApplicationIds the user may administer
-                // so that the ApplicationAdmin privilege is active.
-                IReadOnlyList<NodeId>? administeredAppIds =
-                    (m_userDatabase as IGdsUserDatabase)
-                        ?.GetAdministeredApplicationIds(userNameToken.UserName);
-
-                args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(userNameToken),
-                    roles,
-                    default,
-                    administeredAppIds,
-                    ServerInternal.MessageContext.NamespaceUris);
-                return;
-            }
-
-            // check for x509 user token.
-            if (args.UserIdentityTokenHandler is X509IdentityToken x509Token)
-            {
-                VerifyX509IdentityToken(x509Token);
-
-                // todo: is cert listed in admin list? then
-                // role = GdsRole.ApplicationAdmin;
-
-                m_logger.LogInformation(
-                    "X509 Token Accepted: {Identity} as {Role}",
-                    args.Identity.DisplayName,
-                    Role.AuthenticatedUser);
-                args.Identity = new GdsRoleBasedIdentity(
-                    new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser],
-                    ServerInternal.MessageContext.NamespaceUris);
-                return;
-            }
-
-            // check if applicable for application self admin privilege
-            if (session.ClientCertificate != null && VerifiyApplicationRegistered(session))
-            {
-                ImpersonateAsApplicationSelfAdmin(session, args);
-            }
-        }
-
-        /// <summary>
-        /// Verifies if an Application is registered with the provided certificate at the GDS
-        /// </summary>
-        /// <param name="session">the session</param>
-        private bool VerifiyApplicationRegistered(ISession session)
-        {
-            using var applicationInstanceCertificate =
-                Certificate.FromRawData(session.ClientCertificate.RawData);
-            bool applicationRegistered = false;
-
-            Uri? applicationUri = Utils.ParseUri(
-                session.SessionDiagnostics.ClientDescription.ApplicationUri);
-            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate!, applicationUri!);
-
-            // get access to GDS configuration section to find out ApplicationCertificatesStorePath
-            GlobalDiscoveryServerConfiguration configuration =
-                Configuration!.ParseExtension<GlobalDiscoveryServerConfiguration>()
-                ?? new GlobalDiscoveryServerConfiguration();
-            // check if application certificate is in the Store of the GDS
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.ApplicationCertificatesStorePath!);
-            using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
-            {
-                using CertificateCollection matchingCerts = applicationsStore
-                    .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
-                    .Result;
-
-                if (matchingCerts.Count > 0)
-                {
-                    applicationRegistered = true;
-                }
-            }
-            // skip revocation check if application is not registered
-            if (!applicationRegistered)
-            {
-                return false;
-            }
-            // check if application certificate is revoked
-            certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.AuthoritiesStorePath!);
-            using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
-            {
-                foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
-                {
-                    if (crl.IsRevoked(applicationInstanceCertificate))
-                    {
-                        applicationRegistered = false;
-                    }
-                }
-            }
-            return applicationRegistered;
-        }
-
-        /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -397,31 +290,117 @@ namespace Opc.Ua.Gds.Server
                 userTokenHandler.DecryptedPassword);
         }
 
-        /// <summary>
-        /// Impersonates the current Session as ApplicationSelfAdmin
-        /// </summary>
-        /// <param name="session">the current session</param>
-        /// <param name="args">the impersonateEventArgs</param>
-        private void ImpersonateAsApplicationSelfAdmin(ISession session, ImpersonateEventArgs args)
+        private sealed class GlobalDiscoverySampleUserNameAuthenticator : IUserTokenAuthenticator
         {
-            string? applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
-            ApplicationRecordDataType[]? application = m_database.FindApplications(applicationUri!);
-            if (application == null || application.Length != 1)
+            private readonly GlobalDiscoverySampleServer m_server;
+
+            public GlobalDiscoverySampleUserNameAuthenticator(GlobalDiscoverySampleServer server)
             {
-                m_logger.LogInformation(
-                    "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {ApplicationUri}",
-                    applicationUri);
-                return;
+                m_server = server ?? throw new ArgumentNullException(nameof(server));
             }
-            NodeId applicationId = application.FirstOrDefault()!.ApplicationId;
-            m_logger.LogInformation(
-                "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
-                applicationUri);
-            args.Identity = new GdsRoleBasedIdentity(
-                new UserIdentity(),
-                [GdsRole.ApplicationSelfAdmin],
-                applicationId,
-                ServerInternal.MessageContext.NamespaceUris);
+
+            public UserTokenType TokenType => UserTokenType.UserName;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (context.TokenHandler is UserNameIdentityTokenHandler userNameToken)
+                {
+                    return new ValueTask<AuthenticationResult>(AuthenticateUserName(userNameToken));
+                }
+
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
+
+            private AuthenticationResult AuthenticateUserName(
+                UserNameIdentityTokenHandler userNameToken)
+            {
+                try
+                {
+                    if (!m_server.VerifyPassword(userNameToken))
+                    {
+                        return AuthenticationResult.Reject(
+                            new ServiceResult(
+                                StatusCodes.BadUserAccessDenied,
+                                new LocalizedText("Invalid username or password.")));
+                    }
+
+                    IEnumerable<Role> roles = m_server.m_userDatabase.GetUserRoles(userNameToken.UserName);
+                    IReadOnlyList<NodeId>? administeredAppIds =
+                        (m_server.m_userDatabase as IGdsUserDatabase)
+                            ?.GetAdministeredApplicationIds(userNameToken.UserName);
+                    var identity = new GdsRoleBasedIdentity(
+                        new UserIdentity(userNameToken),
+                        roles,
+                        default,
+                        administeredAppIds,
+                        m_server.ServerInternal.MessageContext.NamespaceUris);
+                    return AuthenticationResult.Accept(identity);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return AuthenticationResult.Reject(ex.Result);
+                }
+                catch (ArgumentException ex)
+                {
+                    return AuthenticationResult.Reject(
+                        new ServiceResult(
+                            StatusCodes.BadIdentityTokenRejected,
+                            new LocalizedText(ex.Message)));
+                }
+            }
+        }
+
+        private sealed class GlobalDiscoverySampleX509Authenticator : IUserTokenAuthenticator
+        {
+            private readonly GlobalDiscoverySampleServer m_server;
+
+            public GlobalDiscoverySampleX509Authenticator(GlobalDiscoverySampleServer server)
+            {
+                m_server = server ?? throw new ArgumentNullException(nameof(server));
+            }
+
+            public UserTokenType TokenType => UserTokenType.Certificate;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (context.TokenHandler is not X509IdentityTokenHandler x509Token)
+                {
+                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+                }
+
+                return new ValueTask<AuthenticationResult>(AuthenticateX509(x509Token));
+            }
+
+            private AuthenticationResult AuthenticateX509(X509IdentityTokenHandler x509Token)
+            {
+                try
+                {
+                    m_server.VerifyX509IdentityToken((X509IdentityToken)x509Token.Token);
+                    var identity = new GdsRoleBasedIdentity(
+                        new UserIdentity(x509Token),
+                        [Role.AuthenticatedUser],
+                        m_server.ServerInternal.MessageContext.NamespaceUris);
+                    m_server.m_logger.LogInformation(
+                        "X509 Token Accepted: {Identity} as {Role}",
+                        identity.DisplayName,
+                        Role.AuthenticatedUser);
+                    return AuthenticationResult.Accept(identity);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return AuthenticationResult.Reject(ex.Result);
+                }
+            }
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

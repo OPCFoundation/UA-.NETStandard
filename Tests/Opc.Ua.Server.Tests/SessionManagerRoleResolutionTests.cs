@@ -362,7 +362,9 @@ namespace Opc.Ua.Server.Tests
 
             using TestableSessionManager manager = CreateManager();
             int legacyCalls = 0;
+#pragma warning disable CS0618 // Obsolete by P5: verifies registry-authenticated sessions skip the legacy event.
             manager.ImpersonateUser += (_, _) => legacyCalls++;
+#pragma warning restore CS0618
 
             Mock<ISession> sessionMock = CreateSessionMock();
             (IUserIdentity? identity, IUserIdentity? effectiveIdentity, ServiceResult? error) =
@@ -401,7 +403,9 @@ namespace Opc.Ua.Server.Tests
 
             using TestableSessionManager manager = CreateManager();
             int legacyCalls = 0;
+#pragma warning disable CS0618 // Obsolete by P5: verifies registry rejections skip the legacy event.
             manager.ImpersonateUser += (_, _) => legacyCalls++;
+#pragma warning restore CS0618
 
             (IUserIdentity? identity, IUserIdentity? effectiveIdentity, ServiceResult? error) =
                 await manager.PublicAuthenticateUserIdentityAsync(
@@ -426,12 +430,14 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             IUserIdentity legacyIdentity = CreateUserNameIdentity("legacy");
             int legacyCalls = 0;
+#pragma warning disable CS0618 // Obsolete by P5: verifies the legacy fallback remains functional.
             manager.ImpersonateUser += (_, args) =>
             {
                 legacyCalls++;
                 args.Identity = legacyIdentity;
                 args.EffectiveIdentity = legacyIdentity;
             };
+#pragma warning restore CS0618
 
             (IUserIdentity? identity, IUserIdentity? effectiveIdentity, ServiceResult? error) =
                 await manager.PublicAuthenticateUserIdentityAsync(

@@ -1223,6 +1223,10 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        [Obsolete(
+            "Replaced by IUserTokenAuthenticator + IServerIdentityRegistry. " +
+            "Register authenticators via services.AddIdentityAuthenticator<T>() or " +
+            "server.CurrentInstance.IdentityRegistry.Register(...). See Docs/IdentityProviders.md.")]
         public event ImpersonateEventHandler ImpersonateUser
         {
             add

@@ -413,6 +413,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `Variant.Value` -> use `Variant.TryGetValue`, cast, or `AsBoxedObject` if absolutely necessary.
 - `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGetValue`)
 - `new DataValue(StatusCode)` and `new DataValue(StatusCode, DateTimeUtc)` -> use `DataValue.FromStatusCode(StatusCode)` and `DataValue.FromStatusCode(StatusCode, DateTimeUtc)`. The constructors suffered from a C# overload resolution bug where `new DataValue(42)` silently resolved to `DataValue(StatusCode)` instead of `DataValue(Variant)`, losing the value.
+- `SessionManager.ImpersonateUser` -> register `IUserTokenAuthenticator` instances via `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. The event remains functional as a fallback, but is now `[Obsolete]`; the in-box ReferenceServer, GlobalDiscoverySampleServer, and ConsoleReferenceClient samples use the provider model.
 
 #### APIs permanently removed
 

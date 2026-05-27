@@ -1,20 +1,15 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-> **Status**: phases P1 – PI shipped. The full identity surface (server
+> **Status**: phases P1 – P5 and PI shipped. The full identity surface (server
 > `IServerIdentityRegistry` + default authenticators, client
 > `IClientIdentityProvider` + `Session.UpdateIdentityAsync` with
 > proactive refresh, Part 18 §4.4.4 `GroupId` / `Role` claim mapping,
-> in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, and full
+> in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, full
 > `Microsoft.Extensions.DependencyInjection` integration with
-> `appsettings.json` binding) is available. One known gap: the GDS
-> hosted service does not yet consume identity-authenticator
-> registrations deposited through the GDS forwarders — the forwarders
-> exist and tests verify they produce the correct DI registrations,
-> but `GdsServerHostedService` needs to read them at startup (tracked
-> alongside the P5–P8 reference-server migration). Reference-server
-> migration (P5), `AuthorizationServiceType` modernisation (P6),
-> KeyCredential push + bridge (P7), and sibling-package design (P8)
-> remain. See [Roadmap](#roadmap) below.
+> `appsettings.json` binding, and in-box sample migration) is available.
+> `AuthorizationServiceType` modernisation (P6), KeyCredential push +
+> bridge (P7), and sibling-package design (P8) remain. See
+> [Roadmap](#roadmap) below.
 
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
@@ -649,10 +644,11 @@ bool isValid = key.VerifySignature(signingInputBytes, signatureBytes);
 ### "I just want anonymous + username+password to start"
 
 That is the historical `SessionManager.ImpersonateUser` shape and it
-**still works** as-is. No code change required to keep using the event
-handler. The provider model is opt-in; mix-and-match is supported (P2
-will register the legacy event handler as a fallback authenticator
-automatically).
+**still works**, but the event is now `[Obsolete]`. New code should
+register `IUserTokenAuthenticator` instances via DI or
+`server.CurrentInstance.IdentityRegistry.Register(...)`; see the
+`ReferenceServer` and `GlobalDiscoverySampleServer` samples for the
+in-box migration pattern.
 
 ### "I want to validate Entra (Azure AD) JWTs"
 
@@ -711,7 +707,7 @@ A sibling package `Opc.Ua.Identity.AspNetCore` is reserved for this in P8.
 | **P3** | ✅ shipped (`4ecdeb53`) | `IRoleManager.ResolveGrantedRoles` probes `IIdentityClaims` to wire OPC 10000-18 §4.4.4 `GroupId` + `Role` criteria correctly (forced spec-correct migration — the previous behaviour was never released). |
 | **P4** | ✅ shipped (`df56442d`) | Client side: `Session.UpdateIdentityAsync(IClientIdentityProvider, ct)` + proactive refresh scheduler + `ManagedSessionOptions.IdentityProvider` (eager `Identity` setter is `[Obsolete]`). |
 | **PI** | ✅ shipped (`c8ff0d48`, `c4848919`, `fbc32fe8`, `1d5cfe7a`, `b113a5c1`) | DI integration completeness: `OpcUaServerIdentityOptions`, `OpcUaClientIdentityOptions`, `JwtIssuerOptions`, in-box `StaticIssuerKeyResolver` / `JwksIssuerKeyResolver`, `JwtBearerAccessTokenProvider`, `IConfiguration` overloads on `ConfigureRoles` / `AddDefaultIdentityAuthenticators` / `AddJwtIssuer`, GDS forwarders. Identity is now fully reachable from `appsettings.json`. |
-| **P5** | pending | `ReferenceServer` and `ConsoleReferenceClient` migrate to the provider model. `SessionManager.ImpersonateUser` event is marked `[Obsolete]` (functional but discouraged). |
+| **P5** | ✅ shipped | `ReferenceServer`, `GlobalDiscoverySampleServer`, and `ConsoleReferenceClient` migrated to the provider model. `SessionManager.ImpersonateUser` event is marked `[Obsolete]` (functional but discouraged). |
 | **P6** | pending | Modern Part 12 v1.05 `AuthorizationServiceType.StartRequestToken` / `FinishRequestToken` flow with `ITokenIssuer` backing. `RequestAccessToken` stays available but `[Obsolete]` (deprecated in v1.05 per spec). |
 | **P7** | pending | `KeyCredentialConfigurationFolderType` Push model wiring + experimental KeyCredential → IssuedIdentityToken bridge under a vendor profile URI. |
 | **P8** | pending | Sibling packages design notes for `Opc.Ua.Identity.{Entra,Oidc,Windows,AspNetCore}`. |
