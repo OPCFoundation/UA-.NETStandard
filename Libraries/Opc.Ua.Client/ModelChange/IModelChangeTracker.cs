@@ -51,17 +51,29 @@ namespace Opc.Ua.Client.ModelChange
     [Flags]
     public enum ModelChangeVerb : byte
     {
-        /// <summary>No change.</summary>
+        /// <summary>
+        /// No change.
+        /// </summary>
         None = 0,
-        /// <summary>A new node was added.</summary>
+        /// <summary>
+        /// A new node was added.
+        /// </summary>
         NodeAdded = 1,
-        /// <summary>An existing node was deleted.</summary>
+        /// <summary>
+        /// An existing node was deleted.
+        /// </summary>
         NodeDeleted = 2,
-        /// <summary>A reference was added.</summary>
+        /// <summary>
+        /// A reference was added.
+        /// </summary>
         ReferenceAdded = 4,
-        /// <summary>A reference was deleted.</summary>
+        /// <summary>
+        /// A reference was deleted.
+        /// </summary>
         ReferenceDeleted = 8,
-        /// <summary>The DataType attribute changed.</summary>
+        /// <summary>
+        /// The DataType attribute changed.
+        /// </summary>
         DataTypeChanged = 16,
     }
 
@@ -70,7 +82,9 @@ namespace Opc.Ua.Client.ModelChange
     /// </summary>
     public sealed class ModelChangedEventArgs : EventArgs
     {
-        /// <summary>The reported changes.</summary>
+        /// <summary>
+        /// The reported changes.
+        /// </summary>
         public IReadOnlyList<ModelChange> Changes { get; }
 
         /// <summary>
@@ -79,7 +93,9 @@ namespace Opc.Ua.Client.ModelChange
         /// </summary>
         public bool RequiresFullCacheInvalidation { get; }
 
-        /// <summary>Constructs new args.</summary>
+        /// <summary>
+        /// Constructs new args.
+        /// </summary>
         public ModelChangedEventArgs(
             IReadOnlyList<ModelChange> changes,
             bool requiresFullCacheInvalidation)
@@ -96,16 +112,24 @@ namespace Opc.Ua.Client.ModelChange
     /// </summary>
     public interface IModelChangeTracker : IAsyncDisposable
     {
-        /// <summary>Raised when model changes are observed.</summary>
+        /// <summary>
+        /// Raised when model changes are observed.
+        /// </summary>
         event EventHandler<ModelChangedEventArgs>? ModelChanged;
 
-        /// <summary>True once tracking has been started.</summary>
+        /// <summary>
+        /// True once tracking has been started.
+        /// </summary>
         bool IsTracking { get; }
 
-        /// <summary>Starts tracking model changes.</summary>
+        /// <summary>
+        /// Starts tracking model changes.
+        /// </summary>
         ValueTask StartTrackingAsync(CancellationToken ct = default);
 
-        /// <summary>Stops tracking model changes.</summary>
+        /// <summary>
+        /// Stops tracking model changes.
+        /// </summary>
         ValueTask StopTrackingAsync(CancellationToken ct = default);
     }
 }

@@ -302,12 +302,12 @@ namespace Opc.Ua.Client
         /// changes via <see cref="ManagedSession.ModelChange"/>.
         /// Disabled by default.
         /// </summary>
-        public ManagedSessionBuilder WithTrackModelChanges(
-            bool trackModelChanges = true)
+        public ManagedSessionBuilder WithModelChangeTracking(
+            bool enabled = true)
         {
             m_options = m_options with
             {
-                TrackModelChanges = trackModelChanges
+                ModelChangeTracking = enabled
             };
             return this;
         }
@@ -392,7 +392,7 @@ namespace Opc.Ua.Client
                 opts.PoolNotifications,
                 ct).ConfigureAwait(false);
 
-            if (opts.TrackModelChanges)
+            if (opts.ModelChangeTracking)
             {
                 await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
             }

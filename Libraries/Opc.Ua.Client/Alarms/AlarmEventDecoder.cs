@@ -53,6 +53,17 @@ namespace Opc.Ua.Client.Alarms
     /// <c>VibrationAlarmType</c> emits <c>VibrationAlarmTypeRecord</c>)
     /// automatically.
     /// </para>
+    /// <para>
+    /// <b>Future work (tracked separately):</b> the dispatch +
+    /// per-field marshalling logic in this class is hand-rolled.
+    /// A natural follow-up is to generate the decoder alongside the
+    /// records — emitting one <c>{Type}TypeRecordDecoder</c> per
+    /// generated event-record type with a <see cref="StandardFields"/>
+    /// equivalent and a typed populator. That would extend coverage
+    /// to vendor alarm subtypes automatically. The current hand-rolled
+    /// decoder covers the standard alarm/condition subtypes; vendor
+    /// types fall through as the closest standard subtype.
+    /// </para>
     /// </remarks>
     public static class AlarmEventDecoder
     {
@@ -146,38 +157,36 @@ namespace Opc.Ua.Client.Alarms
             }
 
             // Field indices in StandardFields
-            ByteString eventId = GetValue<ByteString>(fields, 0);
+            ByteString eventId = GetByteString(fields, 0);
             NodeId eventType = GetNodeId(fields, 1);
             NodeId sourceNode = GetNodeId(fields, 2);
-            string? sourceName = GetValue<string?>(fields, 3);
-            DateTime time = GetValue<DateTime>(fields, 4);
-            DateTime receiveTime = GetValue<DateTime>(fields, 5);
-            LocalizedText message = GetValue<LocalizedText>(fields, 6);
-            ushort severity = GetValue<ushort>(fields, 7);
-            string? conditionName = GetValue<string?>(fields, 8);
+            string? sourceName = GetString(fields, 3);
+            DateTime time = GetDateTime(fields, 4);
+            DateTime receiveTime = GetDateTime(fields, 5);
+            LocalizedText message = GetLocalizedText(fields, 6);
+            ushort severity = GetUInt16(fields, 7);
+            string? conditionName = GetString(fields, 8);
             NodeId branchId = GetNodeId(fields, 9);
-            bool retain = GetValue<bool>(fields, 10);
-            bool? enabledStateId = GetNullable<bool>(fields, 11);
-            StatusCode quality = GetValue<StatusCode>(fields, 12);
-            LocalizedText comment = GetValue<LocalizedText>(fields, 13);
-            string? clientUserId = GetValue<string?>(fields, 14);
+            bool retain = GetBool(fields, 10);
+            bool? enabledStateId = GetNullableBool(fields, 11);
+            StatusCode quality = GetStatusCode(fields, 12);
+            LocalizedText comment = GetLocalizedText(fields, 13);
+            string? clientUserId = GetString(fields, 14);
 
-            bool? ackedStateId = GetNullable<bool>(fields, 15);
-            bool? confirmedStateId = GetNullable<bool>(fields, 16);
+            bool? ackedStateId = GetNullableBool(fields, 15);
+            bool? confirmedStateId = GetNullableBool(fields, 16);
 
-            bool? activeStateId = GetNullable<bool>(fields, 17);
+            bool? activeStateId = GetNullableBool(fields, 17);
             NodeId inputNode = GetNodeId(fields, 18);
-            bool? suppressedStateId = GetNullable<bool>(fields, 19);
-            bool? outOfServiceStateId = GetNullable<bool>(fields, 20);
-            bool? latchedStateId = GetNullable<bool>(fields, 21);
-            bool? silenceStateId = GetNullable<bool>(fields, 22);
-            bool? suppressedOrShelved = GetNullable<bool>(fields, 23);
+            bool? suppressedStateId = GetNullableBool(fields, 19);
+            bool? outOfServiceStateId = GetNullableBool(fields, 20);
+            bool? latchedStateId = GetNullableBool(fields, 21);
+            bool? silenceStateId = GetNullableBool(fields, 22);
+            bool? suppressedOrShelved = GetNullableBool(fields, 23);
 
-            bool? dialogStateId = GetNullable<bool>(fields, 24);
-            LocalizedText prompt = GetValue<LocalizedText>(fields, 25);
-            LocalizedText[]? responseOptionSet = fields.Count > 26 && !fields[26].IsNull
-                ? fields[26].AsBoxedObject() as LocalizedText[]
-                : null;
+            bool? dialogStateId = GetNullableBool(fields, 24);
+            LocalizedText prompt = GetLocalizedText(fields, 25);
+            LocalizedText[]? responseOptionSet = GetLocalizedTextArray(fields, 26);
 
             // Determine record type
             if (dialogStateId.HasValue)
@@ -283,31 +292,31 @@ namespace Opc.Ua.Client.Alarms
             bool? suppressedOrShelved)
         {
             // LimitAlarm fields (27-30)
-            double? hhLimit = GetNullable<double>(fields, 27);
-            double? hLimit = GetNullable<double>(fields, 28);
-            double? lLimit = GetNullable<double>(fields, 29);
-            double? llLimit = GetNullable<double>(fields, 30);
+            double? hhLimit = GetNullableDouble(fields, 27);
+            double? hLimit = GetNullableDouble(fields, 28);
+            double? lLimit = GetNullableDouble(fields, 29);
+            double? llLimit = GetNullableDouble(fields, 30);
             // ExclusiveLimitAlarm fields (31-32) — index 31 is the
             // current limit state localized text, index 32 is the
             // limit-state Id NodeId. Generated record only exposes the
             // Id (matches the StateMachine model).
             NodeId currentLimitStateId = GetNodeId(fields, 32);
             // NonExclusiveLimitAlarm fields (33-36)
-            bool? hhStateId = GetNullable<bool>(fields, 33);
-            bool? hStateId = GetNullable<bool>(fields, 34);
-            bool? lStateId = GetNullable<bool>(fields, 35);
-            bool? llStateId = GetNullable<bool>(fields, 36);
+            bool? hhStateId = GetNullableBool(fields, 33);
+            bool? hStateId = GetNullableBool(fields, 34);
+            bool? lStateId = GetNullableBool(fields, 35);
+            bool? llStateId = GetNullableBool(fields, 36);
             // OffNormalAlarm field (37)
             NodeId normalState = GetNodeId(fields, 37);
             // CertificateExpirationAlarm fields (38-41)
-            DateTime? expirationDate = GetNullable<DateTime>(fields, 38);
-            double? expirationLimitMs = GetNullable<double>(fields, 39);
+            DateTime? expirationDate = GetNullableDateTime(fields, 38);
+            double? expirationLimitMs = GetNullableDouble(fields, 39);
             NodeId certificateType = GetNodeId(fields, 40);
-            ByteString certificate = GetValue<ByteString>(fields, 41);
+            ByteString certificate = GetByteString(fields, 41);
             // DiscrepancyAlarm fields (42-44)
             NodeId targetValueNode = GetNodeId(fields, 42);
-            double? expectedTime = GetNullable<double>(fields, 43);
-            double? tolerance = GetNullable<double>(fields, 44);
+            double? expectedTime = GetNullableDouble(fields, 43);
+            double? tolerance = GetNullableDouble(fields, 44);
 
             // Choose the most specific record type based on which subtype-
             // specific fields are populated.
@@ -445,52 +454,72 @@ namespace Opc.Ua.Client.Alarms
             };
         }
 
-        private static T GetValue<T>(IReadOnlyList<Variant> fields, int index)
-        {
-            if (index >= fields.Count || fields[index].IsNull)
-            {
-                return default!;
-            }
+        private static ByteString GetByteString(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out ByteString v)
+                ? v : default;
 
-            object? value = fields[index].AsBoxedObject();
-            if (value is T t)
-            {
-                return t;
-            }
+        private static string? GetString(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out string v)
+                ? v : null;
 
-            return default!;
-        }
+        private static DateTime GetDateTime(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out DateTimeUtc v)
+                ? (DateTime)v : default;
 
-        private static T? GetNullable<T>(IReadOnlyList<Variant> fields, int index)
-            where T : struct
+        private static LocalizedText GetLocalizedText(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out LocalizedText v)
+                ? v : LocalizedText.Null;
+
+        private static ushort GetUInt16(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out ushort v)
+                ? v : (ushort)0;
+
+        private static bool GetBool(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out bool v) && v;
+
+        private static StatusCode GetStatusCode(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out StatusCode v)
+                ? v : default;
+
+        private static bool? GetNullableBool(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
             {
                 return null;
             }
-
-            object? value = fields[index].AsBoxedObject();
-            if (value is T t)
-            {
-                return t;
-            }
-
-            return null;
+            return fields[index].TryGetValue(out bool v) ? v : null;
         }
 
-        private static NodeId GetNodeId(IReadOnlyList<Variant> fields, int index)
+        private static double? GetNullableDouble(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
             {
-                return NodeId.Null;
+                return null;
             }
-
-            object? value = fields[index].AsBoxedObject();
-            if (value is NodeId nodeId)
-            {
-                return nodeId;
-            }
-            return NodeId.Null;
+            return fields[index].TryGetValue(out double v) ? v : null;
         }
+
+        private static DateTime? GetNullableDateTime(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out DateTimeUtc v) ? (DateTime)v : null;
+        }
+
+        private static LocalizedText[]? GetLocalizedTextArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<LocalizedText> arr)
+                ? arr.ToArray() : null;
+        }
+
+        private static NodeId GetNodeId(IReadOnlyList<Variant> fields, int index)
+            => index < fields.Count && fields[index].TryGetValue(out NodeId v)
+                ? v : NodeId.Null;
     }
 }

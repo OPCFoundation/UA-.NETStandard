@@ -2459,8 +2459,8 @@ namespace Opc.Ua.Server
         /// <see cref="DeleteNodeAsync"/> to batch address-space changes
         /// per publish cycle.
         /// </summary>
-        protected Opc.Ua.Server.Alarms.ModelChangeAggregator ModelChangeAggregator { get; }
-            = new Opc.Ua.Server.Alarms.ModelChangeAggregator();
+        protected Opc.Ua.Server.NodeManager.ModelChangeAggregator ModelChangeAggregator { get; }
+            = new Opc.Ua.Server.NodeManager.ModelChangeAggregator();
 
         /// <summary>
         /// Gets or sets whether the framework automatically emits

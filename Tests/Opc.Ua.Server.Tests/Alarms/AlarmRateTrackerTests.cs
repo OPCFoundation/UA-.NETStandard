@@ -5,6 +5,7 @@
 using System;
 using NUnit.Framework;
 using Opc.Ua.Server.Alarms;
+using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server.Tests.Alarms
 {

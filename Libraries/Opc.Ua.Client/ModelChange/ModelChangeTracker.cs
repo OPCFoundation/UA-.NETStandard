@@ -34,7 +34,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.ModelChange
 {
@@ -142,7 +143,7 @@ namespace Opc.Ua.Client.ModelChange
             try
             {
                 EventFilter filter = BuildModelChangeFilter();
-                var options = new MItemOptions
+                var options = new MonitoringOptions
                 {
                     StartNodeId = ObjectIds.Server,
                     AttributeId = Attributes.EventNotifier,
@@ -195,8 +196,7 @@ namespace Opc.Ua.Client.ModelChange
             var changes = new List<ModelChange>();
             bool requiresFullInvalidation = false;
 
-            object? boxed = changesVariant.IsNull ? null : changesVariant.AsBoxedObject();
-            if (boxed is ExtensionObject[] extObjs)
+            if (changesVariant.TryGetValue(out ArrayOf<ExtensionObject> extObjs))
             {
                 foreach (ExtensionObject ext in extObjs)
                 {

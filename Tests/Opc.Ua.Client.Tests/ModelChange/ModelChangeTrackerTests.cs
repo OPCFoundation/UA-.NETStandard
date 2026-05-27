@@ -16,7 +16,8 @@ using NUnit.Framework;
 using Opc.Ua.Client.ModelChange;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Tests.ModelChange
 {
@@ -342,7 +343,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
             public async IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
                 NodeId notifierId,
                 EventFilter filter,
-                MItemOptions? options = null,
+                MonitoringOptions? options = null,
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
                 Interlocked.Increment(ref m_subscribeCallCount);
@@ -371,7 +372,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
 
             public async IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
                 NodeId nodeId,
-                MItemOptions? options = null,
+                MonitoringOptions? options = null,
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
                 await Task.Yield();
@@ -380,7 +381,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
 
             public async IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
                 IReadOnlyList<NodeId> nodeIds,
-                MItemOptions? options = null,
+                MonitoringOptions? options = null,
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
                 await Task.Yield();

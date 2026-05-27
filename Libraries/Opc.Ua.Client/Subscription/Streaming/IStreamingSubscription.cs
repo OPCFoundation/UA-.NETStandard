@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// </summary>
         IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             NodeId nodeId,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// </summary>
         IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             IReadOnlyList<NodeId> nodeIds,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
             NodeId notifierId,
             EventFilter filter,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default);
     }
 }

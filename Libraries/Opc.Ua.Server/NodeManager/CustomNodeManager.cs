@@ -2309,8 +2309,8 @@ namespace Opc.Ua.Server
         /// the address space outside the standard hooks, then call
         /// <see cref="EmitModelChange"/> to publish.
         /// </summary>
-        protected Opc.Ua.Server.Alarms.ModelChangeAggregator ModelChangeAggregator { get; }
-            = new Opc.Ua.Server.Alarms.ModelChangeAggregator();
+        protected Opc.Ua.Server.NodeManager.ModelChangeAggregator ModelChangeAggregator { get; }
+            = new Opc.Ua.Server.NodeManager.ModelChangeAggregator();
 
         /// <summary>
         /// Gets or sets whether the framework automatically emits

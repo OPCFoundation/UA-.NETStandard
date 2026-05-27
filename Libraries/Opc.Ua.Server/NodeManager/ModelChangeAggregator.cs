@@ -29,8 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
-namespace Opc.Ua.Server.Alarms
+namespace Opc.Ua.Server.NodeManager
 {
     /// <summary>
     /// Aggregates model change events that occur during a service call
@@ -41,11 +42,14 @@ namespace Opc.Ua.Server.Alarms
     /// Per Part 5 §6.4.32, servers should batch model changes per
     /// transaction or publish cycle rather than emitting one event per
     /// change. This aggregator collects entries safely from concurrent
-    /// callers and can be drained on the publish cycle boundary.
+    /// callers and can be drained on the publish cycle boundary. It
+    /// is used by every <c>CustomNodeManager</c> / <c>AsyncCustomNodeManager</c>
+    /// (not just alarm node managers) and lives in
+    /// <c>Opc.Ua.Server.NodeManager</c> to reflect its general scope.
     /// </remarks>
     public sealed class ModelChangeAggregator
     {
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private List<ModelChangeStructureDataType> m_pending = [];
 
         /// <summary>
@@ -190,17 +194,29 @@ namespace Opc.Ua.Server.Alarms
     [Flags]
     public enum ModelChangeVerbs : byte
     {
-        /// <summary>No change.</summary>
+        /// <summary>
+        /// No change.
+        /// </summary>
         None = 0,
-        /// <summary>A new node was added.</summary>
+        /// <summary>
+        /// A new node was added.
+        /// </summary>
         NodeAdded = 1,
-        /// <summary>An existing node was deleted.</summary>
+        /// <summary>
+        /// An existing node was deleted.
+        /// </summary>
         NodeDeleted = 2,
-        /// <summary>A reference was added.</summary>
+        /// <summary>
+        /// A reference was added.
+        /// </summary>
         ReferenceAdded = 4,
-        /// <summary>A reference was deleted.</summary>
+        /// <summary>
+        /// A reference was deleted.
+        /// </summary>
         ReferenceDeleted = 8,
-        /// <summary>The DataType attribute changed.</summary>
+        /// <summary>
+        /// The DataType attribute changed.
+        /// </summary>
         DataTypeChanged = 16,
     }
 }

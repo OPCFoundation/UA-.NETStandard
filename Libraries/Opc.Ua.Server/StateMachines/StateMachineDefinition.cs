@@ -53,10 +53,14 @@ namespace Opc.Ua.Server.StateMachines
             ElementNamespaceUri = elementNamespaceUri;
         }
 
-        /// <summary>The set of states declared on the state machine.</summary>
+        /// <summary>
+        /// The set of states declared on the state machine.
+        /// </summary>
         public IReadOnlyList<StateMachineStateDefinition> States { get; }
 
-        /// <summary>The set of transitions declared on the state machine.</summary>
+        /// <summary>
+        /// The set of transitions declared on the state machine.
+        /// </summary>
         public IReadOnlyList<StateMachineTransitionDefinition> Transitions { get; }
 
         /// <summary>

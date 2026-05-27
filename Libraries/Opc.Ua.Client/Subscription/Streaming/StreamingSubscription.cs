@@ -37,7 +37,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     {
         private readonly ISubscriptionManager m_subscriptionManager;
         private readonly SubscriptionOptions m_subscriptionOptions;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly SemaphoreSlim m_initLock = new(1, 1);
         private readonly ConcurrentDictionary<uint, Subscriber> m_subscribers = new();
         private readonly Notifier m_notifier;
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// <inheritdoc/>
         public IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             NodeId nodeId,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             if (nodeId.IsNull)
@@ -91,7 +91,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// <inheritdoc/>
         public IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             IReadOnlyList<NodeId> nodeIds,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             if (nodeIds == null)
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
         private async IAsyncEnumerable<DataValueChange> SubscribeDataChangesImpl(
             IReadOnlyList<NodeId> nodeIds,
-            MItemOptions? options,
+            MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
@@ -124,14 +124,14 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 foreach (NodeId nodeId in nodeIds)
                 {
-                    MItemOptions itemOptions = (options ?? new MItemOptions())
+                    MonitoringOptions itemOptions = (options ?? new MonitoringOptions())
                         with { StartNodeId = nodeId };
 
                     string name = $"stream_data_{handle}_{nodeId}";
 
                     if (m_subscription!.MonitoredItems.TryAdd(
                             name,
-                            new OptionsMonitor<MItemOptions>(itemOptions),
+                            new OptionsMonitor<MonitoringOptions>(itemOptions),
                             out IMonitoredItem? item) && item != null)
                     {
                         monitoredItems.Add(item);
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         public IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
             NodeId notifierId,
             EventFilter filter,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             if (notifierId.IsNull)
@@ -184,12 +184,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         private async IAsyncEnumerable<EventNotification> SubscribeEventsImpl(
             NodeId notifierId,
             EventFilter filter,
-            MItemOptions? options,
+            MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
-            MItemOptions itemOptions = (options ?? new MItemOptions())
+            MonitoringOptions itemOptions = (options ?? new MonitoringOptions())
                 with
                 {
                     StartNodeId = notifierId,
@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 if (m_subscription!.MonitoredItems.TryAdd(
                         name,
-                        new OptionsMonitor<MItemOptions>(itemOptions),
+                        new OptionsMonitor<MonitoringOptions>(itemOptions),
                         out item) && item != null)
                 {
                     subscriber.AddClientHandle(item.ClientHandle);

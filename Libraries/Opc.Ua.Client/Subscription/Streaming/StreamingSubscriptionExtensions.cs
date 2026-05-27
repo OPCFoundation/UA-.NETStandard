@@ -40,6 +40,28 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// short-lived subscriptions tracking state-machine transitions
     /// or bounded observation windows.
     /// </summary>
+    /// <remarks>
+    /// These helpers exist alongside (but do not replace) the
+    /// equivalents in <c>System.Linq.Async</c> because their semantics
+    /// are tuned for OPC UA subscribe-and-wait scenarios and differ
+    /// from the standard LINQ operators:
+    /// <list type="bullet">
+    ///   <item><see cref="TakeUntilAsync{T}"/> is <em>inclusive</em> of
+    ///     the matching item (yields it last), unlike
+    ///     <c>System.Linq.Async.TakeWhile</c> which stops just before
+    ///     the matching item.</item>
+    ///   <item><see cref="WithTimeoutAsync{T}"/> completes the
+    ///     enumeration <em>silently</em> on timeout instead of
+    ///     throwing, so callers can use it as a bounded observation
+    ///     window without needing a try/catch around the await foreach.</item>
+    ///   <item><see cref="BufferedAsync{T}"/> yields fixed-size
+    ///     chunks; the trailing partial chunk (if the source ends with
+    ///     fewer items) is yielded too.</item>
+    /// </list>
+    /// Adding a dependency on <c>System.Linq.Async</c> just to swap
+    /// these out would force a single-implementation choice; keeping
+    /// these here lets the stack own the semantics callers depend on.
+    /// </remarks>
     public static class StreamingSubscriptionExtensions
     {
         /// <summary>

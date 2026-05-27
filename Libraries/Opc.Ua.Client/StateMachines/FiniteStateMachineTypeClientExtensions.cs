@@ -34,7 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.StateMachines
 {
@@ -174,7 +175,7 @@ namespace Opc.Ua.Client.StateMachines
         public static IAsyncEnumerable<FiniteStateSnapshot> ObserveFiniteTransitionsAsync(
             this FiniteStateMachineTypeClient client,
             IStreamingSubscription streaming,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             if (client == null)
@@ -191,7 +192,7 @@ namespace Opc.Ua.Client.StateMachines
         private static async IAsyncEnumerable<FiniteStateSnapshot> ObserveFiniteTransitionsImpl(
             FiniteStateMachineTypeClient client,
             IStreamingSubscription streaming,
-            MItemOptions? options,
+            MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             NodeId currentStateIdNodeId = await StateMachineTypeClientExtensions

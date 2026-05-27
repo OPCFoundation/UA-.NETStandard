@@ -32,7 +32,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Alarms
 {
@@ -69,7 +70,7 @@ namespace Opc.Ua.Client.Alarms
         public IAsyncEnumerable<FiniteStateSnapshot> ObserveShelvingTransitionsAsync(
             NodeId conditionId,
             IStreamingSubscription streaming,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
             => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
                 .ObserveFiniteTransitionsAsync(streaming, options, ct);

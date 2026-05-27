@@ -148,7 +148,7 @@ The simplest path is to opt in via `ManagedSessionOptions` /
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(endpoint)
-    .WithTrackModelChanges()        // opt in
+    .WithModelChangeTracking()      // opt in
     .ConnectAsync(ct);
 
 session.ModelChange!.ModelChanged += (sender, args) =>
@@ -271,7 +271,7 @@ class MyInvalidatingCache : INodeCache
 
 ## Reference
 
-- Server source: `Libraries/Opc.Ua.Server/Alarms/ModelChangeAggregator.cs`
+- Server source: `Libraries/Opc.Ua.Server/NodeManager/ModelChangeAggregator.cs`
 - Server events: `CustomNodeManager.RaiseGeneralModelChangeEvent`,
   `RaiseSemanticChangeEvent` (and the async equivalents in
   `AsyncCustomNodeManager`)

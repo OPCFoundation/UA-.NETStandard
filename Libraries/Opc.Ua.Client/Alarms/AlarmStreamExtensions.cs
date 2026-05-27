@@ -34,8 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using MItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Alarms
 {
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Alarms
             this IStreamingSubscription streaming,
             NodeId notifierId,
             AlarmEventFilterBuilder? filterBuilder = null,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             if (streaming == null)
@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.Alarms
             IStreamingSubscription streaming,
             NodeId notifierId,
             EventFilter filter,
-            MItemOptions? options,
+            MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             IAsyncEnumerable<EventNotification> source =
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Alarms
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeConditionsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             return SubscribeAlarmsAsync(
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.Alarms
         public static IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
-            MItemOptions? options = null,
+            MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
             if (streaming == null)
@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.Alarms
             IStreamingSubscription streaming,
             NodeId notifierId,
             EventFilter filter,
-            MItemOptions? options,
+            MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             await foreach (EventNotification notification in streaming

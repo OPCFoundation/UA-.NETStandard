@@ -150,6 +150,6 @@ namespace Opc.Ua.Client
         /// address-space changes (devices joining/leaving, type updates).
         /// </para>
         /// </summary>
-        public bool TrackModelChanges { get; init; }
+        public bool ModelChangeTracking { get; init; }
     }
 }
