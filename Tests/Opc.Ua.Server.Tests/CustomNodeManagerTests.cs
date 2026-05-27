@@ -2,10 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-
-using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -90,29 +89,29 @@ namespace Opc.Ua.Server.Tests
                 baseObject.NodeId = nodeId;
 
                 //single threaded test
-                await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
+                nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
 
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
                 NodeState nodeState = nodeManager.Find(nodeId);
                 Assert.That(nodeState, Is.Not.Null);
 
-                var handle = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
+                var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
                 Assert.That(handle, Is.Not.Null);
 
-                await nodeManager.DeleteNodeAsync(nodeManager.SystemContext, nodeId).ConfigureAwait(false);
+                nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
                 nodeState = nodeManager.Find(nodeId);
                 Assert.That(nodeState, Is.Null);
 
-                handle = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
+                handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
                 Assert.That(handle, Is.Null);
 
-                await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
+                nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
 
-                await nodeManager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+                nodeManager.DeleteAddressSpace();
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
@@ -126,7 +125,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
                 //delete full adress space
-                await nodeManager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+                nodeManager.DeleteAddressSpace();
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
             }
             finally
@@ -135,22 +134,24 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private static async Task UsePredefinedNodesAsync(
+        private static Task UsePredefinedNodesAsync(
             TestableCustomNodeManger2 nodeManager,
             DataItemState baseObject,
             NodeId nodeId)
         {
-            await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
+            nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
             _ = nodeManager.Find(nodeId);
-            _ = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
+            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
-            await nodeManager.DeleteNodeAsync(nodeManager.SystemContext, nodeId).ConfigureAwait(false);
+            nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
 
             _ = nodeManager.Find(nodeId);
 
-            _ = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
+            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
-            await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
+            nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -228,7 +229,7 @@ namespace Opc.Ua.Server.Tests
         }
     }
 
-    public class TestableCustomNodeManger2 : AsyncCustomNodeManager
+    public class TestableCustomNodeManger2 : CustomNodeManager2
     {
         public TestableCustomNodeManger2(IServerInternal server, params string[] namespaceUris)
             : base(server, namespaceUris)
@@ -255,9 +256,9 @@ namespace Opc.Ua.Server.Tests
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 
-        public new virtual ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
+        public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
-            return base.AddPredefinedNodeAsync(context, node, cancellationToken);
+            AddPredefinedNode(context, node);
         }
     }
 }
