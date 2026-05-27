@@ -2,14 +2,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
-    <RootNamespace>Opc.Ua.Sessions.Tests</RootNamespace>
+    <RootNamespace>Opc.Ua.Features.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>annotations</Nullable>
-    <!--
-      Suppress Roslynator formatting/style warnings carried over from the
-      pre-existing conformance test suite (long lines, redundant async/await,
-      value-type vs null comparisons, etc.). Fixing them inline is out of scope.
-    -->
     <NoWarn>$(NoWarn);RCS0056;RCS1166;RCS1174;RCS1229;RCS1047;RCS1077;NUnit2023;NUnit2010;NUnit2045</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
@@ -43,7 +38,6 @@
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
 </Project>
