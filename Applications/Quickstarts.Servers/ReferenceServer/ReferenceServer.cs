@@ -197,7 +197,7 @@ namespace Quickstarts.ReferenceServer
                 // Server.FileSystem object (i=16314).
                 Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
                     FileSystemProvider ?? CreateDefaultFileSystemProvider();
-                nodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
+                asyncNodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
                     server, configuration, provider));
             }
 

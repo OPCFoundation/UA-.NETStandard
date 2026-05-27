@@ -58,7 +58,10 @@ namespace Opc.Ua.Server
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </para>
     /// </remarks>
-    public class ServerInternalData : IServerInternal, AliasNames.IAliasNameStoreRegistryProvider
+    public class ServerInternalData :
+        IServerInternal,
+        AliasNames.IAliasNameStoreRegistryProvider,
+        Historian.IHistorianRegistryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -92,6 +95,7 @@ namespace Opc.Ua.Server
 
             ServerUris = new StringTable();
             TypeTree = new TypeTable(NamespaceUris);
+            HistorianRegistry = new Historian.HistorianProviderRegistry(NamespaceUris);
 
             // add the server uri to the server table.
             ServerUris.Append(m_configuration.ApplicationUri!);
@@ -129,6 +133,7 @@ namespace Opc.Ua.Server
                 SubscriptionManager?.Dispose();
                 MonitoredItemQueueFactory?.Dispose();
                 (AliasNameStoreRegistry as IDisposable)?.Dispose();
+                (HistorianRegistry as IDisposable)?.Dispose();
             }
         }
 
@@ -141,6 +146,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public AliasNames.IAliasNameStoreRegistry AliasNameStoreRegistry { get; }
             = new AliasNames.AliasNameStoreRegistry();
+
+        /// <summary>
+        /// The server-wide registry of Part 11 historian providers.
+        /// Surfaces through the optional
+        /// <see cref="Historian.IHistorianRegistryProvider"/> interface so
+        /// consumers can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public Historian.IHistorianProviderRegistry HistorianRegistry { get; }
 
         /// <summary>
         /// The session manager to use with the server.
@@ -534,6 +548,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        [Obsolete("Use CloseSessionAsync instead.")]
         public void CloseSession(
             OperationContext context,
             NodeId sessionId,

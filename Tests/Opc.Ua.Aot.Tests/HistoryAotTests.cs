@@ -27,22 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT integration tests for history read operations.
     /// </summary>
+    /// <remarks>
+    /// The ReferenceServer historizes <c>Scalar_Static_Int32</c>,
+    /// <c>Scalar_Static_Float</c> and <c>Scalar_Static_Double</c> via
+    /// the fluent <c>HistorianBuilder</c> in
+    /// <c>ReferenceNodeManager.EnableHistoryArchiving</c>. Each variable
+    /// is seeded with 1001 samples by <c>SeedHistoricalNode</c>; these
+    /// tests exercise the wire path against that seed data.
+    /// </remarks>
     [ClassDataSource<AotTestFixture>(Shared = SharedType.PerTestSession)]
     public class HistoryAotTests(AotTestFixture fixture)
     {
+        private static readonly NodeId s_historizedNodeId
+            = NodeId.Parse("ns=2;s=Scalar_Static_Double");
+
         [Test]
         public async Task HistoryReadRawAsync()
         {
             var details = new ReadRawModifiedDetails
             {
-                StartTime = DateTime.MinValue,
+                StartTime = DateTime.UtcNow.AddHours(-24),
                 EndTime = DateTime.UtcNow,
-                NumValuesPerNode = 10,
+                NumValuesPerNode = 100,
                 IsReadModified = false,
                 ReturnBounds = false
             };
@@ -51,31 +64,28 @@ namespace Opc.Ua.Aot.Tests
             [
                 new HistoryReadValueId
                 {
-                    NodeId = VariableIds.Server_ServerStatus_CurrentTime
+                    NodeId = s_historizedNodeId
                 }
             ];
 
-            try
-            {
-                HistoryReadResponse response =
-                    await fixture.Session.HistoryReadAsync(
-                        null,
-                        new ExtensionObject(details),
-                        TimestampsToReturn.Source,
-                        false,
-                        nodesToRead,
-                        CancellationToken.None).ConfigureAwait(false);
+            HistoryReadResponse response =
+                await fixture.Session.HistoryReadAsync(
+                    null,
+                    new ExtensionObject(details),
+                    TimestampsToReturn.Source,
+                    false,
+                    nodesToRead,
+                    CancellationToken.None).ConfigureAwait(false);
 
-                await Assert.That(response.Results.Count)
-                    .IsEqualTo(nodesToRead.Count);
-            }
-            catch (ServiceResultException ex)
-                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported ||
-                    ex.StatusCode == StatusCodes.BadHistoryOperationInvalid ||
-                    ex.StatusCode == StatusCodes.BadNotSupported)
-            {
-                // Server does not support history — test passes
-            }
+            await Assert.That(response.Results.Count).IsEqualTo(nodesToRead.Count);
+
+            HistoryReadResult result = response.Results[0];
+            await Assert.That(StatusCode.IsGood(result.StatusCode)).IsTrue();
+            await Assert.That(result.HistoryData.IsNull).IsFalse();
+            await Assert.That(
+                result.HistoryData.TryGetValue<HistoryData>(out HistoryData? data))
+                .IsTrue();
+            await Assert.That(data!.DataValues.Count).IsGreaterThan(0);
         }
 
         [Test]
@@ -83,42 +93,38 @@ namespace Opc.Ua.Aot.Tests
         {
             var details = new ReadProcessedDetails
             {
-                StartTime = DateTime.MinValue,
+                StartTime = DateTime.UtcNow.AddHours(-24),
                 EndTime = DateTime.UtcNow,
-                ProcessingInterval = 1000,
-                AggregateType = [new NodeId(2342)] // Average aggregate
+                ProcessingInterval = 60_000, // 1 minute buckets
+                AggregateType = [ObjectIds.AggregateFunction_Average]
             };
 
             ArrayOf<HistoryReadValueId> nodesToRead =
             [
                 new HistoryReadValueId
                 {
-                    NodeId = VariableIds.Server_ServerStatus_CurrentTime
+                    NodeId = s_historizedNodeId
                 }
             ];
 
-            try
-            {
-                HistoryReadResponse response =
-                    await fixture.Session.HistoryReadAsync(
-                        null,
-                        new ExtensionObject(details),
-                        TimestampsToReturn.Source,
-                        false,
-                        nodesToRead,
-                        CancellationToken.None).ConfigureAwait(false);
+            HistoryReadResponse response =
+                await fixture.Session.HistoryReadAsync(
+                    null,
+                    new ExtensionObject(details),
+                    TimestampsToReturn.Source,
+                    false,
+                    nodesToRead,
+                    CancellationToken.None).ConfigureAwait(false);
 
-                await Assert.That(response.Results.Count)
-                    .IsEqualTo(nodesToRead.Count);
-            }
-            catch (ServiceResultException ex)
-                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported ||
-                    ex.StatusCode == StatusCodes.BadHistoryOperationInvalid ||
-                    ex.StatusCode == StatusCodes.BadNotSupported ||
-                    ex.StatusCode == StatusCodes.BadAggregateNotSupported)
-            {
-                // Server does not support history — test passes
-            }
+            await Assert.That(response.Results.Count).IsEqualTo(nodesToRead.Count);
+
+            HistoryReadResult result = response.Results[0];
+            await Assert.That(StatusCode.IsGood(result.StatusCode)).IsTrue();
+            await Assert.That(
+                result.HistoryData.TryGetValue<HistoryData>(out HistoryData? data))
+                .IsTrue();
+            await Assert.That(data!.DataValues.Count).IsGreaterThan(0);
         }
     }
 }
+

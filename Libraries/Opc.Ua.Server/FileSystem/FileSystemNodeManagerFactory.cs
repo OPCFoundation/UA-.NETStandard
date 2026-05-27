@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -37,7 +39,7 @@ namespace Opc.Ua.Server.FileSystem
     /// <c>StandardServer</c> via the standard
     /// <c>NodeManagerFactories</c> collection.
     /// </summary>
-    public sealed class FileSystemNodeManagerFactory : INodeManagerFactory
+    public sealed class FileSystemNodeManagerFactory : INodeManagerFactory, IAsyncNodeManagerFactory
     {
         /// <summary>
         /// Creates a new factory backed by <paramref name="provider"/>.
@@ -58,7 +60,21 @@ namespace Opc.Ua.Server.FileSystem
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new FileSystemNodeManager(server, configuration, m_provider);
+#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
+            return new FileSystemNodeManager(server, configuration, m_provider).SyncNodeManager;
+#pragma warning restore CA2000
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
+            return new ValueTask<IAsyncNodeManager>(
+                new FileSystemNodeManager(server, configuration, m_provider));
+#pragma warning restore CA2000
         }
 
         private readonly IFileSystemProvider m_provider;

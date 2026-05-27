@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -39,8 +41,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         public ServerSystemContext(IServerInternal server)
-            : base(server.Telemetry)
+            : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
         {
+            Server = server;
             OperationContext = null!;
             NamespaceUris = server.NamespaceUris;
             ServerUris = server.ServerUris;
@@ -54,8 +57,9 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="context">The context.</param>
         public ServerSystemContext(IServerInternal server, OperationContext context)
-             : base(server.Telemetry)
+             : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
         {
+            Server = server;
             OperationContext = context;
             NamespaceUris = server.NamespaceUris;
             ServerUris = server.ServerUris;
@@ -69,8 +73,9 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="session">The session.</param>
         public ServerSystemContext(IServerInternal server, ISession session)
-             : base(server.Telemetry)
+             : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
         {
+            Server = server;
             OperationContext = null!;
             SessionId = session.Id;
             UserIdentity = session.Identity;
@@ -80,6 +85,14 @@ namespace Opc.Ua.Server
             TypeTable = server.TypeTree;
             EncodeableFactory = server.Factory;
         }
+
+        /// <summary>
+        /// The <see cref="IServerInternal"/> backing this system context.
+        /// Provides access to server-wide services (AggregateManager,
+        /// SessionManager, audit reporting, etc.) needed by infrastructure
+        /// components such as the historian dispatcher.
+        /// </summary>
+        public IServerInternal Server { get; }
 
         /// <summary>
         /// The operation context associated with system context.
