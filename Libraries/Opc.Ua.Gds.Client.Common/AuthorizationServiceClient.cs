@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -70,13 +71,58 @@ namespace Opc.Ua.Gds.Client
             return m_proxy.GetServiceDescriptionAsync(ct);
         }
 
-        /// <summary>Requests an access token.</summary>
+        /// <summary>Requests an access token using the legacy single-call flow.</summary>
+        [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
         public ValueTask<string> RequestAccessTokenAsync(
             UserIdentityToken identityToken,
             string resourceId,
             CancellationToken ct = default)
         {
             return m_proxy.RequestAccessTokenAsync(identityToken, resourceId, ct);
+        }
+
+        /// <summary>Starts the Part 12 v1.05 two-phase token request flow.</summary>
+        public async ValueTask<(ByteString serviceData, Guid requestId)> StartRequestTokenAsync(
+            string resourceId,
+            string policyId,
+            ByteString requestorData,
+            CancellationToken ct = default)
+        {
+            (ByteString serviceData, Uuid requestId) = await m_proxy
+                .StartRequestTokenAsync(resourceId, policyId, requestorData, ct)
+                .ConfigureAwait(false);
+            return (serviceData, requestId);
+        }
+
+        /// <summary>Completes the Part 12 v1.05 two-phase token request flow.</summary>
+        public async ValueTask<(
+            string accessToken,
+            DateTime accessTokenExpiryTime,
+            string? refreshToken,
+            DateTime refreshTokenExpiryTime)> FinishRequestTokenAsync(
+                Guid requestId,
+                ArrayOf<string> requestedRoles,
+                UserIdentityToken userIdentityToken,
+                SignatureData userTokenSignature,
+                CancellationToken ct = default)
+        {
+            (string accessToken,
+                DateTimeUtc accessTokenExpiryTime,
+                string refreshToken,
+                DateTimeUtc refreshTokenExpiryTime) = await m_proxy
+                .FinishRequestTokenAsync(
+                    requestId,
+                    requestedRoles,
+                    userIdentityToken,
+                    userTokenSignature,
+                    ct)
+                .ConfigureAwait(false);
+
+            return (
+                accessToken,
+                (DateTime)accessTokenExpiryTime,
+                string.IsNullOrEmpty(refreshToken) ? null : refreshToken,
+                (DateTime)refreshTokenExpiryTime);
         }
     }
 }

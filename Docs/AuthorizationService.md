@@ -1,236 +1,92 @@
 # AuthorizationService Developer Guide
 
-OPC 10000-12 §9 defines the **AuthorizationService** — a mechanism for
-a GDS to issue access tokens that OPC UA applications use to
-authenticate to other services or to each other using OAuth2-style
-token exchange.
+OPC 10000-12 §9 defines the **AuthorizationService** — a GDS service that issues access tokens for OPC UA applications. Part 12 v1.05 uses the two-phase `StartRequestToken` / `FinishRequestToken` flow; `RequestAccessToken` remains available only for legacy compatibility.
 
-> **Note**: Part 12 v1.05 deprecates `RequestAccessToken` in favour of
-> the new `StartRequestToken` / `FinishRequestToken` flow. The current
-> stack still surfaces the legacy method via
-> `AuthorizationServiceClient.RequestAccessTokenAsync` (works against
-> v1.04 servers); the modern flow lands in a future release. For the
-> client-side handling of the JWT tokens that this service emits —
-> including parsing of the `IssuerEndpointUrl` JSON object and lazy
-> per-activation token acquisition — see
-> [Identity Providers](IdentityProviders.md).
+For client-side JWT use during `ActivateSession`, see [Identity Providers](IdentityProviders.md).
 
-## Architecture
-
-```
-┌─────────────────┐  GetServiceDescription  ┌──────────────────────────┐
-│  OPC UA Client   │ ────────────────────► │  ApplicationsNodeManager   │
-│                  │  RequestAccessToken   │  (GDS Server)              │
-│                  │ ────────────────────► │                            │
-│                  │ ◄──── access token ── │  ┌──────────────────────┐  │
-│                  │                       │  │ IAccessTokenProvider │  │
-└─────────────────┘                       │  └──────────┬───────────┘  │
-                                          │             │              │
-                                          │      ┌──────▼──────┐      │
-                                          │      │  OAuth2/JWT  │      │
-                                          │      │  Provider    │      │
-                                          │      └─────────────┘      │
-                                          └────────────────────────────┘
-```
-
-## Client API
-
-### AuthorizationServiceClient
-
-A thin client proxy for the AuthorizationService methods:
+## Modern Part 12 v1.05 flow
 
 ```csharp
 using Opc.Ua.Gds.Client;
 
-// After connecting a session to the GDS server:
 var authClient = new AuthorizationServiceClient(session, serviceNodeId);
-
-// 1. Discover the authorization service
-var (serviceUri, serviceCert, tokenPolicies)
-    = await authClient.GetServiceDescriptionAsync();
-
-// 2. Request an access token
-string accessToken = await authClient.RequestAccessTokenAsync(
-    identityToken: myUserIdentity,
-    resourceId: "urn:target-service");
-```
-
-### GlobalDiscoveryServerClient helpers
-
-The `GlobalDiscoveryServerClient` does not wrap the
-AuthorizationService directly. Use `AuthorizationServiceClient`
-with the GDS session:
-
-```csharp
-var gdsClient = new GlobalDiscoveryServerClient(config);
-await gdsClient.ConnectAsync(gdsEndpointUrl);
-
-// Browse for the AuthorizationServiceType instance
-var authClient = new AuthorizationServiceClient(
-    gdsClient.Session, authServiceNodeId);
-```
-
-## Server-Side: Implementing a Provider
-
-### IAccessTokenProvider
-
-The server-side abstraction for token issuance. When no provider is
-injected, the GDS returns `Bad_NotSupported` for all token methods.
-
-```csharp
-public interface IAccessTokenProvider
-{
-    // Stable one-shot token exchange (§9.4)
-    ValueTask<string> RequestAccessTokenAsync(
-        UserIdentityToken identityToken,
-        string resourceId,
-        CancellationToken ct = default);
-
-    // Two-phase token exchange — begin (§9.5, RC)
-    ValueTask<(ByteString serviceData, Guid requestId)>
-        StartRequestTokenAsync(
-            string resourceId,
-            string policyId,
-            ByteString requestorData,
-            CancellationToken ct = default);
-
-    // Two-phase token exchange — complete (§9.6, RC)
-    ValueTask<AccessTokenResult> FinishRequestTokenAsync(
-        Guid requestId,
-        ArrayOf<string> requestedRoles,
-        UserIdentityToken userIdentityToken,
-        SignatureData userTokenSignature,
-        CancellationToken ct = default);
-
-    // Refresh an existing token (§9.7, RC)
-    ValueTask<AccessTokenResult> RefreshTokenAsync(
-        string resourceId,
-        string currentRefreshToken,
-        CancellationToken ct = default);
-}
-```
-
-### AccessTokenResult
-
-Returned by the two-phase and refresh operations:
-
-```csharp
-public sealed class AccessTokenResult
-{
-    public string AccessToken { get; set; }
-    public DateTime AccessTokenExpiryTime { get; set; }
-    public string? RefreshToken { get; set; }
-    public DateTime RefreshTokenExpiryTime { get; set; }
-}
-```
-
-### Writing a Custom Provider
-
-Example: delegating to an OAuth2 authorization server:
-
-```csharp
-public class OAuth2AccessTokenProvider : IAccessTokenProvider
-{
-    private readonly HttpClient _httpClient;
-    private readonly string _tokenEndpoint;
-
-    public OAuth2AccessTokenProvider(string tokenEndpoint)
-    {
-        _httpClient = new HttpClient();
-        _tokenEndpoint = tokenEndpoint;
-    }
-
-    public async ValueTask<string> RequestAccessTokenAsync(
-        UserIdentityToken identityToken,
-        string resourceId,
-        CancellationToken ct)
-    {
-        // Validate the OPC UA identity token
-        string userName = ((UserNameIdentityToken)identityToken).UserName;
-
-        // Exchange for an OAuth2 token
-        var request = new FormUrlEncodedContent(new[]
-        {
-            new KeyValuePair<string, string>("grant_type", "client_credentials"),
-            new KeyValuePair<string, string>("client_id", userName),
-            new KeyValuePair<string, string>("scope", resourceId)
-        });
-
-        var response = await _httpClient
-            .PostAsync(_tokenEndpoint, request, ct);
-        var json = await response.Content.ReadAsStringAsync(ct);
-
-        // Parse and return the access token
-        return ParseAccessToken(json);
-    }
-
-    public ValueTask<(ByteString, Guid)> StartRequestTokenAsync(...)
-        => throw new ServiceResultException(StatusCodes.BadNotSupported);
-
-    public ValueTask<AccessTokenResult> FinishRequestTokenAsync(...)
-        => throw new ServiceResultException(StatusCodes.BadNotSupported);
-
-    public ValueTask<AccessTokenResult> RefreshTokenAsync(...)
-        => throw new ServiceResultException(StatusCodes.BadNotSupported);
-}
-```
-
-### Wiring into the GDS Server
-
-Set the `AccessTokenProvider` property on `ApplicationsNodeManager`:
-
-```csharp
-var appNodeManager = new ApplicationsNodeManager(server, configuration, ...);
-appNodeManager.AccessTokenProvider =
-    new OAuth2AccessTokenProvider("https://auth.example.com/token");
-```
-
-When `AccessTokenProvider` is `null` (default), all token methods
-return `Bad_NotSupported`.
-
-## Audit Events
-
-| Operation | Audit Event Type |
-|-----------|-----------------|
-| RequestAccessToken | `AccessTokenIssuedAuditEventType` |
-
-Tokens themselves are **not** included in audit payloads.
-
-## End-to-End Example
-
-```csharp
-// ── Server Side ──────────────────────────────────────
-
-// 1. Create a token provider
-IAccessTokenProvider tokenProvider =
-    new OAuth2AccessTokenProvider("https://auth.example.com/token");
-
-// 2. Create the GDS server
-var gdsServer = new GlobalDiscoverySampleServer(
-    database, requestStore, certGroup, userDb, telemetry);
-
-// 3. After server starts, set the provider on the node manager
-// (In the INodeManagerFactory, after creating ApplicationsNodeManager)
-appNodeManager.AccessTokenProvider = tokenProvider;
-
-// ── Client Side ──────────────────────────────────────
-
-// 1. Connect to the GDS
-var gdsClient = new GlobalDiscoveryServerClient(config);
-await gdsClient.ConnectAsync(gdsEndpointUrl);
-
-// 2. Discover the AuthorizationService
-var authClient = new AuthorizationServiceClient(
-    gdsClient.Session, authServiceNodeId);
-
-var (serviceUri, cert, policies) =
+var (serviceUri, serviceCertificate, tokenPolicies) =
     await authClient.GetServiceDescriptionAsync();
 
-// 3. Request an access token
-string token = await authClient.RequestAccessTokenAsync(
-    myIdentityToken, "urn:target-resource");
+var (serviceData, requestId) = await authClient.StartRequestTokenAsync(
+    resourceId: "urn:target-server",
+    policyId: "jwt",
+    requestorData: ByteString.From(Encoding.UTF8.GetBytes("read write")));
 
-// 4. Use the token to call the target service
-httpClient.DefaultRequestHeaders.Authorization =
-    new AuthenticationHeaderValue("Bearer", token);
+var (jwt, expiresAt, refreshToken, refreshExpiresAt) =
+    await authClient.FinishRequestTokenAsync(
+        requestId,
+        Array.Empty<string>().ToArrayOf(),
+        new AnonymousIdentityToken(),
+        new SignatureData());
 ```
+
+`StartRequestToken` validates the requested audience and scopes, allocates a continuation request id, and stores the pending request in memory. `FinishRequestToken` exchanges that id for a compact JWT (`tokenType = "JWT"`) signed by the configured `Opc.Ua.Identity.ITokenIssuer`.
+
+## Server hosting
+
+Use `WithAuthorizationService` to register the default in-box issuer and in-memory request store:
+
+```csharp
+services.AddOpcUa()
+    .AddGdsServer(o =>
+    {
+        o.ApplicationName = "GlobalDiscoveryServer";
+        o.ApplicationUri = "urn:example:gds";
+        o.EndpointUrls.Add("opc.tcp://localhost:58810/GDS");
+    })
+    .WithAuthorizationService(o =>
+    {
+        o.IssuerUri = "urn:example:gds";
+        o.SigningCertificate = new CertificateIdentifier
+        {
+            StoreType = CertificateStoreType.Directory,
+            StorePath = "%LocalApplicationData%/OPC Foundation/GDS/pki/own",
+            SubjectName = "CN=GlobalDiscoveryServer"
+        };
+        o.AllowedAudiences.Add("urn:target-server");
+        o.DefaultScopes.Add("read");
+    });
+```
+
+When `SigningCertificate` is omitted in the hosted GDS, the default issuer falls back to the GDS application instance certificate. Custom deployments can replace the signer:
+
+```csharp
+builder.WithAuthorizationService<MyTokenIssuer>(o =>
+{
+    o.IssuerUri = "https://issuer.example";
+});
+```
+
+`MyTokenIssuer` implements `Opc.Ua.Identity.ITokenIssuer`. The default `EcdsaJwtIssuer` signs hand-rolled RFC 7515 JWS tokens with ECDSA (`ES256`/`ES384`/`ES512`) or RSA (`RS256` default; RSA-PSS supported by custom issuers) without adding a JWT package dependency.
+
+## Server-side abstraction
+
+`Opc.Ua.Gds.Server.IAccessTokenProvider` backs the GDS method handlers:
+
+```csharp
+ValueTask<(ByteString serviceData, Guid requestId)> StartRequestTokenAsync(...);
+ValueTask<AccessTokenResult> FinishRequestTokenAsync(...);
+
+[Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
+ValueTask<string> RequestAccessTokenAsync(...);
+```
+
+The default `AuthorizationServiceManager` delegates to `InMemoryAccessTokenProvider`, which keeps pending request ids in memory and calls the configured `ITokenIssuer` for final JWT issuance.
+
+## Client identity-provider bridge
+
+`GdsAccessTokenProvider` adapts `AuthorizationServiceClient` to the client-side `Opc.Ua.Identity.IAccessTokenProvider` used by `IssuedTokenIdentityProvider` and `Session.UpdateIdentityAsync(IClientIdentityProvider)`.
+
+## Legacy compatibility
+
+`RequestAccessToken` and `AuthorizationServiceClient.RequestAccessTokenAsync` are marked obsolete because Part 12 v1.05 replaced the one-shot exchange with `StartRequestToken` / `FinishRequestToken`. The wire method is still dispatched to `IAccessTokenProvider.RequestAccessTokenAsync` so v1.04 clients continue to work when a provider is configured.
+
+## Audit events
+
+Successful and failed token operations raise `AccessTokenIssuedAuditEventType`. Tokens and private credentials are not included in audit payloads.

@@ -499,10 +499,10 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | Feature | Status | Source |
 |---------|--------|--------|
 | GetServiceDescription | ✅ | `OnGetServiceDescription` |
-| RequestAccessToken | ⚠️ | Dispatches to `IAccessTokenProvider` when injected; returns Bad_NotSupported otherwise |
-| StartRequestToken (RC) | ⚠️ | `IAccessTokenProvider.StartRequestTokenAsync` interface defined; dispatched when provider is injected |
-| FinishRequestToken (RC) | ⚠️ | `IAccessTokenProvider.FinishRequestTokenAsync` interface defined; dispatched when provider is injected |
-| RefreshToken (RC) | ⚠️ | `IAccessTokenProvider.RefreshTokenAsync` interface defined; dispatched when provider is injected |
+| RequestAccessToken | ✅ | Legacy compatibility path via `IAccessTokenProvider.RequestAccessTokenAsync` |
+| StartRequestToken (RC) | ✅ | `OnStartRequestToken` / `AuthorizationServiceManager` |
+| FinishRequestToken (RC) | ✅ | `OnFinishRequestToken` / `AuthorizationServiceManager` |
+| RefreshToken (RC) | ⚠️ | `IAccessTokenProvider.RefreshTokenAsync` interface defined; default provider returns Bad_NotSupported |
 | SupportedRoles (RC) | ✅ | Model property exposed |
 | Client proxy | ✅ | `AuthorizationServiceClient.cs` |
 

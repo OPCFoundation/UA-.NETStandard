@@ -669,12 +669,18 @@ namespace Opc.Ua.Gds.Server
                         passiveNode.Parent?.ReplaceChild(context, authServiceNode);
                     }
 
-                    authServiceNode.GetServiceDescription!.OnCall =
-                        OnGetServiceDescription;
+                    authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
                     if (authServiceNode.RequestAccessToken != null)
                     {
-                        authServiceNode.RequestAccessToken.OnCallAsync =
-                            OnRequestAccessTokenAsync;
+                        authServiceNode.RequestAccessToken.OnCallAsync = OnRequestAccessTokenAsync;
+                    }
+                    if (authServiceNode.StartRequestToken != null)
+                    {
+                        authServiceNode.StartRequestToken.OnCallAsync = OnStartRequestTokenAsync;
+                    }
+                    if (authServiceNode.FinishRequestToken != null)
+                    {
+                        authServiceNode.FinishRequestToken.OnCallAsync = OnFinishRequestTokenAsync;
                     }
 
                     return authServiceNode;
@@ -2277,6 +2283,11 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Handles the legacy Part 12 <c>RequestAccessToken</c> method.
+        /// Prefer <see cref="OnStartRequestTokenAsync"/> and
+        /// <see cref="OnFinishRequestTokenAsync"/> for v1.05 clients.
+        /// </summary>
         private async ValueTask<RequestAccessTokenMethodStateResult> OnRequestAccessTokenAsync(
             ISystemContext context,
             MethodState method,
@@ -2289,28 +2300,132 @@ namespace Opc.Ua.Gds.Server
 
             var result = new RequestAccessTokenMethodStateResult();
 
-            if (AccessTokenProvider == null)
-            {
-                var ex = new ServiceResultException(
-                    StatusCodes.BadNotSupported,
-                    "RequestAccessToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "RequestAccessToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
 
-                ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
-                Server.ReportAccessTokenIssuedAuditEvent(
-                    context, objectId, method, auditInputs, m_logger, ex);
-
-                throw ex;
-            }
-
-            result.AccessToken = await AccessTokenProvider.RequestAccessTokenAsync(
+#pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
+            result.AccessToken = await provider.RequestAccessTokenAsync(
                 identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+#pragma warning restore CS0618
 
-            ArrayOf<Variant> successAuditInputs = [Variant.FromStructure(identityToken), resourceId];
             Server.ReportAccessTokenIssuedAuditEvent(
-                context, objectId, method, successAuditInputs, m_logger);
+                context, objectId, method, auditInputs, m_logger);
 
             result.ServiceResult = ServiceResult.Good;
             return result;
+        }
+
+        private async ValueTask<StartRequestTokenMethodStateResult> OnStartRequestTokenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string resourceId,
+            string policyId,
+            ByteString requestorData,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new StartRequestTokenMethodStateResult();
+            ArrayOf<Variant> auditInputs = [resourceId, policyId, requestorData];
+
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "StartRequestToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+
+            IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
+
+            (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
+                ? await manager.StartRequestTokenAsync(
+                    resourceId,
+                    policyId,
+                    requestorData,
+                    callerIdentity,
+                    cancellationToken).ConfigureAwait(false)
+                : await provider.StartRequestTokenAsync(
+                    resourceId,
+                    policyId,
+                    requestorData,
+                    cancellationToken).ConfigureAwait(false);
+
+            result.ServiceData = serviceData;
+            result.RequestId = requestId;
+
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        private async ValueTask<FinishRequestTokenMethodStateResult> OnFinishRequestTokenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            Uuid requestId,
+            ArrayOf<string> requestedRoles,
+            UserIdentityToken userIdentityToken,
+            SignatureData userTokenSignature,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new FinishRequestTokenMethodStateResult();
+            ArrayOf<Variant> auditInputs =
+            [
+                requestId,
+                requestedRoles,
+                Variant.FromStructure(userIdentityToken),
+                Variant.FromStructure(userTokenSignature)
+            ];
+
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "FinishRequestToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+
+            AccessTokenResult atr = await provider.FinishRequestTokenAsync(
+                requestId, requestedRoles, userIdentityToken, userTokenSignature, cancellationToken)
+                .ConfigureAwait(false);
+
+            result.AccessToken = atr.AccessToken;
+            result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
+            result.RefreshToken = atr.RefreshToken ?? string.Empty;
+            result.RefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
+
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        private IAccessTokenProvider GetAccessTokenProvider(
+            ISystemContext context,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> auditInputs,
+            string message)
+        {
+            if (AccessTokenProvider != null)
+            {
+                return AccessTokenProvider;
+            }
+
+            var ex = new ServiceResultException(StatusCodes.BadNotSupported, message);
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger, ex);
+            throw ex;
         }
 
         private async ValueTask<KeyCredentialStartRequestMethodStateResult> OnKeyCredentialStartRequestAsync(

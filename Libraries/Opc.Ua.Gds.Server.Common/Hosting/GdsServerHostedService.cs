@@ -70,6 +70,7 @@ namespace Opc.Ua.Gds.Server.Hosting
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
         private readonly IServiceProvider m_services;
         private readonly IAccessTokenProvider? m_accessTokenProvider;
+        private readonly AuthorizationServiceManager? m_authorizationServiceManager;
         private readonly IKeyCredentialRequestStore? m_keyCredentialStore;
         private readonly IConfigurationDataStore? m_configurationStore;
         private readonly ILogger<GdsServerHostedService> m_logger;
@@ -94,6 +95,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             IServiceProvider services,
             ILogger<GdsServerHostedService> logger,
             IAccessTokenProvider? accessTokenProvider = null,
+            AuthorizationServiceManager? authorizationServiceManager = null,
             IKeyCredentialRequestStore? keyCredentialStore = null,
             IConfigurationDataStore? configurationStore = null)
         {
@@ -116,6 +118,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_accessTokenProvider = accessTokenProvider;
+            m_authorizationServiceManager = authorizationServiceManager;
             m_keyCredentialStore = keyCredentialStore;
             m_configurationStore = configurationStore;
         }
@@ -188,6 +191,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 throw new InvalidOperationException(
                     "Application instance certificate invalid.");
             }
+
+            m_authorizationServiceManager?.Initialize(m_application.ApplicationConfiguration!);
 
             m_server = new GdsHostedServer(
                 m_database,

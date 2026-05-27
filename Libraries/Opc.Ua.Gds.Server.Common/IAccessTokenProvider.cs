@@ -41,6 +41,15 @@ namespace Opc.Ua.Gds.Server
         /// <summary>The issued or refreshed access token (JWT or opaque).</summary>
         public string AccessToken { get; set; } = string.Empty;
 
+        /// <summary>The raw access-token bytes as carried by issued identity tokens.</summary>
+        public byte[] AccessTokenBytes { get; set; } = Array.Empty<byte>();
+
+        /// <summary>The access-token type, such as <c>JWT</c>.</summary>
+        public string TokenType { get; set; } = string.Empty;
+
+        /// <summary>The user token policy id associated with the issued token.</summary>
+        public string PolicyId { get; set; } = string.Empty;
+
         /// <summary>When the access token expires (UTC).</summary>
         public DateTime AccessTokenExpiryTime { get; set; }
 
@@ -53,7 +62,8 @@ namespace Opc.Ua.Gds.Server
 
     /// <summary>
     /// Abstraction for the token-issuance back-end of an
-    /// OPC 10000-12 §9 AuthorizationService.
+    /// OPC 10000-12 §9 AuthorizationService. The default implementation
+    /// delegates JWT signing to <see cref="Opc.Ua.Identity.ITokenIssuer"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -75,9 +85,10 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Validates the <paramref name="identityToken"/> and issues an
         /// access token for the requested <paramref name="resourceId"/>.
-        /// Implements the stable <c>RequestAccessToken</c> method
+        /// Implements the legacy <c>RequestAccessToken</c> method
         /// (OPC 10000-12 §9.4).
         /// </summary>
+        [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
         ValueTask<string> RequestAccessTokenAsync(
             UserIdentityToken identityToken,
             string resourceId,

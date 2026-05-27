@@ -30,14 +30,18 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
+using Opc.Ua.Gds.Server.Identity;
+using Opc.Ua.Identity;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
+using ServerAccessTokenProvider = Opc.Ua.Gds.Server.IAccessTokenProvider;
 
 #nullable enable
 
@@ -345,6 +349,54 @@ namespace Microsoft.Extensions.DependencyInjection
             return gdsBuilder;
         }
 
+        /// <summary>
+        /// Enables the default GDS AuthorizationService backed by an
+        /// ECDSA/RSA JWT issuer.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="AuthorizationServiceOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        public static IGdsServerBuilder WithAuthorizationService(
+            this IGdsServerBuilder gdsBuilder,
+            Action<AuthorizationServiceOptions> configure)
+        {
+            return WithAuthorizationService<EcdsaJwtIssuer>(gdsBuilder, configure);
+        }
+
+        /// <summary>
+        /// Enables the GDS AuthorizationService with a custom token issuer.
+        /// </summary>
+        /// <typeparam name="TIssuer">The issuer implementation.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="AuthorizationServiceOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        public static IGdsServerBuilder WithAuthorizationService<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TIssuer>(
+                this IGdsServerBuilder gdsBuilder,
+                Action<AuthorizationServiceOptions> configure)
+            where TIssuer : class, ITokenIssuer
+        {
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            gdsBuilder.Services.AddOptions<AuthorizationServiceOptions>().Configure(configure);
+            gdsBuilder.Services.TryAddSingleton<TIssuer>();
+            gdsBuilder.Services.TryAddSingleton<ITokenIssuer>(sp => sp.GetRequiredService<TIssuer>());
+            gdsBuilder.Services.TryAddSingleton<InMemoryAccessTokenProvider>();
+            gdsBuilder.Services.TryAddSingleton<AuthorizationServiceManager>();
+            gdsBuilder.Services.TryAddSingleton<ServerAccessTokenProvider>(
+                sp => sp.GetRequiredService<AuthorizationServiceManager>());
+            return gdsBuilder;
+        }
+
         private static ForwardingServerBuilder ToServerBuilder(IGdsServerBuilder gdsBuilder)
         {
             if (gdsBuilder is null)
@@ -481,10 +533,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public IGdsServerBuilder AddAccessTokenProvider<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
-                where T : class, IAccessTokenProvider
+                where T : class, ServerAccessTokenProvider
             {
                 Services.AddSingleton<T>();
-                Services.AddSingleton<IAccessTokenProvider>(
+                Services.AddSingleton<ServerAccessTokenProvider>(
                     sp => sp.GetRequiredService<T>());
                 return this;
             }
