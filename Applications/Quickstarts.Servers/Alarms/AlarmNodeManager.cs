@@ -46,7 +46,9 @@ namespace Alarms
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!);
+#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
+            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!).SyncNodeManager;
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>
@@ -420,7 +422,7 @@ namespace Alarms
                         optional: true);
                     m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
 
-                    AddPredefinedNode(SystemContext, alarmsFolder);
+                    await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
 
                     // ownership transferred to predefined nodes
                     alarmsFolder = null;

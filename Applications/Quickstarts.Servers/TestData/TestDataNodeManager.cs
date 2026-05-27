@@ -46,7 +46,9 @@ namespace TestData
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new TestDataNodeManager(server, configuration, [.. NamespacesUris]);
+#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
+            return new TestDataNodeManager(server, configuration, [.. NamespacesUris]).SyncNodeManager;
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>
@@ -129,7 +131,7 @@ namespace TestData
             StatusCode statusCode,
             DateTime timestamp)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 variable.Value = value;
                 variable.StatusCode = statusCode;
@@ -145,7 +147,7 @@ namespace TestData
         /// </summary>
         public void OnGenerateValues(BaseVariableState variable)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (variable is ITestDataSystemValuesGenerator generator)
                 {
@@ -618,7 +620,7 @@ namespace TestData
         /// </summary>
         private void OnCheckSystemStatus(object state)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 try
                 {
@@ -701,6 +703,7 @@ namespace TestData
         }
 #endif
         private readonly TestDataNodeManagerConfiguration m_configuration;
+        private readonly object m_lock = new();
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;
         private readonly TestDataSystem m_system;
