@@ -59,8 +59,10 @@ namespace Opc.Ua.Server.StateMachines
     /// </remarks>
     public class FluentFiniteStateMachineState : FiniteStateMachineState
     {
-        // Cached projections of the mutable holder. Invalidated by
-        // version counter.
+        /// <summary>
+        /// Cached projections of the mutable holder. Invalidated by
+        /// version counter.
+        /// </summary>
         private ElementInfo[]? m_stateTable;
         private ElementInfo[]? m_transitionTable;
         private uint[,]? m_transitionMappings;
@@ -183,7 +185,7 @@ namespace Opc.Ua.Server.StateMachines
 
             int transitionCount = MutableDefinition.Transitions.Count;
             var transitionTable = new ElementInfo[transitionCount];
-            var transitionMappings = new uint[transitionCount, 4];
+            uint[,] transitionMappings = new uint[transitionCount, 4];
             for (int i = 0; i < transitionCount; i++)
             {
                 StateMachineTransitionDefinition t = MutableDefinition.Transitions[i];
@@ -195,7 +197,7 @@ namespace Opc.Ua.Server.StateMachines
             }
 
             int causeCount = MutableDefinition.CauseMappings.Count;
-            var causeMappings = new uint[causeCount, 3];
+            uint[,] causeMappings = new uint[causeCount, 3];
             for (int i = 0; i < causeCount; i++)
             {
                 StateMachineCauseMapping c = MutableDefinition.CauseMappings[i];
@@ -222,7 +224,7 @@ namespace Opc.Ua.Server.StateMachines
             var holder = new MutableStateMachineDefinition
             {
                 InitialStateId = definition.InitialStateId,
-                ElementNamespaceUri = definition.ElementNamespaceUri,
+                ElementNamespaceUri = definition.ElementNamespaceUri
             };
             holder.States.AddRange(definition.States);
             holder.Transitions.AddRange(definition.Transitions);

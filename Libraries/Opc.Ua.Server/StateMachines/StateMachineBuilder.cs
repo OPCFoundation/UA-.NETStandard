@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Server.StateMachines
 {
@@ -39,6 +38,7 @@ namespace Opc.Ua.Server.StateMachines
     /// Unified fluent builder for Part 16 finite state machines.
     /// Combines two complementary modes in a single API:
     /// </summary>
+    /// <typeparam name="TState"></typeparam>
     /// <remarks>
     /// <list type="bullet">
     /// <item><description>
@@ -123,6 +123,13 @@ namespace Opc.Ua.Server.StateMachines
         /// <param name="id">The numeric state id.</param>
         /// <param name="browseName">The browse name.</param>
         /// <param name="isInitial">Whether this is the initial state.</param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="browseName"/> is null/empty or
+        /// <paramref name="id"/> is already declared.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The builder is in lifecycle mode (no definition), the
+        /// definition has been frozen, or another state was already
+        /// marked initial.</exception>
         public StateMachineBuilder<TState> AddState(
             uint id,
             string browseName,
@@ -171,6 +178,9 @@ namespace Opc.Ua.Server.StateMachines
         /// <param name="to">The to-state id.</param>
         /// <param name="hasEffect">Whether the transition fires a
         /// <c>TransitionEventType</c>.</param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="browseName"/> is null/empty or
+        /// <paramref name="id"/> is already declared.</exception>
         public StateMachineBuilder<TState> AddTransition(
             uint id,
             string browseName,
@@ -227,6 +237,8 @@ namespace Opc.Ua.Server.StateMachines
         /// transition numeric NodeIds. Defaults to the standard UA
         /// namespace. Definition-mode only.
         /// </summary>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="namespaceUri"/> is null or empty.</exception>
         public StateMachineBuilder<TState> UseElementNamespace(string namespaceUri)
         {
             MutableStateMachineDefinition def = RequireDefinition();
@@ -346,20 +358,17 @@ namespace Opc.Ua.Server.StateMachines
             if (!methodNodeId.TryGetValue(out uint causeId))
             {
                 throw new ArgumentException(
-                    "Method node id must have a numeric identifier; "
-                    + $"got '{methodNodeId.IdentifierAsString}' "
-                    + $"(type {methodNodeId.IdType}).",
+                    "Method node id must have a numeric identifier; " +
+                    $"got '{methodNodeId.IdentifierAsString}' " +
+                    $"(type {methodNodeId.IdType}).",
                     nameof(methodNodeId));
             }
 
-            MethodState? method = FindMethodInTree(m_stateMachine, methodNodeId);
-            if (method == null)
-            {
+            MethodState? method = FindMethodInTree(m_stateMachine, methodNodeId) ??
                 throw new ArgumentException(
-                    $"Method '{methodNodeId}' not found among the state "
-                    + "machine's children.",
+                    $"Method '{methodNodeId}' not found among the state " +
+                    "machine's children.",
                     nameof(methodNodeId));
-            }
 
             m_dispatcher.InstallCauseMethod(method, causeId);
             return this;
@@ -381,6 +390,8 @@ namespace Opc.Ua.Server.StateMachines
         /// <see cref="FiniteStateMachineState.DoTransition"/>.</param>
         /// <param name="causeId">The cause id reported in the audit
         /// event (0 if no human-meaningful cause).</param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="timeout"/> is zero or negative.</exception>
         public StateMachineBuilder<TState> WithTimedTransition(
             uint fromStateId,
             TimeSpan timeout,
@@ -421,8 +432,8 @@ namespace Opc.Ua.Server.StateMachines
             if (!fromOk)
             {
                 throw new InvalidOperationException(
-                    $"Timed transition references unknown from-state "
-                    + $"{fromStateId}.");
+                    "Timed transition references unknown from-state " +
+                    $"{fromStateId}.");
             }
 
             bool transitionOk = false;
@@ -433,9 +444,9 @@ namespace Opc.Ua.Server.StateMachines
                     if (t.FromStateId != fromStateId)
                     {
                         throw new InvalidOperationException(
-                            $"Timed transition {transitionId} declares "
-                            + $"from-state {t.FromStateId} but was "
-                            + $"registered with fromStateId={fromStateId}.");
+                            $"Timed transition {transitionId} declares " +
+                            $"from-state {t.FromStateId} but was " +
+                            $"registered with fromStateId={fromStateId}.");
                     }
                     transitionOk = true;
                     break;
@@ -444,8 +455,8 @@ namespace Opc.Ua.Server.StateMachines
             if (!transitionOk)
             {
                 throw new InvalidOperationException(
-                    $"Timed transition references unknown transition "
-                    + $"{transitionId}.");
+                    "Timed transition references unknown transition " +
+                    $"{transitionId}.");
             }
         }
 
@@ -469,14 +480,14 @@ namespace Opc.Ua.Server.StateMachines
             if (m_definition == null)
             {
                 throw new InvalidOperationException(
-                    "Definition-mode methods (AddState / AddTransition / "
-                    + "OnCause / UseElementNamespace) are only available "
-                    + "when the builder owns the state-machine definition. "
-                    + "Use StateMachineBuilder.Create(...) to create a "
-                    + "FluentFiniteStateMachineState, or stick to lifecycle "
-                    + "methods (OnEnterState / WithCause / ...) when "
-                    + "wrapping an existing state machine via "
-                    + "StateMachineBuilder.For(...).");
+                    "Definition-mode methods (AddState / AddTransition / " +
+                    "OnCause / UseElementNamespace) are only available " +
+                    "when the builder owns the state-machine definition. " +
+                    "Use StateMachineBuilder.Create(...) to create a " +
+                    "FluentFiniteStateMachineState, or stick to lifecycle " +
+                    "methods (OnEnterState / WithCause / ...) when " +
+                    "wrapping an existing state machine via " +
+                    "StateMachineBuilder.For(...).");
             }
             return m_definition;
         }
@@ -501,7 +512,7 @@ namespace Opc.Ua.Server.StateMachines
                         m_context,
                         m_deferredCreateNodeId,
                         m_deferredCreateBrowseName,
-                        new LocalizedText(m_deferredCreateBrowseName.Name!),
+                        new LocalizedText(m_deferredCreateBrowseName.Name),
                         true);
                 }
             }
@@ -522,8 +533,8 @@ namespace Opc.Ua.Server.StateMachines
                 }
             }
             throw new InvalidOperationException(
-                $"Initial state {stateId} is not declared. Call AddState "
-                + "to declare it before WithInitialState.");
+                $"Initial state {stateId} is not declared. Call AddState " +
+                "to declare it before WithInitialState.");
         }
 
         private static void ValidateDefinition(MutableStateMachineDefinition def)
@@ -531,8 +542,8 @@ namespace Opc.Ua.Server.StateMachines
             if (def.States.Count == 0)
             {
                 throw new InvalidOperationException(
-                    "At least one state must be declared before the "
-                    + "definition is frozen.");
+                    "At least one state must be declared before the " +
+                    "definition is frozen.");
             }
 
             var stateIds = new HashSet<uint>();
@@ -546,14 +557,14 @@ namespace Opc.Ua.Server.StateMachines
                 if (!stateIds.Contains(t.FromStateId))
                 {
                     throw new InvalidOperationException(
-                        $"Transition '{t.BrowseName}' references unknown "
-                        + $"from-state {t.FromStateId}.");
+                        $"Transition '{t.BrowseName}' references unknown " +
+                        $"from-state {t.FromStateId}.");
                 }
                 if (!stateIds.Contains(t.ToStateId))
                 {
                     throw new InvalidOperationException(
-                        $"Transition '{t.BrowseName}' references unknown "
-                        + $"to-state {t.ToStateId}.");
+                        $"Transition '{t.BrowseName}' references unknown " +
+                        $"to-state {t.ToStateId}.");
                 }
             }
 
@@ -568,14 +579,14 @@ namespace Opc.Ua.Server.StateMachines
                 if (!stateIds.Contains(c.FromStateId))
                 {
                     throw new InvalidOperationException(
-                        $"Cause mapping references unknown from-state "
-                        + $"{c.FromStateId}.");
+                        "Cause mapping references unknown from-state " +
+                        $"{c.FromStateId}.");
                 }
                 if (!transitionIds.Contains(c.TransitionId))
                 {
                     throw new InvalidOperationException(
-                        $"Cause mapping references unknown transition "
-                        + $"{c.TransitionId}.");
+                        "Cause mapping references unknown transition " +
+                        $"{c.TransitionId}.");
                 }
             }
 
@@ -588,10 +599,10 @@ namespace Opc.Ua.Server.StateMachines
                 if (!seenCauseKeys.Add((c.CauseId, c.FromStateId)))
                 {
                     throw new InvalidOperationException(
-                        $"Duplicate cause mapping for causeId="
-                        + $"{c.CauseId}, fromState={c.FromStateId} — "
-                        + "subsequent mappings would be silently "
-                        + "shadowed by the first.");
+                        "Duplicate cause mapping for causeId=" +
+                        $"{c.CauseId}, fromState={c.FromStateId} — " +
+                        "subsequent mappings would be silently " +
+                        "shadowed by the first.");
                 }
             }
         }
@@ -638,6 +649,9 @@ namespace Opc.Ua.Server.StateMachines
         /// <param name="nodeId">The state machine's NodeId.</param>
         /// <param name="browseName">The state machine's browse
         /// name.</param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="nodeId"/> or <paramref name="browseName"/>
+        /// is null.</exception>
         public static StateMachineBuilder<FluentFiniteStateMachineState> Create(
             NodeState? parent,
             ISystemContext context,
@@ -657,7 +671,7 @@ namespace Opc.Ua.Server.StateMachines
             }
 
             var holder = new MutableStateMachineDefinition();
-            FluentFiniteStateMachineState sm =
+            var sm =
                 FluentFiniteStateMachineState.CreateWithHolder(parent!, holder);
             // Defer sm.Create() until FreezeDefinition() so that
             // UseElementNamespace() called between Create() and the
@@ -677,6 +691,9 @@ namespace Opc.Ua.Server.StateMachines
         /// etc.) throw <see cref="InvalidOperationException"/> in this
         /// mode.
         /// </summary>
+        /// <typeparam name="TState">The concrete
+        /// <see cref="FiniteStateMachineState"/> subclass of the
+        /// existing state machine.</typeparam>
         /// <param name="stateMachine">The pre-existing state machine
         /// (e.g. a <c>ShelvedStateMachineState</c> or a
         /// generator-emitted vendor type).</param>
@@ -700,6 +717,9 @@ namespace Opc.Ua.Server.StateMachines
     /// <c>LastState</c>/<c>CurrentState</c>, and owns the per-state
     /// timed-transition registry.
     /// </summary>
+    /// <typeparam name="TState">The concrete
+    /// <see cref="FiniteStateMachineState"/> subclass the dispatcher
+    /// wraps.</typeparam>
     internal sealed class StateMachineDispatcher<TState>
         where TState : FiniteStateMachineState
     {
@@ -714,12 +734,15 @@ namespace Opc.Ua.Server.StateMachines
         private readonly StateMachineTransitionHandler? m_originalBefore;
         private readonly StateMachineTransitionHandler? m_originalAfter;
         private bool m_installed;
-        // Thread-keyed pending-from-state so concurrent transitions
-        // do not clobber each other's stash. OPC UA service requests
-        // can hit a node manager concurrently; each DoTransition runs
-        // synchronously on one thread (DispatchBefore -> state update
-        // -> DispatchAfter all on the same thread), so a thread-id
-        // keyed slot is sufficient.
+
+        /// <summary>
+        /// Thread-keyed pending-from-state so concurrent transitions
+        /// do not clobber each other's stash. OPC UA service requests
+        /// can hit a node manager concurrently; each DoTransition runs
+        /// synchronously on one thread (DispatchBefore -> state update
+        /// -> DispatchAfter all on the same thread), so a thread-id
+        /// keyed slot is sufficient.
+        /// </summary>
         private readonly System.Collections.Concurrent.ConcurrentDictionary<int, uint>
             m_pendingFromByThread = new();
 
@@ -825,9 +848,8 @@ namespace Opc.Ua.Server.StateMachines
             // CurrentState. Stored per-thread to support concurrent
             // transitions safely (each DoTransition call is fully
             // synchronous on one thread).
-            uint fromState = ExtractStateId(
+            m_pendingFromByThread[Environment.CurrentManagedThreadId] = ExtractStateId(
                 m_stateMachine.CurrentState?.Id?.Value);
-            m_pendingFromByThread[System.Environment.CurrentManagedThreadId] = fromState;
 
             // Builder guards run before any pre-existing OnBefore.
             foreach (Func<ISystemContext, TState, uint, uint, ServiceResult> g in m_guards)
@@ -838,7 +860,7 @@ namespace Opc.Ua.Server.StateMachines
                     // Clear the per-thread stash on veto — DispatchAfter
                     // won't run, so leave-no-trace.
                     m_pendingFromByThread.TryRemove(
-                        System.Environment.CurrentManagedThreadId, out _);
+                        Environment.CurrentManagedThreadId, out _);
                     return r;
                 }
             }
@@ -850,7 +872,7 @@ namespace Opc.Ua.Server.StateMachines
                 if (ServiceResult.IsBad(r))
                 {
                     m_pendingFromByThread.TryRemove(
-                        System.Environment.CurrentManagedThreadId, out _);
+                        Environment.CurrentManagedThreadId, out _);
                 }
                 return r;
             }
@@ -877,7 +899,7 @@ namespace Opc.Ua.Server.StateMachines
             }
 
             m_pendingFromByThread.TryRemove(
-                System.Environment.CurrentManagedThreadId, out uint from);
+                Environment.CurrentManagedThreadId, out uint from);
             uint to = ExtractStateId(m_stateMachine.CurrentState?.Id?.Value);
 
             // Exit handlers fire first, then transition observers, then
@@ -939,8 +961,8 @@ namespace Opc.Ua.Server.StateMachines
                 catch (Exception ex)
                 {
                     Debug.WriteLine(
-                        "StateMachineBuilder timed transition for state "
-                        + $"{stateId} threw: {ex}");
+                        "StateMachineBuilder timed transition for state " +
+                        $"{stateId} threw: {ex}");
                 }
             }, null, entry.Timeout, Timeout.InfiniteTimeSpan);
         }

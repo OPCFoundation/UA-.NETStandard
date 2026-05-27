@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.Server.StateMachines;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Server.Tests.StateMachines
 {
@@ -252,8 +251,8 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 .StateMachine;
 
             Assert.That(enterCount, Is.Zero,
-                "WithInitialState must not fire lifecycle handlers — "
-                + "initial state assignment is not a transition.");
+                "WithInitialState must not fire lifecycle handlers — " +
+                "initial state assignment is not a transition.");
         }
 
         [Test]

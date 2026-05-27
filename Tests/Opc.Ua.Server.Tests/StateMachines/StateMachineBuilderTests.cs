@@ -55,9 +55,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
                 StateMachineTestFixtures.NewBuilder(m_context);
-            b.AddState(1, "Off");
-            b.AddState(2, "On");
-            b.AddTransition(10, "OffToOn", from: 1, to: 2);
+            b.AddState(1, "Off")
+                .AddState(2, "On")
+                .AddTransition(10, "OffToOn", from: 1, to: 2);
             Assert.That(() => b.AddTransition(10, "OffToOn2", from: 2, to: 1),
                 Throws.ArgumentException);
         }
@@ -66,9 +66,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void TransitionWithUnknownFromStateFailsAtFreeze()
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
-                StateMachineTestFixtures.NewBuilder(m_context);
-            b.AddState(1, "Off");
-            b.AddTransition(10, "OffToOn", from: 99, to: 1);
+                StateMachineTestFixtures.NewBuilder(m_context)
+                    .AddState(1, "Off")
+                    .AddTransition(10, "OffToOn", from: 99, to: 1);
             Assert.That(() => _ = b.StateMachine,
                 Throws.TypeOf<InvalidOperationException>());
         }
@@ -77,9 +77,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void CauseMappingWithUnknownTransitionFailsAtFreeze()
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
-                StateMachineTestFixtures.NewBuilder(m_context);
-            b.AddState(1, "Off");
-            b.OnCause(causeId: 100, from: 1, transition: 999);
+                StateMachineTestFixtures.NewBuilder(m_context)
+                    .AddState(1, "Off")
+                    .OnCause(causeId: 100, from: 1, transition: 999);
             Assert.That(() => _ = b.StateMachine,
                 Throws.TypeOf<InvalidOperationException>());
         }
@@ -129,9 +129,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void AddTransitionWithEmptyBrowseNameThrowsArgumentException(string browseName)
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
-                StateMachineTestFixtures.NewBuilder(m_context);
-            b.AddState(1, "Off");
-            b.AddState(2, "On");
+                StateMachineTestFixtures.NewBuilder(m_context)
+                    .AddState(1, "Off")
+                    .AddState(2, "On");
             Assert.That(() => b.AddTransition(10, browseName!, from: 1, to: 2),
                 Throws.ArgumentException);
         }
@@ -140,9 +140,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void AddTransitionWithDanglingToStateFailsAtFreeze()
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
-                StateMachineTestFixtures.NewBuilder(m_context);
-            b.AddState(1, "Off");
-            b.AddTransition(10, "OffToGhost", from: 1, to: 99);
+                StateMachineTestFixtures.NewBuilder(m_context)
+                    .AddState(1, "Off")
+                    .AddTransition(10, "OffToGhost", from: 1, to: 99);
             Assert.That(() => _ = b.StateMachine,
                 Throws.TypeOf<InvalidOperationException>());
         }
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 StateMachineTestFixtures.NewBuilder(m_context)
                     .AddState(1, "Off", isInitial: true)
                     .StateMachine;
-            StateMachineBuilder<FluentFiniteStateMachineState> lifecycle =
+            var lifecycle =
                 StateMachineBuilder.For(sm, m_context);
 
             Assert.That(() => lifecycle.AddState(2, "On"),
@@ -252,13 +252,13 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void DuplicateCauseMappingFailsAtFreeze()
         {
             StateMachineBuilder<FluentFiniteStateMachineState> b =
-                StateMachineTestFixtures.NewBuilder(m_context);
-            b.AddState(1, "Off", isInitial: true);
-            b.AddState(2, "On");
-            b.AddTransition(10, "OffToOn", from: 1, to: 2);
-            b.AddTransition(11, "OffToOn2", from: 1, to: 2);
-            b.OnCause(causeId: 100, from: 1, transition: 10);
-            b.OnCause(causeId: 100, from: 1, transition: 11);
+                StateMachineTestFixtures.NewBuilder(m_context)
+                    .AddState(1, "Off", isInitial: true)
+                    .AddState(2, "On")
+                    .AddTransition(10, "OffToOn", from: 1, to: 2)
+                    .AddTransition(11, "OffToOn2", from: 1, to: 2)
+                    .OnCause(causeId: 100, from: 1, transition: 10)
+                    .OnCause(causeId: 100, from: 1, transition: 11);
 
             Assert.That(() => _ = b.StateMachine,
                 Throws.InvalidOperationException);
@@ -286,8 +286,8 @@ namespace Opc.Ua.Server.Tests.StateMachines
             // applied before NodeState.Create cached it.
             NodeId stateId = sm.CurrentState!.Id!.Value;
             Assert.That(stateId.NamespaceIndex, Is.EqualTo(registeredIndex),
-                "ElementNamespaceUri override must take effect before "
-                + "OnAfterCreate caches ElementNamespaceIndex.");
+                "ElementNamespaceUri override must take effect before " +
+                "OnAfterCreate caches ElementNamespaceIndex.");
         }
     }
 

@@ -138,7 +138,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             }
 
             public static ProbingView Of(FluentFiniteStateMachineState sm)
-                => new(parent: null!, definition: sm.Definition);
+            {
+                return new(parent: null!, definition: sm.Definition);
+            }
 
             public int StateTableLength => StateTable!.Length;
             public int TransitionTableLength => TransitionTable!.Length;

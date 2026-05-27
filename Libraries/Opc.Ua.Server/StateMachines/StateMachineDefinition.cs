@@ -144,9 +144,11 @@ namespace Opc.Ua.Server.StateMachines
         public readonly List<StateMachineTransitionDefinition> Transitions = [];
         public readonly List<StateMachineCauseMapping> CauseMappings = [];
         public uint? InitialStateId;
-        public string ElementNamespaceUri = Opc.Ua.Types.Namespaces.OpcUa;
+        public string ElementNamespaceUri = Types.Namespaces.OpcUa;
 
-        // Version is bumped on every mutation; projections cache by version.
+        /// <summary>
+        /// Version is bumped on every mutation; projections cache by version.
+        /// </summary>
         public int Version;
 
         public bool Frozen;
