@@ -73,21 +73,21 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        [Ignore("Needs a real certificate fixture; FakeCertificateProvider " +
-            "returns null which causes UserIdentity.CreateAsync to fail. " +
-            "Tracked as deferred PI cleanup.")]
         public async Task X509ProviderCreatesCertificateIdentity()
         {
+            using Certificate certificate = CertificateBuilder.Create("CN=User")
+                .SetNotBefore(DateTime.UtcNow.AddMinutes(-5))
+                .SetLifeTime(TimeSpan.FromDays(1))
+                .CreateForRSA();
             var certificateId = new CertificateIdentifier
             {
-                StoreType = CertificateStoreType.Directory,
-                StorePath = "pki",
-                SubjectName = "CN=User"
+                Thumbprint = certificate.Thumbprint,
+                SubjectName = certificate.Subject
             };
             var provider = new X509ClientIdentityProvider(
                 certificateId,
                 new FakeCertificatePasswordProvider(),
-                new FakeCertificateProvider());
+                new InMemoryCertificateProvider(certificate));
             UserTokenPolicy policy = CreatePolicy(UserTokenType.Certificate);
 
             IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy));
@@ -199,11 +199,24 @@ namespace Opc.Ua.Client.Tests.Identity
             }
         }
 
-        private sealed class FakeCertificateProvider : ICertificateProvider
+        private sealed class InMemoryCertificateProvider : ICertificateProvider
         {
+            private readonly Certificate m_certificate;
+
+            public InMemoryCertificateProvider(Certificate certificate)
+            {
+                m_certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
+            }
+
             public Certificate? TryGetPrivateKeyCertificate(string thumbprint)
             {
-                return null;
+                if (string.IsNullOrEmpty(thumbprint) ||
+                    !StringComparer.OrdinalIgnoreCase.Equals(thumbprint, m_certificate.Thumbprint))
+                {
+                    return null;
+                }
+
+                return m_certificate.AddRef();
             }
 
             public ValueTask<Certificate?> GetPrivateKeyCertificateAsync(
@@ -212,7 +225,29 @@ namespace Opc.Ua.Client.Tests.Identity
                 string? applicationUri = null,
                 CancellationToken ct = default)
             {
-                return new ValueTask<Certificate?>((Certificate?)null);
+                if (identifier == null)
+                {
+                    throw new ArgumentNullException(nameof(identifier));
+                }
+
+                return Matches(identifier)
+                    ? new ValueTask<Certificate?>(m_certificate.AddRef())
+                    : new ValueTask<Certificate?>((Certificate?)null);
+            }
+
+            private bool Matches(CertificateIdentifier identifier)
+            {
+                if (!string.IsNullOrEmpty(identifier.Thumbprint))
+                {
+                    return StringComparer.OrdinalIgnoreCase.Equals(
+                        identifier.Thumbprint,
+                        m_certificate.Thumbprint);
+                }
+
+                return string.Equals(
+                    identifier.SubjectName,
+                    m_certificate.Subject,
+                    StringComparison.Ordinal);
             }
         }
 

@@ -231,6 +231,36 @@ namespace Opc.Ua.Client
         /// </summary>
         internal ConnectionStateMachine StateMachine { get; }
 
+        /// <summary>
+        /// Waits until a proactive identity refresh attempt has completed.
+        /// </summary>
+        internal async Task EnsureRefreshAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            Task? task;
+            long version;
+            lock (m_identityRefreshLock)
+            {
+                if (m_identityRefreshCompletedVersion > m_identityRefreshObservedVersion)
+                {
+                    m_identityRefreshObservedVersion = m_identityRefreshCompletedVersion;
+                    return;
+                }
+
+                task = m_identityRefreshAttemptCompletion?.Task;
+                version = m_identityRefreshAttemptVersion;
+            }
+
+            if (task == null)
+            {
+                return;
+            }
+
+            await AwaitWithCancellationAsync(task, ct).ConfigureAwait(false);
+            MarkIdentityRefreshObserved(version);
+        }
+
         /// <inheritdoc/>
         public ISessionFactory SessionFactory { get; }
 
@@ -1188,17 +1218,29 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             int retryAttempt = 0;
+            TaskCompletionSource<object?>? attemptCompletion = null;
+            long attemptVersion = 0;
             while (!ct.IsCancellationRequested)
             {
+                if (attemptCompletion == null)
+                {
+                    attemptCompletion = BeginIdentityRefreshAttempt(out attemptVersion);
+                }
+
+                TaskCompletionSource<object?> currentCompletion = attemptCompletion;
+                long currentVersion = attemptVersion;
                 TimeSpan delay = GetIdentityRefreshDelay(provider.ExpiresAt, retryAttempt == 0);
                 try
                 {
                     await DelayAsync(delay, ct).ConfigureAwait(false);
                     await RefreshIdentityOnceAsync(provider, ct).ConfigureAwait(false);
                     retryAttempt = 0;
+                    CompleteIdentityRefreshAttempt(currentCompletion, currentVersion);
+                    attemptCompletion = null;
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
+                    currentCompletion.TrySetCanceled(ct);
                     break;
                 }
                 catch (Exception ex)
@@ -1208,15 +1250,75 @@ namespace Opc.Ua.Client
                         ex,
                         "ManagedSession: proactive identity refresh failed; retrying.");
                     TimeSpan backoff = GetIdentityRefreshBackoff(retryAttempt);
+                    Task backoffTask = DelayAsync(backoff, ct);
+                    attemptCompletion = BeginIdentityRefreshAttempt(out attemptVersion);
+                    CompleteIdentityRefreshAttempt(currentCompletion, currentVersion);
                     try
                     {
-                        await DelayAsync(backoff, ct).ConfigureAwait(false);
+                        await backoffTask.ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
+                        attemptCompletion.TrySetCanceled(ct);
                         break;
                     }
                 }
+            }
+        }
+
+        private TaskCompletionSource<object?> BeginIdentityRefreshAttempt(out long version)
+        {
+            var completion = new TaskCompletionSource<object?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (m_identityRefreshLock)
+            {
+                version = ++m_identityRefreshAttemptVersion;
+                m_identityRefreshAttemptCompletion = completion;
+            }
+            return completion;
+        }
+
+        private void CompleteIdentityRefreshAttempt(
+            TaskCompletionSource<object?> completion,
+            long version)
+        {
+            lock (m_identityRefreshLock)
+            {
+                if (m_identityRefreshCompletedVersion < version)
+                {
+                    m_identityRefreshCompletedVersion = version;
+                }
+            }
+            completion.TrySetResult(null);
+        }
+
+        private void MarkIdentityRefreshObserved(long version)
+        {
+            lock (m_identityRefreshLock)
+            {
+                if (m_identityRefreshObservedVersion < version)
+                {
+                    m_identityRefreshObservedVersion = version;
+                }
+            }
+        }
+
+        private static async Task AwaitWithCancellationAsync(Task task, CancellationToken ct)
+        {
+            if (task.IsCompleted || !ct.CanBeCanceled)
+            {
+                await task.ConfigureAwait(false);
+                return;
+            }
+
+            var cancellation = new TaskCompletionSource<object?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using (ct.Register(
+                static state => ((TaskCompletionSource<object?>)state!).TrySetCanceled(),
+                cancellation))
+            {
+                Task completed = await Task.WhenAny(task, cancellation.Task).ConfigureAwait(false);
+                await completed.ConfigureAwait(false);
             }
         }
 
@@ -1261,7 +1363,7 @@ namespace Opc.Ua.Client
             TimeSpan delay = expires - now - IdentityRefreshSafetyMargin;
             if (delay <= TimeSpan.Zero)
             {
-                return TimeSpan.FromSeconds(1);
+                return allowInfinite ? TimeSpan.FromSeconds(1) : TimeSpan.Zero;
             }
             return delay;
         }
@@ -1471,6 +1573,10 @@ namespace Opc.Ua.Client
         private CancellationTokenSource? m_identityRefreshCancellation;
 #pragma warning restore CA2213
         private Task? m_identityRefreshTask;
+        private TaskCompletionSource<object?>? m_identityRefreshAttemptCompletion;
+        private long m_identityRefreshAttemptVersion;
+        private long m_identityRefreshCompletedVersion;
+        private long m_identityRefreshObservedVersion;
         private int m_disposed;
     }
 }

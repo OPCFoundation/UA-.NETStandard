@@ -88,9 +88,6 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        [Ignore("Flaky timing assertion under parallel proactive-refresh " +
-            "scheduler; needs deterministic clock injection rework. " +
-            "Tracked as deferred PI cleanup.")]
         public async Task RefreshFailureKeepsSessionAliveAndRetries()
         {
             var timeProvider = new FakeTimeProvider();
@@ -102,15 +99,18 @@ namespace Opc.Ua.Client.Tests.Identity
                 .ConfigureAwait(false);
             await using (session.ConfigureAwait(false))
             {
-                timeProvider.Advance(TimeSpan.FromSeconds(60));
-                await WaitUntilAsync(() => provider.CallCount >= 2).ConfigureAwait(false);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
+                timeProvider.Advance(TimeSpan.FromSeconds(60));
+                await session.EnsureRefreshAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(provider.CallCount, Is.EqualTo(2));
                 Assert.That(session.Connected, Is.True);
 
-                await Task.Delay(50).ConfigureAwait(false);
                 timeProvider.Advance(TimeSpan.FromSeconds(6));
-                await WaitUntilAsync(() => provider.CallCount >= 3).ConfigureAwait(false);
+                await session.EnsureRefreshAsync(timeout.Token).ConfigureAwait(false);
 
+                Assert.That(provider.CallCount, Is.EqualTo(3));
                 Assert.That(session.Connected, Is.True);
             }
         }
