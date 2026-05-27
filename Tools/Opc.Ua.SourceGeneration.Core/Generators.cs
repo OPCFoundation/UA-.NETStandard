@@ -118,6 +118,15 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
+                // Cross-namespace prefix override: when a referenced
+                // assembly publishes a model under a specific C# prefix,
+                // rewrite any matching dependency namespace in the loaded
+                // ModelDesign to use that prefix. Without this, NodeSet2
+                // inputs (which auto-generate prefixes via
+                // NodeSetToModelDesign) emit references like
+                // `global::Opc.Ua.DI.X` instead of `global::Opc.Ua.Di.X`.
+                OverrideDependencyPrefixes(modelDesign, referencedModels);
+
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
                     modelDesign,
@@ -161,6 +170,57 @@ namespace Opc.Ua.SourceGeneration
                             ").");
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Override the C# <see cref="Namespace.Prefix"/> of dependency
+        /// namespaces in <paramref name="modelDesign"/> with the prefix
+        /// published by the referenced assembly's
+        /// <c>[assembly: ModelDependencyAttribute]</c>. This guarantees
+        /// that cross-namespace type references emitted by the generator
+        /// resolve to the actual C# namespace the referenced assembly
+        /// uses (e.g. <c>Opc.Ua.Di</c>), not the auto-generated default
+        /// (e.g. <c>Opc.Ua.DI</c>) produced by
+        /// <see cref="NodeSetToModelDesign"/> when no ModelDesign XML is
+        /// available for the dependency.
+        /// </summary>
+        /// <remarks>
+        /// The target namespace (the one currently being generated) is
+        /// intentionally left untouched; otherwise the generator would
+        /// emit references into someone else's assembly.
+        /// </remarks>
+        internal static void OverrideDependencyPrefixes(
+            IModelDesign modelDesign,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
+        {
+            if (modelDesign?.Namespaces == null ||
+                referencedModels == null ||
+                referencedModels.Count == 0)
+            {
+                return;
+            }
+            string targetUri = modelDesign.TargetNamespace?.Value;
+            foreach (Namespace ns in modelDesign.Namespaces)
+            {
+                if (ns == null || string.IsNullOrEmpty(ns.Value))
+                {
+                    continue;
+                }
+                if (string.Equals(ns.Value, targetUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (!referencedModels.TryGetValue(ns.Value, out ModelDependencyReference dep) ||
+                    !dep.IsValid)
+                {
+                    continue;
+                }
+                if (string.Equals(ns.Prefix, dep.Prefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                ns.Prefix = dep.Prefix;
             }
         }
 
@@ -335,6 +395,13 @@ namespace Opc.Ua.SourceGeneration
                     telemetry,
                     useAllowSubtypes);
 
+                // Cross-namespace prefix override: when a referenced
+                // assembly publishes a model under a specific C# prefix,
+                // rewrite any matching dependency namespace so that
+                // generated type references resolve against the referenced
+                // assembly's actual prefix (not the auto-generated one).
+                OverrideDependencyPrefixes(modelDesign, referencedModels);
+
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
                     modelDesign,
@@ -354,9 +421,6 @@ namespace Opc.Ua.SourceGeneration
                 },
                 validateSchemas: false,
                 designOptions: effectiveOptions);
-                // TODO {
-                // TODO     AvailableNodeSets = nodesets.Files
-                // TODO };
             }
 
             if (usedBindings != null && nodeManagerBindings != null && reportBindingDiagnostic != null)
