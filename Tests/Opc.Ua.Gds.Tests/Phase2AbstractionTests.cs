@@ -215,61 +215,58 @@ namespace Opc.Ua.Gds.Tests
     public class KeyCredentialSecretStoreIntegrationTests
     {
         [Test]
-        public void CredentialSecretIsMaterialisedFromSecretStore()
+        public async Task CredentialSecretIsMaterialisedFromSecretStoreAsync()
         {
             var secretStore = new InMemorySecretStore("TestKC");
             var store = new InMemoryKeyCredentialRequestStore(secretStore);
 
-            NodeId id = store.StartRequest(
+            NodeId id = await store.StartRequestAsync(
                 "urn:test:app",
                 ByteString.From(new byte[] { 1, 2 }),
                 null,
-                default);
+                default).ConfigureAwait(false);
 
-            store.FinishRequest(
-                id, false,
-                out string? credentialId,
-                out ByteString credentialSecret,
-                out _, out _, out _);
+            FinishKeyCredentialRequestResult result = await store.FinishRequestAsync(
+                id, cancelRequest: false).ConfigureAwait(false);
 
-            Assert.That(credentialId, Is.Not.Null);
-            Assert.That(credentialSecret.IsEmpty, Is.False);
+            Assert.That(result.CredentialId, Is.Not.Null);
+            Assert.That(result.CredentialSecret.IsEmpty, Is.False);
 
             // Verify the secret is also in the ISecretStore
-            var sid = new SecretIdentifier(credentialId!, secretStore.StoreType);
+            var sid = new SecretIdentifier(result.CredentialId!, secretStore.StoreType);
             using ISecret? secret = secretStore.TryGet(sid);
             Assert.That(secret, Is.Not.Null);
             Assert.That(secret!.Bytes.Length, Is.GreaterThan(0));
         }
 
         [Test]
-        public void RevokeRemovesSecretFromStore()
+        public async Task RevokeRemovesSecretFromStoreAsync()
         {
             var secretStore = new InMemorySecretStore("TestKC");
             var store = new InMemoryKeyCredentialRequestStore(secretStore);
 
-            NodeId id = store.StartRequest("urn:test:app", default, null, default);
+            NodeId id = await store.StartRequestAsync("urn:test:app", default, null, default).ConfigureAwait(false);
 
-            store.FinishRequest(id, false, out string? credentialId, out _, out _, out _, out _);
+            FinishKeyCredentialRequestResult result = await store.FinishRequestAsync(
+                id, cancelRequest: false).ConfigureAwait(false);
 
-            store.Revoke(credentialId!);
+            await store.RevokeAsync(result.CredentialId!).ConfigureAwait(false);
 
             // Secret should be purged from the store
-            var sid = new SecretIdentifier(credentialId!, secretStore.StoreType);
+            var sid = new SecretIdentifier(result.CredentialId!, secretStore.StoreType);
             using ISecret? secret = secretStore.TryGet(sid);
             Assert.That(secret, Is.Null);
         }
 
         [Test]
-        public void CancelRequestRemovesSecretFromStore()
+        public async Task CancelRequestRemovesSecretFromStoreAsync()
         {
             var secretStore = new InMemorySecretStore("TestKC");
             var store = new InMemoryKeyCredentialRequestStore(secretStore);
 
-            NodeId id = store.StartRequest("urn:test:app", default, null, default);
+            NodeId id = await store.StartRequestAsync("urn:test:app", default, null, default).ConfigureAwait(false);
 
-            store.FinishRequest(id, cancelRequest: true,
-                out _, out _, out _, out _, out _);
+            await store.FinishRequestAsync(id, cancelRequest: true).ConfigureAwait(false);
 
             // The secret should have been purged on cancel.
             // Verify no secrets remain by trying the expected key.
