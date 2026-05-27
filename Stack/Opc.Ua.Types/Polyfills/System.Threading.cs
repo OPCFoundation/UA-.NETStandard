@@ -42,12 +42,38 @@ namespace System.Threading
     {
 #if NETSTANDARD2_0_OR_GREATER || NETFRAMEWORK
         /// <summary>
-        /// Cancel the cancellation token source and return a completed task.
+        /// Communicates a request for cancellation asynchronously.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Approximates the .NET 8+ <c>CancellationTokenSource.CancelAsync</c>
+        /// semantics on netstandard2.0 / .NET Framework. The real BCL
+        /// implementation synchronously transitions
+        /// <see cref="CancellationToken.IsCancellationRequested"/> to <c>true</c>
+        /// and invokes registered cancellation callbacks *asynchronously* on
+        /// the <see cref="ThreadPool"/>, so the caller is never blocked on
+        /// third-party callback code (and so a callback that awaits on the
+        /// caller's <see cref="SynchronizationContext"/> cannot deadlock the
+        /// caller).
+        /// </para>
+        /// <para>
+        /// <see cref="CancellationTokenSource.Cancel()"/> on these legacy
+        /// targets invokes callbacks inline on the calling thread, which
+        /// deadlocks when a callback awaits on the caller's synchronization
+        /// context. To approximate the real semantics we hoist
+        /// <see cref="CancellationTokenSource.Cancel()"/> onto the
+        /// <see cref="ThreadPool"/> via <see cref="Task.Run(Action)"/>. As a
+        /// consequence,
+        /// <see cref="CancellationToken.IsCancellationRequested"/> is only
+        /// guaranteed to be <c>true</c> once the returned <see cref="Task"/>
+        /// completes — callers that need to observe the cancelled state
+        /// synchronously must invoke <see cref="CancellationTokenSource.Cancel()"/>
+        /// directly instead of awaiting this method.
+        /// </para>
+        /// </remarks>
         public static Task CancelAsync(this CancellationTokenSource source)
         {
-            source.Cancel();
-            return Task.CompletedTask;
+            return Task.Run((Action)source.Cancel);
         }
 #endif
     }

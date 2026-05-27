@@ -235,10 +235,18 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// Regression test for the documented sequential-publishing trade-off:
+        /// when <c>sequentialPublishing == true</c> the subscription tolerates
+        /// at most one message of look-ahead before abandoning the next
+        /// expected sequence number. A late-arriving message whose republish
+        /// timeout has already elapsed is dropped instead of being re-inserted
+        /// out of order, in exchange for the strict in-order delivery
+        /// guarantee on the remaining sequence.
+        /// </summary>
         [Test]
-        [Explicit("Test shows possibility for broken order of notifications during sequential publishing")]
         [CancelAfter(Subscription.RepublishMessageTimeout * 6)]
-        public async Task UnorderedMessagesWouldBeLostForSequentialPublishingAsync(CancellationToken ct)
+        public async Task OldMessagesAbandonedAfterRepublishTimeoutInSequentialModeAsync(CancellationToken ct)
         {
             NotificationMessage[] messages = BuildMessages(5);
             using SubscriptionContainer container = await BuildSubscriptionAsync(messages, sequentialPublishing: true, ct).ConfigureAwait(false);
