@@ -51,12 +51,10 @@ Every mutator returns a `ServiceResult` that mirrors the spec-defined status cod
 
 `EndpointType` comparisons in identity resolution honour Part 18 4.4.2: fields set to their default value on the rule side act as wildcards.
 
-> **Role criteria semantic change (fixed in this release)**:
+> **Identity-claim criteria support**:
 >
-> - `IdentityCriteriaType.GroupId` now probes the returned `IUserIdentity` for `Opc.Ua.Identity.IIdentityClaims` (see [Identity Providers](IdentityProviders.md)) and matches `IIdentityClaims.Groups`.
-> - `IdentityCriteriaType.Role` now follows Part 18 4.4.4 and matches roles asserted **inside the access token** via `IIdentityClaims.Roles`, optionally prefixed by the issuer URI as `iss/roleName`.
->
-> Migration note: set `RoleConfigurationOptions.LegacyRoleCriteriaMatchesGrantedRoles = true` (or call `ConfigureRoles(o => o.LegacyRoleCriteriaMatchesGrantedRoles = true)` in Generic Host setup) only if an existing deployment intentionally relied on the historical, spec-incorrect behaviour where `Role` criteria matched already-granted OPC UA role NodeIds. Clear the flag after rewriting those mapping rules to access-token role claims; the opt-out is intended for one release. See [Migration Guide: Role criteria semantic change](MigrationGuide.md#role-criteria-semantic-change).
+> - `IdentityCriteriaType.GroupId` probes the returned `IUserIdentity` for `Opc.Ua.Identity.IIdentityClaims` (see [Identity Providers](IdentityProviders.md)) and matches `IIdentityClaims.Groups`.
+> - `IdentityCriteriaType.Role` matches roles asserted **inside the access token** via `IIdentityClaims.Roles`, optionally prefixed by the issuer URI as `iss/roleName`, per Part 18 4.4.4.
 
 ### RoleConfigurationChanged event
 

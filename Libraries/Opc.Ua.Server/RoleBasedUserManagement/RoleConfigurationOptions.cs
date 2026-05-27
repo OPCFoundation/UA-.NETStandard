@@ -33,30 +33,13 @@ namespace Opc.Ua.Server
 {
     /// <summary>
     /// Configures the default <see cref="RoleManager"/> implementation.
+    /// Reserved for future role-related options; currently has no
+    /// configurable members. <see cref="IdentityCriteriaType.Role"/>
+    /// rules always evaluate against access-token roles asserted via
+    /// <c>IIdentityClaims.Roles</c> per OPC UA Part 18 §4.4.4
+    /// (<see href="https://reference.opcfoundation.org/Core/Part18/v105/docs/4.4.4"/>).
     /// </summary>
-    /// <remarks>
-    /// See OPC UA Part 18 §4.4.4
-    /// (<see href="https://reference.opcfoundation.org/Core/Part18/v105/docs/4.4.4"/>)
-    /// and the stack migration notes in
-    /// <see href="https://github.com/OPCFoundation/UA-.NETStandard/blob/main/Docs/RoleBasedUserManagement.md"/>.
-    /// </remarks>
     public sealed class RoleConfigurationOptions
     {
-        /// <summary>
-        /// Gets or sets whether <see cref="IdentityCriteriaType.Role"/> rules
-        /// use the historical OPC UA role NodeId matching behavior.
-        /// </summary>
-        /// <remarks>
-        /// The corrected default (<c>false</c>) evaluates Role criteria against
-        /// roles asserted inside an access token via <c>IIdentityClaims.Roles</c>,
-        /// including the Part 18 §4.4.4 <c>iss/roleName</c> prefix form.
-        /// Set this to <c>true</c> for one-release compatibility only when an
-        /// existing deployment intentionally relied on the legacy, spec-incorrect
-        /// behavior where Role criteria matched already-granted OPC UA role
-        /// NodeIds. Clear the flag after migrating those rules to access-token
-        /// role claims. See the Role-Based Security migration notes
-        /// (<see href="https://github.com/OPCFoundation/UA-.NETStandard/blob/main/Docs/RoleBasedUserManagement.md"/>).
-        /// </remarks>
-        public bool LegacyRoleCriteriaMatchesGrantedRoles { get; set; }
     }
 }

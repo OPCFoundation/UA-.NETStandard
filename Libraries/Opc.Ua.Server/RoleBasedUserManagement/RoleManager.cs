@@ -66,8 +66,6 @@ namespace Opc.Ua.Server
         private readonly Dictionary<string, NodeId> m_browseNameIndex
             = new(StringComparer.Ordinal);
 
-        private readonly RoleConfigurationOptions m_options;
-
         private uint m_nextDynamicId = 1;
         private bool m_disposed;
 
@@ -84,11 +82,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new role manager with the supplied role-mapping options.
         /// </summary>
-        /// <param name="options">Role criteria compatibility options. If
-        /// <c>null</c>, the corrected default behaviour is used.</param>
+        /// <param name="options">Currently reserved for future role-related
+        /// options. May be <c>null</c>; no configurable members exist yet.</param>
         public RoleManager(RoleConfigurationOptions? options)
         {
-            m_options = options ?? new RoleConfigurationOptions();
+            _ = options;
 
             // Anonymous role: identities = { Anonymous, AuthenticatedUser }
             AddBuiltInRole(s_anonymous, BrowseNames.WellKnownRole_Anonymous, isReserved: true)
@@ -610,7 +608,7 @@ namespace Opc.Ua.Server
                 {
                     if (RoleMatches(role, identity, clientCertificate, clientApplicationUris,
                             clientThumbprint, clientSubject, candidate, isSignedChannel,
-                            isEncryptedChannel, granted))
+                            isEncryptedChannel))
                     {
                         granted.Add(role.RoleId);
                     }
@@ -635,7 +633,7 @@ namespace Opc.Ua.Server
             m_lock.Dispose();
         }
 
-        private bool RoleMatches(
+        private static bool RoleMatches(
             MutableRole role,
             IUserIdentity identity,
             Certificate? clientCertificate,
@@ -644,8 +642,7 @@ namespace Opc.Ua.Server
             string clientSubject,
             EndpointType candidateEndpoint,
             bool isSignedChannel,
-            bool isEncryptedChannel,
-            IReadOnlyList<NodeId> rolesGrantedSoFar)
+            bool isEncryptedChannel)
         {
             // Apply Application filter (Part 18 §4.4.1).
             if (role.Applications.Count > 0)
@@ -694,7 +691,7 @@ namespace Opc.Ua.Server
             {
                 if (IdentityRuleMatches(rule, identity, clientCertificate,
                         clientApplicationUris, clientThumbprint, clientSubject,
-                        isSignedChannel, isEncryptedChannel, rolesGrantedSoFar))
+                        isSignedChannel, isEncryptedChannel))
                 {
                     return true;
                 }
@@ -703,7 +700,7 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        private bool IdentityRuleMatches(
+        private static bool IdentityRuleMatches(
             IdentityMappingRuleType rule,
             IUserIdentity identity,
             Certificate? clientCertificate,
@@ -711,8 +708,7 @@ namespace Opc.Ua.Server
             string clientThumbprint,
             string clientSubject,
             bool isSignedChannel,
-            bool isEncryptedChannel,
-            IReadOnlyList<NodeId> rolesGrantedSoFar)
+            bool isEncryptedChannel)
         {
             UserTokenType tokenType = identity.TokenType;
             string criteria = rule.Criteria ?? string.Empty;
@@ -729,9 +725,7 @@ namespace Opc.Ua.Server
                 IdentityCriteriaType.X509Subject => clientCertificate != null &&
                     !string.IsNullOrEmpty(clientSubject) &&
                     string.Equals(clientSubject, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.Role => m_options.LegacyRoleCriteriaMatchesGrantedRoles
-                    ? MatchesGrantedRole(criteria, rolesGrantedSoFar)
-                    : claims != null && MatchClaimRole(claims, criteria),
+                IdentityCriteriaType.Role => claims != null && MatchClaimRole(claims, criteria),
                 // The certificate may advertise multiple ApplicationUris; any one
                 // matching the rule's criteria is sufficient.
                 IdentityCriteriaType.Application => clientCertificate != null &&
@@ -768,22 +762,6 @@ namespace Opc.Ua.Server
                 !string.IsNullOrEmpty(roleName) &&
                 string.Equals(claims.Issuer, issuer, StringComparison.Ordinal) &&
                 claims.Roles.Contains(roleName, StringComparer.Ordinal);
-        }
-
-        private static bool MatchesGrantedRole(string criteria, IReadOnlyList<NodeId> rolesGrantedSoFar)
-        {
-            if (string.IsNullOrEmpty(criteria))
-            {
-                return false;
-            }
-            foreach (NodeId nodeId in rolesGrantedSoFar)
-            {
-                if (string.Equals(nodeId.ToString(), criteria, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private MutableRole AddBuiltInRole(NodeId roleId, string browseName, bool isReserved)

@@ -286,7 +286,7 @@ methods on `IOpcUaServerBuilder`:
 
 | Extension | Purpose |
 |---|---|
-| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Adjusts `RoleManager` behaviour. Currently the only knob is `LegacyRoleCriteriaMatchesGrantedRoles` (default `false` = spec-correct per OPC 10000-18 §4.4.4). |
+| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
 | `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
 | `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
@@ -314,9 +314,6 @@ Configuration binding under `OpcUa:Server:Identity`:
             "Algorithms": [ "RS256" ]
           }
         ]
-      },
-      "Roles": {
-        "LegacyRoleCriteriaMatchesGrantedRoles": false
       }
     }
   }
@@ -586,7 +583,6 @@ services
         opt.EnableAnonymous = false;
         opt.EnableUserNamePassword = true;
     })
-    .ConfigureRoles(opt => opt.LegacyRoleCriteriaMatchesGrantedRoles = false)
     .AddJwtIssuer(opt =>
     {
         opt.IssuerUri = "https://login.microsoftonline.com/{tenant}/v2.0";

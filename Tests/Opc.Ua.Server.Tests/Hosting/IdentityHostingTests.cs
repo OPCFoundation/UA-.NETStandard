@@ -33,12 +33,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Identity;
@@ -111,25 +109,6 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             Assert.That(services.GetServices<IIssuerKeyResolver>().Count(), Is.EqualTo(1));
             Assert.That(CreateAuthenticators(services), Has.Exactly(1).TypeOf<JwtAuthenticator>());
-        }
-
-        [Test]
-        public void RolesConfigurationFlowsToRoleManagerOptions()
-        {
-            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>
-            {
-                ["OpcUa:Server:Roles:LegacyRoleCriteriaMatchesGrantedRoles"] = "true"
-            });
-            using ServiceProvider services = CreateServices(configuration).BuildServiceProvider();
-
-            RoleConfigurationOptions options = services.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
-            using var roleManager = new RoleManager(options);
-            FieldInfo field = typeof(RoleManager).GetField(
-                "m_options",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            var storedOptions = (RoleConfigurationOptions)field.GetValue(roleManager);
-
-            Assert.That(storedOptions.LegacyRoleCriteriaMatchesGrantedRoles, Is.True);
         }
 
         private static ServiceCollection CreateServices(IConfiguration configuration)

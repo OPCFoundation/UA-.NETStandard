@@ -800,35 +800,24 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ResolveGrantedRoles_RoleCriteriaGrantedRoleNodeIdRequiresLegacyFlag()
+        public void ResolveGrantedRoles_RoleCriteriaMatchesAccessTokenRolesOnly()
         {
             string grantedRoleCriteria = ObjectIds.WellKnownRole_AuthenticatedUser.ToString();
             var identity = new ClaimsTestIdentity(
                 tokenType: UserTokenType.UserName,
                 roles: new[] { "Operator" });
 
-            using var defaultManager = new RoleManager();
+            using var manager = new RoleManager();
             Assert.That(ServiceResult.IsGood(
-                defaultManager.AddIdentity(ObjectIds.WellKnownRole_Operator,
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator,
                     new IdentityMappingRuleType
                     {
                         CriteriaType = IdentityCriteriaType.Role,
                         Criteria = grantedRoleCriteria
                     })), Is.True);
-            IList<NodeId> defaultRoles = defaultManager.ResolveGrantedRoles(identity, null, null);
-            Assert.That(defaultRoles, Has.No.Member(ObjectIds.WellKnownRole_Operator));
-
-            using var legacyManager = new RoleManager(
-                new RoleConfigurationOptions { LegacyRoleCriteriaMatchesGrantedRoles = true });
-            Assert.That(ServiceResult.IsGood(
-                legacyManager.AddIdentity(ObjectIds.WellKnownRole_Operator,
-                    new IdentityMappingRuleType
-                    {
-                        CriteriaType = IdentityCriteriaType.Role,
-                        Criteria = grantedRoleCriteria
-                    })), Is.True);
-            IList<NodeId> legacyRoles = legacyManager.ResolveGrantedRoles(identity, null, null);
-            Assert.That(legacyRoles, Has.Member(ObjectIds.WellKnownRole_Operator));
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
+                "Role criteria must read access-token role claims (Part 18 §4.4.4), not already-granted role NodeIds.");
         }
 
         // ----------------------------------------------------------------

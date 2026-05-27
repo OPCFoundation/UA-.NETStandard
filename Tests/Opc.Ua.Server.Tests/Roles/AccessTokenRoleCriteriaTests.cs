@@ -79,32 +79,23 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ResolveGrantedRoles_LegacyRoleCriteriaFlagRestoresGrantedRoleNodeIdMatching()
+        public void ResolveGrantedRoles_RoleCriteriaMatchesAccessTokenRolesOnly()
         {
             AssertMessageContextCanBeCreated();
             string grantedRoleCriteria = ObjectIds.WellKnownRole_AuthenticatedUser.ToString();
 
-            using var defaultManager = CreateManagerWithRoleRule(grantedRoleCriteria);
+            using var manager = CreateManagerWithRoleRule(grantedRoleCriteria);
             var identity = new ClaimsTestIdentity(
                 tokenType: UserTokenType.UserName,
                 roles: new[] { "Engineer" });
-            IList<NodeId> defaultRoles = defaultManager.ResolveGrantedRoles(identity, null, null);
-            Assert.That(defaultRoles, Has.No.Member(ObjectIds.WellKnownRole_Engineer),
-                "Corrected default behaviour must read access-token role claims, not already-granted role NodeIds.");
-
-            using var legacyManager = CreateManagerWithRoleRule(
-                grantedRoleCriteria,
-                new RoleConfigurationOptions { LegacyRoleCriteriaMatchesGrantedRoles = true });
-            IList<NodeId> legacyRoles = legacyManager.ResolveGrantedRoles(identity, null, null);
-            Assert.That(legacyRoles, Has.Member(ObjectIds.WellKnownRole_Engineer),
-                "Compatibility flag should restore the historical granted role NodeId matching path.");
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Engineer),
+                "Role criteria must read access-token role claims, not already-granted role NodeIds.");
         }
 
-        private static RoleManager CreateManagerWithRoleRule(
-            string criteria,
-            RoleConfigurationOptions options = null)
+        private static RoleManager CreateManagerWithRoleRule(string criteria)
         {
-            var manager = new RoleManager(options);
+            var manager = new RoleManager();
             ServiceResult result = manager.AddIdentity(
                 ObjectIds.WellKnownRole_Engineer,
                 new IdentityMappingRuleType

@@ -58,28 +58,28 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void ConfigureRolesActionMatchesServerBuilderRegistration()
         {
             IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
-                builder.ConfigureRoles(options => options.LegacyRoleCriteriaMatchesGrantedRoles = true));
+                builder.ConfigureRoles(options => { }));
             IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
-                builder.ConfigureRoles(options => options.LegacyRoleCriteriaMatchesGrantedRoles = true));
+                builder.ConfigureRoles(options => { }));
 
             Assert.That(gdsDelta, Is.EqualTo(serverDelta));
         }
 
         [Test]
-        public void ConfigureRolesActionAppliesOptions()
+        public void ConfigureRolesActionRegistersOptions()
         {
             var services = new ServiceCollection();
             IGdsServerBuilder builder = services.AddOpcUa()
                 .AddGdsServer(options => options.ApplicationName = "Gds");
 
-            IGdsServerBuilder returned = builder.ConfigureRoles(
-                options => options.LegacyRoleCriteriaMatchesGrantedRoles = true);
+            IGdsServerBuilder returned = builder.ConfigureRoles(options => { });
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            RoleConfigurationOptions options = sp.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
 
             Assert.That(returned, Is.SameAs(builder));
-            Assert.That(options.LegacyRoleCriteriaMatchesGrantedRoles, Is.True);
+            Assert.That(
+                sp.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value,
+                Is.Not.Null);
         }
 
         [Test]
@@ -122,7 +122,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         [Test]
         public void ConfigureRolesConfigurationMatchesServerBuilderRegistration()
         {
-            IConfiguration section = BuildConfiguration("LegacyRoleCriteriaMatchesGrantedRoles", "true");
+            IConfiguration section = BuildConfiguration("Marker", "value");
             IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
                 builder.ConfigureRoles(section));
             IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
@@ -132,22 +132,21 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
-        public void ConfigureRolesConfigurationAppliesOptions()
+        public void ConfigureRolesConfigurationRegistersOptions()
         {
             var services = new ServiceCollection();
             IGdsServerBuilder builder = services.AddOpcUa()
                 .AddGdsServer(options => options.ApplicationName = "Gds");
-            IConfiguration section = BuildConfiguration(
-                "LegacyRoleCriteriaMatchesGrantedRoles",
-                "true");
+            IConfiguration section = BuildConfiguration("Marker", "value");
 
             IGdsServerBuilder returned = builder.ConfigureRoles(section);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            RoleConfigurationOptions options = sp.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
 
             Assert.That(returned, Is.SameAs(builder));
-            Assert.That(options.LegacyRoleCriteriaMatchesGrantedRoles, Is.True);
+            Assert.That(
+                sp.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value,
+                Is.Not.Null);
         }
 
         [Test]
