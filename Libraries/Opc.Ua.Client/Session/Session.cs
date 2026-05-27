@@ -2586,6 +2586,11 @@ namespace Opc.Ua.Client
                 return StatusCodes.Good;
             }
 
+            if (Closing)
+            {
+                return StatusCodes.Bad;
+            }
+
             StatusCode result = StatusCodes.Good;
 
             Closing = true;

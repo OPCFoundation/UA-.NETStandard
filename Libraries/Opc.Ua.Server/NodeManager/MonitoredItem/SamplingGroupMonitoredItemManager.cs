@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -39,7 +41,7 @@ namespace Opc.Ua.Server
     {
         /// <inheritdoc/>
         public SamplingGroupMonitoredItemManager(
-            INodeManager3 nodeManager,
+            IAsyncNodeManager nodeManager,
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -65,7 +67,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             uint subscriptionId,
@@ -200,22 +202,23 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode?) SetMonitoringMode(
+        public ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            NodeHandle handle)
+            NodeHandle handle,
+            CancellationToken cancellationToken = default)
         {
             if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
                 out IMonitoredItem? existingMonitoredItem))
             {
-                return (StatusCodes.BadMonitoredItemIdInvalid, null);
+                return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.BadMonitoredItemIdInvalid, null));
             }
 
             if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
-                return (StatusCodes.BadMonitoredItemIdInvalid, null);
+                return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.BadMonitoredItemIdInvalid, null));
             }
 
             // update monitoring mode.
@@ -251,13 +254,13 @@ namespace Opc.Ua.Server
                 monitoredItem.QueueValue(initialValue, null);
             }
 
-            return (StatusCodes.Good, previousMode);
+            return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.Good, previousMode));
         }
 
         /// <inheritdoc/>
         public bool RestoreMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             IStoredMonitoredItem storedMonitoredItem,
@@ -336,7 +339,7 @@ namespace Opc.Ua.Server
             return (monitoredNode, ServiceResult.Good);
         }
 
-        private readonly INodeManager3 m_nodeManager;
+        private readonly IAsyncNodeManager m_nodeManager;
         private readonly IServerInternal m_server;
         private readonly SamplingGroupManager m_samplingGroupManager;
     }

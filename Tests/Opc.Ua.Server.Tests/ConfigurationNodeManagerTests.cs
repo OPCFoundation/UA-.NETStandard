@@ -32,7 +32,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(metadata.NamespaceUri.Value, Is.EqualTo(namespaceUri));
 
             // Act 2: GetNamespaceMetadataState
-            NamespaceMetadataState metadataGet = configManager.GetNamespaceMetadataState(namespaceUri);
+            NamespaceMetadataState metadataGet = await configManager.GetNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
             Assert.That(metadataGet, Is.SameAs(metadata));
 
             // Act 3: Verify Event Subscription
