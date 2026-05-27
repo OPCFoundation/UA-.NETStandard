@@ -90,29 +90,29 @@ namespace Opc.Ua.Server.Tests
                 baseObject.NodeId = nodeId;
 
                 //single threaded test
-                nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
+                await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
 
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
                 NodeState nodeState = nodeManager.Find(nodeId);
                 Assert.That(nodeState, Is.Not.Null);
 
-                var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+                var handle = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
                 Assert.That(handle, Is.Not.Null);
 
-                nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
+                await nodeManager.DeleteNodeAsync(nodeManager.SystemContext, nodeId).ConfigureAwait(false);
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
                 nodeState = nodeManager.Find(nodeId);
                 Assert.That(nodeState, Is.Null);
 
-                handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+                handle = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
                 Assert.That(handle, Is.Null);
 
-                nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
+                await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
 
-                nodeManager.DeleteAddressSpace();
+                await nodeManager.DeleteAddressSpaceAsync().ConfigureAwait(false);
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
                 //delete full adress space
-                nodeManager.DeleteAddressSpace();
+                await nodeManager.DeleteAddressSpaceAsync().ConfigureAwait(false);
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
             }
             finally
@@ -140,18 +140,17 @@ namespace Opc.Ua.Server.Tests
             DataItemState baseObject,
             NodeId nodeId)
         {
-            nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
+            await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
             _ = nodeManager.Find(nodeId);
-            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            _ = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
 
-            nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
+            await nodeManager.DeleteNodeAsync(nodeManager.SystemContext, nodeId).ConfigureAwait(false);
 
             _ = nodeManager.Find(nodeId);
 
-            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            _ = await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false) as NodeHandle;
 
-            nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
-            await Task.CompletedTask.ConfigureAwait(false);
+            await nodeManager.AddPredefinedNodeAsync(nodeManager.SystemContext, baseObject).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -229,7 +228,7 @@ namespace Opc.Ua.Server.Tests
         }
     }
 
-    public class TestableCustomNodeManger2 : CustomNodeManager2
+    public class TestableCustomNodeManger2 : AsyncCustomNodeManager
     {
         public TestableCustomNodeManger2(IServerInternal server, params string[] namespaceUris)
             : base(server, namespaceUris)
@@ -256,9 +255,9 @@ namespace Opc.Ua.Server.Tests
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 
-        public new virtual void AddPredefinedNode(ISystemContext context, NodeState node)
+        public new virtual ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
-            base.AddPredefinedNode(context, node);
+            return base.AddPredefinedNodeAsync(context, node, cancellationToken);
         }
     }
 }
