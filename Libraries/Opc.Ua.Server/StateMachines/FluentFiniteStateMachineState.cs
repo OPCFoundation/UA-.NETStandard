@@ -70,6 +70,60 @@ namespace Opc.Ua.Server.StateMachines
         private int m_cacheVersion = -1;
 
         /// <summary>
+        /// When <c>true</c>, the state machine rejects all incoming
+        /// transitions and cause invocations with
+        /// <see cref="StatusCodes.BadInvalidState"/>. Used to model
+        /// the inactive state of a sub-state-machine whose parent
+        /// has exited the attached state. Set by
+        /// <see cref="StateMachineBuilder{TState}.WithSubStateMachine"/>
+        /// lifecycle hooks.
+        /// </summary>
+        public bool IsSuspended { get; set; }
+
+        /// <inheritdoc/>
+        public override bool IsCausePermitted(
+            ISystemContext context,
+            uint causeId,
+            bool checkUserAccessRights)
+        {
+            if (IsSuspended)
+            {
+                return false;
+            }
+            return base.IsCausePermitted(context, causeId, checkUserAccessRights);
+        }
+
+        /// <inheritdoc/>
+        public override ServiceResult DoCause(
+            ISystemContext context,
+            MethodState causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            System.Collections.Generic.List<Variant> outputArguments)
+        {
+            if (IsSuspended)
+            {
+                return StatusCodes.BadInvalidState;
+            }
+            return base.DoCause(context, causeMethod, causeId, inputArguments, outputArguments);
+        }
+
+        /// <inheritdoc/>
+        public override ServiceResult DoTransition(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            System.Collections.Generic.List<Variant> outputArguments)
+        {
+            if (IsSuspended)
+            {
+                return StatusCodes.BadInvalidState;
+            }
+            return base.DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
+        }
+
+        /// <summary>
         /// Initializes a new state machine instance from the given
         /// immutable definition. This overload exists for callers that
         /// construct definitions directly; the recommended path is the

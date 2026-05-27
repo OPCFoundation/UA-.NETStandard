@@ -329,6 +329,321 @@ namespace Opc.Ua.Server.StateMachines
         }
 
         /// <summary>
+        /// Adds a transition-scoped guard. The predicate fires only
+        /// when the inbound transition matches
+        /// <paramref name="transitionId"/>; returning <c>false</c>
+        /// vetoes the transition with
+        /// <see cref="StatusCodes.BadUserAccessDenied"/>. Guards
+        /// registered via the <c>When*</c> family compose with
+        /// <see cref="OnBeforeTransition"/> in registration order —
+        /// the first failing guard wins.
+        /// </summary>
+        public StateMachineBuilder<TState> WhenTransition(
+            uint transitionId,
+            Func<ISystemContext, TState, bool> predicate)
+            => WhenTransition(transitionId, predicate, StatusCodes.BadUserAccessDenied);
+
+        /// <summary>
+        /// Overload of <see cref="WhenTransition(uint, Func{ISystemContext, TState, bool})"/>
+        /// that lets the caller customize the deny status returned
+        /// when the predicate evaluates to <c>false</c>.
+        /// </summary>
+        public StateMachineBuilder<TState> WhenTransition(
+            uint transitionId,
+            Func<ISystemContext, TState, bool> predicate,
+            ServiceResult denyStatus)
+        {
+            ArgumentNullException.ThrowIfNull(predicate);
+            FreezeDefinition();
+            m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
+            {
+                if (tid != transitionId)
+                {
+                    return ServiceResult.Good;
+                }
+                return predicate(ctx, sm) ? ServiceResult.Good : denyStatus;
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a cause-scoped guard. The predicate fires only when
+        /// the inbound cause id matches <paramref name="causeId"/>.
+        /// Useful for permission checks on specific method-driven
+        /// transitions (e.g. <c>Acknowledge</c>, <c>Suspend</c>).
+        /// </summary>
+        public StateMachineBuilder<TState> WhenCause(
+            uint causeId,
+            Func<ISystemContext, TState, bool> predicate)
+            => WhenCause(causeId, predicate, StatusCodes.BadUserAccessDenied);
+
+        /// <summary>
+        /// Overload of <see cref="WhenCause(uint, Func{ISystemContext, TState, bool})"/>
+        /// with a caller-supplied deny status.
+        /// </summary>
+        public StateMachineBuilder<TState> WhenCause(
+            uint causeId,
+            Func<ISystemContext, TState, bool> predicate,
+            ServiceResult denyStatus)
+        {
+            ArgumentNullException.ThrowIfNull(predicate);
+            FreezeDefinition();
+            m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
+            {
+                if (cid != causeId)
+                {
+                    return ServiceResult.Good;
+                }
+                return predicate(ctx, sm) ? ServiceResult.Good : denyStatus;
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Adds an enter-state-scoped guard. The predicate fires only
+        /// when the inbound transition would put the machine into
+        /// <paramref name="toStateId"/>. Definition-mode only — the
+        /// builder uses its own transition table to resolve the
+        /// to-state from the transition id.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The builder is in lifecycle mode (no definition).
+        /// </exception>
+        public StateMachineBuilder<TState> WhenEnter(
+            uint toStateId,
+            Func<ISystemContext, TState, bool> predicate)
+            => WhenEnter(toStateId, predicate, StatusCodes.BadUserAccessDenied);
+
+        /// <summary>
+        /// Overload of <see cref="WhenEnter(uint, Func{ISystemContext, TState, bool})"/>
+        /// with a caller-supplied deny status.
+        /// </summary>
+        public StateMachineBuilder<TState> WhenEnter(
+            uint toStateId,
+            Func<ISystemContext, TState, bool> predicate,
+            ServiceResult denyStatus)
+        {
+            ArgumentNullException.ThrowIfNull(predicate);
+            if (m_definition == null)
+            {
+                throw new InvalidOperationException(
+                    "WhenEnter is only available in definition mode. "
+                    + "Use WhenTransition with the relevant transition id "
+                    + "in lifecycle mode.");
+            }
+            FreezeDefinition();
+            // Snapshot the matching transitions at registration time;
+            // the definition is frozen so this list is stable.
+            HashSet<uint> matchingTransitions = [];
+            foreach (StateMachineTransitionDefinition t in m_definition.Transitions)
+            {
+                if (t.ToStateId == toStateId)
+                {
+                    matchingTransitions.Add(t.Id);
+                }
+            }
+            m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
+            {
+                if (!matchingTransitions.Contains(tid))
+                {
+                    return ServiceResult.Good;
+                }
+                return predicate(ctx, sm) ? ServiceResult.Good : denyStatus;
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Adds an exit-state-scoped guard. The predicate fires only
+        /// when the inbound transition would leave
+        /// <paramref name="fromStateId"/>. Works in both definition
+        /// and lifecycle modes — the dispatcher captures the current
+        /// state in <c>DispatchBefore</c> and matches against
+        /// <paramref name="fromStateId"/>.
+        /// </summary>
+        public StateMachineBuilder<TState> WhenExit(
+            uint fromStateId,
+            Func<ISystemContext, TState, bool> predicate)
+            => WhenExit(fromStateId, predicate, StatusCodes.BadUserAccessDenied);
+
+        /// <summary>
+        /// Overload of <see cref="WhenExit(uint, Func{ISystemContext, TState, bool})"/>
+        /// with a caller-supplied deny status.
+        /// </summary>
+        public StateMachineBuilder<TState> WhenExit(
+            uint fromStateId,
+            Func<ISystemContext, TState, bool> predicate,
+            ServiceResult denyStatus)
+        {
+            ArgumentNullException.ThrowIfNull(predicate);
+            FreezeDefinition();
+            m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
+            {
+                uint currentFrom = ExtractCurrentStateId(sm);
+                if (currentFrom != fromStateId)
+                {
+                    return ServiceResult.Good;
+                }
+                return predicate(ctx, sm) ? ServiceResult.Good : denyStatus;
+            });
+            return this;
+        }
+
+        private static uint ExtractCurrentStateId(TState sm)
+        {
+            NodeId? id = sm.CurrentState?.Id?.Value;
+            if (id is null || id.Value.IsNull)
+            {
+                return 0;
+            }
+            return id.Value.TryGetValue(out uint stateId) ? stateId : 0;
+        }
+
+        /// <summary>
+        /// Attaches a sub-state-machine to the parent state identified
+        /// by <paramref name="parentStateId"/>. The sub-SM is added
+        /// as a <c>HasSubStateMachine</c>-referenced child of the
+        /// parent FSM, configured through the nested
+        /// <paramref name="configure"/> builder, and managed by the
+        /// dispatcher lifecycle:
+        /// </summary>
+        /// <remarks>
+        /// <list type="bullet">
+        /// <item><description>
+        /// When the parent enters <paramref name="parentStateId"/>,
+        /// the child sub-SM's <see cref="FluentFiniteStateMachineState.IsSuspended"/>
+        /// is set to <c>false</c> and (unless
+        /// <paramref name="preserveOnReentry"/> is <c>true</c>) the
+        /// child is reset to its declared initial state.
+        /// </description></item>
+        /// <item><description>
+        /// When the parent exits <paramref name="parentStateId"/>,
+        /// the child is suspended — subsequent <c>DoTransition</c> /
+        /// <c>DoCause</c> calls on the child return
+        /// <see cref="StatusCodes.BadInvalidState"/> until the parent
+        /// re-enters the attached state.
+        /// </description></item>
+        /// </list>
+        /// <para>
+        /// Definition-mode only: the parent must be a
+        /// <see cref="FluentFiniteStateMachineState"/>. In lifecycle
+        /// mode (when adopting a stack-shipped or vendor FSM) the
+        /// sub-SM is already part of the type definition; observe it
+        /// through the client-side sub-SM accessors instead.
+        /// </para>
+        /// </remarks>
+        /// <param name="parentStateId">The parent state whose entry
+        /// activates the sub-SM.</param>
+        /// <param name="browseName">The sub-SM's browse name (becomes
+        /// the child node's BrowseName).</param>
+        /// <param name="configure">Nested builder action that defines
+        /// the sub-SM's states, transitions, and behavior.</param>
+        /// <param name="preserveOnReentry">When <c>true</c>, the
+        /// sub-SM retains its last state across parent re-entries;
+        /// otherwise it resets to its declared initial state.</param>
+        /// <exception cref="InvalidOperationException">
+        /// Definition-mode only — the builder must own a
+        /// <see cref="FluentFiniteStateMachineState"/>.
+        /// </exception>
+        public StateMachineBuilder<TState> WithSubStateMachine(
+            uint parentStateId,
+            QualifiedName browseName,
+            Action<StateMachineBuilder<FluentFiniteStateMachineState>> configure,
+            bool preserveOnReentry = false)
+        {
+            ArgumentNullException.ThrowIfNull(configure);
+            if (browseName.IsNull)
+            {
+                throw new ArgumentException(
+                    "Browse name must not be null.", nameof(browseName));
+            }
+            if (m_definition == null)
+            {
+                throw new InvalidOperationException(
+                    "WithSubStateMachine is only available in definition "
+                    + "mode (use StateMachineBuilder.Create). Lifecycle-mode "
+                    + "FSMs already declare their sub-state-machines as part "
+                    + "of the type definition.");
+            }
+
+            FreezeDefinition();
+
+            // Configure the sub-SM through a nested builder. The
+            // sub-SM's NodeId is derived from the parent's NodeId so
+            // it lives under the parent in the address space.
+            var subHolder = new MutableStateMachineDefinition();
+            FluentFiniteStateMachineState child =
+                FluentFiniteStateMachineState.CreateWithHolder(m_stateMachine, subHolder);
+            NodeId childNodeId = m_stateMachine.NodeId.IsNull
+                ? new NodeId(System.Guid.NewGuid())
+                : ComposeChildNodeId(m_stateMachine.NodeId, browseName);
+            child.Create(
+                m_context,
+                childNodeId,
+                browseName,
+                new LocalizedText(browseName.Name!),
+                true);
+            var childBuilder = new StateMachineBuilder<FluentFiniteStateMachineState>(
+                child, m_context, subHolder);
+            configure(childBuilder);
+            // Read StateMachine to freeze the child's definition and
+            // ensure it is fully constructed.
+            FluentFiniteStateMachineState materializedChild = childBuilder.StateMachine;
+            // Set the reference type BEFORE adding to the parent so
+            // AddChild does not default it to HasComponent. Then add.
+            materializedChild.ReferenceTypeId = ReferenceTypeIds.HasSubStateMachine;
+            m_stateMachine.AddChild(materializedChild);
+
+            // Initial state of the sub-SM is "suspended" unless the
+            // parent already starts in the attached state.
+            uint initialChildStateId = subHolder.InitialStateId ?? 0;
+            bool parentInAttachedState =
+                ExtractCurrentStateId(m_stateMachine) == parentStateId;
+            materializedChild.IsSuspended = !parentInAttachedState;
+            if (parentInAttachedState && initialChildStateId != 0)
+            {
+                // Set the child to its initial state immediately —
+                // the parent's OnEnterState handler isn't fired on
+                // WithInitialState (it goes through SetState, not
+                // DoTransition), so we must seed the child here.
+                materializedChild.SetState(m_context, initialChildStateId);
+            }
+
+            // Wire the lifecycle hooks on the parent.
+            m_dispatcher.AddEnterStateHandler(parentStateId, (ctx, parent) =>
+            {
+                if (!preserveOnReentry && initialChildStateId != 0)
+                {
+                    materializedChild.IsSuspended = false;
+                    materializedChild.SetState(ctx, initialChildStateId);
+                }
+                else
+                {
+                    materializedChild.IsSuspended = false;
+                }
+            });
+            m_dispatcher.AddExitStateHandler(parentStateId, (ctx, parent) =>
+            {
+                materializedChild.IsSuspended = true;
+            });
+
+            return this;
+        }
+
+        private static NodeId ComposeChildNodeId(NodeId parentNodeId, QualifiedName browseName)
+        {
+            // Derive a deterministic child NodeId from the parent
+            // and the child's browse name so multiple
+            // WithSubStateMachine calls produce stable, distinct ids.
+            string suffix = browseName.Name ?? "Child";
+            if (parentNodeId.TryGetValue(out string parentStr))
+            {
+                return new NodeId(parentStr + "_" + suffix, parentNodeId.NamespaceIndex);
+            }
+            return new NodeId(parentNodeId + "_" + suffix, parentNodeId.NamespaceIndex);
+        }
+
+        /// <summary>
         /// Binds an inbound method call on the given method node to
         /// the cause-processing pipeline. The cause id is derived from
         /// <paramref name="methodNodeId"/>'s numeric identifier (the

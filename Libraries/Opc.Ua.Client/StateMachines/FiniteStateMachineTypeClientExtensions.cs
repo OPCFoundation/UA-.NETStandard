@@ -512,5 +512,133 @@ namespace Opc.Ua.Client.StateMachines
 
             return results;
         }
+
+        /// <summary>
+        /// Resolves the sub-state-machine instance attached to
+        /// <paramref name="parentStateNodeId"/> via the
+        /// <c>HasSubStateMachine</c> reference. Returns <c>null</c>
+        /// when no sub-SM is attached.
+        /// </summary>
+        /// <param name="parent">The parent finite state-machine
+        /// client.</param>
+        /// <param name="parentStateNodeId">The NodeId of the parent
+        /// state node (e.g. the <c>StateType</c> instance — for
+        /// servers that wire the reference from the FSM root rather
+        /// than the state node, pass the FSM's <c>ObjectId</c>).</param>
+        /// <param name="telemetry">Telemetry context for the returned
+        /// sub-SM client.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public static async ValueTask<FiniteStateMachineTypeClient?>
+            GetSubStateMachineAsync(
+                this FiniteStateMachineTypeClient parent,
+                NodeId parentStateNodeId,
+                ITelemetryContext telemetry,
+                CancellationToken ct = default)
+        {
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+            ArgumentNullException.ThrowIfNull(telemetry);
+            if (parentStateNodeId.IsNull)
+            {
+                throw new ArgumentException(
+                    "Parent state node id must not be null.",
+                    nameof(parentStateNodeId));
+            }
+
+            ArrayOf<BrowseDescription> nodesToBrowse = ArrayOf.Wrapped(new[]
+            {
+                new BrowseDescription
+                {
+                    NodeId = parentStateNodeId,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = ReferenceTypeIds.HasSubStateMachine,
+                    IncludeSubtypes = true,
+                    NodeClassMask = (uint)NodeClass.Object,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            });
+
+            BrowseResponse response = await parent.Session.BrowseAsync(
+                null, null, 0, nodesToBrowse, ct).ConfigureAwait(false);
+            ClientBase.ValidateResponse<BrowseDescription, BrowseResult>(
+                response.Results, nodesToBrowse);
+
+            if (response.Results.Count == 0 ||
+                response.Results[0].References.Count == 0)
+            {
+                return null;
+            }
+
+            ReferenceDescription r = response.Results[0].References[0];
+            NodeId childId = ExpandedNodeId.ToNodeId(
+                r.NodeId, parent.Session.MessageContext.NamespaceUris);
+            return new FiniteStateMachineTypeClient(
+                parent.Session, childId, telemetry);
+        }
+
+        /// <summary>
+        /// Yields a combined snapshot whenever the parent transitions.
+        /// The <see cref="FiniteStateSnapshot.SubMachine"/> field on
+        /// the yielded snapshot carries the sub-state-machine's
+        /// current snapshot when the parent's current state has an
+        /// attached sub-SM, or <c>null</c> otherwise.
+        /// </summary>
+        /// <remarks>
+        /// V1 limitation: sub-SM transitions that occur BETWEEN
+        /// parent transitions are not surfaced as separate yielded
+        /// snapshots. To observe sub-SM transitions independently,
+        /// resolve the sub-SM via <see cref="GetSubStateMachineAsync"/>
+        /// and call its <see cref="ObserveFiniteTransitionsAsync"/>.
+        /// </remarks>
+        public static IAsyncEnumerable<FiniteStateSnapshot>
+            ObserveEffectiveStateAsync(
+                this FiniteStateMachineTypeClient parent,
+                IStreamingSubscription streaming,
+                ITelemetryContext telemetry,
+                MonitoringOptions? options = null,
+                CancellationToken ct = default)
+        {
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+            if (streaming == null)
+            {
+                throw new ArgumentNullException(nameof(streaming));
+            }
+            ArgumentNullException.ThrowIfNull(telemetry);
+            return ObserveEffectiveStateImplAsync(parent, streaming, telemetry, options, ct);
+        }
+
+        private static async IAsyncEnumerable<FiniteStateSnapshot>
+            ObserveEffectiveStateImplAsync(
+                FiniteStateMachineTypeClient parent,
+                IStreamingSubscription streaming,
+                ITelemetryContext telemetry,
+                MonitoringOptions? options,
+                [EnumeratorCancellation] CancellationToken ct)
+        {
+            await foreach (FiniteStateSnapshot parentSnap in parent
+                .ObserveFiniteTransitionsAsync(streaming, options, ct)
+                .ConfigureAwait(false))
+            {
+                FiniteStateSnapshot? subSnap = null;
+                if (!parentSnap.CurrentStateId.IsNull)
+                {
+                    FiniteStateMachineTypeClient? sub =
+                        await parent.GetSubStateMachineAsync(
+                            parentSnap.CurrentStateId, telemetry, ct)
+                            .ConfigureAwait(false);
+                    if (sub != null)
+                    {
+                        subSnap = await sub.GetCurrentFiniteStateAsync(ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+                yield return parentSnap with { SubMachine = subSnap };
+            }
+        }
     }
 }

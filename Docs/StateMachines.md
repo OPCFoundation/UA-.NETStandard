@@ -283,6 +283,140 @@ The unified builder gives you a clean migration path:
   `FluentFiniteStateMachineState` and lets you chain definitions and
   lifecycle hooks in one expression.
 
+## Guard clauses (fluent sugar)
+
+The lifecycle builder offers a coarse `OnBeforeTransition` that
+fires for every transition; the `When*` family provides per-trigger
+sugar that compiles down to the same pipeline but scopes the
+predicate automatically.
+
+```csharp
+StateMachineBuilder.Create(parent, ctx, nodeId, browseName)
+    .AddState(1, "Off", isInitial: true)
+    .AddState(2, "On")
+    .AddTransition(10, "OffToOn", from: 1, to: 2)
+    .AddTransition(20, "OnToOff", from: 2, to: 1)
+    .WhenTransition(10, (ctx, sm) => HasPermission(ctx))
+    .WhenCause(causeId: 100, (ctx, sm) => sm.SafetyInterlockClear)
+    .WhenEnter(toStateId: 2, (ctx, sm) => sm.PreflightOk,
+        denyStatus: StatusCodes.BadInvalidState)
+    .WhenExit(fromStateId: 2, (ctx, sm) => sm.ShutdownComplete);
+```
+
+| Method | Scope | Available in |
+|---|---|---|
+| `OnBeforeTransition(Func<ctx, sm, transitionId, causeId, ServiceResult>)` | Every transition (caller filters) | Both modes |
+| `WhenTransition(transitionId, predicate[, denyStatus])` | Transition matches `transitionId` | Both modes |
+| `WhenCause(causeId, predicate[, denyStatus])` | Cause matches `causeId` | Both modes |
+| `WhenEnter(toStateId, predicate[, denyStatus])` | Transition would enter `toStateId` | Definition mode only |
+| `WhenExit(fromStateId, predicate[, denyStatus])` | Machine is leaving `fromStateId` | Both modes |
+
+Returning `false` from a predicate vetoes the transition with
+`BadUserAccessDenied` (or the caller-supplied `denyStatus`).
+Multiple guards on the same trigger AND together — the first
+predicate returning `false` wins, and its `denyStatus` flows
+through to `DoTransition`'s return.
+
+All guards (`On*` + `When*`) share one pipeline in registration
+order — the FIRST failing guard wins. This means a `When*` guard
+declared before an `OnBeforeTransition` guard runs first.
+
+`WhenEnter` is definition-mode-only because the builder needs the
+transition table to map `toStateId` to the matching transition ids.
+In lifecycle mode the table is protected on the FSM; use
+`WhenTransition` with the explicit transition id instead.
+
+## Sub-state machines (hierarchical state)
+
+OPC UA Part 16 §5.2.3 supports nested state machines via the
+`HasSubStateMachine` reference. Standard alarms use this pattern
+(`ExclusiveLimitAlarmType.LimitState` is itself an
+`ExclusiveLimitStateMachineType` distinguishing
+`HighHigh / High / Low / LowLow` while the parent alarm is
+`Active`). Vendor process-control servers compose hierarchical
+state machines extensively.
+
+### Server side — `WithSubStateMachine`
+
+The unified builder attaches a sub-state-machine to a parent state.
+The dispatcher auto-manages the lifecycle: parent enters → child
+activates (and resets to its initial state unless
+`preserveOnReentry: true` is supplied); parent exits → child is
+suspended and rejects subsequent transitions until the next
+parent re-entry.
+
+```csharp
+FluentFiniteStateMachineState parent = StateMachineBuilder
+    .Create(parentNode, ctx, parentNodeId, browseName)
+    .AddState(1, "Active", isInitial: true)
+    .AddState(2, "Inactive")
+    .AddTransition(12, "ActiveToInactive", from: 1, to: 2)
+    .AddTransition(21, "InactiveToActive", from: 2, to: 1)
+    // Attach a sub-state-machine to the Active parent state.
+    .WithSubStateMachine(
+        parentStateId: 1,
+        browseName: new QualifiedName("LimitState", ns),
+        configure: child => child
+            .AddState(10, "HighHigh", isInitial: true)
+            .AddState(11, "High")
+            .AddState(12, "Low")
+            .AddState(13, "LowLow")
+            .AddTransition(110, "HighHighToHigh", from: 10, to: 11),
+        preserveOnReentry: false)
+    .StateMachine;
+```
+
+Available in **definition mode only** — in lifecycle mode the
+parent FSM already declares its sub-state machines as part of the
+type definition. Observe them through the client-side sub-SM
+accessors below.
+
+While suspended, the child FSM's `DoTransition` and `DoCause`
+return `BadInvalidState`. The flag is exposed publicly as
+`FluentFiniteStateMachineState.IsSuspended` for diagnostics.
+
+### Client side — sub-SM observation
+
+```csharp
+FiniteStateMachineTypeClient parent =
+    new FiniteStateMachineTypeClient(session, alarmId, telemetry);
+
+// Resolve the sub-SM attached to a parent state:
+FiniteStateMachineTypeClient? limitSm =
+    await parent.GetSubStateMachineAsync(
+        parentStateNodeId: alarmStateNodeId, telemetry, ct);
+
+if (limitSm != null)
+{
+    FiniteStateSnapshot snap = await limitSm.GetCurrentFiniteStateAsync(ct);
+    Console.WriteLine($"Limit state: {snap.CurrentState}");
+}
+
+// Observe combined parent + sub-SM transitions:
+await foreach (FiniteStateSnapshot snap in parent
+    .ObserveEffectiveStateAsync(streaming, telemetry, ct: ct))
+{
+    Console.WriteLine($"Parent: {snap.CurrentState}");
+    if (snap.SubMachine != null)
+    {
+        Console.WriteLine($"  Sub: {snap.SubMachine.CurrentState}");
+    }
+}
+```
+
+`FiniteStateSnapshot` gains an optional
+`SubMachine: FiniteStateSnapshot?` field carrying the snapshot of
+the parent's currently-active sub-SM (or `null` if none).
+`ObserveEffectiveStateAsync` yields a combined snapshot each time
+the parent transitions, with the sub-SM snapshot freshly read on
+each transition.
+
+**v1 limitation**: sub-SM transitions that occur **between** parent
+transitions are not surfaced as separate yielded snapshots. To
+observe a sub-SM's own transitions independently, resolve it via
+`GetSubStateMachineAsync` and use its
+`ObserveFiniteTransitionsAsync`.
+
 ## Extensibility recipes
 
 * **Add convenience properties.** Subclass

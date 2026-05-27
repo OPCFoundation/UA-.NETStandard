@@ -77,7 +77,17 @@ namespace Opc.Ua.Client.StateMachines
         LocalizedText LastTransition,
         NodeId LastTransitionId,
         DateTime Timestamp,
-        StatusCode Status);
+        StatusCode Status)
+    {
+        /// <summary>
+        /// When the FSM has a sub-state-machine attached to its
+        /// current state via <c>HasSubStateMachine</c>, this holds
+        /// the sub-SM's snapshot. <c>null</c> for state machines
+        /// without sub-SMs or when the current state has no
+        /// attached sub-SM.
+        /// </summary>
+        public FiniteStateSnapshot? SubMachine { get; init; }
+    }
 
     /// <summary>
     /// Describes a state node defined on a finite state machine type.

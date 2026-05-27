@@ -300,7 +300,7 @@ namespace Opc.Ua
         /// the caller built the variant array against the registry's
         /// composed <see cref="StandardFields"/> superset.
         /// </summary>
-        private IReadOnlyList<Variant> RemapFieldsForDecoder(
+        private Variant[] RemapFieldsForDecoder(
             Entry entry, IReadOnlyList<Variant> composedFields)
         {
             int[] remap = GetOrBuildRemap(entry);
