@@ -19,7 +19,12 @@ jobs:
 - job: nuget${{parameters.config}}
   displayName: Pack Nugets ${{parameters.config}}
   pool:
-    vmImage: 'windows-2025-vs2026'
+    ${{ if ne(variables.poolName, '') }}:
+      name: ${{ variables.poolName }}
+      demands:
+        - ImageOverride -equals ${{ variables.windowsImage }}
+    ${{ else }}:
+      vmImage: ${{ variables.windowsImage }}
   variables:
   - group: codesign
   - name: msbuildversion
