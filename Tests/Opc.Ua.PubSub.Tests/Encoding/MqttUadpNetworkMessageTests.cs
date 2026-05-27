@@ -1895,6 +1895,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 intervalsMs.Add((s_publishTimestamps[i] - s_publishTimestamps[i - 1]) / ticksPerMs);
             }
 
+            // Drop the warm-up interval. MqttMetadataPublisher.Start() emits
+            // an initial publish and then schedules the periodic timer, so
+            // the first observed interval is a sub-millisecond warm-up gap
+            // rather than a representative cadence sample.
+            if (intervalsMs.Count > 1)
+            {
+                intervalsMs.RemoveAt(0);
+            }
+
             Assert.That(intervalsMs, Has.Count.GreaterThan(0),
                 $"expected at least one inter-publish interval, observed {s_publishTimestamps.Count} publish(es) " +
                 $"over {publishTimeInSeconds}s at {metaDataUpdateTime}ms cadence");
