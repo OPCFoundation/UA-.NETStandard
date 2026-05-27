@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// by the pool. Must be positive.</param>
         protected PooledEncodeableType(int maximumRetained)
         {
-            m_pool = new BoundedObjectPool<T>(maximumRetained);
+            m_pool = new BoundedObjectPool<T>(maximumRetained, () => new T());
         }
 
         /// <inheritdoc/>

@@ -418,7 +418,7 @@ namespace MemoryBuffer
             {
                 var monitoredItem = new MemoryBufferMonitoredItem(
                     Server,
-                    NodeManager,
+                    NodeManager.ToAsyncNodeManager(),
                     this,
                     tag.Offset,
                     0,
@@ -468,7 +468,7 @@ namespace MemoryBuffer
             {
                 var monitoredItem = new MemoryBufferMonitoredItem(
                     Server,
-                    NodeManager,
+                    NodeManager.ToAsyncNodeManager(),
                     this,
                     tag.Offset,
                     storedMonitoredItem);
