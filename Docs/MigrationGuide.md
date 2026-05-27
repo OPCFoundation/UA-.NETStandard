@@ -1573,10 +1573,16 @@ the existing `FiniteStateMachineState` server base:
   `WaitForStateAsync`, `GetAvailableStatesAsync`,
   `GetAvailableTransitionsAsync`). Vendor proxies that derive from
   these base proxies inherit the API automatically.
-* **Server**: `StateMachineBuilder` + `FluentFiniteStateMachineState`
-  let vendors declare a Part 16 state machine without subclassing
+* **Server**: unified fluent `StateMachineBuilder` with two modes —
+  *definition* (`StateMachineBuilder.Create(parent, ctx, nodeId,
+  browseName).AddState(...).AddTransition(...).OnCause(...)` for
+  vendors who want a Part 16 state machine without subclassing
   `FiniteStateMachineState` and hand-rolling the four protected
-  table overrides.
+  table overrides) and *lifecycle* (`StateMachineBuilder.For(sm,
+  ctx)` or `INodeBuilder<TState>.AsStateMachine()` for attaching
+  `OnEnterState` / `OnExitState` / `OnTransition` /
+  `OnBeforeTransition` / `WithCause` / `WithTimedTransition`
+  behavior to a stack-shipped or generator-emitted FSM).
 * **Alarms alignment**: `AlarmClient.GetShelvingStateAsync` /
   `ObserveShelvingTransitionsAsync` surface the new API for the
   `ShelvingState` child of every alarm condition.

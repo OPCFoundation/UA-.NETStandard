@@ -33,9 +33,11 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server.StateMachines
 {
     /// <summary>
-    /// Immutable definition of a Part 16 finite state machine.
-    /// Produced by <see cref="StateMachineBuilder"/> and consumed by
-    /// <see cref="FluentFiniteStateMachineState"/>.
+    /// Immutable snapshot of a Part 16 finite state machine definition.
+    /// Produced by <see cref="StateMachineBuilder{TState}"/> (snapshot
+    /// of the mutable holder taken on first read) and exposed via
+    /// <see cref="FluentFiniteStateMachineState.Definition"/> for
+    /// introspection.
     /// </summary>
     public sealed class StateMachineDefinition
     {
@@ -117,8 +119,7 @@ namespace Opc.Ua.Server.StateMachines
     /// <summary>
     /// Maps a cause (method NodeId) plus current state to the
     /// transition that should fire. Used by
-    /// <see cref="FiniteStateMachineState.GetTransitionForCause"/> at
-    /// runtime.
+    /// <c>FiniteStateMachineState.GetTransitionForCause</c> at runtime.
     /// </summary>
     /// <param name="CauseId">The cause (method) numeric id.</param>
     /// <param name="FromStateId">The current state id.</param>
@@ -127,4 +128,52 @@ namespace Opc.Ua.Server.StateMachines
         uint CauseId,
         uint FromStateId,
         uint TransitionId);
+
+    /// <summary>
+    /// Internal mutable holder for a state machine definition. The
+    /// unified <see cref="StateMachineBuilder{TState}"/> populates an
+    /// instance of this type as the user chains
+    /// <c>AddState</c> / <c>AddTransition</c> / <c>OnCause</c> calls,
+    /// and <see cref="FluentFiniteStateMachineState"/> reads its
+    /// runtime tables through it (with invalidate-on-mutation cached
+    /// projections for hot-path access).
+    /// </summary>
+    internal sealed class MutableStateMachineDefinition
+    {
+        public readonly List<StateMachineStateDefinition> States = [];
+        public readonly List<StateMachineTransitionDefinition> Transitions = [];
+        public readonly List<StateMachineCauseMapping> CauseMappings = [];
+        public uint? InitialStateId;
+        public string ElementNamespaceUri = Opc.Ua.Types.Namespaces.OpcUa;
+
+        // Version is bumped on every mutation; projections cache by version.
+        public int Version;
+
+        public bool Frozen;
+
+        public void EnsureNotFrozen()
+        {
+            if (Frozen)
+            {
+                throw new InvalidOperationException(
+                    "The state-machine definition has been frozen; " +
+                    "no further AddState / AddTransition / OnCause / " +
+                    "UseElementNamespace calls are permitted after the " +
+                    "first lifecycle method (OnEnterState / OnExitState / " +
+                    "OnTransition / OnBeforeTransition / WithCause / " +
+                    "WithTimedTransition) or after the StateMachine has " +
+                    "been read.");
+            }
+        }
+
+        public StateMachineDefinition Snapshot()
+        {
+            return new StateMachineDefinition(
+                [.. States],
+                [.. Transitions],
+                [.. CauseMappings],
+                InitialStateId,
+                ElementNamespaceUri);
+        }
+    }
 }

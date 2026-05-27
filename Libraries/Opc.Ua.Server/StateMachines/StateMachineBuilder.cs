@@ -29,75 +29,141 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using Opc.Ua.Types;
 
 namespace Opc.Ua.Server.StateMachines
 {
     /// <summary>
-    /// Fluent builder for declarative Part 16 state-machine
-    /// definitions. Define states + transitions + cause mappings,
-    /// then call <see cref="Build"/> to produce an immutable
-    /// <see cref="StateMachineDefinition"/> for use with
-    /// <see cref="FluentFiniteStateMachineState"/>.
+    /// Unified fluent builder for Part 16 finite state machines.
+    /// Combines two complementary modes in a single API:
     /// </summary>
     /// <remarks>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <strong>Definition mode</strong> —
+    /// <see cref="StateMachineBuilder.Create"/> constructs a new
+    /// <see cref="FluentFiniteStateMachineState"/> in the address space
+    /// and exposes <see cref="AddState"/> / <see cref="AddTransition"/>
+    /// / <see cref="OnCause"/> for declarative table construction.
+    /// </description></item>
+    /// <item><description>
+    /// <strong>Lifecycle mode</strong> —
+    /// <see cref="StateMachineBuilder.For{TState}"/> adopts an
+    /// already-Created state machine (stack-shipped, generator-emitted,
+    /// or vendor) and wires
+    /// <see cref="OnEnterState"/> / <see cref="OnExitState"/> /
+    /// <see cref="OnTransition"/> / <see cref="OnBeforeTransition"/> /
+    /// <see cref="WithCause"/> / <see cref="WithTimedTransition"/>
+    /// behavior on top of the existing tables.
+    /// </description></item>
+    /// </list>
     /// <para>
-    /// The builder validates structural integrity: every transition
-    /// must reference declared <c>From</c>/<c>To</c> states, every
-    /// cause mapping must reference a declared from-state and a
-    /// declared transition, and state / transition / cause ids must
-    /// be unique within their respective tables.
+    /// Both modes share the same lifecycle surface. The first call to
+    /// any lifecycle method (or the first access to
+    /// <see cref="StateMachine"/>) freezes the underlying definition
+    /// holder — subsequent <see cref="AddState"/> / etc. calls throw.
     /// </para>
     /// <para>
-    /// This is the recommended path for new vendor state machines —
-    /// no need to subclass <see cref="FiniteStateMachineState"/> or
-    /// hard-code the four protected table overrides.
+    /// The builder is intentionally <em>not</em> <see cref="IDisposable"/>.
+    /// Lifecycle hooks attach to the state machine's own
+    /// <c>OnBeforeTransition</c> / <c>OnAfterTransition</c> delegate
+    /// fields; the dispatcher (with its timers and per-state handler
+    /// tables) is kept alive by those delegates and garbage-collected
+    /// when the state machine itself becomes unreachable.
     /// </para>
     /// </remarks>
-    public sealed class StateMachineBuilder
+    public sealed class StateMachineBuilder<TState>
+        where TState : FiniteStateMachineState
     {
-        private readonly Dictionary<uint, StateMachineStateDefinition> m_states = [];
-        private readonly Dictionary<uint, StateMachineTransitionDefinition> m_transitions = [];
-        private readonly List<StateMachineCauseMapping> m_causeMappings = [];
-        private uint? m_initialStateId;
-        private string m_elementNamespaceUri = Opc.Ua.Types.Namespaces.OpcUa;
+        private readonly TState m_stateMachine;
+        private readonly ISystemContext m_context;
+        private readonly MutableStateMachineDefinition? m_definition;
+        private readonly StateMachineDispatcher<TState> m_dispatcher;
+
+        internal StateMachineBuilder(
+            TState stateMachine,
+            ISystemContext context,
+            MutableStateMachineDefinition? definition,
+            NodeId deferredCreateNodeId = default,
+            QualifiedName deferredCreateBrowseName = default)
+        {
+            m_stateMachine = stateMachine
+                ?? throw new ArgumentNullException(nameof(stateMachine));
+            m_context = context
+                ?? throw new ArgumentNullException(nameof(context));
+            m_definition = definition;
+            m_deferredCreateNodeId = deferredCreateNodeId;
+            m_deferredCreateBrowseName = deferredCreateBrowseName;
+            m_dispatcher = new StateMachineDispatcher<TState>(stateMachine, context);
+        }
+
+        private readonly NodeId m_deferredCreateNodeId;
+        private readonly QualifiedName m_deferredCreateBrowseName;
 
         /// <summary>
-        /// Adds a state to the machine.
+        /// The underlying state machine. Reading this property freezes
+        /// the definition holder (if any).
+        /// </summary>
+        public TState StateMachine
+        {
+            get
+            {
+                FreezeDefinition();
+                return m_stateMachine;
+            }
+        }
+
+        /// <summary>
+        /// Adds a state to the machine. Definition-mode only — the
+        /// underlying state machine must be a
+        /// <see cref="FluentFiniteStateMachineState"/>.
         /// </summary>
         /// <param name="id">The numeric state id.</param>
         /// <param name="browseName">The browse name.</param>
         /// <param name="isInitial">Whether this is the initial state.</param>
-        public StateMachineBuilder AddState(
+        public StateMachineBuilder<TState> AddState(
             uint id,
             string browseName,
             bool isInitial = false)
         {
+            MutableStateMachineDefinition def = RequireDefinition();
+            def.EnsureNotFrozen();
+
             if (string.IsNullOrEmpty(browseName))
             {
                 throw new ArgumentException("Browse name must not be empty.",
                     nameof(browseName));
             }
-            if (m_states.ContainsKey(id))
+
+            foreach (StateMachineStateDefinition existing in def.States)
             {
-                throw new ArgumentException(
-                    $"State id {id} is already declared.", nameof(id));
+                if (existing.Id == id)
+                {
+                    throw new ArgumentException(
+                        $"State id {id} is already declared.", nameof(id));
+                }
             }
-            m_states[id] = new StateMachineStateDefinition(id, browseName, isInitial);
+
+            def.States.Add(new StateMachineStateDefinition(id, browseName, isInitial));
+
             if (isInitial)
             {
-                if (m_initialStateId.HasValue && m_initialStateId.Value != id)
+                if (def.InitialStateId.HasValue && def.InitialStateId.Value != id)
                 {
                     throw new InvalidOperationException(
                         "Only one state may be marked as the initial state.");
                 }
-                m_initialStateId = id;
+                def.InitialStateId = id;
             }
+
+            def.Version++;
             return this;
         }
 
         /// <summary>
-        /// Adds a transition between two states.
+        /// Adds a transition between two states. Definition-mode only.
         /// </summary>
         /// <param name="id">The numeric transition id.</param>
         /// <param name="browseName">The browse name.</param>
@@ -105,25 +171,34 @@ namespace Opc.Ua.Server.StateMachines
         /// <param name="to">The to-state id.</param>
         /// <param name="hasEffect">Whether the transition fires a
         /// <c>TransitionEventType</c>.</param>
-        public StateMachineBuilder AddTransition(
+        public StateMachineBuilder<TState> AddTransition(
             uint id,
             string browseName,
             uint from,
             uint to,
             bool hasEffect = true)
         {
+            MutableStateMachineDefinition def = RequireDefinition();
+            def.EnsureNotFrozen();
+
             if (string.IsNullOrEmpty(browseName))
             {
                 throw new ArgumentException("Browse name must not be empty.",
                     nameof(browseName));
             }
-            if (m_transitions.ContainsKey(id))
+
+            foreach (StateMachineTransitionDefinition existing in def.Transitions)
             {
-                throw new ArgumentException(
-                    $"Transition id {id} is already declared.", nameof(id));
+                if (existing.Id == id)
+                {
+                    throw new ArgumentException(
+                        $"Transition id {id} is already declared.", nameof(id));
+                }
             }
-            m_transitions[id] = new StateMachineTransitionDefinition(
-                id, browseName, from, to, hasEffect);
+
+            def.Transitions.Add(new StateMachineTransitionDefinition(
+                id, browseName, from, to, hasEffect));
+            def.Version++;
             return this;
         }
 
@@ -131,83 +206,792 @@ namespace Opc.Ua.Server.StateMachines
         /// Adds a cause-to-transition mapping. When the method with
         /// the given cause id is invoked while the machine is in the
         /// given from-state, the named transition fires.
+        /// Definition-mode only.
         /// </summary>
-        public StateMachineBuilder OnCause(
+        public StateMachineBuilder<TState> OnCause(
             uint causeId,
             uint from,
             uint transition)
         {
-            m_causeMappings.Add(new StateMachineCauseMapping(
+            MutableStateMachineDefinition def = RequireDefinition();
+            def.EnsureNotFrozen();
+
+            def.CauseMappings.Add(new StateMachineCauseMapping(
                 causeId, from, transition));
+            def.Version++;
             return this;
         }
 
         /// <summary>
         /// Designates the namespace URI that qualifies the state and
         /// transition numeric NodeIds. Defaults to the standard UA
-        /// namespace.
+        /// namespace. Definition-mode only.
         /// </summary>
-        public StateMachineBuilder UseElementNamespace(string namespaceUri)
+        public StateMachineBuilder<TState> UseElementNamespace(string namespaceUri)
         {
+            MutableStateMachineDefinition def = RequireDefinition();
+            def.EnsureNotFrozen();
+
             if (string.IsNullOrEmpty(namespaceUri))
             {
                 throw new ArgumentException("Namespace URI must not be empty.",
                     nameof(namespaceUri));
             }
-            m_elementNamespaceUri = namespaceUri;
+            def.ElementNamespaceUri = namespaceUri;
+            def.Version++;
             return this;
         }
 
         /// <summary>
-        /// Validates the accumulated definitions and produces an
-        /// immutable <see cref="StateMachineDefinition"/>.
+        /// Sets the initial state — applied immediately via
+        /// <see cref="FiniteStateMachineState.SetState"/>. Does not
+        /// invoke lifecycle handlers (initial state assignment is not
+        /// a transition).
         /// </summary>
-        /// <exception cref="InvalidOperationException">
-        /// Validation failed (dangling references, no states declared,
-        /// duplicate cause mapping, etc.).
-        /// </exception>
-        public StateMachineDefinition Build()
+        public StateMachineBuilder<TState> WithInitialState(uint stateId)
         {
-            if (m_states.Count == 0)
+            FreezeDefinition();
+            ValidateDefinitionStateExists(stateId);
+            m_stateMachine.SetState(m_context, stateId);
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a handler invoked when the state machine enters
+        /// the given state. Order within a single transition is
+        /// <c>OnExitState(from) → OnTransition(from, to) → OnEnterState(to)</c>.
+        /// </summary>
+        public StateMachineBuilder<TState> OnEnterState(
+            uint stateId,
+            Action<ISystemContext, TState> handler)
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            FreezeDefinition();
+            m_dispatcher.AddEnterStateHandler(stateId, handler);
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a handler invoked when the state machine leaves
+        /// the given state.
+        /// </summary>
+        public StateMachineBuilder<TState> OnExitState(
+            uint stateId,
+            Action<ISystemContext, TState> handler)
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            FreezeDefinition();
+            m_dispatcher.AddExitStateHandler(stateId, handler);
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a generic transition observer invoked after every
+        /// completed transition. Receives the resolved <c>from</c> and
+        /// <c>to</c> state ids (extracted from <c>LastState</c> /
+        /// <c>CurrentState</c>).
+        /// </summary>
+        public StateMachineBuilder<TState> OnTransition(
+            Action<ISystemContext, TState, uint, uint> handler)
+        {
+            ArgumentNullException.ThrowIfNull(handler);
+            FreezeDefinition();
+            m_dispatcher.AddTransitionObserver(handler);
+            return this;
+        }
+
+        /// <summary>
+        /// Registers a pre-transition guard. Returning a non-Good
+        /// <see cref="ServiceResult"/> cancels the transition. The
+        /// builder guards run BEFORE any pre-existing
+        /// <c>OnBeforeTransition</c> delegate the state machine had
+        /// when the builder adopted it.
+        /// </summary>
+        public StateMachineBuilder<TState> OnBeforeTransition(
+            Func<ISystemContext, TState, uint, uint, ServiceResult> guard)
+        {
+            ArgumentNullException.ThrowIfNull(guard);
+            FreezeDefinition();
+            m_dispatcher.AddBeforeTransitionGuard(guard);
+            return this;
+        }
+
+        /// <summary>
+        /// Binds an inbound method call on the given method node to
+        /// the cause-processing pipeline. The cause id is derived from
+        /// <paramref name="methodNodeId"/>'s numeric identifier (the
+        /// OPC UA convention). The cause-to-transition mapping must
+        /// already exist on the state machine — either via
+        /// <see cref="OnCause"/> (definition mode) or hardcoded in a
+        /// stack/vendor subclass.
+        /// </summary>
+        /// <param name="methodNodeId">The method node whose
+        /// <c>OnCallMethod2</c> handler will be installed.</param>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="methodNodeId"/> is null, has a non-numeric
+        /// identifier, or could not be resolved to a child method
+        /// of the state machine.
+        /// </exception>
+        public StateMachineBuilder<TState> WithCause(NodeId methodNodeId)
+        {
+            FreezeDefinition();
+
+            if (methodNodeId.IsNull)
+            {
+                throw new ArgumentException(
+                    "Method node id must not be null.",
+                    nameof(methodNodeId));
+            }
+
+            if (!methodNodeId.TryGetValue(out uint causeId))
+            {
+                throw new ArgumentException(
+                    "Method node id must have a numeric identifier; "
+                    + $"got '{methodNodeId.IdentifierAsString}' "
+                    + $"(type {methodNodeId.IdType}).",
+                    nameof(methodNodeId));
+            }
+
+            MethodState? method = FindMethodInTree(m_stateMachine, methodNodeId);
+            if (method == null)
+            {
+                throw new ArgumentException(
+                    $"Method '{methodNodeId}' not found among the state "
+                    + "machine's children.",
+                    nameof(methodNodeId));
+            }
+
+            m_dispatcher.InstallCauseMethod(method, causeId);
+            return this;
+        }
+
+        /// <summary>
+        /// Registers an automatic transition that fires after the
+        /// machine has been in <paramref name="fromStateId"/> for at
+        /// least <paramref name="timeout"/>. The timer is armed on
+        /// entry into <paramref name="fromStateId"/> and cancelled on
+        /// exit; multiple entries re-arm a fresh timer.
+        /// </summary>
+        /// <param name="fromStateId">The state whose entry arms the
+        /// timer.</param>
+        /// <param name="timeout">The duration to wait before firing
+        /// the transition.</param>
+        /// <param name="transitionId">The transition to fire when the
+        /// timer expires — driven via
+        /// <see cref="FiniteStateMachineState.DoTransition"/>.</param>
+        /// <param name="causeId">The cause id reported in the audit
+        /// event (0 if no human-meaningful cause).</param>
+        public StateMachineBuilder<TState> WithTimedTransition(
+            uint fromStateId,
+            TimeSpan timeout,
+            uint transitionId,
+            uint causeId = 0)
+        {
+            if (timeout <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout),
+                    "Timeout must be positive.");
+            }
+            FreezeDefinition();
+            ValidateTimedTransition(fromStateId, transitionId);
+            m_dispatcher.AddTimedTransition(
+                fromStateId, timeout, transitionId, causeId);
+            return this;
+        }
+
+        private void ValidateTimedTransition(uint fromStateId, uint transitionId)
+        {
+            // Validate only when the builder owns the definition. For
+            // lifecycle-mode (For()) we can't reach the FSM's protected
+            // tables — the caller is responsible.
+            if (m_definition == null)
+            {
+                return;
+            }
+
+            bool fromOk = false;
+            foreach (StateMachineStateDefinition s in m_definition.States)
+            {
+                if (s.Id == fromStateId)
+                {
+                    fromOk = true;
+                    break;
+                }
+            }
+            if (!fromOk)
             {
                 throw new InvalidOperationException(
-                    "At least one state must be declared.");
+                    $"Timed transition references unknown from-state "
+                    + $"{fromStateId}.");
             }
-            foreach (StateMachineTransitionDefinition t in m_transitions.Values)
+
+            bool transitionOk = false;
+            foreach (StateMachineTransitionDefinition t in m_definition.Transitions)
             {
-                if (!m_states.ContainsKey(t.FromStateId))
+                if (t.Id == transitionId)
                 {
-                    throw new InvalidOperationException(
-                        $"Transition '{t.BrowseName}' references unknown from-state {t.FromStateId}.");
-                }
-                if (!m_states.ContainsKey(t.ToStateId))
-                {
-                    throw new InvalidOperationException(
-                        $"Transition '{t.BrowseName}' references unknown to-state {t.ToStateId}.");
+                    if (t.FromStateId != fromStateId)
+                    {
+                        throw new InvalidOperationException(
+                            $"Timed transition {transitionId} declares "
+                            + $"from-state {t.FromStateId} but was "
+                            + $"registered with fromStateId={fromStateId}.");
+                    }
+                    transitionOk = true;
+                    break;
                 }
             }
-            foreach (StateMachineCauseMapping c in m_causeMappings)
+            if (!transitionOk)
             {
-                if (!m_states.ContainsKey(c.FromStateId))
+                throw new InvalidOperationException(
+                    $"Timed transition references unknown transition "
+                    + $"{transitionId}.");
+            }
+        }
+
+        /// <summary>
+        /// Escape hatch — invokes <paramref name="configure"/> with the
+        /// underlying state machine. Useful for setting properties or
+        /// invoking generated-type setters that the builder does not
+        /// surface directly.
+        /// </summary>
+        public StateMachineBuilder<TState> ConfigureStateMachine(
+            Action<TState> configure)
+        {
+            ArgumentNullException.ThrowIfNull(configure);
+            FreezeDefinition();
+            configure(m_stateMachine);
+            return this;
+        }
+
+        private MutableStateMachineDefinition RequireDefinition()
+        {
+            if (m_definition == null)
+            {
+                throw new InvalidOperationException(
+                    "Definition-mode methods (AddState / AddTransition / "
+                    + "OnCause / UseElementNamespace) are only available "
+                    + "when the builder owns the state-machine definition. "
+                    + "Use StateMachineBuilder.Create(...) to create a "
+                    + "FluentFiniteStateMachineState, or stick to lifecycle "
+                    + "methods (OnEnterState / WithCause / ...) when "
+                    + "wrapping an existing state machine via "
+                    + "StateMachineBuilder.For(...).");
+            }
+            return m_definition;
+        }
+
+        private void FreezeDefinition()
+        {
+            if (m_definition != null && !m_definition.Frozen)
+            {
+                ValidateDefinition(m_definition);
+                m_definition.Frozen = true;
+                m_definition.Version++;
+
+                // For definition-mode builders the FSM has not yet been
+                // added to the address space — we defer
+                // NodeState.Create() until freeze so callers can use
+                // UseElementNamespace() to override the element
+                // namespace URI before OnAfterCreate caches the
+                // namespace index.
+                if (!m_deferredCreateNodeId.IsNull && !m_deferredCreateBrowseName.IsNull)
                 {
-                    throw new InvalidOperationException(
-                        $"Cause mapping references unknown from-state {c.FromStateId}.");
+                    m_stateMachine.Create(
+                        m_context,
+                        m_deferredCreateNodeId,
+                        m_deferredCreateBrowseName,
+                        new LocalizedText(m_deferredCreateBrowseName.Name!),
+                        true);
                 }
-                if (!m_transitions.ContainsKey(c.TransitionId))
+            }
+        }
+
+        private void ValidateDefinitionStateExists(uint stateId)
+        {
+            if (m_definition == null)
+            {
+                return;
+            }
+
+            foreach (StateMachineStateDefinition s in m_definition.States)
+            {
+                if (s.Id == stateId)
+                {
+                    return;
+                }
+            }
+            throw new InvalidOperationException(
+                $"Initial state {stateId} is not declared. Call AddState "
+                + "to declare it before WithInitialState.");
+        }
+
+        private static void ValidateDefinition(MutableStateMachineDefinition def)
+        {
+            if (def.States.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "At least one state must be declared before the "
+                    + "definition is frozen.");
+            }
+
+            var stateIds = new HashSet<uint>();
+            foreach (StateMachineStateDefinition s in def.States)
+            {
+                stateIds.Add(s.Id);
+            }
+
+            foreach (StateMachineTransitionDefinition t in def.Transitions)
+            {
+                if (!stateIds.Contains(t.FromStateId))
                 {
                     throw new InvalidOperationException(
-                        $"Cause mapping references unknown transition {c.TransitionId}.");
+                        $"Transition '{t.BrowseName}' references unknown "
+                        + $"from-state {t.FromStateId}.");
+                }
+                if (!stateIds.Contains(t.ToStateId))
+                {
+                    throw new InvalidOperationException(
+                        $"Transition '{t.BrowseName}' references unknown "
+                        + $"to-state {t.ToStateId}.");
                 }
             }
 
-            var states = new List<StateMachineStateDefinition>(m_states.Values);
-            var transitions = new List<StateMachineTransitionDefinition>(m_transitions.Values);
-            return new StateMachineDefinition(
-                states,
-                transitions,
-                new List<StateMachineCauseMapping>(m_causeMappings),
-                m_initialStateId,
-                m_elementNamespaceUri);
+            var transitionIds = new HashSet<uint>();
+            foreach (StateMachineTransitionDefinition t in def.Transitions)
+            {
+                transitionIds.Add(t.Id);
+            }
+
+            foreach (StateMachineCauseMapping c in def.CauseMappings)
+            {
+                if (!stateIds.Contains(c.FromStateId))
+                {
+                    throw new InvalidOperationException(
+                        $"Cause mapping references unknown from-state "
+                        + $"{c.FromStateId}.");
+                }
+                if (!transitionIds.Contains(c.TransitionId))
+                {
+                    throw new InvalidOperationException(
+                        $"Cause mapping references unknown transition "
+                        + $"{c.TransitionId}.");
+                }
+            }
+
+            // Detect duplicate cause mappings — only the first match
+            // would ever fire, so silently shadowed mappings are an
+            // authoring bug.
+            var seenCauseKeys = new HashSet<(uint, uint)>();
+            foreach (StateMachineCauseMapping c in def.CauseMappings)
+            {
+                if (!seenCauseKeys.Add((c.CauseId, c.FromStateId)))
+                {
+                    throw new InvalidOperationException(
+                        $"Duplicate cause mapping for causeId="
+                        + $"{c.CauseId}, fromState={c.FromStateId} — "
+                        + "subsequent mappings would be silently "
+                        + "shadowed by the first.");
+                }
+            }
+        }
+
+        private static MethodState? FindMethodInTree(
+            NodeState root, NodeId methodNodeId)
+        {
+            var children = new List<BaseInstanceState>();
+            root.GetChildren(null!, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is MethodState method &&
+                    method.NodeId == methodNodeId)
+                {
+                    return method;
+                }
+                MethodState? nested = FindMethodInTree(child, methodNodeId);
+                if (nested != null)
+                {
+                    return nested;
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Static facade for <see cref="StateMachineBuilder{TState}"/>.
+    /// </summary>
+    public static class StateMachineBuilder
+    {
+        /// <summary>
+        /// Creates a new <see cref="FluentFiniteStateMachineState"/>
+        /// in the address space and returns a builder ready for
+        /// definition-mode chaining
+        /// (<see cref="StateMachineBuilder{TState}.AddState"/> /
+        /// <see cref="StateMachineBuilder{TState}.AddTransition"/> /
+        /// <see cref="StateMachineBuilder{TState}.OnCause"/>).
+        /// </summary>
+        /// <param name="parent">The parent node (may be <c>null</c>
+        /// for stand-alone machines).</param>
+        /// <param name="context">The system context used for the
+        /// underlying <see cref="NodeState.Create(ISystemContext, NodeId, QualifiedName, LocalizedText, bool)"/> call.</param>
+        /// <param name="nodeId">The state machine's NodeId.</param>
+        /// <param name="browseName">The state machine's browse
+        /// name.</param>
+        public static StateMachineBuilder<FluentFiniteStateMachineState> Create(
+            NodeState? parent,
+            ISystemContext context,
+            NodeId nodeId,
+            QualifiedName browseName)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException(
+                    "NodeId must not be null.", nameof(nodeId));
+            }
+            if (browseName.IsNull)
+            {
+                throw new ArgumentException(
+                    "Browse name must not be null.", nameof(browseName));
+            }
+
+            var holder = new MutableStateMachineDefinition();
+            FluentFiniteStateMachineState sm =
+                FluentFiniteStateMachineState.CreateWithHolder(parent!, holder);
+            // Defer sm.Create() until FreezeDefinition() so that
+            // UseElementNamespace() called between Create() and the
+            // first lifecycle method takes effect — OnAfterCreate
+            // caches ElementNamespaceIndex from ElementNamespaceUri.
+            return new StateMachineBuilder<FluentFiniteStateMachineState>(
+                sm, context, holder,
+                deferredCreateNodeId: nodeId,
+                deferredCreateBrowseName: browseName);
+        }
+
+        /// <summary>
+        /// Adopts an existing, already-Created
+        /// <see cref="FiniteStateMachineState"/> instance and returns a
+        /// builder ready for lifecycle-mode chaining. Definition
+        /// methods (<see cref="StateMachineBuilder{TState}.AddState"/>
+        /// etc.) throw <see cref="InvalidOperationException"/> in this
+        /// mode.
+        /// </summary>
+        /// <param name="stateMachine">The pre-existing state machine
+        /// (e.g. a <c>ShelvedStateMachineState</c> or a
+        /// generator-emitted vendor type).</param>
+        /// <param name="context">The system context used to drive
+        /// auto-transitions and method dispatch.</param>
+        public static StateMachineBuilder<TState> For<TState>(
+            TState stateMachine,
+            ISystemContext context)
+            where TState : FiniteStateMachineState
+        {
+            ArgumentNullException.ThrowIfNull(stateMachine);
+            ArgumentNullException.ThrowIfNull(context);
+            return new StateMachineBuilder<TState>(stateMachine, context, null);
+        }
+    }
+
+    /// <summary>
+    /// Internal dispatcher that wires builder-collected handlers onto
+    /// the state machine's <c>OnBefore/AfterTransition</c> delegates,
+    /// resolves the <c>from</c>/<c>to</c> numeric state ids from
+    /// <c>LastState</c>/<c>CurrentState</c>, and owns the per-state
+    /// timed-transition registry.
+    /// </summary>
+    internal sealed class StateMachineDispatcher<TState>
+        where TState : FiniteStateMachineState
+    {
+        private readonly TState m_stateMachine;
+        private readonly ISystemContext m_context;
+        private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_enterHandlers = [];
+        private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_exitHandlers = [];
+        private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
+        private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
+        private readonly Dictionary<uint, TimedTransitionEntry> m_timedTransitions = [];
+
+        private readonly StateMachineTransitionHandler? m_originalBefore;
+        private readonly StateMachineTransitionHandler? m_originalAfter;
+        private bool m_installed;
+        // Thread-keyed pending-from-state so concurrent transitions
+        // do not clobber each other's stash. OPC UA service requests
+        // can hit a node manager concurrently; each DoTransition runs
+        // synchronously on one thread (DispatchBefore -> state update
+        // -> DispatchAfter all on the same thread), so a thread-id
+        // keyed slot is sufficient.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<int, uint>
+            m_pendingFromByThread = new();
+
+        public StateMachineDispatcher(TState stateMachine, ISystemContext context)
+        {
+            m_stateMachine = stateMachine;
+            m_context = context;
+            m_originalBefore = stateMachine.OnBeforeTransition;
+            m_originalAfter = stateMachine.OnAfterTransition;
+        }
+
+        public void AddEnterStateHandler(
+            uint stateId, Action<ISystemContext, TState> handler)
+        {
+            if (!m_enterHandlers.TryGetValue(stateId, out List<Action<ISystemContext, TState>>? list))
+            {
+                list = [];
+                m_enterHandlers[stateId] = list;
+            }
+            list.Add(handler);
+            EnsureInstalled();
+        }
+
+        public void AddExitStateHandler(
+            uint stateId, Action<ISystemContext, TState> handler)
+        {
+            if (!m_exitHandlers.TryGetValue(stateId, out List<Action<ISystemContext, TState>>? list))
+            {
+                list = [];
+                m_exitHandlers[stateId] = list;
+            }
+            list.Add(handler);
+            EnsureInstalled();
+        }
+
+        public void AddTransitionObserver(
+            Action<ISystemContext, TState, uint, uint> handler)
+        {
+            m_transitionObservers.Add(handler);
+            EnsureInstalled();
+        }
+
+        public void AddBeforeTransitionGuard(
+            Func<ISystemContext, TState, uint, uint, ServiceResult> guard)
+        {
+            m_guards.Add(guard);
+            EnsureInstalled();
+        }
+
+        public void InstallCauseMethod(MethodState method, uint causeId)
+        {
+            method.OnCallMethod2 = (ctx, m, objectId, inputs, outputs) =>
+                m_stateMachine.DoCause(ctx, m, causeId, inputs, outputs);
+        }
+
+        public void AddTimedTransition(
+            uint fromStateId,
+            TimeSpan timeout,
+            uint transitionId,
+            uint causeId)
+        {
+            // Cancel any pre-existing entry for the same from-state
+            // before replacing it, so a re-call of WithTimedTransition
+            // doesn't leak a stale timer or fire it with stale ids.
+            CancelTimer(fromStateId);
+
+            var entry = new TimedTransitionEntry(timeout, transitionId, causeId);
+            m_timedTransitions[fromStateId] = entry;
+            EnsureInstalled();
+
+            // If the machine is already in the matching from-state,
+            // arm the timer now — otherwise the initial-state entry
+            // (applied via SetState, which doesn't fire OnAfterTransition)
+            // would never arm a timer.
+            uint currentState = ExtractStateId(
+                m_stateMachine.CurrentState?.Id?.Value);
+            if (currentState == fromStateId)
+            {
+                ArmTimer(fromStateId, entry);
+            }
+        }
+
+        private void EnsureInstalled()
+        {
+            if (m_installed)
+            {
+                return;
+            }
+            m_installed = true;
+            m_stateMachine.OnBeforeTransition = DispatchBefore;
+            m_stateMachine.OnAfterTransition = DispatchAfter;
+        }
+
+        private ServiceResult DispatchBefore(
+            ISystemContext context,
+            StateMachineState machine,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant>? outputArguments)
+        {
+            // Capture from-state BEFORE the framework updates
+            // CurrentState. Stored per-thread to support concurrent
+            // transitions safely (each DoTransition call is fully
+            // synchronous on one thread).
+            uint fromState = ExtractStateId(
+                m_stateMachine.CurrentState?.Id?.Value);
+            m_pendingFromByThread[System.Environment.CurrentManagedThreadId] = fromState;
+
+            // Builder guards run before any pre-existing OnBefore.
+            foreach (Func<ISystemContext, TState, uint, uint, ServiceResult> g in m_guards)
+            {
+                ServiceResult r = g(context, m_stateMachine, transitionId, causeId);
+                if (ServiceResult.IsBad(r))
+                {
+                    // Clear the per-thread stash on veto — DispatchAfter
+                    // won't run, so leave-no-trace.
+                    m_pendingFromByThread.TryRemove(
+                        System.Environment.CurrentManagedThreadId, out _);
+                    return r;
+                }
+            }
+            if (m_originalBefore != null)
+            {
+                ServiceResult r = m_originalBefore(
+                    context, machine, transitionId, causeId,
+                    inputArguments, outputArguments);
+                if (ServiceResult.IsBad(r))
+                {
+                    m_pendingFromByThread.TryRemove(
+                        System.Environment.CurrentManagedThreadId, out _);
+                }
+                return r;
+            }
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult DispatchAfter(
+            ISystemContext context,
+            StateMachineState machine,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant>? outputArguments)
+        {
+            // Pre-existing OnAfter runs first so its side effects (e.g.
+            // stack-shipped state-change reporting) complete before the
+            // builder's observers see the new state.
+            ServiceResult? originalResult = null;
+            if (m_originalAfter != null)
+            {
+                originalResult = m_originalAfter(
+                    context, machine, transitionId, causeId,
+                    inputArguments, outputArguments);
+            }
+
+            m_pendingFromByThread.TryRemove(
+                System.Environment.CurrentManagedThreadId, out uint from);
+            uint to = ExtractStateId(m_stateMachine.CurrentState?.Id?.Value);
+
+            // Exit handlers fire first, then transition observers, then
+            // enter handlers (standard reactive-FSM lifecycle order).
+            if (from != 0 && m_exitHandlers.TryGetValue(from, out List<Action<ISystemContext, TState>>? exitList))
+            {
+                foreach (Action<ISystemContext, TState> h in exitList)
+                {
+                    SafeInvoke(() => h(context, m_stateMachine));
+                }
+            }
+
+            foreach (Action<ISystemContext, TState, uint, uint> observer in m_transitionObservers)
+            {
+                SafeInvoke(() => observer(context, m_stateMachine, from, to));
+            }
+
+            if (to != 0 && m_enterHandlers.TryGetValue(to, out List<Action<ISystemContext, TState>>? enterList))
+            {
+                foreach (Action<ISystemContext, TState> h in enterList)
+                {
+                    SafeInvoke(() => h(context, m_stateMachine));
+                }
+            }
+
+            // Cancel timer armed on the from state (if any), then arm
+            // the timer for the to state.
+            if (from != 0)
+            {
+                CancelTimer(from);
+            }
+            if (to != 0 && m_timedTransitions.TryGetValue(to, out TimedTransitionEntry? armEntry))
+            {
+                ArmTimer(to, armEntry);
+            }
+
+            return originalResult ?? ServiceResult.Good;
+        }
+
+        private void ArmTimer(uint stateId, TimedTransitionEntry entry)
+        {
+            var cts = new CancellationTokenSource();
+            entry.Cts = cts;
+            entry.Timer = new Timer(_ =>
+            {
+                if (cts.IsCancellationRequested)
+                {
+                    return;
+                }
+                try
+                {
+                    m_stateMachine.DoTransition(
+                        m_context,
+                        entry.TransitionId,
+                        entry.CauseId,
+                        default,
+                        []);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(
+                        "StateMachineBuilder timed transition for state "
+                        + $"{stateId} threw: {ex}");
+                }
+            }, null, entry.Timeout, Timeout.InfiniteTimeSpan);
+        }
+
+        private void CancelTimer(uint stateId)
+        {
+            if (m_timedTransitions.TryGetValue(stateId, out TimedTransitionEntry? entry))
+            {
+                entry.Cts?.Cancel();
+                entry.Timer?.Dispose();
+                entry.Cts = null;
+                entry.Timer = null;
+            }
+        }
+
+        private static uint ExtractStateId(NodeId? nodeId)
+        {
+            if (!nodeId.HasValue || nodeId.Value.IsNull)
+            {
+                return 0;
+            }
+            return nodeId.Value.TryGetValue(out uint id) ? id : 0;
+        }
+
+        private static void SafeInvoke(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(
+                    $"StateMachineBuilder lifecycle handler threw: {ex}");
+            }
+        }
+
+        private sealed class TimedTransitionEntry
+        {
+            public TimedTransitionEntry(TimeSpan timeout, uint transitionId, uint causeId)
+            {
+                Timeout = timeout;
+                TransitionId = transitionId;
+                CauseId = causeId;
+            }
+
+            public TimeSpan Timeout { get; }
+            public uint TransitionId { get; }
+            public uint CauseId { get; }
+            public CancellationTokenSource? Cts { get; set; }
+            public Timer? Timer { get; set; }
         }
     }
 }
