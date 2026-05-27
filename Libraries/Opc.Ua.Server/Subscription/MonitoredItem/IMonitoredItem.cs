@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
-        INodeManager NodeManager { get; }
+        IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
         /// The session that owns the monitored item.

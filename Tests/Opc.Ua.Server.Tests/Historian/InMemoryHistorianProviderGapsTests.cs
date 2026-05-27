@@ -27,10 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA1861: inline constant-array expected-values used in test assertions are a clarity win
+// for the test author and aren't on a hot path. Disabled file-level for the suite.
+#pragma warning disable CA1861
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 #nullable enable
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -163,13 +174,13 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> pageA = await ReadAll(provider, context, nodeA);
             Assert.That(pageA.Values, Has.Count.EqualTo(3));
             Assert.That(
-                Convert.ToDouble(pageA.Values[0].Value.WrappedValue.AsBoxedObject()),
+                Convert.ToDouble(pageA.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(10.0));
 
             HistorianPage<HistoricalDataValue> pageB = await ReadAll(provider, context, nodeB);
             Assert.That(pageB.Values, Has.Count.EqualTo(3));
             Assert.That(
-                Convert.ToDouble(pageB.Values[2].Value.WrappedValue.AsBoxedObject()),
+                Convert.ToDouble(pageB.Values[2].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(60.0));
         }
 
@@ -207,7 +218,7 @@ namespace Opc.Ua.Server.Tests.Historian
             // t1 and t2 deleted ([1,3) range); t0, t3, t4 remain.
             Assert.That(page.Values, Has.Count.EqualTo(3));
             double[] remaining = page.Values
-                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject()))
+                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))
                 .ToArray();
             Assert.That(remaining, Is.EqualTo(new[] { 0.0, 3.0, 4.0 }));
         }
@@ -393,7 +404,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(3));
 
             double[] vals = page.Values
-                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject()))
+                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))
                 .ToArray();
             Assert.That(vals, Is.EqualTo(new[] { 100.0, 200.0, 300.0 }));
         }

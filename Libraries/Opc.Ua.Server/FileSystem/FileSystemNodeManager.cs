@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -54,7 +55,7 @@ namespace Opc.Ua.Server.FileSystem
     /// under <c>i=16314</c>.
     /// </para>
     /// </remarks>
-    public sealed class FileSystemNodeManager : CustomNodeManager2
+    public sealed class FileSystemNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Base URI used to build the namespace URI of a mounted
@@ -79,7 +80,7 @@ namespace Opc.Ua.Server.FileSystem
 
             var namespaceUris = new List<string> { BuildNamespaceUri(provider) };
             NamespaceUris = namespaceUris;
-            NamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
+            NamespaceIndex = base.NamespaceIndex;
         }
 
         /// <summary>The provider backing this node manager.</summary>
@@ -97,10 +98,11 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (!externalReferences.TryGetValue(ObjectIds.FileSystem,
                     out IList<IReference>? references))
@@ -111,48 +113,53 @@ namespace Opc.Ua.Server.FileSystem
                 references.Add(new NodeStateReference(
                     ReferenceTypeIds.HasComponent, false, rootId));
             }
+
+            return default;
         }
 
         /// <inheritdoc/>
-        protected override NodeHandle? GetManagerHandle(ServerSystemContext context, NodeId nodeId,
-            IDictionary<NodeId, NodeState>? cache)
+        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (!IsNodeIdInNamespace(nodeId))
                 {
-                    return null;
+                    return new ValueTask<NodeHandle>();
                 }
 
                 if (nodeId.IdType != IdType.String &&
                     PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
                 {
-                    return new NodeHandle
+                    return new ValueTask<NodeHandle>(new NodeHandle
                     {
                         NodeId = nodeId,
                         Node = node,
                         Validated = true
-                    };
+                    });
                 }
 
                 if (FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
                 {
-                    return new NodeHandle
+                    return new ValueTask<NodeHandle>(new NodeHandle
                     {
                         NodeId = nodeId,
                         Validated = false,
                         ParsedNodeId = new ParsedFileSystemNodeId(parsed)
-                    };
+                    });
                 }
 
-                return null;
+                return new ValueTask<NodeHandle>();
             }
         }
 
         /// <inheritdoc/>
-        public override void DeleteAddressSpace()
+        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 foreach (FileHandle handle in m_handles.Values)
                 {
@@ -160,6 +167,8 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 m_handles.Clear();
             }
+
+            return default;
         }
 
         /// <inheritdoc/>
@@ -167,7 +176,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             if (disposing)
             {
-                lock (Lock)
+                lock (m_lock)
                 {
                     foreach (FileHandle handle in m_handles.Values)
                     {
@@ -180,12 +189,15 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
-        protected override NodeState? ValidateNode(ServerSystemContext context, NodeHandle handle,
-            IDictionary<NodeId, NodeState>? cache)
+        protected override async ValueTask<NodeState> ValidateNodeAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
         {
             if (handle == null)
             {
-                return null;
+                return null!;
             }
             if (handle.Validated)
             {
@@ -197,7 +209,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 if (target == null)
                 {
-                    return null;
+                    return null!;
                 }
                 handle.Node = target;
                 handle.Validated = true;
@@ -208,15 +220,15 @@ namespace Opc.Ua.Server.FileSystem
             {
                 if (handle.ParsedNodeId is not ParsedFileSystemNodeId parsed)
                 {
-                    return null;
+                    return null!;
                 }
 
-                FileSystemEntry? entry = Provider
-                    .GetEntryAsync(parsed.Value.ProviderPath, CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
+                FileSystemEntry? entry = await Provider
+                    .GetEntryAsync(parsed.Value.ProviderPath, cancellationToken)
+                    .ConfigureAwait(false);
                 if (parsed.Value.RootType != FileSystemNodeId.Root && entry == null)
                 {
-                    return null;
+                    return null!;
                 }
 
                 NodeState? root = parsed.Value.RootType switch
@@ -242,7 +254,7 @@ namespace Opc.Ua.Server.FileSystem
                 };
                 if (root == null)
                 {
-                    return null;
+                    return null!;
                 }
 
                 if (string.IsNullOrEmpty(parsed.Value.ComponentPath))
@@ -256,7 +268,7 @@ namespace Opc.Ua.Server.FileSystem
                     context, parsed.Value.ComponentPath!);
                 if (component == null)
                 {
-                    return null;
+                    return null!;
                 }
                 handle.Validated = true;
                 handle.Node = target = component;
@@ -306,7 +318,7 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
                 {
@@ -325,7 +337,7 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal void ForgetHandle(NodeId nodeId)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
                 {
@@ -351,6 +363,7 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         private readonly Dictionary<NodeId, FileHandle> m_handles = [];
+        private readonly object m_lock = new();
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in

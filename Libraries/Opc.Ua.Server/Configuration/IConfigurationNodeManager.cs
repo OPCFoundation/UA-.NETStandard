@@ -58,12 +58,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
         /// </summary>
-        NamespaceMetadataState? GetNamespaceMetadataState(string namespaceUri);
+        ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified namespace index
         /// </summary>
-        NamespaceMetadataState? GetNamespaceMetadataState(ushort namespaceIndex);
+        ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(ushort namespaceIndex, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Determine if the impersonated user has admin access.

@@ -731,6 +731,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use RemoveReferencesAsync instead.")]
         public void RemoveReferences(List<LocalReference> referencesToRemove)
         {
             RemoveReferencesAsync(referencesToRemove).AsTask().GetAwaiter().GetResult();
@@ -1810,7 +1811,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId)
+        public async ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             if (nodeId.IsNull)
             {
@@ -1819,7 +1820,7 @@ namespace Opc.Ua.Server
             // search node id in all node managers
             foreach (IAsyncNodeManager nodeManager in AsyncNodeManagers)
             {
-                if ((await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false))
+                if ((await nodeManager.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false))
                     is not NodeHandle handle)
                 {
                     continue;
@@ -2719,7 +2720,7 @@ namespace Opc.Ua.Server
 
                     IEventMonitoredItem monitoredItem = Server.EventManager.CreateMonitoredItem(
                         context,
-                        nodeManager.SyncNodeManager,
+                        nodeManager,
                         handle,
                         subscriptionId,
                         monitoredItemIdFactory,
@@ -2852,7 +2853,7 @@ namespace Opc.Ua.Server
                     }
 
                     IEventMonitoredItem monitoredItem = Server.EventManager.RestoreMonitoredItem(
-                        nodeManager!.SyncNodeManager,
+                        nodeManager!,
                         handle,
                         item);
 
@@ -2883,7 +2884,7 @@ namespace Opc.Ua.Server
                     // only subscribe to the node manager that owns the node.
                     else
                     {
-                        ServiceResult error = await nodeManager.SubscribeToEventsAsync(
+                        ServiceResult error = await nodeManager!.SubscribeToEventsAsync(
                                 new OperationContext(monitoredItem),
                                 handle,
                                 monitoredItem.SubscriptionId,
@@ -3104,12 +3105,13 @@ namespace Opc.Ua.Server
                 // only subscribe to the node manager that owns the node.
                 else
                 {
-                    monitoredItem.NodeManager.SubscribeToEvents(
+                    await monitoredItem.NodeManager.SubscribeToEventsAsync(
                         context,
                         monitoredItem.ManagerHandle,
                         monitoredItem.SubscriptionId,
                         monitoredItem,
-                        false);
+                        false,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 errors[ii] = StatusCodes.Good;
@@ -3299,12 +3301,13 @@ namespace Opc.Ua.Server
                 // only unsubscribe to the node manager that owns the node.
                 else
                 {
-                    monitoredItem.NodeManager.SubscribeToEvents(
+                    await monitoredItem.NodeManager.SubscribeToEventsAsync(
                         context,
                         monitoredItem.ManagerHandle,
                         subscriptionId,
                         monitoredItem,
-                        true);
+                        true,
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 // delete the item.

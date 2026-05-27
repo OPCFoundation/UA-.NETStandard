@@ -166,13 +166,13 @@ namespace Opc.Ua.Server
             if (useSamplingGroups)
             {
                 m_monitoredItemManager = new SamplingGroupMonitoredItemManager(
-                    m_syncNodeManager!,
+                    this,
                     server,
                     configuration!);
             }
             else
             {
-                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(m_syncNodeManager!, server);
+                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this, server);
             }
 
             PredefinedNodes = [];
@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Server
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
 
-            SetDefaultPermissions(systemContext, target, metadata);
+            await SetDefaultPermissionsAsync(systemContext, target, metadata, cancellationToken).ConfigureAwait(false);
 
             // get instance references.
             if (target is BaseInstanceState instance)
@@ -4203,7 +4203,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                m_syncNodeManager,
+                m_syncNodeManager.ToAsyncNodeManager(),
                 context,
                 handle,
                 storedMonitoredItem,
@@ -4428,7 +4428,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
-                    m_syncNodeManager,
+                    m_syncNodeManager.ToAsyncNodeManager(),
                     context,
                     handle,
                     subscriptionId,
@@ -5309,12 +5309,13 @@ namespace Opc.Ua.Server
         {
             var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
-            (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager
-                .SetMonitoringMode(
+            (ServiceResult result, MonitoringMode? previousMode) = await m_monitoredItemManager
+                .SetMonitoringModeAsync(
                     context,
                     sampledDataChangeMonitoredItem!,
                     monitoringMode,
-                    handle);
+                    handle,
+                    cancellationToken).ConfigureAwait(false);
 
             // report change.
             if (ServiceResult.IsGood(result) && previousMode != monitoringMode)
@@ -5485,7 +5486,7 @@ namespace Opc.Ua.Server
                 SetAccessAndRolePermissions(values, metadata);
             }
 
-            SetDefaultPermissions(systemContext, target, metadata);
+            await SetDefaultPermissionsAsync(systemContext, target, metadata, cancellationToken).ConfigureAwait(false);
 
             return metadata;
         }
@@ -5493,14 +5494,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the metadata default permission values for DefaultAccessRestrictions, DefaultRolePermissions and DefaultUserRolePermissions
         /// </summary>
-        private void SetDefaultPermissions(
+        private async ValueTask SetDefaultPermissionsAsync(
             ServerSystemContext systemContext,
             NodeState target,
-            NodeMetadata metadata)
+            NodeMetadata metadata,
+            CancellationToken cancellationToken = default)
         {
             // check if NamespaceMetadata is defined for NamespaceIndex of the node.
-            NamespaceMetadataState namespaceMetadataState =
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataState(target.NodeId.NamespaceIndex)!;
+            NamespaceMetadataState? namespaceMetadataState = await
+                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(target.NodeId.NamespaceIndex, cancellationToken)
+                .ConfigureAwait(false);
 
             if (namespaceMetadataState != null)
             {

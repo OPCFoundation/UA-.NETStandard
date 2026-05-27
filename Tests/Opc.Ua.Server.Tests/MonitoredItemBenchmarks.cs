@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests
             m_queueFactory = new MonitoredItemQueueFactory(telemetry);
             serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
-            var nodeManagerMock = new Mock<INodeManager>();
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
 
             m_monitoredItem = new MonitoredItem(
                 serverMock.Object,

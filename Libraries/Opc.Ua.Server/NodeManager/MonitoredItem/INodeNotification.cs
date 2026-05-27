@@ -27,43 +27,42 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
+using System.Collections.Generic;
 
-using Moq;
-using NUnit.Framework;
-using Opc.Ua.Client.Historian;
-
-namespace Opc.Ua.Client.Tests.Historian
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Tests for client-side historian DTO and option types.
+    /// Base interface for node notifications sent to the channel.
     /// </summary>
-    [TestFixture]
-    [Category("Historian")]
-    [Parallelizable(ParallelScope.All)]
-    public class HistoryClientTypesTests
+    internal interface INodeNotification
     {
-        [Test]
-        public void HistoryClientOptionsDefaultTimestampsIsSource()
-        {
-            var options = new HistoryClientOptions();
+        ISystemContext Context { get; }
+    }
 
-            Assert.That(options.DefaultTimestampsToReturn, Is.EqualTo(TimestampsToReturn.Source));
-            Assert.That(options.DefaultMaxValuesPerNode, Is.Zero);
-        }
+    /// <summary>
+    /// Represents a snapshot of the changing attributes of a node.
+    /// </summary>
+    internal class DataChangeSnapshot : INodeNotification
+    {
+        public ISystemContext Context { get; set; } = null!;
+        public NodeId NodeId { get; set; }
+        public NodeStateChangeMasks Changes { get; set; }
 
-        [Test]
-        public void SessionHistorianExtensionReturnsBoundClient()
-        {
-            var mockSession = new Mock<ISession>();
-            ISession session = mockSession.Object;
+        /// <summary>
+        /// Pre-read raw <see cref="DataValue"/>s keyed by attribute id, captured without
+        /// any index range or data encoding applied. Each consumer (monitored item) applies
+        /// its own <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
+        /// <see cref="IDataChangeMonitoredItem2.DataEncoding"/> at queue time.
+        /// </summary>
+        public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = new();
+    }
 
-            HistoryClient client = session.Historian();
-
-            Assert.That(client, Is.Not.Null);
-            Assert.That(client.Session, Is.SameAs(session));
-            Assert.That(client.Options, Is.Not.Null);
-            Assert.That(client.Options.DefaultTimestampsToReturn, Is.EqualTo(TimestampsToReturn.Source));
-        }
+    /// <summary>
+    /// Represents a snapshot of a node event.
+    /// </summary>
+    internal class EventSnapshot : INodeNotification
+    {
+        public ISystemContext Context { get; set; } = null!;
+        public IFilterTarget EventTargetSnapshot { get; set; } = null!;
     }
 }

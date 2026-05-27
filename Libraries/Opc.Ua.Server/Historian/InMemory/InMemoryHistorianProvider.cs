@@ -695,7 +695,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             return new ValueTask<IList<StatusCode>>(statuses);
         }
 
-        private IList<StatusCode> ApplyEventUpdate(
+        private StatusCode[] ApplyEventUpdate(
             NodeId nodeId,
             IList<HistorianEventRecord> events,
             HistoryUpdateType updateType)
@@ -770,7 +770,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             return statuses;
         }
 
-        private IList<StatusCode> ApplyUpdate(
+        private StatusCode[] ApplyUpdate(
             HistorianOperationContext context,
             NodeId nodeId,
             IList<DataValue> values,
@@ -851,7 +851,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             return statuses;
         }
 
-        private IList<StatusCode> ApplyTransactionalUpdate(
+        private StatusCode[] ApplyTransactionalUpdate(
             HistorianOperationContext context,
             NodeId nodeId,
             IList<DataValue> values,
@@ -948,7 +948,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
         }
 
-        private IList<StatusCode> ApplyAnnotation(
+        private StatusCode[] ApplyAnnotation(
             NodeId nodeId,
             IList<Annotation> annotations,
             HistoryUpdateType updateType)

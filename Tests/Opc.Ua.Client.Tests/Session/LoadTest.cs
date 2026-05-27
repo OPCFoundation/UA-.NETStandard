@@ -36,7 +36,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Client.Tests
@@ -99,11 +98,16 @@ namespace Opc.Ua.Client.Tests
 
         /// <summary>
         /// Load test a server with multiple sessions and subscriptions.
+        /// When <paramref name="useManagedSession"/> is <c>true</c>, each reader session
+        /// is created as a <see cref="ManagedSession"/> with the V2 (ChannelBased)
+        /// <see cref="DefaultSubscriptionEngineFactory"/>.
         /// </summary>
         [Test]
         [Explicit]
         [Order(100)]
-        public async Task ServerSubscribeLoadTestAsync()
+        [TestCase(false, TestName = "ServerSubscribeLoadTest_Classic")]
+        [TestCase(true, TestName = "ServerSubscribeLoadTest_ManagedSessionV2")]
+        public async Task ServerSubscribeLoadTestAsync(bool useManagedSession)
         {
             const int sessionCount = 50;
             const int subscriptionsPerSession = 15;
@@ -117,6 +121,17 @@ namespace Opc.Ua.Client.Tests
             var monitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
             var clientHandles = new ConcurrentDictionary<uint, NodeId>();
             using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
+
+            // Resolve the endpoint once so ManagedSession creation does not
+            // need to do endpoint discovery on every parallel task.
+            ConfiguredEndpoint configuredEndpoint = useManagedSession
+                ? await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false)
+                : null;
+
+            TestContext.Out.WriteLine(
+                useManagedSession
+                    ? "Using ManagedSession with SubscriptionEngine V2 (ChannelBased)."
+                    : "Using classic Session with default SubscriptionEngine.");
 
             try
             {
@@ -135,69 +150,117 @@ namespace Opc.Ua.Client.Tests
                 {
                     createSessionTasks.Add(Task.Run(async () =>
                     {
-                        ISession session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-
-                        sessions.Add(session);
-
-                        for (int j = 0; j < subscriptionsPerSession; j++)
+                        ISession session;
+                        if (useManagedSession)
                         {
-                            var subscription = new Subscription(session.DefaultSubscription)
-                            {
-                                PublishingInterval = publishingInterval
-                            };
+                            var managedSession = await Opc.Ua.Client.ManagedSession.CreateAsync(
+                                ClientFixture.Config,
+                                configuredEndpoint,
+                                new DefaultSessionFactory(Telemetry),
+                                engineFactory: DefaultSubscriptionEngineFactory.Instance,
+                                ct: connectCts.Token).ConfigureAwait(false);
+                            session = managedSession;
+                            sessions.Add(session);
 
-                            try
+                            var handler = new LoadTestDataChangeHandler(valueChanges, clientHandles);
+
+                            for (int j = 0; j < subscriptionsPerSession; j++)
                             {
+                                var subscription = managedSession.AddSubscription(
+                                    handler,
+                                    o => o with
+                                    {
+                                        PublishingInterval = TimeSpan.FromMilliseconds(publishingInterval),
+                                        PublishingEnabled = true
+                                    });
+
                                 foreach (NodeId nodeId in nodeIds.Keys)
                                 {
-                                    var item = new MonitoredItem(subscription.DefaultItem)
-                                    {
-                                        StartNodeId = nodeId,
-                                        AttributeId = Attributes.Value,
-                                        MonitoringMode = MonitoringMode.Reporting,
-                                        SamplingInterval = 0
-                                    };
                                     valueChanges.TryAdd(nodeId, 0);
-                                    clientHandles.TryAdd(item.ClientHandle, nodeId);
-
-                                    monitoredItems.TryAdd(item.ClientHandle, item);
-                                    subscription.AddItem(item);
-                                }
-
-                                subscription.FastDataChangeCallback = (sub, item, value) =>
-                                {
-                                    foreach (MonitoredItemNotification dv in item.MonitoredItems)
-                                    {
-                                        if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
+                                    subscription.TryAddMonitoredItem(
+                                        nodeId.ToString(),
+                                        nodeId,
+                                        o => o with
                                         {
-                                            Assert.Fail(
-                                                "Monitored item reported bad status code: " +
-                                                dv.DiagnosticInfo.InnerStatusCode +
-                                                dv.DiagnosticInfo.LocalizedText);
-                                        }
+                                            AttributeId = Attributes.Value,
+                                            MonitoringMode = MonitoringMode.Reporting,
+                                            SamplingInterval = TimeSpan.Zero,
+                                            QueueSize = 1
+                                        },
+                                        out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item);
 
-                                        valueChanges.AddOrUpdate(
-                                            clientHandles[dv.ClientHandle],
-                                            1,
-                                            (key, count) => count + 1);
+                                    if (item != null)
+                                    {
+                                        clientHandles.TryAdd(item.ClientHandle, nodeId);
                                     }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                            sessions.Add(session);
+
+                            for (int j = 0; j < subscriptionsPerSession; j++)
+                            {
+                                var subscription = new Subscription(session.DefaultSubscription)
+                                {
+                                    PublishingInterval = publishingInterval
                                 };
 
-                                session.AddSubscription(subscription);
-                                await subscription.CreateAsync().ConfigureAwait(false);
-                                subscriptions.Add(subscription);
-                            }
-                            catch
-                            {
-                                subscription.Dispose();
-                                throw;
+                                try
+                                {
+                                    foreach (NodeId nodeId in nodeIds.Keys)
+                                    {
+                                        var item = new MonitoredItem(subscription.DefaultItem)
+                                        {
+                                            StartNodeId = nodeId,
+                                            AttributeId = Attributes.Value,
+                                            MonitoringMode = MonitoringMode.Reporting,
+                                            SamplingInterval = 0
+                                        };
+                                        valueChanges.TryAdd(nodeId, 0);
+                                        clientHandles.TryAdd(item.ClientHandle, nodeId);
+
+                                        monitoredItems.TryAdd(item.ClientHandle, item);
+                                        subscription.AddItem(item);
+                                    }
+
+                                    subscription.FastDataChangeCallback = (sub, item, value) =>
+                                    {
+                                        foreach (MonitoredItemNotification dv in item.MonitoredItems)
+                                        {
+                                            if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
+                                            {
+                                                Assert.Fail(
+                                                    "Monitored item reported bad status code: " +
+                                                    dv.DiagnosticInfo.InnerStatusCode +
+                                                    dv.DiagnosticInfo.LocalizedText);
+                                            }
+
+                                            valueChanges.AddOrUpdate(
+                                                clientHandles[dv.ClientHandle],
+                                                1,
+                                                (key, count) => count + 1);
+                                        }
+                                    };
+
+                                    session.AddSubscription(subscription);
+                                    await subscription.CreateAsync().ConfigureAwait(false);
+                                    subscriptions.Add(subscription);
+                                }
+                                catch
+                                {
+                                    subscription.Dispose();
+                                    throw;
+                                }
                             }
                         }
                     }, connectCts.Token));
                 }
                 await Task.WhenAll(createSessionTasks).ConfigureAwait(false);
 
-                // Create writer session
+                // Create writer session (always uses classic session)
                 ISession writerSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 sessions.Add(writerSession);
 
@@ -253,7 +316,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Wait for server to process last write (testDurationSeconds / writeCount -> time for a single write)
                 // + some publishing intervals for notifications to be processed
-                await Task.Delay((testDurationSeconds / writeCount) + (publishingInterval * 10)).ConfigureAwait(false);
+                await Task.Delay((testDurationSeconds / writeCount) + (publishingInterval * 50)).ConfigureAwait(false);
 
                 // Verification
                 TestContext.Out.WriteLine($"Writer task wrote {writeCount} times.");
@@ -707,6 +770,75 @@ namespace Opc.Ua.Client.Tests
                     }
                 })).ToList();
                 await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Notification handler for the V2 SubscriptionManager path in load tests.
+        /// Routes each <see cref="DataValueChange"/> back to the shared
+        /// <paramref name="valueChanges"/> counter dict via <paramref name="clientHandles"/>.
+        /// </summary>
+        private sealed class LoadTestDataChangeHandler : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+        {
+            private readonly ConcurrentDictionary<NodeId, int> m_valueChanges;
+            private readonly ConcurrentDictionary<uint, NodeId> m_clientHandles;
+
+            public LoadTestDataChangeHandler(
+                ConcurrentDictionary<NodeId, int> valueChanges,
+                ConcurrentDictionary<uint, NodeId> clientHandles)
+            {
+                m_valueChanges = valueChanges;
+                m_clientHandles = clientHandles;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                ReadOnlySpan<Opc.Ua.Client.Subscriptions.DataValueChange> changes = notification.Span;
+                for (int i = 0; i < changes.Length; i++)
+                {
+                    Opc.Ua.Client.Subscriptions.DataValueChange change = changes[i];
+                    if (change.DiagnosticInfo != null &&
+                        !StatusCode.IsGood(change.DiagnosticInfo.InnerStatusCode))
+                    {
+                        Assert.Fail(
+                            "Monitored item reported bad status code: " +
+                            change.DiagnosticInfo.InnerStatusCode +
+                            change.DiagnosticInfo.LocalizedText);
+                    }
+
+                    if (change.MonitoredItem != null &&
+                        m_clientHandles.TryGetValue(change.MonitoredItem.ClientHandle, out NodeId nodeId))
+                    {
+                        m_valueChanges.AddOrUpdate(nodeId, 1, (_, count) => count + 1);
+                    }
+                }
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+            {
+                return default;
             }
         }
     }
