@@ -3548,14 +3548,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates the master node manager for the server.
+        /// Creates the master node manager for the server (async).
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
-        /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual IMasterNodeManager CreateMasterNodeManager(
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The configured master node manager.</returns>
+        /// <remarks>
+        /// Subclasses that need to plug in custom async node-manager factories should
+        /// override this method. The default implementation awaits each registered
+        /// <see cref="IAsyncNodeManagerFactory"/> and delegates the synchronous
+        /// factories to <see cref="CreateMasterNodeManager"/>.
+        /// </remarks>
+        protected virtual async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             var nodeManagers = new List<INodeManager>();
 
@@ -3568,10 +3576,24 @@ namespace Opc.Ua.Server
 
             foreach (IAsyncNodeManagerFactory nodeManagerFactory in m_asyncNodeManagerFactories)
             {
-                asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+                asyncNodeManagers.Add(await nodeManagerFactory.CreateAsync(server, configuration, cancellationToken)
+                    .ConfigureAwait(false));
             }
 
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+        }
+
+        /// <summary>
+        /// Creates the master node manager for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
+        protected virtual IMasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return CreateMasterNodeManagerAsync(server, configuration).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

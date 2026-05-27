@@ -1586,7 +1586,7 @@ namespace Opc.Ua.Server
                 {
                     if (!serverNamespacesReference.IsInverse)
                     {
-                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references
+                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references.
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
                             Server.NamespaceUris);

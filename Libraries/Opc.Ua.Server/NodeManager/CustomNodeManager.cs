@@ -431,7 +431,9 @@ namespace Opc.Ua.Server
 
             if (referencesToRemove.Count > 0)
             {
+#pragma warning disable CS0618 // RemoveReferences is obsolete; DeleteNode is itself sync legacy API tracked for removal.
                 Server.NodeManager.RemoveReferences(referencesToRemove);
+#pragma warning restore CS0618
             }
 
             return true;

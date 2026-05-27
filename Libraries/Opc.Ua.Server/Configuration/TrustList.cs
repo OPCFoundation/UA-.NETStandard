@@ -72,6 +72,13 @@ namespace Opc.Ua.Server
             // If maxTrustListSize is 0 (unlimited), use a sensible default limit
             m_maxTrustListSize = maxTrustListSize > 0 ? maxTrustListSize : kDefaultMaxTrustListSize;
 
+            // Register both sync and async handlers per MethodState. The async path is
+            // preferred (and is what the in-tree containers — ConfigurationNodeManager
+            // and ApplicationsNodeManager — dispatch through). The sync OnCall handlers
+            // are compat shims for legacy CustomNodeManager2 subclasses that host this
+            // TrustList but do not implement ICallAsyncNodeManager; those subclasses
+            // dispatch through MethodState.Call (sync) which would otherwise return
+            // BadNotImplemented because OnCallAsync is not consulted on the sync path.
             node.Open!.OnCall = new OpenMethodStateMethodCallHandler(Open);
             node.Open.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OpenAsync);
             node.OpenWithMasks!.OnCall

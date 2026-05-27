@@ -652,11 +652,11 @@ namespace Opc.Ua.Gds.Server
                         passiveNode.Parent?.ReplaceChild(context, keyCredNode);
                     }
 
-                    keyCredNode.StartRequest!.OnCall = OnKeyCredentialStartRequest;
-                    keyCredNode.FinishRequest!.OnCall = OnKeyCredentialFinishRequest;
+                    keyCredNode.StartRequest!.OnCallAsync = OnKeyCredentialStartRequestAsync;
+                    keyCredNode.FinishRequest!.OnCallAsync = OnKeyCredentialFinishRequestAsync;
                     if (keyCredNode.Revoke != null)
                     {
-                        keyCredNode.Revoke.OnCall = OnKeyCredentialRevoke;
+                        keyCredNode.Revoke.OnCallAsync = OnKeyCredentialRevokeAsync;
                     }
 
                     return keyCredNode;
@@ -673,8 +673,8 @@ namespace Opc.Ua.Gds.Server
                         OnGetServiceDescription;
                     if (authServiceNode.RequestAccessToken != null)
                     {
-                        authServiceNode.RequestAccessToken.OnCall =
-                            OnRequestAccessToken;
+                        authServiceNode.RequestAccessToken.OnCallAsync =
+                            OnRequestAccessTokenAsync;
                     }
 
                     return authServiceNode;
@@ -2277,15 +2277,17 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnRequestAccessToken(
+        private async ValueTask<RequestAccessTokenMethodStateResult> OnRequestAccessTokenAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             UserIdentityToken identityToken,
             string resourceId,
-            ref string accessToken)
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new RequestAccessTokenMethodStateResult();
 
             if (AccessTokenProvider == null)
             {
@@ -2300,17 +2302,18 @@ namespace Opc.Ua.Gds.Server
                 throw ex;
             }
 
-            accessToken = AccessTokenProvider.RequestAccessTokenAsync(
-                identityToken, resourceId).AsTask().GetAwaiter().GetResult();
+            result.AccessToken = await AccessTokenProvider.RequestAccessTokenAsync(
+                identityToken, resourceId, cancellationToken).ConfigureAwait(false);
 
             ArrayOf<Variant> successAuditInputs = [Variant.FromStructure(identityToken), resourceId];
             Server.ReportAccessTokenIssuedAuditEvent(
                 context, objectId, method, successAuditInputs, m_logger);
 
-            return ServiceResult.Good;
+            result.ServiceResult = ServiceResult.Good;
+            return result;
         }
 
-        private ServiceResult OnKeyCredentialStartRequest(
+        private async ValueTask<KeyCredentialStartRequestMethodStateResult> OnKeyCredentialStartRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -2318,85 +2321,88 @@ namespace Opc.Ua.Gds.Server
             ByteString publicKey,
             string securityPolicyUri,
             ArrayOf<NodeId> requestedRoles,
-            ref NodeId requestId)
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
             m_logger.LogInformation("OnKeyCredentialStartRequest: {ApplicationUri}", applicationUri);
 
-            requestId = KeyCredentialRequestStore.StartRequest(
+            NodeId requestId = await KeyCredentialRequestStore.StartRequestAsync(
                 applicationUri,
                 publicKey,
                 securityPolicyUri,
-                requestedRoles);
+                requestedRoles,
+                cancellationToken).ConfigureAwait(false);
 
             ArrayOf<Variant> auditInputs = [applicationUri, publicKey, securityPolicyUri, requestedRoles];
             Server.ReportKeyCredentialRequestedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
 
-            return ServiceResult.Good;
+            return new KeyCredentialStartRequestMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                RequestId = requestId
+            };
         }
 
-        private ServiceResult OnKeyCredentialFinishRequest(
+        private async ValueTask<KeyCredentialFinishRequestMethodStateResult> OnKeyCredentialFinishRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             NodeId requestId,
             bool cancelRequest,
-            ref string credentialId,
-            ref ByteString credentialSecret,
-            ref string certificateThumbprint,
-            ref string securityPolicyUri,
-            ref ArrayOf<NodeId> grantedRoles)
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
             m_logger.LogInformation("OnKeyCredentialFinishRequest: {RequestId}", requestId);
 
-            KeyCredentialRequestState state = KeyCredentialRequestStore.FinishRequest(
+            FinishKeyCredentialRequestResult finished = await KeyCredentialRequestStore.FinishRequestAsync(
                 requestId,
                 cancelRequest,
-                out string? cid,
-                out ByteString csecret,
-                out string? cthumb,
-                out string? spuri,
-                out ArrayOf<NodeId> granted);
+                cancellationToken).ConfigureAwait(false);
 
-            credentialId = cid ?? string.Empty;
-            credentialSecret = csecret;
-            certificateThumbprint = cthumb ?? string.Empty;
-            securityPolicyUri = spuri ?? string.Empty;
-            grantedRoles = granted;
-
-            if (state == KeyCredentialRequestState.New)
+            var result = new KeyCredentialFinishRequestMethodStateResult
             {
-                return new ServiceResult(StatusCodes.BadNothingToDo);
+                CredentialId = finished.CredentialId ?? string.Empty,
+                CredentialSecret = finished.CredentialSecret,
+                CertificateThumbprint = finished.CertificateThumbprint ?? string.Empty,
+                SecurityPolicyUri = finished.SecurityPolicyUri ?? string.Empty,
+                GrantedRoles = finished.GrantedRoles
+            };
+
+            if (finished.State == KeyCredentialRequestState.New)
+            {
+                result.ServiceResult = new ServiceResult(StatusCodes.BadNothingToDo);
+                return result;
             }
 
             ArrayOf<Variant> auditInputs = [requestId, cancelRequest];
             Server.ReportKeyCredentialDeliveredAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
 
-            return ServiceResult.Good;
+            result.ServiceResult = ServiceResult.Good;
+            return result;
         }
 
-        private ServiceResult OnKeyCredentialRevoke(
+        private async ValueTask<KeyCredentialRevokeMethodStateResult> OnKeyCredentialRevokeAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            string credentialId)
+            string credentialId,
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
 
             m_logger.LogInformation("OnKeyCredentialRevoke: {CredentialId}", credentialId);
 
-            KeyCredentialRequestStore.Revoke(credentialId);
+            await KeyCredentialRequestStore.RevokeAsync(credentialId, cancellationToken).ConfigureAwait(false);
 
             ArrayOf<Variant> auditInputs = [credentialId];
             Server.ReportKeyCredentialRevokedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
 
-            return ServiceResult.Good;
+            return new KeyCredentialRevokeMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
         private readonly bool m_autoApprove;

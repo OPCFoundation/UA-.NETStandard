@@ -27,8 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -118,7 +123,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryRead),
                 Is.EqualTo(AccessLevels.HistoryRead));
             Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryWrite),
-                Is.EqualTo(0),
+                Is.Zero,
                 "HistoryWrite must not be set when only HistoryRead was requested.");
         }
 
@@ -170,7 +175,7 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
-        public void HistorizeWithCapabilitiesAdvertisedByProvider()
+        public async Task HistorizeWithCapabilitiesAdvertisedByProvider()
         {
             (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
             var custom = new HistorianNodeCapabilities
@@ -188,8 +193,8 @@ namespace Opc.Ua.Server.Tests.Historian
             IHistorianProvider? provider =
                 ((IHistorianRegistryProvider)server).HistorianRegistry.Resolve(v.NodeId);
             Assert.That(provider, Is.Not.Null);
-            HistorianNodeCapabilities advertised = provider!
-                .GetCapabilitiesAsync(v.NodeId, default).AsTask().GetAwaiter().GetResult();
+            HistorianNodeCapabilities advertised = await provider!
+                .GetCapabilitiesAsync(v.NodeId, default).ConfigureAwait(false);
             Assert.That(advertised.InsertAnnotation, Is.True);
             Assert.That(advertised.DeleteRaw, Is.False,
                 "Provider should advertise the capability set the user supplied verbatim.");
