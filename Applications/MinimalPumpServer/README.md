@@ -42,14 +42,14 @@ UaExpert) to explore the simulated pump.
 |---------|-------|
 | `AddOpcUa().AddServer(...).AddNodeManager<T>()` hosting | `Program.cs` |
 | Multi-model composition (DI library + 2 NodeSet2 XMLs) | `PumpNodeManager.cs` `LoadPredefinedNodesAsync` |
-| Identification properties via `WithProperty(name, value)` | `PumpNodeManager.Configure.cs` `WireIdentification` |
-| Engineering units / EURange via `WithEngineeringUnits` / `WithEURange` | `WireMeasurements` |
+| Identification properties via `WithProperty(name, value)` | `PumpNodeManager.Configure.cs` `WithIdentification` |
+| Engineering units / EURange via `WithEngineeringUnits` / `WithEURange` | `WithMeasurements` |
 | 250 ms simulation tick via `Simulation(...).OnTick(...)` | `Configure` → `AdvanceSimulation` |
-| Read-write actuation variables | `WireActuation` |
-| Limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `WireSupervision` |
-| Boolean supervision → alarm activation via `.ActivatesAlarm(...)` | `WireSupervision` |
-| Per-read simulated boolean / discrete signals | `WireSignals`, `WireSupervision` |
-| Maintenance counters (operating time, number of starts) | `WireMaintenance`, `AdvanceSimulation` |
+| Read-write actuation variables | `WithActuation` |
+| Limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `WithSupervision` |
+| Boolean supervision → alarm activation via `.ActivatesAlarm(...)` | `WithSupervision` |
+| Per-read simulated boolean / discrete signals | `WithSignals`, `WithSupervision` |
+| Maintenance counters (operating time, number of starts) | `WithMaintenance`, `AdvanceSimulation` |
 
 ## Architecture
 
@@ -63,30 +63,32 @@ MinimalPumpServer/
 ├── MinimalPumpServer.csproj         # ProjectReference to Opc.Ua.Di model lib
 │                                    # Embedded Machinery + Pumps NodeSet2 XMLs
 ├── Model/
-│   ├── Opc.Ua.Di.NodeSet2.xml       # DI (loaded for cross-ref by Machinery/Pumps)
 │   ├── Opc.Ua.Machinery.NodeSet2.xml
 │   └── Opc.Ua.Pumps.NodeSet2.xml    # 6.4 MB — the OPC 40223 spec deliverable
 └── Properties/AssemblyInfo.cs
 ```
 
-The `Opc.Ua.Di` model library is consumed as a NuGet/project reference
-(its types live under the `Opc.Ua.Di` namespace and are
-source-generated from the ModelDesign XML, not the NodeSet2). The
-Machinery and Pumps NodeSet2 XMLs are embedded resources loaded at
-runtime via `ModelLoaderBuilder.ImportEmbeddedNodeSet(...)` because
-their source-gen output would reference DI under the wrong namespace
-prefix (see [Companion specification libraries — Common pitfalls](../../Docs/CompanionSpecLibraries.md#6-common-pitfalls)).
+The `Opc.Ua.Di` model library is consumed as a project reference (its
+types live under the `Opc.Ua.Di` namespace and are source-generated
+from the ModelDesign XML).
+
+The Machinery and Pumps NodeSet2 XMLs are embedded resources loaded at
+runtime via `ModelLoaderBuilder.ImportEmbeddedNodeSet(...)` because no
+source-generated `Opc.Ua.Machinery` / `Opc.Ua.Pumps` library exists
+yet. Converting them to source-generated libraries (mirroring
+`Opc.Ua.Di`) is tracked by
+[plans/SourceGeneratedCompanionSpecLibraries.md](../../plans/SourceGeneratedCompanionSpecLibraries.md).
 
 ## Inspecting / extending the sample
 
 - **Add a measurement**: open `PumpNodeManager.Configure.cs`, add a
-  call to `TryWireMeasurement(builder, browsePath, getter, units, min, max)`
-  inside `WireMeasurements`, then add a field + line to
+  call to `TryAddMeasurement(builder, browsePath, getter, units, min, max)`
+  inside `WithMeasurements`, then add a field + line to
   `AdvanceSimulation` that updates the value each tick.
-- **Add an alarm**: inside `WireSupervision`, chain another
+- **Add an alarm**: inside `WithSupervision`, chain another
   `events.CreateLimitAlarm(...).WithLimits(...)` and wire the
   triggering boolean variable via `.ActivatesAlarm(...)`.
-- **Add a second pump**: use the G1 instance creation extension —
+- **Add a second pump**: use the instance-creation extension —
   `builder.Node("Pumps").CreateInstance(name, typeDefId, factory)`.
   The MinimalPumpServer doesn't currently exercise instance creation
   beyond what the Pumps NodeSet2 already declares, but the underlying

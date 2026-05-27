@@ -31,43 +31,53 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Di.Server.SoftwareUpdate;
+using SoftwareUpdate;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
+int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62543;
+
+// In-memory store; production deployments switch to
+// FileSystemPackageStore over an IFileSystemProvider.
+builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
 
 builder.Services
     .AddOpcUa()
     .AddServer(o =>
     {
-        o.ApplicationName = "MinimalPumpServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalPumpServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalPumpServer";
+        o.ApplicationName = "MinimalSoftwareUpdateServer";
+        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalSoftwareUpdateServer";
+        o.ProductUri = "uri:opcfoundation.org:MinimalSoftwareUpdateServer";
         o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalPumpServer");
+        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalSoftwareUpdateServer");
     })
-    .AddNodeManager<Pumps.PumpNodeManagerFactory>()
-    // Materialise a second pump declaratively at server startup. The
-    // runner runs the delegate after the pump address space and
-    // fluent wiring are complete.
-    .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
+    .AddOpcUaDi()
+    .ConfigureDevicesFor<Opc.Ua.Di.Server.DiNodeManager>(async ctx =>
     {
-        var pump = await ctx.CreateDeviceAsync(
-            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex))
+        // Create a single demo device under the DI DeviceSet.
+        var device = await ctx.CreateDeviceAsync(
+            new QualifiedName("UpdateableDevice #1", ctx.Manager.DiNamespaceIndex))
             .ConfigureAwait(false);
 
-        pump.WithIdentification(id =>
+        device.WithIdentification(id =>
         {
-            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
-            id.Model = new LocalizedText("PumpX-2000 (declarative)");
-            id.SerialNumber = "SN-DI-2";
-            id.DeviceClass = "Pump";
+            id.Manufacturer = new LocalizedText("Acme Corp");
+            id.Model = new LocalizedText("UpdateableDevice X1");
+            id.SerialNumber = "SN-SW-1";
+            id.DeviceClass = "Controller";
             id.HardwareRevision = "1.0";
-            id.SoftwareRevision = "2.5.3";
+            id.SoftwareRevision = "1.0.0";
         });
+
+        // Seed the shared package store with sample firmware payloads
+        // exposed through the DI software-update facet.
+        ISoftwarePackageStore packageStore =
+            ctx.GetRequiredService<ISoftwarePackageStore>();
+        await SoftwarePackageSeeder.SeedAsync(packageStore).ConfigureAwait(false);
     });
 
 await builder.Build().RunAsync().ConfigureAwait(false);

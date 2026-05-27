@@ -773,31 +773,44 @@ does); calling `.Simulation()` on a plain `CustomNodeManager2` throws
 
 ### Multi-model composition
 
-`ModelLoaderBuilder` composes the predefined-node tree from any
-combination of generated model extensions and runtime-loaded
-NodeSet2 XMLs. Use it from `LoadPredefinedNodesAsync` to build a
-single `NodeStateCollection` that spans multiple companion specs:
+The primary mode for combining models is **source-generated library
+references**. Each companion spec is built once into its own model
+library (a `Libraries/Opc.Ua.{Spec}/` project that consumes the
+ModelDesign XML and emits an `AddOpcUa{Spec}` extension method); the
+consumer adds project references and composes them through
+`ModelLoaderBuilder`:
 
 ```csharp
 protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
     ISystemContext context, CancellationToken ct = default)
 {
-    Assembly asm = typeof(PumpNodeManager).Assembly;
     NodeStateCollection nodes = new ModelLoaderBuilder()
-        // Source-generated DI model from a referenced library
         .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))
-        // NodeSet2 XML embedded in the application assembly
-        .ImportEmbeddedNodeSet(asm, "Opc.Ua.Machinery.NodeSet2.xml")
-        .ImportEmbeddedNodeSet(asm, "Opc.Ua.Pumps.NodeSet2.xml")
+        .AddModel((coll, ctx) => coll.AddOpcUaMachinery(ctx))
+        .AddModel((coll, ctx) => coll.AddOpcUaPumps(ctx))
         .Build(new NodeStateCollection(), context);
     return new ValueTask<NodeStateCollection>(nodes);
 }
 ```
 
+Source-generated models are AOT-friendly, deterministic, and produce
+typed `*State` / `*Client` proxies. Use this whenever a model is part
+of a stable, redistributable library.
+
+`ImportNodeSet(Stream)` / `ImportEmbeddedNodeSet(...)` overloads still
+exist as a fallback when:
+
+- the consumer needs to load an unverified third-party NodeSet2 at
+  runtime; or
+- the spec is not yet packaged as a source-generated library.
+
+The fallback path is what `Applications/MinimalPumpServer` uses today
+for the Machinery + Pumps specs while
+[plans/SourceGeneratedCompanionSpecLibraries.md](plans/SourceGeneratedCompanionSpecLibraries.md)
+tracks the conversion to libraries.
+
 Sources run in registration order so later additions can layer on top
-of earlier ones. The `ImportNodeSet(Stream)` overload accepts any
-stream — useful for nodesets fetched at runtime from disk or a network
-location.
+of earlier ones.
 
 ## Current limitations
 
@@ -805,14 +818,6 @@ location.
   path explicitly or resolve by NodeId / TypeDefinitionId.
 - **HistoryRead/Update** integration is delegate-only in v1; deeper
   paging/queueing still requires `INodeManager2` work.
-- **Cross-namespace generator source-gen** for NodeSet2 XML
-  dependencies still references types in the originating `XmlPrefix`
-  namespace, which conflicts with libraries that use a different C#
-  namespace (e.g. `Opc.Ua.Di`). For libraries the simplest workaround
-  is to runtime-load the dependent NodeSet2 via the
-  [Multi-model composition](#multi-model-composition) loader rather
-  than source-generate it. See `Applications/MinimalPumpServer` for
-  the canonical pattern.
 
 ## Sample
 

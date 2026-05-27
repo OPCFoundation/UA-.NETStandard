@@ -42,21 +42,9 @@ namespace Pumps
     /// with a full simulation loop.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// The <c>[NodeManager]</c> attribute is intentionally NOT used here
-    /// because the Pumps NodeSet2 triggers a source-generator bug where
-    /// multiple DataType encoding nodes (DefaultJson, DefaultXml,
-    /// DefaultBinary) with the same BrowseName at the same tree level
-    /// produce duplicate member definitions in the FluentBuilders output.
-    /// This is documented as fluent API gap G9 (source-gen duplicate
-    /// DataType encoding members).
-    /// </para>
-    /// <para>
-    /// Instead, the node manager is hand-written, following the
-    /// <see cref="Opc.Ua.Server.AsyncCustomNodeManager"/> pattern.
-    /// The fluent <see cref="INodeManagerBuilder"/> API is used for
-    /// callback wiring in <see cref="Configure"/>.
-    /// </para>
+    /// The node manager is hand-written and uses the fluent
+    /// <see cref="INodeManagerBuilder"/> API to wire per-node
+    /// callbacks. See <see cref="Configure"/> for the entry point.
     /// </remarks>
     public partial class PumpNodeManager
     {
@@ -67,7 +55,7 @@ namespace Pumps
         private long m_numberOfStarts;
         private long m_operatingTimeTicks;
 
-        // ── Latest simulated values, updated by the G4 simulation tick. ──
+        // ── Latest simulated values, updated by the simulation tick. ──
         private double m_currentPressure;
         private double m_currentTemperature = 313.15;
         private double m_currentBearingTemp = 333.15;
@@ -85,22 +73,22 @@ namespace Pumps
 
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(PumpsNamespaceUri);
 
-            WireIdentification(builder, pumpsNs);
-            WireMeasurements(builder);
-            WireActuation(builder);
-            WireSignals(builder);
-            WireSupervision(builder, pumpsNs);
-            WireMaintenance(builder);
+            WithIdentification(builder, pumpsNs);
+            WithMeasurements(builder);
+            WithActuation(builder);
+            WithSignals(builder);
+            WithSupervision(builder, pumpsNs);
+            WithMaintenance(builder);
 
-            // G4: single manager-owned simulation tick advances all live
-            // measurements at 250 ms intervals. Replaces per-read counter
-            // increments and lets time-based fault injection work cleanly.
+            // Single manager-owned simulation tick advances all live
+            // measurements at 250 ms intervals; lets time-based fault
+            // injection work cleanly.
             builder.Simulation(TimeSpan.FromMilliseconds(250))
                 .OnTick((ctx, elapsed) => AdvanceSimulation());
         }
 
-        // ── G3: Identification properties via WithProperty ──────────
-        private void WireIdentification(INodeManagerBuilder builder, ushort ns)
+        // ── Identification properties via WithProperty ──────────────
+        private void WithIdentification(INodeManagerBuilder builder, ushort ns)
         {
             try
             {
@@ -122,40 +110,40 @@ namespace Pumps
             }
         }
 
-        // ── G8: Measurements with engineering units ────────────────
-        private void WireMeasurements(INodeManagerBuilder builder)
+        // ── Measurements with engineering units ─────────────────────
+        private void WithMeasurements(INodeManagerBuilder builder)
         {
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/DifferentialPressure",
                 () => m_currentPressure,
                 EngineeringUnits.Pascal, min: 0, max: 1_000_000);
 
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/FluidTemperature",
                 () => m_currentTemperature,
                 EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
 
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/BearingTemperature",
                 () => m_currentBearingTemp,
                 EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
 
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/PumpPowerInput",
                 () => m_currentPower,
                 EngineeringUnits.Watt, min: 0, max: 50_000);
 
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/MassFlow",
                 () => m_currentFlow,
                 EngineeringUnits.KilogramsPerSecond, min: 0, max: 1.0);
 
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/PumpEfficiency",
                 () => m_currentEfficiency,
                 EngineeringUnits.Percent, min: 0, max: 100);
 
-            TryWireMeasurement(builder,
+            TryAddMeasurement(builder,
                 "Pumps/Pump #1/Operational/Measurements/Level",
                 () => m_currentLevel,
                 EngineeringUnits.Metre, min: 0, max: 10);
@@ -178,48 +166,48 @@ namespace Pumps
         }
 
         // ── Actuation ───────────────────────────────────────────────
-        private void WireActuation(INodeManagerBuilder builder)
+        private void WithActuation(INodeManagerBuilder builder)
         {
-            TryWireVariableReadWrite<double>(builder,
+            TryAddVariableReadWrite<double>(builder,
                 "Pumps/Pump #1/Operational/Actuation/SetPointValue",
                 () => m_setPointValue,
                 v => m_setPointValue = v);
 
-            TryWireVariableReadWrite<double>(builder,
+            TryAddVariableReadWrite<double>(builder,
                 "Pumps/Pump #1/Operational/Actuation/SpeedSetPoint",
                 () => m_speedSetPoint,
                 v => m_speedSetPoint = v);
         }
 
         // ── Signals ─────────────────────────────────────────────────
-        private void WireSignals(INodeManagerBuilder builder)
+        private void WithSignals(INodeManagerBuilder builder)
         {
-            TryWireVariable<bool>(builder,
+            TryAddVariable<bool>(builder,
                 "Pumps/Pump #1/Operational/Signals/PumpOperation",
                 () => true);
 
-            TryWireVariable<bool>(builder,
+            TryAddVariable<bool>(builder,
                 "Pumps/Pump #1/Operational/Signals/RatedSpeed",
                 () => m_speedSetPoint > 45.0);
         }
 
-        // ── G2 + G7: Supervision flags wired to NAMUR alarms ───────
-        private void WireSupervision(INodeManagerBuilder builder, ushort pumpsNs)
+        // ── Supervision flags wired to NAMUR alarms ─────────────────
+        private void WithSupervision(INodeManagerBuilder builder, ushort pumpsNs)
         {
             // Attach a temperature-high alarm on the Events container and
-            // wire the Cavitation supervision flag to drive it via G7.
+            // wire the Cavitation supervision flag to drive it.
             try
             {
                 INodeBuilder events = builder.Node("Pumps/Pump #1/Events");
 
-                // G2: limit alarm with thresholds in Kelvin.
+                // Limit alarm with thresholds in Kelvin.
                 IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = events
                     .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
                     .WithLimits(highHigh: 373.15, high: 363.15, low: 283.15, lowLow: 273.15)
                     .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
-                // G7: bool supervision → alarm Active state.
-                TryWireSupervisionEdge(builder,
+                // bool supervision → alarm Active state.
+                TryAddSupervisionEdge(builder,
                     "Pumps/Pump #1/Events/Supervision/ProcessFluid/Cavitation",
                     tempAlarm);
             }
@@ -229,29 +217,29 @@ namespace Pumps
             }
 
             // Per-read simulated supervision flags (kept lightweight).
-            TryWireVariable<bool>(builder,
+            TryAddVariable<bool>(builder,
                 "Pumps/Pump #1/Events/Supervision/ProcessFluid/Cavitation",
                 () => m_cavitation);
 
-            TryWireVariable<bool>(builder,
+            TryAddVariable<bool>(builder,
                 "Pumps/Pump #1/Events/Supervision/PumpOperation/MotorOverheat",
                 () => m_motorOverheat);
         }
 
         // ── Maintenance ─────────────────────────────────────────────
-        private void WireMaintenance(INodeManagerBuilder builder)
+        private void WithMaintenance(INodeManagerBuilder builder)
         {
-            TryWireVariable<double>(builder,
+            TryAddVariable<double>(builder,
                 "Pumps/Pump #1/Maintenance/GeneralMaintenance/OperatingTime",
                 () => SimulateOperatingTime());
 
-            TryWireVariable<uint>(builder,
+            TryAddVariable<uint>(builder,
                 "Pumps/Pump #1/Operational/Measurements/NumberOfStarts",
                 () => (uint)Interlocked.Read(ref m_numberOfStarts));
         }
 
         // ── Helper: try wiring a variable, log if path not found ────
-        private void TryWireVariable<T>(
+        private void TryAddVariable<T>(
             INodeManagerBuilder builder,
             string browsePath,
             Func<T> getter)
@@ -267,7 +255,7 @@ namespace Pumps
             }
         }
 
-        private void TryWireVariableReadWrite<T>(
+        private void TryAddVariableReadWrite<T>(
             INodeManagerBuilder builder,
             string browsePath,
             Func<T> getter,
@@ -286,8 +274,8 @@ namespace Pumps
             }
         }
 
-        // G8: typed measurement wiring with engineering units + EURange.
-        private void TryWireMeasurement(
+        // Typed measurement wiring with engineering units + EURange.
+        private void TryAddMeasurement(
             INodeManagerBuilder builder,
             string browsePath,
             Func<double> getter,
@@ -317,9 +305,9 @@ namespace Pumps
             }
         }
 
-        // G7: wire a bool supervision variable to activate/deactivate an alarm
+        // Wire a bool supervision variable to activate/deactivate an alarm
         // on each rising / falling edge.
-        private void TryWireSupervisionEdge<TAlarm>(
+        private void TryAddSupervisionEdge<TAlarm>(
             INodeManagerBuilder builder,
             string boolPath,
             IAlarmBuilder<TAlarm> alarm)
@@ -336,7 +324,7 @@ namespace Pumps
             }
         }
 
-        // ── G4: simulation tick — advances all live measurements ─────
+        // ── Simulation tick — advances all live measurements ────────
         private void AdvanceSimulation()
         {
             long t = Interlocked.Increment(ref m_simulationTicks);

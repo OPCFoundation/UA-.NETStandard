@@ -1,10 +1,9 @@
 # DI Device Builder
 
-The `IDeviceBuilder<TDevice>` fluent surface (Phase 8B) is the
-recommended way to create and configure OPC 10000-100 DI device
-instances programmatically. It lives in
-`Opc.Ua.Di.Server.Builders` and integrates with the existing
-Phase 7 fluent API for node managers.
+The `IDeviceBuilder<TDevice>` fluent surface is the recommended way
+to create and configure OPC 10000-100 DI device instances
+programmatically. It lives in `Opc.Ua.Di.Server.Builders` and
+integrates with the broader fluent API for node managers.
 
 ## Entry points
 

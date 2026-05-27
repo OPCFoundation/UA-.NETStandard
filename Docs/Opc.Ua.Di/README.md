@@ -16,15 +16,15 @@ all three layers with the Machinery + Pumps companion specs.
 ## Reference index
 
 - [DeviceBuilder](DeviceBuilder.md) — fluent surface for creating
-  and configuring DI devices (Phase 8B).
+  and configuring DI devices.
 - [Hosting](Hosting.md) — `AddOpcUa().AddServer().AddOpcUaDi()` +
-  `ConfigureDevicesFor<TNodeManager>` (Phase 8H).
+  `ConfigureDevicesFor<TNodeManager>`.
 - [LockService](LockService.md) — `ILockService` / `DefaultLockService`
-  and method binding (Phase 8C).
+  and method binding.
 - [SoftwareUpdate](SoftwareUpdate.md) — `ISoftwarePackageStore`,
-  in-memory + file-system implementations (Phase 8E/8F).
+  in-memory + file-system implementations.
 - [ClientHelpers](ClientHelpers.md) — `DiLockClient`,
-  `DiTopologyClient`, `SoftwareUpdateClient` (Phase 8D/8F).
+  `DiTopologyClient`, `SoftwareUpdateClient`.
 - [ComplianceMatrix](ComplianceMatrix.md) — current OPC 10000-100
   coverage status.
 
@@ -45,7 +45,7 @@ builder.Services
         o.EndpointUrls.Add("opc.tcp://localhost:48010/MyDiServer");
     })
     .AddOpcUaDi()
-    .ConfigureDevicesForAsync<DiNodeManager>(async ctx =>
+    .ConfigureDevicesFor<DiNodeManager>(async ctx =>
     {
         var device = await ctx.CreateDeviceAsync(
             new QualifiedName("Sensor #1", ctx.Manager.DiNamespaceIndex));
@@ -99,8 +99,7 @@ public sealed class MyAppService(
     public async Task PrintAsync(CancellationToken ct)
     {
         DiTopologyClient topology = await topologyFactory(ct);
-        IReadOnlyList<TopologyEntry> devices = await topology.EnumerateDevicesAsync(ct);
-        foreach (TopologyEntry entry in devices)
+        await foreach (TopologyEntry entry in topology.EnumerateDevicesAsync(ct))
         {
             DiDeviceClient device = await deviceFactory(entry.NodeId, ct);
             DeviceIdentification id = await device.ReadIdentificationAsync(ct);

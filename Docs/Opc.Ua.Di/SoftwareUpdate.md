@@ -1,8 +1,8 @@
 # DI Software Update
 
-Phase 8E/8F deliver the package-storage layer plus a minimal client
-helper for the OPC 10000-100 §10.3 software-update facet. The full
-state-machine wiring (PrepareForUpdate / Installation / PowerCycle /
+This document describes the package-storage layer plus a minimal
+client helper for the OPC 10000-100 §10.3 software-update facet. The
+full state-machine wiring (PrepareForUpdate / Installation / PowerCycle /
 Confirmation) remains application-specific — the source generator
 emits typed `*StateMachineState` proxies that applications drive
 directly when needed.
@@ -83,7 +83,7 @@ builder.Services
     .AddOpcUa()
     .AddServer(o => { ... })
     .AddNodeManager<MyNodeManagerFactory>()
-    .ConfigureDevicesForAsync<MyNodeManager>(async ctx =>
+    .ConfigureDevicesFor<MyNodeManager>(async ctx =>
     {
         ISoftwarePackageStore store = ctx.GetRequiredService<ISoftwarePackageStore>();
         await store.AddAsync(
@@ -99,8 +99,8 @@ builder.Services
     });
 ```
 
-The pump sample (`Applications/MinimalPumpServer`) demonstrates the
-end-to-end pattern with `PumpSoftwareUpdateSeeder`.
+The dedicated sample (`Applications/MinimalSoftwareUpdateServer`)
+demonstrates the end-to-end pattern with `SoftwarePackageSeeder`.
 
 ## Client-side
 

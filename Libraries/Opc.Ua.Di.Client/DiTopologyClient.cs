@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -89,7 +90,7 @@ namespace Opc.Ua.Di.Client
         /// <summary>
         /// Enumerates the direct device children of <c>DeviceSet</c>.
         /// </summary>
-        public ValueTask<IReadOnlyList<TopologyEntry>> EnumerateDevicesAsync(
+        public IAsyncEnumerable<TopologyEntry> EnumerateDevicesAsync(
             CancellationToken cancellationToken = default)
             => BrowseChildrenAsync(DeviceSetId, cancellationToken);
 
@@ -97,7 +98,7 @@ namespace Opc.Ua.Di.Client
         /// Enumerates the direct children of <c>NetworkSet</c> (usually
         /// network or fieldbus instances).
         /// </summary>
-        public ValueTask<IReadOnlyList<TopologyEntry>> EnumerateNetworksAsync(
+        public IAsyncEnumerable<TopologyEntry> EnumerateNetworksAsync(
             CancellationToken cancellationToken = default)
             => BrowseChildrenAsync(NetworkSetId, cancellationToken);
 
@@ -106,7 +107,7 @@ namespace Opc.Ua.Di.Client
         /// container or device — typically used to recurse the
         /// <c>DeviceTopology</c> tree.
         /// </summary>
-        public ValueTask<IReadOnlyList<TopologyEntry>> EnumerateChildrenAsync(
+        public IAsyncEnumerable<TopologyEntry> EnumerateChildrenAsync(
             NodeId parentNodeId,
             CancellationToken cancellationToken = default)
         {
@@ -118,9 +119,9 @@ namespace Opc.Ua.Di.Client
             return BrowseChildrenAsync(parentNodeId, cancellationToken);
         }
 
-        private async ValueTask<IReadOnlyList<TopologyEntry>> BrowseChildrenAsync(
+        private async IAsyncEnumerable<TopologyEntry> BrowseChildrenAsync(
             NodeId parentId,
-            CancellationToken ct)
+            [EnumeratorCancellation] CancellationToken ct)
         {
             BrowseDescription description = new BrowseDescription
             {
@@ -141,20 +142,20 @@ namespace Opc.Ua.Di.Client
                     ct: ct)
                 .ConfigureAwait(false);
 
-            var results = new List<TopologyEntry>();
             if (response.Results.Count == 0)
             {
-                return results;
+                yield break;
             }
 
             BrowseResult result = response.Results[0];
             if (StatusCode.IsBad(result.StatusCode))
             {
-                return results;
+                yield break;
             }
 
-            foreach (ReferenceDescription reference in result.References)
+            for (int i = 0; i < result.References.Count; i++)
             {
+                ReferenceDescription reference = result.References[i];
                 NodeId targetId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, Session.NamespaceUris);
                 if (targetId.IsNull)
@@ -163,13 +164,12 @@ namespace Opc.Ua.Di.Client
                 }
                 NodeId typeDefinitionId = ExpandedNodeId.ToNodeId(
                     reference.TypeDefinition, Session.NamespaceUris);
-                results.Add(new TopologyEntry(
+                yield return new TopologyEntry(
                     targetId,
                     reference.DisplayName.Text ?? string.Empty,
                     typeDefinitionId,
-                    reference.BrowseName));
+                    reference.BrowseName);
             }
-            return results;
         }
     }
 

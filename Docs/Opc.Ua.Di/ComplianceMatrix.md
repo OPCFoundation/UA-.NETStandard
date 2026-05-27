@@ -1,16 +1,15 @@
 # OPC UA DI (OPC 10000-100) Compliance Matrix
 
 > **Scope**: Implementation roadmap for the `Opc.Ua.Di.Server` /
-> `Opc.Ua.Di.Client` libraries. This document is the single source of
-> truth for Phase 8 deliverables.
+> `Opc.Ua.Di.Client` libraries.
 
 This matrix enumerates every ObjectType, Method, ReferenceType,
 VariableType and DataType declared in
 [`OpcUaDiModel.xml`](../../Libraries/Opc.Ua.Di/Design/OpcUaDiModel.xml)
 (OPC UA DI v1.05) and maps each to one of four states:
 
-- **In v1** — Implemented by Phase 8B–8F. Mandatory for the developer
-  experience this work delivers.
+- **In v1** — Mandatory for the developer experience this library
+  delivers.
 - **Generated** — Already covered by the source-generated model
   library (`Opc.Ua.Di`). No additional server/client work needed.
 - **Deferred** — Useful but not blocking v1. Tracked in this doc as
@@ -101,10 +100,10 @@ cleanup on session close.
 
 ## Software update — `SoftwareUpdateType`
 
-Software update is the largest single feature. Phase 8E + 8F implement
-the server orchestration + client. Spec-fixed state machines are
-**not** exposed in the public API; the `ISoftwareUpdateBuilder` exposes
-domain operations.
+Software update is the largest single feature in the library.
+Server orchestration + client surface are delivered together.
+Spec-fixed state machines are **not** exposed in the public API;
+the `ISoftwareUpdateBuilder` exposes domain operations.
 
 | Type | Kind | Status | Deliverable |
 |------|------|--------|-------------|
@@ -133,7 +132,7 @@ domain operations.
 | `Clear` (SoftwareVersion) | **In v1 (optional)** |
 | `Add` / `Delete` (SoftwareFolder) | **Deferred** |
 
-### `ISoftwareUpdateBuilder` contract (Phase 8E)
+### `ISoftwareUpdateBuilder` contract
 
 ```csharp
 public interface ISoftwareUpdateBuilder
@@ -177,14 +176,14 @@ deferred generalization).
 | Type | Status | Deliverable |
 |------|--------|-------------|
 | `DeviceHealthDiagnosticAlarmType` (abstract) | **Generated** | Already in source-gen output |
-| `FailureAlarmType` | **Generated** | Generated; wired via existing G2 + G7 (Phase 7) |
+| `FailureAlarmType` | **Generated** | Generated; wired via the fluent alarm + supervision patterns |
 | `CheckFunctionAlarmType` | **Generated** | Same |
 | `OffSpecAlarmType` | **Generated** | Same |
 | `MaintenanceRequiredAlarmType` | **Generated** | Same |
 
-These don't require additional library work; consumers already use
-the Phase 7 G2 `IAlarmBuilder<TState>` + G7 `ActivatesAlarm` patterns
-to wire them.
+These don't require additional library work; consumers use the fluent
+`IAlarmBuilder<TState>` + `ActivatesAlarm` patterns from
+`Libraries/Opc.Ua.Server/Fluent` to wire them.
 
 ## Lifetime indication
 

@@ -29,16 +29,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
-  <!-- DI NodeSet2 is a cross-model dependency (types come from Opc.Ua.Di lib) -->
-  <ItemGroup>
-    <AdditionalFiles Include="Model\Opc.Ua.Di.NodeSet2.xml">
-      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
-    </AdditionalFiles>
-  </ItemGroup>
-  <!-- Machinery NodeSet2 — loaded at runtime, NOT source-generated.
-       Cross-model source-gen would emit 'global::DI.*' references but the
-       DI library lives under 'Opc.Ua.Di' namespace (ModelDesign prefix).
-       Loading at runtime avoids this mismatch. -->
+  <!-- Machinery NodeSet2 — loaded at runtime by the sample.
+       Future work: convert to a source-generated Opc.Ua.Machinery
+       library (see plans/SourceGeneratedCompanionSpecLibraries.md). -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
       <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
@@ -47,12 +40,9 @@
       <LogicalName>Opc.Ua.Machinery.NodeSet2.xml</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-  <!-- Pumps NodeSet2 — loaded at runtime via ImportUANodeSetXml, NOT source-generated.
-       The Pumps model triggers several source-gen bugs (G9, G10, G11):
-       - CS0102: Duplicate FluentBuilder members for DataType encoding nodes
-       - CS0453: OptionSet types (classes) used where struct required
-       - CS1061: Placeholder members not generated for some types
-       These are documented in Docs/FluentApiGaps.md. -->
+  <!-- Pumps NodeSet2 — loaded at runtime by the sample.
+       Future work: convert to a source-generated Opc.Ua.Pumps
+       library (see plans/SourceGeneratedCompanionSpecLibraries.md). -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.xml">
       <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>

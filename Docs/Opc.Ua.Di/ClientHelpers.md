@@ -1,14 +1,14 @@
 # DI Client Helpers
 
-Beyond `DiDeviceClient` and `DiDiscoveryClient` (which ship in
-the base Phase 6 client library), Phase 8D/8F add three typed client
-wrappers that compose the standard OPC UA `Session` surface.
+Beyond `DiDeviceClient` and `DiDiscoveryClient`, the
+`Opc.Ua.Di.Client` library ships three typed client wrappers that
+compose the standard OPC UA `Session` surface.
 
-| Helper | Purpose | Phase |
-|--------|---------|-------|
-| `DiLockClient` | Wraps the four `LockingServicesType` methods. | 8D |
-| `DiTopologyClient` | Browses `DeviceSet`, `NetworkSet`, `DeviceTopology`. | 8D |
-| `SoftwareUpdateClient` | Reads the software-version property of a `SoftwareUpdateType` instance. | 8F |
+| Helper | Purpose |
+|--------|---------|
+| `DiLockClient` | Wraps the four `LockingServicesType` methods. |
+| `DiTopologyClient` | Browses `DeviceSet`, `NetworkSet`, `DeviceTopology`. |
+| `SoftwareUpdateClient` | Reads the software-version property of a `SoftwareUpdateType` instance. |
 
 All three live in `Opc.Ua.Di.Client` and are registered automatically
 when applications call `services.AddOpcUa().AddClient(...).AddOpcUaDi()`
@@ -63,9 +63,9 @@ public sealed class DiTopologyClient
     public NodeId NetworkSetId { get; }
     public NodeId DeviceTopologyId { get; }
 
-    public ValueTask<IReadOnlyList<TopologyEntry>> EnumerateDevicesAsync(CancellationToken ct = default);
-    public ValueTask<IReadOnlyList<TopologyEntry>> EnumerateNetworksAsync(CancellationToken ct = default);
-    public ValueTask<IReadOnlyList<TopologyEntry>> EnumerateChildrenAsync(NodeId parentNodeId, CancellationToken ct = default);
+    public IAsyncEnumerable<TopologyEntry> EnumerateDevicesAsync(CancellationToken ct = default);
+    public IAsyncEnumerable<TopologyEntry> EnumerateNetworksAsync(CancellationToken ct = default);
+    public IAsyncEnumerable<TopologyEntry> EnumerateChildrenAsync(NodeId parentNodeId, CancellationToken ct = default);
 }
 
 public sealed record TopologyEntry(
@@ -83,7 +83,7 @@ the `DeviceTopology` tree.
 
 ```csharp
 DiTopologyClient topology = new(session, telemetry);
-foreach (TopologyEntry device in await topology.EnumerateDevicesAsync())
+await foreach (TopologyEntry device in topology.EnumerateDevicesAsync())
 {
     Console.WriteLine($"{device.BrowseName}: {device.DisplayName}");
 }
@@ -113,11 +113,11 @@ When `services.AddOpcUa().AddClient(o => { ... }).AddOpcUaDi()` is
 called, the following factories are registered as singletons:
 
 ```csharp
-Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>     // existing
-Func<NodeId, CancellationToken, ValueTask<DiLockClient>>       // 8D
-Func<CancellationToken, ValueTask<DiTopologyClient>>           // 8D
-Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>> // 8F
-IDiDiscoveryService                                            // existing
+Func<NodeId, CancellationToken, ValueTask<DiDeviceClient>>
+Func<NodeId, CancellationToken, ValueTask<DiLockClient>>
+Func<CancellationToken, ValueTask<DiTopologyClient>>
+Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>
+IDiDiscoveryService
 ```
 
 Inject the factory you need into your application services; the
@@ -132,7 +132,7 @@ public sealed class MyMonitor(
     public async Task ScanAsync(CancellationToken ct)
     {
         DiTopologyClient topo = await topologyFactory(ct);
-        foreach (TopologyEntry e in await topo.EnumerateDevicesAsync(ct))
+        await foreach (TopologyEntry e in topo.EnumerateDevicesAsync(ct))
         {
             DiDeviceClient dev = await deviceFactory(e.NodeId, ct);
             DeviceIdentification id = await dev.ReadIdentificationAsync(ct);

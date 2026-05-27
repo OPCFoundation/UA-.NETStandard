@@ -1,7 +1,7 @@
 # DI Hosting Integration
 
 The `AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` extension
-methods (Phase 8H) plug the DI library into the unified
+methods plug the DI library into the unified
 `AddOpcUa()` Microsoft.Extensions DI hosting pattern that ships in
 master (commit `f3928db05`).
 

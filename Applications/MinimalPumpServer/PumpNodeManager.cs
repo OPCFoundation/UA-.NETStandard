@@ -104,12 +104,14 @@ namespace Pumps
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            // Multi-model composition via the G5 IModelLoaderBuilder:
-            // - DI types come from the Opc.Ua.Di library (AddOpcUaDi extension).
-            // - Machinery + Pumps are loaded at runtime from embedded NodeSet2
-            //   XMLs because their source-gen output would reference
-            //   'global::DI.*' types that don't exist in our 'Opc.Ua.Di'
-            //   namespace mapping.
+            // Compose the predefined-node tree from:
+            // - the source-generated Opc.Ua.Di model (referenced library);
+            // - the Machinery + Pumps NodeSet2 XMLs embedded in this
+            //   sample assembly.
+            //
+            // Converting Machinery and Pumps to source-generated
+            // libraries (mirroring Opc.Ua.Di) is tracked by
+            // plans/SourceGeneratedCompanionSpecLibraries.md.
             Assembly assembly = typeof(PumpNodeManager).Assembly;
             NodeStateCollection nodes = new ModelLoaderBuilder()
                 .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))

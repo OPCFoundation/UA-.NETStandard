@@ -1,7 +1,6 @@
 # DI Lock Service
 
-The lock service (Phase 8C) implements the OPC 10000-100 §10.5
-locking facet. It tracks ownership of every
+The lock service implements the OPC 10000-100 §10.5 locking facet. Ittracks ownership of every
 `TopologyElementType.Lock` instance in the address space, enforces
 configurable timeouts, releases locks automatically when the owning
 session closes, and exposes the four spec-defined methods through

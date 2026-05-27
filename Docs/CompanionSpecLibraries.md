@@ -317,7 +317,7 @@ services.AddOpcUa()
         o.EndpointUrls.Add("opc.tcp://localhost:48010/MyDiServer");
     })
     .AddOpcUaDi()
-    .ConfigureDevicesForAsync<DiNodeManager>(async ctx =>
+    .ConfigureDevicesFor<DiNodeManager>(async ctx =>
     {
         var sensor = await ctx.CreateDeviceAsync(
             new QualifiedName("Sensor #1", ctx.Manager.DiNamespaceIndex));

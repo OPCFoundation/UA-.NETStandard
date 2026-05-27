@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -65,7 +66,7 @@ namespace Opc.Ua.Di.Tests
             }, d => captured = d);
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            IReadOnlyList<TopologyEntry> result = await client.EnumerateDevicesAsync();
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(client.DeviceSetId));
@@ -89,7 +90,7 @@ namespace Opc.Ua.Di.Tests
             }, d => captured = d);
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            IReadOnlyList<TopologyEntry> result = await client.EnumerateNetworksAsync();
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateNetworksAsync());
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(client.NetworkSetId));
@@ -102,8 +103,8 @@ namespace Opc.Ua.Di.Tests
             var sessionMock = CreateSessionMock();
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
 
-            System.ArgumentException ex = Assert.ThrowsAsync<System.ArgumentException>(
-                async () => await client.EnumerateChildrenAsync(NodeId.Null))!;
+            System.ArgumentException ex = Assert.Throws<System.ArgumentException>(
+                () => client.EnumerateChildrenAsync(NodeId.Null))!;
             Assert.That(ex.ParamName, Is.EqualTo("parentNodeId"));
         }
 
@@ -123,7 +124,7 @@ namespace Opc.Ua.Di.Tests
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
             var parent = new NodeId("parent-1", 2);
-            IReadOnlyList<TopologyEntry> result = await client.EnumerateChildrenAsync(parent);
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateChildrenAsync(parent));
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.NodeId, Is.EqualTo(parent));
@@ -146,7 +147,7 @@ namespace Opc.Ua.Di.Tests
             });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            IReadOnlyList<TopologyEntry> result = await client.EnumerateDevicesAsync();
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
 
             Assert.That(result, Is.Empty);
         }
@@ -162,7 +163,7 @@ namespace Opc.Ua.Di.Tests
             });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            IReadOnlyList<TopologyEntry> result = await client.EnumerateDevicesAsync();
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
 
             Assert.That(result, Is.Empty);
         }
@@ -184,9 +185,20 @@ namespace Opc.Ua.Di.Tests
                 });
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
-            IReadOnlyList<TopologyEntry> result = await client.EnumerateDevicesAsync();
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync());
 
             Assert.That(result, Is.Empty);
+        }
+
+        private static async Task<List<TopologyEntry>> CollectAsync(
+            IAsyncEnumerable<TopologyEntry> source)
+        {
+            var list = new List<TopologyEntry>();
+            await foreach (TopologyEntry entry in source)
+            {
+                list.Add(entry);
+            }
+            return list;
         }
 
         private static ReferenceDescription MakeReference(

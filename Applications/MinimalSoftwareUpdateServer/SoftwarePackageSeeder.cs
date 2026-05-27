@@ -31,32 +31,30 @@ using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
-namespace Pumps.SoftwareUpdate
+namespace SoftwareUpdate
 {
     /// <summary>
-    /// Seeds the demo <see cref="MemoryPackageStore"/> with a sample
-    /// firmware payload so the running pump server exposes at least
-    /// one software package to clients. Lives in a sibling partial so
-    /// the core pump wiring is unaffected.
+    /// Seeds an <see cref="ISoftwarePackageStore"/> with a couple of
+    /// demonstration firmware packages so the sample exposes useful
+    /// content to clients out of the box.
     /// </summary>
-    internal static class PumpSoftwareUpdateSeeder
+    internal static class SoftwarePackageSeeder
     {
         /// <summary>
-        /// Adds a sample firmware package to <paramref name="store"/>
-        /// — the payload is a tiny in-memory blob, sufficient to
-        /// demonstrate the read path through the file-system facet.
+        /// Adds two sample firmware payloads to
+        /// <paramref name="store"/> with realistic metadata.
         /// </summary>
         public static async Task SeedAsync(ISoftwarePackageStore store)
         {
             byte[] payload = System.Text.Encoding.UTF8.GetBytes(
-                "Sample MinimalPumpServer firmware payload (placeholder).");
+                "Sample firmware payload (placeholder).");
 
             await store.AddAsync(
                 new SoftwarePackage(
-                    Id: "pump-firmware-1.0.0",
+                    Id: "demo-firmware-1.0.0",
                     Version: "1.0.0",
-                    Vendor: "SimPump Corp",
-                    Description: "Demo firmware payload for the OPC 40223 pump simulation",
+                    Vendor: "Acme Corp",
+                    Description: "Demo firmware payload",
                     SizeBytes: 0,
                     CreatedAt: default,
                     Hash: string.Empty),
@@ -65,9 +63,9 @@ namespace Pumps.SoftwareUpdate
 
             await store.AddAsync(
                 new SoftwarePackage(
-                    Id: "pump-firmware-1.0.1-rc",
+                    Id: "demo-firmware-1.0.1-rc",
                     Version: "1.0.1-rc",
-                    Vendor: "SimPump Corp",
+                    Vendor: "Acme Corp",
                     Description: "Demo firmware payload (release candidate)",
                     SizeBytes: 0,
                     CreatedAt: default,
