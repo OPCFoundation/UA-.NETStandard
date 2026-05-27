@@ -48,9 +48,8 @@ builder.Services.AddSingleton<ISoftwarePackageStore>(_ =>
 
 ## See also
 
-- `Docs/Opc.Ua.Di/SoftwareUpdate.md` — full developer guide for the
-  package-store + state-machine surface.
-- `Docs/Opc.Ua.Di/Hosting.md` — `AddOpcUaDi()` /
-  `ConfigureDevicesFor` registration model.
+- `Docs/DeviceIntegration.md` — full developer guide for the DI
+  library trio (device builder, hosting integration, lock service,
+  software-update package store, client helpers).
 - `Applications/MinimalPumpServer` — companion-spec server that
   exercises the OPC 40223 Pumps facet end-to-end.

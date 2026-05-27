@@ -149,7 +149,7 @@ wiring no longer relies on browse-path strings.
 
 - Onboarding facet (already split into a separate
   `Opc.Ua.Onboarding.*` future work item — see
-  `Docs/Opc.Ua.Di/ComplianceMatrix.md`).
+  `Docs/DeviceIntegration.md`).
 - Any companion spec not currently used by samples (Robotics, IA,
   ProcessAutomation, etc.). Each ships its own follow-up PR using
   this same template.
