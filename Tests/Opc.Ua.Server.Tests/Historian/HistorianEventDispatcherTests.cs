@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -95,7 +99,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistoryEventFieldList projected = HistorianDispatcher.ProjectEventFields(page.Values[0], filter);
             Assert.That(projected.EventFields, Has.Count.EqualTo(2));
             Assert.That(projected.EventFields[0].TryGetValue(out ByteString idOut), Is.True);
-            Assert.That(idOut == eventId, Is.True);
+            Assert.That(idOut, Is.EqualTo(eventId));
             Assert.That(projected.EventFields[1].TryGetValue(out LocalizedText messageOut), Is.True);
             Assert.That(messageOut.Text, Is.EqualTo("hello"));
         }
@@ -137,7 +141,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 CancellationToken.None);
 
             Assert.That(remaining.Values, Has.Count.EqualTo(1));
-            Assert.That(remaining.Values[0].EventId == ids[1], Is.True);
+            Assert.That(remaining.Values[0].EventId, Is.EqualTo(ids[1]));
         }
 
         private static readonly DateTime BaseTime

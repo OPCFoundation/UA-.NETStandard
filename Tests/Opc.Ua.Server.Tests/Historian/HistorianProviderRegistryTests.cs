@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;

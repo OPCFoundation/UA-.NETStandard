@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new("DoesNotExist") };
             Variant value = target.GetAttributeValue(null!, NodeId.Null, path, Attributes.Value, NumericRange.Null);
-            Assert.That(value == Variant.Null, Is.True);
+            Assert.That(value, Is.EqualTo(Variant.Null));
         }
 
         [Test]

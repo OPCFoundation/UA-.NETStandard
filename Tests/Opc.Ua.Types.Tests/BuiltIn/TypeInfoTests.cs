@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -1775,6 +1776,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
+        [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Test fixture type used only for reflection-based type detection via typeof().")]
         private sealed class GenericEncodeable<T> : IEncodeable
         {
             public ExpandedNodeId TypeId => new(100000);

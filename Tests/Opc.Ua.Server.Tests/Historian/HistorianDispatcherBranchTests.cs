@@ -27,8 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -168,7 +176,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ServiceResult.IsGood(readError), Is.True);
             if (readResult.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
             {
-                Assert.That(hd.DataValues.Count, Is.EqualTo(0));
+                Assert.That(hd.DataValues, Is.Empty);
             }
         }
 
@@ -309,7 +317,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
             Assert.That(values![0].SourceTimestamp.ToDateTime(), Is.EqualTo(t15));
             Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainDataSubNormal));
-            double interpolated = Convert.ToDouble(values[0].WrappedValue.AsBoxedObject());
+            double interpolated = Convert.ToDouble(values[0].WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
             Assert.That(interpolated, Is.EqualTo(150.0).Within(0.01));
         }
 

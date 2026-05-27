@@ -258,6 +258,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the specified references.
         /// </summary>
+        [Obsolete("Use RemoveReferencesAsync instead.")]
         void RemoveReferences(List<LocalReference> referencesToRemove);
 
         /// <summary>

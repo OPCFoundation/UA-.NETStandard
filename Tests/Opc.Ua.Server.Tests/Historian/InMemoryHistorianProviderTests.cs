@@ -27,8 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
+
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -86,10 +91,10 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(3));
             Assert.That(page.IsFinal, Is.True);
             Assert.That(
-                Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject()),
+                Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(1.0));
             Assert.That(
-                Convert.ToDouble(page.Values[2].Value.WrappedValue.AsBoxedObject()),
+                Convert.ToDouble(page.Values[2].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(3.0));
         }
 
@@ -156,7 +161,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 CancellationToken.None);
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
-                Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject()),
+                Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(2.0));
 
             HistorianPage<ModifiedDataValue> mod = await provider.ReadModifiedAsync(
@@ -203,7 +208,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 CancellationToken.None);
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
-                Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject()),
+                Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(2.0));
         }
 
@@ -254,10 +259,10 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             Assert.That(allReturned, Has.Count.EqualTo(50));
             Assert.That(
-                Convert.ToInt32(allReturned[0].WrappedValue.AsBoxedObject()),
-                Is.EqualTo(0));
+                Convert.ToInt32(allReturned[0].WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
+                Is.Zero);
             Assert.That(
-                Convert.ToInt32(allReturned[^1].WrappedValue.AsBoxedObject()),
+                Convert.ToInt32(allReturned[^1].WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(49));
         }
 
