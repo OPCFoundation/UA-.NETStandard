@@ -164,6 +164,46 @@ namespace Opc.Ua.SourceGeneration
                         entry.Fields = fields;
                     }
                 }
+                else
+                {
+                    // For ObjectType / VariableType / ReferenceType, carry
+                    // their declared InstanceDesign children so downstream
+                    // consumers can recognise inherited members and suppress
+                    // duplicate emission.
+                    if (type.HasChildren && type.Children?.Items != null)
+                    {
+                        var children = new List<SnapshotChild>(type.Children.Items.Length);
+                        foreach (InstanceDesign child in type.Children.Items)
+                        {
+                            if (child == null) { continue; }
+                            byte instanceKind = child switch
+                            {
+                                PropertyDesign => (byte)3,
+                                VariableDesign => (byte)2,
+                                MethodDesign => (byte)4,
+                                _ => (byte)1
+                            };
+                            byte modellingRule = child.ModellingRule switch
+                            {
+                                ModellingRule.Mandatory => (byte)1,
+                                ModellingRule.Optional => (byte)2,
+                                ModellingRule.OptionalPlaceholder => (byte)3,
+                                ModellingRule.MandatoryPlaceholder => (byte)4,
+                                ModellingRule.ExposesItsArray => (byte)5,
+                                _ => (byte)0
+                            };
+                            children.Add(new SnapshotChild(
+                                browseName: child.BrowseName ?? child.SymbolicName?.Name ?? string.Empty,
+                                symbolicName: child.SymbolicName?.Name ?? string.Empty,
+                                modellingRule: modellingRule,
+                                instanceKind: instanceKind));
+                        }
+                        if (children.Count > 0)
+                        {
+                            entry.Children = children;
+                        }
+                    }
+                }
                 snapshot.Nodes.Add(entry);
             }
             // Deterministic order so the assembly is byte-reproducible.

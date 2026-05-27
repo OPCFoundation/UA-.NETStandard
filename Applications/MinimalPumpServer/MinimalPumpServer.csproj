@@ -29,14 +29,16 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
-  <!-- DI NodeSet2 — provided for cross-namespace type resolution by
-       the source generator. The [assembly: ModelSnapshotAttribute]
-       on Opc.Ua.Di already exposes the type hierarchy, but full
-       elimination of this file requires the snapshot to also carry
-       InstanceDesign children of the inherited types (so the
-       generator can skip re-emitting properties already declared on
-       the upstream parent). Tracked in
-       plans/C7-cross-assembly-model-snapshot.md §"Open questions". -->
+  <!-- DI NodeSet2 — provided for cross-namespace InstanceDesign
+       resolution by the source generator. The
+       [assembly: ModelSnapshotAttribute] on Opc.Ua.Di carries the
+       full type hierarchy + child placeholders, but the validator's
+       child-materialisation path requires the original NodeSet2 for
+       complete Hierarchy + OveriddenNode wiring; bypassing it
+       triggers NRE during code emission. Future enrichment of the
+       snapshot integration (full hierarchy resolution against
+       referenced types) will allow removing this entry; tracked in
+       plans/C7-cross-assembly-model-snapshot.md §"Phase G follow-up". -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Di.NodeSet2.xml">
       <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>

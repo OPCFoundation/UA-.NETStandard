@@ -236,6 +236,13 @@ namespace Opc.Ua.Schema.Model
                 }
                 dt.Fields = parameters;
             }
+            // NOTE: snapshot child carriage is intentionally NOT materialised
+            // back into TypeDesign.Children. Doing so requires running the
+            // full validator passes (Hierarchy build + OveriddenNode wiring +
+            // TypeDefinitionNode resolution) which are too intertwined with
+            // the XML-loading flow to invoke cheaply. The carried child data
+            // remains available on SnapshotNode.Children for future
+            // refinements; see plans/C7-cross-assembly-model-snapshot.md.
 
             return design;
         }

@@ -81,6 +81,34 @@ namespace Opc.Ua.SourceGeneration.Snapshot
     }
 
     /// <summary>
+    /// Reduced view of an <c>InstanceDesign</c> child carried in a
+    /// snapshot type. Just enough metadata for downstream generators
+    /// to detect inherited members (so they can emit <c>new</c> or
+    /// skip re-emission of properties already declared on the
+    /// snapshot parent).
+    /// </summary>
+    public readonly struct SnapshotChild
+    {
+        /// <summary>Browse name of the child (e.g. "Manufacturer").</summary>
+        public string BrowseName { get; }
+        /// <summary>Symbolic name (often equal to BrowseName).</summary>
+        public string SymbolicName { get; }
+        /// <summary>Modelling rule (0=None, 1=Mandatory, 2=Optional, 3=OptionalPlaceholder, 4=MandatoryPlaceholder, 5=ExposesItsArray).</summary>
+        public byte ModellingRule { get; }
+        /// <summary>Kind: 1=Object 2=Variable 3=Property 4=Method.</summary>
+        public byte InstanceKind { get; }
+
+        /// <summary>Constructor.</summary>
+        public SnapshotChild(string browseName, string symbolicName, byte modellingRule, byte instanceKind)
+        {
+            BrowseName = browseName ?? string.Empty;
+            SymbolicName = symbolicName ?? string.Empty;
+            ModellingRule = modellingRule;
+            InstanceKind = instanceKind;
+        }
+    }
+
+    /// <summary>
     /// Reduced view of a node entry carried in a snapshot. One entry per
     /// node the producing assembly emits as a public type definition
     /// (objects/instances are not carried; consumers re-derive
@@ -110,6 +138,8 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         public bool IsEnumeration { get; set; }
         /// <summary>DataType fields (empty for non-DataType kinds).</summary>
         public IReadOnlyList<SnapshotDataField> Fields { get; set; } = Array.Empty<SnapshotDataField>();
+        /// <summary>Declared instance children (empty for DataType / no-child types).</summary>
+        public IReadOnlyList<SnapshotChild> Children { get; set; } = Array.Empty<SnapshotChild>();
     }
 
     /// <summary>
@@ -217,6 +247,14 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                     WriteString(writer, field.DataTypeNamespace);
                     writer.Write(field.ValueRank);
                 }
+                writer.Write(node.Children.Count);
+                foreach (SnapshotChild child in node.Children)
+                {
+                    WriteString(writer, child.BrowseName);
+                    WriteString(writer, child.SymbolicName);
+                    writer.Write(child.ModellingRule);
+                    writer.Write(child.InstanceKind);
+                }
             }
         }
 
@@ -265,6 +303,25 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                             reader.ReadInt32());
                     }
                     node.Fields = fields;
+                }
+                int childCount = reader.ReadInt32();
+                if (childCount < 0 || childCount > 100_000)
+                {
+                    throw new InvalidDataException(
+                        "ModelSnapshotV1: invalid child count " + childCount);
+                }
+                if (childCount > 0)
+                {
+                    var children = new SnapshotChild[childCount];
+                    for (int j = 0; j < childCount; j++)
+                    {
+                        children[j] = new SnapshotChild(
+                            ReadString(reader),
+                            ReadString(reader),
+                            reader.ReadByte(),
+                            reader.ReadByte());
+                    }
+                    node.Children = children;
                 }
                 Nodes.Add(node);
             }

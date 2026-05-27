@@ -181,6 +181,36 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(decoded.Nodes[0].BaseTypeNamespace, Is.Null);
         }
 
+        [Test]
+        public void WriteThenRead_RoundTripsChildren()
+        {
+            var snapshot = new ModelSnapshotV1 { ModelUri = "http://example.org/UA/WithChildren/" };
+            snapshot.Nodes.Add(new SnapshotNode
+            {
+                SymbolicName = "DeviceType",
+                SymbolicNamespace = "http://example.org/UA/WithChildren/",
+                ClassName = "Device",
+                Kind = SnapshotNodeKind.ObjectType,
+                Children =
+                [
+                    new SnapshotChild("Manufacturer", "Manufacturer", modellingRule: 1, instanceKind: 3),
+                    new SnapshotChild("SerialNumber", "SerialNumber", modellingRule: 2, instanceKind: 3),
+                    new SnapshotChild("<GroupIdentifier>", "GroupIdentifier", modellingRule: 3, instanceKind: 1)
+                ]
+            });
+
+            string payload = snapshot.ToBase64Payload();
+            ModelSnapshotV1 decoded = ModelSnapshotV1.FromBase64Payload(payload);
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes, Has.Count.EqualTo(1));
+            Assert.That(decoded.Nodes[0].Children, Has.Count.EqualTo(3));
+            Assert.That(decoded.Nodes[0].Children[0].BrowseName, Is.EqualTo("Manufacturer"));
+            Assert.That(decoded.Nodes[0].Children[0].ModellingRule, Is.EqualTo((byte)1));
+            Assert.That(decoded.Nodes[0].Children[0].InstanceKind, Is.EqualTo((byte)3));
+            Assert.That(decoded.Nodes[0].Children[2].BrowseName, Is.EqualTo("<GroupIdentifier>"));
+            Assert.That(decoded.Nodes[0].Children[2].ModellingRule, Is.EqualTo((byte)3));
+        }
+
         private static ModelSnapshotV1 BuildSampleSnapshot()
         {
             var s = new ModelSnapshotV1 { ModelUri = "http://example.org/UA/Demo/" };
