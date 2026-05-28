@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.Alarms
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeAlarmsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
-            AlarmEventFilterBuilder? filterBuilder = null,
+            EventRecordDecoderRegistry? registry = null,
             MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
@@ -66,14 +66,16 @@ namespace Opc.Ua.Client.Alarms
                 throw new ArgumentNullException(nameof(streaming));
             }
 
-            EventFilter filter = (filterBuilder ?? new AlarmEventFilterBuilder().ForAlarms()).Build();
-            return SubscribeAlarmsImpl(streaming, notifierId, filter, options, ct);
+            EventRecordDecoderRegistry effective = registry ?? EventRecordDecoderRegistry.Default;
+            EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build(effective);
+            return SubscribeAlarmsImpl(streaming, notifierId, filter, effective, options, ct);
         }
 
         private static async IAsyncEnumerable<ConditionTypeRecord> SubscribeAlarmsImpl(
             IStreamingSubscription streaming,
             NodeId notifierId,
             EventFilter filter,
+            EventRecordDecoderRegistry registry,
             MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
@@ -82,8 +84,7 @@ namespace Opc.Ua.Client.Alarms
             await foreach (EventNotification notification in source.ConfigureAwait(false))
             {
                 IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
-                ConditionTypeRecord? record = AlarmEventDecoder.Decode(fields);
-                if (record != null)
+                if (registry.Decode(fields) is ConditionTypeRecord record)
                 {
                     yield return record;
                 }
@@ -97,15 +98,18 @@ namespace Opc.Ua.Client.Alarms
         public static IAsyncEnumerable<ConditionTypeRecord> SubscribeConditionsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
+            EventRecordDecoderRegistry? registry = null,
             MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
-            return SubscribeAlarmsAsync(
-                streaming,
-                notifierId,
-                new AlarmEventFilterBuilder().ForConditions(),
-                options,
-                ct);
+            if (streaming == null)
+            {
+                throw new ArgumentNullException(nameof(streaming));
+            }
+
+            EventRecordDecoderRegistry effective = registry ?? EventRecordDecoderRegistry.Default;
+            EventFilter filter = ConditionTypeRecord.EventFilters.Build(effective);
+            return SubscribeAlarmsImpl(streaming, notifierId, filter, effective, options, ct);
         }
 
         /// <summary>
@@ -115,6 +119,7 @@ namespace Opc.Ua.Client.Alarms
         public static IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsAsync(
             this IStreamingSubscription streaming,
             NodeId notifierId,
+            EventRecordDecoderRegistry? registry = null,
             MonitoringOptions? options = null,
             CancellationToken ct = default)
         {
@@ -122,14 +127,17 @@ namespace Opc.Ua.Client.Alarms
             {
                 throw new ArgumentNullException(nameof(streaming));
             }
-            EventFilter filter = new AlarmEventFilterBuilder().ForDialogs().Build();
-            return SubscribeDialogsImpl(streaming, notifierId, filter, options, ct);
+
+            EventRecordDecoderRegistry effective = registry ?? EventRecordDecoderRegistry.Default;
+            EventFilter filter = DialogConditionTypeRecord.EventFilters.Build(effective);
+            return SubscribeDialogsImpl(streaming, notifierId, filter, effective, options, ct);
         }
 
         private static async IAsyncEnumerable<DialogConditionTypeRecord> SubscribeDialogsImpl(
             IStreamingSubscription streaming,
             NodeId notifierId,
             EventFilter filter,
+            EventRecordDecoderRegistry registry,
             MonitoringOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
@@ -138,8 +146,7 @@ namespace Opc.Ua.Client.Alarms
                 .ConfigureAwait(false))
             {
                 IReadOnlyList<Variant> fields = notification.Fields.ToArray() ?? Array.Empty<Variant>();
-                ConditionTypeRecord? record = AlarmEventDecoder.Decode(fields);
-                if (record is DialogConditionTypeRecord dialog)
+                if (registry.Decode(fields) is DialogConditionTypeRecord dialog)
                 {
                     yield return dialog;
                 }

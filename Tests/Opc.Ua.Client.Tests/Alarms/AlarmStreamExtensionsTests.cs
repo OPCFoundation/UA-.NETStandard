@@ -76,24 +76,9 @@ namespace Opc.Ua.Client.Tests.Alarms
 
             Assert.That(fake.LastFilter, Is.Not.Null);
             Assert.That(fake.LastFilter!.SelectClauses.Count,
-                Is.EqualTo(AlarmEventDecoder.StandardFields.Length));
+                Is.EqualTo(EventRecordDecoderRegistry.Default.StandardFields.Length));
             NodeId target = GetOfTypeNodeId(fake.LastFilter);
             Assert.That(target, Is.EqualTo(ObjectTypeIds.AlarmConditionType));
-        }
-
-        [Test]
-        public async Task SubscribeAlarmsAsyncHonorsCustomFilterBuilder()
-        {
-            var fake = new FakeStreamingSubscription();
-            var builder = new AlarmEventFilterBuilder().ForConditions();
-
-            await foreach (ConditionTypeRecord _ in fake
-                .SubscribeAlarmsAsync(s_notifier, builder).ConfigureAwait(false))
-            {
-            }
-
-            NodeId target = GetOfTypeNodeId(fake.LastFilter!);
-            Assert.That(target, Is.EqualTo(ObjectTypeIds.ConditionType));
         }
 
         [Test]
@@ -165,7 +150,7 @@ namespace Opc.Ua.Client.Tests.Alarms
             Assert.That(async () =>
             {
                 await foreach (ConditionTypeRecord _ in fake
-                    .SubscribeAlarmsAsync(s_notifier, filterBuilder: null, options: null, cts.Token)
+                    .SubscribeAlarmsAsync(s_notifier, registry: null, options: null, cts.Token)
                     .ConfigureAwait(false))
                 {
                 }
@@ -174,41 +159,101 @@ namespace Opc.Ua.Client.Tests.Alarms
 
         private static Variant[] MakeConditionFields()
         {
-            // 15-field condition payload — index 11 (EnabledState.Id) is
-            // a bool, which triggers AlarmEventDecoder to return a
-            // ConditionTypeRecord. The string at index 8 lets us assert
-            // we received the populated record below.
-            return
-            [
-                Variant.From(new ByteString(new byte[] { 1 })),
-                Variant.From((NodeId)ObjectTypeIds.ConditionType),
-                Variant.From((NodeId)new NodeId(1u, 0)),
-                Variant.From("Src"),
-                Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-                Variant.From(new DateTime(2024, 1, 1, 0, 0, 1, DateTimeKind.Utc)),
-                Variant.From(new LocalizedText("en", "msg")),
-                Variant.From((ushort)100),
-                Variant.From("MyCondition"),
-                default,
-                Variant.From(false),
-                Variant.From(true),
-                Variant.From(new StatusCode(0)),
-                Variant.From(new LocalizedText("en", string.Empty)),
-                Variant.From(string.Empty)
-            ];
+            // Build a field array sized to the registry''s composed
+            // StandardFields layout (server returns fields in that
+            // order). Populate just the cells the test asserts on.
+            var builder = new RegistryFieldBuilder();
+            builder.Set(BrowseNames.EventId, Variant.From(new ByteString(new byte[] { 1 })));
+            builder.Set(BrowseNames.EventType, Variant.From((NodeId)ObjectTypeIds.ConditionType));
+            builder.Set(BrowseNames.SourceNode, Variant.From((NodeId)new NodeId(1u, 0)));
+            builder.Set(BrowseNames.SourceName, Variant.From("Src"));
+            builder.Set(BrowseNames.Time, Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+            builder.Set(BrowseNames.ReceiveTime, Variant.From(new DateTime(2024, 1, 1, 0, 0, 1, DateTimeKind.Utc)));
+            builder.Set(BrowseNames.Message, Variant.From(new LocalizedText("en", "msg")));
+            builder.Set(BrowseNames.Severity, Variant.From((ushort)100));
+            builder.Set(BrowseNames.ConditionName, Variant.From("MyCondition"));
+            builder.Set(BrowseNames.Retain, Variant.From(false));
+            builder.SetNested(BrowseNames.EnabledState, BrowseNames.Id, Variant.From(true));
+            return builder.Build();
         }
 
         private static Variant[] MakeDialogFields()
         {
-            // Dialog records require a populated DialogState.Id at
-            // index 24 (see AlarmEventDecoder.StandardFields).
-            var fields = new List<Variant>(MakeConditionFields());
-            while (fields.Count < 24)
+            // Dialog records require a populated DialogState.Id.
+            var builder = new RegistryFieldBuilder();
+            builder.Set(BrowseNames.EventId, Variant.From(new ByteString(new byte[] { 1 })));
+            builder.Set(BrowseNames.EventType, Variant.From((NodeId)ObjectTypeIds.DialogConditionType));
+            builder.Set(BrowseNames.SourceNode, Variant.From((NodeId)new NodeId(2u, 0)));
+            builder.Set(BrowseNames.SourceName, Variant.From("Src"));
+            builder.Set(BrowseNames.Time, Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+            builder.Set(BrowseNames.ReceiveTime, Variant.From(new DateTime(2024, 1, 1, 0, 0, 1, DateTimeKind.Utc)));
+            builder.Set(BrowseNames.Message, Variant.From(new LocalizedText("en", "msg")));
+            builder.Set(BrowseNames.Severity, Variant.From((ushort)100));
+            builder.Set(BrowseNames.ConditionName, Variant.From("MyDialog"));
+            builder.Set(BrowseNames.Retain, Variant.From(true));
+            builder.SetNested(BrowseNames.EnabledState, BrowseNames.Id, Variant.From(true));
+            builder.SetNested(BrowseNames.DialogState, BrowseNames.Id, Variant.From(true));
+            return builder.Build();
+        }
+
+        /// <summary>
+        /// Builds a positional Variant[] matching the registry''s
+        /// composed StandardFields layout, indexed by browse name.
+        /// </summary>
+        private sealed class RegistryFieldBuilder
+        {
+            private readonly Variant[] m_fields;
+
+            public RegistryFieldBuilder()
             {
-                fields.Add(default);
+                m_fields = new Variant[EventRecordDecoderRegistry.Default.StandardFields.Length];
             }
-            fields.Add(Variant.From(true));    // 24: DialogState.Id
-            return fields.ToArray();
+
+            public void Set(string browseName, Variant value)
+                => SetAt(FindIndex(new[] { QualifiedName.From(browseName) }), value);
+
+            public void SetNested(string outer, string inner, Variant value)
+                => SetAt(FindIndex(new[]
+                {
+                    QualifiedName.From(outer),
+                    QualifiedName.From(inner)
+                }), value);
+
+            public Variant[] Build() => m_fields;
+
+            private void SetAt(int index, Variant value)
+            {
+                if (index >= 0)
+                {
+                    m_fields[index] = value;
+                }
+            }
+
+            private static int FindIndex(QualifiedName[] path)
+            {
+                QualifiedName[][] composed = EventRecordDecoderRegistry.Default.StandardFields;
+                for (int i = 0; i < composed.Length; i++)
+                {
+                    if (composed[i].Length != path.Length)
+                    {
+                        continue;
+                    }
+                    bool match = true;
+                    for (int j = 0; j < path.Length; j++)
+                    {
+                        if (!composed[i][j].Equals(path[j]))
+                        {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match)
+                    {
+                        return i;
+                    }
+                }
+                return -1;
+            }
         }
 
         private static NodeId GetOfTypeNodeId(EventFilter filter)

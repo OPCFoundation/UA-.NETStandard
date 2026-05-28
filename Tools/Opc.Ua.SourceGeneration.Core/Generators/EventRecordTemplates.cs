@@ -105,6 +105,33 @@ namespace Opc.Ua.SourceGeneration
                         };
                     }
                 }
+
+                /// <summary>
+                /// Source-generated event-filter factory for
+                /// <see cref="{{Tokens.ClassName}}"/>. Produces an
+                /// <see cref="global::Opc.Ua.EventFilter"/> whose
+                /// where clause restricts events to
+                /// <c>{{Tokens.SymbolicName}}</c> and whose select
+                /// clauses come from a supplied
+                /// <see cref="global::Opc.Ua.EventRecordDecoderRegistry"/>
+                /// (or its <c>Default</c>).
+                /// </summary>
+                public {{Tokens.AccessModifier}}static class EventFilters
+                {
+                    /// <summary>
+                    /// Builds the event filter.
+                    /// </summary>
+                    /// <param name="registry">Decoder registry whose
+                    /// composed <c>StandardFields</c> form the select
+                    /// clauses. When <c>null</c>,
+                    /// <see cref="global::Opc.Ua.EventRecordDecoderRegistry.Default"/>
+                    /// is used.</param>
+                    public static global::Opc.Ua.EventFilter Build(
+                        global::Opc.Ua.EventRecordDecoderRegistry? registry = null)
+                        => global::Opc.Ua.EventFilterFactory.Create(
+                            global::Opc.Ua.ObjectTypeIds.{{Tokens.SymbolicName}},
+                            registry);
+                }
             }
 
             """);

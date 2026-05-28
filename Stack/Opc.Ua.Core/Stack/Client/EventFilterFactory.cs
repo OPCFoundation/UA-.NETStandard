@@ -27,80 +27,68 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client.Alarms
+namespace Opc.Ua
 {
     /// <summary>
-    /// Builds an <see cref="EventFilter"/> targeting Part 9 alarm and
-    /// condition types. The select clauses use the same field order as
-    /// <see cref="AlarmEventDecoder"/> so the resulting records can be
-    /// decoded directly.
+    /// Runtime helper used by the source-generated
+    /// <c>{Type}Record.EventFilters.Build</c> factories. Composes an
+    /// <see cref="EventFilter"/> whose <c>SelectClauses</c> come from
+    /// a supplied <see cref="EventRecordDecoderRegistry"/> (or
+    /// <see cref="EventRecordDecoderRegistry.Default"/>) and whose
+    /// <c>WhereClause</c> restricts events to the supplied event
+    /// type id.
     /// </summary>
     /// <remarks>
-    /// Where clause construction is intentionally limited to OfType
-    /// because most Part 9 filtering use cases are type-based.
-    /// Additional filtering (severity, active-only, retained-only) can
-    /// be applied client-side on the decoded
-    /// <see cref="ConditionTypeRecord"/>.
+    /// The composed <c>SelectClauses</c> are a superset across every
+    /// decoder registered in the supplied registry, so the same
+    /// filter shape can decode every record type the registry knows
+    /// about. The registry's
+    /// <see cref="EventRecordDecoderRegistry.Decode"/> path remaps
+    /// the server-returned positional fields to each decoder's own
+    /// layout before invocation, so no positional alignment is
+    /// required between filter and decoder.
     /// </remarks>
-    public class AlarmEventFilterBuilder
+    public static class EventFilterFactory
     {
-        private NodeId? m_eventType;
-
         /// <summary>
-        /// Restricts notifications to events of the specified type or its subtypes.
+        /// Builds an event filter selecting the registry's composed
+        /// standard fields and restricting events to
+        /// <paramref name="eventTypeId"/> via an <c>OfType</c> where
+        /// clause. When <paramref name="eventTypeId"/> equals
+        /// <see cref="ObjectTypeIds.BaseEventType"/> the where
+        /// clause is omitted.
         /// </summary>
-        public AlarmEventFilterBuilder OfType(NodeId eventType)
+        /// <param name="eventTypeId">The event type to restrict
+        /// to.</param>
+        /// <param name="registry">The decoder registry whose
+        /// composed <c>StandardFields</c> form the select clauses.
+        /// When <c>null</c>,
+        /// <see cref="EventRecordDecoderRegistry.Default"/> is
+        /// used.</param>
+        public static EventFilter Create(
+            NodeId eventTypeId,
+            EventRecordDecoderRegistry? registry = null)
         {
-            m_eventType = eventType;
-            return this;
-        }
-
-        /// <summary>
-        /// Restricts notifications to condition events.
-        /// </summary>
-        public AlarmEventFilterBuilder ForConditions()
-            => OfType(ObjectTypeIds.ConditionType);
-
-        /// <summary>
-        /// Restricts notifications to alarm condition events.
-        /// </summary>
-        public AlarmEventFilterBuilder ForAlarms()
-            => OfType(ObjectTypeIds.AlarmConditionType);
-
-        /// <summary>
-        /// Restricts notifications to dialog condition events.
-        /// </summary>
-        public AlarmEventFilterBuilder ForDialogs()
-            => OfType(ObjectTypeIds.DialogConditionType);
-
-        /// <summary>
-        /// Builds the configured <see cref="EventFilter"/>.
-        /// </summary>
-        public EventFilter Build()
-        {
+            EventRecordDecoderRegistry r = registry ?? EventRecordDecoderRegistry.Default;
             var filter = new EventFilter();
 
-            // Select clauses match the AlarmEventDecoder field order.
-            foreach (QualifiedName[] path in AlarmEventDecoder.StandardFields)
+            foreach (QualifiedName[] path in r.StandardFields)
             {
                 var clause = new SimpleAttributeOperand
                 {
                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
                     AttributeId = Attributes.Value
                 };
-
                 foreach (QualifiedName segment in path)
                 {
                     clause.BrowsePath = clause.BrowsePath.AddItem(segment);
                 }
-
                 filter.SelectClauses = filter.SelectClauses.AddItem(clause);
             }
 
-            // Build optional where clause (OfType).
-            if (m_eventType != null && m_eventType != ObjectTypeIds.BaseEventType)
+            if (!eventTypeId.IsNull && eventTypeId != ObjectTypeIds.BaseEventType)
             {
-                filter.WhereClause.Push(FilterOperator.OfType, Variant.From((NodeId)m_eventType));
+                filter.WhereClause.Push(FilterOperator.OfType, Variant.From(eventTypeId));
             }
 
             return filter;

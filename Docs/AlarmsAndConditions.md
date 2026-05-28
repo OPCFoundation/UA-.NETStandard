@@ -24,7 +24,7 @@ For the formal model, see
   - [`AlarmClient` — typed operations](#alarmclient--typed-operations)
   - [Subscribing to alarms with `IAsyncEnumerable`](#subscribing-to-alarms-with-iasyncenumerable)
   - [Typed alarm records](#typed-alarm-records)
-  - [`AlarmEventFilterBuilder`](#alarmeventfilterbuilder)
+  - [Per-record event filters](#per-record-event-filters)
   - [Dialog conditions](#dialog-conditions)
   - [`ConditionRefresh`](#conditionrefresh)
 - [Reference](#reference)
@@ -45,7 +45,8 @@ For the formal model, see
 | Alarm rate | `AlarmRateTracker` | read `AlarmMetricsType` attributes |
 | Refresh state | `Server.ConditionRefresh` (server-driven) | `AlarmClient.ConditionRefreshAsync` / `ConditionRefresh2Async` |
 | Stream alarm events | n/a | `IStreamingSubscription.SubscribeAlarmsAsync` |
-| Decode raw event fields | n/a | `AlarmEventDecoder` |
+| Decode raw event fields | n/a | `EventRecordDecoderRegistry.Default.Decode` |
+| Build an event filter | n/a | `{Type}Record.EventFilters.Build(registry?)` |
 
 `AlarmClient` is obtained from any `ISession` and a telemetry context;
 internally it delegates every Part 9 method call to the matching
@@ -456,7 +457,7 @@ populated in the event. A simple `switch` on the record type gives you
 the right field set:
 
 ```csharp
-ConditionTypeRecord? record = AlarmEventDecoder.Decode(eventFields);
+EventRecord? record = EventRecordDecoderRegistry.Default.Decode(eventFields);
 
 if (record is CertificateExpirationAlarmTypeRecord cert)
 {
@@ -481,11 +482,10 @@ registry.
 
 The process-wide `EventRecordDecoderRegistry.Default` ships with the
 standard UA model pre-registered. It routes by the event's
-`EventType` field (rather than the heuristic-based field-presence
-dispatch in `AlarmEventDecoder`) and walks the OPC UA event-type
-hierarchy through an optional `SuperTypeResolver` when the exact
-type is not registered. Vendor models register their generated
-extensions via `Register{Prefix}Decoders` or
+`EventType` field and walks the OPC UA event-type hierarchy through
+an optional `SuperTypeResolver` when the exact type is not
+registered. Vendor models register their generated extensions via
+`Register{Prefix}Decoders` or
 `CreateChildScope().Register{Prefix}Decoders()` for test isolation.
 
 ```csharp
@@ -499,34 +499,43 @@ var app = EventRecordDecoderRegistry.Default
 EventRecord? vendorRec = app.Decode(eventFields);
 ```
 
-Choose between the two paths based on use case: `AlarmEventDecoder`
-when you need Part 9 alarm subtype heuristics (the existing
-behavior); `EventRecordDecoderRegistry` when you need
-`EventType`-keyed dispatch that extends transparently to vendor
-event types.
+### Per-record event filters
 
-### `AlarmEventFilterBuilder`
-
-`AlarmEventFilterBuilder` produces an `EventFilter` whose select-clause
-list matches the decoder's field order. Always use the builder when
-you intend to decode with `AlarmEventDecoder`:
+Every generated `{Type}Record` exposes a nested
+`static class EventFilters` alongside its `Decoder` block. The
+`Build(registry?)` factory produces an `EventFilter` whose where
+clause restricts events to `OfType({recordTypeId})` and whose
+select clauses come from the supplied registry's composed
+`StandardFields` (defaults to
+`EventRecordDecoderRegistry.Default`). The returned filter pairs
+cleanly with `EventRecordDecoderRegistry.Decode` — the registry
+remaps the composed positions to each decoder's own layout
+before invoking it, so vendor models extend transparently.
 
 ```csharp
-EventFilter filter = new AlarmEventFilterBuilder()
-    .ForAlarms()                                       // OfType AlarmConditionType
-    .Build();
+// Filter for alarm events:
+EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build();
 
-// Or for condition (any subtype) events:
-EventFilter f2 = new AlarmEventFilterBuilder().ForConditions().Build();
+// Or for any condition:
+EventFilter f2 = ConditionTypeRecord.EventFilters.Build();
 
 // Or for dialog events:
-EventFilter f3 = new AlarmEventFilterBuilder().ForDialogs().Build();
+EventFilter f3 = DialogConditionTypeRecord.EventFilters.Build();
 
 // Or for a specific subtype:
-EventFilter f4 = new AlarmEventFilterBuilder()
-    .OfType(ObjectTypeIds.CertificateExpirationAlarmType)
-    .Build();
+EventFilter f4 = CertificateExpirationAlarmTypeRecord.EventFilters.Build();
+
+// Vendor scenario — pass a child registry so the filter superset
+// includes the vendor model's fields:
+var app = EventRecordDecoderRegistry.Default
+    .CreateChildScope()
+    .RegisterMyVendorDecoders();
+EventFilter vendorFilter = VibrationAlarmTypeRecord.EventFilters.Build(app);
 ```
+
+The same registry should be passed to `Subscribe*Async`
+(through the `registry:` parameter) so the streaming side decodes
+through the registry that built the filter.
 
 ### Dialog conditions
 

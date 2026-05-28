@@ -403,43 +403,58 @@ questions" below.
   `bool OmitEventRecordDecoders { get; set; }` (defaults to
   follow `OmitEventRecords`).
 
-### Updated (consumers)
+### Updated (consumers) — **shipped (deleted, not shimmed)**
 
-* `Libraries/Opc.Ua.Client/Alarms/AlarmEventDecoder.cs` — collapse
-  to a thin shim that proxies to `EventRecordDecoderRegistry.Default`.
-  Remove the "future work" paragraph. Mark `[Obsolete("Use
-  EventRecordDecoderRegistry.Default.Decode(...)")]` in a follow-up
-  PR after consumers have migrated; this PR keeps the shim
-  unmarked to avoid noise.
+* `Libraries/Opc.Ua.Client/Alarms/AlarmEventDecoder.cs` — **deleted**.
+  The PR migrated `AlarmStreamExtensions` directly to
+  `EventRecordDecoderRegistry.Default.Decode(...)`. No public
+  consumer outside the alarms module shipped against the
+  hand-rolled decoder, so no `[Obsolete]` shim is needed.
 * `Libraries/Opc.Ua.Client/Alarms/AlarmEventFilterBuilder.cs` —
-  consume `EventRecordDecoderRegistry.Default.StandardFields`
-  instead of the hand-rolled list. Add an optional
-  `WithRegistry(EventRecordDecoderRegistry)` builder method for
-  callers using non-default registries.
+  **deleted**. Replaced by per-record source-generated
+  `{Type}Record.EventFilters.Build(registry?)` factories emitted
+  alongside the `Decoder` class (see Phase 2 below).
 * `Libraries/Opc.Ua.Client/Alarms/AlarmStreamExtensions.cs` —
-  unchanged (continues to call the shim).
-* `Libraries/Opc.Ua.Client/Alarms/OpcUaAlarmsBuilderExtensions.cs`
-  — `AddAlarms()` chains a call to the standard-UA
-  `RegisterOpcUaDecoders()` extension on the registry singleton
-  the alarm services consume.
+  rewired to use `EventRecordDecoderRegistry.Default.Decode` and
+  the generated `EventFilters.Build` factories. Each
+  `Subscribe*Async` gained an optional
+  `EventRecordDecoderRegistry? registry = null` parameter for
+  vendor extensibility.
 
-### Tests
+### Per-record filter factory — **shipped**
+
+The generator emits a second nested static class
+`EventFilters` alongside `Decoder` on each `{Type}Record`. The
+factory delegates to a new runtime helper
+`Opc.Ua.EventFilterFactory.Create(NodeId eventTypeId,
+EventRecordDecoderRegistry?)` that:
+* builds `SelectClauses` from the supplied registry's composed
+  `StandardFields` (defaults to `Default`);
+* sets a single `OfType` where clause to `eventTypeId` (omitted
+  when the id equals `BaseEventType`).
+
+Standard examples available out of the box:
+`AlarmConditionTypeRecord.EventFilters.Build()`,
+`ConditionTypeRecord.EventFilters.Build()`,
+`DialogConditionTypeRecord.EventFilters.Build()`,
+`CertificateExpirationAlarmTypeRecord.EventFilters.Build()`, etc.
+Vendor records automatically get their own factory.
+
+### Tests — **shipped**
 
 * `Tests/Opc.Ua.Core.Tests/Stack/Client/EventRecordDecoderRegistryTests.cs`
-  (new) — Register / Decode dispatch / super-type fallback /
+  exercises register / decode / dispatch / super-type fallback /
   composed StandardFields invariants.
-* `Tests/Opc.Ua.Client.Tests/Alarms/AlarmEventDecoderTests.cs`
-  (existing) — kept verbatim; passes against the shim.
-* `Tests/Opc.Ua.Client.Tests/Alarms/AlarmEventFilterBuilderTests.cs`
-  (existing) — passes against the registry-backed builder.
-* `Tests/Opc.Ua.SourceGeneration.Tests` — add a small synthetic
-  vendor NodeSet (`VibrationAlarmType : AlarmConditionType` with
-  one extra property); assert the generated file contains the
-  nested `Decoder` class and the registration extension method.
-* `Tests/Opc.Ua.Core.Tests/Stack/Client/GeneratedDecoderRoundTripTests.cs`
-  (new) — round-trip equivalence between every standard UA
-  decoder and the current hand-rolled
-  `AlarmEventDecoder`.
+* `Tests/Opc.Ua.Client.Tests/Alarms/AlarmStreamExtensionsTests.cs`
+  asserts the filter shape (now `EventRecordDecoderRegistry.Default.StandardFields.Length`),
+  yields-and-drops semantics, and dialog filtering. Test fixtures
+  build their event payloads against the registry's composed
+  positional layout via a small browse-name-keyed helper
+  (`RegistryFieldBuilder`).
+* `Tests/Opc.Ua.Client.Tests/Alarms/AlarmEventDecoderTests.cs` and
+  `Tests/Opc.Ua.Client.Tests/Alarms/AlarmEventFilterBuilderTests.cs`
+  — **deleted**. Scenarios are covered by the registry tests
+  + the stream-side tests + the generator round-trip.
 
 ## Implementation order
 
