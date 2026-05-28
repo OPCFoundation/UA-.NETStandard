@@ -299,7 +299,7 @@ session.Factory.Builder
 
 ### Approach 2: Source-Generated IEncodeable (Recommended for New Code)
 
-Starting with version 1.6, you can annotate a POCO class with `[DataType]` and
+Starting with version 2.0, you can annotate a POCO class with `[DataType]` and
 optional `[DataTypeField]` attributes and the OPC UA source generator will
 automatically generate the `IEncodeable` implementation for you. This eliminates
 the need to hand-write `Encode`, `Decode`, `IsEqual`, and `Clone` methods.
