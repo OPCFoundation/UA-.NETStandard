@@ -25,7 +25,11 @@
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Durable.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Features.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Stress.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
