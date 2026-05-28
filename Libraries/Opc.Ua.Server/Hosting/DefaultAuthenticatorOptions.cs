@@ -41,7 +41,7 @@ namespace Opc.Ua.Server.Hosting
     /// <summary>
     /// Options for registering the built-in identity authenticators.
     /// </summary>
-    public sealed class DefaultAuthenticatorOptions
+    public class DefaultAuthenticatorOptions
     {
         /// <summary>
         /// Register <see cref="AnonymousAuthenticator"/>.

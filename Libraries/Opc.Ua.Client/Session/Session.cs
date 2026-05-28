@@ -1590,11 +1590,8 @@ namespace Opc.Ua.Client
                         MessageContext);
                 }
 
-                UserTokenPolicy identityPolicy = SelectUserTokenPolicy(provider, context);
-                IUserIdentity identity = await provider
-                    .GetIdentityAsync(identityPolicy, context, ct)
+                IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
                     .ConfigureAwait(false);
-                identity.TokenHandler.Token.PolicyId = identityPolicy.PolicyId;
 
                 await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
             }
@@ -1630,56 +1627,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        private UserTokenPolicy SelectUserTokenPolicy(
-            IClientIdentityProvider provider,
-            IdentitySelectionContext context)
-        {
-            string tokenSecurityPolicyUri =
-                m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            UserTokenPolicy? sameEncryptionAlgorithm = null;
-            UserTokenPolicy? unspecifiedSecPolicy = null;
-
-            foreach (UserTokenPolicy policy in context.OfferedPolicies)
-            {
-                if (!provider.CanSatisfy(policy, context))
-                {
-                    continue;
-                }
-
-                if (policy.TokenType == UserTokenType.Anonymous ||
-                    string.Equals(
-                        policy.SecurityPolicyUri,
-                        tokenSecurityPolicyUri,
-                        StringComparison.Ordinal))
-                {
-                    return policy;
-                }
-
-                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
-                {
-                    unspecifiedSecPolicy ??= policy;
-                }
-                else if (HasSameEncryptionAlgorithm(
-                    policy.SecurityPolicyUri!,
-                    tokenSecurityPolicyUri))
-                {
-                    sameEncryptionAlgorithm ??= policy;
-                }
-            }
-
-            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenRejected,
-                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
-        }
-
-        private static bool HasSameEncryptionAlgorithm(
-            string policySecurityPolicyUri,
-            string tokenSecurityPolicyUri)
-        {
-            return CryptoUtils.IsEccPolicy(policySecurityPolicyUri) ==
-                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri);
-        }
 
         /// <inheritdoc/>
         public async Task UpdateSessionAsync(

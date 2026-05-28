@@ -66,6 +66,25 @@ namespace Opc.Ua.Gds.Server
             IUserDatabase userDatabase,
             ITelemetryContext telemetry,
             bool autoApprove = true)
+            : this(
+                database,
+                request,
+                certificateGroup,
+                userDatabase,
+                telemetry,
+                autoApprove,
+                enableApplicationSelfAdminProvider: true)
+        {
+        }
+
+        public GlobalDiscoverySampleServer(
+            IApplicationsDatabase database,
+            ICertificateRequest request,
+            ICertificateGroup certificateGroup,
+            IUserDatabase userDatabase,
+            ITelemetryContext telemetry,
+            bool autoApprove,
+            bool enableApplicationSelfAdminProvider)
             : base(telemetry)
         {
             m_database = database;
@@ -73,6 +92,7 @@ namespace Opc.Ua.Gds.Server
             m_certificateGroup = certificateGroup;
             m_userDatabase = userDatabase;
             m_autoApprove = autoApprove;
+            m_enableApplicationSelfAdminProvider = enableApplicationSelfAdminProvider;
         }
 
         /// <summary>
@@ -106,12 +126,15 @@ namespace Opc.Ua.Gds.Server
             server.IdentityRegistry.Register(new AnonymousAuthenticator());
             server.IdentityRegistry.Register(new GlobalDiscoverySampleUserNameAuthenticator(this));
             server.IdentityRegistry.Register(new GlobalDiscoverySampleX509Authenticator(this));
-            server.IdentityRegistry.RegisterAugmenter(
-                new GdsApplicationSelfAdminProvider(
-                    m_database,
-                    server.Telemetry.CreateLogger<GdsApplicationSelfAdminProvider>(),
-                    server.NamespaceUris,
-                    IsApplicationCertificateRegistered));
+            if (m_enableApplicationSelfAdminProvider)
+            {
+                server.IdentityRegistry.RegisterAugmenter(
+                    new GdsApplicationSelfAdminProvider(
+                        m_database,
+                        server.Telemetry.CreateLogger<GdsApplicationSelfAdminProvider>(),
+                        server.NamespaceUris,
+                        IsApplicationCertificateRegistered));
+            }
         }
 
         /// <summary>
@@ -437,5 +460,6 @@ namespace Opc.Ua.Gds.Server
         private readonly ICertificateGroup m_certificateGroup;
         private readonly IUserDatabase m_userDatabase;
         private readonly bool m_autoApprove;
+        private readonly bool m_enableApplicationSelfAdminProvider;
     }
 }

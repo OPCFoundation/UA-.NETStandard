@@ -280,6 +280,7 @@ namespace Microsoft.Extensions.DependencyInjection
             this IGdsServerBuilder gdsBuilder)
         {
             IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
             OpcUaServerBuilderExtensions.AddIdentityAugmenter(
                 serverBuilder,
                 sp => new GdsApplicationSelfAdminProvider(
@@ -294,13 +295,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="gdsBuilder">The GDS server builder.</param>
         /// <param name="configure">Callback used to populate
-        /// <see cref="DefaultAuthenticatorOptions"/>.</param>
+        /// <see cref="GdsDefaultIdentityAuthenticatorOptions"/>.</param>
         /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
         /// or <paramref name="configure"/> is <c>null</c>.</exception>
         public static IGdsServerBuilder AddDefaultIdentityAuthenticators(
             this IGdsServerBuilder gdsBuilder,
-            Action<DefaultAuthenticatorOptions> configure)
+            Action<GdsDefaultIdentityAuthenticatorOptions> configure)
         {
             IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
             if (configure is null)
@@ -308,10 +309,19 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
+            var options = new GdsDefaultIdentityAuthenticatorOptions();
+            configure(options);
             OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
                 serverBuilder,
-                configure);
-            AddGdsApplicationSelfAdminProvider(gdsBuilder);
+                serverOptions => CopyDefaultAuthenticatorOptions(serverOptions, options));
+            if (options.EnableGdsApplicationSelfAdminProvider)
+            {
+                AddGdsApplicationSelfAdminProvider(gdsBuilder);
+            }
+            else
+            {
+                SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
+            }
             return gdsBuilder;
         }
 
@@ -340,12 +350,27 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the default identity authenticators without the GDS ApplicationSelfAdmin identity augmenter.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder DisableGdsApplicationSelfAdminProvider(
+            this IGdsServerBuilder gdsBuilder)
+        {
+            return AddDefaultIdentityAuthenticators(
+                gdsBuilder,
+                options => options.EnableGdsApplicationSelfAdminProvider = false);
+        }
+
+        /// <summary>
         /// Registers the built-in GDS identity authenticators with options
         /// bound from a configuration section.
         /// </summary>
         /// <param name="gdsBuilder">The GDS server builder.</param>
         /// <param name="section">Configuration section bound to
-        /// <see cref="DefaultAuthenticatorOptions"/>.</param>
+        /// <see cref="GdsDefaultIdentityAuthenticatorOptions"/>.</param>
         /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
         /// or <paramref name="section"/> is <c>null</c>.</exception>
@@ -362,7 +387,17 @@ namespace Microsoft.Extensions.DependencyInjection
             OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
                 serverBuilder,
                 section);
-            AddGdsApplicationSelfAdminProvider(gdsBuilder);
+            if (GetBoolean(
+                section,
+                nameof(GdsDefaultIdentityAuthenticatorOptions.EnableGdsApplicationSelfAdminProvider),
+                defaultValue: true))
+            {
+                AddGdsApplicationSelfAdminProvider(gdsBuilder);
+            }
+            else
+            {
+                SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
+            }
             return gdsBuilder;
         }
 
@@ -492,8 +527,38 @@ namespace Microsoft.Extensions.DependencyInjection
             // OpcUaServerBuilderExtensions pattern so the GDS feature
             // can be added independently of AddServer.
             OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
+            services.AddOptions<GdsApplicationSelfAdminProviderOptions>();
 
             services.AddHostedService<GdsServerHostedService>();
+        }
+
+        private static void SuppressBuiltInGdsApplicationSelfAdminProvider(IServiceCollection services)
+        {
+            services.Configure<GdsApplicationSelfAdminProviderOptions>(
+                options => options.SuppressBuiltInRegistration = true);
+        }
+
+        private static void CopyDefaultAuthenticatorOptions(
+            DefaultAuthenticatorOptions target,
+            GdsDefaultIdentityAuthenticatorOptions source)
+        {
+            target.EnableAnonymous = source.EnableAnonymous;
+            target.EnableUserNamePassword = source.EnableUserNamePassword;
+            target.EnableX509 = source.EnableX509;
+            target.EnableJwt = source.EnableJwt;
+            target.UserDatabase = source.UserDatabase;
+            target.UserManagement = source.UserManagement;
+            target.CertificateValidator = source.CertificateValidator;
+            target.UserCertificateTrustList = source.UserCertificateTrustList;
+            target.IssuerKeyResolver = source.IssuerKeyResolver;
+            target.ExpectedAudience = source.ExpectedAudience;
+            target.ClockSkewTolerance = source.ClockSkewTolerance;
+        }
+
+        private static bool GetBoolean(IConfiguration section, string key, bool defaultValue)
+        {
+            string? value = section[key];
+            return string.IsNullOrEmpty(value) ? defaultValue : bool.Parse(value);
         }
 
         private sealed class ForwardingServerBuilder : IOpcUaServerBuilder

@@ -74,6 +74,7 @@ namespace Opc.Ua.Gds.Server.Hosting
         private readonly AuthorizationServiceManager? m_authorizationServiceManager;
         private readonly IKeyCredentialRequestStore? m_keyCredentialStore;
         private readonly IConfigurationDataStore? m_configurationStore;
+        private readonly bool m_enableBuiltInApplicationSelfAdminProvider;
         private readonly ILogger<GdsServerHostedService> m_logger;
 
         // CA2213: IApplicationInstance is IAsyncDisposable; the lifecycle here
@@ -95,6 +96,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IServiceProvider services,
+            IOptions<GdsApplicationSelfAdminProviderOptions> selfAdminProviderOptions,
             ILogger<GdsServerHostedService> logger,
             IAccessTokenProvider? accessTokenProvider = null,
             AuthorizationServiceManager? authorizationServiceManager = null,
@@ -120,6 +122,12 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_augmenterRegistrations = augmenterRegistrations ??
                 throw new ArgumentNullException(nameof(augmenterRegistrations));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
+            if (selfAdminProviderOptions is null)
+            {
+                throw new ArgumentNullException(nameof(selfAdminProviderOptions));
+            }
+            m_enableBuiltInApplicationSelfAdminProvider =
+                !selfAdminProviderOptions.Value.SuppressBuiltInRegistration;
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_accessTokenProvider = accessTokenProvider;
             m_authorizationServiceManager = authorizationServiceManager;
@@ -207,7 +215,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_accessTokenProvider,
                 m_keyCredentialStore,
                 m_configurationStore,
-                m_options.AutoApprove);
+                m_options.AutoApprove,
+                m_enableBuiltInApplicationSelfAdminProvider);
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
@@ -348,8 +357,16 @@ namespace Opc.Ua.Gds.Server.Hosting
                 IAccessTokenProvider? accessTokenProvider,
                 IKeyCredentialRequestStore? keyCredentialStore,
                 IConfigurationDataStore? configurationStore,
-                bool autoApprove)
-                : base(database, request, certificateGroup, userDatabase, telemetry, autoApprove)
+                bool autoApprove,
+                bool enableApplicationSelfAdminProvider)
+                : base(
+                    database,
+                    request,
+                    certificateGroup,
+                    userDatabase,
+                    telemetry,
+                    autoApprove,
+                    enableApplicationSelfAdminProvider)
             {
                 m_database = database;
                 m_request = request;

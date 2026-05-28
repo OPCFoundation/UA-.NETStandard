@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -186,6 +187,146 @@ namespace Opc.Ua.Gds.Tests.Hosting
                     Directory.Delete(testRoot, recursive: true);
                 }
             }
+        }
+
+        [Test]
+        public async Task AddDefaultIdentityAuthenticatorsOptionsCanDisableSelfAdminProviderAsync()
+        {
+            await AssertSelfAdminProviderNotRegisteredAsync(builder =>
+                builder.AddDefaultIdentityAuthenticators(
+                    options => options.EnableGdsApplicationSelfAdminProvider = false))
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DisableGdsApplicationSelfAdminProviderDisablesSelfAdminProviderAsync()
+        {
+            await AssertSelfAdminProviderNotRegisteredAsync(builder =>
+                builder.DisableGdsApplicationSelfAdminProvider())
+                .ConfigureAwait(false);
+        }
+
+        private static async Task AssertSelfAdminProviderNotRegisteredAsync(
+            Func<IGdsServerBuilder, IGdsServerBuilder> configure)
+        {
+            string testRoot = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                nameof(GdsServerHostedServiceTests),
+                Guid.NewGuid().ToString("N"));
+            string pkiRoot = Path.Combine(testRoot, "pki");
+            Directory.CreateDirectory(testRoot);
+
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
+            services.AddSingleton<IApplicationsDatabase>(new StubApplicationsDatabase());
+            services.AddSingleton<ICertificateRequest>(new StubCertificateRequest());
+            services.AddSingleton<ICertificateGroup>(new StubCertificateGroup());
+            services.AddSingleton<IUserDatabase>(new StubUserDatabase());
+
+            IGdsServerBuilder builder = services.AddOpcUa()
+                .AddGdsServer(options =>
+                {
+                    options.ApplicationName = "GdsSelfAdminOptOutTest";
+                    options.ApplicationUri = "urn:localhost:gds-self-admin-opt-out-test";
+                    options.ProductUri = "urn:localhost:gds-self-admin-opt-out-test:product";
+                    options.PkiRoot = pkiRoot;
+                    options.AutoAcceptUntrustedCertificates = true;
+                    options.IncludeUnsecurePolicyNone = true;
+                    options.EndpointUrls.Add(
+                        "opc.tcp://localhost:" +
+                        GetAvailablePort().ToString(CultureInfo.InvariantCulture) +
+                        "/GdsSelfAdminOptOutTest");
+                });
+            configure(builder);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var hostedService = (GdsServerHostedService)provider.GetServices<IHostedService>().Single();
+
+            try
+            {
+                await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+                IServerIdentityRegistry registry = await WaitForAnonymousAuthenticationAsync(hostedService)
+                    .ConfigureAwait(false);
+
+                Assert.That(GetRegisteredAugmenterCount(registry), Is.Zero);
+            }
+            finally
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await hostedService.StopAsync(cts.Token).ConfigureAwait(false);
+
+                if (Directory.Exists(testRoot))
+                {
+                    Directory.Delete(testRoot, recursive: true);
+                }
+            }
+        }
+
+        private static async Task<IServerIdentityRegistry> WaitForAnonymousAuthenticationAsync(
+            GdsServerHostedService hostedService)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+            while (DateTime.UtcNow < deadline)
+            {
+                Task executeTask = hostedService.ExecuteTask;
+                if (executeTask != null && executeTask.IsCompleted)
+                {
+                    await executeTask.ConfigureAwait(false);
+                }
+
+                StandardServer server = GetServer(hostedService);
+                if (server != null)
+                {
+                    try
+                    {
+                        IServerInternal currentInstance = server.CurrentInstance;
+                        AuthenticationResult result = await currentInstance.IdentityRegistry
+                            .AuthenticateAsync(CreateAnonymousAuthenticationContext(currentInstance.MessageContext))
+                            .ConfigureAwait(false);
+                        if (result.Outcome == AuthenticationOutcome.Accepted)
+                        {
+                            return currentInstance.IdentityRegistry;
+                        }
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadServerHalted)
+                    {
+                    }
+                }
+
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+
+            Assert.Fail("Timed out waiting for the GDS hosted service to register default identity authenticators.");
+            return new ServerIdentityRegistry();
+        }
+
+        private static AuthenticationContext CreateAnonymousAuthenticationContext(
+            IServiceMessageContext messageContext)
+        {
+            var endpointDescription = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+
+            return new AuthenticationContext(
+                new AnonymousIdentityTokenHandler(),
+                new UserTokenPolicy(UserTokenType.Anonymous),
+                endpointDescription,
+                messageContext);
+        }
+
+        private static int GetRegisteredAugmenterCount(IServerIdentityRegistry registry)
+        {
+            Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
+            FieldInfo field = typeof(ServerIdentityRegistry).GetField(
+                "m_augmenters",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            var augmenters = (ICollection)field.GetValue(registry);
+            return augmenters.Count;
         }
 
         private static async Task<AuthenticationResult> WaitForAuthenticationAsync(

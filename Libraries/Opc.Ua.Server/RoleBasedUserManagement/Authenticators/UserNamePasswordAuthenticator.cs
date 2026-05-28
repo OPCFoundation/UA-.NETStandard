@@ -46,6 +46,7 @@ namespace Opc.Ua.Server
     {
         private readonly IUserDatabase m_userDatabase;
         private readonly IUserManagement m_userManagement;
+        private readonly Func<UserNameIdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity>>? m_verify;
 
         /// <summary>
         /// Creates a username/password authenticator.
@@ -58,6 +59,17 @@ namespace Opc.Ua.Server
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
             m_userManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
             _ = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        }
+
+        /// <summary>
+        /// Creates a delegate-backed username/password authenticator.
+        /// </summary>
+        public UserNamePasswordAuthenticator(
+            Func<UserNameIdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity>> verify)
+        {
+            m_userDatabase = null!;
+            m_userManagement = null!;
+            m_verify = verify ?? throw new ArgumentNullException(nameof(verify));
         }
 
         /// <inheritdoc/>
@@ -74,6 +86,11 @@ namespace Opc.Ua.Server
             if (context.TokenHandler is not UserNameIdentityTokenHandler userTokenHandler)
             {
                 return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
+
+            if (m_verify != null)
+            {
+                return AuthenticateWithVerifierAsync(userTokenHandler, ct);
             }
 
             string userName = userTokenHandler.UserName;
@@ -104,10 +121,34 @@ namespace Opc.Ua.Server
                 AuthenticationResult.Accept(new UserIdentity(userTokenHandler)));
         }
 
+        private async ValueTask<AuthenticationResult> AuthenticateWithVerifierAsync(
+            UserNameIdentityTokenHandler userTokenHandler,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                IUserIdentity? identity = await m_verify!(userTokenHandler, ct).ConfigureAwait(false);
+                return identity == null
+                    ? RejectResult(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "Username token verifier did not return an identity.")
+                    : AuthenticationResult.Accept(identity);
+            }
+            catch (ServiceResultException ex)
+            {
+                return AuthenticationResult.Reject(ex.Result);
+            }
+        }
+
         private static ValueTask<AuthenticationResult> Reject(StatusCode statusCode, string message)
         {
-            return new ValueTask<AuthenticationResult>(
-                AuthenticationResult.Reject(new ServiceResult(statusCode, new LocalizedText(message))));
+            return new ValueTask<AuthenticationResult>(RejectResult(statusCode, message));
+        }
+
+        private static AuthenticationResult RejectResult(StatusCode statusCode, string message)
+        {
+            return AuthenticationResult.Reject(new ServiceResult(statusCode, new LocalizedText(message)));
         }
     }
 }

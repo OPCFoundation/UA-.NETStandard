@@ -45,8 +45,9 @@ namespace Opc.Ua.Server
     /// </summary>
     public sealed class X509Authenticator : IUserTokenAuthenticator
     {
-        private readonly ICertificateValidatorEx m_certificateValidator;
+        private readonly ICertificateValidatorEx? m_certificateValidator;
         private readonly TrustListIdentifier m_trustList;
+        private readonly Func<X509IdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity>>? m_verify;
 
         /// <summary>
         /// Creates an X.509 authenticator.
@@ -58,6 +59,16 @@ namespace Opc.Ua.Server
             m_certificateValidator = certificateValidator ??
                 throw new ArgumentNullException(nameof(certificateValidator));
             m_trustList = trustList ?? TrustListIdentifier.Users;
+        }
+
+        /// <summary>
+        /// Creates a delegate-backed X.509 authenticator.
+        /// </summary>
+        public X509Authenticator(
+            Func<X509IdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity>> verify)
+        {
+            m_verify = verify ?? throw new ArgumentNullException(nameof(verify));
+            m_trustList = TrustListIdentifier.Users;
         }
 
         /// <inheritdoc/>
@@ -76,6 +87,11 @@ namespace Opc.Ua.Server
                 return AuthenticationResult.NotHandled;
             }
 
+            if (m_verify != null)
+            {
+                return await AuthenticateWithVerifierAsync(x509TokenHandler, ct).ConfigureAwait(false);
+            }
+
             var wireToken = (X509IdentityToken)x509TokenHandler.Token;
             using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
@@ -88,7 +104,7 @@ namespace Opc.Ua.Server
                     "Security token is not a valid X.509 token. A certificate is required.");
             }
 
-            CertificateValidationResult validationResult = await m_certificateValidator
+            CertificateValidationResult validationResult = await m_certificateValidator!
                 .ValidateAsync(userCertificate, m_trustList, ct)
                 .ConfigureAwait(false);
 
@@ -103,6 +119,26 @@ namespace Opc.Ua.Server
             }
 
             return AuthenticationResult.Accept(new X509UserIdentity(x509TokenHandler, userCertificate));
+        }
+
+        private async ValueTask<AuthenticationResult> AuthenticateWithVerifierAsync(
+            X509IdentityTokenHandler x509TokenHandler,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                IUserIdentity? identity = await m_verify!(x509TokenHandler, ct).ConfigureAwait(false);
+                return identity == null
+                    ? Reject(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "X.509 token verifier did not return an identity.")
+                    : AuthenticationResult.Accept(identity);
+            }
+            catch (ServiceResultException ex)
+            {
+                return AuthenticationResult.Reject(ex.Result);
+            }
         }
 
         private static AuthenticationResult Reject(StatusCode statusCode, string message)

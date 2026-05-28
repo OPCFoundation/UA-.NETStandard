@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Identity;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -718,155 +717,54 @@ namespace Quickstarts.ReferenceServer
 
         private void RegisterIdentityAuthenticators(IServerInternal server)
         {
-            server.IdentityRegistry.Register(new AnonymousAuthenticator());
-            server.IdentityRegistry.Register(new ReferenceServerUserNameAuthenticator(this));
-            server.IdentityRegistry.Register(new ReferenceServerX509Authenticator(this));
-            server.IdentityRegistry.Register(new ReferenceServerJwtAuthenticator(this));
+            server.IdentityRegistry.RegisterDefaultAuthenticators(
+                VerifyUserNameIdentityAsync,
+                VerifyX509IdentityAsync,
+                VerifyJwtIdentityAsync);
         }
 
-        private sealed class ReferenceServerUserNameAuthenticator : IUserTokenAuthenticator
+        private ValueTask<IUserIdentity> VerifyUserNameIdentityAsync(
+            UserNameIdentityTokenHandler userNameToken,
+            CancellationToken ct)
         {
-            private readonly ReferenceServer m_server;
-
-            public ReferenceServerUserNameAuthenticator(ReferenceServer server)
-            {
-                m_server = server ?? throw new ArgumentNullException(nameof(server));
-            }
-
-            public UserTokenType TokenType => UserTokenType.UserName;
-
-            public string? IssuedTokenProfileUri => null;
-
-            public ValueTask<AuthenticationResult> AuthenticateAsync(
-                AuthenticationContext context,
-                CancellationToken ct = default)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (context.TokenHandler is not UserNameIdentityTokenHandler userNameToken)
-                {
-                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
-                }
-
-                return new ValueTask<AuthenticationResult>(AuthenticateUserName(userNameToken));
-            }
-
-            private AuthenticationResult AuthenticateUserName(UserNameIdentityTokenHandler userNameToken)
-            {
-                try
-                {
-                    RoleBasedIdentity identity = m_server.VerifyPassword(userNameToken);
-                    m_server.m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Username Token Accepted: {Identity}",
-                        identity.DisplayName);
-                    return AuthenticationResult.Accept(identity);
-                }
-                catch (ServiceResultException ex)
-                {
-                    return AuthenticationResult.Reject(ex.Result);
-                }
-            }
+            ct.ThrowIfCancellationRequested();
+            RoleBasedIdentity identity = VerifyPassword(userNameToken);
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Username Token Accepted: {Identity}",
+                identity.DisplayName);
+            return new ValueTask<IUserIdentity>(identity);
         }
 
-        private sealed class ReferenceServerX509Authenticator : IUserTokenAuthenticator
+        private ValueTask<IUserIdentity> VerifyX509IdentityAsync(
+            X509IdentityTokenHandler x509Token,
+            CancellationToken ct)
         {
-            private readonly ReferenceServer m_server;
-
-            public ReferenceServerX509Authenticator(ReferenceServer server)
-            {
-                m_server = server ?? throw new ArgumentNullException(nameof(server));
-            }
-
-            public UserTokenType TokenType => UserTokenType.Certificate;
-
-            public string? IssuedTokenProfileUri => null;
-
-            public ValueTask<AuthenticationResult> AuthenticateAsync(
-                AuthenticationContext context,
-                CancellationToken ct = default)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (context.TokenHandler is not X509IdentityTokenHandler x509Token)
-                {
-                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
-                }
-
-                return new ValueTask<AuthenticationResult>(AuthenticateX509(x509Token));
-            }
-
-            private AuthenticationResult AuthenticateX509(X509IdentityTokenHandler x509Token)
-            {
-                try
-                {
-                    m_server.VerifyX509IdentityToken(x509Token);
-                    var identity = new RoleBasedIdentity(
-                        new UserIdentity(x509Token),
-                        [Role.AuthenticatedUser],
-                        m_server.ServerInternal.MessageContext.NamespaceUris);
-                    m_server.m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "X509 Token Accepted: {Identity}",
-                        identity.DisplayName);
-                    return AuthenticationResult.Accept(identity);
-                }
-                catch (ServiceResultException ex)
-                {
-                    return AuthenticationResult.Reject(ex.Result);
-                }
-            }
+            ct.ThrowIfCancellationRequested();
+            VerifyX509IdentityToken(x509Token);
+            var identity = new RoleBasedIdentity(
+                new UserIdentity(x509Token),
+                [Role.AuthenticatedUser],
+                ServerInternal.MessageContext.NamespaceUris);
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "X509 Token Accepted: {Identity}",
+                identity.DisplayName);
+            return new ValueTask<IUserIdentity>(identity);
         }
 
-        private sealed class ReferenceServerJwtAuthenticator : IUserTokenAuthenticator
+        private ValueTask<IUserIdentity?> VerifyJwtIdentityAsync(
+            IssuedIdentityTokenHandler issuedToken,
+            CancellationToken ct)
         {
-            private readonly ReferenceServer m_server;
-
-            public ReferenceServerJwtAuthenticator(ReferenceServer server)
-            {
-                m_server = server ?? throw new ArgumentNullException(nameof(server));
-            }
-
-            public UserTokenType TokenType => UserTokenType.IssuedToken;
-
-            public string? IssuedTokenProfileUri => Profiles.JwtUserToken;
-
-            public ValueTask<AuthenticationResult> AuthenticateAsync(
-                AuthenticationContext context,
-                CancellationToken ct = default)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (context.TokenHandler is not IssuedIdentityTokenHandler issuedToken ||
-                    issuedToken.IssuedTokenType != IssuedTokenType.JWT)
-                {
-                    return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
-                }
-
-                return new ValueTask<AuthenticationResult>(AuthenticateJwt(issuedToken));
-            }
-
-            private AuthenticationResult AuthenticateJwt(IssuedIdentityTokenHandler issuedToken)
-            {
-                try
-                {
-                    IUserIdentity? identity = m_server.VerifyIssuedToken(issuedToken);
-                    if (identity == null)
-                    {
-                        return AuthenticationResult.Reject(
-                            new ServiceResult(
-                                StatusCodes.BadIdentityTokenRejected,
-                                new LocalizedText("No token validator is configured.")));
-                    }
-
-                    return AuthenticationResult.Accept(
-                        new RoleBasedIdentity(
-                            identity,
-                            [Role.AuthenticatedUser],
-                            m_server.ServerInternal.MessageContext.NamespaceUris));
-                }
-                catch (ServiceResultException ex)
-                {
-                    return AuthenticationResult.Reject(ex.Result);
-                }
-            }
+            ct.ThrowIfCancellationRequested();
+            IUserIdentity? identity = VerifyIssuedToken(issuedToken);
+            return new ValueTask<IUserIdentity?>(identity == null
+                ? null
+                : new RoleBasedIdentity(
+                    identity,
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris));
         }
 
         protected override void Dispose(bool disposing)

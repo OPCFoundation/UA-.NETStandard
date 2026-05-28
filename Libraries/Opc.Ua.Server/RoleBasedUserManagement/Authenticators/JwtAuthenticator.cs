@@ -46,9 +46,10 @@ namespace Opc.Ua.Server
     /// </summary>
     public sealed class JwtAuthenticator : IUserTokenAuthenticator
     {
-        private readonly IIssuerKeyResolver m_keyResolver;
-        private readonly string m_expectedAudience;
+        private readonly IIssuerKeyResolver? m_keyResolver;
+        private readonly string? m_expectedAudience;
         private readonly TimeSpan m_clockSkewTolerance;
+        private readonly Func<IssuedIdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity?>>? m_verify;
 
         /// <summary>
         /// Creates a JWT authenticator.
@@ -69,6 +70,16 @@ namespace Opc.Ua.Server
             m_clockSkewTolerance = clockSkewTolerance ?? TimeSpan.FromSeconds(60);
         }
 
+        /// <summary>
+        /// Creates a delegate-backed JWT authenticator.
+        /// </summary>
+        public JwtAuthenticator(
+            Func<IssuedIdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity?>> verify)
+        {
+            m_verify = verify ?? throw new ArgumentNullException(nameof(verify));
+            m_clockSkewTolerance = TimeSpan.FromSeconds(60);
+        }
+
         /// <inheritdoc/>
         public UserTokenType TokenType => UserTokenType.IssuedToken;
 
@@ -84,6 +95,11 @@ namespace Opc.Ua.Server
                 issuedTokenHandler.IssuedTokenType != IssuedTokenType.JWT)
             {
                 return AuthenticationResult.NotHandled;
+            }
+
+            if (m_verify != null)
+            {
+                return await AuthenticateWithVerifierAsync(issuedTokenHandler, ct).ConfigureAwait(false);
             }
 
             byte[]? tokenBytes = issuedTokenHandler.DecryptedTokenData;
@@ -136,7 +152,7 @@ namespace Opc.Ua.Server
             }
 
             byte[] signingInputBytes = Encoding.ASCII.GetBytes(segments[0] + "." + segments[1]);
-            IReadOnlyList<IssuerVerificationKey> keys = await m_keyResolver
+            IReadOnlyList<IssuerVerificationKey> keys = await m_keyResolver!
                 .GetKeysAsync(keyId, ct)
                 .ConfigureAwait(false);
 
@@ -204,10 +220,30 @@ namespace Opc.Ua.Server
             }
         }
 
+        private async ValueTask<AuthenticationResult> AuthenticateWithVerifierAsync(
+            IssuedIdentityTokenHandler issuedTokenHandler,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                IUserIdentity? identity = await m_verify!(issuedTokenHandler, ct).ConfigureAwait(false);
+                return identity == null
+                    ? Reject(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "No token validator is configured.")
+                    : AuthenticationResult.Accept(identity);
+            }
+            catch (ServiceResultException ex)
+            {
+                return AuthenticationResult.Reject(ex.Result);
+            }
+        }
+
         private ServiceResult? ValidatePayload(JsonElement payload)
         {
             string? issuer = GetOptionalString(payload, "iss");
-            if (!string.Equals(issuer, m_keyResolver.IssuerUri, StringComparison.Ordinal))
+            if (!string.Equals(issuer, m_keyResolver!.IssuerUri, StringComparison.Ordinal))
             {
                 return CreateError(StatusCodes.BadIdentityTokenRejected, "JWT issuer is not trusted.");
             }
@@ -251,7 +287,7 @@ namespace Opc.Ua.Server
 
             if (audience.ValueKind == JsonValueKind.String)
             {
-                return string.Equals(audience.GetString(), m_expectedAudience, StringComparison.Ordinal);
+                return string.Equals(audience.GetString(), m_expectedAudience!, StringComparison.Ordinal);
             }
 
             if (audience.ValueKind != JsonValueKind.Array)
@@ -262,7 +298,7 @@ namespace Opc.Ua.Server
             foreach (JsonElement value in audience.EnumerateArray())
             {
                 if (value.ValueKind == JsonValueKind.String &&
-                    string.Equals(value.GetString(), m_expectedAudience, StringComparison.Ordinal))
+                    string.Equals(value.GetString(), m_expectedAudience!, StringComparison.Ordinal))
                 {
                     return true;
                 }

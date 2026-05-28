@@ -340,67 +340,15 @@ namespace Quickstarts
                 passwordId);
         }
 
-        private async ValueTask<IUserIdentity> CreateUserIdentityAsync(
+        private ValueTask<IUserIdentity> CreateUserIdentityAsync(
             IClientIdentityProvider provider,
             EndpointDescription endpointDescription,
             CancellationToken ct)
         {
-            var context = new IdentitySelectionContext(
+            return provider.AcquireIdentityAsync(
                 endpointDescription,
-                endpointDescription.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>(),
-                m_configuration.CreateMessageContext());
-            UserTokenPolicy identityPolicy = SelectUserTokenPolicy(
-                provider,
-                context,
-                endpointDescription);
-            IUserIdentity identity = await provider
-                .GetIdentityAsync(identityPolicy, context, ct)
-                .ConfigureAwait(false);
-            identity.TokenHandler.Token.PolicyId = identityPolicy.PolicyId;
-            return identity;
-        }
-
-        private static UserTokenPolicy SelectUserTokenPolicy(
-            IClientIdentityProvider provider,
-            IdentitySelectionContext context,
-            EndpointDescription endpointDescription)
-        {
-            string tokenSecurityPolicyUri =
-                endpointDescription.SecurityPolicyUri ?? SecurityPolicies.None;
-            UserTokenPolicy? sameEncryptionAlgorithm = null;
-            UserTokenPolicy? unspecifiedSecPolicy = null;
-
-            foreach (UserTokenPolicy policy in context.OfferedPolicies)
-            {
-                if (!provider.CanSatisfy(policy, context))
-                {
-                    continue;
-                }
-
-                if (policy.TokenType == UserTokenType.Anonymous ||
-                    string.Equals(
-                        policy.SecurityPolicyUri,
-                        tokenSecurityPolicyUri,
-                        StringComparison.Ordinal))
-                {
-                    return policy;
-                }
-
-                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
-                {
-                    unspecifiedSecPolicy ??= policy;
-                }
-                else if (CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) ==
-                    CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri))
-                {
-                    sameEncryptionAlgorithm ??= policy;
-                }
-            }
-
-            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenRejected,
-                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
+                m_configuration.CreateMessageContext(),
+                ct);
         }
 
         private async Task<IClientIdentityProvider> LoadUserCertificateProviderAsync(

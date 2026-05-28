@@ -322,80 +322,14 @@ namespace Quickstarts
             }
         }
 
-        private async ValueTask<IUserIdentity> CreateUserIdentityAsync(
+        private ValueTask<IUserIdentity> CreateUserIdentityAsync(
             EndpointDescription endpointDescription,
             CancellationToken ct)
         {
-            var context = new IdentitySelectionContext(
+            return IdentityProvider.AcquireIdentityAsync(
                 endpointDescription,
-                endpointDescription.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>(),
-                m_configuration.CreateMessageContext());
-            UserTokenPolicy identityPolicy = SelectUserTokenPolicy(
-                IdentityProvider,
-                context,
-                endpointDescription);
-            IUserIdentity identity = await IdentityProvider
-                .GetIdentityAsync(identityPolicy, context, ct)
-                .ConfigureAwait(false);
-            identity.TokenHandler.Token.PolicyId = identityPolicy.PolicyId;
-            return identity;
-        }
-
-        private static UserTokenPolicy SelectUserTokenPolicy(
-            IClientIdentityProvider provider,
-            IdentitySelectionContext context,
-            EndpointDescription endpointDescription)
-        {
-            if (provider == null)
-            {
-                throw new ArgumentNullException(nameof(provider));
-            }
-
-            string tokenSecurityPolicyUri =
-                endpointDescription.SecurityPolicyUri ?? SecurityPolicies.None;
-            UserTokenPolicy? sameEncryptionAlgorithm = null;
-            UserTokenPolicy? unspecifiedSecPolicy = null;
-
-            foreach (UserTokenPolicy policy in context.OfferedPolicies)
-            {
-                if (!provider.CanSatisfy(policy, context))
-                {
-                    continue;
-                }
-
-                if (policy.TokenType == UserTokenType.Anonymous ||
-                    string.Equals(
-                        policy.SecurityPolicyUri,
-                        tokenSecurityPolicyUri,
-                        StringComparison.Ordinal))
-                {
-                    return policy;
-                }
-
-                if (string.IsNullOrEmpty(policy.SecurityPolicyUri))
-                {
-                    unspecifiedSecPolicy ??= policy;
-                }
-                else if (HasSameEncryptionAlgorithm(
-                    policy.SecurityPolicyUri!,
-                    tokenSecurityPolicyUri))
-                {
-                    sameEncryptionAlgorithm ??= policy;
-                }
-            }
-
-            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenRejected,
-                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
-        }
-
-        private static bool HasSameEncryptionAlgorithm(
-            string policySecurityPolicyUri,
-            string tokenSecurityPolicyUri)
-        {
-            return CryptoUtils.IsEccPolicy(policySecurityPolicyUri) ==
-                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri);
+                m_configuration.CreateMessageContext(),
+                ct);
         }
 
         /// <summary>
