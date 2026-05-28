@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using Opc.Ua.Schema.Model;
+using Opc.Ua.Schema.Types;
+using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -39,9 +41,10 @@ namespace Opc.Ua.SourceGeneration
     /// Emits one <c>[assembly: Opc.Ua.ModelDependencyAttribute(...)]</c> line
     /// per model the generated assembly emits (self-declaration) and one per
     /// dependency model declared by the <see cref="IModelDesign"/>. The
-    /// resulting file lets downstream source-generator consumers discover
-    /// the model closure of a referenced assembly without re-walking
-    /// AdditionalFiles.
+    /// self-declaration entry additionally carries a base64-encoded
+    /// Deflate-compressed <see cref="ModelDependencyV1"/> payload that
+    /// downstream source generators can decode to resolve cross-assembly
+    /// type references without re-walking <c>AdditionalFiles</c>.
     /// </summary>
     internal sealed class ModelDependencyGenerator : IGenerator
     {
@@ -92,11 +95,17 @@ namespace Opc.Ua.SourceGeneration
 
             // Self-declaration: one entry for the target namespace using the
             // generator-resolved target version / publication date so that
-            // downstream tie-breaks have authoritative metadata.
+            // downstream tie-breaks have authoritative metadata. This is the
+            // only entry that carries a payload — the compact type-table
+            // ModelDependencyV1 blob.
             string selfVersion = m_context.ModelDesign.TargetVersion ?? target.Version;
             string selfPubDate = FormatDate(m_context.ModelDesign.TargetPublicationDate)
                 ?? target.PublicationDate;
-            entries.Add(new Entry(target.Value, target.Prefix, selfVersion, selfPubDate, target.Name));
+            string selfPayload = BuildSelfPayload(target);
+            entries.Add(new Entry(
+                target.Value, target.Prefix,
+                selfVersion, selfPubDate, target.Name,
+                selfPayload));
             seen.Add(target.Value);
 
             // Re-emit dependencies declared on the model (transitive closure).
@@ -117,7 +126,9 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                entries.Add(new Entry(ns.Value, ns.Prefix, ns.Version, ns.PublicationDate, ns.Name));
+                entries.Add(new Entry(
+                    ns.Value, ns.Prefix, ns.Version, ns.PublicationDate, ns.Name,
+                    null));
             }
 
             // Re-emit the closure picked up from referenced assemblies so
@@ -138,10 +149,174 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                entries.Add(new Entry(r.ModelUri, r.Prefix, r.Version, r.PublicationDate, r.Name));
+                entries.Add(new Entry(
+                    r.ModelUri, r.Prefix, r.Version, r.PublicationDate, r.Name,
+                    null));
             }
 
             return entries;
+        }
+
+        private string BuildSelfPayload(Namespace target)
+        {
+            // OpcUa root is implicit to every consumer; do not emit a payload.
+            if (target.Value == Opc.Ua.Types.Namespaces.OpcUa)
+            {
+                return null;
+            }
+            ModelDependencyV1 payload = BuildPayload(target);
+            if (payload.Nodes.Count == 0)
+            {
+                return null;
+            }
+            return payload.ToBase64Payload();
+        }
+
+        private ModelDependencyV1 BuildPayload(Namespace target)
+        {
+            var payload = new ModelDependencyV1 { ModelUri = target.Value };
+            string targetUri = target.Value;
+            foreach (NodeDesign node in m_context.ModelDesign.Nodes ?? [])
+            {
+                if (m_context.ModelDesign.IsExcluded(node))
+                {
+                    continue;
+                }
+                if (node.SymbolicId is null ||
+                    !string.Equals(node.SymbolicId.Namespace, targetUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (node is not TypeDesign type)
+                {
+                    continue;
+                }
+                DependencyNodeKind kind = type switch
+                {
+                    ObjectTypeDesign => DependencyNodeKind.ObjectType,
+                    VariableTypeDesign => DependencyNodeKind.VariableType,
+                    ReferenceTypeDesign => DependencyNodeKind.ReferenceType,
+                    DataTypeDesign => DependencyNodeKind.DataType,
+                    _ => DependencyNodeKind.Unknown
+                };
+                if (kind == DependencyNodeKind.Unknown)
+                {
+                    continue;
+                }
+                var entry = new DependencyNode
+                {
+                    SymbolicName = type.SymbolicId.Name ?? string.Empty,
+                    SymbolicNamespace = type.SymbolicId.Namespace ?? string.Empty,
+                    ClassName = type.ClassName ?? type.SymbolicId.Name ?? string.Empty,
+                    Kind = kind,
+                    BaseTypeName = type.BaseType?.Name,
+                    BaseTypeNamespace = type.BaseType?.Namespace,
+                    NumericId = type.NumericIdSpecified ? type.NumericId : 0u,
+                    StringId = string.IsNullOrEmpty(type.StringId) ? null : type.StringId,
+                    IsAbstract = type.IsAbstract
+                };
+                if (type is DataTypeDesign dataType)
+                {
+                    entry.IsEnumeration = dataType.IsEnumeration;
+                    if (dataType.Fields != null && dataType.Fields.Length > 0)
+                    {
+                        var fields = new List<DependencyDataField>(dataType.Fields.Length);
+                        foreach (Parameter field in dataType.Fields)
+                        {
+                            if (field == null) { continue; }
+                            fields.Add(new DependencyDataField(
+                                name: field.Name ?? string.Empty,
+                                dataTypeName: field.DataType?.Name ?? string.Empty,
+                                dataTypeNamespace: field.DataType?.Namespace ?? string.Empty,
+                                valueRank: (int)field.ValueRank));
+                        }
+                        entry.Fields = fields;
+                    }
+                }
+                else
+                {
+                    // For ObjectType / VariableType / ReferenceType, carry
+                    // their declared InstanceDesign children so downstream
+                    // consumers can recognise inherited members and suppress
+                    // duplicate emission.
+                    if (type.HasChildren && type.Children?.Items != null)
+                    {
+                        var children = new List<DependencyChild>(type.Children.Items.Length);
+                        foreach (InstanceDesign child in type.Children.Items)
+                        {
+                            if (child == null) { continue; }
+                            byte instanceKind = child switch
+                            {
+                                PropertyDesign => (byte)3,
+                                VariableDesign => (byte)2,
+                                MethodDesign => (byte)4,
+                                _ => (byte)1
+                            };
+                            byte modellingRule = child.ModellingRule switch
+                            {
+                                ModellingRule.Mandatory => (byte)1,
+                                ModellingRule.Optional => (byte)2,
+                                ModellingRule.OptionalPlaceholder => (byte)3,
+                                ModellingRule.MandatoryPlaceholder => (byte)4,
+                                ModellingRule.ExposesItsArray => (byte)5,
+                                _ => (byte)0
+                            };
+                            var entryChild = new DependencyChild
+                            {
+                                BrowseName = child.BrowseName ?? child.SymbolicName?.Name ?? string.Empty,
+                                SymbolicName = child.SymbolicName?.Name ?? string.Empty,
+                                TypeDefinitionName = child.TypeDefinition?.Name ?? string.Empty,
+                                TypeDefinitionNamespace = child.TypeDefinition?.Namespace ?? string.Empty,
+                                ModellingRule = modellingRule,
+                                InstanceKind = instanceKind
+                            };
+                            if (child is VariableDesign variable)
+                            {
+                                entryChild.DataTypeName = variable.DataType?.Name ?? string.Empty;
+                                entryChild.DataTypeNamespace = variable.DataType?.Namespace ?? string.Empty;
+                                entryChild.ValueRank = (int)variable.ValueRank;
+                            }
+                            else if (child is MethodDesign method)
+                            {
+                                entryChild.InputArguments = DependencyMethodArgs(method.InputArguments);
+                                entryChild.OutputArguments = DependencyMethodArgs(method.OutputArguments);
+                            }
+                            children.Add(entryChild);
+                        }
+                        if (children.Count > 0)
+                        {
+                            entry.Children = children;
+                        }
+                    }
+                }
+                payload.Nodes.Add(entry);
+            }
+            // Deterministic order so the assembly is byte-reproducible.
+            payload.Nodes.Sort((a, b) =>
+            {
+                int c = string.CompareOrdinal(a.SymbolicNamespace, b.SymbolicNamespace);
+                return c != 0 ? c : string.CompareOrdinal(a.SymbolicName, b.SymbolicName);
+            });
+            return payload;
+        }
+
+        private static IReadOnlyList<DependencyMethodArg> DependencyMethodArgs(Parameter[] args)
+        {
+            if (args == null || args.Length == 0)
+            {
+                return [];
+            }
+            var result = new List<DependencyMethodArg>(args.Length);
+            foreach (Parameter a in args)
+            {
+                if (a == null) { continue; }
+                result.Add(new DependencyMethodArg(
+                    name: a.Name ?? string.Empty,
+                    dataTypeName: a.DataType?.Name ?? string.Empty,
+                    dataTypeNamespace: a.DataType?.Namespace ?? string.Empty,
+                    valueRank: (int)a.ValueRank));
+            }
+            return result;
         }
 
         private static bool WriteEntry(IWriteContext context)
@@ -158,6 +333,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ModelPublicationDate,
                 FormatNullableLiteral(entry.PublicationDate));
             context.Template.AddReplacement(Tokens.ModelName, FormatNullableLiteral(entry.Name));
+            context.Template.AddReplacement(Tokens.ModelPayload, FormatNullableLiteral(entry.Payload));
 
             return context.Template.Render();
         }
@@ -186,7 +362,8 @@ namespace Opc.Ua.SourceGeneration
             string Prefix,
             string Version,
             string PublicationDate,
-            string Name);
+            string Name,
+            string Payload);
 
         private readonly IGeneratorContext m_context;
     }

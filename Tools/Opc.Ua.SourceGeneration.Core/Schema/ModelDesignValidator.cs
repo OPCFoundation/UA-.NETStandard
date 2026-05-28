@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.Schema.Types;
 using Opc.Ua.SourceGeneration;
+using Opc.Ua.SourceGeneration.Dependency;
 using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema.Model
@@ -45,7 +46,7 @@ namespace Opc.Ua.Schema.Model
     /// <summary>
     /// Generates files used to describe data types.
     /// </summary>
-    public partial class ModelDesignValidator : SchemaValidator, IModelDesign
+    public class ModelDesignValidator : SchemaValidator, IModelDesign
     {
         /// <summary>
         /// Create model design validator
@@ -348,13 +349,13 @@ namespace Opc.Ua.Schema.Model
 
             m_designFilePaths[Ua.Types.Namespaces.OpcUa] = string.Empty;
 
-            // Apply any snapshots that were registered via ImportSnapshot()
+            // Apply any dependency payloads that were registered via ImportDependency()
             // before validation began. Their type entries become visible
             // to the dependency-loading pass below, so downstream
             // NodeSet2/ModelDesign inputs can resolve cross-namespace
             // references (e.g. BaseType lookups) without those upstream
             // models being present in AdditionalFiles.
-            ApplyPendingSnapshots();
+            ApplyPendingDependencies();
 
             // load the design files.
             List<Namespace> namespaces = GetNamespaceList(designFilePaths);
@@ -5966,5 +5967,367 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, RolePermissionSet> m_defaultRolePermissions = [];
         private readonly Dictionary<string, AccessRestrictions?> m_defaultAccessRestrictions = [];
         private Dictionary<string, string> m_designFilePaths = [];
+
+        // ──────────────────────────────────────────────────────────────────
+        // Dependency import — formerly the SnapshotImport partial.
+        // Lets a downstream consumer's source generator ingest the type
+        // table from a referenced assembly's
+        // [assembly: ModelDependencyAttribute(..., payload)] without the
+        // consumer having to re-add the upstream NodeSet2/ModelDesign XML
+        // to AdditionalFiles.
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Imports a model dependency payload into the validator's node
+        /// table. Safe to call multiple times. Stored payloads are
+        /// re-applied automatically inside <c>ValidateModel</c> after the
+        /// validator's internal tables are reset, so the dependency types
+        /// are visible to the dependency-loading pass.
+        /// </summary>
+        /// <param name="dependency">The deserialised dependency payload.</param>
+        /// <param name="prefix">The C# prefix the producing assembly uses
+        /// for the dependency's model (so the synthetic Namespace entry
+        /// matches what downstream emitters expect to see).</param>
+        /// <param name="name">The C# identifier the producing assembly used
+        /// inside its <c>Namespaces</c> class for the dependency's model
+        /// (e.g. <c>"OpcUaDi"</c>).</param>
+        public void ImportDependency(
+            ModelDependencyV1 dependency,
+            string prefix,
+            string name)
+        {
+            if (dependency == null) { throw new ArgumentNullException(nameof(dependency)); }
+            if (string.IsNullOrEmpty(dependency.ModelUri))
+            {
+                throw new ArgumentException(
+                    "Dependency payload has no ModelUri.",
+                    nameof(dependency));
+            }
+            m_pendingDependencies ??= [];
+            m_pendingDependencies.Add(new PendingDependency(dependency, prefix, name));
+        }
+
+        /// <summary>
+        /// Called from inside <c>ValidateModel</c> right after the
+        /// node-table reset and the built-in OpcUa model load, so all
+        /// stored dependency entries are registered before dependency
+        /// design files are processed.
+        /// </summary>
+        internal void ApplyPendingDependencies()
+        {
+            if (m_pendingDependencies == null || m_pendingDependencies.Count == 0)
+            {
+                return;
+            }
+            EnsureDependencyTablesInitialised();
+            foreach (PendingDependency pending in m_pendingDependencies)
+            {
+                ApplyDependency(pending.Dependency);
+            }
+            // Cross-dependency references can now resolve.
+            LinkDependencyChildren();
+        }
+
+        private void ApplyDependency(ModelDependencyV1 dependency)
+        {
+            // Mark the dependency's namespace as "resolved without a backing
+            // file" so dependency-missing errors do not fire.
+            m_designFilePaths[dependency.ModelUri] = string.Empty;
+
+            // Allocate or recover a namespace index for the dependency model.
+            int nsIndex = m_context.NamespaceUris.GetIndexOrAppend(dependency.ModelUri);
+
+            foreach (DependencyNode entry in dependency.Nodes)
+            {
+                NodeDesign design = MaterialiseDependencyNode(entry);
+                if (design == null)
+                {
+                    continue;
+                }
+
+                XmlQualifiedName symbolicId = design.SymbolicId;
+                if (symbolicId == null || string.IsNullOrEmpty(symbolicId.Name))
+                {
+                    continue;
+                }
+
+                // Do not overwrite an entry that the validator already loaded
+                // from its own AdditionalFiles — the explicit AdditionalFile
+                // always wins.
+                if (m_nodes.ContainsKey(symbolicId))
+                {
+                    continue;
+                }
+                m_nodes[symbolicId] = design;
+
+                if (entry.NumericId != 0)
+                {
+                    var nodeId = new NodeId(entry.NumericId, (ushort)nsIndex);
+                    if (!m_nodesByNodeId.ContainsKey(nodeId))
+                    {
+                        m_nodesByNodeId[nodeId] = design;
+                    }
+                    m_symbolicIdToNodeId[symbolicId] = nodeId;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ensures the dependency-targeted dictionaries exist. The full
+        /// validation path creates them as part of regular loading;
+        /// when <see cref="ImportDependency"/> is called before validation
+        /// the tables must be available so the dependency is not lost.
+        /// </summary>
+        private void EnsureDependencyTablesInitialised()
+        {
+            m_nodes ??= [];
+            m_nodesByNodeId ??= [];
+            m_identifiers ??= [];
+            m_namespaceTables ??= [];
+            m_designFilePaths ??= [];
+        }
+
+        private static NodeDesign MaterialiseDependencyNode(DependencyNode entry)
+        {
+            var symbolicId = new XmlQualifiedName(
+                entry.SymbolicName ?? string.Empty,
+                entry.SymbolicNamespace ?? string.Empty);
+
+            XmlQualifiedName baseType = null;
+            if (!string.IsNullOrEmpty(entry.BaseTypeName))
+            {
+                baseType = new XmlQualifiedName(
+                    entry.BaseTypeName,
+                    entry.BaseTypeNamespace ?? string.Empty);
+            }
+
+            TypeDesign design = entry.Kind switch
+            {
+                DependencyNodeKind.ObjectType => new ObjectTypeDesign(),
+                DependencyNodeKind.VariableType => new VariableTypeDesign(),
+                DependencyNodeKind.ReferenceType => new ReferenceTypeDesign(),
+                DependencyNodeKind.DataType => new DataTypeDesign(),
+                _ => null
+            };
+            if (design == null)
+            {
+                return null;
+            }
+
+            design.SymbolicName = symbolicId;
+            design.SymbolicId = symbolicId;
+            design.BrowseName = entry.SymbolicName ?? string.Empty;
+            design.DisplayName = new LocalizedText { Value = entry.SymbolicName ?? string.Empty };
+            design.ClassName = string.IsNullOrEmpty(entry.ClassName)
+                ? entry.SymbolicName ?? string.Empty
+                : entry.ClassName;
+            design.BaseType = baseType;
+            design.IsAbstract = entry.IsAbstract;
+            if (entry.NumericId != 0)
+            {
+                design.NumericId = entry.NumericId;
+                design.NumericIdSpecified = true;
+            }
+            if (!string.IsNullOrEmpty(entry.StringId))
+            {
+                design.StringId = entry.StringId;
+            }
+
+            if (design is DataTypeDesign dt && entry.Fields != null && entry.Fields.Count > 0)
+            {
+                var parameters = new Parameter[entry.Fields.Count];
+                for (int i = 0; i < entry.Fields.Count; i++)
+                {
+                    DependencyDataField f = entry.Fields[i];
+                    parameters[i] = new Parameter
+                    {
+                        Name = f.Name,
+                        DataType = new XmlQualifiedName(
+                            f.DataTypeName ?? string.Empty,
+                            f.DataTypeNamespace ?? string.Empty),
+                        ValueRank = (ValueRank)f.ValueRank,
+                        Description = new LocalizedText()
+                    };
+                }
+                dt.Fields = parameters;
+                dt.HasFields = true;
+            }
+            else if (entry.Children != null && entry.Children.Count > 0)
+            {
+                // Reconstruct Children so the consumer's SetOverriddenNodes
+                // walk (which descends through BaseTypeNode → Children.Items)
+                // can recognise the upstream's inherited members and properly
+                // set OveriddenNode on downstream re-declarations.
+                // TypeDefinitionNode + DataTypeNode references are resolved
+                // later by LinkDependencyChildren() after all dependencies
+                // are applied.
+                var instanceItems = new InstanceDesign[entry.Children.Count];
+                for (int i = 0; i < entry.Children.Count; i++)
+                {
+                    instanceItems[i] = MaterialiseDependencyChild(symbolicId, entry.Children[i]);
+                }
+                design.Children = new ListOfChildren { Items = instanceItems };
+                design.HasChildren = true;
+            }
+
+            // Mark as an external/upstream declaration so consumer
+            // generators don't try to re-emit this type locally.
+            design.IsDeclaration = true;
+
+            return design;
+        }
+
+        private static InstanceDesign MaterialiseDependencyChild(
+            XmlQualifiedName parentSymbolicId,
+            DependencyChild c)
+        {
+            InstanceDesign instance = c.InstanceKind switch
+            {
+                3 => new PropertyDesign(),
+                2 => new VariableDesign(),
+                4 => new MethodDesign(),
+                _ => new ObjectDesign()
+            };
+            instance.BrowseName = c.BrowseName ?? string.Empty;
+            var childSymbolicId = new XmlQualifiedName(
+                string.IsNullOrEmpty(c.SymbolicName) ? c.BrowseName : c.SymbolicName,
+                parentSymbolicId.Namespace);
+            instance.SymbolicName = childSymbolicId;
+            instance.SymbolicId = new XmlQualifiedName(
+                NodeDesign.CreateSymbolicId(
+                    parentSymbolicId.Name,
+                    childSymbolicId.Name),
+                parentSymbolicId.Namespace);
+            instance.ModellingRule = c.ModellingRule switch
+            {
+                1 => ModellingRule.Mandatory,
+                2 => ModellingRule.Optional,
+                3 => ModellingRule.OptionalPlaceholder,
+                4 => ModellingRule.MandatoryPlaceholder,
+                5 => ModellingRule.ExposesItsArray,
+                _ => ModellingRule.None
+            };
+            instance.ModellingRuleSpecified = c.ModellingRule != 0;
+            instance.DisplayName = new LocalizedText
+            {
+                Value = c.BrowseName ?? string.Empty,
+                IsAutogenerated = true
+            };
+            if (!string.IsNullOrEmpty(c.TypeDefinitionName))
+            {
+                instance.TypeDefinition = new XmlQualifiedName(
+                    c.TypeDefinitionName,
+                    c.TypeDefinitionNamespace ?? string.Empty);
+            }
+            if (instance is VariableDesign variable)
+            {
+                if (!string.IsNullOrEmpty(c.DataTypeName))
+                {
+                    variable.DataType = new XmlQualifiedName(
+                        c.DataTypeName,
+                        c.DataTypeNamespace ?? string.Empty);
+                }
+                variable.ValueRank = (ValueRank)c.ValueRank;
+                variable.ValueRankSpecified = c.ValueRank != (int)ValueRank.Scalar;
+            }
+            else if (instance is MethodDesign method)
+            {
+                // Methods carry their own argument lists; the TypeDefinition
+                // would point at a MethodType (a separate MethodDesign in
+                // the upstream model) which is NOT carried by the dependency
+                // payload, so clear it to avoid a downstream
+                // FindNode<MethodDesign> failure during ValidateInstance.
+                method.TypeDefinition = null;
+                method.InputArguments = MaterialiseMethodArgs(c.InputArguments);
+                method.OutputArguments = MaterialiseMethodArgs(c.OutputArguments);
+                method.HasArguments = method.InputArguments.Length > 0
+                    || method.OutputArguments.Length > 0;
+            }
+            // Mark as inherited-declaration so consumer code paths
+            // that iterate children for emission can short-circuit.
+            instance.IsDeclaration = true;
+            return instance;
+        }
+
+        private static Parameter[] MaterialiseMethodArgs(
+            IReadOnlyList<DependencyMethodArg> args)
+        {
+            if (args == null || args.Count == 0)
+            {
+                return [];
+            }
+            var result = new Parameter[args.Count];
+            for (int i = 0; i < args.Count; i++)
+            {
+                DependencyMethodArg a = args[i];
+                result[i] = new Parameter
+                {
+                    Name = a.Name ?? string.Empty,
+                    DataType = new XmlQualifiedName(
+                        a.DataTypeName ?? string.Empty,
+                        a.DataTypeNamespace ?? string.Empty),
+                    ValueRank = (ValueRank)a.ValueRank,
+                    Description = new LocalizedText()
+                };
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Resolve <c>TypeDefinitionNode</c> / <c>DataTypeNode</c> /
+        /// <c>BaseTypeNode</c> references on dependency-materialised
+        /// types and their children. Run after all dependencies have
+        /// been applied so cross-dependency references can resolve.
+        /// </summary>
+        private void LinkDependencyChildren()
+        {
+            if (m_pendingDependencies == null || m_pendingDependencies.Count == 0)
+            {
+                return;
+            }
+            foreach (NodeDesign node in m_nodes.Values)
+            {
+                if (node is not TypeDesign type)
+                {
+                    continue;
+                }
+                if (!type.IsDeclaration)
+                {
+                    continue;
+                }
+                // Resolve BaseTypeNode.
+                if (type.BaseType != null &&
+                    type.BaseTypeNode == null &&
+                    m_nodes.TryGetValue(type.BaseType, out NodeDesign baseDesign))
+                {
+                    type.BaseTypeNode = baseDesign as TypeDesign;
+                }
+                // Resolve children's TypeDefinitionNode / DataTypeNode.
+                if (!type.HasChildren || type.Children?.Items == null)
+                {
+                    continue;
+                }
+                foreach (InstanceDesign instance in type.Children.Items)
+                {
+                    if (instance.TypeDefinition != null &&
+                        instance.TypeDefinitionNode == null &&
+                        m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign tdNode))
+                    {
+                        instance.TypeDefinitionNode = tdNode as TypeDesign;
+                    }
+                    if (instance is VariableDesign variable &&
+                        variable.DataType != null &&
+                        variable.DataTypeNode == null &&
+                        m_nodes.TryGetValue(variable.DataType, out NodeDesign dtNode))
+                    {
+                        variable.DataTypeNode = dtNode as DataTypeDesign;
+                    }
+                }
+            }
+        }
+
+        private List<PendingDependency> m_pendingDependencies;
+
+        private sealed record PendingDependency(ModelDependencyV1 Dependency, string Prefix, string Name);
     }
 }

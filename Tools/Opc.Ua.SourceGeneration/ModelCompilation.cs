@@ -60,8 +60,7 @@ namespace Opc.Ua.SourceGeneration
             CompilationOptions compilationOptions,
             ImmutableArray<ModelDependencyReference> referencedModels,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
-            ILogger logger,
-            ImmutableArray<ReferencedModelSnapshot> referencedSnapshots = default)
+            ILogger logger)
         {
             m_context = context;
             m_input = inputFiles;
@@ -70,9 +69,6 @@ namespace Opc.Ua.SourceGeneration
             m_compilationOptions = compilationOptions;
             m_nodeManagerBindings = nodeManagerBindings;
             m_referencedModels = referencedModels;
-            m_referencedSnapshots = referencedSnapshots.IsDefault
-                ? ImmutableArray<ReferencedModelSnapshot>.Empty
-                : referencedSnapshots;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
 
@@ -168,8 +164,8 @@ namespace Opc.Ua.SourceGeneration
                 // so the downstream generators can apply override resolution.
                 System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
                     referencedModels = BuildReferencedModelMap();
-                System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>
-                    referencedSnapshots = BuildReferencedSnapshotMap();
+                System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>
+                    referencedDependencies = BuildReferencedDependencyMap();
 
                 nodesets.GenerateCode(
                     sourceFiles.WithFallback(vfs),
@@ -180,7 +176,7 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
-                    referencedSnapshots);
+                    referencedDependencies);
 
                 // Process any remaining design files
                 new DesignFileCollection
@@ -295,22 +291,23 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Build a per-URI dictionary of the deserialised model snapshots
-        /// scanned from referenced assemblies. Snapshots with unknown
-        /// versions or malformed payloads are silently dropped.
+        /// Build a per-URI dictionary of the deserialised model
+        /// dependency payloads scanned from referenced assemblies.
+        /// Payloads with unknown versions or malformed encodings are
+        /// silently dropped.
         /// </summary>
-        private System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>
-            BuildReferencedSnapshotMap()
+        private System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>
+            BuildReferencedDependencyMap()
         {
-            if (m_referencedSnapshots.IsDefaultOrEmpty)
+            if (m_referencedModels.IsDefaultOrEmpty)
             {
-                return ImmutableDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>.Empty;
+                return ImmutableDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>.Empty;
             }
-            var map = new System.Collections.Generic.Dictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1>(
+            var map = new System.Collections.Generic.Dictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>(
                 StringComparer.Ordinal);
-            foreach (ReferencedModelSnapshot candidate in m_referencedSnapshots)
+            foreach (ModelDependencyReference candidate in m_referencedModels)
             {
-                Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1 decoded = candidate.GetSnapshot();
+                Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1 decoded = candidate.GetDependency();
                 if (decoded == null)
                 {
                     continue;
@@ -324,9 +321,9 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Resolve whether the model-dependency / model-snapshot
-        /// assembly attributes should be emitted, honouring the
-        /// compilation's OutputKind in <c>Auto</c> mode.
+        /// Resolve whether the model-dependency assembly attribute
+        /// should be emitted, honouring the compilation's OutputKind
+        /// in <c>Auto</c> mode.
         /// </summary>
         private bool ResolveEmitDependencyMetadata()
         {
@@ -346,7 +343,6 @@ namespace Opc.Ua.SourceGeneration
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
         private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
-        private readonly ImmutableArray<ReferencedModelSnapshot> m_referencedSnapshots;
         private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly SourceGeneratorTelemetry m_telemetry;
     }

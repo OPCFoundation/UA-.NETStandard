@@ -35,14 +35,14 @@ using System.Text;
 
 #nullable enable
 
-namespace Opc.Ua.SourceGeneration.Snapshot
+namespace Opc.Ua.SourceGeneration.Dependency
 {
     /// <summary>
-    /// Kind of node carried in a <see cref="ModelSnapshotV1"/>.
+    /// Kind of node carried in a <see cref="ModelDependencyV1"/>.
     /// </summary>
-    public enum SnapshotNodeKind : byte
+    public enum DependencyNodeKind : byte
     {
-        /// <summary>Unknown — invalid in a well-formed snapshot.</summary>
+        /// <summary>Unknown — invalid in a well-formed dependency payload.</summary>
         Unknown = 0,
         /// <summary>ObjectType.</summary>
         ObjectType = 1,
@@ -57,9 +57,9 @@ namespace Opc.Ua.SourceGeneration.Snapshot
     }
 
     /// <summary>
-    /// Reduced view of a <c>DataTypeDesign</c> field carried in a snapshot.
+    /// Reduced view of a <c>DataTypeDesign</c> field carried in a dependency payload.
     /// </summary>
-    public readonly struct SnapshotDataField
+    public readonly struct DependencyDataField
     {
         /// <summary>Field name.</summary>
         public string Name { get; }
@@ -71,7 +71,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         public int ValueRank { get; }
 
         /// <summary>Constructor.</summary>
-        public SnapshotDataField(string name, string dataTypeName, string dataTypeNamespace, int valueRank)
+        public DependencyDataField(string name, string dataTypeName, string dataTypeNamespace, int valueRank)
         {
             Name = name ?? string.Empty;
             DataTypeName = dataTypeName ?? string.Empty;
@@ -81,9 +81,9 @@ namespace Opc.Ua.SourceGeneration.Snapshot
     }
 
     /// <summary>
-    /// A method input or output argument carried in a snapshot.
+    /// A method input or output argument carried in a dependency payload.
     /// </summary>
-    public readonly struct SnapshotMethodArg
+    public readonly struct DependencyMethodArg
     {
         /// <summary>Argument name.</summary>
         public string Name { get; }
@@ -95,7 +95,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         public int ValueRank { get; }
 
         /// <summary>Constructor.</summary>
-        public SnapshotMethodArg(string name, string dataTypeName, string dataTypeNamespace, int valueRank)
+        public DependencyMethodArg(string name, string dataTypeName, string dataTypeNamespace, int valueRank)
         {
             Name = name ?? string.Empty;
             DataTypeName = dataTypeName ?? string.Empty;
@@ -106,12 +106,12 @@ namespace Opc.Ua.SourceGeneration.Snapshot
 
     /// <summary>
     /// Reduced view of an <c>InstanceDesign</c> child carried in a
-    /// snapshot type. Carries enough metadata for downstream
+    /// dependency payload type. Carries enough metadata for downstream
     /// generators to set <c>OveriddenNode</c> + <c>TypeDefinitionNode</c>
     /// / <c>DataTypeNode</c> on consumer's re-declared inherited
     /// members.
     /// </summary>
-    public sealed class SnapshotChild
+    public sealed class DependencyChild
     {
         /// <summary>Browse name of the child.</summary>
         public string BrowseName { get; set; } = string.Empty;
@@ -132,18 +132,18 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         /// <summary>Instance kind: 1=Object 2=Variable 3=Property 4=Method.</summary>
         public byte InstanceKind { get; set; }
         /// <summary>Input arguments (methods only).</summary>
-        public IReadOnlyList<SnapshotMethodArg> InputArguments { get; set; } = Array.Empty<SnapshotMethodArg>();
+        public IReadOnlyList<DependencyMethodArg> InputArguments { get; set; } = Array.Empty<DependencyMethodArg>();
         /// <summary>Output arguments (methods only).</summary>
-        public IReadOnlyList<SnapshotMethodArg> OutputArguments { get; set; } = Array.Empty<SnapshotMethodArg>();
+        public IReadOnlyList<DependencyMethodArg> OutputArguments { get; set; } = Array.Empty<DependencyMethodArg>();
     }
 
     /// <summary>
-    /// Reduced view of a node entry carried in a snapshot. One entry per
+    /// Reduced view of a node entry carried in a dependency payload. One entry per
     /// node the producing assembly emits as a public type definition
     /// (objects/instances are not carried; consumers re-derive
     /// inheritance via <see cref="BaseTypeName"/>).
     /// </summary>
-    public sealed class SnapshotNode
+    public sealed class DependencyNode
     {
         /// <summary>Symbolic name.</summary>
         public string SymbolicName { get; set; } = string.Empty;
@@ -152,7 +152,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         /// <summary>Emitted C# class name (post-Type-suffix-stripping).</summary>
         public string ClassName { get; set; } = string.Empty;
         /// <summary>Node kind.</summary>
-        public SnapshotNodeKind Kind { get; set; }
+        public DependencyNodeKind Kind { get; set; }
         /// <summary>Base type name (null for root types).</summary>
         public string? BaseTypeName { get; set; }
         /// <summary>Base type namespace URI (null for root types).</summary>
@@ -166,15 +166,15 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         /// <summary>True when the entry represents an enumeration DataType.</summary>
         public bool IsEnumeration { get; set; }
         /// <summary>DataType fields (empty for non-DataType kinds).</summary>
-        public IReadOnlyList<SnapshotDataField> Fields { get; set; } = Array.Empty<SnapshotDataField>();
+        public IReadOnlyList<DependencyDataField> Fields { get; set; } = Array.Empty<DependencyDataField>();
         /// <summary>Declared instance children (empty for DataType / no-child types).</summary>
-        public IReadOnlyList<SnapshotChild> Children { get; set; } = Array.Empty<SnapshotChild>();
+        public IReadOnlyList<DependencyChild> Children { get; set; } = Array.Empty<DependencyChild>();
     }
 
     /// <summary>
-    /// In-memory representation of a <c>ModelSnapshotV1</c> payload.
+    /// In-memory representation of a <c>ModelDependencyV1</c> payload.
     /// </summary>
-    public sealed class ModelSnapshotV1
+    public sealed class ModelDependencyV1
     {
         /// <summary>The magic byte sequence.</summary>
         public static readonly byte[] Magic = [0xAA, 0xC7];
@@ -185,16 +185,16 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         /// <summary>Compression scheme: 1 = Deflate.</summary>
         public const byte CompressionDeflate = 1;
 
-        /// <summary>The model URI this snapshot describes.</summary>
+        /// <summary>The model URI this dependency payload describes.</summary>
         public string ModelUri { get; set; } = string.Empty;
 
-        /// <summary>Nodes in the snapshot.</summary>
-        public List<SnapshotNode> Nodes { get; } = [];
+        /// <summary>Nodes in the dependency payload.</summary>
+        public List<DependencyNode> Nodes { get; } = [];
 
         /// <summary>
-        /// Serialises the snapshot to a base64-encoded
+        /// Serialises the dependency payload to a base64-encoded
         /// Deflate-compressed payload suitable for embedding in
-        /// <c>ModelSnapshotAttribute</c>.
+        /// <c>ModelDependencyAttribute</c>.
         /// </summary>
         public string ToBase64Payload()
         {
@@ -217,11 +217,11 @@ namespace Opc.Ua.SourceGeneration.Snapshot
         }
 
         /// <summary>
-        /// Reads a snapshot from a base64-encoded payload.
+        /// Reads a dependency payload from a base64-encoded payload.
         /// </summary>
         /// <returns>Null when the payload version is unrecognised or the
         /// magic does not match.</returns>
-        public static ModelSnapshotV1? FromBase64Payload(string base64)
+        public static ModelDependencyV1? FromBase64Payload(string base64)
         {
             if (string.IsNullOrEmpty(base64)) { return null; }
             byte[] bytes;
@@ -244,7 +244,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
             deflate.CopyTo(inflated);
             inflated.Position = 0;
 
-            var result = new ModelSnapshotV1();
+            var result = new ModelDependencyV1();
             result.ReadUncompressed(inflated);
             return result;
         }
@@ -254,7 +254,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
             using var writer = new BinaryWriter(destination, Encoding.UTF8, leaveOpen: true);
             WriteString(writer, ModelUri);
             writer.Write(Nodes.Count);
-            foreach (SnapshotNode node in Nodes)
+            foreach (DependencyNode node in Nodes)
             {
                 WriteString(writer, node.SymbolicName);
                 WriteString(writer, node.SymbolicNamespace);
@@ -269,7 +269,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                 if (node.IsEnumeration) { flags |= 0x02; }
                 writer.Write(flags);
                 writer.Write(node.Fields.Count);
-                foreach (SnapshotDataField field in node.Fields)
+                foreach (DependencyDataField field in node.Fields)
                 {
                     WriteString(writer, field.Name);
                     WriteString(writer, field.DataTypeName);
@@ -277,7 +277,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                     writer.Write(field.ValueRank);
                 }
                 writer.Write(node.Children.Count);
-                foreach (SnapshotChild child in node.Children)
+                foreach (DependencyChild child in node.Children)
                 {
                     WriteString(writer, child.BrowseName);
                     WriteString(writer, child.SymbolicName);
@@ -289,7 +289,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                     writer.Write(child.ModellingRule);
                     writer.Write(child.InstanceKind);
                     writer.Write(child.InputArguments.Count);
-                    foreach (SnapshotMethodArg a in child.InputArguments)
+                    foreach (DependencyMethodArg a in child.InputArguments)
                     {
                         WriteString(writer, a.Name);
                         WriteString(writer, a.DataTypeName);
@@ -297,7 +297,7 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                         writer.Write(a.ValueRank);
                     }
                     writer.Write(child.OutputArguments.Count);
-                    foreach (SnapshotMethodArg a in child.OutputArguments)
+                    foreach (DependencyMethodArg a in child.OutputArguments)
                     {
                         WriteString(writer, a.Name);
                         WriteString(writer, a.DataTypeName);
@@ -316,17 +316,17 @@ namespace Opc.Ua.SourceGeneration.Snapshot
             if (typeCount < 0 || typeCount > 1_000_000)
             {
                 throw new InvalidDataException(
-                    "ModelSnapshotV1: invalid type count " + typeCount);
+                    "ModelDependencyV1: invalid type count " + typeCount);
             }
             Nodes.Capacity = typeCount;
             for (int i = 0; i < typeCount; i++)
             {
-                var node = new SnapshotNode
+                var node = new DependencyNode
                 {
                     SymbolicName = ReadString(reader),
                     SymbolicNamespace = ReadString(reader),
                     ClassName = ReadString(reader),
-                    Kind = (SnapshotNodeKind)reader.ReadByte(),
+                    Kind = (DependencyNodeKind)reader.ReadByte(),
                     BaseTypeName = ReadNullableString(reader),
                     BaseTypeNamespace = ReadNullableString(reader),
                     NumericId = reader.ReadUInt32(),
@@ -339,14 +339,14 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                 if (fieldCount < 0 || fieldCount > 100_000)
                 {
                     throw new InvalidDataException(
-                        "ModelSnapshotV1: invalid field count " + fieldCount);
+                        "ModelDependencyV1: invalid field count " + fieldCount);
                 }
                 if (fieldCount > 0)
                 {
-                    var fields = new SnapshotDataField[fieldCount];
+                    var fields = new DependencyDataField[fieldCount];
                     for (int j = 0; j < fieldCount; j++)
                     {
-                        fields[j] = new SnapshotDataField(
+                        fields[j] = new DependencyDataField(
                             ReadString(reader),
                             ReadString(reader),
                             ReadString(reader),
@@ -358,14 +358,14 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                 if (childCount < 0 || childCount > 100_000)
                 {
                     throw new InvalidDataException(
-                        "ModelSnapshotV1: invalid child count " + childCount);
+                        "ModelDependencyV1: invalid child count " + childCount);
                 }
                 if (childCount > 0)
                 {
-                    var children = new SnapshotChild[childCount];
+                    var children = new DependencyChild[childCount];
                     for (int j = 0; j < childCount; j++)
                     {
-                        var c = new SnapshotChild
+                        var c = new DependencyChild
                         {
                             BrowseName = ReadString(reader),
                             SymbolicName = ReadString(reader),
@@ -381,14 +381,14 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                         if (inCount < 0 || inCount > 100)
                         {
                             throw new InvalidDataException(
-                                "ModelSnapshotV1: invalid input arg count " + inCount);
+                                "ModelDependencyV1: invalid input arg count " + inCount);
                         }
                         if (inCount > 0)
                         {
-                            var args = new SnapshotMethodArg[inCount];
+                            var args = new DependencyMethodArg[inCount];
                             for (int k = 0; k < inCount; k++)
                             {
-                                args[k] = new SnapshotMethodArg(
+                                args[k] = new DependencyMethodArg(
                                     ReadString(reader),
                                     ReadString(reader),
                                     ReadString(reader),
@@ -400,14 +400,14 @@ namespace Opc.Ua.SourceGeneration.Snapshot
                         if (outCount < 0 || outCount > 100)
                         {
                             throw new InvalidDataException(
-                                "ModelSnapshotV1: invalid output arg count " + outCount);
+                                "ModelDependencyV1: invalid output arg count " + outCount);
                         }
                         if (outCount > 0)
                         {
-                            var args = new SnapshotMethodArg[outCount];
+                            var args = new DependencyMethodArg[outCount];
                             for (int k = 0; k < outCount; k++)
                             {
-                                args[k] = new SnapshotMethodArg(
+                                args[k] = new DependencyMethodArg(
                                     ReadString(reader),
                                     ReadString(reader),
                                     ReadString(reader),

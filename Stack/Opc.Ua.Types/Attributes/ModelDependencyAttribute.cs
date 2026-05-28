@@ -35,7 +35,11 @@ namespace Opc.Ua
     /// Records the OPC UA model(s) an assembly was compiled against.
     /// Emitted automatically by the OPC UA source generator, one occurrence per
     /// model consumed (dependency) and one for each model the assembly emits
-    /// (self-declaration).
+    /// (self-declaration). The self-declaration entry additionally carries a
+    /// compact binary <see cref="Payload"/> describing the model's type table,
+    /// so downstream source generators can resolve cross-assembly type
+    /// references without having to re-add the upstream NodeSet2/ModelDesign
+    /// XML to their own <c>AdditionalFiles</c>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -50,6 +54,15 @@ namespace Opc.Ua
     /// every recorded <see cref="Prefix"/> for the same <see cref="ModelUri"/> across
     /// referenced assemblies. A match means the model is not compiled; a difference
     /// means that overridden types will live in their own C# namespace without conflict.
+    /// </para>
+    /// <para>
+    /// The <see cref="Payload"/> argument is non-null only on the assembly's
+    /// own self-declaration entry. Transitive-dependency entries carry no
+    /// payload (the assembly that emits a model is the canonical source of
+    /// its type-table description). The payload's wire format is
+    /// <c>ModelDependencyV1</c> (magic <c>0xAA 0xC7</c>, version byte <c>1</c>,
+    /// Deflate-compressed); readers reject unknown versions cleanly and fall
+    /// back to explicit <c>AdditionalFiles</c> resolution.
     /// </para>
     /// </remarks>
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
@@ -73,18 +86,24 @@ namespace Opc.Ua
         /// emit cross-namespace constant references as
         /// <c>global::{Prefix}.Namespaces.{Name}</c>; when null they
         /// fall back to a name derived from the model URI.</param>
+        /// <param name="payload">Base64-encoded Deflate-compressed
+        /// <c>ModelDependencyV1</c> type-table payload. Non-null only on the
+        /// assembly's own self-declaration entry; null on transitive
+        /// dependency entries.</param>
         public ModelDependencyAttribute(
             string modelUri,
             string prefix,
             string? version = null,
             string? publicationDate = null,
-            string? name = null)
+            string? name = null,
+            string? payload = null)
         {
             ModelUri = modelUri;
             Prefix = prefix;
             Version = version;
             PublicationDate = publicationDate;
             Name = name;
+            Payload = payload;
         }
 
         /// <summary>
@@ -120,5 +139,15 @@ namespace Opc.Ua
         /// name from the URI.
         /// </summary>
         public string? Name { get; }
+
+        /// <summary>
+        /// Base64-encoded Deflate-compressed <c>ModelDependencyV1</c>
+        /// type-table payload. Non-null only on the assembly's
+        /// self-declaration entry; transitive-dependency entries carry
+        /// null. The payload encodes enough information for a downstream
+        /// source generator to walk the dependency tree without re-parsing
+        /// the upstream NodeSet2.
+        /// </summary>
+        public string? Payload { get; }
     }
 }

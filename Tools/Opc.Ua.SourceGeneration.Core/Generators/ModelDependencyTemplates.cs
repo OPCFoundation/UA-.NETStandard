@@ -52,10 +52,14 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// One assembly-attribute line. The Version and PublicationDate
-        /// replacements are pre-formatted by the generator as either the
-        /// literal token <c>null</c> or a quoted string, so that the template
-        /// itself does not need to encode that decision.
+        /// One assembly-attribute line. The Version, PublicationDate, Name
+        /// and Payload replacements are pre-formatted by the generator as
+        /// either the literal token <c>null</c> or a quoted string, so that
+        /// the template itself does not need to encode that decision. The
+        /// Payload is non-null only on the self-declaration entry — it
+        /// carries the base64 <c>ModelDependencyV1</c> blob downstream
+        /// generators can use to resolve cross-assembly type references
+        /// without re-adding upstream NodeSet2/ModelDesign XML.
         /// </summary>
         public static readonly TemplateString Entry = TemplateString.Parse(
             $$"""
@@ -64,7 +68,8 @@ namespace Opc.Ua.SourceGeneration
                 "{{Tokens.Prefix}}",
                 {{Tokens.ModelVersion}},
                 {{Tokens.ModelPublicationDate}},
-                {{Tokens.ModelName}})]
+                {{Tokens.ModelName}},
+                {{Tokens.ModelPayload}})]
 
             """);
     }

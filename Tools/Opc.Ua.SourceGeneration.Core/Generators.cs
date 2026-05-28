@@ -340,12 +340,12 @@ namespace Opc.Ua.SourceGeneration
         /// Optional callback invoked for each binding-related warning or
         /// error (e.g. unmatched URI, ambiguous fallback).
         /// </param>
-        /// <param name="referencedSnapshots">
-        /// Per-URI model snapshots recovered from referenced assemblies
-        /// via <c>ReferencedModelSnapshotScanner</c>. When present, the
-        /// validator pre-imports these snapshots so downstream models can
-        /// resolve upstream types without an explicit
-        /// <c>AdditionalFiles</c> entry for them.
+        /// <param name="referencedDependencies">
+        /// Per-URI model dependency payloads recovered from referenced
+        /// assemblies via <c>ReferencedModelDependencyScanner</c>. When
+        /// present, the validator pre-imports these dependency payloads
+        /// so downstream models can resolve upstream types without an
+        /// explicit <c>AdditionalFiles</c> entry for them.
         /// </param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
@@ -357,7 +357,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1> referencedSnapshots = null)
+            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> referencedDependencies = null)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -409,7 +409,7 @@ namespace Opc.Ua.SourceGeneration
                     options.Exclusions,
                     telemetry,
                     useAllowSubtypes,
-                    referencedSnapshots);
+                    referencedDependencies);
 
                 // Cross-namespace prefix override: when a referenced
                 // assembly publishes a model under a specific C# prefix,
@@ -623,8 +623,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 var modelDependencyGenerator = new ModelDependencyGenerator(context);
                 modelDependencyGenerator.Emit();
-                var modelSnapshotGenerator = new ModelSnapshotGenerator(context);
-                modelSnapshotGenerator.Emit();
             }
         }
     }

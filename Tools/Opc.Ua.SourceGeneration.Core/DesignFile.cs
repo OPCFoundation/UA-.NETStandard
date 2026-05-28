@@ -199,13 +199,13 @@ namespace Opc.Ua.SourceGeneration
                 exclusions,
                 telemetry,
                 useAllowSubtypes,
-                referencedSnapshots: null);
+                referencedDependencies: null);
         }
 
         /// <summary>
         /// Validates the model design files, optionally importing
-        /// per-namespace model snapshots from referenced assemblies
-        /// before validation. The snapshots pre-populate the
+        /// per-namespace model dependency payloads from referenced
+        /// assemblies before validation. The payloads pre-populate the
         /// validator's node table so downstream models can resolve
         /// upstream types without an explicit <c>AdditionalFiles</c>
         /// entry for them.
@@ -216,7 +216,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyList<string> exclusions,
             ITelemetryContext telemetry,
             bool useAllowSubtypes,
-            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1> referencedSnapshots)
+            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> referencedDependencies)
         {
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
@@ -232,12 +232,12 @@ namespace Opc.Ua.SourceGeneration
                 ModelPublicationDate = options.ModelPublicationDate
             };
 
-            if (referencedSnapshots != null)
+            if (referencedDependencies != null)
             {
-                foreach (KeyValuePair<string, Opc.Ua.SourceGeneration.Snapshot.ModelSnapshotV1> entry in referencedSnapshots)
+                foreach (KeyValuePair<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> entry in referencedDependencies)
                 {
                     if (entry.Value == null) { continue; }
-                    validator.ImportSnapshot(entry.Value, prefix: null, name: null);
+                    validator.ImportDependency(entry.Value, prefix: null, name: null);
                 }
             }
 
