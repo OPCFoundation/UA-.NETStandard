@@ -41,14 +41,16 @@ namespace TestData
     /// <summary>
     /// The node manager factory for test data.
     /// </summary>
-    public class TestDataNodeManagerFactory : INodeManagerFactory
+    public class TestDataNodeManagerFactory : IAsyncNodeManagerFactory
     {
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
-            return new TestDataNodeManager(server, configuration, [.. NamespacesUris]).SyncNodeManager;
-#pragma warning restore CA2000
+            return new ValueTask<IAsyncNodeManager>(
+                new TestDataNodeManager(server, configuration, [.. NamespacesUris]));
         }
 
         /// <inheritdoc/>
@@ -703,7 +705,7 @@ namespace TestData
         }
 #endif
         private readonly TestDataNodeManagerConfiguration m_configuration;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;
         private readonly TestDataSystem m_system;

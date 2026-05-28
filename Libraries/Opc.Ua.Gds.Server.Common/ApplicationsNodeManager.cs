@@ -2054,7 +2054,7 @@ namespace Opc.Ua.Gds.Server
         public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
             // TBD
-            return default;
+            return base.DeleteAddressSpaceAsync(cancellationToken);
         }
 
         /// <summary>

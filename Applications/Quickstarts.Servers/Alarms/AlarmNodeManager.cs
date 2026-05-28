@@ -41,14 +41,16 @@ namespace Alarms
     /// <summary>
     /// The factory for the Alarm Node Manager.
     /// </summary>
-    public class AlarmNodeManagerFactory : INodeManagerFactory
+    public class AlarmNodeManagerFactory : IAsyncNodeManagerFactory
     {
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
-            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!).SyncNodeManager;
-#pragma warning restore CA2000
+            return new ValueTask<IAsyncNodeManager>(
+                new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!));
         }
 
         /// <inheritdoc/>
@@ -822,7 +824,7 @@ namespace Alarms
         public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
             // TBD
-            return new ValueTask();
+            return base.DeleteAddressSpaceAsync(cancellationToken);
         }
 
         /// <summary>
@@ -926,24 +928,15 @@ namespace Alarms
                 }
 
                 // find the method.
-                MethodState? method = source.FindMethod(systemContext, methodToCall.MethodId);
+                MethodState? method = await FindMethodStateAsync(
+                    context,
+                    methodToCall,
+                    cancellationToken).ConfigureAwait(false);
 
                 if (method == null)
                 {
-                    // check for loose coupling.
-                    if (source.ReferenceExists(
-                        ReferenceTypeIds.HasComponent,
-                        false,
-                        methodToCall.MethodId))
-                    {
-                        method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
-                    }
-
-                    if (method == null)
-                    {
-                        errors[ii] = StatusCodes.BadMethodInvalid;
-                        continue;
-                    }
+                    errors[ii] = StatusCodes.BadMethodInvalid;
+                    continue;
                 }
 
                 // call the method.

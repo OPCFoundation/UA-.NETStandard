@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests
                 baseObject.NodeId = nodeId;
 
                 //single threaded test
-                nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
+                nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
 
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
                 handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
                 Assert.That(handle, Is.Null);
 
-                nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
+                nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
 
                 nodeManager.DeleteAddressSpace();
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
             DataItemState baseObject,
             NodeId nodeId)
         {
-            nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
+            nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
             _ = nodeManager.Find(nodeId);
             _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Tests
 
             _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
-            nodeManager.AddPredefinedNodePublic(nodeManager.SystemContext, baseObject);
+            nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
 
             return Task.CompletedTask;
         }
@@ -256,9 +256,9 @@ namespace Opc.Ua.Server.Tests
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 
-        public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
+        public new virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
-            AddPredefinedNode(context, node);
+            base.AddPredefinedNode(context, node);
         }
     }
 }
