@@ -181,6 +181,36 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(result.Identity, Is.SameAs(identity));
         }
 
+        [Test]
+        public void AugmenterThrowingPropagatesException()
+        {
+            var registry = new ServerIdentityRegistry(
+                new StubAuthenticator(AuthenticationResult.Accept(new NamedIdentity("original"))));
+            registry.RegisterAugmenter(new ThrowingAugmenter());
+
+            InvalidTimeZoneException ex = Assert.ThrowsAsync<InvalidTimeZoneException>(
+                async () => await registry.AuthenticateAsync(MakeContext()))!;
+
+            Assert.That(ex.Message, Is.EqualTo("augmenter boom"));
+        }
+
+        [Test]
+        public async Task AugmenterRegisteredAfterFirstAuthenticationIsObservedOnNextCall()
+        {
+            IUserIdentity original = new NamedIdentity("original");
+            var registry = new ServerIdentityRegistry(
+                new StubAuthenticator(AuthenticationResult.Accept(original)));
+
+            AuthenticationResult before = await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false);
+            Assert.That(before.Identity, Is.SameAs(original));
+
+            IUserIdentity replacement = new NamedIdentity("replacement");
+            registry.RegisterAugmenter(new StubAugmenter(replacement));
+
+            AuthenticationResult after = await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false);
+            Assert.That(after.Identity, Is.SameAs(replacement));
+        }
+
         private static AuthenticationContext MakeContext()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -260,6 +290,17 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 CancellationToken ct = default)
             {
                 return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
+        }
+
+        private sealed class ThrowingAugmenter : IIdentityAugmenter
+        {
+            public ValueTask<AuthenticationResult> AugmentAsync(
+                IUserIdentity identity,
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                throw new InvalidTimeZoneException("augmenter boom");
             }
         }
 

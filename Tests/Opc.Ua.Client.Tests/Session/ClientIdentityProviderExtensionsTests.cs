@@ -102,6 +102,58 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
+        [Test]
+        public void AcquireIdentityAsyncRejectsNullEndpoint()
+        {
+            IServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(
+                NUnitTelemetryContext.Create());
+            var provider = new StubProvider(UserTokenType.UserName);
+
+            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await provider.AcquireIdentityAsync(null!, messageContext));
+            Assert.That(ex.ParamName, Is.EqualTo("endpointDescription"));
+        }
+
+        [Test]
+        public void AcquireIdentityAsyncRejectsNullMessageContext()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = []
+            };
+            var provider = new StubProvider(UserTokenType.UserName);
+
+            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await provider.AcquireIdentityAsync(endpoint, null!));
+            Assert.That(ex.ParamName, Is.EqualTo("messageContext"));
+        }
+
+        [Test]
+        public void AcquireIdentityAsyncThrowsBadIdentityTokenRejectedWhenNoPolicyMatches()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy
+                    {
+                        PolicyId = "anon",
+                        TokenType = UserTokenType.Anonymous,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                ]
+            };
+            IServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(
+                NUnitTelemetryContext.Create());
+            var provider = new StubProvider(UserTokenType.UserName);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider.AcquireIdentityAsync(endpoint, messageContext));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
         private sealed class StubProvider : IClientIdentityProvider
         {
             private readonly UserTokenType m_tokenType;
