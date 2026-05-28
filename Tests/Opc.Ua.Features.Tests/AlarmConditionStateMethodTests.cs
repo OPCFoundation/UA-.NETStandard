@@ -33,7 +33,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Core.Tests.Stack.State
+namespace Opc.Ua.Features.Tests
 {
     /// <summary>
     /// Tests for Part 9 alarm methods on the AlarmConditionState class:
