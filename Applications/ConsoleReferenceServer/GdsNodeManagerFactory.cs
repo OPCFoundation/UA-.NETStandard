@@ -91,13 +91,15 @@ namespace Quickstarts.ReferenceServer
                 ? new LinqApplicationsDatabase()
                 : JsonApplicationsDatabase.Load(databaseStorePath!);
 
+#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
             return new ApplicationsNodeManager(
                 server,
                 configuration,
                 database,
                 database,
                 new CertificateGroup(server.Telemetry),
-                autoApprove: true);
+                autoApprove: true).SyncNodeManager;
+#pragma warning restore CA2000
         }
     }
 }
