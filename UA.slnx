@@ -137,11 +137,14 @@
     <Project Path="Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Lds.Tests/Opc.Ua.Lds.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
