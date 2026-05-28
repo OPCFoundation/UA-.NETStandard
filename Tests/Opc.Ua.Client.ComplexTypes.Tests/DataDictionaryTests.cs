@@ -33,11 +33,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-<<<<<<< Updated upstream:Tests/Opc.Ua.Client.ComplexTypes.Tests/DataDictionaryTests.cs
 using Opc.Ua.Client;
-=======
 using Opc.Ua.ComplexTypes;
->>>>>>> Stashed changes:Tests/Opc.Ua.Client.Tests/ComplexTypes/DataDictionaryTests.cs
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;

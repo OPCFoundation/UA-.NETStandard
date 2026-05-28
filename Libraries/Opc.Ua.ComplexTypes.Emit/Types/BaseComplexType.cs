@@ -36,7 +36,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// The base class for all complex types.

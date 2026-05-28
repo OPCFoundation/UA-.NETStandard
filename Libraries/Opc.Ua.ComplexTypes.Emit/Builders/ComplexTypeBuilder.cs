@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// Build an assembly with custom enum types and

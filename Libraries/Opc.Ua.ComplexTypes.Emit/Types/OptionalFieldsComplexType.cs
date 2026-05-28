@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// A complex type with optional fields.

@@ -33,6 +33,7 @@ using NUnit.Framework;
 using Opc.Ua.Core.TestFramework;
 
 using Opc.Ua.ComplexTypes;
+using Opc.Ua.ComplexTypes.Emit;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {

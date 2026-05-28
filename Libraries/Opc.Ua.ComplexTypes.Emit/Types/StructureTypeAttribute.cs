@@ -28,50 +28,28 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Reflection.Emit;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
-    /// Use a single assembly and module builder instance to build the type system.
+    /// Attribute for type ids of a structure definition.
     /// </summary>
-    public class AssemblyModule
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public sealed class StructureTypeIdAttribute : Attribute
     {
         /// <summary>
-        /// Initializes the object with default values.
+        /// The complex type id attribute.
         /// </summary>
-        [UnconditionalSuppressMessage("AOT", "IL3050",
-            Justification = "Dynamic assembly creation is fundamental to ComplexTypes.")]
-        public AssemblyModule(string? assemblyName = null)
-        {
-            m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
-                new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()),
-                AssemblyBuilderAccess.Run);
-            m_moduleBuilder = m_assemblyBuilder.DefineDynamicModule(kOpcTypesModuleName);
-        }
+        public string? ComplexTypeId { get; set; }
 
         /// <summary>
-        /// Get the module builder instance.
+        /// The binary encoding id attribute.
         /// </summary>
-        public ModuleBuilder GetModuleBuilder()
-        {
-            return m_moduleBuilder;
-        }
+        public string? BinaryEncodingId { get; set; }
 
         /// <summary>
-        /// Get the types defined in this assembly.
+        /// The xml encoding id attribute.
         /// </summary>
-        [RequiresUnreferencedCode(
-            "Uses Assembly.GetTypes which requires unreferenced code.")]
-        public Type[] GetTypes()
-        {
-            return m_assemblyBuilder.GetTypes();
-        }
-
-        private readonly AssemblyBuilder m_assemblyBuilder;
-        private readonly ModuleBuilder m_moduleBuilder;
-        private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
+        public string? XmlEncodingId { get; set; }
     }
 }

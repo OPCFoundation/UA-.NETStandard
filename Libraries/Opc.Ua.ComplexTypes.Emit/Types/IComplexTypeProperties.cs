@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// Interface to access properties of a complex type.

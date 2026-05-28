@@ -33,7 +33,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Xml;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// Factory function for the default complex type builder

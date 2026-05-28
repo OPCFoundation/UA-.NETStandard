@@ -40,6 +40,7 @@
   </Folder>
   <Folder Name="/Libraries/">
     <Project Path="Libraries/Opc.Ua.ComplexTypes/Opc.Ua.ComplexTypes.csproj" />
+    <Project Path="Libraries/Opc.Ua.ComplexTypes.Emit/Opc.Ua.ComplexTypes.Emit.csproj" />
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />

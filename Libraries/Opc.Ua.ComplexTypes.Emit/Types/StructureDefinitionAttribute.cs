@@ -29,27 +29,73 @@
 
 using System;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
-    /// Attribute for type ids of a structure definition.
+    /// The known base complex types.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public sealed class StructureTypeIdAttribute : Attribute
+    public enum StructureBaseDataType
     {
         /// <summary>
-        /// The complex type id attribute.
+        /// The type is a structure.
         /// </summary>
-        public string? ComplexTypeId { get; set; }
+        Structure = 0,
 
         /// <summary>
-        /// The binary encoding id attribute.
+        /// The type is an OptionSet.
         /// </summary>
-        public string? BinaryEncodingId { get; set; }
+        OptionSet = 1,
 
         /// <summary>
-        /// The xml encoding id attribute.
+        /// The type is a Union.
         /// </summary>
-        public string? XmlEncodingId { get; set; }
+        Union = 2
+    }
+
+    /// <summary>
+    /// Attribute for a base complex type structure definition.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public sealed class StructureDefinitionAttribute : Attribute
+    {
+        /// <summary>
+        /// Create the attribute for a structure definition.
+        /// </summary>
+        public StructureDefinitionAttribute()
+        {
+            StructureType = StructureType.Structure;
+        }
+
+        /// <summary>
+        /// Convert the base type node id to a <see cref="StructureBaseDataType"/>.
+        /// </summary>
+        /// <param name="baseTypeId">The base type nodeId.</param>
+        public static StructureBaseDataType FromBaseType(NodeId baseTypeId)
+        {
+            if (baseTypeId == DataTypeIds.Union)
+            {
+                return StructureBaseDataType.Union;
+            }
+            if (baseTypeId == DataTypeIds.OptionSet)
+            {
+                return StructureBaseDataType.OptionSet;
+            }
+            return StructureBaseDataType.Structure;
+        }
+
+        /// <summary>
+        /// The default encoding Id.
+        /// </summary>
+        public string? DefaultEncodingId { get; set; }
+
+        /// <summary>
+        /// The base DataType.
+        /// </summary>
+        public StructureBaseDataType BaseDataType { get; set; }
+
+        /// <summary>
+        /// The structure type.
+        /// </summary>
+        public StructureType StructureType { get; set; }
     }
 }

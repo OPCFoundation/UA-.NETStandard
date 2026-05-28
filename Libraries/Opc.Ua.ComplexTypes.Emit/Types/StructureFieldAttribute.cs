@@ -29,73 +29,43 @@
 
 using System;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
-    /// The known base complex types.
+    /// Attribute for a base complex type field definition.
     /// </summary>
-    public enum StructureBaseDataType
+    [AttributeUsage(AttributeTargets.Property)]
+    public sealed class StructureFieldAttribute : Attribute
     {
         /// <summary>
-        /// The type is a structure.
+        /// Initialize a field attribute with defaults.
         /// </summary>
-        Structure = 0,
-
-        /// <summary>
-        /// The type is an OptionSet.
-        /// </summary>
-        OptionSet = 1,
-
-        /// <summary>
-        /// The type is a Union.
-        /// </summary>
-        Union = 2
-    }
-
-    /// <summary>
-    /// Attribute for a base complex type structure definition.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public sealed class StructureDefinitionAttribute : Attribute
-    {
-        /// <summary>
-        /// Create the attribute for a structure definition.
-        /// </summary>
-        public StructureDefinitionAttribute()
+        public StructureFieldAttribute()
         {
-            StructureType = StructureType.Structure;
+            ValueRank = -1;
+            MaxStringLength = 0;
+            IsOptional = false;
+            BuiltInType = 0;
         }
 
         /// <summary>
-        /// Convert the base type node id to a <see cref="StructureBaseDataType"/>.
+        /// The value rank of the field.
         /// </summary>
-        /// <param name="baseTypeId">The base type nodeId.</param>
-        public static StructureBaseDataType FromBaseType(NodeId baseTypeId)
-        {
-            if (baseTypeId == DataTypeIds.Union)
-            {
-                return StructureBaseDataType.Union;
-            }
-            if (baseTypeId == DataTypeIds.OptionSet)
-            {
-                return StructureBaseDataType.OptionSet;
-            }
-            return StructureBaseDataType.Structure;
-        }
+        public int ValueRank { get; set; }
 
         /// <summary>
-        /// The default encoding Id.
+        /// The maximum string length of the field.
         /// </summary>
-        public string? DefaultEncodingId { get; set; }
+        public uint MaxStringLength { get; set; }
 
         /// <summary>
-        /// The base DataType.
+        /// If the field is optional.
         /// </summary>
-        public StructureBaseDataType BaseDataType { get; set; }
+        public bool IsOptional { get; set; }
 
         /// <summary>
-        /// The structure type.
+        /// The datatype of a field as BuiltInType.
         /// </summary>
-        public StructureType StructureType { get; set; }
+        public int BuiltInType { get; set; }
     }
 }

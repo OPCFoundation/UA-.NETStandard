@@ -29,11 +29,8 @@
 
 using System.Xml;
 using NUnit.Framework;
-<<<<<<< Updated upstream:Tests/Opc.Ua.Client.ComplexTypes.Tests/DefaultEnumerationTests.cs
 using Opc.Ua.Client;
-=======
 using Opc.Ua.ComplexTypes;
->>>>>>> Stashed changes:Tests/Opc.Ua.Client.Tests/ComplexTypes/DefaultEnumerationTests.cs
 using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests

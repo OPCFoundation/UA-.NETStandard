@@ -33,7 +33,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Xml;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// Builder for property fields.

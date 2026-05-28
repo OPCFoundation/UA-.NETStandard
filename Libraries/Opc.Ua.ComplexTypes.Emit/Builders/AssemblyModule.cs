@@ -28,44 +28,50 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Reflection.Emit;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
-    /// Attribute for a base complex type field definition.
+    /// Use a single assembly and module builder instance to build the type system.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property)]
-    public sealed class StructureFieldAttribute : Attribute
+    public class AssemblyModule
     {
         /// <summary>
-        /// Initialize a field attribute with defaults.
+        /// Initializes the object with default values.
         /// </summary>
-        public StructureFieldAttribute()
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "Dynamic assembly creation is fundamental to ComplexTypes.")]
+        public AssemblyModule(string? assemblyName = null)
         {
-            ValueRank = -1;
-            MaxStringLength = 0;
-            IsOptional = false;
-            BuiltInType = 0;
+            m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
+                new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()),
+                AssemblyBuilderAccess.Run);
+            m_moduleBuilder = m_assemblyBuilder.DefineDynamicModule(kOpcTypesModuleName);
         }
 
         /// <summary>
-        /// The value rank of the field.
+        /// Get the module builder instance.
         /// </summary>
-        public int ValueRank { get; set; }
+        public ModuleBuilder GetModuleBuilder()
+        {
+            return m_moduleBuilder;
+        }
 
         /// <summary>
-        /// The maximum string length of the field.
+        /// Get the types defined in this assembly.
         /// </summary>
-        public uint MaxStringLength { get; set; }
+        [RequiresUnreferencedCode(
+            "Uses Assembly.GetTypes which requires unreferenced code.")]
+        public Type[] GetTypes()
+        {
+            return m_assemblyBuilder.GetTypes();
+        }
 
-        /// <summary>
-        /// If the field is optional.
-        /// </summary>
-        public bool IsOptional { get; set; }
-
-        /// <summary>
-        /// The datatype of a field as BuiltInType.
-        /// </summary>
-        public int BuiltInType { get; set; }
+        private readonly AssemblyBuilder m_assemblyBuilder;
+        private readonly ModuleBuilder m_moduleBuilder;
+        private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
     }
 }

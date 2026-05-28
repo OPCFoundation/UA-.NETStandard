@@ -40,44 +40,68 @@ namespace Opc.Ua.Server.ComplexTypes
     /// </summary>
     /// <remarks>
     /// Registered as a singleton by
-    /// <c>IOpcUaServerBuilder.AddComplexTypes()</c>. Server hosts resolve
-    /// this factory and call <see cref="Create(IServerInternal)"/> when a
-    /// concrete <see cref="IServerInternal"/> becomes available
-    /// (typically inside the server's <c>CreateMasterNodeManager</c> or
-    /// after server start-up) to obtain a type-loader scoped to that
-    /// server instance.
+    /// <c>IOpcUaServerBuilder.AddComplexTypes()</c>. By default the
+    /// factory produces type loaders backed by the AOT-friendly
+    /// <see cref="DefaultComplexTypeFactory"/>. Hosts that need
+    /// runtime concrete .NET classes for custom DataTypes register the
+    /// Reflection.Emit-based <c>ComplexTypeBuilderFactory</c> from
+    /// <c>Opc.Ua.ComplexTypes.Emit</c> via
+    /// <c>AddComplexTypesWithReflectionEmit()</c>.
     /// </remarks>
     public sealed class ServerComplexTypeSystemFactory
     {
         /// <summary>
-        /// Initializes a new instance.
+        /// Initializes a new instance backed by
+        /// <see cref="DefaultComplexTypeFactory"/>.
         /// </summary>
         /// <param name="telemetry">The shared telemetry context.</param>
         /// <exception cref="ArgumentNullException"><paramref name="telemetry"/> is <c>null</c>.</exception>
         public ServerComplexTypeSystemFactory(ITelemetryContext telemetry)
+            : this(telemetry, static () => new DefaultComplexTypeFactory())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance backed by a caller-supplied
+        /// <see cref="IComplexTypeFactory"/> source. The
+        /// <paramref name="complexTypeFactoryFactory"/> delegate is
+        /// invoked once per <see cref="Create(IServerInternal)"/> call
+        /// so each <see cref="ServerComplexTypeSystem"/> gets its own
+        /// builder factory.
+        /// </summary>
+        /// <param name="telemetry">The shared telemetry context.</param>
+        /// <param name="complexTypeFactoryFactory">Delegate that
+        /// produces a fresh <see cref="IComplexTypeFactory"/> per
+        /// server instance.</param>
+        /// <exception cref="ArgumentNullException">Any argument is <c>null</c>.</exception>
+        public ServerComplexTypeSystemFactory(
+            ITelemetryContext telemetry,
+            Func<IComplexTypeFactory> complexTypeFactoryFactory)
         {
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_complexTypeFactoryFactory = complexTypeFactoryFactory ??
+                throw new ArgumentNullException(nameof(complexTypeFactoryFactory));
         }
 
         /// <summary>
         /// Creates a new <see cref="ServerComplexTypeSystem"/> bound to
         /// <paramref name="server"/> and the host's
-        /// <see cref="ITelemetryContext"/>, using the AOT-friendly
-        /// <see cref="DefaultComplexTypeFactory"/>.
+        /// <see cref="ITelemetryContext"/>.
         /// </summary>
         /// <param name="server">The hosted server.</param>
         /// <returns>A fresh <see cref="ServerComplexTypeSystem"/>.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
         public ServerComplexTypeSystem Create(IServerInternal server)
         {
-            return Create(server, new DefaultComplexTypeFactory());
+            return Create(server, m_complexTypeFactoryFactory());
         }
 
         /// <summary>
         /// Creates a new <see cref="ServerComplexTypeSystem"/> bound to
         /// <paramref name="server"/> using a caller-supplied
-        /// <see cref="IComplexTypeFactory"/> (for example the
-        /// Reflection.Emit-based <c>ComplexTypeBuilderFactory</c>).
+        /// <see cref="IComplexTypeFactory"/>. This overload bypasses
+        /// the configured factory source and is useful when callers
+        /// already hold a built factory.
         /// </summary>
         /// <param name="server">The hosted server.</param>
         /// <param name="factory">The complex type builder factory.</param>
@@ -99,5 +123,6 @@ namespace Opc.Ua.Server.ComplexTypes
         }
 
         private readonly ITelemetryContext m_telemetry;
+        private readonly Func<IComplexTypeFactory> m_complexTypeFactoryFactory;
     }
 }

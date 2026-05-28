@@ -35,7 +35,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
 
-namespace Opc.Ua.ComplexTypes
+namespace Opc.Ua.ComplexTypes.Emit
 {
     /// <summary>
     /// Extensions to build attributes for the complex type builder.
@@ -92,7 +92,7 @@ namespace Opc.Ua.ComplexTypes
             StructureDefinition structureDefinition)
         {
             Type attributeType = typeof(StructureDefinitionAttribute);
-            StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute
+            StructureBaseDataType baseDataType = Emit.StructureDefinitionAttribute
                 .FromBaseType(
                     structureDefinition.BaseDataType);
             // Reflection on local types: the parameterless constructor and named properties

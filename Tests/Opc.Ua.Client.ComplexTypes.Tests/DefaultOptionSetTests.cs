@@ -30,11 +30,8 @@
 using System.IO;
 using System.Xml;
 using NUnit.Framework;
-<<<<<<< Updated upstream:Tests/Opc.Ua.Client.ComplexTypes.Tests/DefaultOptionSetTests.cs
 using Opc.Ua.Client;
-=======
 using Opc.Ua.ComplexTypes;
->>>>>>> Stashed changes:Tests/Opc.Ua.Client.Tests/ComplexTypes/DefaultOptionSetTests.cs
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Tests;
 
