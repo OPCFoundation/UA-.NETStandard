@@ -560,14 +560,19 @@ namespace Quickstarts.ReferenceServer
             var identity = new UserIdentity(userTokenHandler);
             try
             {
-                if (roles != null && roles.Contains(Role.SecurityAdmin))
+                // SecurityAdmin implicitly grants ConfigureAdmin to retain the
+                // pre-existing SystemConfigurationIdentity semantics, but the
+                // user's other database-assigned roles (e.g. GDS DiscoveryAdmin)
+                // must also be preserved.
+                List<Role> effectiveRoles = roles is { Count: > 0 } ? [.. roles] : [Role.AuthenticatedUser];
+                if (effectiveRoles.Contains(Role.SecurityAdmin) && !effectiveRoles.Contains(Role.ConfigureAdmin))
                 {
-                    return new SystemConfigurationIdentity(identity);
+                    effectiveRoles.Add(Role.ConfigureAdmin);
                 }
 
                 return new RoleBasedIdentity(
                     identity,
-                    roles ?? [Role.AuthenticatedUser],
+                    effectiveRoles,
                     ServerInternal.MessageContext.NamespaceUris);
             }
             catch
