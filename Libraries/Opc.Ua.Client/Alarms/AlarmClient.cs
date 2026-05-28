@@ -84,15 +84,19 @@ namespace Opc.Ua.Client.Alarms
         public ValueTask EnableAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new ConditionTypeClient(m_session, conditionId, m_telemetry)
-                .EnableAsync(ct);
+        {
+            return new ConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .EnableAsync(ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask DisableAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new ConditionTypeClient(m_session, conditionId, m_telemetry)
-                .DisableAsync(ct);
+        {
+            return new ConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .DisableAsync(ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask AddCommentAsync(
@@ -100,23 +104,29 @@ namespace Opc.Ua.Client.Alarms
             ByteString eventId,
             LocalizedText comment,
             CancellationToken ct = default)
-            => new ConditionTypeClient(m_session, conditionId, m_telemetry)
-                .AddCommentAsync(eventId, comment, ct);
+        {
+            return new ConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .AddCommentAsync(eventId, comment, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask ConditionRefreshAsync(
             uint subscriptionId,
             CancellationToken ct = default)
-            => new ConditionTypeClient(m_session, ObjectTypeIds.ConditionType, m_telemetry)
-                .ConditionRefreshAsync(subscriptionId, ct);
+        {
+            return new ConditionTypeClient(m_session, ObjectTypeIds.ConditionType, m_telemetry)
+                        .ConditionRefreshAsync(subscriptionId, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask ConditionRefresh2Async(
             uint subscriptionId,
             uint monitoredItemId,
             CancellationToken ct = default)
-            => new ConditionTypeClient(m_session, ObjectTypeIds.ConditionType, m_telemetry)
-                .ConditionRefresh2Async(subscriptionId, monitoredItemId, ct);
+        {
+            return new ConditionTypeClient(m_session, ObjectTypeIds.ConditionType, m_telemetry)
+                        .ConditionRefresh2Async(subscriptionId, monitoredItemId, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask AcknowledgeAsync(
@@ -124,8 +134,10 @@ namespace Opc.Ua.Client.Alarms
             ByteString eventId,
             LocalizedText comment,
             CancellationToken ct = default)
-            => new AcknowledgeableConditionTypeClient(m_session, conditionId, m_telemetry)
-                .AcknowledgeAsync(eventId, comment, ct);
+        {
+            return new AcknowledgeableConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .AcknowledgeAsync(eventId, comment, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask ConfirmAsync(
@@ -133,15 +145,19 @@ namespace Opc.Ua.Client.Alarms
             ByteString eventId,
             LocalizedText comment,
             CancellationToken ct = default)
-            => new AcknowledgeableConditionTypeClient(m_session, conditionId, m_telemetry)
-                .ConfirmAsync(eventId, comment, ct);
+        {
+            return new AcknowledgeableConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .ConfirmAsync(eventId, comment, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask SilenceAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new AlarmConditionTypeClient(m_session, conditionId, m_telemetry)
-                .SilenceAsync(ct);
+        {
+            return new AlarmConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .SilenceAsync(ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask SuppressAsync(
@@ -208,37 +224,47 @@ namespace Opc.Ua.Client.Alarms
             NodeId conditionId,
             double shelvingTime,
             CancellationToken ct = default)
-            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
-                .TimedShelveAsync(shelvingTime, ct);
+        {
+            return new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                        .TimedShelveAsync(shelvingTime, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask OneShotShelveAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
-                .OneShotShelveAsync(ct);
+        {
+            return new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                        .OneShotShelveAsync(ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask UnshelveAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
-                .UnshelveAsync(ct);
+        {
+            return new ShelvedStateMachineTypeClient(m_session, conditionId, m_telemetry)
+                        .UnshelveAsync(ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask<ArrayOf<NodeId>> GetGroupMembershipsAsync(
             NodeId conditionId,
             CancellationToken ct = default)
-            => new AlarmConditionTypeClient(m_session, conditionId, m_telemetry)
-                .GetGroupMembershipsAsync(ct);
+        {
+            return new AlarmConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .GetGroupMembershipsAsync(ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask RespondAsync(
             NodeId conditionId,
             int selectedResponse,
             CancellationToken ct = default)
-            => new DialogConditionTypeClient(m_session, conditionId, m_telemetry)
-                .RespondAsync(selectedResponse, ct);
+        {
+            return new DialogConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .RespondAsync(selectedResponse, ct);
+        }
 
         /// <inheritdoc/>
         public ValueTask Respond2Async(
@@ -246,7 +272,9 @@ namespace Opc.Ua.Client.Alarms
             int selectedResponse,
             LocalizedText comment,
             CancellationToken ct = default)
-            => new DialogConditionTypeClient(m_session, conditionId, m_telemetry)
-                .Respond2Async(selectedResponse, comment, ct);
+        {
+            return new DialogConditionTypeClient(m_session, conditionId, m_telemetry)
+                        .Respond2Async(selectedResponse, comment, ct);
+        }
     }
 }
