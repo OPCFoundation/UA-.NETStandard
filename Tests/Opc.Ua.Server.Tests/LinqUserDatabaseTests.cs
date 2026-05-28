@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
 
@@ -11,6 +13,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class LinqUserDatabaseTests
     {
+        private static readonly string[] s_createdUsers = ["TestUser1", "TestUser2"];
+
         [Test]
         public void CreateInvalidUser()
         {
@@ -116,6 +120,23 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void GetUsersReturnsCreatedUsers()
+        {
+            // Arrange
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser1", "PW"u8, [Role.AuthenticatedUser]);
+            usersDb.CreateUser("TestUser2", "PW2"u8, [Role.Engineer]);
+
+            // Act
+            IReadOnlyList<UserManagementDataType> users = usersDb.GetUsers();
+
+            // Assert
+            Assert.That(users.Select(user => user.UserName), Is.EquivalentTo(s_createdUsers));
+            Assert.That(users.All(user => user.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
+            Assert.That(users.Select(user => user.Description), Is.All.Empty);
         }
     }
 }
