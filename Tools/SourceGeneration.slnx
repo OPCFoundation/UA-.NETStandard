@@ -5,6 +5,10 @@
     <Project Path="Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
     <Project Path="Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
   </Folder>
+  <Folder Name="/CodeFixers/">
+    <Project Path="../Tests/Opc.Ua.CodeFixers.Tests/Opc.Ua.CodeFixers.Tests.csproj" />
+    <Project Path="Opc.Ua.CodeFixers/Opc.Ua.CodeFixers.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="../.editorconfig" />
     <File Path="../.github/copilot-instructions.md" />

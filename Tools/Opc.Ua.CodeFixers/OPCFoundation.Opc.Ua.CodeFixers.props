@@ -1,0 +1,10 @@
+﻿<Project>
+  <!--
+    Build asset packaged into the OPCFoundation.NetStandard.Opc.Ua.CodeFixers NuGet
+    package and imported automatically into consumer projects.
+
+    Currently this file is intentionally minimal — it exists so consumers receive
+    the analyzer automatically without any extra configuration. Future per-rule
+    MSBuild settings (severity overrides, opt-in flags) can be added here.
+  -->
+</Project>
