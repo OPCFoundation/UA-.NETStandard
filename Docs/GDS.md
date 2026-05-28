@@ -530,6 +530,18 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | SupportedRoles (RC) | ✅ | Model property exposed |
 | Client proxy | ✅ | `AuthorizationServiceClient.cs` |
 
+### Refresh-token support (planned)
+
+`IAccessTokenProvider.RefreshTokenAsync(refreshToken, requestedRoles, ct)` is already on the interface,
+but the default `InMemoryAccessTokenProvider` short-circuits to `Bad_NotSupported`. The plan is to wire
+`OnRefreshTokenAsync` on `AuthorizationServiceState` to dispatch to the provider, then update
+`InMemoryAccessTokenProvider` to track issued refresh tokens in a Guid-to-refresh-record dictionary,
+validate them on inbound calls, and emit a fresh access token plus an optionally rotated refresh token.
+`AuthorizationServiceClient.RefreshTokenAsync(...)` should mirror the server-side method. Tests should
+cover refresh-token expiry, rotation, replay detection, and the round-trip with a JWT-validating client.
+Track this via a follow-up commit on this branch or a separate PR; no schema changes are required because
+the `RefreshToken` method state is already source-generated from `OpcUaGdsModel.xml`.
+
 ## LDS / LDS-ME (§4–5)
 
 | Feature | Status | Source |

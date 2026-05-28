@@ -125,7 +125,7 @@ Generated code produced by the model compiler contained a bug because it inverte
 | `DataSetReaderDataType` | `Enabled` | `true` | `false` |
 | `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
 
-Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as
 some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
 
 **Migration**: Add explicit initialization where your code depends on `true` as the default:
@@ -359,7 +359,7 @@ Previously the `XmlElement` built in type was represented by the `System.Xml.Xml
 
 `EnumValue` bundles a symbol with a integer value (same as `StatusCode`). While most API works with standard .net `enum` types, these do not work in scenarios where the enum value is the result of a `EnumDefinition`. For these
 cases the `EnumValue` overloads provide a similar experience to using `enum`. In addition, the `EnumValue` type
-allows more efficient storage inside `Variant`. For this case, `Variant(Enum)` constructor, `IEquatable<Enum>`, and `operator ==/!=(Variant, Enum)` do not exist anymore. 
+allows more efficient storage inside `Variant`. For this case, `Variant(Enum)` constructor, `IEquatable<Enum>`, and `operator ==/!=(Variant, Enum)` do not exist anymore.
 
 Change code as follows:
 
@@ -564,7 +564,7 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
 
 Node states do not manage resources, they access resources. Therefore the management of resources must be done in a node manager.
 If you are overriding Dispose() on a NodeState to manage the node state, make the method public instead of protected, and maintain
-a list of node states on which you must call the Dispose() method when the Node Manager is disposed.  Better, associated node states 
+a list of node states on which you must call the Dispose() method when the Node Manager is disposed.  Better, associated node states
 only via an identifier with a backend "system" that manages all state centrally and in your control.
 
 ##### Clone() replaced with CreateCopy()
@@ -712,8 +712,6 @@ wire token types and `ActivateSession` service behavior are unchanged, so
 servers and clients can roll forward independently. Obsolete members remain
 functional while you migrate to the provider model.
 
-#### Obsolete markers introduced by the shipped phases
-
 | Obsolete API | Replacement |
 |---|---|
 | `ISessionManager.ImpersonateUser` | Implement `IUserTokenAuthenticator` and register it with `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. |
@@ -778,35 +776,13 @@ Repeat the pattern per token type: `UserTokenType.UserName`,
 `IssuedTokenProfileUri = Profiles.JwtUserToken`, or a vendor profile such
 as the experimental KeyCredential bridge.
 
-#### SelfAdmin elevation → identity augmenters
-
-OPC 10000-12 §7.2 ApplicationSelfAdmin now flows through the identity
-augmenter chain after an authenticator accepts the user token. Legacy
-`ImpersonateUser` subscribers that only layered SelfAdmin onto an already
-accepted identity should move that logic to a custom `IIdentityAugmenter`:
-
-```csharp
-public sealed class MySelfAdminAugmenter : IIdentityAugmenter
-{
-    public ValueTask<IUserIdentity> AugmentAsync(
-        IUserIdentity identity,
-        AuthenticationContext context,
-        CancellationToken ct = default)
-    {
-        // Match context.ChannelCertificate / ChannelApplicationUri to
-        // deployment state, then return identity or a wrapper.
-        return new ValueTask<IUserIdentity>(identity);
-    }
-}
-
-services.AddOpcUa()
-    .AddServer(o => o.ApplicationUri = "urn:example:server")
-    .AddIdentityAugmenter<MySelfAdminAugmenter>();
-```
-
-GDS servers can use the built-in `GdsApplicationSelfAdminProvider` via
-`AddGdsApplicationSelfAdminProvider()`; the GDS default authenticator
-helper registers it automatically.
+- SelfAdmin elevation now runs through `IIdentityAugmenter` after an authenticator accepts. Register an
+  augmenter via `services.AddIdentityAugmenter<T>()` or `IdentityRegistry.RegisterAugmenter(...)`.
+- GDS hosts get `GdsApplicationSelfAdminProvider` automatically via `AddDefaultIdentityAuthenticators(...)`
+  on the GDS builder — opt out with `DisableGdsApplicationSelfAdminProvider()` (see GDS docs).
+- Legacy `ImpersonateUser` subscribers that only layered SelfAdmin should drop the subscription; the
+  augmenter sees the secure-channel `ChannelCertificate` + `ChannelApplicationUri` through
+  `AuthenticationContext`.
 
 #### `ManagedSessionOptions.Identity` → `IdentityProvider`
 

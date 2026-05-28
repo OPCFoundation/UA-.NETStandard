@@ -3,9 +3,9 @@
 > **Status**: phases P1 – P7, PI, G1, and G2 are shipped on `kube`.
 > The server registry, default authenticators, client providers, DI
 > integration, GDS hosted-service consumption, reference-sample migration,
-> modern AuthorizationService token flow, KeyCredential Push binding, and
-> experimental KeyCredential bridge are available. The sibling-package
-> documents added in P8 are design-only notes for future packages.
+> modern AuthorizationService token flow, KeyCredential Push binding,
+> experimental KeyCredential bridge, and provider implementation guidance
+> are available.
 
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
@@ -30,8 +30,8 @@ The design is intentionally **symmetric**:
    Used by:                                              Used by:
      ManagedSession,                                       SessionManager (P2)
      ConsoleReferenceClient (P5)                           ReferenceServer (P5)
-     Opc.Ua.Identity.Entra/Oidc                            JwtAuthenticator, X509Authenticator
-     (sibling packages, P8)                                AuthorizationServiceType (P6)
+     custom Entra/OIDC providers                           JwtAuthenticator, X509Authenticator
+     custom Windows/AspNetCore providers                   AuthorizationServiceType (P6)
 ```
 
 The model **does not replace** the existing
@@ -867,6 +867,87 @@ Migrate one token type at a time. If no authenticator handles a token, the
 registry falls back to the obsolete event so existing deployments can stage
 the change safely.
 
+## Implementing your own provider
+
+The shipped interfaces are intentionally small so deployments can build provider packages without changing
+stack internals. If you publish reusable packages, keep the package names below reserved for provider-specific
+adapters and depend on the core OPC UA identity abstractions plus the provider SDK you need.
+
+### Entra ID provider
+
+Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Entra`.
+
+- Implement `EntraIdAccessTokenProvider : IAccessTokenProvider` by wrapping MSAL
+  `IPublicClientApplication` for native/user-delegated clients or `IConfidentialClientApplication` for
+  daemon services. Public clients should call `AcquireTokenSilent` first, then fall back to interactive or
+  device-code flows; services should use `AcquireTokenForClient`.
+- Let MSAL own token caching and refresh. Return the acquired JWT as an `AccessToken`, mapping the audience
+  from `AuthorizationServerMetadata.ResourceUri`, `api://<server-app-id>`, or the target server
+  `ApplicationUri`; map user-delegated scopes from `AuthorizationServerMetadata.Scopes`, and use
+  `<server-app-id>/.default` for client credentials.
+- Implement `EntraIdClientIdentityProvider : IClientIdentityProvider` by composing the access-token provider
+  with `IssuedTokenIdentityProvider` and `Profiles.JwtUserToken`.
+- On the server, validate Entra JWTs with `JwksIssuerKeyResolver` (or a provider-specific
+  `EntraIdJwtIssuerKeyResolver`) against
+  `https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys`. Register it through `AddJwtIssuer(...)`
+  or `JwtAuthenticator`, cache keys by `kid`, and refresh once on unknown keys or signature failure to handle
+  tenant key rotation.
+
+### OIDC provider
+
+Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Oidc`.
+
+- Implement `OidcAccessTokenProvider : IAccessTokenProvider` from an issuer or authority URI. Read
+  `.well-known/openid-configuration` to discover the authorization, token, and JWKS endpoints, and map the
+  discovered values into `AuthorizationServerMetadata` so existing OPC UA token-policy metadata still drives
+  provider selection.
+- For desktop and native clients, use authorization code + PKCE: generate a high-entropy `code_verifier`, send
+  `BASE64URL(SHA256(code_verifier))` as the challenge, exchange the returned code at the token endpoint, and
+  return the access token as an OPC UA `AccessToken`.
+- Persist refresh tokens and related state through `ISecretStore` or `ISecretRegistry` so deployments can use
+  DPAPI, Keychain, Key Vault, Kubernetes secrets, or another durable store. Try the refresh-token grant before
+  launching a new authorization-code flow.
+- Implement `OidcClientIdentityProvider : IClientIdentityProvider` as an `IssuedTokenIdentityProvider` wrapper.
+  For server validation, use `JwksIssuerKeyResolver` or an `OidcJwksKeyResolver : IIssuerKeyResolver` against
+  the discovered `jwks_uri`, cache by `kid` and algorithm, honor HTTP cache headers, and refresh once before
+  rejecting an unknown `kid`.
+
+### Windows Integrated provider
+
+Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Windows`.
+
+- Implement `WindowsIntegratedClientIdentityProvider : IClientIdentityProvider` to run a SPNEGO/Kerberos
+  exchange and emit the resulting AP-REQ or wrapped Negotiate token as an issued user token profile owned by
+  the package.
+- Use `System.Net.Security.NegotiateAuthentication` on `net8.0+`; use `System.Net.NegotiateStream` on
+  down-level TFMs where the newer API is unavailable.
+- Derive the service principal name from the target OPC UA endpoint and `ApplicationUri`, for example
+  `HOST/<server-fqdn>` for host-bound deployments or `OPCUA/<server-fqdn>` where an OPC UA-specific SPN is
+  registered.
+- Implement `KerberosUserTokenAuthenticator : IUserTokenAuthenticator` to validate the AP-REQ or wrapped token,
+  verify the ticket target matches the expected server identity, and return an `IUserIdentity`.
+- Decode PAC group SIDs into `IIdentityClaims.Groups` so Part 18 `IdentityCriteriaType.GroupId` and role
+  criteria can map Windows groups without changing `IRoleManager`.
+
+### ASP.NET Core provider
+
+Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.AspNetCore`.
+
+- Implement `AspNetCoreAccessTokenProvider : IAccessTokenProvider` by adapting `Microsoft.Identity.Web`
+  `ITokenAcquisition.GetAccessTokenForUserAsync(...)`. Resolve the current `ClaimsPrincipal` from
+  `IHttpContextAccessor` or from an explicit accessor delegate supplied by the host.
+- Map `AuthorizationServerMetadata.Scopes` to the requested scope list and use
+  `AuthorizationServerMetadata.ResourceUri` as the additional resource or audience hint when the identity
+  provider requires one.
+- Use the ASP.NET Core / Microsoft.Identity.Web token cache for user-delegated tokens. If the host persists
+  refresh-token references in cookies, session, or a server-side token cache, keep raw token material behind
+  `ISecretStore` or `ISecretRegistry` abstractions.
+- Implement `AspNetCoreClientIdentityProvider : IClientIdentityProvider` by composing
+  `AspNetCoreAccessTokenProvider` with `IssuedTokenIdentityProvider`, then register both as scoped services so
+  request handlers can resolve the identity provider and call `Session.UpdateIdentityAsync(...)`.
+- Server-side JWT validation is the same as other OIDC providers: configure `AddJwtIssuer(...)` or
+  `JwtAuthenticator` with the issuer, audience, and JWKS endpoint used by the ASP.NET Core authority.
+
 ## Where each authenticator lives
 
 | Authenticator | File path | Package / assembly | TFM support | Notes |
@@ -906,10 +987,8 @@ the change safely.
   service, Push model, and experimental bridge.
 * [Dependency Injection](DependencyInjection.md) for the `services.AddOpcUa()`
   hosting surface.
-* Design-only sibling-package notes:
-  [Entra](IdentityProviders.Entra.md), [OIDC](IdentityProviders.Oidc.md),
-  [Windows](IdentityProviders.Windows.md), and
-  [AspNetCore](IdentityProviders.AspNetCore.md).
+* [Implementing your own provider](#implementing-your-own-provider) for Entra ID, generic OIDC,
+  Windows Integrated, and ASP.NET Core provider guidance.
 * OPC UA specification references:
   * [Part 4 §6.2 — Authorization Services](https://reference.opcfoundation.org/Core/Part4/v105/docs/6.2)
   * [Part 4 §7.40 — UserIdentityToken parameters](https://reference.opcfoundation.org/Core/Part4/v105/docs/7.40)

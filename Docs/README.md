@@ -24,16 +24,6 @@ Here is a list of available documentation for different topics:
 * [AuthorizationService](AuthorizationService.md) - Modern Part 12 `StartRequestToken` / `FinishRequestToken`, `ITokenIssuer`, and GDS token issuance.
 * [KeyCredentialService](KeyCredentialService.md) - Pull, Push, and experimental bridge guidance for Part 12 KeyCredential flows.
 
-
-## Identity Providers — sibling packages
-
-Design-only notes for future identity-provider packages:
-
-* [Entra identity provider design](IdentityProviders.Entra.md) — MSAL-backed `IAccessTokenProvider`, `IClientIdentityProvider`, and Entra JWKS resolver.
-* [OIDC identity provider design](IdentityProviders.Oidc.md) — generic discovery, PKCE, JWKS rotation, and refresh-token storage hooks.
-* [Windows identity provider design](IdentityProviders.Windows.md) — Windows Integrated / Kerberos with Negotiate and PAC group SID extraction.
-* [ASP.NET Core identity provider design](IdentityProviders.AspNetCore.md) — `Microsoft.Identity.Web` `ITokenAcquisition` adapter and token-store integration.
-
 ## Reference application related
 
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.

@@ -1,8 +1,38 @@
 # AuthorizationService Developer Guide
 
-OPC 10000-12 §9 defines the **AuthorizationService** — a GDS service that issues access tokens for OPC UA applications. Part 12 v1.05 uses the two-phase `StartRequestToken` / `FinishRequestToken` flow; `RequestAccessToken` remains available only for legacy compatibility.
+OPC 10000-12 §9 defines the **AuthorizationService** — a GDS service that issues access tokens for
+OPC UA applications. Part 12 v1.05 uses the two-phase `StartRequestToken` / `FinishRequestToken`
+flow; `RequestAccessToken` remains available only for legacy compatibility.
 
 For client-side JWT use during `ActivateSession`, see [Identity Providers](IdentityProviders.md).
+
+## Architecture
+
+```text
+┌─────────────────┐  GetServiceDescription   ┌──────────────────────────┐
+│  OPC UA Client  │ ───────────────────────► │  ApplicationsNodeManager │
+│                 │  RequestAccessToken      │  (GDS Server)            │
+│                 │  (legacy, [Obsolete])    │                          │
+│                 │ ───────────────────────► │  ┌────────────────────┐  │
+│                 │  StartRequestToken       │  │ IAccessTokenProvider│  │
+│                 │  FinishRequestToken      │  └──────────┬─────────┘  │
+│                 │ ───────────────────────► │             │            │
+│                 │ ◄──── access token ───── │      ┌──────▼──────┐     │
+│                 │                          │      │ ITokenIssuer │     │
+└─────────────────┘                          │      │ JWT / HSM /  │     │
+                                             │      │ cloud signer │     │
+                                             │      └─────────────┘     │
+                                             └──────────────────────────┘
+```
+
+`Opc.Ua.Gds.Server.IAccessTokenProvider` is the server-side request-routing abstraction behind the
+AuthorizationService method handlers. It validates resource ids, policies, pending request ids, and user
+token inputs before the service returns a token to the caller. Modern Part 12 v1.05 clients call
+`StartRequestToken` followed by `FinishRequestToken`; legacy clients can still call `RequestAccessToken`,
+which dispatches to `IAccessTokenProvider.RequestAccessTokenAsync` and is marked `[Obsolete]` in the API.
+`Opc.Ua.Identity.ITokenIssuer` is the signing back-end used by the provider once a request is accepted.
+The default issuer signs JWTs with local certificate material, while custom issuers can delegate signing
+to a cloud KMS, HSM, or corporate authorization service without changing the OPC UA method wiring.
 
 ## Modern Part 12 v1.05 flow
 

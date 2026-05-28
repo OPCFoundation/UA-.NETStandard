@@ -196,6 +196,20 @@ appNodeManager.KeyCredentialRequestStore =
 | Push (`KeyCredentialConfigurationFolderType`) | Administrator or provisioning agent writes credentials to a resource server. | A resource server must store, rotate, or delete credentials locally through `CreateCredential`, `UpdateCredential`, and `DeleteCredential`. | OPC 10000-12 §8 Push model; enabled with `WithKeyCredentialPush()`. |
 | Bridge (`KeyCredentialBridgeAuthenticator`) | OPC UA client presents a KeyCredential proof as an issued identity token. | Closed deployments need an interim bridge between GDS-issued secrets and UA session authentication. | **Experimental vendor extension only; not a Part 6 §6.5.3 conformance claim.** |
 
+### Hybrid (Push + Pull)
+
+- Enable both models when a GDS issues credentials (Pull) and hosts the Push subject. Admin tools can push
+  freshly issued credentials to target resource servers in one round-trip.
+- For wiring in the same process, use `services.AddOpcUa().AddGdsServer(...).WithKeyCredentialPush()`.
+  The Pull side stays on the GDS, and the Push side is enabled on the same node so admin clients write
+  credentials directly to the GDS's resource-server view.
+- For wiring across processes, the GDS uses the default Pull path (`InMemoryKeyCredentialRequestStore`),
+  while each resource server enables Push with `WithKeyCredentialPush()`. The admin tool reads from the
+  GDS and writes to each resource server.
+- The bridge authenticator is independent of Push/Pull: it lets the resource server accept KeyCredential
+  blobs as a UA identity. The hybrid model addresses issuance and distribution; the bridge addresses
+  consumption.
+
 ## Resource Server Push Binding
 
 A regular OPC UA resource server can opt in to the Part 12 §8 Push model
