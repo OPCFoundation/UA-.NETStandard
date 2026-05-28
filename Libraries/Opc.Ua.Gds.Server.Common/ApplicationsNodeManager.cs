@@ -451,6 +451,8 @@ namespace Opc.Ua.Gds.Server
                 m_database.NamespaceIndex = NamespaceIndexes[0];
                 m_request.NamespaceIndex = NamespaceIndexes[0];
 
+                EnsureDefaultAuthorizationService();
+
                 foreach (
                     CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration
                         .CertificateGroups)
@@ -484,6 +486,98 @@ namespace Opc.Ua.Gds.Server
             return new NodeStateCollection().AddOpcUaGds(context);
         }
 
+        private void EnsureDefaultAuthorizationService(BaseObjectState? folder = null)
+        {
+            ushort namespaceIndex = NamespaceIndexes[1];
+            if (folder == null)
+            {
+                NodeId folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
+                folder = FindPredefinedNode<BaseObjectState>(folderId);
+            }
+
+            var browseName = new QualifiedName("Default", namespaceIndex);
+            if (folder?.FindChild(SystemContext, browseName) != null)
+            {
+                return;
+            }
+
+            AuthorizationServiceState service = CreateDefaultAuthorizationService(
+                folder,
+                SystemContext,
+                namespaceIndex,
+                browseName);
+            folder?.AddChild(service);
+            AddPredefinedNode(SystemContext, service);
+        }
+
+        private AuthorizationServiceState CreateDefaultAuthorizationService(
+            NodeState? folder,
+            ISystemContext context,
+            ushort namespaceIndex,
+            QualifiedName browseName)
+        {
+            var service = new AuthorizationServiceState(folder);
+
+            service.Create(
+                context,
+                new NodeId("AuthorizationServices/Default", namespaceIndex),
+                browseName,
+                new LocalizedText("Default"),
+                false);
+
+            service.GetServiceDescription = new GetServiceDescriptionMethodState(service);
+            service.GetServiceDescription.Create(
+                context,
+                new NodeId(Methods.AuthorizationServiceType_GetServiceDescription, namespaceIndex),
+                new QualifiedName("GetServiceDescription", namespaceIndex),
+                new LocalizedText("GetServiceDescription"),
+                false);
+            service.RequestAccessToken = new RequestAccessTokenMethodState(service);
+            service.RequestAccessToken.Create(
+                context,
+                new NodeId(Methods.AuthorizationServiceType_RequestAccessToken, namespaceIndex),
+                new QualifiedName("RequestAccessToken", namespaceIndex),
+                new LocalizedText("RequestAccessToken"),
+                false);
+            service.StartRequestToken = new StartRequestTokenMethodState(service);
+            service.StartRequestToken.Create(
+                context,
+                new NodeId(Methods.AuthorizationServiceType_StartRequestToken, namespaceIndex),
+                new QualifiedName("StartRequestToken", namespaceIndex),
+                new LocalizedText("StartRequestToken"),
+                false);
+            service.FinishRequestToken = new FinishRequestTokenMethodState(service);
+            service.FinishRequestToken.Create(
+                context,
+                new NodeId(Methods.AuthorizationServiceType_FinishRequestToken, namespaceIndex),
+                new QualifiedName("FinishRequestToken", namespaceIndex),
+                new LocalizedText("FinishRequestToken"),
+                false);
+            service.RefreshToken = new RefreshTokenMethodState(service);
+            service.RefreshToken.Create(
+                context,
+                new NodeId(Methods.AuthorizationServiceType_RefreshToken, namespaceIndex),
+                new QualifiedName("RefreshToken", namespaceIndex),
+                new LocalizedText("RefreshToken"),
+                false);
+
+            service.AddChild(service.GetServiceDescription);
+            service.AddChild(service.RequestAccessToken);
+            service.AddChild(service.StartRequestToken);
+            service.AddChild(service.FinishRequestToken);
+            service.AddChild(service.RefreshToken);
+
+            service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
+            service.ServiceCertificate!.Value = ByteString.Empty;
+            if (service.UserTokenPolicies != null)
+            {
+                service.UserTokenPolicies.Value = m_configuration.ServerConfiguration?.UserTokenPolicies ?? default;
+            }
+            ConfigureAuthorizationServiceNode(service);
+
+            return service;
+        }
+
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
@@ -495,6 +589,13 @@ namespace Opc.Ua.Gds.Server
             if (predefinedNode is not BaseObjectState passiveNode)
             {
                 return predefinedNode;
+            }
+
+            if (IsNodeIdInNamespace(passiveNode.NodeId) &&
+                passiveNode.NodeId.TryGetValue(out uint nodeNumericId) &&
+                nodeNumericId == Objects.AuthorizationServices)
+            {
+                EnsureDefaultAuthorizationService(passiveNode);
             }
 
             NodeId typeId = passiveNode.TypeDefinitionId;
@@ -669,24 +770,33 @@ namespace Opc.Ua.Gds.Server
                         passiveNode.Parent?.ReplaceChild(context, authServiceNode);
                     }
 
-                    authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
-                    if (authServiceNode.RequestAccessToken != null)
-                    {
-                        authServiceNode.RequestAccessToken.OnCallAsync = OnRequestAccessTokenAsync;
-                    }
-                    if (authServiceNode.StartRequestToken != null)
-                    {
-                        authServiceNode.StartRequestToken.OnCallAsync = OnStartRequestTokenAsync;
-                    }
-                    if (authServiceNode.FinishRequestToken != null)
-                    {
-                        authServiceNode.FinishRequestToken.OnCallAsync = OnFinishRequestTokenAsync;
-                    }
+                    ConfigureAuthorizationServiceNode(authServiceNode);
 
                     return authServiceNode;
             }
 
             return predefinedNode;
+        }
+
+        private void ConfigureAuthorizationServiceNode(AuthorizationServiceState authServiceNode)
+        {
+            authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
+            if (authServiceNode.RequestAccessToken != null)
+            {
+                authServiceNode.RequestAccessToken.OnCallAsync = OnRequestAccessTokenAsync;
+            }
+            if (authServiceNode.StartRequestToken != null)
+            {
+                authServiceNode.StartRequestToken.OnCallAsync = OnStartRequestTokenAsync;
+            }
+            if (authServiceNode.FinishRequestToken != null)
+            {
+                authServiceNode.FinishRequestToken.OnCallAsync = OnFinishRequestTokenAsync;
+            }
+            if (authServiceNode.RefreshToken != null)
+            {
+                authServiceNode.RefreshToken.OnCallAsync = OnRefreshTokenAsync;
+            }
         }
 
         private ServiceResult OnAddSelfAdminRolePermissions(
@@ -2422,6 +2532,51 @@ namespace Opc.Ua.Gds.Server
                 result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
                 result.RefreshToken = atr.RefreshToken ?? string.Empty;
                 result.RefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
+
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        private async ValueTask<RefreshTokenMethodStateResult> OnRefreshTokenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string resourceId,
+            string currentRefreshToken,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new RefreshTokenMethodStateResult();
+            ArrayOf<Variant> auditInputs = [resourceId];
+
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "RefreshToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+
+            try
+            {
+                AccessTokenResult atr = await provider
+                    .RefreshTokenAsync(resourceId, currentRefreshToken, cancellationToken)
+                    .ConfigureAwait(false);
+
+                result.AccessToken = atr.AccessToken;
+                result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
+                result.NewRefreshToken = atr.RefreshToken ?? string.Empty;
+                result.NewRefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
             }
             catch (Exception ex)
             {

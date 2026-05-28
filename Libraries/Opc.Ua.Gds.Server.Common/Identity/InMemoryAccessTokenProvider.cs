@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,6 +54,10 @@ namespace Opc.Ua.Gds.Server.Identity
         private readonly ITokenIssuer m_tokenIssuer;
         private readonly AuthorizationServiceOptions m_options;
         private readonly ConcurrentDictionary<Guid, RequestRecord> m_requests = new();
+        private readonly ConcurrentDictionary<string, IssuedTokenRecord> m_issuedTokens =
+            new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, DateTime> m_revokedTokens =
+            new(StringComparer.Ordinal);
 
         /// <summary>
         /// Creates an in-memory token provider.
@@ -173,21 +178,37 @@ namespace Opc.Ua.Gds.Server.Identity
                 : requestedRoles.ToArray()!
                     .Where(role => !string.IsNullOrWhiteSpace(role))
                     .ToArray();
+            string subject = GetSubject(userIdentityToken, request.Subject);
             AccessToken token = await IssueAsync(
-                GetSubject(userIdentityToken, request.Subject),
+                subject,
                 request.ResourceId,
                 request.Scopes,
                 roles,
                 ct)
                 .ConfigureAwait(false);
+
+            string? refreshToken = null;
+            DateTime refreshExpiry = DateTime.MinValue;
+            if (m_options.EnableRefreshTokens)
+            {
+                refreshToken = CreateRefreshToken();
+                refreshExpiry = DateTime.UtcNow + m_options.DefaultRefreshTokenLifetime;
+                m_issuedTokens[refreshToken] = new IssuedTokenRecord(
+                    subject,
+                    request.ResourceId,
+                    request.Scopes.ToArray(),
+                    roles.ToArray(),
+                    refreshExpiry);
+            }
+
             using (token)
             {
                 return new AccessTokenResult
                 {
                     AccessToken = Encoding.UTF8.GetString(token.TokenData.ToArray()),
                     AccessTokenExpiryTime = token.ExpiresAt,
-                    RefreshToken = null,
-                    RefreshTokenExpiryTime = DateTime.MinValue,
+                    RefreshToken = refreshToken,
+                    RefreshTokenExpiryTime = refreshExpiry,
                     TokenType = "JWT",
                     PolicyId = string.IsNullOrEmpty(request.PolicyId) ? "jwt" : request.PolicyId,
                     AccessTokenBytes = token.TokenData.ToArray()
@@ -196,14 +217,101 @@ namespace Opc.Ua.Gds.Server.Identity
         }
 
         /// <inheritdoc/>
-        public ValueTask<AccessTokenResult> RefreshTokenAsync(
+        /// <remarks>
+        /// Refresh tokens are single-use and bound to their original resource id. An attempted
+        /// use with a different resource id is treated as misuse and revokes that refresh token.
+        /// </remarks>
+        public async ValueTask<AccessTokenResult> RefreshTokenAsync(
             string resourceId,
             string currentRefreshToken,
             CancellationToken ct = default)
         {
-            throw ServiceResultException.Create(
-                StatusCodes.BadNotSupported,
-                "AuthorizationService refresh tokens are not supported by the default in-memory provider.");
+            ct.ThrowIfCancellationRequested();
+
+            if (!m_options.EnableRefreshTokens)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "AuthorizationService refresh tokens are disabled.");
+            }
+
+            if (string.IsNullOrEmpty(resourceId))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "Resource id is required.");
+            }
+            if (string.IsNullOrEmpty(currentRefreshToken))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "Refresh token is required.");
+            }
+
+            PruneRevokedTokens();
+
+            if (m_revokedTokens.ContainsKey(currentRefreshToken))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Refresh token has already been used.");
+            }
+
+            if (!m_issuedTokens.TryRemove(currentRefreshToken, out IssuedTokenRecord? record))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Unknown refresh token.");
+            }
+
+            if (record.ExpiresAtUtc < DateTime.UtcNow)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTimeout,
+                    "Refresh token has expired.");
+            }
+
+            if (!string.Equals(record.ResourceId, resourceId, StringComparison.Ordinal))
+            {
+                m_revokedTokens[currentRefreshToken] = record.ExpiresAtUtc;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "Refresh token is bound to a different resource.");
+            }
+
+            m_revokedTokens[currentRefreshToken] = record.ExpiresAtUtc;
+            ValidateAudience(resourceId);
+
+            AccessToken token = await IssueAsync(
+                record.Subject,
+                record.ResourceId,
+                record.Scopes,
+                record.Roles,
+                ct)
+                .ConfigureAwait(false);
+
+            string newRefreshToken = CreateRefreshToken();
+            DateTime newRefreshExpiry = DateTime.UtcNow + m_options.DefaultRefreshTokenLifetime;
+            m_issuedTokens[newRefreshToken] = new IssuedTokenRecord(
+                record.Subject,
+                record.ResourceId,
+                record.Scopes.ToArray(),
+                record.Roles.ToArray(),
+                newRefreshExpiry);
+
+            using (token)
+            {
+                return new AccessTokenResult
+                {
+                    AccessToken = Encoding.UTF8.GetString(token.TokenData.ToArray()),
+                    AccessTokenExpiryTime = token.ExpiresAt,
+                    RefreshToken = newRefreshToken,
+                    RefreshTokenExpiryTime = newRefreshExpiry,
+                    TokenType = "JWT",
+                    PolicyId = "jwt",
+                    AccessTokenBytes = token.TokenData.ToArray()
+                };
+            }
         }
 
         private ValueTask<AccessToken> IssueAsync(
@@ -291,11 +399,40 @@ namespace Opc.Ua.Gds.Server.Identity
                 .ToArray();
         }
 
+        private static string CreateRefreshToken()
+        {
+            byte[] bytes = new byte[32];
+            using (RandomNumberGenerator generator = RandomNumberGenerator.Create())
+            {
+                generator.GetBytes(bytes);
+            }
+            return Utils.ToHexString(bytes);
+        }
+
+        private void PruneRevokedTokens()
+        {
+            DateTime now = DateTime.UtcNow;
+            foreach (KeyValuePair<string, DateTime> entry in m_revokedTokens)
+            {
+                if (entry.Value < now)
+                {
+                    m_revokedTokens.TryRemove(entry.Key, out _);
+                }
+            }
+        }
+
         private sealed record RequestRecord(
             string ResourceId,
             string PolicyId,
             string[] Scopes,
             string Subject,
+            DateTime ExpiresAtUtc);
+
+        private sealed record IssuedTokenRecord(
+            string Subject,
+            string ResourceId,
+            string[] Scopes,
+            string[] Roles,
             DateTime ExpiresAtUtc);
     }
 }

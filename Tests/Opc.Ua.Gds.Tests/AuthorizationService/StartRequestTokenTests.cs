@@ -94,6 +94,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(tokenResult.TokenType, Is.EqualTo("JWT"));
             Assert.That(tokenResult.PolicyId, Is.EqualTo("jwt"));
             Assert.That(tokenResult.AccessToken, Does.Contain("."));
+            Assert.That(tokenResult.RefreshToken, Is.Not.Null.And.Not.Empty);
+            Assert.That(tokenResult.RefreshTokenExpiryTime, Is.GreaterThan(DateTime.UtcNow));
 
             ECDsa verifier = certificate.GetECDsaPublicKey();
             using var resolver = new StaticIssuerKeyResolver(

@@ -526,21 +526,30 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | RequestAccessToken | ✅ | Legacy compatibility path via `IAccessTokenProvider.RequestAccessTokenAsync` |
 | StartRequestToken (RC) | ✅ | `OnStartRequestToken` / `AuthorizationServiceManager` |
 | FinishRequestToken (RC) | ✅ | `OnFinishRequestToken` / `AuthorizationServiceManager` |
-| RefreshToken (RC) | ⚠️ | `IAccessTokenProvider.RefreshTokenAsync` interface defined; default provider returns Bad_NotSupported |
+| RefreshToken (RC) | ✅ | `OnRefreshTokenAsync` / `AuthorizationServiceManager` |
 | SupportedRoles (RC) | ✅ | Model property exposed |
 | Client proxy | ✅ | `AuthorizationServiceClient.cs` |
 
-### Refresh-token support (planned)
+### Refresh tokens
 
-`IAccessTokenProvider.RefreshTokenAsync(refreshToken, requestedRoles, ct)` is already on the interface,
-but the default `InMemoryAccessTokenProvider` short-circuits to `Bad_NotSupported`. The plan is to wire
-`OnRefreshTokenAsync` on `AuthorizationServiceState` to dispatch to the provider, then update
-`InMemoryAccessTokenProvider` to track issued refresh tokens in a Guid-to-refresh-record dictionary,
-validate them on inbound calls, and emit a fresh access token plus an optionally rotated refresh token.
-`AuthorizationServiceClient.RefreshTokenAsync(...)` should mirror the server-side method. Tests should
-cover refresh-token expiry, rotation, replay detection, and the round-trip with a JWT-validating client.
-Track this via a follow-up commit on this branch or a separate PR; no schema changes are required because
-the `RefreshToken` method state is already source-generated from `OpcUaGdsModel.xml`.
+The default in-memory AuthorizationService provider now issues a refresh token from
+`FinishRequestToken` and accepts it through `RefreshToken` (OPC 10000-12 §9.7). Refresh
+tokens are opaque, single-use secrets: each successful refresh consumes the current token,
+issues a new access token, and rotates to a new refresh token. The refresh-token lifetime
+slides by `AuthorizationServiceOptions.DefaultRefreshTokenLifetime` (7 days by default).
+Set `AuthorizationServiceOptions.EnableRefreshTokens = false` to preserve the legacy
+behavior where `FinishRequestToken` returns no refresh token and `RefreshToken` returns
+`Bad_NotSupported`.
+
+```csharp
+var (newJwt, newJwtExpiresAt, newRefreshToken, newRefreshExpiresAt) =
+    await authClient.RefreshTokenAsync(resourceId, refreshToken);
+
+refreshToken = newRefreshToken;
+```
+
+Refresh-token audit events include only the `resourceId` input and the outcome. The
+refresh token itself is a secret and is never placed in audit payloads.
 
 ## LDS / LDS-ME (§4–5)
 

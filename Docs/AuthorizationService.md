@@ -58,6 +58,18 @@ var (jwt, expiresAt, refreshToken, refreshExpiresAt) =
 
 `StartRequestToken` validates the requested audience and scopes, allocates a continuation request id, and stores the pending request in memory. `FinishRequestToken` exchanges that id for a compact JWT (`tokenType = "JWT"`) signed by the configured `Opc.Ua.Identity.ITokenIssuer`.
 
+### Refreshing an access token
+
+```csharp
+if (refreshToken != null && DateTime.UtcNow >= expiresAt.AddMinutes(-5))
+{
+    var refreshed = await authClient.RefreshTokenAsync(resourceId, refreshToken);
+    jwt = refreshed.accessToken;
+    expiresAt = refreshed.accessTokenExpiryTime;
+    refreshToken = refreshed.newRefreshToken; // store the rotated token
+}
+```
+
 ## Server hosting
 
 Use `WithAuthorizationService` to register the default in-box issuer and in-memory request store:

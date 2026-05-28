@@ -721,6 +721,11 @@ functional while you migrate to the provider model.
 | `AuthorizationServiceClient.RequestAccessTokenAsync` | Use `StartRequestTokenAsync` followed by `FinishRequestTokenAsync`. |
 | `Opc.Ua.Gds.Server.IAccessTokenProvider.RequestAccessTokenAsync` | Implement `StartRequestTokenAsync` and `FinishRequestTokenAsync`; keep the legacy method as a compatibility shim if you serve v1.04 clients. |
 
+- Custom `IAccessTokenProvider` implementations now have a default `EnableRefreshTokens = true`
+  behavior on the in-memory provider. Implementers who do not support refresh tokens can override
+  `RefreshTokenAsync` to throw `Bad_NotSupported` or set
+  `AuthorizationServiceOptions.EnableRefreshTokens = false`.
+
 #### `SessionManager.ImpersonateUser` → registry authenticators
 
 Legacy event wiring:

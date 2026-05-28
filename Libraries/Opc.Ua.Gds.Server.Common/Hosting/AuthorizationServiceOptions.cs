@@ -59,6 +59,23 @@ namespace Opc.Ua.Gds.Server.Hosting
         public TimeSpan DefaultTokenLifetime { get; set; } = TimeSpan.FromMinutes(60);
 
         /// <summary>
+        /// Gets or sets a value indicating whether the in-memory provider issues
+        /// refresh tokens during FinishRequestToken and accepts them on RefreshToken.
+        /// Defaults to <c>true</c>. Setting to <c>false</c> preserves the legacy
+        /// behaviour where Finish returns no refresh token and Refresh throws
+        /// BadNotSupported.
+        /// </summary>
+        public bool EnableRefreshTokens { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the lifetime applied to each newly-issued refresh token.
+        /// Refresh tokens slide — each successful refresh extends the lifetime
+        /// of the new token by this value. OPC 10000-12 does not mandate a
+        /// value; the default is 7 days per OAuth2 norms.
+        /// </summary>
+        public TimeSpan DefaultRefreshTokenLifetime { get; set; } = TimeSpan.FromDays(7);
+
+        /// <summary>
         /// Gets the audience URIs that may receive tokens. When empty, the
         /// default implementation accepts the requested resource URI.
         /// </summary>
