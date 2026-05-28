@@ -28,50 +28,43 @@
  * ======================================================================*/
 
 using System;
-using NUnit.Framework;
-using Opc.Ua.Security.Certificates;
-using Opc.Ua.Tests;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
+using Opc.Ua.Server;
+using Opc.Ua.Server.ComplexTypes;
+using Opc.Ua.Server.Hosting;
 
-using Opc.Ua.ComplexTypes;
-
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// Assembly-level setup/teardown that verifies no Certificate
-    /// instances are leaked during the test run.
+    /// <see cref="IOpcUaServerBuilder"/> extensions provided by
+    /// <c>Opc.Ua.Server.ComplexTypes</c>: register a
+    /// <see cref="ServerComplexTypeSystemFactory"/> so that hosted
+    /// servers can resolve typed complex-type loaders.
     /// </summary>
-    [SetUpFixture]
-    public class LeakDetectionSetup
+    public static class OpcUaComplexTypesServerBuilderExtensions
     {
-        [OneTimeSetUp]
-        public void GlobalSetup()
+        /// <summary>
+        /// Registers the singleton
+        /// <see cref="ServerComplexTypeSystemFactory"/> service so
+        /// consumers can resolve it and produce a
+        /// <see cref="ServerComplexTypeSystem"/> per
+        /// <see cref="IServerInternal"/>.
+        /// </summary>
+        /// <remarks>
+        /// Idempotent: repeated calls do not add a second descriptor.
+        /// </remarks>
+        /// <param name="builder">The OPC UA server builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddComplexTypes(this IOpcUaServerBuilder builder)
         {
-            Certificate.ResetLeakCounters();
-        }
-
-        [OneTimeTearDown]
-        public void GlobalTeardown()
-        {
-            // Force GC to finalize any abandoned certificates. Multiple
-            // cycles ensure that finalizable objects whose finalizer
-            // creates new garbage are themselves collected. The sweep is
-            // bounded by a watchdog so a stuck finalizer cannot hang the
-            // test host indefinitely during assembly teardown.
-            if (!LeakDetectionHelpers.TryRunFinalizerSweep())
+            if (builder is null)
             {
-                Assert.Warn(
-                    $"Finalizer sweep exceeded {LeakDetectionHelpers.DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
-                    "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
+                throw new ArgumentNullException(nameof(builder));
             }
-
-            long leaked = Certificate.InstancesLeaked;
-            if (leaked > 0)
-            {
-                Assert.Warn(
-                    $"Certificate leak detected: {leaked} instance(s) created " +
-                    $"but not disposed (created={Certificate.InstancesCreated}, " +
-                    $"disposed={Certificate.InstancesDisposed}).");
-            }
+            builder.Services.TryAddSingleton<ServerComplexTypeSystemFactory>();
+            return builder;
         }
     }
 }

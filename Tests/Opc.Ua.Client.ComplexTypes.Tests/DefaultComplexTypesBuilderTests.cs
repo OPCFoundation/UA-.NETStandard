@@ -28,7 +28,11 @@
  * ======================================================================*/
 
 using NUnit.Framework;
+<<<<<<< Updated upstream:Tests/Opc.Ua.Client.ComplexTypes.Tests/DefaultComplexTypesBuilderTests.cs
 using Opc.Ua.Client;
+=======
+using Opc.Ua.ComplexTypes;
+>>>>>>> Stashed changes:Tests/Opc.Ua.Client.Tests/ComplexTypes/DefaultComplexTypesBuilderTests.cs
 using Opc.Ua.Client.ComplexTypes;
 
 using ComplexStructure = Opc.Ua.Encoders.Structure;

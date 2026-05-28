@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Opc.Ua.Client;
+using Opc.Ua.ComplexTypes;
 using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Aot.Tests

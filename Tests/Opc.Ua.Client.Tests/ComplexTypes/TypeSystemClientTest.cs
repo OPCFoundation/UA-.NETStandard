@@ -36,7 +36,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Client.Tests;
+using Opc.Ua.ComplexTypes;
+using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts;
@@ -45,9 +46,7 @@ using Quickstarts.ReferenceServer;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
 
-using Opc.Ua.ComplexTypes;
-
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace Opc.Ua.Client.Tests.ComplexTypes
 {
     /// <summary>
     /// Load Type System tests.
@@ -170,7 +169,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary)
         {
-            var typeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var typeSystem = new ComplexTypeSystem(Session, m_telemetry);
             Assert.That(typeSystem, Is.Not.Null);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
@@ -187,15 +186,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             foreach (ExpandedNodeId dataTypeId in typeSystem.GetDefinedDataTypeIds())
             {
-                NodeIdDictionary<DataTypeDefinition> definitions = typeSystem
-                    .GetDataTypeDefinitionsForDataType(
-                        dataTypeId);
+                NodeIdDictionary<DataTypeDefinition> definitions =
+                    typeSystem.GetDataTypeDefinitionsForDataType(dataTypeId);
                 Assert.That(definitions, Is.Not.Empty);
-                Type type = Session.Factory.GetSystemType(dataTypeId);
-                Assert.That(type, Is.Not.Null);
+                Assert.That(Session.Factory.TryGetType(dataTypeId, out IType type), Is.True);
 
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
-                if (type.IsEnum)
+                if (type is IEnumeratedType)
                 {
                     Assert.That(definitions, Has.Count.EqualTo(1));
                     Assert.That(definitions.First().Value, Is.InstanceOf<EnumDefinition>());
@@ -213,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = new ComplexTypeSystem(Session, m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             ArrayOf<ReferenceDescription> referenceDescriptions = await samples
@@ -251,7 +248,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = new ComplexTypeSystem(Session, m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples
@@ -298,8 +295,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     var fullTypeId = NodeId.ToExpandedNodeId(
                         variableNode.DataType,
                         Session.NamespaceUris);
-                    Type type = Session.Factory.GetSystemType(fullTypeId);
-                    if (type == null)
+                    if (!Session.Factory.TryGetType(fullTypeId, out IType type))
                     {
                         // check for opaque type
                         NodeId superType =
@@ -339,14 +335,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     if (value.WrappedValue.TryGetValue(out ExtensionObject extensionObject) &&
                         extensionObject.TryGetValue(out IEncodeable encodeable))
                     {
-                        Type valueType = encodeable.GetType();
-                        if (valueType != type)
+                        if (!Session.Factory.TryGetType(encodeable.TypeId, out IType valueType) ||
+                            valueType.XmlName != type.XmlName)
                         {
                             testFailed = true;
                             TestContext.Out.WriteLine(
-                                "Variable: {0} type is decoded as ExtensionObject --> {1}",
-                                variableNode,
-                                value.WrappedValue);
+                            "Variable: {0} type is decoded as ExtensionObject --> {1}",
+                            variableNode,
+                            value.WrappedValue);
                             (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                 .ConfigureAwait(false);
                         }
@@ -359,8 +355,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         {
                             if (valueItem.TryGetValue(out encodeable))
                             {
-                                Type valueType = encodeable.GetType();
-                                if (valueType != type)
+                                if (!Session.Factory.TryGetType(encodeable.TypeId, out IType valueType) ||
+                                    valueType.XmlName != type.XmlName)
                                 {
                                     testFailed = true;
                                     TestContext.Out.WriteLine(
@@ -408,7 +404,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(m_telemetry, null, null, true);
-            var complexTypeSystem = ComplexTypeSystem.Create(Session, m_telemetry);
+            var complexTypeSystem = new ComplexTypeSystem(Session, m_telemetry);
             await samples.LoadTypeSystemAsync(complexTypeSystem, default).ConfigureAwait(false);
 
             // test the static version of the structure
@@ -427,19 +423,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.That(dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject), Is.True);
             Assert.That(extensionObject.TryGetValue(out IEncodeable encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
-            var complexType = encodeable as IComplexTypeProperties;
+            var complexType = encodeable as IStructure;
             Assert.That(complexType, Is.Not.Null);
 
             // list properties
-            TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
-            foreach (ComplexTypePropertyInfo property in complexType.GetPropertyEnumerator())
+            TestContext.Out.WriteLine("{0} Properties", complexType.GetFields().Count);
+            foreach (IStructureField property in complexType.GetFields())
             {
                 TestContext.Out.WriteLine(
-                    "{0}:{1:20}: Type: {2}: ValueRank: {3} Value: {4}",
-                    property.Order,
+                    "{0} (Type: {1}): {2})",
                     property.Name,
-                    property.PropertyType.Name,
-                    property.ValueRank,
+                    complexType[property.Name].TypeInfo,
                     complexType[property.Name].ToString());
             }
 
@@ -481,19 +475,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.That(dataValue.WrappedValue.TryGetValue(out extensionObject), Is.True);
             Assert.That(extensionObject.TryGetValue(out encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
-            complexType = encodeable as IComplexTypeProperties;
+            complexType = encodeable as IStructure;
             Assert.That(complexType, Is.Not.Null);
 
             // list properties
-            TestContext.Out.WriteLine("{0} Properties", complexType.GetPropertyCount());
-            foreach (ComplexTypePropertyInfo property in complexType.GetPropertyEnumerator())
+            TestContext.Out.WriteLine("{0} Properties", complexType.GetFields().Count);
+            foreach (IStructureField property in complexType.GetFields())
             {
                 TestContext.Out.WriteLine(
-                    "{0}:{1:20}: Type: {2}: ValueRank: {3} Value: {4}",
-                    property.Order,
+                    "{0} (Type: {1}): {2})",
                     property.Name,
-                    property.GetType().Name,
-                    property.ValueRank,
+                    complexType[property.Name].TypeInfo,
                     complexType[property.Name].ToString());
             }
 

@@ -34,7 +34,11 @@ using System.Linq;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
+<<<<<<< Updated upstream:Tests/Opc.Ua.Client.ComplexTypes.Tests/DefaultComplexTypesCommon.cs
 using Opc.Ua.Client;
+=======
+using Opc.Ua.ComplexTypes;
+>>>>>>> Stashed changes:Tests/Opc.Ua.Client.Tests/ComplexTypes/DefaultComplexTypesCommon.cs
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Test;

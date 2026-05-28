@@ -39,6 +39,8 @@ using Opc.Ua.Test;
 
 using Opc.Ua.Core.TestFramework;
 
+using Opc.Ua.ComplexTypes;
+
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>

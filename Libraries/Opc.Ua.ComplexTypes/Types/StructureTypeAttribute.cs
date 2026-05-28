@@ -27,46 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.ComplexTypes;
+using System;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.ComplexTypes
 {
     /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
+    /// Attribute for type ids of a structure definition.
     /// </summary>
-    public static class ComplexTypesExtensions
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+    public sealed class StructureTypeIdAttribute : Attribute
     {
-        extension(ComplexTypeSystem)
-        {
-            /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                ISession session,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
+        /// <summary>
+        /// The complex type id attribute.
+        /// </summary>
+        public string? ComplexTypeId { get; set; }
 
-            /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
+        /// <summary>
+        /// The binary encoding id attribute.
+        /// </summary>
+        public string? BinaryEncodingId { get; set; }
 
-        }
+        /// <summary>
+        /// The xml encoding id attribute.
+        /// </summary>
+        public string? XmlEncodingId { get; set; }
     }
 }

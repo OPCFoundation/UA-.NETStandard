@@ -27,46 +27,34 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.ComplexTypes;
+using System;
+using System.Collections.Generic;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.ComplexTypes
 {
     /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
+    /// Interface to access properties of a complex type.
     /// </summary>
-    public static class ComplexTypesExtensions
+    public interface IComplexTypeProperties : IStructure
     {
-        extension(ComplexTypeSystem)
-        {
-            /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                ISession session,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
+        /// <summary>
+        /// Get count of properties.
+        /// </summary>
+        int GetPropertyCount();
 
-            /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
+        /// <summary>
+        /// Get ordered list of property names.
+        /// </summary>
+        IList<string> GetPropertyNames();
 
-        }
+        /// <summary>
+        /// Get ordered list of property types.
+        /// </summary>
+        IList<Type> GetPropertyTypes();
+
+        /// <summary>
+        /// Ordered enumerator for properties.
+        /// </summary>
+        IEnumerable<ComplexTypePropertyInfo> GetPropertyEnumerator();
     }
 }

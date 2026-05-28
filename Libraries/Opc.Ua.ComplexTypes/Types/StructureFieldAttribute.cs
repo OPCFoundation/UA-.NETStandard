@@ -27,46 +27,45 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.ComplexTypes;
+using System;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.ComplexTypes
 {
     /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
+    /// Attribute for a base complex type field definition.
     /// </summary>
-    public static class ComplexTypesExtensions
+    [AttributeUsage(AttributeTargets.Property)]
+    public sealed class StructureFieldAttribute : Attribute
     {
-        extension(ComplexTypeSystem)
+        /// <summary>
+        /// Initialize a field attribute with defaults.
+        /// </summary>
+        public StructureFieldAttribute()
         {
-            /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                ISession session,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
-
-            /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
-
+            ValueRank = -1;
+            MaxStringLength = 0;
+            IsOptional = false;
+            BuiltInType = 0;
         }
+
+        /// <summary>
+        /// The value rank of the field.
+        /// </summary>
+        public int ValueRank { get; set; }
+
+        /// <summary>
+        /// The maximum string length of the field.
+        /// </summary>
+        public uint MaxStringLength { get; set; }
+
+        /// <summary>
+        /// If the field is optional.
+        /// </summary>
+        public bool IsOptional { get; set; }
+
+        /// <summary>
+        /// The datatype of a field as BuiltInType.
+        /// </summary>
+        public int BuiltInType { get; set; }
     }
 }

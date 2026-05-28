@@ -27,46 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.ComplexTypes;
+using System;
 
-namespace Opc.Ua.Client.ComplexTypes
-{
-    /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
-    /// </summary>
-    public static class ComplexTypesExtensions
-    {
-        extension(ComplexTypeSystem)
-        {
-            /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                ISession session,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
-
-            /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
-
-        }
-    }
-}
+[assembly: CLSCompliant(false)]

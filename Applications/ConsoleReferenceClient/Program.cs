@@ -40,6 +40,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.ComplexTypes;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;

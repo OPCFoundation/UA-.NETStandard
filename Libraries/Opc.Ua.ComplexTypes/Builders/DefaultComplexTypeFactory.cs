@@ -27,46 +27,48 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.ComplexTypes;
+using System.Collections.Generic;
+using System.Xml;
 
-namespace Opc.Ua.Client.ComplexTypes
+namespace Opc.Ua.ComplexTypes
 {
     /// <summary>
-    /// Adds static methods to create a complex type system to load
-    /// custom types using reflection emit (legacy).
+    /// Default complex type factory
     /// </summary>
-    public static class ComplexTypesExtensions
+    public sealed class DefaultComplexTypeFactory : IComplexTypeFactory
     {
-        extension(ComplexTypeSystem)
+        /// <inheritdoc/>
+        public DefaultComplexTypeFactory()
         {
-            /// <summary>
-            /// Initializes the type system with a session to load the
-            /// custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                ISession session,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    session,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
-
-            /// <summary>
-            /// Initializes the type system with a complex type resolver
-            /// to load the custom types using reflection emit.
-            /// </summary>
-            public static ComplexTypeSystem Create(
-                IComplexTypeResolver complexTypeResolver,
-                ITelemetryContext telemetry)
-            {
-                return new ComplexTypeSystem(
-                    complexTypeResolver,
-                    new ComplexTypeBuilderFactory(),
-                    telemetry);
-            }
-
         }
+
+        /// <inheritdoc/>
+        public IComplexTypeBuilder Create(
+            string targetNamespace,
+            int targetNamespaceIndex,
+            string? moduleName = null)
+        {
+            return new DefaultComplexTypeBuilder(
+                this,
+                targetNamespace,
+                targetNamespaceIndex);
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<IType> GetTypes()
+        {
+            return [.. m_types.Values];
+        }
+
+        /// <summary>
+        /// Called when a new type was created during complex type system
+        /// loading
+        /// </summary>
+        internal void OnTypeCreated(IType type)
+        {
+            m_types[type.XmlName] = type;
+        }
+
+        private readonly Dictionary<XmlQualifiedName, IType> m_types = [];
     }
 }
