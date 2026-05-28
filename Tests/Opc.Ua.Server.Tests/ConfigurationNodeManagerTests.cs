@@ -142,5 +142,22 @@ namespace Opc.Ua.Server.Tests
             // Cleanup
             await fixture.StopAsync().ConfigureAwait(false);
         }
+
+        [Test]
+        public async Task ConfigurationNodeManager_NoUserManagement_RemovesUserManagementNodeAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+            IServerInternal serverInternal = server.CurrentInstance;
+            Assert.That(serverInternal.UserManagement, Is.Null);
+
+            NodeState userManagementNode = await serverInternal.NodeManager
+                .FindNodeInAddressSpaceAsync(ObjectIds.UserManagement)
+                .ConfigureAwait(false);
+            Assert.That(userManagementNode, Is.Null);
+
+            await fixture.StopAsync().ConfigureAwait(false);
+        }
     }
 }

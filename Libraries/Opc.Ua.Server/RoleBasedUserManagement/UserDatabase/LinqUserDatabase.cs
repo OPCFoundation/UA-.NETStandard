@@ -183,6 +183,20 @@ namespace Opc.Ua.Server.UserDatabase
         }
 
         /// <inheritdoc/>
+        public IReadOnlyList<UserManagementDataType> GetUsers()
+        {
+            return
+            [
+                .. m_users.Values.Select(user => new UserManagementDataType
+                {
+                    UserName = user.UserName,
+                    UserConfiguration = (uint)UserConfigurationMask.None,
+                    Description = string.Empty
+                })
+            ];
+        }
+
+        /// <inheritdoc/>
         public bool ChangePassword(string userName, ReadOnlySpan<byte> oldPassword, ReadOnlySpan<byte> newPassword)
         {
             if (string.IsNullOrEmpty(userName))
