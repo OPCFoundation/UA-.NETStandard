@@ -139,9 +139,7 @@ namespace Opc.Ua.History.Tests
         [Test]
         public void AlarmEventFilterBuilderProducesValidFilter()
         {
-            EventFilter filter = new AlarmEventFilterBuilder()
-                .ForAlarms()
-                .Build();
+            EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build();
 
             Assert.That(filter, Is.Not.Null);
             Assert.That(filter.SelectClauses.Count, Is.GreaterThan(0));

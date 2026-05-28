@@ -541,6 +541,63 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public FolderState(NodeState? parent) : base(parent) { }
                 }
+                // Stubs required so the generated Opc.Ua.EventRecords.g.cs
+                // file compiles. The generator emits records deriving
+                // from EventRecord, a registration extension over
+                // EventRecordDecoderRegistry, and a per-record
+                // EventFilters.Build factory that delegates to
+                // EventFilterFactory.Create.
+                public abstract record EventRecord
+                {
+                }
+                public sealed class EventRecordDecoderRegistry
+                {
+                    public static EventRecordDecoderRegistry Default
+                        => throw new NotSupportedException();
+                    public bool TryRegister(
+                        NodeId eventTypeId,
+                        QualifiedName[][] standardFields,
+                        Func<System.Collections.Generic.IReadOnlyList<Variant>, EventRecord?> decode)
+                        => throw new NotSupportedException();
+                }
+                public static class EventFilterFactory
+                {
+                    public static EventFilter Create(
+                        NodeId eventTypeId,
+                        EventRecordDecoderRegistry? registry = null)
+                        => throw new NotSupportedException();
+                }
+                public static class EventRecordFieldReaders
+                {
+                    public static ByteString GetByteString(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static string? GetString(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static DateTime GetDateTime(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static LocalizedText GetLocalizedText(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static ushort GetUInt16(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static bool GetBool(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static StatusCode GetStatusCode(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static bool? GetNullableBool(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static double? GetNullableDouble(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static DateTime? GetNullableDateTime(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static LocalizedText[]? GetLocalizedTextArray(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static NodeId GetNodeId(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static ushort? GetNullableUInt16(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static NodeId? GetNullableNodeId(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                }
             }
             """;
 
