@@ -330,6 +330,63 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(returned, Is.SameAs(nb));
         }
 
+        [Test]
+        public void CreateProgramStateMachineMaterialisesUnderParent()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            INodeBuilder parent = b.Node(new NodeId("Machine", kNs));
+
+            IStateMachineBuilder<ProgramStateMachineState> sm =
+                parent.CreateProgramStateMachine(new QualifiedName("Cycle", kNs));
+
+            Assert.That(sm.StateMachine, Is.Not.Null);
+            Assert.That(sm.StateMachine.BrowseName,
+                Is.EqualTo(new QualifiedName("Cycle", kNs)));
+            Assert.That(sm.StateMachine.Parent,
+                Is.SameAs(parent.Node));
+            Assert.That(sm.StateMachine.NodeId.IdentifierAsString,
+                Is.EqualTo("Machine_Cycle"));
+        }
+
+        [Test]
+        public void CreateShelvedStateMachineMaterialisesUnderParent()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            INodeBuilder parent = b.Node(new NodeId("Machine", kNs));
+
+            IStateMachineBuilder<ShelvedStateMachineState> sm =
+                parent.CreateShelvedStateMachine(new QualifiedName("Shelv", kNs));
+
+            Assert.That(sm.StateMachine.BrowseName,
+                Is.EqualTo(new QualifiedName("Shelv", kNs)));
+            Assert.That(sm.StateMachine.Parent, Is.SameAs(parent.Node));
+        }
+
+        [Test]
+        public void CreateExclusiveLimitStateMachineMaterialisesUnderParent()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            INodeBuilder parent = b.Node(new NodeId("Machine", kNs));
+
+            IStateMachineBuilder<ExclusiveLimitStateMachineState> sm =
+                parent.CreateExclusiveLimitStateMachine(
+                    new QualifiedName("ExLim", kNs));
+
+            Assert.That(sm.StateMachine.BrowseName,
+                Is.EqualTo(new QualifiedName("ExLim", kNs)));
+            Assert.That(sm.StateMachine.Parent, Is.SameAs(parent.Node));
+        }
+
+        [Test]
+        public void CreateStateMachineRejectsNullArgs()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            INodeBuilder parent = b.Node(new NodeId("Machine", kNs));
+
+            Assert.Throws<ArgumentNullException>(
+                () => parent.CreateProgramStateMachine(default));
+        }
+
         private static uint ExtractCurrentStateId(ProgramStateMachineState m)
         {
             NodeId value = m.CurrentState!.Id!.Value;

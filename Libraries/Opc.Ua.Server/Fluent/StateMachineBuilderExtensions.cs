@@ -71,5 +71,94 @@ namespace Opc.Ua.Server.Fluent
             if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
             return builder.Builder;
         }
+
+        /// <summary>
+        /// Materialises a new <see cref="ProgramStateMachineState"/>
+        /// child under <paramref name="parent"/> and returns a fluent
+        /// builder over it. The machine is created with stack-default
+        /// state/transition/cause tables; its initial state is
+        /// <c>ProgramStateMachineType_Ready</c>.
+        /// </summary>
+        public static IStateMachineBuilder<ProgramStateMachineState>
+            CreateProgramStateMachine(
+                this INodeBuilder parent,
+                QualifiedName browseName)
+        {
+            INodeBuilder<ProgramStateMachineState> nb =
+                AttachStateMachine<ProgramStateMachineState>(
+                    parent, browseName, p => new ProgramStateMachineState(p));
+            return new StateMachineBuilder<ProgramStateMachineState>(nb);
+        }
+
+        /// <summary>
+        /// Materialises a new <see cref="ShelvedStateMachineState"/>
+        /// child under <paramref name="parent"/> and returns a fluent
+        /// builder over it.
+        /// </summary>
+        public static IStateMachineBuilder<ShelvedStateMachineState>
+            CreateShelvedStateMachine(
+                this INodeBuilder parent,
+                QualifiedName browseName)
+        {
+            INodeBuilder<ShelvedStateMachineState> nb =
+                AttachStateMachine<ShelvedStateMachineState>(
+                    parent, browseName, p => new ShelvedStateMachineState(p));
+            return new StateMachineBuilder<ShelvedStateMachineState>(nb);
+        }
+
+        /// <summary>
+        /// Materialises a new <see cref="ExclusiveLimitStateMachineState"/>
+        /// child under <paramref name="parent"/> and returns a fluent
+        /// builder over it.
+        /// </summary>
+        public static IStateMachineBuilder<ExclusiveLimitStateMachineState>
+            CreateExclusiveLimitStateMachine(
+                this INodeBuilder parent,
+                QualifiedName browseName)
+        {
+            INodeBuilder<ExclusiveLimitStateMachineState> nb =
+                AttachStateMachine<ExclusiveLimitStateMachineState>(
+                    parent, browseName, p => new ExclusiveLimitStateMachineState(p));
+            return new StateMachineBuilder<ExclusiveLimitStateMachineState>(nb);
+        }
+
+        private static INodeBuilder<TState> AttachStateMachine<TState>(
+            INodeBuilder parent,
+            QualifiedName browseName,
+            Func<NodeState, TState> factory)
+            where TState : FiniteStateMachineState
+        {
+            if (parent == null) { throw new ArgumentNullException(nameof(parent)); }
+            if (browseName.IsNull) { throw new ArgumentNullException(nameof(browseName)); }
+            if (factory == null) { throw new ArgumentNullException(nameof(factory)); }
+
+            string symbolicName = browseName.Name ?? string.Empty;
+            TState machine = factory(parent.Node);
+            machine.SymbolicName = symbolicName;
+            machine.BrowseName = browseName;
+            machine.DisplayName = new LocalizedText(symbolicName);
+
+            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
+            machine.NodeId = new NodeId(
+                string.Concat(parentIdentifier, "_", symbolicName),
+                parent.Node.NodeId.NamespaceIndex);
+
+            machine.Create(
+                parent.Builder.Context,
+                machine.NodeId,
+                browseName,
+                displayName: new LocalizedText(symbolicName),
+                assignNodeIds: false);
+
+            parent.Node.AddChild(machine);
+
+            if (parent.Builder is not NodeManagerBuilder root)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Create*StateMachine helpers require a NodeManagerBuilder host.");
+            }
+            return new NodeBuilder<TState>(root, machine);
+        }
     }
 }
