@@ -31,6 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 using SoftwareUpdate;
 
@@ -78,6 +79,13 @@ builder.Services
         ISoftwarePackageStore packageStore =
             ctx.GetRequiredService<ISoftwarePackageStore>();
         await SoftwarePackageSeeder.SeedAsync(packageStore).ConfigureAwait(false);
+
+        // Materialise the OPC 10000-100 §10.3 SoftwareUpdateType facet
+        // under the device. The default PackageLoading + library-supplied
+        // "succeed immediately" callbacks give clients a fully browsable
+        // SU subtree (Loading / PrepareForUpdate / Installation /
+        // PowerCycle / Confirmation) with no per-application code.
+        device.WithSoftwareUpdate(packageStore, su => su.UsePackageLoading());
     });
 
 await builder.Build().RunAsync().ConfigureAwait(false);
