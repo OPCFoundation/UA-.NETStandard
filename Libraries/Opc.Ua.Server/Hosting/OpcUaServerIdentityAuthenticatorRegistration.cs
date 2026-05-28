@@ -37,21 +37,39 @@ using Opc.Ua.Identity;
 namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
-    /// Deferred identity-authenticator registration used by the hosted server startup pipeline.
+    /// Represents a public DI registration deposited by <c>AddIdentityAuthenticator&lt;T&gt;()</c> for deferred
+    /// identity-authenticator creation.
     /// </summary>
-    internal sealed class OpcUaServerIdentityAuthenticatorRegistration
+    /// <remarks>
+    /// Hosted server pipelines consume registrations of this type from the service collection so authenticator
+    /// instances can be created after server configuration is available.
+    /// </remarks>
+    public sealed class OpcUaServerIdentityAuthenticatorRegistration
     {
         private readonly Func<
             IServiceProvider,
             ICertificateValidatorEx?,
             IEnumerable<IUserTokenAuthenticator>> m_factory;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="OpcUaServerIdentityAuthenticatorRegistration"/> class.
+        /// </summary>
+        /// <param name="factory">
+        /// Factory that creates authenticators for a service provider and certificate validator.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="factory"/> is <c>null</c>.</exception>
         public OpcUaServerIdentityAuthenticatorRegistration(
             Func<IServiceProvider, ICertificateValidatorEx?, IEnumerable<IUserTokenAuthenticator>> factory)
         {
             m_factory = factory ?? throw new ArgumentNullException(nameof(factory));
         }
 
+        /// <summary>
+        /// Creates the configured identity authenticators.
+        /// </summary>
+        /// <param name="services">Service provider used to resolve dependencies.</param>
+        /// <param name="certificateValidator">Certificate validator supplied by the server configuration.</param>
+        /// <returns>The identity authenticators created by the registration factory.</returns>
         public IEnumerable<IUserTokenAuthenticator> CreateAuthenticators(
             IServiceProvider services,
             ICertificateValidatorEx? certificateValidator)
