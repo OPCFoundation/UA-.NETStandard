@@ -48,6 +48,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ValueWrite => nameof(ValueWrite);
         public static string ValueComparison => nameof(ValueComparison);
         public static string ChildName => nameof(ChildName);
+        public static string ChildBrowseName => nameof(ChildBrowseName);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
         public static string ClassFactory => nameof(ClassFactory);

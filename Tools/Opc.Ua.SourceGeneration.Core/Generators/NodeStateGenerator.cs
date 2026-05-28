@@ -1203,6 +1203,15 @@ namespace Opc.Ua.SourceGeneration
                 asFactory: true));
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
+            // The runtime BrowseName.Name may differ from the symbolic name
+            // (the design's <opc:BrowseName> attribute can override it, e.g.
+            // Boiler's "InputPipe" InstanceDesign with BrowseName "PipeX001").
+            // FindChild switches on the runtime browse name, so the case
+            // label must use that string verbatim.
+            context.Template.AddReplacement(Tokens.ChildBrowseName,
+                !string.IsNullOrEmpty(instance.BrowseName)
+                    ? instance.BrowseName
+                    : instance.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.FieldName, instance.GetChildFieldName());
             context.Template.AddReplacement(Tokens.NodeClass, instance.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.BrowseName, instance.SymbolicName.Name);
