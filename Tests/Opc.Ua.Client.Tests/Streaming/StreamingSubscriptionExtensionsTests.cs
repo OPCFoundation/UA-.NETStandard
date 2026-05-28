@@ -13,6 +13,12 @@ using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 
+// Test assertions use literal expected-value arrays inline; lifting
+// every one to a static field per CA1861 would only add noise.
+// Tests run on the default TaskScheduler so CA2007's sync-context
+// risk does not apply.
+#pragma warning disable CA1861, CA2007
+
 namespace Opc.Ua.Client.Tests.Streaming
 {
     [TestFixture, Category("StreamingExtensions"), Parallelizable]

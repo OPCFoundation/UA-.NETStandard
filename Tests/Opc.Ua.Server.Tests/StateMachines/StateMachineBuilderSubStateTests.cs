@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 .AddTransition(21, "BToA", from: 2, to: 1);
         }
 
-        private static BaseInstanceState GetChild(NodeState parent, string browseName)
+        private static BaseInstanceState GetChild(FluentFiniteStateMachineState parent, string browseName)
         {
             var children = new List<BaseInstanceState>();
             parent.GetChildren(null!, children);

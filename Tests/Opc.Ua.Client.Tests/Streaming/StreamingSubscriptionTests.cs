@@ -13,6 +13,9 @@ using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
 
+// Tests run on the default TaskScheduler so CA2007's sync-context risk does not apply.
+#pragma warning disable CA2007
+
 namespace Opc.Ua.Client.Tests.Streaming
 {
     /// <summary>

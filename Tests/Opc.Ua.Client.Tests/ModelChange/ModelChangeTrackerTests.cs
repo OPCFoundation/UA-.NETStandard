@@ -19,6 +19,12 @@ using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
+// Tests run on the default TaskScheduler so CA2007's sync-context
+// risk does not apply. The local FakeStreamingSubscription is a
+// no-op IAsyncDisposable fake with nothing to dispose; CA2000's leak
+// warning does not apply.
+#pragma warning disable CA2007, CA2000
+
 namespace Opc.Ua.Client.Tests.ModelChange
 {
     /// <summary>
@@ -315,7 +321,7 @@ namespace Opc.Ua.Client.Tests.ModelChange
                 m_channel.Writer.TryComplete();
             }
 
-            public Task WaitForSubscribeAsync()
+            public Task<bool> WaitForSubscribeAsync()
             {
                 return m_subscribed.Task;
             }

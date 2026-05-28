@@ -52,7 +52,6 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     {
         private readonly ISubscriptionManager m_subscriptionManager;
         private readonly SubscriptionOptions m_subscriptionOptions;
-        private readonly Lock m_lock = new();
         private readonly SemaphoreSlim m_initLock = new(1, 1);
         private readonly ConcurrentDictionary<uint, Subscriber> m_subscribers = new();
         private readonly Notifier m_notifier;
@@ -288,10 +287,18 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             await m_initLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                // Double-check after acquiring the init lock — another
+                // caller may have created the subscription while we
+                // were waiting. CA1508's single-threaded flow analysis
+                // cannot model the concurrent write so it flags the
+                // null check as 'always false'; the check is required
+                // for correctness.
+#pragma warning disable CA1508
                 if (m_subscription != null)
                 {
                     return;
                 }
+#pragma warning restore CA1508
 
                 m_subscription = m_subscriptionManager.Add(
                     m_notifier,

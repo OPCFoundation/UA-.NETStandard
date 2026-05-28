@@ -59,7 +59,7 @@ namespace Opc.Ua.SourceGeneration
             // generated C# class + method names.
             string modelPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string identifierPrefix = m_context.ModelDesign.TargetNamespace.Name
-                ?? modelPrefix.Replace(".", string.Empty);
+                ?? modelPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
             string registrationClassName = CoreUtils.Format(
                 "{0}EventRecordDecoders", identifierPrefix);
             string registrationMethodName = CoreUtils.Format(
@@ -505,7 +505,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string StripNullable(string typeName)
         {
-            if (typeName != null && typeName.EndsWith("?", StringComparison.Ordinal))
+            if (typeName != null && typeName.EndsWith('?'))
             {
                 return typeName.Substring(0, typeName.Length - 1);
             }
@@ -579,7 +579,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return string.Empty;
             }
-            return description.Replace("\r", " ").Replace("\n", " ");
+            return description
+                .Replace("\r", " ", StringComparison.Ordinal)
+                .Replace("\n", " ", StringComparison.Ordinal);
         }
 
         /// <summary>

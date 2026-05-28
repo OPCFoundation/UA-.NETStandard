@@ -20,6 +20,10 @@ using Opc.Ua.Tests;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
+// Local fake IStreamingSubscription test types are no-op IAsyncDisposable
+// instances with nothing to dispose; CA2000's leak warning does not apply.
+#pragma warning disable CA2000
+
 namespace Opc.Ua.Client.Tests.Alarms
 {
     /// <summary>
