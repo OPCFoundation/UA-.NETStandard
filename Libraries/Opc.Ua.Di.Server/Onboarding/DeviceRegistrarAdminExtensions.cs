@@ -117,7 +117,7 @@ namespace Opc.Ua.Di.Server.Onboarding
                             ModelName: string.Empty,
                             SerialNumber: string.Empty,
                             ProductInstanceUri: string.Empty))
-                        .GetAwaiter().GetResult();
+                        .AsTask().GetAwaiter().GetResult();
                     results[i] = (int)(uint)StatusCodes.Good;
                 }
                 catch (Exception ex)
@@ -149,7 +149,7 @@ namespace Opc.Ua.Di.Server.Onboarding
                 string ticketId = ComputeTicketId(tickets[i]);
                 try
                 {
-                    bool removed = store.RemoveAsync(ticketId).GetAwaiter().GetResult();
+                    bool removed = store.RemoveAsync(ticketId).AsTask().GetAwaiter().GetResult();
                     results[i] = removed
                         ? (int)(uint)StatusCodes.Good
                         : (int)(uint)StatusCodes.BadNotFound;
@@ -180,12 +180,16 @@ namespace Opc.Ua.Di.Server.Onboarding
         private static string ComputeTicketId(byte[] ticket)
         {
             // Stable identifier — SHA-256 hash of the encoded ticket.
+#if NET5_0_OR_GREATER
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(ticket);
+#else
             byte[] hash;
             using (System.Security.Cryptography.SHA256 sha =
                 System.Security.Cryptography.SHA256.Create())
             {
                 hash = sha.ComputeHash(ticket);
             }
+#endif
             var sb = new System.Text.StringBuilder(hash.Length * 2);
             for (int i = 0; i < hash.Length; i++)
             {

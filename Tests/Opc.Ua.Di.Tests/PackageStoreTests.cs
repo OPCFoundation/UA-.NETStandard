@@ -35,6 +35,11 @@ using NUnit.Framework;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 using Opc.Ua.Server.FileSystem;
 
+// CA1861: collection-literal arguments inside Is.EqualTo/Is.EquivalentTo
+// assertions are evaluated once per test, not on a hot path. Lifting them
+// to static fields per call-site adds noise without measurable benefit.
+#pragma warning disable CA1861
+
 namespace Opc.Ua.Di.Tests
 {
     /// <summary>

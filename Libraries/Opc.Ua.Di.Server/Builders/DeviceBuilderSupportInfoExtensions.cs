@@ -110,7 +110,7 @@ namespace Opc.Ua.Di.Server.Builders
             info.NodeId = device.Context.NodeIdFactory.New(device.Context, info);
             device.Device.AddChild(info);
             device.Manager.AddPredefinedNodeAsync(info, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .AsTask().GetAwaiter().GetResult();
             return info;
         }
     }

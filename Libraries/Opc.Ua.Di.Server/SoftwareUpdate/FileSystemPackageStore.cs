@@ -76,12 +76,12 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
         private readonly string m_rootPath;
         private readonly TimeProvider m_timeProvider;
 
-        private static readonly JsonSerializerOptions s_jsonOptions =
-            new(JsonSerializerDefaults.Web)
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
+#if NET8_0_OR_GREATER
+        private static readonly System.Buffers.SearchValues<char> s_pathSeparators =
+            System.Buffers.SearchValues.Create("/\\");
+#else
+        private static readonly char[] s_pathSeparators = ['/', '\\'];
+#endif
 
         /// <summary>
         /// Creates a new store rooted at <paramref name="rootPath"/>
@@ -307,7 +307,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                 throw new ArgumentException(
                     "Package id must be a non-empty string.", nameof(packageId));
             }
-            if (packageId.IndexOfAny(new[] { '/', '\\' }) >= 0)
+            if (packageId.AsSpan().IndexOfAny(s_pathSeparators) >= 0)
             {
                 throw new ArgumentException(
                     "Package id must not contain path separators.", nameof(packageId));

@@ -147,9 +147,8 @@ namespace Opc.Ua.Server.Fluent
                 Task drain = Task.WhenAll(snapshot.ConvertAll(l => l.RunningTask));
                 drain.Wait(TimeSpan.FromSeconds(5));
             }
-            catch (Exception ex) when (
-                ex is OperationCanceledException ||
-                ex is AggregateException { InnerException: OperationCanceledException })
+            catch (AggregateException ex) when (
+                ex.InnerException is OperationCanceledException)
             {
                 // expected on shutdown
             }
@@ -243,7 +242,7 @@ namespace Opc.Ua.Server.Fluent
                         lastTimestamp = now;
 
                         await InvokeHandlersAsync(
-                                handlers, context, elapsed, cancellationToken, logger)
+                                handlers, context, elapsed, logger, cancellationToken)
                             .ConfigureAwait(false);
                     }
 #else
@@ -256,7 +255,7 @@ namespace Opc.Ua.Server.Fluent
                         lastTimestamp = now;
 
                         await InvokeHandlersAsync(
-                                handlers, context, elapsed, cancellationToken, logger)
+                                handlers, context, elapsed, logger, cancellationToken)
                             .ConfigureAwait(false);
                     }
 #endif
@@ -272,8 +271,8 @@ namespace Opc.Ua.Server.Fluent
             List<Func<ISystemContext, TimeSpan, CancellationToken, ValueTask>> handlers,
             ISystemContext context,
             TimeSpan elapsed,
-            CancellationToken cancellationToken,
-            ILogger? logger)
+            ILogger? logger,
+            CancellationToken cancellationToken)
         {
             foreach (Func<ISystemContext, TimeSpan, CancellationToken, ValueTask> h in handlers)
             {

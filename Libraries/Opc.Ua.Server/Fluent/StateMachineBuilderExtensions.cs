@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Fluent
                 this INodeBuilder parent,
                 QualifiedName browseName)
         {
-            INodeBuilder<ProgramStateMachineState> nb =
+            NodeBuilder<ProgramStateMachineState> nb =
                 AttachStateMachine<ProgramStateMachineState>(
                     parent, browseName, p => new ProgramStateMachineState(p));
             return new StateMachineBuilder<ProgramStateMachineState>(nb);
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Fluent
                 this INodeBuilder parent,
                 QualifiedName browseName)
         {
-            INodeBuilder<ShelvedStateMachineState> nb =
+            NodeBuilder<ShelvedStateMachineState> nb =
                 AttachStateMachine<ShelvedStateMachineState>(
                     parent, browseName, p => new ShelvedStateMachineState(p));
             return new StateMachineBuilder<ShelvedStateMachineState>(nb);
@@ -116,13 +116,13 @@ namespace Opc.Ua.Server.Fluent
                 this INodeBuilder parent,
                 QualifiedName browseName)
         {
-            INodeBuilder<ExclusiveLimitStateMachineState> nb =
+            NodeBuilder<ExclusiveLimitStateMachineState> nb =
                 AttachStateMachine<ExclusiveLimitStateMachineState>(
                     parent, browseName, p => new ExclusiveLimitStateMachineState(p));
             return new StateMachineBuilder<ExclusiveLimitStateMachineState>(nb);
         }
 
-        private static INodeBuilder<TState> AttachStateMachine<TState>(
+        private static NodeBuilder<TState> AttachStateMachine<TState>(
             INodeBuilder parent,
             QualifiedName browseName,
             Func<NodeState, TState> factory)

@@ -53,6 +53,8 @@ namespace Opc.Ua.Di.Tests
     [Category("Hosting")]
     public sealed class HostingIntegrationTests
     {
+        private static readonly int[] s_expectedConfigOrder = [1, 2, 3];
+
         // ---------------------------------------------------------------
         // Service registration
         // ---------------------------------------------------------------
@@ -144,7 +146,7 @@ namespace Opc.Ua.Di.Tests
             try
             {
                 var calls = new List<int>();
-                IDiPostSetupRunner runner = BuildRunner(
+                DiPostSetupRunner runner = BuildRunner(
                     Configurator(typeof(DiNodeManager), _ => { calls.Add(1); return default; }),
                     Configurator(typeof(DiNodeManager), _ => { calls.Add(2); return default; }),
                     Configurator(typeof(DiNodeManager), _ => { calls.Add(3); return default; }));
@@ -152,7 +154,7 @@ namespace Opc.Ua.Di.Tests
                 await runner.RunAsync(fixture.Manager, CancellationToken.None)
                     .ConfigureAwait(false);
 
-                Assert.That(calls, Is.EqualTo(new[] { 1, 2, 3 }));
+                Assert.That(calls, Is.EqualTo(s_expectedConfigOrder));
             }
             finally
             {
@@ -169,7 +171,7 @@ namespace Opc.Ua.Di.Tests
             {
                 bool diRan = false;
                 bool unrelatedRan = false;
-                IDiPostSetupRunner runner = BuildRunner(
+                DiPostSetupRunner runner = BuildRunner(
                     Configurator(typeof(DiNodeManager), _ => { diRan = true; return default; }),
                     Configurator(
                         typeof(UnrelatedSubclass),
@@ -195,7 +197,7 @@ namespace Opc.Ua.Di.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             try
             {
-                IDiPostSetupRunner runner = BuildRunner(
+                DiPostSetupRunner runner = BuildRunner(
                     Configurator(typeof(DiNodeManager), _ =>
                         throw new InvalidOperationException("boom")));
 
@@ -294,7 +296,7 @@ namespace Opc.Ua.Di.Tests
             return new DiPostSetupRunner(sp, sp.GetServices<IDiPostSetupConfigurator>());
         }
 
-        private static IDiPostSetupConfigurator Configurator(
+        private static InlineConfigurator Configurator(
             Type target,
             Func<IDiPostSetupContext, ValueTask> run)
             => new InlineConfigurator(target, run);
@@ -315,16 +317,20 @@ namespace Opc.Ua.Di.Tests
         }
 
         // Dummy subclass used to verify TargetManagerType filtering.
-        // Concrete enough to compile but never instantiated.
+        // Referenced only via typeof(); never instantiated, hence CA1812.
+#pragma warning disable CA1812
         private sealed class UnrelatedSubclass : DiNodeManager
         {
             private UnrelatedSubclass(IServerInternal s, ApplicationConfiguration c)
                 : base(s, c) { }
         }
 
+        // Activated by Microsoft.Extensions.DependencyInjection.AddSingleton;
+        // the analyzer doesn't see runtime DI activation, hence CA1812.
         private sealed class SomeApplicationService
         {
             public bool Touched { get; set; }
         }
+#pragma warning restore CA1812
     }
 }

@@ -6039,7 +6039,7 @@ namespace Opc.Ua.Schema.Model
 
             foreach (DependencyNode entry in dependency.Nodes)
             {
-                NodeDesign design = MaterialiseDependencyNode(entry);
+                TypeDesign design = MaterialiseDependencyNode(entry);
                 if (design == null)
                 {
                     continue;
@@ -6087,7 +6087,7 @@ namespace Opc.Ua.Schema.Model
             m_designFilePaths ??= [];
         }
 
-        private static NodeDesign MaterialiseDependencyNode(DependencyNode entry)
+        private static TypeDesign MaterialiseDependencyNode(DependencyNode entry)
         {
             var symbolicId = new XmlQualifiedName(
                 entry.SymbolicName ?? string.Empty,

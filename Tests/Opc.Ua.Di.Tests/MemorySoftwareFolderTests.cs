@@ -101,7 +101,11 @@ namespace Opc.Ua.Di.Tests
 
             using Stream reader = await folder.OpenVersionAsync("1.0.0");
             byte[] buffer = new byte[100];
+#if NETSTANDARD2_1_OR_GREATER || NET
+            int read = await reader.ReadAsync(buffer.AsMemory());
+#else
             int read = await reader.ReadAsync(buffer, 0, buffer.Length);
+#endif
             string content = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
 
             Assert.That(content, Is.EqualTo("expected-content"));

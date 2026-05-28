@@ -59,7 +59,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
     /// <summary>
     /// Reduced view of a <c>DataTypeDesign</c> field carried in a dependency payload.
     /// </summary>
-    public readonly struct DependencyDataField
+    public readonly record struct DependencyDataField
     {
         /// <summary>Field name.</summary>
         public string Name { get; }
@@ -83,7 +83,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
     /// <summary>
     /// A method input or output argument carried in a dependency payload.
     /// </summary>
-    public readonly struct DependencyMethodArg
+    public readonly record struct DependencyMethodArg
     {
         /// <summary>Argument name.</summary>
         public string Name { get; }

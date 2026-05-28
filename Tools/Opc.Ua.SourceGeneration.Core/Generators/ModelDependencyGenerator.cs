@@ -300,7 +300,7 @@ namespace Opc.Ua.SourceGeneration
             return payload;
         }
 
-        private static IReadOnlyList<DependencyMethodArg> DependencyMethodArgs(Parameter[] args)
+        private static List<DependencyMethodArg> DependencyMethodArgs(Parameter[] args)
         {
             if (args == null || args.Length == 0)
             {

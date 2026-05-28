@@ -135,13 +135,13 @@ namespace Opc.Ua.Di.Tests
             var registry = new MemoryManagedApplicationRegistry();
             Assert.ThrowsAsync<ArgumentException>(
                 async () => await registry.RegisterAsync("",
-                    new byte[0], MakeTicket()));
+                    Array.Empty<byte>(), MakeTicket()));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",
                     null!, MakeTicket()));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",
-                    new byte[0], null!));
+                    Array.Empty<byte>(), null!));
         }
     }
 }

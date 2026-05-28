@@ -76,7 +76,7 @@ namespace Opc.Ua.Di.Server.Builders
 
             device.Device.AddChild(variable);
             device.Manager.AddPredefinedNodeAsync(variable, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .AsTask().GetAwaiter().GetResult();
 
             configure?.Invoke(variable);
             return variable;

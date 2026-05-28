@@ -170,7 +170,7 @@ namespace Opc.Ua.Di.Server.Builders
             return this;
         }
 
-        private IDeviceBuilder<TDevice> ConfigureFunctionalGroup(
+        private DeviceBuilder<TDevice> ConfigureFunctionalGroup(
             QualifiedName browseName,
             bool useIdentificationSlot,
             Action<IFunctionalGroupBuilder> configure)
@@ -238,7 +238,7 @@ namespace Opc.Ua.Di.Server.Builders
             Manager.AddPredefinedNodeAsync(
                 group,
                 System.Threading.CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .AsTask().GetAwaiter().GetResult();
 
             return group;
         }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Di.Server.Builders
             Manager.AddPredefinedNodeAsync(
                 created,
                 System.Threading.CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .AsTask().GetAwaiter().GetResult();
         }
     }
 }

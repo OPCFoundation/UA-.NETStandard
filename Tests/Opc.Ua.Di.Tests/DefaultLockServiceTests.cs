@@ -217,11 +217,6 @@ namespace Opc.Ua.Di.Tests
             };
         }
 
-        private sealed class DummyNodeIdFactory : INodeIdFactory
-        {
-            public NodeId New(ISystemContext context, NodeState node) => node.NodeId;
-        }
-
         /// <summary>
         /// Minimal mutable <see cref="TimeProvider"/> for tests — only
         /// overrides <c>GetUtcNow</c>. Avoids dependency on

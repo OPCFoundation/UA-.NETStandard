@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Fluent
                 return new VariableBuilder<TValue>(Builder, variable);
             }
 
-            private INodeBuilder SetVariable(Action<BaseVariableState> wire)
+            private AdHocNodeBuilder<TState> SetVariable(Action<BaseVariableState> wire)
             {
                 if (Node is not BaseVariableState v)
                 {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server.Fluent
                 return this;
             }
 
-            private INodeBuilder SetMethod(Action<MethodState> wire)
+            private AdHocNodeBuilder<TState> SetMethod(Action<MethodState> wire)
             {
                 if (Node is not MethodState m)
                 {

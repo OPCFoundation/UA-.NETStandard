@@ -35,6 +35,10 @@ using Opc.Ua.Server.Fluent;
 
 #nullable enable
 #pragma warning disable CA2000
+// CA1861: collection-literal arguments inside Is.EqualTo/Is.EquivalentTo
+// assertions are evaluated once per test, not on a hot path. Lifting them
+// to static fields per call-site adds noise without measurable benefit.
+#pragma warning disable CA1861
 
 namespace Opc.Ua.Server.Tests.Fluent
 {

@@ -105,11 +105,11 @@ namespace Opc.Ua.Di.Tests
         {
             var store = new MemoryTicketStore();
             Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.AddAsync("", new byte[0], Metadata()));
+                async () => await store.AddAsync("", Array.Empty<byte>(), Metadata()));
             Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync("t1", null!, Metadata()));
             Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await store.AddAsync("t1", new byte[0], null!));
+                async () => await store.AddAsync("t1", Array.Empty<byte>(), null!));
         }
 
         [Test]

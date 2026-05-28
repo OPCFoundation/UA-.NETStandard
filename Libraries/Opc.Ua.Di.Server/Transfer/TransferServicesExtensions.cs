@@ -125,7 +125,7 @@ namespace Opc.Ua.Di.Server.Transfer
             var emptySet = new ParameterSet(elementId);
             int transferId = service.TransferToDeviceAsync(
                 context, elementId, emptySet)
-                .GetAwaiter().GetResult();
+                .AsTask().GetAwaiter().GetResult();
             outputs.Add(new Variant(transferId));
             outputs.Add(new Variant((int)(uint)StatusCodes.Good));
             return ServiceResult.Good;
@@ -139,7 +139,7 @@ namespace Opc.Ua.Di.Server.Transfer
         {
             int transferId = service.TransferFromDeviceAsync(
                 context, elementId)
-                .GetAwaiter().GetResult();
+                .AsTask().GetAwaiter().GetResult();
             outputs.Add(new Variant(transferId));
             outputs.Add(new Variant((int)(uint)StatusCodes.Good));
             return ServiceResult.Good;
@@ -167,7 +167,7 @@ namespace Opc.Ua.Di.Server.Transfer
 
             FetchResult result = service.FetchAsync(
                 context, transferId, sequenceNumber,
-                maxResults, omitGoodResults).GetAwaiter().GetResult();
+                maxResults, omitGoodResults).AsTask().GetAwaiter().GetResult();
 
             // The spec output type is FetchResultDataType (an abstract
             // structure). We surface the concrete subtype via a
