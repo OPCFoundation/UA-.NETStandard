@@ -102,6 +102,11 @@ namespace Quickstarts.Servers
             {
                 server.AddNodeManager(nodeManagerFactory);
             }
+
+            foreach (IAsyncNodeManagerFactory asyncFactory in AsyncNodeManagerFactories)
+            {
+                server.AddNodeManager(asyncFactory);
+            }
         }
 
         /// <summary>
@@ -135,6 +140,18 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
+        /// The property with available async node manager factories.
+        /// </summary>
+        public static ArrayOf<IAsyncNodeManagerFactory> AsyncNodeManagerFactories
+        {
+            get
+            {
+                s_asyncNodeManagerFactories ??= GetAsyncNodeManagerFactories();
+                return s_asyncNodeManagerFactories.ToArrayOf();
+            }
+        }
+
+        /// <summary>
         /// Enumerates all node manager factories.
         /// </summary>
         private static List<INodeManagerFactory> GetNodeManagerFactories()
@@ -142,13 +159,25 @@ namespace Quickstarts.Servers
             List<INodeManagerFactory> nodeManagerFactories = [];
 
             nodeManagerFactories.Add(new MemoryBuffer.MemoryBufferNodeManagerFactory());
-            nodeManagerFactories.Add(new TestData.TestDataNodeManagerFactory());
             nodeManagerFactories.Add(new Boiler.BoilerNodeManagerFactory());
-            nodeManagerFactories.Add(new Alarms.AlarmNodeManagerFactory());
 
             return nodeManagerFactories;
         }
 
+        /// <summary>
+        /// Enumerates all async node manager factories.
+        /// </summary>
+        private static List<IAsyncNodeManagerFactory> GetAsyncNodeManagerFactories()
+        {
+            List<IAsyncNodeManagerFactory> factories = [];
+
+            factories.Add(new TestData.TestDataNodeManagerFactory());
+            factories.Add(new Alarms.AlarmNodeManagerFactory());
+
+            return factories;
+        }
+
         private static IList<INodeManagerFactory>? s_nodeManagerFactories;
+        private static IList<IAsyncNodeManagerFactory>? s_asyncNodeManagerFactories;
     }
 }
