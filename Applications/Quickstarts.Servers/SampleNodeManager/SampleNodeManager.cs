@@ -254,7 +254,9 @@ namespace Opc.Ua.Sample
             // must release the lock before removing cross references to other node managers.
             if (referencesToRemove.Count > 0)
             {
+#pragma warning disable CS0618 // sync RemoveReferences obsolete; this Quickstart still uses sync DeleteNode flow.
                 Server.NodeManager.RemoveReferences(referencesToRemove);
+#pragma warning restore CS0618
             }
 
             return found;
@@ -2033,7 +2035,7 @@ namespace Opc.Ua.Sample
                 // subscribe to events.
                 if (monitoredNode == null)
                 {
-                    instance.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                    instance.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
                 }
 
                 monitoredNode.SubscribeToEvents(systemContext, monitoredItem);
@@ -2104,7 +2106,7 @@ namespace Opc.Ua.Sample
             // subscribe to events.
             if (monitoredNode == null)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             monitoredNode.SubscribeToEvents(systemContext, monitoredItem);
@@ -2570,7 +2572,7 @@ namespace Opc.Ua.Sample
 
             if (source.Handle is not MonitoredNode monitoredNode)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             // check if the variable needs to be sampled.
@@ -2680,7 +2682,7 @@ namespace Opc.Ua.Sample
 
             if (source.Handle is not MonitoredNode monitoredNode)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             // determine the sampling interval.

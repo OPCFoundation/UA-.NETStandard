@@ -42,7 +42,7 @@ namespace MemoryBuffer
         /// </summary>
         public MemoryBufferMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             uint offset,
             uint subscriptionId,
@@ -88,7 +88,7 @@ namespace MemoryBuffer
         /// </summary>
         public MemoryBufferMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             uint offset,
             IStoredMonitoredItem storedMonitoredItem)

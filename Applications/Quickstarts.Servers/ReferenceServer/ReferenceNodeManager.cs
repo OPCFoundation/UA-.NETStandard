@@ -40,6 +40,8 @@ using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Test;
 using Range = Opc.Ua.Range;
+using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.Historian.InMemory;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -85,6 +87,8 @@ namespace Quickstarts.ReferenceServer
                 // WaitHandle is collected before the runtime signals it.
                 m_simulationTimer?.Dispose();
                 m_simulationTimer = null;
+                m_historian?.Dispose();
+                m_historian = null;
 
                 m_semaphore?.Dispose();
             }
@@ -3899,6 +3903,9 @@ namespace Quickstarts.ReferenceServer
 
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken).ConfigureAwait(false);
 
+                // Enable history archiving for selected scalar variables.
+                await EnableHistoryArchivingAsync(cancellationToken).ConfigureAwait(false);
+
                 if (m_simulationEnabled)
                 {
                     // reset random generator and generate boundary values
@@ -5458,6 +5465,91 @@ namespace Quickstarts.ReferenceServer
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
+
+        private InMemoryHistorianProvider? m_historian;
+
+        /// <summary>
+        /// Identifiers of the nodes that support history archiving.
+        /// </summary>
+        private static readonly string[] HistoricalNodeNames =
+        [
+            "Scalar_Static_Double",
+            "Scalar_Static_Int32",
+            "Scalar_Static_Float"
+        ];
+
+        /// <inheritdoc/>
+        protected override IHistorianProvider? GetHistorianProvider(NodeState node)
+        {
+            return m_historian;
+        }
+
+        /// <summary>
+        /// Enables history archiving on selected scalar variables using
+        /// the fluent <see cref="HistorianBuilder"/> API.
+        /// </summary>
+        private async Task EnableHistoryArchivingAsync(CancellationToken cancellationToken)
+        {
+            m_historian = new InMemoryHistorianProvider();
+
+            // Make the provider discoverable to the server-wide registry so
+            // server capabilities (HistoryServerCapabilities) reflect what the
+            // provider supports. The dispatcher will still prefer the
+            // per-node-manager override returned by GetHistorianProvider.
+            if (Server is Opc.Ua.Server.Historian.IHistorianRegistryProvider registry)
+            {
+                registry.HistorianRegistry.RegisterDefault(m_historian);
+            }
+
+            foreach (string name in HistoricalNodeNames)
+            {
+                var nodeId = new NodeId(name, NamespaceIndex);
+
+                if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
+                {
+                    continue;
+                }
+
+                if (node is not BaseVariableState variable)
+                {
+                    continue;
+                }
+
+                variable.Historizing = true;
+                variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+
+                m_historian.Register(nodeId);
+                await SeedHistoricalNodeAsync(nodeId, TypeInfo.GetBuiltInType(variable.DataType), cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async Task SeedHistoricalNodeAsync(NodeId nodeId, BuiltInType dataType, CancellationToken cancellationToken)
+        {
+            DateTime now = DateTime.UtcNow;
+            var seed = new List<DataValue>(1001);
+            for (int ii = 1000; ii >= 0; ii--)
+            {
+                int value = 1000 - ii;
+                Variant variant = dataType switch
+                {
+                    BuiltInType.Int32 => new Variant(value),
+                    BuiltInType.Float => new Variant((float)value),
+                    BuiltInType.Double => new Variant((double)value),
+                    _ => new Variant(value),
+                };
+                seed.Add(new DataValue(
+                    variant,
+                    StatusCodes.Good,
+                    sourceTimestamp: now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
+                    serverTimestamp: now.AddSeconds(-(ii * 10))));
+            }
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            var systemContext = new ServerSystemContext(Server, opContext);
+            var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
+            _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);
+        }
+
 
         private static readonly ArrayOf<double> s_doubleArray =
         [

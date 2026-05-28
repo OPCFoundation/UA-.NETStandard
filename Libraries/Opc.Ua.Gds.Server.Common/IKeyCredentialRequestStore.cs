@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -94,6 +95,30 @@ namespace Opc.Ua.Gds.Server
     }
 
     /// <summary>
+    /// Result of <see cref="IKeyCredentialRequestStore.FinishRequestAsync"/>.
+    /// </summary>
+    public readonly record struct FinishKeyCredentialRequestResult
+    {
+        /// <summary>The state of the request.</summary>
+        public KeyCredentialRequestState State { get; init; }
+
+        /// <summary>The issued credential id, or <c>null</c> when cancelled.</summary>
+        public string? CredentialId { get; init; }
+
+        /// <summary>The issued credential secret, or <c>default</c> when cancelled.</summary>
+        public ByteString CredentialSecret { get; init; }
+
+        /// <summary>The thumbprint of the protecting certificate.</summary>
+        public string? CertificateThumbprint { get; init; }
+
+        /// <summary>The assigned security policy URI.</summary>
+        public string? SecurityPolicyUri { get; init; }
+
+        /// <summary>The granted roles.</summary>
+        public ArrayOf<NodeId> GrantedRoles { get; init; }
+    }
+
+    /// <summary>
     /// An abstract interface to the key-credential request store.
     /// Mirrors <see cref="ICertificateRequest"/> but for OPC 10000-12
     /// §8 KeyCredentialService requests.
@@ -103,11 +128,12 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Start a new key-credential request.
         /// </summary>
-        NodeId StartRequest(
+        ValueTask<NodeId> StartRequestAsync(
             string applicationUri,
             ByteString publicKey,
             string? securityPolicyUri,
-            ArrayOf<NodeId> requestedRoles);
+            ArrayOf<NodeId> requestedRoles,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Finish (approve or cancel) a key-credential request.
@@ -117,26 +143,19 @@ namespace Opc.Ua.Gds.Server
         /// When <c>true</c> the request is cancelled; when <c>false</c>
         /// the credential is issued.
         /// </param>
-        /// <param name="credentialId">The issued credential id.</param>
-        /// <param name="credentialSecret">The issued secret.</param>
-        /// <param name="certificateThumbprint">Thumbprint of the protecting cert.</param>
-        /// <param name="securityPolicyUri">The assigned security policy.</param>
-        /// <param name="grantedRoles">The roles granted.</param>
-        /// <returns>The state of the request.</returns>
-        KeyCredentialRequestState FinishRequest(
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The state of the request and any issued credential data.</returns>
+        ValueTask<FinishKeyCredentialRequestResult> FinishRequestAsync(
             NodeId requestId,
             bool cancelRequest,
-            out string? credentialId,
-            out ByteString credentialSecret,
-            out string? certificateThumbprint,
-            out string? securityPolicyUri,
-            out ArrayOf<NodeId> grantedRoles);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Revoke a previously issued credential.
         /// </summary>
         /// <param name="credentialId">The credential to revoke.</param>
-        void Revoke(string credentialId);
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask RevokeAsync(string credentialId, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -180,11 +199,12 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
-        public NodeId StartRequest(
+        public async ValueTask<NodeId> StartRequestAsync(
             string applicationUri,
             ByteString publicKey,
             string? securityPolicyUri,
-            ArrayOf<NodeId> requestedRoles)
+            ArrayOf<NodeId> requestedRoles,
+            CancellationToken cancellationToken = default)
         {
             int id = Interlocked.Increment(ref m_nextId);
             var requestId = new NodeId((uint)id);
@@ -193,7 +213,7 @@ namespace Opc.Ua.Gds.Server
             // generate and persist the credential secret via ISecretStore
             byte[] secretBytes = GenerateRandomBytes(32);
             var secretId = new SecretIdentifier(credentialId, m_secretStore.StoreType);
-            m_secretStore.SetAsync(secretId, secretBytes).AsTask().GetAwaiter().GetResult();
+            await m_secretStore.SetAsync(secretId, secretBytes, cancellationToken).ConfigureAwait(false);
 
             var record = new KeyCredentialRequestRecord
             {
@@ -217,14 +237,10 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
-        public KeyCredentialRequestState FinishRequest(
+        public async ValueTask<FinishKeyCredentialRequestResult> FinishRequestAsync(
             NodeId requestId,
             bool cancelRequest,
-            out string? credentialId,
-            out ByteString credentialSecret,
-            out string? certificateThumbprint,
-            out string? securityPolicyUri,
-            out ArrayOf<NodeId> grantedRoles)
+            CancellationToken cancellationToken = default)
         {
             if (!m_requests.TryGetValue(requestId, out KeyCredentialRequestRecord? record))
             {
@@ -240,14 +256,9 @@ namespace Opc.Ua.Gds.Server
                 if (record.CredentialId != null)
                 {
                     var secretId = new SecretIdentifier(record.CredentialId, m_secretStore.StoreType);
-                    m_secretStore.RemoveAsync(secretId).AsTask().GetAwaiter().GetResult();
+                    await m_secretStore.RemoveAsync(secretId, cancellationToken).ConfigureAwait(false);
                 }
-                credentialId = null;
-                credentialSecret = default;
-                certificateThumbprint = null;
-                securityPolicyUri = null;
-                grantedRoles = default;
-                return record.State;
+                return new FinishKeyCredentialRequestResult { State = record.State };
             }
 
             if (record.State == KeyCredentialRequestState.Approved)
@@ -256,20 +267,25 @@ namespace Opc.Ua.Gds.Server
             }
 
             // materialise the secret from the store
-            credentialId = record.CredentialId;
+            string? credentialId = record.CredentialId;
             var sid = new SecretIdentifier(credentialId!, m_secretStore.StoreType);
             using ISecret? secret = m_secretStore.TryGet(sid);
-            credentialSecret = secret != null
+            ByteString credentialSecret = secret != null
                 ? ByteString.From(secret.Bytes.ToArray())
                 : record.CredentialSecret;
-            certificateThumbprint = record.CertificateThumbprint;
-            securityPolicyUri = record.GrantedSecurityPolicyUri;
-            grantedRoles = record.GrantedRoles;
-            return record.State;
+            return new FinishKeyCredentialRequestResult
+            {
+                State = record.State,
+                CredentialId = credentialId,
+                CredentialSecret = credentialSecret,
+                CertificateThumbprint = record.CertificateThumbprint,
+                SecurityPolicyUri = record.GrantedSecurityPolicyUri,
+                GrantedRoles = record.GrantedRoles
+            };
         }
 
         /// <inheritdoc/>
-        public void Revoke(string credentialId)
+        public async ValueTask RevokeAsync(string credentialId, CancellationToken cancellationToken = default)
         {
             if (!m_credentials.TryGetValue(credentialId, out KeyCredentialRequestRecord? record))
             {
@@ -282,7 +298,7 @@ namespace Opc.Ua.Gds.Server
 
             // purge the secret from the backing store
             var secretId = new SecretIdentifier(credentialId, m_secretStore.StoreType);
-            m_secretStore.RemoveAsync(secretId).AsTask().GetAwaiter().GetResult();
+            await m_secretStore.RemoveAsync(secretId, cancellationToken).ConfigureAwait(false);
         }
 
         private static byte[] GenerateRandomBytes(int length)

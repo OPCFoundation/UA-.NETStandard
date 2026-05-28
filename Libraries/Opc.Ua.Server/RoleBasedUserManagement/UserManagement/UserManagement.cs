@@ -89,6 +89,7 @@ namespace Opc.Ua.Server.UserManagement
                     PasswordOptionsMask.SupportInitialPasswordChange |
                     PasswordOptionsMask.SupportDescriptionForUser);
             PasswordRestrictions = passwordRestrictions;
+            LoadUsersFromDatabase();
         }
 
         /// <inheritdoc/>
@@ -427,6 +428,21 @@ namespace Opc.Ua.Server.UserManagement
             finally
             {
                 m_lock.ExitReadLock();
+            }
+        }
+
+        private void LoadUsersFromDatabase()
+        {
+            foreach (UserManagementDataType user in m_userDatabase.GetUsers())
+            {
+                if (string.IsNullOrEmpty(user.UserName))
+                {
+                    continue;
+                }
+
+                m_metadata[user.UserName] = new UserMetadata(
+                    (UserConfigurationMask)user.UserConfiguration,
+                    user.Description ?? string.Empty);
             }
         }
 

@@ -43,12 +43,58 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem
     {
+
+        /// <summary>
+        /// Initializes the object with its node type.
+        /// </summary>
+        [Obsolete("Use the overload that accepts IAsyncNodeManager.")]
+        public MonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            object managerHandle,
+            uint subscriptionId,
+            uint id,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double sourceSamplingInterval,
+            bool createDurable = false)
+            : this(
+                server,
+                nodeManager.ToAsyncNodeManager(),
+                managerHandle,
+                subscriptionId,
+                id,
+                itemToMonitor,
+                diagnosticsMasks,
+                timestampsToReturn,
+                monitoringMode,
+                clientHandle,
+                originalFilter,
+                filterToUse,
+                range,
+                samplingInterval,
+                queueSize,
+                discardOldest,
+                sourceSamplingInterval,
+                createDurable)
+        {
+        }
+
         /// <summary>
         /// Initializes the object with its node type.
         /// </summary>
         public MonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             uint subscriptionId,
             uint id,
@@ -161,7 +207,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public MonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem)
         {
@@ -263,7 +309,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
-        public INodeManager NodeManager { get; private set; }
+        public IAsyncNodeManager NodeManager { get; private set; }
 
         /// <summary>
         /// The handle assigned by the node manager when it created the item.

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 
@@ -36,7 +37,7 @@ namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// Unit tests for the in-memory KeyCredential request store and
-    /// the round-trip StartRequest / FinishRequest / Revoke lifecycle.
+    /// the round-trip StartRequestAsync / FinishRequestAsync / RevokeAsync lifecycle.
     /// </summary>
     [TestFixture]
     [Category("KeyCredential")]
@@ -45,7 +46,7 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class KeyCredentialRequestStoreTests
     {
-        private InMemoryKeyCredentialRequestStore m_store;
+        private InMemoryKeyCredentialRequestStore m_store = null!;
 
         [SetUp]
         public void SetUp()
@@ -54,107 +55,96 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void StartRequestReturnsNonNullId()
+        public async Task StartRequestReturnsNonNullIdAsync()
         {
-            NodeId id = m_store.StartRequest(
+            NodeId id = await m_store.StartRequestAsync(
                 "urn:test:app",
                 ByteString.From(new byte[] { 1, 2, 3 }),
                 "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-                default);
+                default).ConfigureAwait(false);
 
             Assert.That(id.IsNull, Is.False);
         }
 
         [Test]
-        public void FinishRequestReturnsCredential()
+        public async Task FinishRequestReturnsCredentialAsync()
         {
-            NodeId id = m_store.StartRequest(
+            NodeId id = await m_store.StartRequestAsync(
                 "urn:test:app",
                 ByteString.From(new byte[] { 1, 2 }),
                 null,
-                default);
+                default).ConfigureAwait(false);
 
-            KeyCredentialRequestState state = m_store.FinishRequest(
+            FinishKeyCredentialRequestResult result = await m_store.FinishRequestAsync(
                 id,
-                cancelRequest: false,
-                out string? credentialId,
-                out ByteString credentialSecret,
-                out string? _,
-                out string? _,
-                out ArrayOf<NodeId> _);
+                cancelRequest: false).ConfigureAwait(false);
 
-            Assert.That(state, Is.EqualTo(KeyCredentialRequestState.Completed));
-            Assert.That(credentialId, Is.Not.Null.And.Not.Empty);
-            Assert.That(credentialSecret.IsEmpty, Is.False);
+            Assert.That(result.State, Is.EqualTo(KeyCredentialRequestState.Completed));
+            Assert.That(result.CredentialId, Is.Not.Null.And.Not.Empty);
+            Assert.That(result.CredentialSecret.IsEmpty, Is.False);
         }
 
         [Test]
-        public void FinishRequestWithCancelRejectsRequest()
+        public async Task FinishRequestWithCancelRejectsRequestAsync()
         {
-            NodeId id = m_store.StartRequest(
+            NodeId id = await m_store.StartRequestAsync(
                 "urn:test:app",
                 ByteString.From(new byte[] { 1 }),
                 null,
-                default);
+                default).ConfigureAwait(false);
 
-            KeyCredentialRequestState state = m_store.FinishRequest(
+            FinishKeyCredentialRequestResult result = await m_store.FinishRequestAsync(
                 id,
-                cancelRequest: true,
-                out string? credentialId,
-                out ByteString _,
-                out string? _,
-                out string? _,
-                out ArrayOf<NodeId> _);
+                cancelRequest: true).ConfigureAwait(false);
 
-            Assert.That(state, Is.EqualTo(KeyCredentialRequestState.Rejected));
-            Assert.That(credentialId, Is.Null);
+            Assert.That(result.State, Is.EqualTo(KeyCredentialRequestState.Rejected));
+            Assert.That(result.CredentialId, Is.Null);
         }
 
         [Test]
         public void FinishRequestWithUnknownIdThrows()
         {
             Assert.That(
-                () => m_store.FinishRequest(
+                async () => await m_store.FinishRequestAsync(
                     new NodeId(999),
-                    cancelRequest: false,
-                    out _, out _, out _, out _, out _),
+                    cancelRequest: false).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
-        public void RevokeMarksCredentialAsRejected()
+        public async Task RevokeMarksCredentialAsRejectedAsync()
         {
-            NodeId id = m_store.StartRequest(
+            NodeId id = await m_store.StartRequestAsync(
                 "urn:test:app",
                 ByteString.From(new byte[] { 1 }),
                 null,
-                default);
+                default).ConfigureAwait(false);
 
-            m_store.FinishRequest(
-                id, false,
-                out string? credentialId,
-                out _, out _, out _, out _);
+            FinishKeyCredentialRequestResult result = await m_store.FinishRequestAsync(
+                id, cancelRequest: false).ConfigureAwait(false);
 
-            Assert.DoesNotThrow(() => m_store.Revoke(credentialId!));
+            Assert.That(
+                async () => await m_store.RevokeAsync(result.CredentialId!).ConfigureAwait(false),
+                Throws.Nothing);
         }
 
         [Test]
         public void RevokeUnknownCredentialThrows()
         {
             Assert.That(
-                () => m_store.Revoke("unknown-credential"),
+                async () => await m_store.RevokeAsync("unknown-credential").ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
-        public void MultipleRequestsGetUniqueIds()
+        public async Task MultipleRequestsGetUniqueIdsAsync()
         {
-            NodeId id1 = m_store.StartRequest("urn:app1", default, null, default);
-            NodeId id2 = m_store.StartRequest("urn:app2", default, null, default);
+            NodeId id1 = await m_store.StartRequestAsync("urn:app1", default, null, default).ConfigureAwait(false);
+            NodeId id2 = await m_store.StartRequestAsync("urn:app2", default, null, default).ConfigureAwait(false);
 
             Assert.That(id1, Is.Not.EqualTo(id2));
         }

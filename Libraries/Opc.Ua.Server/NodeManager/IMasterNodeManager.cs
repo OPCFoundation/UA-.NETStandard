@@ -145,7 +145,7 @@ namespace Opc.Ua.Server
         /// Searches the node id in all node managers,
         /// returns the node state if found (and node Manager supports it), otherwise returns null.
         /// </summary>
-        ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId);
+        ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Returns node handle and its node manager.
@@ -258,6 +258,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the specified references.
         /// </summary>
+        [Obsolete("Use RemoveReferencesAsync instead.")]
         void RemoveReferences(List<LocalReference> referencesToRemove);
 
         /// <summary>

@@ -110,7 +110,14 @@ else {
     Write-Host "Discovering files matching '$FileName' beneath '$BuildRoot'"
     $items = Get-ChildItem $BuildRoot -Recurse `
         | Where-Object Name -like $FileName `
-        | Where-Object { [string]::IsNullOrEmpty($ExcludeFileName) -or $_.Name -notlike $ExcludeFileName }
+        | Where-Object {
+            if ([string]::IsNullOrEmpty($ExcludeFileName)) { return $true }
+            $patterns = $ExcludeFileName -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+            foreach ($p in $patterns) {
+                if ($_.Name -like $p) { return $false }
+            }
+            return $true
+        }
 }
 
 foreach ($item in $items) {
