@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
@@ -616,6 +617,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(IServerRedundancyHandler),
                         typeof(ILogger),
                         typeof(IUserIdentity),
+                        typeof(IClientIdentityProvider),
+                        typeof(TimeProvider),
                         typeof(ArrayOf<string>),
                         typeof(string),
                         typeof(uint),
@@ -624,6 +627,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(bool)
                     ],
                     null);
+
+            Assert.That(ctor, Is.Not.Null);
 
             var managed =
                 (ManagedSessionClass)ctor.Invoke(
@@ -634,6 +639,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     reconnectPolicy,
                     null,
                     logger,
+                    null,
+                    null,
                     null,
                     default(ArrayOf<string>),
                     "TestManagedSession",

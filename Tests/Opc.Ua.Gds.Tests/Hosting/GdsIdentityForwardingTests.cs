@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
                 builder.AddDefaultIdentityAuthenticators(options => options.EnableJwt = false));
 
-            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+            AssertGdsDefaultIdentityAuthenticatorsDelta(gdsDelta, serverDelta);
         }
 
         [Test]
@@ -158,7 +158,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
                 builder.AddDefaultIdentityAuthenticators(section));
 
-            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
+            AssertGdsDefaultIdentityAuthenticatorsDelta(gdsDelta, serverDelta);
         }
 
         [Test]
@@ -203,6 +203,25 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string> { [key] = value })
                 .Build();
+        }
+
+        private static void AssertGdsDefaultIdentityAuthenticatorsDelta(
+            IReadOnlyList<string> gdsDelta,
+            IReadOnlyList<string> serverDelta)
+        {
+            const string identityAugmenterRegistration =
+                "Opc.Ua.Server.Hosting.OpcUaServerIdentityAugmenterRegistration";
+            string selfAdminRegistration = string.Join(
+                "|",
+                ServiceLifetime.Singleton,
+                identityAugmenterRegistration,
+                string.Empty,
+                string.Empty,
+                identityAugmenterRegistration);
+
+            Assert.That(
+                gdsDelta,
+                Is.EqualTo(serverDelta.Append(selfAdminRegistration).ToArray()));
         }
 
         private static string[] CaptureServerDelta(Action<IOpcUaServerBuilder> configure)
