@@ -702,6 +702,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 return Array.Empty<Role>();
             }
 
+            public IReadOnlyList<UserManagementDataType> GetUsers()
+            {
+                return Array.Empty<UserManagementDataType>();
+            }
+
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,

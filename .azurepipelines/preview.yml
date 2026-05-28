@@ -14,12 +14,26 @@ parameters:
   values:
   - Debug
   - Release
+# See ci.yml: passing pool config via parameters because root-pipeline
+# variables defined in ${{ if ... }}: blocks aren't reliably visible to
+# included templates at compile-time.
+- name: poolName
+  type: string
+  default: ''
+- name: windowsImage
+  type: string
+  default: 'windows-2025-vs2026'
 
 jobs:
 - job: nuget${{parameters.config}}
   displayName: Pack Nugets ${{parameters.config}}
   pool:
-    vmImage: 'windows-2025-vs2026'
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.windowsImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.windowsImage }}
   variables:
   - group: codesign
   - name: msbuildversion

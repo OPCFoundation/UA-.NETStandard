@@ -16,7 +16,11 @@
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Server.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Durable.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Features.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Stress.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.InformationModel.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.History.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Lds.Tests" />
