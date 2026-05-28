@@ -41,10 +41,18 @@ namespace Opc.Ua.Identity
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Implementations may return the unchanged identity as a no-op or wrap it
-    /// with additional deployment-specific roles,
-    /// claims, or application bindings. Augmenters run in registration order
-    /// and the output of one augmenter is passed to the next.
+    /// Implementations may layer additional deployment-specific roles, claims,
+    /// or application bindings by returning
+    /// <see cref="AuthenticationResult.Accept(IUserIdentity)"/> with a new
+    /// identity. Augmenters run in registration order and the output of one
+    /// accepted augmenter is passed to the next.
+    /// </para>
+    /// <para>
+    /// Implementations may reject the authenticated identity by returning
+    /// <see cref="AuthenticationResult.Reject(ServiceResult)"/>, for example
+    /// when enforcing channel-certificate binding or post-authentication
+    /// policy. Returning <see cref="AuthenticationResult.NotHandled"/> is a
+    /// no-op; the chain continues with the unchanged identity.
     /// </para>
     /// <para>
     /// Augmenters are not invoked when authentication returns
@@ -61,10 +69,13 @@ namespace Opc.Ua.Identity
         /// <param name="context">The authentication context associated with the inbound user token.</param>
         /// <param name="ct">A cancellation token for the authentication operation.</param>
         /// <returns>
-        /// The unchanged identity or a wrapped identity. Returning <see langword="null"/>
-        /// is invalid and causes the registry to reject the augmenter result.
+        /// <see cref="AuthenticationResult.Accept(IUserIdentity)"/> with the
+        /// unchanged or wrapped identity,
+        /// <see cref="AuthenticationResult.Reject(ServiceResult)"/> to deny
+        /// the accepted identity, or <see cref="AuthenticationResult.NotHandled"/>
+        /// to leave the identity unchanged and continue the chain.
         /// </returns>
-        ValueTask<IUserIdentity> AugmentAsync(
+        ValueTask<AuthenticationResult> AugmentAsync(
             IUserIdentity identity,
             AuthenticationContext context,
             CancellationToken ct = default);

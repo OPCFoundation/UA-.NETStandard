@@ -31,7 +31,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -88,8 +87,23 @@ namespace Opc.Ua.Identity
             string key = Key(authenticator.TokenType, authenticator.IssuedTokenProfileUri);
             lock (m_lock)
             {
+                if (m_byKey.TryGetValue(key, out IUserTokenAuthenticator? existing))
+                {
+                    int index = m_order.IndexOf(existing);
+                    if (index >= 0)
+                    {
+                        m_order[index] = authenticator;
+                    }
+                    else
+                    {
+                        m_order.Add(authenticator);
+                    }
+                }
+                else
+                {
+                    m_order.Add(authenticator);
+                }
                 m_byKey[key] = authenticator;
-                m_order.Add(authenticator);
             }
         }
 
@@ -187,12 +201,24 @@ namespace Opc.Ua.Identity
                         IUserIdentity identity = result.Identity;
                         foreach (IIdentityAugmenter augmenter in augSnapshot)
                         {
-                            identity = await augmenter.AugmentAsync(identity, context, ct).ConfigureAwait(false);
-                            if (identity == null)
+                            AuthenticationResult augmentResult = await augmenter
+                                .AugmentAsync(identity, context, ct)
+                                .ConfigureAwait(false);
+                            if (augmentResult.Outcome == AuthenticationOutcome.Rejected)
+                            {
+                                return augmentResult;
+                            }
+                            if (augmentResult.Outcome == AuthenticationOutcome.NotHandled)
+                            {
+                                continue;
+                            }
+                            if (augmentResult.Identity == null)
                             {
                                 throw new InvalidOperationException(
-                                    $"IIdentityAugmenter '{augmenter.GetType().Name}' returned null; must return either the unchanged identity or a wrapped one.");
+                                    $"IIdentityAugmenter '{augmenter.GetType().Name}' returned Accepted " +
+                                    "without an identity.");
                             }
+                            identity = augmentResult.Identity;
                         }
 
                         return AuthenticationResult.Accept(identity);

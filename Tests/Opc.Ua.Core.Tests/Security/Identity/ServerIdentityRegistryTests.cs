@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task NotHandledFallsThroughToNextAuthenticatorAsync()
         {
-            var declining = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken)
+            var declining = new StubAuthenticator(UserTokenType.IssuedToken, null)
             {
                 ReturnOutcome = AuthenticationOutcome.NotHandled
             };
@@ -154,14 +154,16 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task RejectShortCircuitsRemainingAuthenticatorsAsync()
         {
-            var rejector = new StubAuthenticator(UserTokenType.Anonymous, null)
+            var rejector = new StubAuthenticator(UserTokenType.IssuedToken, null)
             {
                 ReturnOutcome = AuthenticationOutcome.Rejected
             };
-            var nextOne = new StubAuthenticator(UserTokenType.Anonymous, null);
+            var nextOne = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken);
             var registry = new ServerIdentityRegistry(rejector, nextOne);
 
-            AuthenticationContext context = MakeContext(new AnonymousIdentityTokenHandler());
+            AuthenticationContext context = MakeContext(new IssuedIdentityTokenHandler(
+                Profiles.JwtUserToken,
+                new byte[] { 0x10 }));
             AuthenticationResult result = await registry.AuthenticateAsync(context).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -181,6 +183,26 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             // Anonymous remains accessible.
             Assert.That(registry.Unregister(first), Is.False);
             Assert.That(registry.Unregister(second), Is.True);
+        }
+
+        [Test]
+        public async Task RegisterReplacesExistingAuthenticatorWithSameTokenTypeAndProfile()
+        {
+            var first = new StubAuthenticator(UserTokenType.UserName, null);
+            var second = new StubAuthenticator(UserTokenType.UserName, null);
+            var registry = new ServerIdentityRegistry();
+
+            registry.Register(first);
+            registry.Register(second);
+
+            var userNameToken = new UserNameIdentityTokenHandler("alice", new byte[] { 0x01 });
+            AuthenticationResult result = await registry
+                .AuthenticateAsync(MakeContext(userNameToken))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(first.CallCount, Is.Zero);
+            Assert.That(second.CallCount, Is.EqualTo(1));
         }
 
         [Test]

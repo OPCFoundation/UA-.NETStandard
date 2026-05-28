@@ -268,6 +268,13 @@ namespace Opc.Ua.Gds.Server.Identity
             return certificate;
         }
 
+        /// <summary>
+        /// Creates the JWT header for the configured signing certificate.
+        /// </summary>
+        /// <remarks>
+        /// <c>kid</c> is set to the certificate's SHA-1 thumbprint. Cross-stack tooling that expects
+        /// JWKS <c>kid</c> or SKI-derived identifiers must be configured to match.
+        /// </remarks>
         private static string CreateHeader(Certificate certificate, out string algorithm)
         {
             using ECDsa? ecdsa = certificate.GetECDsaPrivateKey();

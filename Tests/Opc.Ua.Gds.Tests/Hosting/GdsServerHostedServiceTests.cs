@@ -287,14 +287,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public IUserIdentity InputIdentity { get; private set; }
 
-            public ValueTask<IUserIdentity> AugmentAsync(
+            public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
                 CallCount++;
                 InputIdentity = identity;
-                return new ValueTask<IUserIdentity>(Identity);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(Identity));
             }
         }
 

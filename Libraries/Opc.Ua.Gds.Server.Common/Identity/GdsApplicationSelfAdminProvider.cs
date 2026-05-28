@@ -95,7 +95,7 @@ namespace Opc.Ua.Gds.Server.Identity
         }
 
         /// <inheritdoc/>
-        public ValueTask<IUserIdentity> AugmentAsync(
+        public ValueTask<AuthenticationResult> AugmentAsync(
             IUserIdentity identity,
             AuthenticationContext context,
             CancellationToken ct = default)
@@ -107,26 +107,31 @@ namespace Opc.Ua.Gds.Server.Identity
 
             ct.ThrowIfCancellationRequested();
 
-            if (context.ChannelCertificate == null || context.ChannelApplicationUri == null)
+            if (context.ChannelCertificate == null)
             {
-                return new ValueTask<IUserIdentity>(identity);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
+            if (context.ChannelApplicationUri == null)
+            {
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
             }
 
             ApplicationRecordDataType[]? matches =
                 m_database.FindApplications(context.ChannelApplicationUri);
             if (matches == null || matches.Length == 0)
             {
-                return new ValueTask<IUserIdentity>(identity);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
             }
 
             foreach (ApplicationRecordDataType match in matches)
             {
                 if (MatchesRegisteredCertificate(match.ApplicationId, context.ChannelCertificate))
                 {
-                    return new ValueTask<IUserIdentity>(CreateAugmentedIdentity(
+                    IUserIdentity augmentedIdentity = CreateAugmentedIdentity(
                         identity,
                         context,
-                        match.ApplicationId));
+                        match.ApplicationId);
+                    return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(augmentedIdentity));
                 }
             }
 
@@ -134,13 +139,14 @@ namespace Opc.Ua.Gds.Server.Identity
                 m_isRegisteredCertificate != null &&
                 m_isRegisteredCertificate(context.ChannelCertificate))
             {
-                return new ValueTask<IUserIdentity>(CreateAugmentedIdentity(
+                IUserIdentity augmentedIdentity = CreateAugmentedIdentity(
                     identity,
                     context,
-                    matches[0].ApplicationId));
+                    matches[0].ApplicationId);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(augmentedIdentity));
             }
 
-            return new ValueTask<IUserIdentity>(identity);
+            return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
         }
 
         private IUserIdentity CreateAugmentedIdentity(

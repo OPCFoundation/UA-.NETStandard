@@ -61,12 +61,13 @@ namespace Opc.Ua.Gds.Tests.Identity
                 NullLogger<GdsApplicationSelfAdminProvider>.Instance);
             IUserIdentity identity = new UserIdentity();
 
-            IUserIdentity result = await provider.AugmentAsync(
+            AuthenticationResult result = await provider.AugmentAsync(
                 identity,
                 CreateContext(channelCertificate, ApplicationUri)).ConfigureAwait(false);
 
-            Assert.That(result, Is.InstanceOf<GdsRoleBasedIdentity>());
-            var gdsIdentity = (GdsRoleBasedIdentity)result;
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.InstanceOf<GdsRoleBasedIdentity>());
+            var gdsIdentity = (GdsRoleBasedIdentity)result.Identity;
             Assert.That(gdsIdentity.ApplicationId, Is.EqualTo(applicationId));
             Assert.That(gdsIdentity.Roles, Does.Contain(GdsRole.ApplicationSelfAdmin));
         }
@@ -85,15 +86,16 @@ namespace Opc.Ua.Gds.Tests.Identity
                 NullLogger<GdsApplicationSelfAdminProvider>.Instance);
             IUserIdentity identity = new UserIdentity();
 
-            IUserIdentity result = await provider.AugmentAsync(
+            AuthenticationResult result = await provider.AugmentAsync(
                 identity,
                 CreateContext(channelCertificate, ApplicationUri)).ConfigureAwait(false);
 
-            Assert.That(result, Is.SameAs(identity));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.SameAs(identity));
         }
 
         [Test]
-        public async Task MissingChannelCertificateLeavesIdentityUnchangedAsync()
+        public async Task MissingChannelCertificateReturnsNotHandledAsync()
         {
             using Certificate registeredCertificate = CreateCertificate("CN=RegisteredNoChannelCert");
             var database = new StubApplicationsDatabase(
@@ -105,11 +107,12 @@ namespace Opc.Ua.Gds.Tests.Identity
                 NullLogger<GdsApplicationSelfAdminProvider>.Instance);
             IUserIdentity identity = new UserIdentity();
 
-            IUserIdentity result = await provider.AugmentAsync(
+            AuthenticationResult result = await provider.AugmentAsync(
                 identity,
                 CreateContext(null, ApplicationUri)).ConfigureAwait(false);
 
-            Assert.That(result, Is.SameAs(identity));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
+            Assert.That(result.Identity, Is.Null);
         }
 
         [Test]
@@ -125,11 +128,12 @@ namespace Opc.Ua.Gds.Tests.Identity
                 NullLogger<GdsApplicationSelfAdminProvider>.Instance);
             IUserIdentity identity = new UserIdentity();
 
-            IUserIdentity result = await provider.AugmentAsync(
+            AuthenticationResult result = await provider.AugmentAsync(
                 identity,
                 CreateContext(channelCertificate, null)).ConfigureAwait(false);
 
-            Assert.That(result, Is.SameAs(identity));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.SameAs(identity));
         }
 
         [Test]
@@ -151,12 +155,13 @@ namespace Opc.Ua.Gds.Tests.Identity
                 new[] { administeredId },
                 namespaces);
 
-            IUserIdentity result = await provider.AugmentAsync(
+            AuthenticationResult result = await provider.AugmentAsync(
                 identity,
                 CreateContext(channelCertificate, ApplicationUri)).ConfigureAwait(false);
 
-            Assert.That(result, Is.InstanceOf<GdsRoleBasedIdentity>());
-            var gdsIdentity = (GdsRoleBasedIdentity)result;
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.InstanceOf<GdsRoleBasedIdentity>());
+            var gdsIdentity = (GdsRoleBasedIdentity)result.Identity;
             Assert.That(gdsIdentity.ApplicationId, Is.EqualTo(applicationId));
             Assert.That(gdsIdentity.AdministeredApplicationIds, Is.EquivalentTo(new[] { administeredId }));
             Assert.That(gdsIdentity.Roles, Does.Contain(GdsRole.ApplicationAdmin));

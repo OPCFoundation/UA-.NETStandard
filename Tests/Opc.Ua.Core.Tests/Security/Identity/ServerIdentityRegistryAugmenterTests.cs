@@ -112,6 +112,25 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
+        public async Task AugmenterRejectingShortCircuitsTheChain()
+        {
+            ServiceResult rejection = new ServiceResult(StatusCodes.BadIdentityTokenRejected);
+            var registry = new ServerIdentityRegistry(
+                new StubAuthenticator(AuthenticationResult.Accept(new NamedIdentity("original"))));
+            var rejectingAugmenter = new StubAugmenter(AuthenticationResult.Reject(rejection));
+            var secondAugmenter = new StubAugmenter(new NamedIdentity("unused"));
+            registry.RegisterAugmenter(rejectingAugmenter);
+            registry.RegisterAugmenter(secondAugmenter);
+
+            AuthenticationResult result = await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error, Is.SameAs(rejection));
+            Assert.That(rejectingAugmenter.CallCount, Is.EqualTo(1));
+            Assert.That(secondAugmenter.CallCount, Is.Zero);
+        }
+
+        [Test]
         public async Task AugmenterReturningUnchangedIdentityIsNoOpAsync()
         {
             IUserIdentity identity = new NamedIdentity("original");
@@ -149,17 +168,17 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void AugmenterReturningNullThrowsInvalidOperationException()
+        public async Task AugmenterReturningNotHandledPassesThroughUnchangedIdentityAsync()
         {
+            IUserIdentity identity = new NamedIdentity("original");
             var registry = new ServerIdentityRegistry(
-                new StubAuthenticator(AuthenticationResult.Accept(new NamedIdentity("original"))));
-            registry.RegisterAugmenter(new NullAugmenter());
+                new StubAuthenticator(AuthenticationResult.Accept(identity)));
+            registry.RegisterAugmenter(new NotHandledAugmenter());
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false));
+            AuthenticationResult result = await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false);
 
-            Assert.That(ex.Message, Does.Contain("IIdentityAugmenter"));
-            Assert.That(ex.Message, Does.Contain("returned null"));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.SameAs(identity));
         }
 
         private static AuthenticationContext MakeContext()
@@ -195,9 +214,14 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         private sealed class StubAugmenter : IIdentityAugmenter
         {
-            private readonly IUserIdentity m_result;
+            private readonly AuthenticationResult m_result;
 
             public StubAugmenter(IUserIdentity result)
+                : this(AuthenticationResult.Accept(result))
+            {
+            }
+
+            public StubAugmenter(AuthenticationResult result)
             {
                 m_result = result;
             }
@@ -206,36 +230,36 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             public IUserIdentity InputIdentity { get; private set; }
 
-            public ValueTask<IUserIdentity> AugmentAsync(
+            public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
                 CallCount++;
                 InputIdentity = identity;
-                return new ValueTask<IUserIdentity>(m_result);
+                return new ValueTask<AuthenticationResult>(m_result);
             }
         }
 
         private sealed class IdentityPreservingAugmenter : IIdentityAugmenter
         {
-            public ValueTask<IUserIdentity> AugmentAsync(
+            public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
-                return new ValueTask<IUserIdentity>(identity);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
             }
         }
 
-        private sealed class NullAugmenter : IIdentityAugmenter
+        private sealed class NotHandledAugmenter : IIdentityAugmenter
         {
-            public ValueTask<IUserIdentity> AugmentAsync(
+            public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
-                return new ValueTask<IUserIdentity>((IUserIdentity)null);
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
             }
         }
 

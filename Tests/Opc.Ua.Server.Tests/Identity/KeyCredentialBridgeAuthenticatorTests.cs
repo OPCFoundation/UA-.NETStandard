@@ -92,6 +92,23 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
+        public async Task RejectsTokenWithMalformedBase64UrlProof()
+        {
+            using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(10))
+                .ConfigureAwait(false);
+            var authenticator = new KeyCredentialBridgeAuthenticator(store);
+
+            byte[] tokenData = Encoding.UTF8.GetBytes(
+                "{\"credentialId\":\"credential-1\",\"nonce\":\"nonce\",\"issuedAt\":" +
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ",\"proof\":\"not-base64!@#\"}");
+            AuthenticationResult result = await authenticator.AuthenticateAsync(CreateContext(tokenData))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
         public async Task AuthenticateAsyncExpiredCredentialRejected()
         {
             using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(-1))

@@ -2308,10 +2308,19 @@ namespace Opc.Ua.Gds.Server
                 auditInputs,
                 "RequestAccessToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
 
+            try
+            {
 #pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
-            result.AccessToken = await provider.RequestAccessTokenAsync(
-                identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+                result.AccessToken = await provider.RequestAccessTokenAsync(
+                    identityToken, resourceId, cancellationToken).ConfigureAwait(false);
 #pragma warning restore CS0618
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
 
             Server.ReportAccessTokenIssuedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
@@ -2341,23 +2350,32 @@ namespace Opc.Ua.Gds.Server
                 auditInputs,
                 "StartRequestToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
 
-            IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            try
+            {
+                IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 
-            (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
-                ? await manager.StartRequestTokenAsync(
-                    resourceId,
-                    policyId,
-                    requestorData,
-                    callerIdentity,
-                    cancellationToken).ConfigureAwait(false)
-                : await provider.StartRequestTokenAsync(
-                    resourceId,
-                    policyId,
-                    requestorData,
-                    cancellationToken).ConfigureAwait(false);
+                (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
+                    ? await manager.StartRequestTokenAsync(
+                        resourceId,
+                        policyId,
+                        requestorData,
+                        callerIdentity,
+                        cancellationToken).ConfigureAwait(false)
+                    : await provider.StartRequestTokenAsync(
+                        resourceId,
+                        policyId,
+                        requestorData,
+                        cancellationToken).ConfigureAwait(false);
 
-            result.ServiceData = serviceData;
-            result.RequestId = requestId;
+                result.ServiceData = serviceData;
+                result.RequestId = requestId;
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
 
             Server.ReportAccessTokenIssuedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
@@ -2394,14 +2412,23 @@ namespace Opc.Ua.Gds.Server
                 auditInputs,
                 "FinishRequestToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
 
-            AccessTokenResult atr = await provider.FinishRequestTokenAsync(
-                requestId, requestedRoles, userIdentityToken, userTokenSignature, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                AccessTokenResult atr = await provider.FinishRequestTokenAsync(
+                    requestId, requestedRoles, userIdentityToken, userTokenSignature, cancellationToken)
+                    .ConfigureAwait(false);
 
-            result.AccessToken = atr.AccessToken;
-            result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
-            result.RefreshToken = atr.RefreshToken ?? string.Empty;
-            result.RefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
+                result.AccessToken = atr.AccessToken;
+                result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
+                result.RefreshToken = atr.RefreshToken ?? string.Empty;
+                result.RefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
 
             Server.ReportAccessTokenIssuedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);

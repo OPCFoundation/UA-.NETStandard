@@ -141,7 +141,16 @@ namespace Opc.Ua.Server
                 return Reject(StatusCodes.BadIdentityTokenRejected, "KeyCredential has expired.");
             }
 
-            byte[] suppliedProof = Base64UrlDecode(token.Proof);
+            byte[] suppliedProof;
+            try
+            {
+                suppliedProof = Base64UrlDecode(token.Proof);
+            }
+            catch (FormatException)
+            {
+                return Reject(StatusCodes.BadIdentityTokenInvalid, "KeyCredential proof is not valid base64url.");
+            }
+
             byte[] expectedProof = ComputeProof(
                 credential.Secret,
                 token.CredentialId,
