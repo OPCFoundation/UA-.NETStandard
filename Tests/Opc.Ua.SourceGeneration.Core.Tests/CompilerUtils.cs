@@ -531,6 +531,11 @@ namespace Opc.Ua.SourceGeneration
                         CancellationToken ct,
                         params Variant[] args)
                         => default;
+                    protected ValueTask<NodeId> ResolveChildNodeIdAsync(
+                        string namespaceUri,
+                        string browseName,
+                        CancellationToken ct = default)
+                        => default;
                 }
                 public class FolderState : BaseObjectState
                 {
@@ -929,6 +934,13 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return default;
                     }
+                    protected System.Threading.Tasks.ValueTask<NodeId> ResolveChildNodeIdAsync(
+                        string namespaceUri,
+                        string browseName,
+                        System.Threading.CancellationToken ct = default)
+                    {
+                        return default;
+                    }
                 }
                 public partial class BaseObjectTypeClient : ObjectTypeClient
                 {
@@ -969,6 +981,58 @@ namespace Opc.Ua.SourceGeneration
                 public partial class InstrumentDiagnosticAlarmTypeClient : BaseObjectTypeClient
                 {
                     public InstrumentDiagnosticAlarmTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                // Stubs required so the Phase B Object-child accessors
+                // emitted by ObjectTypeProxyGenerator (which reference
+                // sibling proxies by full name) compile against the
+                // standard NodeSet types in the demo / model tests.
+                public partial class StateTypeClient : BaseObjectTypeClient
+                {
+                    public StateTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class InitialStateTypeClient : StateTypeClient
+                {
+                    public InitialStateTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class TransitionTypeClient : BaseObjectTypeClient
+                {
+                    public TransitionTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class TemporaryFileTransferTypeClient : BaseObjectTypeClient
+                {
+                    public TemporaryFileTransferTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FileDirectoryTypeClient : BaseObjectTypeClient
+                {
+                    public FileDirectoryTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FileTypeClient : BaseObjectTypeClient
+                {
+                    public FileTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class StateMachineTypeClient : BaseObjectTypeClient
+                {
+                    public StateMachineTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class AcknowledgeableConditionTypeClient : ConditionTypeClient
+                {
+                    public AcknowledgeableConditionTypeClient(
                         ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
                         : base(session, objectId, telemetry) { }
                 }

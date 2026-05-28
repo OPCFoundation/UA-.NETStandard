@@ -59,7 +59,10 @@ namespace Opc.Ua.Server.StateMachines
             this INodeBuilder<TState> nodeBuilder)
             where TState : FiniteStateMachineState
         {
-            ArgumentNullException.ThrowIfNull(nodeBuilder);
+            if (nodeBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(nodeBuilder));
+            }
             return StateMachineBuilder.For(
                 nodeBuilder.Node, nodeBuilder.Builder.Context);
         }

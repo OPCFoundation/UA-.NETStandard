@@ -159,8 +159,14 @@ namespace Opc.Ua
                 throw new ArgumentException(
                     "Event type id must not be null.", nameof(eventTypeId));
             }
-            ArgumentNullException.ThrowIfNull(standardFields);
-            ArgumentNullException.ThrowIfNull(decode);
+            if (standardFields == null)
+            {
+                throw new ArgumentNullException(nameof(standardFields));
+            }
+            if (decode == null)
+            {
+                throw new ArgumentNullException(nameof(decode));
+            }
 
             lock (m_lock)
             {
@@ -216,7 +222,10 @@ namespace Opc.Ua
         /// </summary>
         public EventRecord? DecodeAs(NodeId eventType, IReadOnlyList<Variant> fields)
         {
-            ArgumentNullException.ThrowIfNull(fields);
+            if (fields == null)
+            {
+                throw new ArgumentNullException(nameof(fields));
+            }
             if (eventType.IsNull)
             {
                 return null;

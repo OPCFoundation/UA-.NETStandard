@@ -277,7 +277,10 @@ namespace Opc.Ua.Server.StateMachines
             uint stateId,
             Action<ISystemContext, TState> handler)
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             FreezeDefinition();
             m_dispatcher.AddEnterStateHandler(stateId, handler);
             return this;
@@ -297,7 +300,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler)
 #pragma warning restore RCS1047
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             FreezeDefinition();
             m_dispatcher.AddEnterStateHandlerAsync(stateId, handler);
             return this;
@@ -311,7 +317,10 @@ namespace Opc.Ua.Server.StateMachines
             uint stateId,
             Action<ISystemContext, TState> handler)
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             FreezeDefinition();
             m_dispatcher.AddExitStateHandler(stateId, handler);
             return this;
@@ -327,7 +336,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask> handler)
 #pragma warning restore RCS1047
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             FreezeDefinition();
             m_dispatcher.AddExitStateHandlerAsync(stateId, handler);
             return this;
@@ -342,7 +354,10 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> OnTransition(
             Action<ISystemContext, TState, uint, uint> handler)
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             FreezeDefinition();
             m_dispatcher.AddTransitionObserver(handler);
             return this;
@@ -357,7 +372,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask> handler)
 #pragma warning restore RCS1047
         {
-            ArgumentNullException.ThrowIfNull(handler);
+            if (handler is null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             FreezeDefinition();
             m_dispatcher.AddTransitionObserverAsync(handler);
             return this;
@@ -373,7 +391,10 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> OnBeforeTransition(
             Func<ISystemContext, TState, uint, uint, ServiceResult> guard)
         {
-            ArgumentNullException.ThrowIfNull(guard);
+            if (guard is null)
+            {
+                throw new ArgumentNullException(nameof(guard));
+            }
             FreezeDefinition();
             m_dispatcher.AddBeforeTransitionGuard(guard);
             return this;
@@ -404,7 +425,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, bool> predicate,
             ServiceResult denyStatus)
         {
-            ArgumentNullException.ThrowIfNull(predicate);
+            if (predicate is null)
+            {
+                throw new ArgumentNullException(nameof(predicate));
+            }
             FreezeDefinition();
             m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
             {
@@ -437,7 +461,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, bool> predicate,
             ServiceResult denyStatus)
         {
-            ArgumentNullException.ThrowIfNull(predicate);
+            if (predicate is null)
+            {
+                throw new ArgumentNullException(nameof(predicate));
+            }
             FreezeDefinition();
             m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
             {
@@ -474,7 +501,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, bool> predicate,
             ServiceResult denyStatus)
         {
-            ArgumentNullException.ThrowIfNull(predicate);
+            if (predicate is null)
+            {
+                throw new ArgumentNullException(nameof(predicate));
+            }
             if (m_definition == null)
             {
                 throw new InvalidOperationException(
@@ -526,7 +556,10 @@ namespace Opc.Ua.Server.StateMachines
             Func<ISystemContext, TState, bool> predicate,
             ServiceResult denyStatus)
         {
-            ArgumentNullException.ThrowIfNull(predicate);
+            if (predicate is null)
+            {
+                throw new ArgumentNullException(nameof(predicate));
+            }
             FreezeDefinition();
             m_dispatcher.AddBeforeTransitionGuard((ctx, sm, tid, cid) =>
             {
@@ -602,7 +635,10 @@ namespace Opc.Ua.Server.StateMachines
             Action<StateMachineBuilder<FluentFiniteStateMachineState>> configure,
             bool preserveOnReentry = false)
         {
-            ArgumentNullException.ThrowIfNull(configure);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentException(
@@ -835,7 +871,10 @@ namespace Opc.Ua.Server.StateMachines
         public StateMachineBuilder<TState> ConfigureStateMachine(
             Action<TState> configure)
         {
-            ArgumentNullException.ThrowIfNull(configure);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             FreezeDefinition();
             configure(m_stateMachine);
             return this;
@@ -1024,7 +1063,10 @@ namespace Opc.Ua.Server.StateMachines
             NodeId nodeId,
             QualifiedName browseName)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (nodeId.IsNull)
             {
                 throw new ArgumentException(
@@ -1070,8 +1112,14 @@ namespace Opc.Ua.Server.StateMachines
             ISystemContext context)
             where TState : FiniteStateMachineState
         {
-            ArgumentNullException.ThrowIfNull(stateMachine);
-            ArgumentNullException.ThrowIfNull(context);
+            if (stateMachine is null)
+            {
+                throw new ArgumentNullException(nameof(stateMachine));
+            }
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             return new StateMachineBuilder<TState>(stateMachine, context, null);
         }
     }

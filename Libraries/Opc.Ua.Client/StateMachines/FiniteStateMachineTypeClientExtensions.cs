@@ -540,7 +540,10 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(parent));
             }
-            ArgumentNullException.ThrowIfNull(telemetry);
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             if (parentStateNodeId.IsNull)
             {
                 throw new ArgumentException(
@@ -611,7 +614,10 @@ namespace Opc.Ua.Client.StateMachines
             {
                 throw new ArgumentNullException(nameof(streaming));
             }
-            ArgumentNullException.ThrowIfNull(telemetry);
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             return ObserveEffectiveStateImplAsync(parent, streaming, telemetry, options, ct);
         }
 
