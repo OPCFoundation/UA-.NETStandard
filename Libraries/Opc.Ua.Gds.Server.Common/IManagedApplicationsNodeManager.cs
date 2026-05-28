@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -58,7 +60,7 @@ namespace Opc.Ua.Gds.Server
     /// via an <see cref="IConfigurationDataStore"/>.
     /// </para>
     /// </remarks>
-    public interface IManagedApplicationsNodeManager : INodeManager
+    public interface IManagedApplicationsNodeManager : IAsyncNodeManager
     {
         /// <summary>
         /// Gets the <see cref="IConfigurationDataStore"/> used for
@@ -78,7 +80,7 @@ namespace Opc.Ua.Gds.Server
     /// or a custom implementation.
     /// </summary>
     public class StubManagedApplicationsNodeManager
-        : CustomNodeManager2, IManagedApplicationsNodeManager
+        : AsyncCustomNodeManager, IManagedApplicationsNodeManager
     {
         /// <summary>
         /// Creates a new instance.
@@ -100,22 +102,24 @@ namespace Opc.Ua.Gds.Server
         public IConfigurationDataStore? ConfigurationDataStore => null;
 
         /// <inheritdoc/>
-        protected override NodeStateCollection LoadPredefinedNodes(
-            ISystemContext context)
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
             // The ManagedApplications folder and its
             // ApplicationConfigurationFolderType are defined in the
             // base UA nodeset (StandardTypes.xml). They're loaded
             // by the core node manager. This stub node manager does
             // not contribute additional predefined nodes.
-            return [];
+            return new ValueTask<NodeStateCollection>([]);
         }
 
         /// <inheritdoc/>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            base.CreateAddressSpace(externalReferences);
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
             // The ManagedApplications folder is already part of the
             // core UA nodeset. Future implementations would browse it
@@ -147,7 +151,7 @@ namespace Opc.Ua.Gds.Server
     /// </para>
     /// </remarks>
     public class DefaultManagedApplicationsNodeManager
-        : CustomNodeManager2, IManagedApplicationsNodeManager
+        : AsyncCustomNodeManager, IManagedApplicationsNodeManager
     {
         // Well-known NodeIds from the base UA namespace (ns=0).
         // Using numeric literals avoids ambiguity between the GDS and
@@ -184,33 +188,33 @@ namespace Opc.Ua.Gds.Server
         public IConfigurationDataStore ConfigurationDataStore => m_dataStore;
 
         /// <inheritdoc/>
-        protected override NodeStateCollection LoadPredefinedNodes(
-            ISystemContext context)
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
             // The ManagedApplications folder is defined in the base
             // UA nodeset and loaded by the core node manager. We don't
             // contribute additional predefined nodes here.
-            return [];
+            return new ValueTask<NodeStateCollection>([]);
         }
 
         /// <inheritdoc/>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            base.CreateAddressSpace(externalReferences);
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
             // Query the data store for managed applications and
             // create ApplicationConfigurationState instances under the
             // ManagedApplications folder.
-            IReadOnlyList<ManagedApplicationInfo> apps = m_dataStore
-                .GetManagedApplicationsAsync(System.Threading.CancellationToken.None)
-                .AsTask()
-                .GetAwaiter()
-                .GetResult();
+            IReadOnlyList<ManagedApplicationInfo> apps = await m_dataStore
+                .GetManagedApplicationsAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             foreach (ManagedApplicationInfo app in apps)
             {
-                CreateApplicationConfigurationNode(app, externalReferences);
+                await CreateApplicationConfigurationNodeAsync(app, externalReferences).ConfigureAwait(false);
             }
         }
 
@@ -219,7 +223,7 @@ namespace Opc.Ua.Gds.Server
         /// for the specified managed application and adds it to the
         /// <c>ManagedApplications</c> folder.
         /// </summary>
-        private void CreateApplicationConfigurationNode(
+        private async ValueTask CreateApplicationConfigurationNodeAsync(
             ManagedApplicationInfo info,
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -264,7 +268,7 @@ namespace Opc.Ua.Gds.Server
                 appNode.IsNonUaApplication.Value = info.IsNonUaApplication;
             }
 
-            AddPredefinedNode(SystemContext, appNode);
+            await AddPredefinedNodeAsync(SystemContext, appNode).ConfigureAwait(false);
 
             // Wire an Organizes reference from the ManagedApplications
             // folder to this node via the external-references dictionary

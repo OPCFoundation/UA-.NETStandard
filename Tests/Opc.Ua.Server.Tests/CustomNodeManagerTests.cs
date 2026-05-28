@@ -2,10 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-
-using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -135,7 +134,7 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private static async Task UsePredefinedNodesAsync(
+        private static Task UsePredefinedNodesAsync(
             TestableCustomNodeManger2 nodeManager,
             DataItemState baseObject,
             NodeId nodeId)
@@ -151,7 +150,8 @@ namespace Opc.Ua.Server.Tests
             _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
-            await Task.CompletedTask.ConfigureAwait(false);
+
+            return Task.CompletedTask;
         }
 
         /// <summary>

@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Server;
@@ -45,7 +47,7 @@ namespace Quickstarts.ReferenceServer
     /// <item><description>AuthorizationServiceType (Part 12 §9)</description></item>
     /// </list>
     /// </summary>
-    public sealed class GdsNodeManagerFactory : INodeManagerFactory
+    public sealed class GdsNodeManagerFactory : IAsyncNodeManagerFactory
     {
         private readonly GlobalDiscoveryServerConfiguration m_gdsConfiguration;
 
@@ -66,7 +68,10 @@ namespace Quickstarts.ReferenceServer
         ];
 
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             // Ensure the GDS data types are registered in the message context
             if (!server.MessageContext.Factory.ContainsEncodeableType(
@@ -91,13 +96,16 @@ namespace Quickstarts.ReferenceServer
                 ? new LinqApplicationsDatabase()
                 : JsonApplicationsDatabase.Load(databaseStorePath!);
 
-            return new ApplicationsNodeManager(
-                server,
-                configuration,
-                database,
-                database,
-                new CertificateGroup(server.Telemetry),
-                autoApprove: true);
+#pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
+            return new ValueTask<IAsyncNodeManager>(
+                new ApplicationsNodeManager(
+                    server,
+                    configuration,
+                    database,
+                    database,
+                    new CertificateGroup(server.Telemetry),
+                    autoApprove: true));
+#pragma warning restore CA2000
         }
     }
 }
