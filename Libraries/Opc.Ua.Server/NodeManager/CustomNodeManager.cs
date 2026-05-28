@@ -163,13 +163,13 @@ namespace Opc.Ua.Server
             if (useSamplingGroups)
             {
                 m_monitoredItemManager = new SamplingGroupMonitoredItemManager(
-                    this,
+                    this.ToAsyncNodeManager(),
                     server,
                     configuration!);
             }
             else
             {
-                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this, server);
+                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this.ToAsyncNodeManager(), server);
             }
 
             PredefinedNodes = [];
@@ -4077,7 +4077,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                this,
+                this.ToAsyncNodeManager(),
                 context,
                 handle,
                 storedMonitoredItem,
@@ -4311,7 +4311,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
-                    this,
+                    this.ToAsyncNodeManager(),
                     context,
                     handle,
                     subscriptionId,
@@ -5107,11 +5107,11 @@ namespace Opc.Ua.Server
             var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager
-                .SetMonitoringMode(
+                .SetMonitoringModeAsync(
                     context,
                     sampledDataChangeMonitoredItem!,
                     monitoringMode,
-                    handle);
+                    handle).AsTask().GetAwaiter().GetResult();
 
             // report change.
             if (ServiceResult.IsGood(result) && previousMode != monitoringMode)
@@ -5282,7 +5282,7 @@ namespace Opc.Ua.Server
             // check if NamespaceMetadata is defined for NamespaceUri
             string? namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
             NamespaceMetadataState namespaceMetadataState =
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataState(namespaceUri!)!;
+                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(namespaceUri!).AsTask().GetAwaiter().GetResult()!;
 
             if (namespaceMetadataState != null)
             {

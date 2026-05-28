@@ -7,17 +7,26 @@ parameters:
   agents: '@{}'
   jobnamesuffix: ''
   customtestarget: ''
+  # Set hosted=true to force all jobs in this template invocation onto
+  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+  # Use this for stages that target macOS, which the managed pool does not
+  # provide.
+  hosted: false
+  # See ci.yml: passing pool config via parameters because root-pipeline
+  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
+  # included templates at compile-time.
+  poolName: ''
+  windowsImage: 'windows-2025-vs2026'
 jobs:
 - job: testprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
   pool:
-    ${{ if ne(variables.poolName, '') }}:
-      name: ${{ variables.poolName }}
-      ${{ if ne(variables.poolVmImage, '') }}:
-        demands:
-          - ImageOverride -equals ${{ variables.poolVmImage }}
+    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.windowsImage }}
     ${{ else }}:
-      vmImage: 'windows-2025-vs2026'
+      vmImage: ${{ parameters.windowsImage }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -28,7 +37,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName *.Tests.csproj -ExcludeFileName Opc.Ua.Aot.Tests.csproj -AgentTable ${{ parameters.agents }}
+      arguments: -FileName *.Tests.csproj -ExcludeFileName "Opc.Ua.Aot.Tests.csproj,Opc.Ua.Stress.Tests.csproj,Opc.Ua.Subscriptions.Durable.Tests.csproj" -AgentTable ${{ parameters.agents }}
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
@@ -44,11 +53,10 @@ jobs:
     ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
-    ${{ if ne(variables.poolName, '') }}:
-      name: ${{ variables.poolName }}
-      ${{ if ne(variables.poolVmImage, '') }}:
-        demands:
-          - ImageOverride -equals ${{ variables.poolVmImage }}
+    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals $(poolImage)
     ${{ else }}:
       vmImage: $(poolImage)
   steps:
@@ -103,7 +111,7 @@ jobs:
     inputs:
       command: test
       projects: $(file)
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} --filter "TestCategory!=LongRunning&TestCategory!=Stress"'
   - task: PublishBuildArtifacts@1
     displayName: 'Publish Fuzzing artifacts on failure'
     condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))

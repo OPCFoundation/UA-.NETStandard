@@ -2,6 +2,12 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+parameters:
+- name: managedPool
+  displayName: 'Use the netstandard Managed DevOps Pool (adds ImageOverride demand for Windows)'
+  type: boolean
+  default: false
+
 pr: none
 
 trigger:
@@ -16,6 +22,18 @@ trigger:
     - 'Tools/**'
     - 'Applications/Opc.Ua.*/**'
 
+variables:
+  # When managedPool is true, route the preview NuGet build to the
+  # 'netstandard' Managed DevOps Pool and select the image via the
+  # ImageOverride demand.  See
+  # https://learn.microsoft.com/azure/devops/managed-devops-pools/configure-images#use-demands-to-specify-an-image
+  ${{ if parameters.managedPool }}:
+    poolName: 'netstandard'
+    windowsImage: 'windows-2025-g2'
+  ${{ else }}:
+    poolName: ''
+    windowsImage: 'windows-2025-vs2026'
+
 stages:
 - stage: nugetpreview
   displayName: 'Push Nuget Preview'
@@ -24,7 +42,11 @@ stages:
     parameters:
       upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
       config: 'Release'
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}
   - template: .azurepipelines/preview.yml
     parameters:
       upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
       config: 'Debug'
+      poolName: ${{ variables.poolName }}
+      windowsImage: ${{ variables.windowsImage }}

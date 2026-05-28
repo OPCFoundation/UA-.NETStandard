@@ -1773,26 +1773,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             TypeInfo result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
             Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+            Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }
 
         [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes",
             Justification = "Test fixture type used only for reflection-based type detection via typeof().")]
         private sealed class GenericEncodeable<T> : IEncodeable
         {
-            public ExpandedNodeId TypeId => throw new NotImplementedException();
-
-            public ExpandedNodeId BinaryEncodingId => throw new NotImplementedException();
-
-            public ExpandedNodeId XmlEncodingId => throw new NotImplementedException();
-
-            public object Clone()
-            {
-                throw new NotImplementedException();
-            }
+            public ExpandedNodeId TypeId => new(100000);
+            public ExpandedNodeId BinaryEncodingId => new(100001);
+            public ExpandedNodeId XmlEncodingId => new(100002);
 
             public void Decode(IDecoder decoder)
             {
-                throw new NotImplementedException();
             }
 
             public void Encode(IEncoder encoder)
@@ -1802,7 +1795,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             public bool IsEqual(IEncodeable encodeable)
             {
-                throw new NotImplementedException();
+                return encodeable is GenericEncodeable<T>;
+            }
+
+            public object Clone()
+            {
+                return new GenericEncodeable<T>();
             }
         }
     }

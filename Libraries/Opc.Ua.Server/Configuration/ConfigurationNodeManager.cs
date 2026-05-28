@@ -187,7 +187,8 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).ConfigureAwait(false);
+                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
+                                    .ConfigureAwait(false);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
                             // remove the reference to server node because it is set as parent
@@ -396,10 +397,17 @@ namespace Opc.Ua.Server
                     serverInternal.UserManagement,
                     serverInternal.SessionManager);
             }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
+                    .AsTask().GetAwaiter().GetResult();
+            }
         }
 
         ///<inheritdoc/>
-        public NamespaceMetadataState? GetNamespaceMetadataState(string namespaceUri)
+        public async ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
             if (namespaceUri == null)
             {
@@ -416,8 +424,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceMetadataState? namespaceMetadataState = FindNamespaceMetadataState(
-                namespaceUri);
+            NamespaceMetadataState? namespaceMetadataState = await FindNamespaceMetadataStateAsync(
+                namespaceUri, cancellationToken).ConfigureAwait(false);
 
             lock (m_namespaceMetadataStatesLock)
             {
@@ -429,7 +437,7 @@ namespace Opc.Ua.Server
         }
 
         ///<inheritdoc/>
-        public NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex)
+        public async ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(ushort namespaceIndex, CancellationToken cancellationToken = default)
         {
             lock (m_namespaceMetadataStatesLock)
             {
@@ -442,7 +450,7 @@ namespace Opc.Ua.Server
             }
 
             string? namespaceUri = Server.NamespaceUris.GetString(namespaceIndex);
-            NamespaceMetadataState? namespaceMetadataState = GetNamespaceMetadataState(namespaceUri!);
+            NamespaceMetadataState? namespaceMetadataState = await GetNamespaceMetadataStateAsync(namespaceUri!, cancellationToken).ConfigureAwait(false);
 
             lock (m_namespaceMetadataStatesLock)
             {
@@ -455,8 +463,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
-            NamespaceMetadataState? namespaceMetadataState = FindNamespaceMetadataState(
-                namespaceUri);
+            NamespaceMetadataState? namespaceMetadataState = await FindNamespaceMetadataStateAsync(
+                namespaceUri, cancellationToken).ConfigureAwait(false);
 
             if (namespaceMetadataState == null)
             {
@@ -1549,7 +1557,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
-        private NamespaceMetadataState? FindNamespaceMetadataState(string namespaceUri)
+        private async ValueTask<NamespaceMetadataState?> FindNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1586,13 +1594,11 @@ namespace Opc.Ua.Server
                     if (!serverNamespacesReference.IsInverse)
                     {
                         // Find NamespaceMetadata node of NamespaceUri in Namespaces references.
-                        // Use sync GetManagerHandle to resolve the node across node managers; the
-                        // SyncNodeManagerAdapter shim performs any required async-to-sync hop.
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
                             Server.NamespaceUris);
-                        if (Server.NodeManager.GetManagerHandle(nameSpaceNodeId, out INodeManager? _) is not NodeHandle handle ||
-                            handle.Node is not NamespaceMetadataState namespaceMetadata)
+                        if (await Server.NodeManager.FindNodeInAddressSpaceAsync(
+                            nameSpaceNodeId, cancellationToken).ConfigureAwait(false) is not NamespaceMetadataState namespaceMetadata)
                         {
                             continue;
                         }
