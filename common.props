@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Product>OPC UA .NET Standard Library</Product>
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
-    <VersionPrefix>1.6</VersionPrefix>
+    <VersionPrefix>2.0</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>

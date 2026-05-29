@@ -1,10 +1,16 @@
 # Migration Guide
 
 - [Migration Guide](#migration-guide)
-  - [Migrating from 1.5.378 to 1.6.x](#migrating-from-15378-to-16x)
+  - [Migrating from 1.5.378 to 2.0.x](#migrating-from-15378-to-20x)
+    - [Telemetry and Logging](#telemetry-and-logging)
     - [Source Generation](#source-generation)
       - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
       - [Project Structure](#project-structure)
+    - [Package, Target Framework and Dependency Changes](#package-target-framework-and-dependency-changes)
+      - [New published packages](#new-published-packages)
+      - [Target Frameworks (only Opc.Ua.Types changes)](#target-frameworks-only-opcuatypes-changes)
+      - [NuGet dependency additions and removals](#nuget-dependency-additions-and-removals)
+      - [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)
     - [Improved Type safety](#improved-type-safety)
       - [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
       - [ByteString](#bytestring)
@@ -42,6 +48,7 @@
         - [Clone() replaced with CreateCopy()](#clone-replaced-with-createcopy)
         - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
         - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
+      - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
     - [User Identity Token Handlers](#user-identity-token-handlers)
     - [Configuration](#configuration)
       - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
@@ -56,6 +63,10 @@
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
     - [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
+    - [Subscriptions and Transports](#subscriptions-and-transports)
+      - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
+      - [PubSub](#pubsub)
+      - [Reverse connect](#reverse-connect)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -71,9 +82,44 @@ This document outlines the breaking changes introduced from version to version. 
 
 > Pro TIP: Point your favorite coding agent at this doc and let them take care of the migration work!
 
-## Migrating from 1.5.378 to 1.6.x
+## Migrating from 1.5.378 to 2.0.x
 
-Version 1.6 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
+> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.CodeFixers` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
+
+Version 2.0 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
+
+### Telemetry and Logging
+
+Observability in 2.0 is plumbed through `ITelemetryContext`. Loggers are resolved from the telemetry context via `telemetry.CreateLogger<T>()` rather than from `Utils.Trace` / `Utils.LogX`. The static logging helpers remain compilable but are `[Obsolete]`; consumers should resolve `ILogger` from `ITelemetryContext` instead.
+
+Constructor injection across the public API is not uniform - the parameter is required positionally on most types, optional on `ApplicationInstance`, and absent on `Session` / `CustomNodeManager2`. The table below summarises the precise shape per type:
+
+| Type | Telemetry parameter | Notes |
+|---|---|---|
+| `ApplicationInstance(ITelemetryContext? telemetry)` | Nullable | Also `ApplicationInstance(ApplicationConfiguration, ITelemetryContext?)`. Passing `null` falls back to a default telemetry context. |
+| `ServerBase(ITelemetryContext telemetry)` | Required positional | The only public ctor. |
+| `CertificateManagerFactory.Create(SecurityConfiguration, ITelemetryContext, Action<CertificateManagerOptions>?)` | Required positional (2nd parameter) | Factory entry point for `CertificateManager`. |
+| `DefaultSessionFactory()` / `DefaultSessionFactory(ITelemetryContext telemetry)` | Both ctors exist | The parameterless ctor is `[Obsolete]`; use the telemetry-aware overload. |
+| `ManagedSessionFactory(ITelemetryContext telemetry)` | Required positional | The only public ctor. |
+| `Session` ctors | **None** | Telemetry flows in via `ApplicationConfiguration` or `ISubscriptionEngineFactory`. Do not look for a `Session(... ITelemetryContext)` overload - none exists. |
+| `CustomNodeManager2(IServerInternal, ApplicationConfiguration?, bool, ILogger, params string[])` | **None directly** | Obtain a logger via `server.Telemetry.CreateLogger<T>()` and pass it to the ctor. |
+
+```csharp
+// Server side - log via the server's telemetry context
+public sealed class MyNodeManager : CustomNodeManager2
+{
+    public MyNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        : base(server, configuration, useSamplingGroups: false,
+               server.Telemetry.CreateLogger<MyNodeManager>(),
+               "urn:example:my-namespace")
+    {
+    }
+}
+
+// Client side - construct the factory with telemetry
+var factory = new ManagedSessionFactory(telemetry);
+ISession session = await factory.CreateAsync(/* ... */);
+```
 
 ### Source Generation
 
@@ -151,6 +197,70 @@ New `Opc.Ua` project as an intermediate project. Impact:
 
 - Most applications using NuGet packages are not affected. Continue linking to Opc.Ua.Core project as it includes the Opc.Ua intermediate assembly
 - Assembly loading order *may* change
+
+### Package, Target Framework and Dependency Changes
+
+#### New published packages
+
+Two assemblies that previously shipped only as transitive content inside `Opc.Ua.Core` are now published as standalone NuGet packages. Add an explicit `<PackageReference>` only if your project depends on these types without also depending on `Opc.Ua.Core` (which still includes them transitively).
+
+**`OPCFoundation.NetStandard.Opc.Ua.Core.Types`** (project `Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj`, `IsPackable=true`, target frameworks `$(LibCoreTargetFrameworks)`). Owns the framework-neutral built-in type and node-state contracts. Headline public types include `IServiceRequest`, `IServiceResponse`, `BaseEventState`, `EventSeverity`, `InstanceStateSnapshot`, `FolderState`, `FolderTypeState`, `LimitAlarmStates`, `ContentFilter` (including `Result` / `ElementResult`), and `MonitoringFilter` / `MonitoringFilterResult`.
+
+```xml
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Core.Types" Version="2.0.*" />
+```
+
+**`OPCFoundation.NetStandard.Opc.Ua.Security.Certificates`** (project `Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj`, `IsPackable=true`, target frameworks `$(LibCoreTargetFrameworks)`). Owns the wrapper certificate type system. Headline public types: `Certificate`, `CertificateCollection`, `IX509Certificate`, `ICertificateFactory`, `ICertificateIssuer`, `CertificateChangeKind`, `X509AuthorityKeyIdentifierExtension`, `X509CrlNumberExtension`, `X509SubjectAltNameExtension`, `CRLReason`.
+
+```xml
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates" Version="2.0.*" />
+```
+
+#### Target Frameworks (only Opc.Ua.Types changes)
+
+The TFM matrix for the main libraries (Core, Client, Server, Configuration, etc.) is unchanged from 1.5.378: `net472;net48;netstandard2.1;net8.0;net9.0;net10.0`. The only consumer-visible change is the `Opc.Ua.Types` assembly: on 1.5.378 it tracked the dedicated `LibTypesTargetFrameworks` variable (`net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0;net10.0`); on 2.0 the variable is removed and `Opc.Ua.Types` tracks `LibCoreTargetFrameworks`, the same matrix as every other library. The net effect is that `netstandard2.0` is no longer offered for `Opc.Ua.Types`.
+
+The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion 14.0`**. Projects that target `netstandard2.0` and pull in `Opc.Ua.Types` will fail to restore with `NU1202` ("package is not compatible") - retarget to `netstandard2.1` or one of the .NET / .NET Framework TFMs above.
+
+#### NuGet dependency additions and removals
+
+| Package | Status in 2.0 | First introduced in |
+|---|---|---|
+| `DotNext` 5.26.3 | Added | `Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj` |
+| `Makaretu.Dns.Multicast` 0.27.0 | Added (pinned) | Centralised pin; previously vendored in-tree, no direct reference yet |
+| `Microsoft.Bcl.TimeProvider` 10.0.8 | Added (pinned) | Centralised pin; transitive use for `TimeProvider` on net472/net48 |
+| `Microsoft.CodeAnalysis.Analyzers` 4.14.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` (runtime source-generation surface) |
+| `Microsoft.CodeAnalysis.Common` 4.14.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` |
+| `Microsoft.CodeAnalysis.CSharp` 5.3.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` |
+| `Microsoft.Extensions.Configuration.Abstractions` 10.0.8 | Added (pinned) | Used by DI integration |
+| `Microsoft.Extensions.Diagnostics` 10.0.8 | Added (pinned) | Centralised pin |
+| `Microsoft.Extensions.Hosting` 10.0.8 | Added (pinned) | Centralised pin |
+| `Microsoft.Extensions.Hosting.Abstractions` 10.0.8 | Added (pinned) | Centralised pin |
+| `Microsoft.Extensions.Options` 10.0.8 | Added (pinned) | Centralised pin |
+| `Microsoft.Extensions.Options.ConfigurationExtensions` 10.0.8 | Added (pinned) | Centralised pin |
+| `ModelContextProtocol` 1.3.0 | Added | `Applications/McpServer/Opc.Ua.Mcp.csproj` |
+| `ModelContextProtocol.AspNetCore` 1.3.0 | Added | `Applications/McpServer/Opc.Ua.Mcp.csproj` |
+| `SourceGenerator.Foundations` 2.0.14 | Added | `Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj` |
+| `System.CommandLine` 2.0.8 | Added | `Applications/McpServer/Opc.Ua.Mcp.csproj` |
+| `System.Threading.Channels` 10.0.8 | Added | `Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj` |
+| `TUnit` 1.45.8 | Added (test-only) | `Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj` |
+| `NUnit.Analyzers` 4.13.0 | Added (test-only) | Test projects |
+| `ObjectLayoutInspector` 0.2.0 | Added (test-only) | Test projects |
+| `System.Reflection.Metadata` 10.0.6 | Added (test-only) | Test projects |
+| `Mono.Options` 6.12.0.148 | Removed | Previously referenced by `Applications/ConsoleReferenceServer/MonoReferenceServer.csproj` |
+
+#### Newtonsoft.Json - what really changed
+
+`Newtonsoft.Json` was removed as a direct dependency of `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` in 2.0. The only direct `<PackageReference Include="Newtonsoft.Json" ... />` remaining anywhere under `Libraries/` and `Stack/` is in `Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`. Consequences:
+
+- Consumers that reached `Newtonsoft.Json` only transitively through `Opc.Ua.Core` now need to add their own explicit reference.
+- Consumers of `Opc.Ua.PubSub` continue to receive `Newtonsoft.Json` transitively and are unaffected.
+
+```xml
+<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+```
+
+Use `Version="13.0.4"` or any compatible later `13.x` release.
 
 ### Improved Type safety
 
@@ -260,6 +370,21 @@ Previously the `Variant` was a *mutable* struct containing a `TypeInfo` and `Val
 
 The `ExtensionObject` was a reference type wrapping a `NodeId` and a body as a reference type of `object`. The `ExtensionObject` is now an immutable value type with type-safe access to its body.
 
+`Session.Call` / `Session.CallAsync` previously took `params object[]` and silently boxed every argument. The new signature takes `params Variant[]`, so each call argument must be wrapped explicitly:
+
+```csharp
+// Before
+var output = session.Call(objectId, methodId, 1, "two", DateTime.UtcNow);
+
+// After
+var output = session.Call(objectId, methodId,
+    Variant.From(1),
+    Variant.From("two"),
+    Variant.From(new DateTimeUtc(DateTime.UtcNow)));
+```
+
+`null` arguments must be passed as `Variant.Null` (a literal `null` will not bind to the `params Variant[]` overload).
+
 ##### Deprecated boxing behavior
 
 Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGetValue(out <Type> value)` calls. The same applies to the `Value` property of `DataValue`. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetValue<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
@@ -347,6 +472,18 @@ DataValue bad = DataValue.FromStatusCode(StatusCodes.BadInternalError);
 
 // Pass by 'in' on hot paths:
 public void QueueValue(in DataValue value, ServiceResult? error) { ... }
+```
+
+Async methods cannot accept `in` / `ref` parameters. When an async caller needs to forward a `DataValue` into an `in` API, copy it to a local first so the local owns the storage that gets captured by the state machine:
+
+```csharp
+// In async code, copy DataValue to a local before passing in.
+async Task EnqueueAsync(DataValue dv)
+{
+    var snapshot = dv;
+    queue.QueueValue(in snapshot, error: default);
+    await Task.Yield();
+}
 ```
 
 #### XmlElement
@@ -596,7 +733,8 @@ Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreU
 ##### OnAfterCreate gains CancellationToken
 
 `OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
-Existing overrides compile (source-compatible) but are **binary-incompatible** — pre-compiled assemblies won't match at runtime.
+
+> **⚠ Silent regression.** Source-compatible, but **binary-incompatible**. Pre-compiled assemblies whose overrides still target the old `OnAfterCreate(ISystemContext, NodeState)` signature will silently no-op at runtime against 2.0 - the CLR resolves virtual overrides by exact signature, finds no match, and falls back to the base implementation. **No runtime exception is thrown** to alert the developer. The only fix is to **recompile** the consuming assembly against 2.0 so the override binds to the new three-argument signature.
 
 ```csharp
 protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
@@ -604,6 +742,12 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
     base.OnAfterCreate(context, node, ct);
 }
 ```
+
+#### INodeManager3 - new role-permission and method-resolution hooks
+
+2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.
+
+Custom node managers that implement `INodeManager` / `INodeManager2` **directly** (not via `CustomNodeManager2`) silently lose the new behavior: the server probes for `INodeManager3` at the call site, and node managers that do not implement it fall through to the legacy code path. This is not a build break - it is a silent feature-availability regression. Either derive from `CustomNodeManager2` or implement `INodeManager3` explicitly to participate in role-permission evaluation and the new method-resolution contract.
 
 ### User Identity Token Handlers
 
@@ -993,6 +1137,13 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `ServerBase.CertificateValidator` (property) | `ServerBase.CertificateManager` |
 | `ServerBase.InstanceCertificateTypesProvider` (property) | `ServerBase.CertificateManager` (use `ICertificateRegistry` surface) |
 
+> **Lifecycle ordering.** `configuration.CertificateManager` is populated *inside* `await applicationInstance.CheckApplicationInstanceCertificatesAsync(...)`. Code that reads it before that call gets `null`. The required ordering is:
+>
+> 1. Construct `new ApplicationInstance(telemetry)`.
+> 2. Load `ApplicationConfiguration` (e.g. via `LoadApplicationConfigurationAsync`).
+> 3. `await applicationInstance.CheckApplicationInstanceCertificatesAsync(silent: false, ..., ct);`.
+> 4. Read `configuration.CertificateManager` / pass `configuration.CertificateManager.CertificateProvider` to `UserIdentity.CreateAsync(...)`.
+
 ##### Migrating the `CertificateValidator.CertificateValidation` event
 
 The legacy event with mutable `e.Accept = true` mutability has been replaced by
@@ -1091,6 +1242,8 @@ await Task.WhenAll(asTask, otherTask);
 
 **Migration**:
 
+The `ServerCapability` identifiers are source-generated from `Tools/Opc.Ua.SourceGeneration.Core/Design/ServerCapabilities.csv`; each capability emits a `public const string` field. The instance type carrying `Id` / `Description` is `ServerCapabilityInfo`, and the registry exposing `IEnumerable<ServerCapabilityInfo>` plus `Find(string?) : ServerCapabilityInfo?` is the static `ServerCapabilities` class in `Opc.Ua.Gds.Client.Common`.
+
 ```csharp
 // Before
 var apps = gds.FindApplication(uri);                       // sync wrapper
@@ -1098,20 +1251,21 @@ var caps = ServerCapability.GlobalDiscoveryServer;         // obsolete shim
 
 // After
 var apps = await gds.FindApplicationAsync(uri, ct);
-var caps = ServerCapability.GDS;
+string id = ServerCapability.GDS;                          // const string "GDS"
+ServerCapabilityInfo? info = ServerCapabilities.Find(id);  // null if not registered
 ```
 
 If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
 
 ### ManagedSession and Automatic Reconnection
 
-Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.
+Version 2.0 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.
 
 **Key Changes**:
 
 - **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
-- **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 1.6.
-- **`SessionReconnectHandler`** is **retained** as a supported legacy entry point for callers that already manage raw `Session` instances. It is **not** marked obsolete in 1.6, but it now requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`, since those facades drive their own reconnect / failover state machine. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync`.
+- **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 2.0.
+- **`SessionReconnectHandler`** is **retained** as a supported legacy entry point for callers that already manage raw `Session` instances. The type itself is not removed. Its parameterless legacy constructor remains marked `[Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]` in 2.0 (the same attribute was already present in 1.5.378); pass an `ITelemetryContext` to the new ctor when adopting it. It now also requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`, since those facades drive their own reconnect / failover state machine. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync`.
 
 For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](Sessions.md).
 
@@ -1121,7 +1275,7 @@ For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionR
 No code changes are required — `DefaultSessionFactory` still returns raw `Session`. To opt into automatic reconnection and redundancy failover, switch to `ManagedSessionFactory`:
 
 ```csharp
-// Still supported in 1.6 — DefaultSessionFactory creates raw Session:
+// Still supported in 2.0 — DefaultSessionFactory creates raw Session:
 var defaultFactory = new DefaultSessionFactory(telemetry);
 ISession rawSession = await defaultFactory.CreateAsync(...);
 
@@ -1134,7 +1288,7 @@ Both factories implement `ISessionFactory`. `ManagedSessionFactory` internally u
 
 **If you use `SessionReconnectHandler`:**
 
-`SessionReconnectHandler` continues to work in 1.6 against `Session` instances. The pattern below is unchanged — only the obsolete diagnostic has been removed:
+`SessionReconnectHandler` continues to work in 2.0 against `Session` instances. The pattern below is unchanged, but the legacy parameterless ctor remains `[Obsolete]` - prefer the `(ITelemetryContext, bool, int)` overload:
 
 ```csharp
 ISession session = await new DefaultSessionFactory(telemetry).CreateAsync(...);
@@ -1175,6 +1329,8 @@ ISession session = await factory.CreateAsync(...);
 
 #### Configuring Reconnection Policy
 
+Two related types ship side-by-side and are not interchangeable. `ReconnectPolicyOptions` is a `public sealed record` with init-only properties - the DTO consumed by DI / `ManagedSessionOptions`. `ReconnectPolicy` is a `public class` (implementing `IReconnectPolicy`) - the runtime policy passed to `ManagedSession.CreateAsync` and `SessionReconnectHandler`. Construct the runtime policy from the options snapshot with `new ReconnectPolicy(options)`; `ManagedSessionBuilder.ConnectAsync` performs this conversion internally.
+
 ```csharp
 var policy = new ReconnectPolicy
 {
@@ -1202,7 +1358,7 @@ When the session is reconnecting, service calls (Read, Write, Browse, etc.) auto
 
 #### Fluent Builder, V2 Subscriptions, and Dependency Injection
 
-Version 1.6 introduces a fluent builder for `ManagedSession`, exposes the new options-based subscription API on the managed session, and adds Microsoft.Extensions.DependencyInjection integration for Azure / ASP.NET Core / generic-host scenarios.
+Version 2.0 introduces a fluent builder for `ManagedSession`, exposes the new options-based subscription API on the managed session, and adds Microsoft.Extensions.DependencyInjection integration for Azure / ASP.NET Core / generic-host scenarios.
 
 **Fluent builder:**
 
@@ -1252,7 +1408,12 @@ subscription.TryAddMonitoredItem(
     out IMonitoredItem _);
 ```
 
-The `SubscriptionOptions` and `MonitoredItemOptions` records used by this API live in `Opc.Ua.Client.Subscriptions` and `Opc.Ua.Client.Subscriptions.MonitoredItems`. They are distinct from the classic types of the same names in the `Opc.Ua.Client` namespace; use namespace aliases (or fully-qualified names) when both are visible in the same file.
+The `SubscriptionOptions` and `MonitoredItemOptions` records used by this API live in `Opc.Ua.Client.Subscriptions` and `Opc.Ua.Client.Subscriptions.MonitoredItems`. They are distinct from the classic types of the same names in the `Opc.Ua.Client` namespace; use namespace aliases (or fully-qualified names) when both are visible in the same file. Both records ship in the same assembly (`Opc.Ua.Client.dll`), so a using-alias is sufficient - `extern alias` is **not** required:
+
+```csharp
+using ClassicSubscriptionOptions = Opc.Ua.Client.SubscriptionOptions;
+using V2SubscriptionOptions      = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
+```
 
 The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed for the time being, but this will change in future releases; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
 
@@ -1291,6 +1452,23 @@ struct itself is safe and is the recommended pattern. See
 [`Docs/Sessions.md`](Sessions.md#v2-notification-pooling-opt-in) for full
 detail and a code example.
 
+```csharp
+// UNSAFE - captures a pooled instance across await
+handler.OnDataChange = async (notif, ct) =>
+{
+    log.Add(notif);     // notif may be re-rented on the next publish
+    await Task.Yield();
+};
+
+// SAFE - value-copy the projection struct before suspending
+handler.OnDataChange = async (notif, ct) =>
+{
+    var snapshot = notif;
+    log.Add(snapshot);
+    await Task.Yield();
+};
+```
+
 This affects only the V2 engine; the classic subscription engine is
 unaffected. There is no breaking change to `IEncodeable`,
 `IDecoder`, `IServiceMessageContext`, or
@@ -1325,13 +1503,13 @@ var sessionFactory = serviceProvider
 ManagedSession session = await sessionFactory(ct);
 ```
 
-The factory caches the connected session — subsequent awaits return the same instance. The DI registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+The factory caches the connected session — subsequent awaits return the same instance. The registered delegate type is `Func<CancellationToken, Task<ManagedSession>>` (the OPC UA client APIs use `Task` here, not `ValueTask`), so resolving it from DI and `await`-ing the result returns the connected `ManagedSession`. The DI registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
 
 This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
 
 ### `INodeCache` changes
 
-Version 1.6 collapses the two parallel node-cache contracts into a single public interface and removes the remaining synchronous wrappers from the cache surface.
+Version 2.0 collapses the two parallel node-cache contracts into a single public interface and removes the remaining synchronous wrappers from the cache surface.
 
 **Key changes**:
 
@@ -1385,6 +1563,22 @@ ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
 ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
 bool isType = await cache.IsTypeOfAsync(sub, super);
 ```
+
+### Subscriptions and Transports
+
+#### Durable subscriptions and reshaped Subscription tree
+
+**Source-breaking.** Durable subscription support reshapes the subscription tree on both the client and the server. On the client side, the new public surface in `Libraries/Opc.Ua.Client/Subscription/` includes `ISubscription`, `ISubscriptionManager`, `SubscriptionOptions`, and `MonitoredItemOptions` - these are the V2 options-based shapes; the classic `Opc.Ua.Client.Subscription` continues to ship alongside them. On the server side, the new public surface in `Libraries/Opc.Ua.Server/Subscription/...` includes `DataChangeMonitoredItemQueue`, `EventMonitoredItemQueue`, `IDataChangeMonitoredItemQueue`, `IMonitoredItemQueueFactory`, `ISubscriptionStore`, `IStoredSubscription`, `StoredSubscription`, and `StoredMonitoredItem`.
+
+Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscriptions;` import alongside the existing `using Opc.Ua.Client;`. Because the V2 records share their type names with the classic records, namespace aliases are required when both are visible in the same file - see [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection) for the canonical alias snippet.
+
+#### PubSub
+
+**Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
+
+#### Reverse connect
+
+**Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
 
 ## Migrating from 1.05.377 to 1.05.378
 
