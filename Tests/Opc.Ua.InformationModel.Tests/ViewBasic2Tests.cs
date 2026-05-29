@@ -881,7 +881,7 @@ namespace Opc.Ua.InformationModel.Tests
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadBrowseDirectionInvalid);
         }
 
-        private async Task AssertBrowseNextInjectsServiceResultAsync(StatusCode injected)
+        private Task AssertBrowseNextInjectsServiceResultAsync(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseNextResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
@@ -894,6 +894,7 @@ namespace Opc.Ua.InformationModel.Tests
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
+            return Task.CompletedTask;
         }
     }
 }

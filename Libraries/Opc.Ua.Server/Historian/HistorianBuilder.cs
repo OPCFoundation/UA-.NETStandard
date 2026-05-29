@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Historian
             // The handler is a per-instance closure so the same NodeId
             // routes to its sink across multiple captures; detach when
             // the builder is disposed.
-            NodeStateChangedHandler handler = (ctx, node, masks) =>
+            void handler(ISystemContext ctx, NodeState node, NodeStateChangeMasks masks)
             {
                 if ((masks & NodeStateChangeMasks.Value) == 0)
                 {
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Historian
                     v.StatusCode,
                     sourceTimestamp: v.Timestamp,
                     serverTimestamp: DateTime.UtcNow));
-            };
+            }
             variable.StateChanged += handler;
             lock (m_captureSinkLock)
             {
@@ -296,8 +296,7 @@ namespace Opc.Ua.Server.Historian
             BaseVariableState variable,
             IHistorianProvider provider)
         {
-            NodeStatePopulateBrowserEventHandler? handler = null;
-            handler = (context, node, browser) =>
+            void handler(ISystemContext context, NodeState node, NodeBrowser browser)
             {
                 try
                 {
@@ -315,7 +314,8 @@ namespace Opc.Ua.Server.Historian
                     // Self-detach so subsequent browses don't repeat the work.
                     variable.OnPopulateBrowser -= handler!;
                 }
-            };
+            }
+
             variable.OnPopulateBrowser += handler;
         }
 

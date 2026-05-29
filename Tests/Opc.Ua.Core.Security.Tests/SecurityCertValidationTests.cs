@@ -977,7 +977,7 @@ namespace Opc.Ua.Core.Security.Tests
                 expired: false, slug: "notyetvalid");
         }
 
-        private async Task AssertExpiredOrNotYetValidCertRejectedAsync(bool expired, string slug)
+        private Task AssertExpiredOrNotYetValidCertRejectedAsync(bool expired, string slug)
         {
             string appUri = NewTestApplicationUri(slug);
             // Use a subject without DC=localhost so SecurityConfiguration.Validate's
@@ -1008,6 +1008,7 @@ namespace Opc.Ua.Core.Security.Tests
                     StatusCodes.BadSecurityChecksFailed,
                     StatusCodes.BadCertificateInvalid),
                 $"Got: {ex.StatusCode}");
+            return Task.CompletedTask;
         }
 
         [Test]

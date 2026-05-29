@@ -355,7 +355,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public async Task StubProviderReturnsBadNotSupported()
+        public Task StubProviderReturnsBadNotSupported()
         {
             // Verify that when no provider is configured, the
             // expected pattern is to check for null and throw.
@@ -373,6 +373,8 @@ namespace Opc.Ua.Gds.Tests
 
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             }
+
+            return Task.CompletedTask;
         }
     }
 

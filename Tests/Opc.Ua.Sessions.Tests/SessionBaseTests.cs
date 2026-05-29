@@ -634,7 +634,7 @@ namespace Opc.Ua.Sessions.Tests
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadSecureChannelIdInvalid);
         }
 
-        private async Task AssertCreateSessionInjectsServiceResultAsync(StatusCode injected)
+        private Task AssertCreateSessionInjectsServiceResultAsync(StatusCode injected)
         {
             // Session.OpenAsync retries CreateSession without the client
             // certificate when the first attempt fails, so a one-shot
@@ -647,6 +647,7 @@ namespace Opc.Ua.Sessions.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
+            return Task.CompletedTask;
         }
 
         [Description("CreateSession – injects service result Bad_NonceInvalid in the response.")]
@@ -686,7 +687,7 @@ namespace Opc.Ua.Sessions.Tests
 
         [Description("CreateSession – the SessionId returned by the server is null for the second session.")]
         [Test]
-        public async Task CreateSessionWithInjectedNullSessionIdAsync()
+        public Task CreateSessionWithInjectedNullSessionIdAsync()
         {
             // A null SessionId in the response makes ActivateSession fail
             // because the client uses SessionId to identify the session.
@@ -695,6 +696,7 @@ namespace Opc.Ua.Sessions.Tests
 
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Description("CreateSession – the server returns the same AuthenticationToken for two distinct sessions.")]
@@ -1131,7 +1133,7 @@ namespace Opc.Ua.Sessions.Tests
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadSecurityChecksFailed);
         }
 
-        private async Task AssertActivateSessionInjectsServiceResultAsync(StatusCode injected)
+        private Task AssertActivateSessionInjectsServiceResultAsync(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<ActivateSessionResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
@@ -1139,6 +1141,7 @@ namespace Opc.Ua.Sessions.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
+            return Task.CompletedTask;
         }
 
         [Description("CloseSession – the server returns Bad_SessionIdInvalid as the service result.")]

@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         [Test]
-        public async Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
+        public Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -89,6 +89,7 @@ namespace Opc.Ua.Client.Tests.Historian
             });
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -124,7 +125,7 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         [Test]
-        public async Task ReadRawWithThreeEmptyPagesAndContinuationThrowsBadInternalErrorAsync()
+        public Task ReadRawWithThreeEmptyPagesAndContinuationThrowsBadInternalErrorAsync()
         {
             int callCount = 0;
             var mockSession = new Mock<ISession>();
@@ -168,6 +169,7 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
             Assert.That(callCount, Is.GreaterThanOrEqualTo(3),
                 "The guard should trigger after three consecutive empty pages.");
+            return Task.CompletedTask;
         }
 
         [Test]

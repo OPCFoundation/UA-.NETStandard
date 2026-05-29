@@ -1053,7 +1053,6 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
             }
 
-            DateTime lastEmitted = DateTime.MinValue;
             DateTime resumeLocal = resumeAt;
             foreach (KeyValuePair<DateTime, DataValue> entry in source)
             {
@@ -1089,7 +1088,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
 
                 output.Add(new HistoricalDataValue(CloneValue(entry.Value)));
-                lastEmitted = entry.Key;
+                DateTime lastEmitted = entry.Key;
 
                 if (output.Count >= cap)
                 {
@@ -1150,8 +1149,6 @@ namespace Opc.Ua.Server.Historian.InMemory
             IEnumerable<ModificationEntry> source = request.IsForward
                 ? archive.ModifiedLog
                 : Enumerable.Reverse(archive.ModifiedLog);
-
-            DateTime lastEmittedKey = DateTime.MinValue;
             int lastEmittedSequence = -1;
 
             foreach (ModificationEntry entry in source)
@@ -1174,7 +1171,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
 
                 output.Add(new ModifiedDataValue(CloneValue(entry.Value), CloneInfo(entry.Info)));
-                lastEmittedKey = sourceTs;
+                DateTime lastEmittedKey = sourceTs;
                 lastEmittedSequence = entry.Sequence;
 
                 if (output.Count >= cap)
@@ -1203,8 +1200,6 @@ namespace Opc.Ua.Server.Historian.InMemory
             IEnumerable<KeyValuePair<DateTime, Annotation>> source = request.IsForward
                 ? archive.Annotations
                 : archive.Annotations.Reverse();
-
-            DateTime lastEmittedKey = DateTime.MinValue;
             foreach (KeyValuePair<DateTime, Annotation> entry in source)
             {
                 if (entry.Key < lo || entry.Key >= hi)
@@ -1224,7 +1219,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
 
                 output.Add(CloneAnnotation(entry.Value));
-                lastEmittedKey = entry.Key;
+                DateTime lastEmittedKey = entry.Key;
 
                 if (output.Count >= cap)
                 {

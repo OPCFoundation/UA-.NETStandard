@@ -279,10 +279,7 @@ namespace Opc.Ua
         /// The value of data value.
         /// </summary>
         [Obsolete("Use WrappedValue to access The value.")]
-        public object? Value
-        {
-            get => WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-        }
+        public object? Value => WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
 
         /// <summary>
         /// The value of data value.
@@ -452,10 +449,16 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(DataValue a, DataValue b) => a.Equals(b);
+        public static bool operator ==(DataValue a, DataValue b)
+        {
+            return a.Equals(b);
+        }
 
         /// <inheritdoc/>
-        public static bool operator !=(DataValue a, DataValue b) => !a.Equals(b);
+        public static bool operator !=(DataValue a, DataValue b)
+        {
+            return !a.Equals(b);
+        }
 
         /// <inheritdoc/>
         public override int GetHashCode()

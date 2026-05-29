@@ -231,8 +231,6 @@ namespace Opc.Ua.Server
                 }
             }
 
-
-
             // return result.
             return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }

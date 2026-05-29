@@ -203,8 +203,6 @@ namespace Opc.Ua.Server
                 originalType = TypeInfo.Scalars.Double;
             }
 
-
-
             // return result.
             return value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
         }
@@ -331,8 +329,6 @@ namespace Opc.Ua.Server
             {
                 originalType = TypeInfo.Scalars.Double;
             }
-
-
 
             // return result.
             return value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));

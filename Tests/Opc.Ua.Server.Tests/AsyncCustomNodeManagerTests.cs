@@ -4974,5 +4974,4 @@ namespace Opc.Ua.Server.Tests
             m_adapter.Dispose();
         }
     }
-#nullable restore
 }

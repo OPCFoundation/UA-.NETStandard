@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Tests.Identity
             IUserIdentity identity = new GdsRoleBasedIdentity(
                 new UserIdentity(),
                 [GdsRole.ApplicationAdmin],
-                default(NodeId),
+                default,
                 new[] { administeredId },
                 namespaces);
 

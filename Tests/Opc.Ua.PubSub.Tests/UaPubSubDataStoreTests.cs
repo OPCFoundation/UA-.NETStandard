@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Tests
             var store = new UaPubSubDataStore();
             var nodeId = new NodeId("TestNode", 2);
             Assert.Throws<ArgumentException>(
-                () => store.WritePublishedDataItem(nodeId, 99999, default(DataValue)));
+                () => store.WritePublishedDataItem(nodeId, 99999, default));
         }
 
         [Test]
@@ -239,7 +239,7 @@ namespace Opc.Ua.PubSub.Tests
         {
             var store = new UaPubSubDataStore();
             var nodeId = new NodeId("TestNode", 2);
-            store.WritePublishedDataItem(nodeId, Attributes.Value, default(DataValue));
+            store.WritePublishedDataItem(nodeId, Attributes.Value, default);
             store.TryReadPublishedDataItem(nodeId, Attributes.Value, out DataValue result);
             Assert.That(result.IsNull, Is.True);
         }

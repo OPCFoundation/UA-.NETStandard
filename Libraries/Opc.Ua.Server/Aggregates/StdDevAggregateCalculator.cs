@@ -219,8 +219,6 @@ namespace Opc.Ua.Server
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-
-
             // return result.
             return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
@@ -330,8 +328,6 @@ namespace Opc.Ua.Server
             {
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
-
-
 
             // return result.
             return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));

@@ -200,10 +200,9 @@ namespace Opc.Ua.Gds.Server.Identity
             DateTime expiresAt = issuedAt.Add(lifetime);
             string[] scopes = SelectScopes(request.RequestedScopes, m_options.DefaultScopes);
 
-            string alg;
             byte[] signingInputBytes;
             byte[] signature;
-            string header = CreateHeader(signingCertificate, out alg);
+            string header = CreateHeader(signingCertificate, out string alg);
             string payload = CreatePayload(
                 issuerUri,
                 request.Subject,

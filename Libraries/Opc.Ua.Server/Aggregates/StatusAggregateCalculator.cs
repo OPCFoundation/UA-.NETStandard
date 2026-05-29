@@ -136,7 +136,6 @@ namespace Opc.Ua.Server
                 GetTimestamp(slice),
                 GetTimestamp(slice));
 
-
             // return result.
             return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }

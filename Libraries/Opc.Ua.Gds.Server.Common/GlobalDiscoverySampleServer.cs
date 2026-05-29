@@ -258,19 +258,17 @@ namespace Opc.Ua.Gds.Server
 
             certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.AuthoritiesStorePath!);
-            using (ICertificateStore authoritiesStore =
-                certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
+            using ICertificateStore authoritiesStore =
+                certificateStoreIdentifier.OpenStore(MessageContext.Telemetry);
+            IEnumerable<X509CRL> certificateRevocationLists = authoritiesStore
+                .EnumerateCRLsAsync()
+                .GetAwaiter()
+                .GetResult();
+            foreach (X509CRL crl in certificateRevocationLists)
             {
-                IEnumerable<X509CRL> certificateRevocationLists = authoritiesStore
-                    .EnumerateCRLsAsync()
-                    .GetAwaiter()
-                    .GetResult();
-                foreach (X509CRL crl in certificateRevocationLists)
+                if (crl.IsRevoked(applicationInstanceCertificate))
                 {
-                    if (crl.IsRevoked(applicationInstanceCertificate))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
 
