@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server
 {
@@ -2271,6 +2272,15 @@ namespace Opc.Ua.Server
         /// have been added or removed in the address space. Per Part 5 §6.4.32,
         /// changes should be aggregated and reported in batches.
         /// </summary>
+        /// <remarks>
+        /// Per Part 5 §9.32.2 only nodes that carry a <c>NodeVersion</c>
+        /// property may trigger a <c>ModelChangeEvent</c>. When
+        /// <see cref="RequireNodeVersionForModelChange"/> is <c>true</c>
+        /// (the default), entries whose Affected node is owned by this
+        /// node manager and lacks a <c>NodeVersion</c> are dropped. The
+        /// affected nodes that survive the filter have their NodeVersion
+        /// bumped.
+        /// </remarks>
         /// <param name="systemContext">The system context.</param>
         /// <param name="changes">The aggregated set of model changes.</param>
         protected void RaiseGeneralModelChangeEvent(
@@ -2280,6 +2290,15 @@ namespace Opc.Ua.Server
             if (changes.Count == 0)
             {
                 return;
+            }
+
+            if (RequireNodeVersionForModelChange)
+            {
+                changes = FilterChangesByNodeVersion(systemContext, changes);
+                if (changes.Count == 0)
+                {
+                    return;
+                }
             }
 
             var e = new GeneralModelChangeEventState(null);
@@ -2305,6 +2324,80 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Raises a <c>BaseModelChangeEvent</c> for the supplied source
+        /// node — used when something about the address space changed
+        /// but the framework cannot describe the change as a list of
+        /// <c>ModelChangeStructureDataType</c> entries (Part 5 §9.32.5).
+        /// </summary>
+        /// <remarks>
+        /// The default source is <see cref="ObjectIds.Server"/> per
+        /// Part 5 §9.32.3, which models the whole address space as the
+        /// default View.
+        /// </remarks>
+        protected void RaiseBaseModelChangeEvent(
+            ISystemContext systemContext,
+            NodeId sourceNode = default)
+        {
+            NodeId effectiveSource = sourceNode.IsNull ? ObjectIds.Server : sourceNode;
+
+            var e = new BaseModelChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "BaseModelChangeEvent",
+                "en-US",
+                "Address space model changed.");
+
+            e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+            e.SetChildValue(systemContext, BrowseNames.SourceNode, effectiveSource, false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// Returns a new <see cref="ArrayOf{T}"/> containing only those
+        /// <see cref="ModelChangeStructureDataType"/> entries whose
+        /// Affected node carries a <c>NodeVersion</c> property — when
+        /// the node is owned by this node manager. Affected nodes that
+        /// belong to a different node manager (or that cannot be
+        /// resolved) pass through unchanged. Bumps the NodeVersion of
+        /// every entry that is kept.
+        /// </summary>
+        private ArrayOf<ModelChangeStructureDataType> FilterChangesByNodeVersion(
+            ISystemContext systemContext,
+            ArrayOf<ModelChangeStructureDataType> changes)
+        {
+            var kept = new List<ModelChangeStructureDataType>(changes.Count);
+            for (int ii = 0; ii < changes.Count; ii++)
+            {
+                ModelChangeStructureDataType entry = changes[ii];
+                NodeId affected = entry.Affected;
+
+                if (affected.IsNull)
+                {
+                    continue;
+                }
+
+                if (!PredefinedNodes.TryGetValue(affected, out NodeState? affectedNode))
+                {
+                    kept.Add(entry);
+                    continue;
+                }
+
+                if (!affectedNode.HasNodeVersion())
+                {
+                    continue;
+                }
+
+                affectedNode.BumpNodeVersion(systemContext);
+                kept.Add(entry);
+            }
+
+            return new ArrayOf<ModelChangeStructureDataType>(kept.ToArray());
+        }
+
+        /// <summary>
         /// The model change aggregator used by <see cref="CreateNode"/> /
         /// <see cref="DeleteNode"/> to batch address-space changes per
         /// publish cycle. Custom node managers can also call
@@ -2324,6 +2417,39 @@ namespace Opc.Ua.Server
         /// once at the end).
         /// </summary>
         public bool ModelChangeEmissionEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether <see cref="RaiseGeneralModelChangeEvent"/>
+        /// and the auto-emit paths require the affected node to carry a
+        /// <c>NodeVersion</c> property (per Part 5 §9.32.2). When
+        /// <c>true</c> (the default) nodes without a NodeVersion neither
+        /// appear in the emitted <c>Changes[]</c> array nor cause a
+        /// <c>GeneralModelChangeEvent</c> to be raised on their own.
+        /// Set to <c>false</c> to opt back into the legacy
+        /// unconditional behaviour.
+        /// </summary>
+        public bool RequireNodeVersionForModelChange { get; set; } = true;
+
+        /// <summary>
+        /// Marks <paramref name="node"/> as eligible to trigger
+        /// <c>ModelChangeEvents</c> by attaching a <c>NodeVersion</c>
+        /// property in this manager's primary namespace if none is
+        /// present, and wiring an <c>OnWriteValue</c> handler that
+        /// posts a <c>BaseModelChangeEvent</c> whenever the property is
+        /// written by an external client (Part 5 §9.32.2). Idempotent.
+        /// </summary>
+        /// <param name="node">The node to enable tracking on.</param>
+        /// <param name="namespaceIndex">
+        /// Optional namespace index for the new NodeVersion property.
+        /// Defaults to this manager's <see cref="NamespaceIndex"/>.
+        /// </param>
+        /// <returns>The existing or newly attached NodeVersion property.</returns>
+        public PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null)
+        {
+            return node.EnableModelChangeTracking(
+                namespaceIndex ?? NamespaceIndex,
+                (ctx, owner) => RaiseBaseModelChangeEvent(ctx, owner.NodeId));
+        }
 
         /// <summary>
         /// Drains the <see cref="ModelChangeAggregator"/> and emits a

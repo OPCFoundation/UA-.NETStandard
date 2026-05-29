@@ -25,6 +25,7 @@ The server-side counterpart lives in `Opc.Ua.Server.Alarms`:
   - [Manual construction](#manual-construction)
   - [Reacting to changes](#reacting-to-changes)
   - [Per-node `NodeCache` invalidation](#per-node-nodecache-invalidation)
+- [NodeVersion correlation](#nodeversion-correlation)
 - [Security considerations](#security-considerations)
 - [Reference](#reference)
 
@@ -262,6 +263,118 @@ class MyInvalidatingCache : INodeCache
         m_dependentIndex.RemoveAllReferencing(id);
     }
     // ... delegate everything else to m_inner ...
+}
+```
+
+## NodeVersion correlation
+
+OPC UA Part 5 §9.32.2 ties `ModelChangeEvent` emission to the
+`NodeVersion` property:
+
+> "Every time a `ModelChangeEvent` is issued for a Node, its
+> `NodeVersion` shall be changed, and every time the `NodeVersion` is
+> changed, a `ModelChangeEvent` shall be generated. A Server shall
+> support both the `ModelChangeEvent` and the `NodeVersion` Property
+> or neither, but never only one of the two mechanisms."
+>
+> "Only those Nodes of the AddressSpace having a `NodeVersion` shall
+> trigger a `ModelChangeEvent`. Other Nodes shall not trigger a
+> `ModelChangeEvent`."
+
+The framework enforces both halves:
+
+1. **Suppression.**
+   `AsyncCustomNodeManager.RaiseGeneralModelChangeEvent` filters the
+   `Changes[]` array, dropping every entry whose `Affected` node is
+   owned by the node manager and does **not** carry a `NodeVersion`
+   property. When the filtered array is empty no event is raised at
+   all. Entries whose `Affected` node belongs to a different node
+   manager pass through unchanged (the local manager cannot inspect
+   the foreign node's state — this is documented behaviour).
+
+2. **Bumping.**
+   Every Affected node that survives the filter has its `NodeVersion`
+   incremented as a decimal `ulong` string (`"1"` → `"2"` → …) before
+   the `GeneralModelChangeEvent` is reported. The increment is wrapped
+   in an `AsyncLocal` guard so the OnWriteValue handler installed by
+   `EnableModelChangeTrackingFor` does not echo the framework bump as
+   a `BaseModelChangeEvent`.
+
+3. **External writes.** When `EnableModelChangeTrackingFor` (or the
+   underlying `NodeState.EnableModelChangeTracking` extension)
+   attaches a `NodeVersion` it also wires `OnWriteValue` so a write
+   from an external client (or a `Write` service call) raises a
+   `BaseModelChangeEvent` (Part 5 §9.32.5) with the owning node as
+   the SourceNode.
+
+### Marking a node as trackable
+
+`AsyncCustomNodeManager` exposes the
+`EnableModelChangeTrackingFor(node)` convenience method that wraps
+the more general `NodeState.EnableModelChangeTracking(namespaceIndex,
+callback)` extension:
+
+```csharp
+public class MyNodeManager : AsyncCustomNodeManager
+{
+    public async ValueTask InstallDynamicAreaAsync(CancellationToken ct)
+    {
+        var folder = new FolderState(null)
+        {
+            SymbolicName = "Dynamic",
+            BrowseName = new QualifiedName("Dynamic", NamespaceIndex)
+        };
+
+        // Attaches a NodeVersion property and wires its OnWriteValue
+        // so any external write raises a BaseModelChangeEvent on this
+        // folder. Idempotent — calling it twice returns the same
+        // PropertyState and does not attach a second copy.
+        EnableModelChangeTrackingFor(folder);
+
+        await CreateNodeAsync(SystemContext, default,
+            ReferenceTypeIds.Organizes,
+            folder.BrowseName,
+            folder,
+            ct).ConfigureAwait(false);
+
+        // Now every CreateNodeAsync / DeleteNodeAsync touching the
+        // folder will emit a GeneralModelChangeEvent and bump
+        // folder.NodeVersion accordingly.
+    }
+}
+```
+
+If you only need the helper without a node manager (for example in a
+unit test or a fluent builder) call the extension directly:
+
+```csharp
+using Opc.Ua.Server.NodeManager;
+
+PropertyState<string> version = node.EnableModelChangeTracking(
+    namespaceIndex: 1,
+    raiseBaseModelChangeEvent: (ctx, owner) =>
+    {
+        // emit a BaseModelChangeEvent via your own pipeline
+    });
+```
+
+### Opting out (legacy compatibility)
+
+For servers that have not yet annotated their address space with
+`NodeVersion` properties and still expect every `CreateNodeAsync` /
+`DeleteNodeAsync` to fire an event, set
+`RequireNodeVersionForModelChange = false` on the affected node
+manager. The filter is then skipped and the legacy unconditional
+behaviour is restored. Default: `true` (strict spec compliance).
+
+```csharp
+public sealed class LegacyNodeManager : AsyncCustomNodeManager
+{
+    public LegacyNodeManager(...)
+    {
+        // Opt back into pre-Part5 §9.32.2 unconditional emission.
+        RequireNodeVersionForModelChange = false;
+    }
 }
 ```
 

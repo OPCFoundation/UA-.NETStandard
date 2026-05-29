@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -257,6 +258,182 @@ namespace Opc.Ua.Server.Tests
             await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
             Assert.That(manager.PredefinedNodes.ContainsKey(folder.NodeId), Is.True);
+        }
+
+        /// <summary>
+        /// Part 5 §9.32.2: only nodes carrying a NodeVersion property may
+        /// trigger a ModelChangeEvent. Creating a node whose instance and
+        /// parent both lack NodeVersion must NOT cause a
+        /// GeneralModelChangeEvent to fire.
+        /// </summary>
+        [Test]
+        public async Task CreateNodeAsync_NoNodeVersion_DoesNotEmitGeneralModelChangeAsync()
+        {
+            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
+                "Only the new AsyncCustomNodeManager exposes CreateNodeAsync auto-emit.");
+
+            using ITestNodeManager manager = CreateManager();
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null);
+
+            await acnm.CreateNodeAsync(
+                context,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("PlainObject", nsIdx),
+                node).ConfigureAwait(false);
+
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is GeneralModelChangeEventState)),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Part 5 §9.32.2: when the new node carries a NodeVersion the
+        /// framework must emit a GeneralModelChangeEvent and bump the
+        /// NodeVersion of the affected node.
+        /// </summary>
+        [Test]
+        public async Task CreateNodeAsync_WithNodeVersion_EmitsAndBumpsAsync()
+        {
+            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
+                "Only the new AsyncCustomNodeManager exposes EnableModelChangeTrackingFor.");
+
+            using ITestNodeManager manager = CreateManager();
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null);
+
+            PropertyState<string> nodeVersion = acnm.EnableModelChangeTrackingFor(node);
+            Assert.That(nodeVersion.Value, Is.EqualTo("1"));
+
+            await acnm.CreateNodeAsync(
+                context,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("TrackedObject", nsIdx),
+                node).ConfigureAwait(false);
+
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is GeneralModelChangeEventState)),
+                Times.Once);
+            Assert.That(nodeVersion.Value, Is.EqualTo("2"));
+        }
+
+        /// <summary>
+        /// When the legacy opt-out is in effect the filter is skipped and
+        /// nodes without NodeVersion still trigger emission.
+        /// </summary>
+        [Test]
+        public async Task CreateNodeAsync_NoNodeVersion_EmitsWhenOptOutIsSetAsync()
+        {
+            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
+                "Only the new AsyncCustomNodeManager exposes RequireNodeVersionForModelChange.");
+
+            using ITestNodeManager manager = CreateManager();
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            acnm.RequireNodeVersionForModelChange = false;
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null);
+
+            await acnm.CreateNodeAsync(
+                context,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("LegacyObject", nsIdx),
+                node).ConfigureAwait(false);
+
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is GeneralModelChangeEventState)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// An external write to NodeVersion fires a BaseModelChangeEvent
+        /// (Part 5 §9.32.5). The framework-driven bump from
+        /// <c>EmitModelChange</c> is suppressed by the re-entrancy guard.
+        /// </summary>
+        [Test]
+        public async Task NodeVersionWrite_FiresBaseModelChangeAsync()
+        {
+            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
+                "Only the new AsyncCustomNodeManager exposes EnableModelChangeTrackingFor.");
+
+            using ITestNodeManager manager = CreateManager();
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null);
+
+            PropertyState<string> nodeVersion = acnm.EnableModelChangeTrackingFor(node);
+            await acnm.CreateNodeAsync(
+                context,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("VersionedObject", nsIdx),
+                node).ConfigureAwait(false);
+
+            int beforeReportCount = m_mockServer.Invocations.Count(i => i.Method.Name == "ReportEvent");
+
+            // Simulate an external write
+            Variant newValue = new Variant("42");
+            StatusCode statusCode = StatusCodes.Good;
+            DateTimeUtc timestamp = DateTime.UtcNow;
+            ServiceResult result = nodeVersion.OnWriteValue!(
+                context,
+                nodeVersion,
+                NumericRange.Null,
+                QualifiedName.Null,
+                ref newValue,
+                ref statusCode,
+                ref timestamp);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+
+            int afterReportCount = m_mockServer.Invocations.Count(i => i.Method.Name == "ReportEvent");
+            Assert.That(afterReportCount - beforeReportCount, Is.EqualTo(1));
+
+            int baseOnlyCount = m_mockServer.Invocations.Count(i =>
+                i.Method.Name == "ReportEvent"
+                && i.Arguments.Count > 0
+                && i.Arguments[i.Arguments.Count - 1]?.GetType() == typeof(BaseModelChangeEventState));
+            Assert.That(baseOnlyCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// <see cref="NodeStateModelChangeExtensions.EnableModelChangeTracking"/>
+        /// is idempotent — invoking it again on a node that already has a
+        /// NodeVersion property must not attach a second copy.
+        /// </summary>
+        [Test]
+        public void EnableModelChangeTracking_IsIdempotent()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("X", 1),
+                BrowseName = new QualifiedName("X", 1)
+            };
+
+            PropertyState<string> first = node.EnableModelChangeTracking(1);
+            PropertyState<string> second = node.EnableModelChangeTracking(1);
+
+            Assert.That(second, Is.SameAs(first));
+            int matches = 0;
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(null!, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child.BrowseName == new QualifiedName(BrowseNames.NodeVersion, 0))
+                {
+                    matches++;
+                }
+            }
+            Assert.That(matches, Is.EqualTo(1));
         }
 
         [Test]

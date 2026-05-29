@@ -491,6 +491,13 @@ namespace Alarms
                 DisplayName = new LocalizedText("en", name)
             };
             parent.AddChild(state);
+
+            // Opt the group + its parent into NodeVersion-based model
+            // change tracking so any future Create/DeleteNodeAsync on
+            // members of the group emits a GeneralModelChangeEvent.
+            EnableModelChangeTrackingFor(state);
+            EnableModelChangeTrackingFor(parent);
+
             return new AlarmGroup(state);
         }
 
