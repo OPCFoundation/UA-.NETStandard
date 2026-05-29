@@ -71,6 +71,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Configures a source-generated KeyCredentialConfigurationFolderState.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="folder"/> or <paramref name="context"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="NotSupportedException">
+        /// Thrown when <c>ConfigurationFolderPath</c> is set to a path other than
+        /// <c>ServerConfiguration/KeyCredentialConfiguration</c>.
+        /// </exception>
         public async ValueTask BindAsync(
             KeyCredentialConfigurationFolderState folder,
             ISystemContext context,

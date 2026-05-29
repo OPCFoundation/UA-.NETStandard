@@ -175,6 +175,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a bridge-token JSON payload for a credential secret.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="secret"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="credentialId"/> or <paramref name="nonce"/> is <c>null</c>, empty, or whitespace.
+        /// </exception>
         public static byte[] CreateTokenData(
             string credentialId,
             byte[] secret,
@@ -212,6 +216,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the base64url HMAC proof for a bridge token.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="secret"/> is <c>null</c>.</exception>
         public static string CreateProof(
             byte[] secret,
             string credentialId,

@@ -43,6 +43,9 @@ namespace Opc.Ua.Identity
         /// <summary>
         /// Selects a matching user-token policy and asks <paramref name="provider"/> to create an identity.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="endpointDescription"/> or <paramref name="messageContext"/> is <c>null</c>.
+        /// </exception>
         public static ValueTask<IUserIdentity> AcquireIdentityAsync(
             this IClientIdentityProvider provider,
             EndpointDescription endpointDescription,
@@ -68,6 +71,7 @@ namespace Opc.Ua.Identity
         /// <summary>
         /// Selects a matching user-token policy and asks <paramref name="provider"/> to create an identity.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>
         public static async ValueTask<IUserIdentity> AcquireIdentityAsync(
             this IClientIdentityProvider provider,
             IdentitySelectionContext context,
@@ -89,6 +93,11 @@ namespace Opc.Ua.Identity
         /// <summary>
         /// Selects the best offered user-token policy for <paramref name="provider"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadIdentityTokenRejected"/> when the endpoint offers no
+        /// user-token policy that the provider can satisfy.
+        /// </exception>
         public static UserTokenPolicy SelectUserTokenPolicy(
             this IClientIdentityProvider provider,
             IdentitySelectionContext context)

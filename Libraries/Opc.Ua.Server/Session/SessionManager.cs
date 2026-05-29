@@ -626,6 +626,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates an inbound user token through the identity registry first, then the legacy event.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="session"/>, <paramref name="newIdentity"/>, or
+        /// <paramref name="endpointDescription"/> is <c>null</c>.
+        /// </exception>
         protected virtual async ValueTask<(
             IUserIdentity? Identity,
             IUserIdentity? EffectiveIdentity,

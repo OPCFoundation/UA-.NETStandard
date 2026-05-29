@@ -45,6 +45,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Registers anonymous and username/password authenticators plus optional X.509 and JWT authenticators.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="registry"/> or <paramref name="userDatabase"/> is <c>null</c>.
+        /// </exception>
         public static IServerIdentityRegistry RegisterDefaultAuthenticators(
             this IServerIdentityRegistry registry,
             IUserDatabase userDatabase,
@@ -80,6 +83,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Registers anonymous and delegate-backed username/password, X.509 and JWT authenticators.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="registry"/> or <paramref name="verifyUserName"/> is <c>null</c>.
+        /// </exception>
         public static IServerIdentityRegistry RegisterDefaultAuthenticators(
             this IServerIdentityRegistry registry,
             Func<UserNameIdentityTokenHandler, CancellationToken, ValueTask<IUserIdentity>> verifyUserName,

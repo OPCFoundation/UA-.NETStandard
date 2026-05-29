@@ -87,6 +87,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Configures the builder to use the supplied provider.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>
         public HistorianBuilder UseProvider(IHistorianProvider provider)
         {
             Provider = provider ?? throw new ArgumentNullException(nameof(provider));
@@ -123,6 +124,7 @@ namespace Opc.Ua.Server.Historian
         /// throws.
         /// </para>
         /// </remarks>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="variable"/> is <c>null</c>.</exception>
         public HistorianBuilder Historize(
             BaseVariableState variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
@@ -182,6 +184,10 @@ namespace Opc.Ua.Server.Historian
         /// pushes every value-mask change into the per-builder
         /// <see cref="HistorianCaptureSink"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when no historian provider has been bound, or when <paramref name="systemContext"/>
+        /// is not a <see cref="ServerSystemContext"/>.
+        /// </exception>
         private void AttachAutoCapture(
             BaseVariableState variable,
             ISystemContext? systemContext,
