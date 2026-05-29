@@ -208,7 +208,8 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore(
                     folderName +
                     " is not present in the address space (Bad status: " +
-                    response.Results[0].StatusCode + ").");
+                    response.Results[0].StatusCode +
+                    ").");
             }
 
             var methodNames = new System.Collections.Generic.HashSet<string>(
@@ -229,8 +230,11 @@ namespace Opc.Ua.InformationModel.Tests
                 if (!methodNames.Contains(expected))
                 {
                     Assert.Ignore(
-                        "Mandatory method '" + expected + "' is missing from " +
-                        folderName + " — issue #3719 still open.");
+                        "Mandatory method '" +
+                        expected +
+                        "' is missing from " +
+                        folderName +
+                        " — issue #3719 still open.");
                 }
             }
         }

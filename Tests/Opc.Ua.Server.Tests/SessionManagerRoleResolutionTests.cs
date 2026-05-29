@@ -39,7 +39,6 @@ using Opc.Ua.Identity;
 using Opc.Ua.Server.UserManagement;
 using Opc.Ua.Tests;
 
-
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>

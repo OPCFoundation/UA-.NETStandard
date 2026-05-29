@@ -81,7 +81,6 @@ namespace Opc.Ua.Features.Tests
             await DiscoverDirectoryAndFileAsync().ConfigureAwait(false);
         }
 
-
         private async Task<NodeId> FindFirstVolumeAsync()
         {
             BrowseResponse resp = await Session.BrowseAsync(
@@ -334,7 +333,6 @@ namespace Opc.Ua.Features.Tests
                     $"Discovered file not readable by test process ({openStatus}).");
             }
         }
-
 
         [Test]
         public async Task VolumeBrowseNameMatchesPathAsync()
@@ -726,7 +724,9 @@ namespace Opc.Ua.Features.Tests
                     return u32;
                 default:
                     Assert.Fail("OpenCount must be UInt16 or UInt32 per Part 5 §A.2.5; " +
-                        "got " + variant.TypeInfo.BuiltInType + ".");
+                        "got " +
+                        variant.TypeInfo.BuiltInType +
+                        ".");
                     return 0UL;
             }
         }

@@ -208,8 +208,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             public bool IsTouched => m_touched;
             public void Touch() => m_touched = true;
 
-            public void Encode(IEncoder encoder) { }
-            public void Decode(IDecoder decoder) { }
+            public void Encode(IEncoder encoder)
+            {
+            }
+            public void Decode(IDecoder decoder)
+            {
+            }
             public bool IsEqual(IEncodeable? encodeable) => ReferenceEquals(this, encodeable);
             public object Clone() => MemberwiseClone();
 
@@ -232,7 +236,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
         private sealed class TestPooledActivator : PooledEncodeableType<TestPooled>
         {
-            public TestPooledActivator() : base()
+            public TestPooledActivator()
+                : base()
             {
             }
 

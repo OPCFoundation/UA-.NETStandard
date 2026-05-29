@@ -94,14 +94,22 @@ namespace Quickstarts.ReferenceServer
                 const PermissionType browseAndRead =
                     PermissionType.Browse | PermissionType.Read | PermissionType.ReceiveEvents;
                 const PermissionType fullAdmin =
-                    PermissionType.Browse | PermissionType.ReadRolePermissions |
-                    PermissionType.WriteAttribute | PermissionType.WriteRolePermissions |
-                    PermissionType.WriteHistorizing | PermissionType.Read |
-                    PermissionType.Write | PermissionType.ReadHistory |
-                    PermissionType.InsertHistory | PermissionType.ModifyHistory |
-                    PermissionType.DeleteHistory | PermissionType.ReceiveEvents |
-                    PermissionType.Call | PermissionType.AddReference |
-                    PermissionType.RemoveReference | PermissionType.DeleteNode;
+                    PermissionType.Browse |
+                    PermissionType.ReadRolePermissions |
+                    PermissionType.WriteAttribute |
+                    PermissionType.WriteRolePermissions |
+                    PermissionType.WriteHistorizing |
+                    PermissionType.Read |
+                    PermissionType.Write |
+                    PermissionType.ReadHistory |
+                    PermissionType.InsertHistory |
+                    PermissionType.ModifyHistory |
+                    PermissionType.DeleteHistory |
+                    PermissionType.ReceiveEvents |
+                    PermissionType.Call |
+                    PermissionType.AddReference |
+                    PermissionType.RemoveReference |
+                    PermissionType.DeleteNode;
                 var permissions = new RolePermissionType[]
                 {
                     new()

@@ -124,10 +124,15 @@ namespace Opc.Ua.Client
                 nonce,
                 issuedAtSeconds);
             byte[] tokenData = Encoding.UTF8.GetBytes(
-                "{\"credentialId\":\"" + EscapeJson(credential.CredentialId) +
-                "\",\"nonce\":\"" + nonce +
-                "\",\"issuedAt\":" + issuedAtSeconds.ToString(CultureInfo.InvariantCulture) +
-                ",\"proof\":\"" + proof + "\"}");
+                "{\"credentialId\":\"" +
+                EscapeJson(credential.CredentialId) +
+                "\",\"nonce\":\"" +
+                nonce +
+                "\",\"issuedAt\":" +
+                issuedAtSeconds.ToString(CultureInfo.InvariantCulture) +
+                ",\"proof\":\"" +
+                proof +
+                "\"}");
 
 #pragma warning disable CA2000 // Ownership transfers to caller; TODO: remove when analyzer models ValueTask ownership.
             return new AccessToken(
@@ -191,7 +196,10 @@ namespace Opc.Ua.Client
 
         private static string CreateProof(byte[] secret, string credentialId, string nonce, long issuedAt)
         {
-            string input = credentialId + "\n" + nonce + "\n" +
+            string input = credentialId +
+                "\n" +
+                nonce +
+                "\n" +
                 issuedAt.ToString(CultureInfo.InvariantCulture);
             using var hmac = new HMACSHA256(secret);
             return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(input)));

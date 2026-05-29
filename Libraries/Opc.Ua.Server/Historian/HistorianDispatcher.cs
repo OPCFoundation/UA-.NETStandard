@@ -74,6 +74,7 @@ namespace Opc.Ua.Server.Historian
         {
             return (node as BaseInstanceState)?.Parent as BaseVariableState;
         }
+
         /// <summary>
         /// Resolves the provider for a given node using the node-manager
         /// override first, then the server-wide registry.

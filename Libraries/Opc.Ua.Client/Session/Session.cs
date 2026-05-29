@@ -1586,7 +1586,7 @@ namespace Opc.Ua.Client
                     context = new IdentitySelectionContext(
                         m_endpoint.Description,
                         m_endpoint.Description.UserIdentityTokens.ToArray() ??
-                            Array.Empty<UserTokenPolicy>(),
+                        Array.Empty<UserTokenPolicy>(),
                         MessageContext);
                 }
 
@@ -1626,7 +1626,6 @@ namespace Opc.Ua.Client
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }
         }
-
 
         /// <inheritdoc/>
         public async Task UpdateSessionAsync(

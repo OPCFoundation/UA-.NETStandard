@@ -166,8 +166,8 @@ namespace Opc.Ua.Identity
             }
 
             UserTokenType tokenType = context.TokenHandler.TokenType;
-            string? issuedProfile = (context.TokenHandler as IssuedIdentityTokenHandler)
-                ?.IssuedTokenTypeProfileUri;
+            string? issuedProfile = (context.TokenHandler as IssuedIdentityTokenHandler)?
+                .IssuedTokenTypeProfileUri;
 
             foreach (IUserTokenAuthenticator authenticator in snapshot)
             {

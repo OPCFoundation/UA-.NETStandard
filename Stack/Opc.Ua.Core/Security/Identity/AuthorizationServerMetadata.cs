@@ -256,8 +256,9 @@ namespace Opc.Ua.Identity
                     AuthorizationEndpoint = authorizationEndpoint,
                     Audience = audience,
                     JwksUri = jwksUri,
-                    AdditionalFields = additional ?? (IReadOnlyDictionary<string, JsonElement>)
-                        new Dictionary<string, JsonElement>()
+                    AdditionalFields = additional ??
+                        (IReadOnlyDictionary<string, JsonElement>)
+                            new Dictionary<string, JsonElement>()
                 };
             }
         }

@@ -342,7 +342,7 @@ namespace Opc.Ua.Server
             {
                 if (child is KeyCredentialConfigurationState state &&
                     (string.Equals(state.CredentialId?.Value, credentialId, StringComparison.Ordinal) ||
-                    string.Equals(state.BrowseName.Name, credentialId, StringComparison.Ordinal)))
+                        string.Equals(state.BrowseName.Name, credentialId, StringComparison.Ordinal)))
                 {
                     return state;
                 }

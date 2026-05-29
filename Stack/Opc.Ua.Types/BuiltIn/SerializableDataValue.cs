@@ -145,7 +145,9 @@ namespace Opc.Ua
         public Type GetSurrogateType(Type type)
         {
             if (type == null)
-            { throw new ArgumentNullException(nameof(type)); }
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
             return type == typeof(DataValue) ? typeof(SerializableDataValue) : type;
         }
 
@@ -154,7 +156,9 @@ namespace Opc.Ua
         {
             // Convert DataValue → SerializableDataValue on the way out.
             if (obj is DataValue dv)
-            { return new SerializableDataValue(dv); }
+            {
+                return new SerializableDataValue(dv);
+            }
             return obj;
         }
 

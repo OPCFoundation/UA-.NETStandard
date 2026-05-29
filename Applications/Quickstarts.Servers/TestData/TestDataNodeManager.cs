@@ -462,8 +462,6 @@ namespace TestData
             return new ValueTask<NodeState>(predefinedNode);
         }
 
-
-
         /// <summary>
         /// Returns true if the system must be scanning to provide updates for the monitored item.
         /// </summary>

@@ -650,10 +650,11 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(endpointDescription));
             }
 
-            UserTokenPolicy policy = userTokenPolicy ?? new UserTokenPolicy
-            {
-                TokenType = newIdentity.TokenType
-            };
+            UserTokenPolicy policy = userTokenPolicy ??
+                new UserTokenPolicy
+                    {
+                        TokenType = newIdentity.TokenType
+                    };
 
             Certificate? channelCert = null;
             try

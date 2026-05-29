@@ -148,12 +148,19 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string header = "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
-            string payload = "{\"iss\":\"" + Issuer +
-                "\",\"sub\":\"subject-1\",\"aud\":\"" + audience +
-                "\",\"exp\":" + (now + 3600) +
-                ",\"nbf\":" + (now - 60) +
-                ",\"iat\":" + (now - 1) + "}";
-            string signingInput = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) + "." +
+            string payload = "{\"iss\":\"" +
+                Issuer +
+                "\",\"sub\":\"subject-1\",\"aud\":\"" +
+                audience +
+                "\",\"exp\":" +
+                (now + 3600) +
+                ",\"nbf\":" +
+                (now - 60) +
+                ",\"iat\":" +
+                (now - 1) +
+                "}";
+            string signingInput = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) +
+                "." +
                 Base64UrlEncode(Encoding.UTF8.GetBytes(payload));
             byte[] signature = rsa.SignData(
                 Encoding.ASCII.GetBytes(signingInput),

@@ -39,7 +39,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
@@ -1391,8 +1390,8 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadConnectionClosed ||
-                      sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                      sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    sre.StatusCode == StatusCodes.BadRequestTimeout ||
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed)
             {
                 // The Quickstart Reference Server has a fixed channel limit
                 // (default 10). When the test fixture runs many cert-validation
@@ -1513,7 +1512,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadConnectionClosed ||
-                      sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed)
             {
                 // The Quickstart Reference Server has a fixed MaxChannelCount
                 // (default 10). When the fixture runs many secure-connect

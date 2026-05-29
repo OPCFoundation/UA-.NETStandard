@@ -493,7 +493,6 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             in DataValue snapshotValue)
         {
-
             // Clone the Variant so we do not mutate the shared snapshot value.
             Variant value = snapshotValue.WrappedValue.Copy();
 
@@ -647,7 +646,9 @@ namespace Opc.Ua.Server
                             {
                                 m_consumerTask.GetAwaiter().GetResult();
                             }
-                            catch { }
+                            catch
+                            {
+                            }
                         }
                     }
                     catch (Exception ex)

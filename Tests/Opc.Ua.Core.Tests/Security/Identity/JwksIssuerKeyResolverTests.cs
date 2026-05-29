@@ -163,20 +163,27 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         private static string CreateRsaJwk(RSA rsa, string kid, string use)
         {
             RSAParameters parameters = rsa.ExportParameters(false);
-            return "{\"kty\":\"RSA\",\"kid\":\"" + kid +
-                "\",\"use\":\"" + use +
+            return "{\"kty\":\"RSA\",\"kid\":\"" +
+                kid +
+                "\",\"use\":\"" +
+                use +
                 "\",\"key_ops\":[\"verify\"],\"alg\":\"RS256\",\"n\":\"" +
-                Base64UrlEncode(parameters.Modulus) + "\",\"e\":\"" +
-                Base64UrlEncode(parameters.Exponent) + "\"}";
+                Base64UrlEncode(parameters.Modulus) +
+                "\",\"e\":\"" +
+                Base64UrlEncode(parameters.Exponent) +
+                "\"}";
         }
 
         private static string CreateEcJwk(ECDsa ecdsa, string kid)
         {
             ECParameters parameters = ecdsa.ExportParameters(false);
-            return "{\"kty\":\"EC\",\"kid\":\"" + kid +
+            return "{\"kty\":\"EC\",\"kid\":\"" +
+                kid +
                 "\",\"use\":\"sig\",\"key_ops\":[\"verify\"],\"alg\":\"ES256\",\"crv\":\"P-256\",\"x\":\"" +
-                Base64UrlEncode(parameters.Q.X) + "\",\"y\":\"" +
-                Base64UrlEncode(parameters.Q.Y) + "\"}";
+                Base64UrlEncode(parameters.Q.X) +
+                "\",\"y\":\"" +
+                Base64UrlEncode(parameters.Q.Y) +
+                "\"}";
         }
 
         private static string Base64UrlEncode(byte[] bytes)

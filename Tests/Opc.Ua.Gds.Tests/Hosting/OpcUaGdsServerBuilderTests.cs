@@ -170,7 +170,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             int hostedCount = services.Count(s =>
                 s.ServiceType == typeof(IHostedService) &&
                 (s.ImplementationType == typeof(GdsServerHostedService) ||
-                 s.ImplementationType?.Name == "OpcUaServerHostedService"));
+                    s.ImplementationType?.Name == "OpcUaServerHostedService"));
             Assert.That(hostedCount, Is.EqualTo(2));
         }
     }

@@ -825,4 +825,3 @@ namespace Quickstarts.ReferenceServer
         }
     }
 }
-

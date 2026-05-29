@@ -197,14 +197,20 @@ namespace Opc.Ua.Server.Tests.Identity
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string header = "{\"alg\":\"" + algorithm + "\",\"kid\":\"" + keyId + "\",\"typ\":\"JWT\"}";
             string payload =
-                "{\"iss\":\"" + issuer +
-                "\",\"sub\":\"subject-1\",\"aud\":" + audienceJson +
-                ",\"exp\":" + (now + expiresInSeconds) +
-                ",\"nbf\":" + (now - 60) +
-                ",\"iat\":" + (now - 1) +
+                "{\"iss\":\"" +
+                issuer +
+                "\",\"sub\":\"subject-1\",\"aud\":" +
+                audienceJson +
+                ",\"exp\":" +
+                (now + expiresInSeconds) +
+                ",\"nbf\":" +
+                (now - 60) +
+                ",\"iat\":" +
+                (now - 1) +
                 ",\"groups\":[\"engineering\"],\"roles\":[\"operator\"]}";
 
-            string signingInput = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) + "." +
+            string signingInput = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) +
+                "." +
                 Base64UrlEncode(Encoding.UTF8.GetBytes(payload));
             byte[] signature = sign(Encoding.ASCII.GetBytes(signingInput));
             return signingInput + "." + Base64UrlEncode(signature);

@@ -289,10 +289,10 @@ namespace Opc.Ua.Server.Tests.Hosting
             // descriptors directly.
             ServiceDescriptor? gdsDescriptor = services.FirstOrDefault(
                 d => d.ServiceType == typeof(IHostedService) &&
-                     d.ImplementationType?.Name == "GdsServerHostedService");
+                    d.ImplementationType?.Name == "GdsServerHostedService");
             ServiceDescriptor? ldsDescriptor = services.FirstOrDefault(
                 d => d.ServiceType == typeof(IHostedService) &&
-                     d.ImplementationType?.Name == "LdsServerHostedService");
+                    d.ImplementationType?.Name == "LdsServerHostedService");
             Assert.That(gdsDescriptor, Is.Not.Null);
             Assert.That(ldsDescriptor, Is.Not.Null);
 

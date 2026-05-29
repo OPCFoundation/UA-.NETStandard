@@ -112,10 +112,11 @@ namespace Opc.Ua.Client.Historian
                 EndTime = endTime,
                 ProcessingInterval = processingInterval,
                 AggregateType = new NodeId[] { aggregateFunctionId },
-                AggregateConfiguration = configuration ?? new AggregateConfiguration
-                {
-                    UseServerCapabilitiesDefaults = true,
-                },
+                AggregateConfiguration = configuration ??
+                    new AggregateConfiguration
+                        {
+                            UseServerCapabilitiesDefaults = true,
+                        },
             };
 
             await foreach (DataValue v in ReadDetailsAsync(

@@ -197,10 +197,15 @@ namespace Opc.Ua.Server
             long issuedAtSeconds = new DateTimeOffset(DateTime.SpecifyKind(issuedAt, DateTimeKind.Utc))
                 .ToUnixTimeSeconds();
             string proof = Base64UrlEncode(ComputeProof(secret, credentialId, nonce, issuedAtSeconds));
-            string json = "{\"credentialId\":\"" + EscapeJson(credentialId) +
-                "\",\"nonce\":\"" + EscapeJson(nonce) +
-                "\",\"issuedAt\":" + issuedAtSeconds.ToString(CultureInfo.InvariantCulture) +
-                ",\"proof\":\"" + proof + "\"}";
+            string json = "{\"credentialId\":\"" +
+                EscapeJson(credentialId) +
+                "\",\"nonce\":\"" +
+                EscapeJson(nonce) +
+                "\",\"issuedAt\":" +
+                issuedAtSeconds.ToString(CultureInfo.InvariantCulture) +
+                ",\"proof\":\"" +
+                proof +
+                "\"}";
             return Encoding.UTF8.GetBytes(json);
         }
 
@@ -282,7 +287,10 @@ namespace Opc.Ua.Server
             string nonce,
             long issuedAt)
         {
-            string input = credentialId + "\n" + nonce + "\n" +
+            string input = credentialId +
+                "\n" +
+                nonce +
+                "\n" +
                 issuedAt.ToString(CultureInfo.InvariantCulture);
             using var hmac = new HMACSHA256(secret);
             return hmac.ComputeHash(Encoding.UTF8.GetBytes(input));

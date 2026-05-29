@@ -212,7 +212,8 @@ namespace Opc.Ua.Gds.Server.Identity
                 issuedAt,
                 expiresAt,
                 request.AdditionalClaims);
-            string signingInput = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) + "." +
+            string signingInput = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) +
+                "." +
                 Base64UrlEncode(Encoding.UTF8.GetBytes(payload));
             signingInputBytes = Encoding.ASCII.GetBytes(signingInput);
             signature = Sign(signingCertificate, alg, signingInputBytes);

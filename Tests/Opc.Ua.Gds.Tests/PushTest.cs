@@ -47,7 +47,6 @@ using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using OpcUa = Opc.Ua;
 
-
 namespace Opc.Ua.Gds.Tests
 {
     [TestFixture]

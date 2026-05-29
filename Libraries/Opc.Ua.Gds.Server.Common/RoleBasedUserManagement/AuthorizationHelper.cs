@@ -230,15 +230,15 @@ namespace Opc.Ua.Gds.Server
             }
 
             MessageSecurityMode securityMode = operationContext
-                .ChannelContext
-                ?.EndpointDescription
-                ?.SecurityMode
+                .ChannelContext?
+                .EndpointDescription?
+                .SecurityMode
                 ?? MessageSecurityMode.Invalid;
 
             bool ok = requireEncryption
                 ? securityMode == MessageSecurityMode.SignAndEncrypt
                 : securityMode == MessageSecurityMode.Sign ||
-                  securityMode == MessageSecurityMode.SignAndEncrypt;
+                    securityMode == MessageSecurityMode.SignAndEncrypt;
 
             if (!ok)
             {

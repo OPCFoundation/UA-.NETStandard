@@ -83,7 +83,8 @@ namespace Opc.Ua.Server.Tests.Identity
 
             byte[] tokenData = Encoding.UTF8.GetBytes(
                 "{\"credentialId\":\"credential-1\",\"nonce\":\"nonce\",\"issuedAt\":" +
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ",\"proof\":\"bad\"}");
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds() +
+                ",\"proof\":\"bad\"}");
             AuthenticationResult result = await authenticator.AuthenticateAsync(CreateContext(tokenData))
                 .ConfigureAwait(false);
 
@@ -100,7 +101,8 @@ namespace Opc.Ua.Server.Tests.Identity
 
             byte[] tokenData = Encoding.UTF8.GetBytes(
                 "{\"credentialId\":\"credential-1\",\"nonce\":\"nonce\",\"issuedAt\":" +
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ",\"proof\":\"not-base64!@#\"}");
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds() +
+                ",\"proof\":\"not-base64!@#\"}");
             AuthenticationResult result = await authenticator.AuthenticateAsync(CreateContext(tokenData))
                 .ConfigureAwait(false);
 

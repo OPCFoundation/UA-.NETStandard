@@ -704,7 +704,6 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-
         private ValueTask<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default)

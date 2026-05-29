@@ -102,7 +102,8 @@ namespace Opc.Ua.Lds.Tests
             Lds = await ServerFixture.StartAsync().ConfigureAwait(false);
 
             ServerUrl = new Uri(
-                Utils.UriSchemeOpcTcp + "://localhost:" +
+                Utils.UriSchemeOpcTcp +
+                "://localhost:" +
                 ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             m_logger.LogInformation("LDS started at {Url}", ServerUrl);

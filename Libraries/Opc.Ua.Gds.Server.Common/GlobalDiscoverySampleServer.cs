@@ -225,7 +225,6 @@ namespace Opc.Ua.Gds.Server
                             new StatusCode(StatusCodes.BadUserAccessDenied.Code, "NoWriteAllowed"),
                             new LocalizedText(info)));
                 }
-
             }
 
             return context;
@@ -387,8 +386,8 @@ namespace Opc.Ua.Gds.Server
 
                     IEnumerable<Role> roles = m_server.m_userDatabase.GetUserRoles(userNameToken.UserName);
                     IReadOnlyList<NodeId>? administeredAppIds =
-                        (m_server.m_userDatabase as IGdsUserDatabase)
-                            ?.GetAdministeredApplicationIds(userNameToken.UserName);
+                        (m_server.m_userDatabase as IGdsUserDatabase)?
+                            .GetAdministeredApplicationIds(userNameToken.UserName);
                     var identity = new GdsRoleBasedIdentity(
                         new UserIdentity(userNameToken),
                         roles,

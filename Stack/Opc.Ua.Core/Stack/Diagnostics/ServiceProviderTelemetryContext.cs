@@ -53,7 +53,7 @@ namespace Opc.Ua
             : base(serviceProvider is null
                 ? throw new ArgumentNullException(nameof(serviceProvider))
                 : serviceProvider.GetService<ILoggerFactory>()
-                  ?? NullLoggerFactory.Instance)
+                    ?? NullLoggerFactory.Instance)
         {
         }
     }

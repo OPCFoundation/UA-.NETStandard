@@ -173,8 +173,15 @@ namespace Opc.Ua.Server.Tests.Identity
             using RSA rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            string payload = "{\"iss\":\"" + Issuer + "\",\"sub\":\"x\",\"aud\":\"" + Audience +
-                "\",\"exp\":" + (now + 3600) + ",\"nbf\":" + (now + 3600) + "}";
+            string payload = "{\"iss\":\"" +
+                Issuer +
+                "\",\"sub\":\"x\",\"aud\":\"" +
+                Audience +
+                "\",\"exp\":" +
+                (now + 3600) +
+                ",\"nbf\":" +
+                (now + 3600) +
+                "}";
             string jwt = SignRsa(rsa, "RS256", "kid-rsa", payload);
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);
@@ -188,8 +195,15 @@ namespace Opc.Ua.Server.Tests.Identity
             using RSA rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            string payload = "{\"iss\":\"" + Issuer + "\",\"sub\":\"x\",\"aud\":\"" + Audience +
-                "\",\"exp\":" + (now + 7200) + ",\"iat\":" + (now + 3600) + "}";
+            string payload = "{\"iss\":\"" +
+                Issuer +
+                "\",\"sub\":\"x\",\"aud\":\"" +
+                Audience +
+                "\",\"exp\":" +
+                (now + 7200) +
+                ",\"iat\":" +
+                (now + 3600) +
+                "}";
             string jwt = SignRsa(rsa, "RS256", "kid-rsa", payload);
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);
@@ -203,8 +217,13 @@ namespace Opc.Ua.Server.Tests.Identity
             using RSA rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            string payload = "{\"iss\":\"" + Issuer + "\",\"sub\":\"x\",\"aud\":\"" + Audience +
-                "\",\"exp\":" + (now + 3600) + "}";
+            string payload = "{\"iss\":\"" +
+                Issuer +
+                "\",\"sub\":\"x\",\"aud\":\"" +
+                Audience +
+                "\",\"exp\":" +
+                (now + 3600) +
+                "}";
             string jwt = SignRsa(rsa, "RS256", "kid-other", payload);
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);

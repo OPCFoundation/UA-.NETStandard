@@ -783,11 +783,12 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) && int.TryParse(
-                value,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out int parsed))
+            if (!string.IsNullOrEmpty(value) &&
+                int.TryParse(
+                    value,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out int parsed))
             {
                 assign(parsed);
             }
@@ -799,11 +800,12 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int?> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) && int.TryParse(
-                value,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out int parsed))
+            if (!string.IsNullOrEmpty(value) &&
+                int.TryParse(
+                    value,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out int parsed))
             {
                 assign(parsed);
             }
@@ -815,11 +817,12 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<uint> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) && uint.TryParse(
-                value,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out uint parsed))
+            if (!string.IsNullOrEmpty(value) &&
+                uint.TryParse(
+                    value,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out uint parsed))
             {
                 assign(parsed);
             }
@@ -831,11 +834,12 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ushort> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) && ushort.TryParse(
-                value,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out ushort parsed))
+            if (!string.IsNullOrEmpty(value) &&
+                ushort.TryParse(
+                    value,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out ushort parsed))
             {
                 assign(parsed);
             }

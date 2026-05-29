@@ -133,7 +133,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
             await m_serverFixture.StartAsync().ConfigureAwait(false);
             m_serverUrl = new Uri(
-                Utils.UriSchemeOpcTcp + "://localhost:" +
+                Utils.UriSchemeOpcTcp +
+                "://localhost:" +
                 m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             m_clientFixture = new ClientFixture(telemetry: NUnitTelemetryContext.Create());

@@ -132,10 +132,11 @@ namespace Opc.Ua.Identity
                 }
             }
 
-            return sameEncryptionAlgorithm ?? unspecifiedSecPolicy ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenRejected,
-                    "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
+            return sameEncryptionAlgorithm ??
+                unspecifiedSecPolicy ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "Endpoint does not offer a user token policy that can be satisfied by the identity provider.");
         }
 
         private static bool HasSameEncryptionAlgorithm(

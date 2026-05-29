@@ -3040,7 +3040,6 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
 
-
             // Must not throw
             Assert.DoesNotThrow(() =>
                 manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, null));
@@ -3157,7 +3156,6 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncNullFilterReturnsGoodAsync()
         {
             using ITestNodeManager manager = CreateManager();
-
 
             var varState = new BaseDataVariableState(null);
             AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(

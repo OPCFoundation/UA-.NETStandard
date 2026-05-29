@@ -143,7 +143,9 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
             bool called = false;
 
             IOpcUaBuilder result = services.AddOpcUa()
-                .AddLogging(b => { called = true; b.SetMinimumLevel(LogLevel.Warning); });
+                .AddLogging(b => {
+                called = true;
+                b.SetMinimumLevel(LogLevel.Warning); });
 
             Assert.That(called, Is.True);
             Assert.That(result, Is.Not.Null);

@@ -35,7 +35,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>

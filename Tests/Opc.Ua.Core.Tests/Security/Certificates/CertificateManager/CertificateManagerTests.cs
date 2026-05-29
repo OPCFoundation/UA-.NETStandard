@@ -83,7 +83,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_tempDirs.Clear();
         }
 
-
         [Test]
         public void RegisterTrustListAddsEntry()
         {
@@ -140,8 +139,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.Throws<KeyNotFoundException>(
                 () => manager.OpenTrustedStore(TrustListIdentifier.Peers));
         }
-
-
 
         [Test]
         public async Task LoadApplicationCertificatesLoadsFromConfig()
@@ -204,8 +201,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
         }
 
-
-
         [Test]
         public async Task ValidateUntrustedCertReturnsFailure()
         {
@@ -251,8 +246,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.True);
         }
 
-
-
         [Test]
         public async Task CertificateChangesNotifiesOnUpdate()
         {
@@ -297,8 +290,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return Task.CompletedTask;
         }
 
-
-
         [Test]
         public void FactoryCreateFromSecurityConfiguration()
         {
@@ -326,8 +317,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Users));
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Rejected));
         }
-
-
 
         [Test]
         public async Task GetIssuersAsyncReturnsEmptyForSelfSignedCertificate()
@@ -635,8 +624,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(newStore.StorePath, Is.EqualTo(newPath));
         }
 
-
-
         private string CreateTempDir()
         {
             string dir = Path.Combine(
@@ -666,6 +653,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 onNext(value);
             }
         }
-
     }
 }

@@ -443,7 +443,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             throw new InvalidOperationException(
                 "No IAccessTokenProvider is registered for AuthorityUri '" +
-                authorityUri + "'.");
+                authorityUri +
+                "'.");
         }
 
         private static void ApplyConfiguredOrder(

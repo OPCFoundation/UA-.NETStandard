@@ -5550,7 +5550,6 @@ namespace Quickstarts.ReferenceServer
             _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);
         }
 
-
         private static readonly ArrayOf<double> s_doubleArray =
         [
             9.00001d,

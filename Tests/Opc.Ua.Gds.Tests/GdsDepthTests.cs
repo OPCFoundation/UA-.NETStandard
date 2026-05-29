@@ -614,8 +614,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -636,8 +640,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -658,8 +666,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -680,8 +692,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -779,16 +795,24 @@ namespace Opc.Ua.Gds.Tests
                 finally
                 {
                     try
-                    { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); }
-                    catch { }
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -826,16 +850,24 @@ namespace Opc.Ua.Gds.Tests
                 finally
                 {
                     try
-                    { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); }
-                    catch { }
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -855,8 +887,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -893,16 +929,24 @@ namespace Opc.Ua.Gds.Tests
                 finally
                 {
                     try
-                    { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); }
-                    catch { }
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1070,8 +1114,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1093,8 +1141,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1116,8 +1168,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1139,8 +1195,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 try
-                { await UnregisterAppAsync(appId).ConfigureAwait(false); }
-                catch { }
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1618,7 +1678,6 @@ namespace Opc.Ua.Gds.Tests
 
             Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(appId).ConfigureAwait(false));
         }
-
 
         [Test]
         public async Task QueryAppsBasicCallAsync()
@@ -2570,8 +2629,12 @@ namespace Opc.Ua.Gds.Tests
                 if (session != null)
                 {
                     try
-                    { await session.CloseAsync(5000, true).ConfigureAwait(false); }
-                    catch { }
+                    {
+                        await session.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     session.Dispose();
                 }
             }
@@ -2593,8 +2656,12 @@ namespace Opc.Ua.Gds.Tests
                 if (session != null)
                 {
                     try
-                    { await session.CloseAsync(5000, true).ConfigureAwait(false); }
-                    catch { }
+                    {
+                        await session.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     session.Dispose();
                 }
             }

@@ -2260,114 +2260,142 @@ namespace Opc.Ua
         /// Called when the Validate method is called
         /// </summary>
         public NodeStateValidateHandler? OnValidate;
+
         /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateChangedHandler? OnStateChanged;
+
         /// <summary>
         /// Called when a reference gets added to the node
         /// </summary>
         public NodeStateReferenceAdded? OnReferenceAdded;
+
         /// <summary>
         /// Called when a reference gets removed from the node
         /// </summary>
         public NodeStateReferenceRemoved? OnReferenceRemoved;
+
         /// <summary>
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
         public NodeStateReportEventHandler? OnReportEvent;
+
         /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
         /// </summary>
         public NodeStateConditionRefreshEventHandler? OnConditionRefresh;
+
         /// <summary>
         /// Called after the CreateBrowser method is called.
         /// </summary>
         public NodeStateCreateBrowserEventHandler? OnCreateBrowser;
+
         /// <summary>
         /// Called after the PopulateBrowser method is called.
         /// </summary>
         public NodeStatePopulateBrowserEventHandler? OnPopulateBrowser;
+
         /// <summary>
         /// Called when the NodeId attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<NodeId>? OnReadNodeId;
+
         /// <summary>
         /// Called when the NodeId attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<NodeId>? OnWriteNodeId;
+
         /// <summary>
         /// Called when the NodeClass attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<NodeClass>? OnReadNodeClass;
+
         /// <summary>
         /// Called when the NodeClass attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<NodeClass>? OnWriteNodeClass;
+
         /// <summary>
         /// Called when the BrowseName attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<QualifiedName>? OnReadBrowseName;
+
         /// <summary>
         /// Called when the BrowseName attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<QualifiedName>? OnWriteBrowseName;
+
         /// <summary>
         /// Called when the DisplayName attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnReadDisplayName;
+
         /// <summary>
         /// Called when the DisplayName attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnWriteDisplayName;
+
         /// <summary>
         /// Called when the Description attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnReadDescription;
+
         /// <summary>
         /// Called when the Description attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<LocalizedText>? OnWriteDescription;
+
         /// <summary>
         /// Called when the WriteMask attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnReadWriteMask;
+
         /// <summary>
         /// Called when the WriteMask attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnWriteWriteMask;
+
         /// <summary>
         /// Called when the UserWriteMask attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnReadUserWriteMask;
+
         /// <summary>
         /// Called when the UserWriteMask attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AttributeWriteMask>? OnWriteUserWriteMask;
+
         /// <summary>
         /// Called when the RolePermissions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnReadRolePermissions;
+
         /// <summary>
         /// Called when the RolePermissions attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnWriteRolePermissions;
+
         /// <summary>
         /// Called when the UserRolePermissions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnReadUserRolePermissions;
+
         /// <summary>
         /// Called when the UserRolePermissions attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? OnWriteUserRolePermissions;
+
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
         /// </summary>
         public NodeAttributeEventHandler<AccessRestrictionType?>? OnReadAccessRestrictions;
+
         /// <summary>
         /// Called when the AccessRestrictions attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<AccessRestrictionType?>? OnWriteAccessRestrictions;
+
         /// <summary>
         /// Returns the root node if the node is part of an instance hierarchy.
         /// </summary>

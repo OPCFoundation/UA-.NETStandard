@@ -745,7 +745,6 @@ namespace Opc.Ua.Gds.Server
                         true;
 
                     return activeNode;
-
                 case ObjectTypes.KeyCredentialServiceType:
                     if (passiveNode is not KeyCredentialServiceState keyCredNode)
                     {
@@ -762,7 +761,6 @@ namespace Opc.Ua.Gds.Server
                     }
 
                     return keyCredNode;
-
                 case ObjectTypes.AuthorizationServiceType:
                     if (passiveNode is not AuthorizationServiceState authServiceNode)
                     {
