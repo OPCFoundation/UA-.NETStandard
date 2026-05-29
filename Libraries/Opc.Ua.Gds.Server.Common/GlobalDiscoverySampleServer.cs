@@ -146,15 +146,16 @@ namespace Opc.Ua.Gds.Server
         /// by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             m_logger.LogInformation("Creating the Node Managers.");
 
-            var nodeManagers = new List<INodeManager>
+            // create the custom node managers.
+            var nodeManagers = new IAsyncNodeManager[]
             {
-                // create the custom node managers.
                 new ApplicationsNodeManager(
                     server,
                     configuration,
@@ -165,7 +166,8 @@ namespace Opc.Ua.Gds.Server
             };
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
+            return new ValueTask<IMasterNodeManager>(
+                new MasterNodeManager(server, configuration, null, nodeManagers));
         }
 
         /// <summary>

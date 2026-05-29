@@ -396,7 +396,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             }
         }
 
-        private sealed class AuthorizationServiceNodeManagerFactory : INodeManagerFactory
+        private sealed class AuthorizationServiceNodeManagerFactory : IAsyncNodeManagerFactory
         {
             private readonly GlobalDiscoveryServerConfiguration m_gdsConfiguration;
             private readonly Opc.Ua.Gds.Server.IAccessTokenProvider m_accessTokenProvider;
@@ -415,7 +415,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 Namespaces.OpcUaGds
             ];
 
-            public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
             {
                 if (!server.MessageContext.Factory.ContainsEncodeableType(DataTypeIds.ApplicationRecordDataType))
                 {
@@ -444,7 +447,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     AccessTokenProvider = m_accessTokenProvider
                 };
 
-                return applications;
+                return new ValueTask<IAsyncNodeManager>(applications);
             }
         }
     }

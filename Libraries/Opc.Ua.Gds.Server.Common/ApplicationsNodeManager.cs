@@ -46,7 +46,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// A node manager for a global discovery server
     /// </summary>
-    public class ApplicationsNodeManager : CustomNodeManager2, ICallAsyncNodeManager
+    public class ApplicationsNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Gets or sets the trust-list manager for named store access.
@@ -373,7 +373,7 @@ namespace Opc.Ua.Gds.Server
                 m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             await certificateGroup.InitAsync().ConfigureAwait(false);
 
-            SetCertificateGroupNodes(certificateGroup);
+            await SetCertificateGroupNodesAsync(certificateGroup).ConfigureAwait(false);
 
             return certificateGroup;
         }
@@ -386,94 +386,91 @@ namespace Opc.Ua.Gds.Server
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
+            m_certTypeMap = new Dictionary<NodeId, string>
             {
-                base.CreateAddressSpace(externalReferences);
-
-                m_certTypeMap = new Dictionary<NodeId, string>
+                // list of supported cert type mappings (V1.04)
                 {
-                    // list of supported cert type mappings (V1.04)
-                    {
-                        Ua.ObjectTypeIds.HttpsCertificateType,
-                        nameof(Ua.ObjectTypeIds.HttpsCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.UserCertificateType,
-                        nameof(Ua.ObjectTypeIds.UserCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.ApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.RsaMinApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.RsaMinApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+                    Ua.ObjectTypeIds.HttpsCertificateType,
+                    nameof(Ua.ObjectTypeIds.HttpsCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.UserCertificateType,
+                    nameof(Ua.ObjectTypeIds.UserCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.ApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.RsaMinApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.RsaMinApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.EccApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
 #if CURVE25519
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType)
-                    },
-                    {
-                        Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType,
-                        nameof(Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
-#endif
-                    }
-                };
-
-                m_database.NamespaceIndex = NamespaceIndexes[0];
-                m_request.NamespaceIndex = NamespaceIndexes[0];
-
-                EnsureDefaultAuthorizationService();
-
-                foreach (
-                    CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration
-                        .CertificateGroups)
+                },
                 {
-                    try
-                    {
-                        ICertificateGroup certificateGroup = InitializeCertificateGroupAsync(
-                                certificateGroupConfiguration)
-                            .GetAwaiter()
-                            .GetResult();
-                        m_certificateGroups[certificateGroup.Id] = certificateGroup;
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error initializing certificateGroup: {CertificateGroupId}",
-                            certificateGroupConfiguration.Id);
-                        // make sure gds server doesn't start without cert groups!
-                        throw;
-                    }
+                    Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType)
+                },
+                {
+                    Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType,
+                    nameof(Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType)
+#endif
+                }
+            };
+
+            m_database.NamespaceIndex = NamespaceIndexes[0];
+            m_request.NamespaceIndex = NamespaceIndexes[0];
+
+            await EnsureDefaultAuthorizationServiceAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            foreach (
+                CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration
+                    .CertificateGroups.ToList())
+            {
+                try
+                {
+                    ICertificateGroup certificateGroup = await InitializeCertificateGroupAsync(
+                            certificateGroupConfiguration)
+                        .ConfigureAwait(false);
+                    m_certificateGroups[certificateGroup.Id] = certificateGroup;
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(
+                        e,
+                        "Unexpected error initializing certificateGroup: {CertificateGroupId}",
+                        certificateGroupConfiguration.Id);
+                    // make sure gds server doesn't start without cert groups!
+                    throw;
                 }
             }
         }
@@ -481,12 +478,15 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
-        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
-            return new NodeStateCollection().AddOpcUaGds(context);
+            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaGds(context));
         }
 
-        private void EnsureDefaultAuthorizationService(BaseObjectState? folder = null)
+        private async ValueTask EnsureDefaultAuthorizationServiceAsync(
+            BaseObjectState? folder = null,
+            CancellationToken cancellationToken = default)
         {
             ushort namespaceIndex = NamespaceIndexes[1];
             if (folder == null)
@@ -507,7 +507,7 @@ namespace Opc.Ua.Gds.Server
                 namespaceIndex,
                 browseName);
             folder?.AddChild(service);
-            AddPredefinedNode(SystemContext, service);
+            await AddPredefinedNodeAsync(SystemContext, service, cancellationToken).ConfigureAwait(false);
         }
 
         private AuthorizationServiceState CreateDefaultAuthorizationService(
@@ -582,9 +582,10 @@ namespace Opc.Ua.Gds.Server
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected override NodeState AddBehaviourToPredefinedNode(
+        protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
             ISystemContext context,
-            NodeState predefinedNode)
+            NodeState predefinedNode,
+            CancellationToken cancellationToken = default)
         {
             if (predefinedNode is not BaseObjectState passiveNode)
             {
@@ -595,7 +596,7 @@ namespace Opc.Ua.Gds.Server
                 passiveNode.NodeId.TryGetValue(out uint nodeNumericId) &&
                 nodeNumericId == Objects.AuthorizationServices)
             {
-                EnsureDefaultAuthorizationService(passiveNode);
+                await EnsureDefaultAuthorizationServiceAsync(passiveNode, cancellationToken).ConfigureAwait(false);
             }
 
             NodeId typeId = passiveNode.TypeDefinitionId;
@@ -2168,63 +2169,60 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
-        public override void DeleteAddressSpace()
+        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            lock (Lock)
-            {
-                // TBD
-            }
+            // TBD
+            return base.DeleteAddressSpaceAsync(cancellationToken);
         }
 
         /// <summary>
         /// Returns a unique handle for the node.
         /// </summary>
-        protected override NodeHandle? GetManagerHandle(
+        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
             ServerSystemContext context,
             NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache)
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            // quickly exclude nodes that are not in the namespace.
+            if (!IsNodeIdInNamespace(nodeId))
             {
-                // quickly exclude nodes that are not in the namespace.
-                if (!IsNodeIdInNamespace(nodeId))
-                {
-                    return null;
-                }
-
-                // check cache (the cache is used because the same node id can appear many times in a single request).
-                if (cache != null && cache.TryGetValue(nodeId, out NodeState? node))
-                {
-                    return new NodeHandle(nodeId, node);
-                }
-
-                // look up predefined node.
-                if (PredefinedNodes.TryGetValue(nodeId, out node))
-                {
-                    var handle = new NodeHandle(nodeId, node);
-
-                    cache?.Add(nodeId, node);
-
-                    return handle;
-                }
-
-                // node not found.
-                return null;
+                return new ValueTask<NodeHandle>();
             }
+
+            // check cache (the cache is used because the same node id can appear many times in a single request).
+            if (cache != null && cache.TryGetValue(nodeId, out NodeState? node))
+            {
+                return new ValueTask<NodeHandle>(new NodeHandle(nodeId, node));
+            }
+
+            // look up predefined node.
+            if (PredefinedNodes.TryGetValue(nodeId, out node))
+            {
+                var handle = new NodeHandle(nodeId, node);
+
+                cache?.Add(nodeId, node);
+
+                return new ValueTask<NodeHandle>(handle);
+            }
+
+            // node not found.
+            return new ValueTask<NodeHandle>();
         }
 
         /// <summary>
         /// Verifies that the specified node exists.
         /// </summary>
-        protected override NodeState? ValidateNode(
+        protected override async ValueTask<NodeState> ValidateNodeAsync(
             ServerSystemContext context,
             NodeHandle handle,
-            IDictionary<NodeId, NodeState> cache)
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
         {
             // not valid if no root.
             if (handle == null)
             {
-                return null;
+                return null!;
             }
 
             // check if previously validated.
@@ -2234,7 +2232,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // lookup in operation cache.
-            NodeState? target = FindNodeInCache(context, handle, cache);
+            NodeState? target = await FindNodeInCacheAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
 
             if (target != null)
             {
@@ -2259,7 +2257,7 @@ namespace Opc.Ua.Gds.Server
             return new NodeId(++m_nextNodeId, NamespaceIndex);
         }
 
-        protected void SetCertificateGroupNodes(ICertificateGroup certificateGroup)
+        protected async ValueTask SetCertificateGroupNodesAsync(ICertificateGroup certificateGroup)
         {
             certificateGroup.DefaultTrustList = null!;
             string groupId = certificateGroup.Configuration.Id!;
@@ -2316,7 +2314,7 @@ namespace Opc.Ua.Gds.Server
                 customGroupNode.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
 
                 certGroupsFolder.AddChild(customGroupNode);
-                AddPredefinedNode(SystemContext, customGroupNode);
+                await AddPredefinedNodeAsync(SystemContext, customGroupNode).ConfigureAwait(false);
 
                 certificateGroup.DefaultTrustList = customGroupNode.TrustList!;
 
