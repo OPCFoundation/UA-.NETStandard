@@ -773,12 +773,12 @@ does); calling `.Simulation()` on a plain `CustomNodeManager2` throws
 
 ### Multi-model composition
 
-The primary mode for combining models is **source-generated library
-references**. Each companion spec is built once into its own model
-library (a `Libraries/Opc.Ua.{Spec}/` project that consumes the
-ModelDesign XML and emits an `AddOpcUa{Spec}` extension method); the
-consumer adds project references and composes them through
-`ModelLoaderBuilder`:
+The only supported mode for combining models is **source-generated
+library references**. Each companion spec is built once into its
+own model library (a `Libraries/Opc.Ua.{Spec}/` project that
+consumes the ModelDesign XML and emits an `AddOpcUa{Spec}`
+extension method); the consumer adds project references and
+composes them through `ModelLoaderBuilder`:
 
 ```csharp
 protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -793,21 +793,21 @@ protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
 }
 ```
 
-Source-generated models are AOT-friendly, deterministic, and produce
-typed `*State` / `*Client` proxies. **This is the recommended mode for
-every model the application controls** — companion specs ship as
-project references; locally-owned NodeSet2 XMLs are wired through
-`<AdditionalFiles>` so the source generator emits the same typed
-surface inside the consuming assembly.
+Source-generated models are AOT-friendly, deterministic, and
+produce typed `*State` / `*Client` proxies. **Every application-
+owned model must ship as source-generated content** — companion
+specs ship as project references; locally-owned NodeSet2 XMLs are
+wired through `<AdditionalFiles>` so the source generator emits
+the same typed surface inside the consuming assembly. The
+generator runs the model loaders in registration order, so later
+additions can layer on top of earlier ones.
 
-`ImportNodeSet(Stream)` / `ImportEmbeddedNodeSet(...)` overloads
-remain for one narrow scenario: loading an unverified third-party
-NodeSet2 that is only available at runtime (for example, a tenant
-upload received by a multi-tenant server). New code should default to
-source generation.
-
-Sources run in registration order so later additions can layer on top
-of earlier ones.
+> The legacy `ImportNodeSet(Stream)` / `ImportEmbeddedNodeSet(...)`
+> overloads on `IModelLoaderBuilder` exist only for the narrow case
+> of an unverified third-party NodeSet2 received at runtime by a
+> multi-tenant server (i.e. content the application does not own
+> at build time). New code should not use them for first-party
+> models.
 
 ## Current limitations
 
@@ -831,9 +831,5 @@ of earlier ones.
   (engineering units, identification properties, FunctionalGroup
   wiring, instance creation, limit alarm with NAMUR-style boolean
   supervision, periodic simulation tick, and multi-model loader for
-  DI + Machinery + Pumps). The companion guide
-  [Companion specification libraries](CompanionSpecLibraries.md)
-  walks through the packaging pattern used by the
-  `Opc.Ua.Di` / `Opc.Ua.Di.Server` / `Opc.Ua.Di.Client` libraries that
-  ship alongside it.
+  DI + Machinery + Pumps).
 

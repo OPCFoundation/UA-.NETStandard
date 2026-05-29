@@ -34,7 +34,7 @@ using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Pumps;
 
-namespace Opc.Ua.Pumps.Tests
+namespace Opc.Ua.Di.Tests
 {
     /// <summary>
     /// Pump-server-side coverage for the DI hosting integration:

@@ -31,7 +31,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Server;
 
-namespace Opc.Ua.Pumps.Tests
+namespace Opc.Ua.Di.Tests
 {
     /// <summary>
     /// Smoke tests for the <see cref="global::Pumps.PumpNodeManagerFactory"/>:

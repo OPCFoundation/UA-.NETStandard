@@ -31,7 +31,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua;
 
-namespace Opc.Ua.Pumps.Tests
+namespace Opc.Ua.Di.Tests
 {
     /// <summary>
     /// Tests for the source-generated Machinery and Pumps models inside
@@ -47,7 +47,7 @@ namespace Opc.Ua.Pumps.Tests
         public void MachineryNamespaceUriConstantIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            System.Type ns = assembly.GetType("Opc.Ua.Machinery.Namespaces");
+            System.Type? ns = assembly.GetType("Opc.Ua.Machinery.Namespaces");
             Assert.That(ns, Is.Not.Null,
                 "The source generator must emit Opc.Ua.Machinery.Namespaces.");
         }
@@ -56,7 +56,7 @@ namespace Opc.Ua.Pumps.Tests
         public void PumpsNamespaceUriConstantIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            System.Type ns = assembly.GetType("Opc.Ua.Pumps.Namespaces");
+            System.Type? ns = assembly.GetType("Opc.Ua.Pumps.Namespaces");
             Assert.That(ns, Is.Not.Null,
                 "The source generator must emit Opc.Ua.Pumps.Namespaces.");
         }
@@ -65,11 +65,11 @@ namespace Opc.Ua.Pumps.Tests
         public void AddOpcUaMachineryExtensionMethodIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            System.Type ext = assembly.GetType(
+            System.Type? ext = assembly.GetType(
                 "Opc.Ua.Machinery.OpcUaMachineryExtensions");
             Assert.That(ext, Is.Not.Null,
                 "The generator must emit OpcUaMachineryExtensions.");
-            MethodInfo add = ext.GetMethod(
+            MethodInfo? add = ext!.GetMethod(
                 "AddOpcUaMachinery",
                 [typeof(NodeStateCollection), typeof(ISystemContext)]);
             Assert.That(add, Is.Not.Null,
@@ -80,11 +80,11 @@ namespace Opc.Ua.Pumps.Tests
         public void AddOpcUaPumpsExtensionMethodIsEmitted()
         {
             Assembly assembly = typeof(global::Pumps.PumpNodeManager).Assembly;
-            System.Type ext = assembly.GetType(
+            System.Type? ext = assembly.GetType(
                 "Opc.Ua.Pumps.OpcUaPumpsExtensions");
             Assert.That(ext, Is.Not.Null,
                 "The generator must emit OpcUaPumpsExtensions.");
-            MethodInfo add = ext.GetMethod(
+            MethodInfo? add = ext!.GetMethod(
                 "AddOpcUaPumps",
                 [typeof(NodeStateCollection), typeof(ISystemContext)]);
             Assert.That(add, Is.Not.Null,

@@ -903,6 +903,5 @@ All DI DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `LocationIndicatio
 
 ## See also
 
-- [Companion specification libraries](CompanionSpecLibraries.md) — packaging conventions for reusable model/server/client trios.
 - [FileSystemClient](FileSystemClient.md) — file-transfer client used by `SoftwareUpdateClient` and `FileSystemPackageStore`.
 - [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) — the underlying source generator and fluent API.

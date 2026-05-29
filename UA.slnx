@@ -166,5 +166,4 @@
   <Project Path="Libraries/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
   <Project Path="Libraries/Opc.Ua.Di/Opc.Ua.Di.csproj" />
   <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
-  <Project Path="Tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
 </Solution>

@@ -73,8 +73,12 @@ The `Opc.Ua.Di` model library is consumed as a project reference (its
 types live under the `Opc.Ua.Di` namespace and are source-generated
 from the ModelDesign XML). Cross-namespace references from Machinery
 and Pumps to DI types resolve through the
-`[assembly: ModelSnapshotAttribute]` carried in the `Opc.Ua.Di`
-assembly — no DI NodeSet2 XML needed in this project.
+`[assembly: ModelDependencyAttribute]` carried in the `Opc.Ua.Di`
+assembly — no DI NodeSet2 XML needed in this project. The unified
+attribute carries the compact type-table payload that the consumer's
+source generator imports at compile time; see
+[ModelDependencies.md](../../Docs/ModelDependencies.md) for the wire
+format and consumer-side flow.
 
 The Machinery and Pumps NodeSet2 XMLs are **source-generated locally
 inside this assembly** via the `<AdditionalFiles>` plumbing in the
