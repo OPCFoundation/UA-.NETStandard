@@ -163,7 +163,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<Func<CancellationToken, Task<WotConnectivityClient>>>(
                 sp => new WotConnectivityClientAccessor(sp).ConnectAsync);
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            services.AddOpcUa();
         }
 
         /// <summary>

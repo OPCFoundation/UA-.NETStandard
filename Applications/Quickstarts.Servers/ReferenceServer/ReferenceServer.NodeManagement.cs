@@ -647,14 +647,13 @@ namespace Quickstarts.ReferenceServer
             switch (item.NodeClass)
             {
                 case NodeClass.Variable:
-                {
                     var variable = new BaseDataVariableState(null)
                     {
                         BrowseName = item.BrowseName,
                         DisplayName = new LocalizedText(item.BrowseName.Name),
                         TypeDefinitionId = typeDefinitionId.IsNull
-                            ? VariableTypeIds.BaseDataVariableType
-                            : typeDefinitionId,
+                                ? VariableTypeIds.BaseDataVariableType
+                                : typeDefinitionId,
                         AccessLevel = AccessLevels.CurrentReadOrWrite,
                         UserAccessLevel = AccessLevels.CurrentReadOrWrite,
                         DataType = DataTypeIds.BaseDataType,
@@ -672,16 +671,15 @@ namespace Quickstarts.ReferenceServer
                     }
 
                     return variable;
-                }
+
                 case NodeClass.Object:
-                {
                     var instance = new BaseObjectState(null)
                     {
                         BrowseName = item.BrowseName,
                         DisplayName = new LocalizedText(item.BrowseName.Name),
                         TypeDefinitionId = typeDefinitionId.IsNull
-                            ? ObjectTypeIds.BaseObjectType
-                            : typeDefinitionId
+                                ? ObjectTypeIds.BaseObjectType
+                                : typeDefinitionId
                     };
 
                     if (!item.NodeAttributes.IsNull)
@@ -695,7 +693,7 @@ namespace Quickstarts.ReferenceServer
                     }
 
                     return instance;
-                }
+
                 default:
                     throw new ServiceResultException(
                         StatusCodes.BadNodeClassInvalid);

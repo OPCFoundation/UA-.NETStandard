@@ -115,8 +115,8 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState variable = CreateVariable("disp.var");
             builder.Historize(
                 variable,
-                autoCapture: true,
-                systemContext: ctx);
+                systemContext: ctx,
+                autoCapture: true);
 
             // DisposeAsync should flush the sink, detach handlers,
             // and complete without throwing.
@@ -139,8 +139,8 @@ namespace Opc.Ua.Server.Tests.Historian
             // systemContext is needed — passing null is valid.
             builder.Historize(
                 variable,
-                autoCapture: false,
-                systemContext: null);
+                systemContext: null,
+                autoCapture: false);
 
             Assert.That(variable.Historizing, Is.True);
             Assert.That(
@@ -191,8 +191,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             builder.Historize(
                 variable,
-                capabilities: capabilities,
                 systemContext: ctx,
+                capabilities: capabilities,
                 autoCapture: false);
 
             var browseName = new QualifiedName(BrowseNames.Annotations);

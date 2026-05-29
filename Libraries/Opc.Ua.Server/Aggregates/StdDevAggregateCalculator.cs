@@ -219,10 +219,10 @@ namespace Opc.Ua.Server
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+
 
             // return result.
-            return value;
+            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
 
         /// <summary>
@@ -331,10 +331,10 @@ namespace Opc.Ua.Server
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+
 
             // return result.
-            return value;
+            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
     }
 }

@@ -50,8 +50,6 @@ namespace Opc.Ua.Gds.Server.Identity
     public sealed class InMemoryAccessTokenProvider : IAccessTokenProvider
     {
         private static readonly char[] s_scopeSeparators = [' ', ',', ';', '\r', '\n', '\t'];
-
-        private readonly ITokenIssuer m_tokenIssuer;
         private readonly AuthorizationServiceOptions m_options;
         private readonly ConcurrentDictionary<Guid, RequestRecord> m_requests = new();
 
@@ -68,7 +66,7 @@ namespace Opc.Ua.Gds.Server.Identity
             ITokenIssuer tokenIssuer,
             IOptions<AuthorizationServiceOptions> options)
         {
-            m_tokenIssuer = tokenIssuer ?? throw new ArgumentNullException(nameof(tokenIssuer));
+            TokenIssuer = tokenIssuer ?? throw new ArgumentNullException(nameof(tokenIssuer));
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
@@ -89,7 +87,7 @@ namespace Opc.Ua.Gds.Server.Identity
         /// <summary>
         /// Gets the signer used by this provider.
         /// </summary>
-        internal ITokenIssuer TokenIssuer => m_tokenIssuer;
+        internal ITokenIssuer TokenIssuer { get; }
 
         /// <inheritdoc/>
         [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
@@ -327,7 +325,7 @@ namespace Opc.Ua.Gds.Server.Identity
                 additionalClaims["roles"] = roles;
             }
 
-            return m_tokenIssuer.IssueAsync(
+            return TokenIssuer.IssueAsync(
                 new TokenIssuanceRequest(
                     subject,
                     audience,

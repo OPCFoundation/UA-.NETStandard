@@ -168,7 +168,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     sessionFactory: sessionFactory);
             });
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            services.AddOpcUa();
         }
 
         private sealed class GdsClientBuilder : IGdsClientBuilder

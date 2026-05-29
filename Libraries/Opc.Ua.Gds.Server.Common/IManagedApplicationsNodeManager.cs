@@ -158,8 +158,6 @@ namespace Opc.Ua.Gds.Server
         // base-UA generated ObjectTypes/Objects classes.
         private static readonly NodeId ManagedApplicationsFolderId = new(16706u);
         private static readonly NodeId ApplicationConfigurationTypeId = new(25731u);
-
-        private readonly IConfigurationDataStore m_dataStore;
         private readonly Dictionary<string, ApplicationConfigurationState> m_appNodes = new(System.StringComparer.Ordinal);
 
         /// <summary>
@@ -180,12 +178,12 @@ namespace Opc.Ua.Gds.Server
                   configuration,
                   server.Telemetry.CreateLogger<DefaultManagedApplicationsNodeManager>())
         {
-            m_dataStore = dataStore ?? throw new System.ArgumentNullException(nameof(dataStore));
+            ConfigurationDataStore = dataStore ?? throw new System.ArgumentNullException(nameof(dataStore));
             NamespaceUris = [Namespaces.OpcUa];
         }
 
         /// <inheritdoc/>
-        public IConfigurationDataStore ConfigurationDataStore => m_dataStore;
+        public IConfigurationDataStore ConfigurationDataStore { get; }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -208,7 +206,7 @@ namespace Opc.Ua.Gds.Server
             // Query the data store for managed applications and
             // create ApplicationConfigurationState instances under the
             // ManagedApplications folder.
-            IReadOnlyList<ManagedApplicationInfo> apps = await m_dataStore
+            IReadOnlyList<ManagedApplicationInfo> apps = await ConfigurationDataStore
                 .GetManagedApplicationsAsync(cancellationToken)
                 .ConfigureAwait(false);
 

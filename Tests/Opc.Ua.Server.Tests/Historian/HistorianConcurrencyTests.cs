@@ -70,9 +70,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     for (int i = 0; i < perWriter; i++)
                     {
-                        DateTime ts = BaseTime.AddTicks(writerIndex * 10_000_000L + i);
+                        DateTime ts = BaseTime.AddTicks((writerIndex * 10_000_000L) + i);
                         IList<StatusCode> statuses = await provider.InsertAsync(
-                            context, nodeId, [MakeValue(ts, writerIndex * perWriter + i)], CancellationToken.None)
+                            context, nodeId, [MakeValue(ts, (writerIndex * perWriter) + i)], CancellationToken.None)
                             .ConfigureAwait(false);
                         Assert.That(StatusCode.IsGood(statuses[0]), Is.True);
                     }
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     for (int i = 0; i < perWriter; i++)
                     {
-                        DateTime when = BaseTime.AddTicks(writerIndex * 10_000_000L + i);
+                        DateTime when = BaseTime.AddTicks((writerIndex * 10_000_000L) + i);
                         var annotation = new Annotation
                         {
                             Message = $"w{writerIndex}-{i}",

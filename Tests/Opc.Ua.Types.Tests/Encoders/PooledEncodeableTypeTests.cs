@@ -247,7 +247,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         private sealed class TestPooledActivator : PooledEncodeableType<TestPooled>
         {
             public TestPooledActivator()
-                : base()
             {
             }
 

@@ -1210,7 +1210,7 @@ namespace Opc.Ua.Sessions.Tests
                     var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
-                        mutated[i] = (i < n && i > 0) ? resp.Results[i] : StatusCodes.Good;
+                        mutated[i] = i < n && i > 0 ? resp.Results[i] : StatusCodes.Good;
                     }
                     mutated[0] = StatusCodes.BadCertificateUriInvalid;
                     resp.Results = mutated.ToArrayOf();

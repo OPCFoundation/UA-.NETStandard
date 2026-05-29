@@ -170,7 +170,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     if (r.CancelCount > 0u)
                     {
-                        r.CancelCount = r.CancelCount - 1u;
+                        r.CancelCount--;
                     }
                     r.ResponseHeader.ServiceResult = StatusCodes.BadNothingToDo;
                 });
@@ -188,7 +188,7 @@ namespace Opc.Ua.Sessions.Tests
         public async Task CancelWithInjectedIncrementedCancelCountAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
-                r => r.CancelCount = r.CancelCount + 1u);
+                r => ++r.CancelCount);
 
             CancelResponse response = await Session.CancelAsync(
                 requestHeader: null,

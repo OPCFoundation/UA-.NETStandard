@@ -1917,7 +1917,7 @@ namespace Opc.Ua
             }
 
             // commit to a new DataValue, mirroring NodeState.ReadAttribute(ref DataValue).
-            StatusCode finalStatus = (result != null && result != ServiceResult.Good)
+            StatusCode finalStatus = result != null && result != ServiceResult.Good
                 ? result.StatusCode
                 : StatusCodes.Good;
             Variant finalValue = StatusCode.IsBad(finalStatus) ? Variant.Null : valueToRead;

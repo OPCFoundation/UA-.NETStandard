@@ -204,7 +204,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            OpcUaServerBuilderExtensions.ConfigureRoles(serverBuilder, configure);
+            serverBuilder.ConfigureRoles(configure);
             return gdsBuilder;
         }
 
@@ -222,8 +222,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 this IGdsServerBuilder gdsBuilder)
             where TAuth : class, Opc.Ua.Identity.IUserTokenAuthenticator
         {
-            OpcUaServerBuilderExtensions.AddIdentityAuthenticator<TAuth>(
-                ToServerBuilder(gdsBuilder));
+            ToServerBuilder(gdsBuilder).AddIdentityAuthenticator<TAuth>(
+);
             return gdsBuilder;
         }
 
@@ -241,8 +241,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 this IGdsServerBuilder gdsBuilder)
             where TAugmenter : class, IIdentityAugmenter
         {
-            OpcUaServerBuilderExtensions.AddIdentityAugmenter<TAugmenter>(
-                ToServerBuilder(gdsBuilder));
+            ToServerBuilder(gdsBuilder).AddIdentityAugmenter<TAugmenter>(
+);
             return gdsBuilder;
         }
 
@@ -265,7 +265,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(factory));
             }
 
-            OpcUaServerBuilderExtensions.AddIdentityAugmenter(serverBuilder, factory);
+            serverBuilder.AddIdentityAugmenter(factory);
             return gdsBuilder;
         }
 
@@ -281,8 +281,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
             SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
-            OpcUaServerBuilderExtensions.AddIdentityAugmenter(
-                serverBuilder,
+            serverBuilder.AddIdentityAugmenter(
                 sp => new GdsApplicationSelfAdminProvider(
                     sp.GetRequiredService<IApplicationsDatabase>(),
                     sp.GetRequiredService<ILogger<GdsApplicationSelfAdminProvider>>()));
@@ -311,8 +310,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new GdsDefaultIdentityAuthenticatorOptions();
             configure(options);
-            OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
-                serverBuilder,
+            serverBuilder.AddDefaultIdentityAuthenticators(
                 serverOptions => CopyDefaultAuthenticatorOptions(serverOptions, options));
             if (options.EnableGdsApplicationSelfAdminProvider)
             {
@@ -345,7 +343,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            OpcUaServerBuilderExtensions.ConfigureRoles(serverBuilder, section);
+            serverBuilder.ConfigureRoles(section);
             return gdsBuilder;
         }
 
@@ -384,8 +382,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            OpcUaServerBuilderExtensions.AddDefaultIdentityAuthenticators(
-                serverBuilder,
+            serverBuilder.AddDefaultIdentityAuthenticators(
                 section);
             if (GetBoolean(
                 section,
@@ -420,7 +417,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            OpcUaServerBuilderExtensions.AddJwtIssuer(serverBuilder, configure);
+            serverBuilder.AddJwtIssuer(configure);
             return gdsBuilder;
         }
 
@@ -444,7 +441,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
 
-            OpcUaServerBuilderExtensions.AddJwtIssuer(serverBuilder, section);
+            serverBuilder.AddJwtIssuer(section);
             return gdsBuilder;
         }
 
@@ -526,7 +523,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // idempotent: TryAddSingleton). Mirrors the
             // OpcUaServerBuilderExtensions pattern so the GDS feature
             // can be added independently of AddServer.
-            OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
+            services.AddOpcUa().AddApplicationInstance();
             services.AddOptions<GdsApplicationSelfAdminProviderOptions>();
 
             services.AddHostedService<GdsServerHostedService>();
@@ -691,8 +688,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private sealed class GdsServerRegistrationMarker
-        {
-        }
+        private sealed class GdsServerRegistrationMarker;
     }
 }

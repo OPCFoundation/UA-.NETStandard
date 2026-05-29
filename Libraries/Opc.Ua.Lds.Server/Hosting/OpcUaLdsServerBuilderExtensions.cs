@@ -186,7 +186,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
             services.AddHostedService<LdsServerHostedService>();
-            IOpcUaBuilder opcUa = OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            IOpcUaBuilder opcUa = services.AddOpcUa();
             opcUa.AddApplicationInstance();
         }
 
@@ -200,8 +200,6 @@ namespace Microsoft.Extensions.DependencyInjection
             public IServiceCollection Services { get; }
         }
 
-        private sealed class LdsServerRegistrationMarker
-        {
-        }
+        private sealed class LdsServerRegistrationMarker;
     }
 }

@@ -557,28 +557,16 @@ namespace Quickstarts.ReferenceServer
 
             ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
             var identity = new UserIdentity(userTokenHandler);
-            try
+            List<Role> effectiveRoles = roles is { Count: > 0 } ? [.. roles] : [Role.AuthenticatedUser];
+            if (effectiveRoles.Contains(Role.SecurityAdmin) && !effectiveRoles.Contains(Role.ConfigureAdmin))
             {
-                // SecurityAdmin implicitly grants ConfigureAdmin to retain the
-                // pre-existing SystemConfigurationIdentity semantics, but the
-                // user's other database-assigned roles (e.g. GDS DiscoveryAdmin)
-                // must also be preserved.
-                List<Role> effectiveRoles = roles is { Count: > 0 } ? [.. roles] : [Role.AuthenticatedUser];
-                if (effectiveRoles.Contains(Role.SecurityAdmin) && !effectiveRoles.Contains(Role.ConfigureAdmin))
-                {
-                    effectiveRoles.Add(Role.ConfigureAdmin);
-                }
+                effectiveRoles.Add(Role.ConfigureAdmin);
+            }
 
-                return new RoleBasedIdentity(
-                    identity,
-                    effectiveRoles,
-                    ServerInternal.MessageContext.NamespaceUris);
-            }
-            catch
-            {
-                // UserIdentity is no longer IDisposable; nothing to release.
-                throw;
-            }
+            return new RoleBasedIdentity(
+                identity,
+                effectiveRoles,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         /// <summary>

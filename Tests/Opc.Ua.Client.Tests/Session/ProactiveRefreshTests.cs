@@ -142,9 +142,9 @@ namespace Opc.Ua.Client.Tests.Identity
                 sessionName: "ProactiveRefreshTests",
                 sessionTimeout: ClientFixture.SessionTimeout,
                 checkDomain: false,
-                ct: CancellationToken.None,
                 identityProvider: provider,
-                timeProvider: timeProvider).ConfigureAwait(false);
+                timeProvider: timeProvider,
+                ct: CancellationToken.None).ConfigureAwait(false);
         }
 
         private static async Task WaitUntilAsync(Func<bool> predicate)

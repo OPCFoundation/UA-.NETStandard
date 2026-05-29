@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
+                rec.ProductUri += "_modified";
                 NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
+                rec.ProductUri += "_modified";
                 NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
+                rec.ProductUri += "_modified";
                 NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsAnonymousAsync(
                     methodId,
@@ -1183,7 +1183,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
+                rec.ProductUri += "_modified";
                 NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,

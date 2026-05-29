@@ -156,10 +156,10 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+
 
             // return result.
-            return value;
+            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
 
         /// <summary>

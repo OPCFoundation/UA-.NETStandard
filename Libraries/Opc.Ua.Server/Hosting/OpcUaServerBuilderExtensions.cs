@@ -558,7 +558,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     }));
             }
             services.AddHostedService<OpcUaServerHostedService>();
-            OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
+            services.AddOpcUa().AddApplicationInstance();
         }
 
         private static void BindOpcUaServerOptions(OpcUaServerOptions options, IConfiguration section)
@@ -1042,9 +1042,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private sealed class OpcUaServerDefaultIdentityAuthenticatorsMarker
-        {
-        }
+        private sealed class OpcUaServerDefaultIdentityAuthenticatorsMarker;
 
         private sealed class OpcUaServerBuilder : IOpcUaServerBuilder
         {
@@ -1076,8 +1074,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private sealed class OpcUaServerRegistrationMarker
-        {
-        }
+        private sealed class OpcUaServerRegistrationMarker;
     }
 }

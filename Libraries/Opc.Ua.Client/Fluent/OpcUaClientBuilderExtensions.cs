@@ -403,10 +403,7 @@ namespace Microsoft.Extensions.DependencyInjection
             string? authorityUri)
         {
             var providers = new List<IAccessTokenProvider>();
-            foreach (IAccessTokenProvider provider in sp.GetServices<IAccessTokenProvider>())
-            {
-                providers.Add(provider);
-            }
+            providers.AddRange(sp.GetServices<IAccessTokenProvider>());
 
             if (string.IsNullOrWhiteSpace(authorityUri))
             {
@@ -598,7 +595,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 return ReverseConnectManagerActivator.Create(options, telemetry);
             });
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            services.AddOpcUa();
         }
 
         /// <summary>
@@ -761,10 +758,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 IEnumerable<IClientIdentityProvider> registered =
                     m_sp.GetServices<IClientIdentityProvider>();
                 var providers = new List<IClientIdentityProvider>();
-                foreach (IClientIdentityProvider provider in registered)
-                {
-                    providers.Add(provider);
-                }
+                providers.AddRange(registered);
 
                 OpcUaClientOptions clientOptions =
                     m_sp.GetRequiredService<OpcUaClientOptions>();

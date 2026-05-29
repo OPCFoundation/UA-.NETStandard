@@ -1799,7 +1799,7 @@ namespace Opc.Ua.Server.Historian
                 double t1 = after.SourceTimestamp.ToDateTime().Ticks;
                 double t = requestedTime.ToDateTime().Ticks;
                 double ratio = (t - t0) / (t1 - t0);
-                double y = y0 + (y1 - y0) * ratio;
+                double y = y0 + ((y1 - y0) * ratio);
                 return new DataValue(
                     new Variant(y),
                     StatusCodes.UncertainDataSubNormal,

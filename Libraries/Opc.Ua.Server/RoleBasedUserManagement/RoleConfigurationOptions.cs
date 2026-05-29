@@ -39,7 +39,5 @@ namespace Opc.Ua.Server
     /// <c>IIdentityClaims.Roles</c> per OPC UA Part 18 §4.4.4
     /// (<see href="https://reference.opcfoundation.org/Core/Part18/v105/docs/4.4.4"/>).
     /// </summary>
-    public sealed class RoleConfigurationOptions
-    {
-    }
+    public sealed class RoleConfigurationOptions;
 }

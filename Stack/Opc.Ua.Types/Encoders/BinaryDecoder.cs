@@ -670,9 +670,7 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            value = value.WithServerPicoseconds(serverPicoseconds);
-
-            return value;
+            return value.WithServerPicoseconds(serverPicoseconds);
         }
 
         /// <inheritdoc/>

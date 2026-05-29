@@ -4472,12 +4472,7 @@ namespace Opc.Ua.Server.Tests
 
         protected override NodeStateCollection? LoadPredefinedNodes(ISystemContext context)
         {
-            if (NodesToLoad != null)
-            {
-                return NodesToLoad;
-            }
-
-            return base.LoadPredefinedNodes(context);
+            return NodesToLoad ?? base.LoadPredefinedNodes(context);
         }
 
         public NodeIdDictionary<NodeState> RootNotifiersDictionary

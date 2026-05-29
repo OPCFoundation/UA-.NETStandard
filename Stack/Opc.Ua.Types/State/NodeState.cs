@@ -3674,7 +3674,7 @@ namespace Opc.Ua
 
             // Compute final status and value in one rebind to avoid
             // intermediate With-chain allocations.
-            StatusCode finalStatus = (result != null && result != ServiceResult.Good)
+            StatusCode finalStatus = result != null && result != ServiceResult.Good
                 ? result.StatusCode
                 : StatusCodes.Good;
             Variant finalValue = StatusCode.IsBad(finalStatus) ? Variant.Null : valueToRead;
