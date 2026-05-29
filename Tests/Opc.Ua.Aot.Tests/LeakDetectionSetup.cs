@@ -91,7 +91,7 @@ namespace Opc.Ua.Aot.Tests
             })
             {
                 IsBackground = true,
-                Name = "LeakDetection.FinalizerSweep",
+                Name = "LeakDetection.FinalizerSweep"
             };
             sweep.Start();
             return sweep.Join(timeout);

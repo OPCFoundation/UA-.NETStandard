@@ -149,14 +149,14 @@ namespace Opc.Ua.Server.Tests.Historian
                 [
                     MakeValue(BaseTime.AddSeconds(1), 10.0),
                     MakeValue(BaseTime.AddSeconds(2), 20.0),
-                    MakeValue(BaseTime.AddSeconds(3), 30.0),
+                    MakeValue(BaseTime.AddSeconds(3), 30.0)
                 ],
                 [nodeB] =
                 [
                     MakeValue(BaseTime.AddSeconds(4), 40.0),
                     MakeValue(BaseTime.AddSeconds(5), 50.0),
-                    MakeValue(BaseTime.AddSeconds(6), 60.0),
-                ],
+                    MakeValue(BaseTime.AddSeconds(6), 60.0)
+                ]
             };
 
             IReadOnlyDictionary<NodeId, IList<StatusCode>> result =
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     new Dictionary<string, Variant> { ["Message"] = new Variant("hello") }),
                 new(evtId2, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(20),
-                    new Dictionary<string, Variant> { ["Message"] = new Variant("world") }),
+                    new Dictionary<string, Variant> { ["Message"] = new Variant("world") })
             };
 
             IList<StatusCode> insertResult =
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = (DateTimeUtc)BaseTime,
                     EndTime = (DateTimeUtc)BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
                 CancellationToken.None);
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = (DateTimeUtc)BaseTime,
                     EndTime = (DateTimeUtc)BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
                 CancellationToken.None);
@@ -333,7 +333,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     new Dictionary<string, Variant> { ["Message"] = new Variant("b") }),
                 new(id3, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(30),
-                    new Dictionary<string, Variant> { ["Message"] = new Variant("c") }),
+                    new Dictionary<string, Variant> { ["Message"] = new Variant("c") })
             };
 
             await provider.InsertEventsAsync(context, nodeId, events, CancellationToken.None);
@@ -351,7 +351,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = (DateTimeUtc)BaseTime,
                     EndTime = (DateTimeUtc)BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
                 CancellationToken.None);
@@ -428,7 +428,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     EndTime = BaseTime.AddHours(1),
                     MaxValues = 0,
                     IsForward = true,
-                    ReturnBounds = false,
+                    ReturnBounds = false
                 },
                 default,
                 CancellationToken.None);

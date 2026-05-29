@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime.AddSeconds(10),
                     EndTime = BaseTime.AddSeconds(-1),
                     IsForward = false,
-                    MaxValues = 0,
+                    MaxValues = 0
                 },
                 default,
                 CancellationToken.None);
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
                     IsForward = true,
-                    MaxValues = 0,
+                    MaxValues = 0
                 },
                 default,
                 CancellationToken.None);

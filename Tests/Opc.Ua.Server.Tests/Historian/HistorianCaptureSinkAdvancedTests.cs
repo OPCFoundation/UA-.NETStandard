@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var options = new HistorianCaptureOptions
             {
                 BatchTarget = 3,
-                BatchWindow = TimeSpan.FromMilliseconds(5),
+                BatchWindow = TimeSpan.FromMilliseconds(5)
             };
 
             await using (var sink = new HistorianCaptureSink(provider, ctx, options))
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var options = new HistorianCaptureOptions
             {
                 BatchTarget = 1000,
-                BatchWindow = TimeSpan.FromSeconds(30),
+                BatchWindow = TimeSpan.FromSeconds(30)
             };
             var nodeId = new NodeId("pending", kNs);
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var options = new HistorianCaptureOptions
             {
                 BatchTarget = 1,
-                BatchWindow = TimeSpan.FromMilliseconds(5),
+                BatchWindow = TimeSpan.FromMilliseconds(5)
             };
             var nodeId = new NodeId("postDispose", kNs);
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var options = new HistorianCaptureOptions
             {
                 BatchTarget = 1,
-                BatchWindow = TimeSpan.FromMilliseconds(5),
+                BatchWindow = TimeSpan.FromMilliseconds(5)
             };
 
             await using (var sink = new HistorianCaptureSink(provider, ctx, options))
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 MaxQueuedSamples = 4,
                 BatchTarget = 2,
                 BatchWindow = TimeSpan.FromMilliseconds(5),
-                FullMode = CaptureFullMode.DropNewest,
+                FullMode = CaptureFullMode.DropNewest
             };
 
             await using var sink = new HistorianCaptureSink(provider, ctx, options);

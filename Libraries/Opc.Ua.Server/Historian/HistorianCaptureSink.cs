@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Historian
                 FullMode = MapFullMode(m_options.FullMode),
                 SingleReader = true,
                 SingleWriter = false,
-                AllowSynchronousContinuations = false,
+                AllowSynchronousContinuations = false
             };
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Historian
                 CaptureFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
                 CaptureFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
                 CaptureFullMode.Wait => BoundedChannelFullMode.Wait,
-                _ => BoundedChannelFullMode.DropOldest,
+                _ => BoundedChannelFullMode.DropOldest
             };
         }
 

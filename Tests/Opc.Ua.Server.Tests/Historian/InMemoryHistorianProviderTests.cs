@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 MakeValue(BaseTime.AddSeconds(10), 1.0),
                 MakeValue(BaseTime.AddSeconds(20), 2.0),
-                MakeValue(BaseTime.AddSeconds(30), 3.0),
+                MakeValue(BaseTime.AddSeconds(30), 3.0)
             };
 
             IList<StatusCode> insertStatuses = await provider.InsertAsync(
@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     EndTime = BaseTime.AddMinutes(1),
                     MaxValues = 0,
                     IsForward = true,
-                    ReturnBounds = false,
+                    ReturnBounds = false
                 },
                 default,
                 CancellationToken.None);
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None);
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None);
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None);
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         StartTime = BaseTime,
                         EndTime = BaseTime.AddMinutes(2),
                         MaxValues = pageSize,
-                        IsForward = true,
+                        IsForward = true
                     },
                     token,
                     CancellationToken.None);
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None);

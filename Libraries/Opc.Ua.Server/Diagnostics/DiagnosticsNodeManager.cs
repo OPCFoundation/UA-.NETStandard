@@ -2212,7 +2212,7 @@ namespace Opc.Ua.Server
                 ReadRawData = true,
                 ReadModifiedData = false,
                 ReadAtTime = false,
-                ReadProcessedData = false,
+                ReadProcessedData = false
             };
             bool insertData = false;
             bool replaceData = false;

@@ -901,7 +901,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         HistoryUpdateType.Update => exists
                             ? StatusCodes.GoodEntryReplaced
                             : StatusCodes.GoodEntryInserted,
-                        _ => StatusCodes.BadInvalidArgument,
+                        _ => StatusCodes.BadInvalidArgument
                     };
 
                     if (StatusCode.IsBad(preflightResult))
@@ -1283,7 +1283,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 ModificationTime = defaultInfo.ModificationTime,
                 UpdateType = updateType,
-                UserName = defaultInfo.UserName,
+                UserName = defaultInfo.UserName
             };
             archive.ModifiedLog.Add(new ModificationEntry(CloneValue(prior), info, ++archive.SequenceCounter));
 
@@ -1306,7 +1306,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 Message = source.Message,
                 UserName = source.UserName,
-                AnnotationTime = source.AnnotationTime,
+                AnnotationTime = source.AnnotationTime
             };
         }
 
@@ -1316,7 +1316,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 ModificationTime = source.ModificationTime,
                 UpdateType = source.UpdateType,
-                UserName = source.UserName,
+                UserName = source.UserName
             };
         }
 

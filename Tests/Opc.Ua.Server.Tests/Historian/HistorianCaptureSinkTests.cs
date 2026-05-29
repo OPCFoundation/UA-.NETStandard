@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests.Historian
         private static readonly HistorianCaptureOptions kFastFlush = new()
         {
             BatchTarget = 1,
-            BatchWindow = TimeSpan.FromMilliseconds(5),
+            BatchWindow = TimeSpan.FromMilliseconds(5)
         };
 
         [Test]
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var opts = new HistorianCaptureOptions
             {
                 BatchTarget = 16,
-                BatchWindow = TimeSpan.FromMilliseconds(30),
+                BatchWindow = TimeSpan.FromMilliseconds(30)
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var opts = new HistorianCaptureOptions
             {
                 BatchTarget = 8,
-                BatchWindow = TimeSpan.FromMilliseconds(40),
+                BatchWindow = TimeSpan.FromMilliseconds(40)
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 MaxQueuedSamples = 8,
                 BatchTarget = 2,
                 BatchWindow = TimeSpan.FromMilliseconds(5),
-                FullMode = CaptureFullMode.DropOldest,
+                FullMode = CaptureFullMode.DropOldest
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var opts = new HistorianCaptureOptions
             {
                 BatchTarget = 1000,
-                BatchWindow = TimeSpan.FromSeconds(1),
+                BatchWindow = TimeSpan.FromSeconds(1)
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 StartTime = (DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 EndTime = (DateTimeUtc)new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 MaxValues = 0,
-                IsForward = true,
+                IsForward = true
             };
             int count = 0;
             HistorianResumeToken token = default;
@@ -375,7 +375,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     BrowseName = new QualifiedName(name, kNs),
                     DisplayName = new LocalizedText(name),
                     DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar,
+                    ValueRank = ValueRanks.Scalar
                 };
             }
 
@@ -417,7 +417,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     Provider = provider,
                     SystemContext = systemContext,
-                    Builder = builder,
+                    Builder = builder
                 };
             }
         }

@@ -109,7 +109,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             [
                 new DataValue(new Variant(10.0), StatusCodes.Good, t1, t1),
                 new DataValue(new Variant(20.0), StatusCodes.Good, t2, t2),
-                new DataValue(new Variant(30.0), StatusCodes.Good, t3, t3),
+                new DataValue(new Variant(30.0), StatusCodes.Good, t3, t3)
             ],
             CancellationToken.None).ConfigureAwait(false);
 
@@ -249,7 +249,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
                 [BrowseNames.EventId] = new Variant(eventId),
                 [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
                 [BrowseNames.Time] = new Variant((DateTimeUtc)BaseTime.AddSeconds(10)),
-                [BrowseNames.Message] = new Variant(new LocalizedText("test event")),
+                [BrowseNames.Message] = new Variant(new LocalizedText("test event"))
             });
 
         await provider.InsertEventsAsync(
@@ -266,7 +266,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             NumValuesPerNode = 100,
             StartTime = BaseTime,
             EndTime = BaseTime.AddMinutes(1),
-            Filter = filter,
+            Filter = filter
         };
         var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = notifier.NodeId } };
         var results = new List<HistoryReadResult> { null! };
@@ -330,7 +330,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
         {
             StartTime = DateTime.MinValue,
             EndTime = DateTime.MinValue,
-            NumValuesPerNode = 0,
+            NumValuesPerNode = 0
         };
         var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = variable.NodeId } };
         var results = new List<HistoryReadResult> { null! };
@@ -362,7 +362,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             StartTime = BaseTime,
             EndTime = BaseTime.AddMinutes(1),
             ProcessingInterval = 1000,
-            AggregateType = [ObjectIds.AggregateFunction_Average, ObjectIds.AggregateFunction_Count],
+            AggregateType = [ObjectIds.AggregateFunction_Average, ObjectIds.AggregateFunction_Count]
         };
         // Only 1 node but 2 aggregate types.
         var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = variable.NodeId } };
@@ -397,8 +397,8 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             PerformInsertReplace = PerformUpdateType.Insert,
             UpdateValues =
             [
-                new DataValue(new Variant(42.0), StatusCodes.Good, ts, ts),
-            ],
+                new DataValue(new Variant(42.0), StatusCodes.Good, ts, ts)
+            ]
         };
 
         var nodesToUpdate = new List<HistoryUpdateDetails> { updateDetails };
@@ -422,7 +422,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
                 NodeId = variable.NodeId,
                 StartTime = BaseTime,
                 EndTime = BaseTime.AddMinutes(1),
-                IsForward = true,
+                IsForward = true
             },
             default,
             CancellationToken.None).ConfigureAwait(false);
@@ -459,7 +459,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             NodeId = variable.NodeId,
             StartTime = BaseTime.AddSeconds(-1),
             EndTime = BaseTime.AddSeconds(10),
-            IsDeleteModified = false,
+            IsDeleteModified = false
         };
         var nodesToUpdate = new List<HistoryUpdateDetails> { deleteDetails };
         var results = new List<HistoryUpdateResult> { null! };
@@ -479,7 +479,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
                 NodeId = variable.NodeId,
                 StartTime = BaseTime.AddSeconds(-1),
                 EndTime = BaseTime.AddSeconds(10),
-                IsForward = true,
+                IsForward = true
             },
             default,
             CancellationToken.None).ConfigureAwait(false);
@@ -518,8 +518,8 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
                 new Variant(eventId),
                 new Variant(new LocalizedText("update event")),
                 new Variant((DateTimeUtc)BaseTime.AddSeconds(20)),
-                new Variant(ObjectTypeIds.BaseEventType),
-            ],
+                new Variant(ObjectTypeIds.BaseEventType)
+            ]
         };
 
         var updateDetails = new UpdateEventDetails
@@ -527,7 +527,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             NodeId = notifier.NodeId,
             PerformInsertReplace = PerformUpdateType.Insert,
             EventData = [eventFieldList],
-            Filter = filter,
+            Filter = filter
         };
 
         var nodesToUpdate = new List<HistoryUpdateDetails> { updateDetails };
@@ -552,7 +552,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
                 StartTime = BaseTime,
                 EndTime = BaseTime.AddMinutes(1),
                 IsForward = true,
-                Filter = filter,
+                Filter = filter
             },
             default,
             CancellationToken.None).ConfigureAwait(false);
@@ -578,8 +578,8 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             PerformInsertReplace = PerformUpdateType.Insert,
             UpdateValues =
             [
-                new DataValue(new Variant(1.0), StatusCodes.Good, ts, ts),
-            ],
+                new DataValue(new Variant(1.0), StatusCodes.Good, ts, ts)
+            ]
         };
 
         var nodesToUpdate = new List<HistoryUpdateDetails> { updateDetails };
@@ -656,7 +656,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
             ServerConfiguration = new ServerConfiguration
             {
                 MaxNotificationQueueSize = 100,
-                MaxDurableNotificationQueueSize = 200,
+                MaxDurableNotificationQueueSize = 200
             }
         };
 

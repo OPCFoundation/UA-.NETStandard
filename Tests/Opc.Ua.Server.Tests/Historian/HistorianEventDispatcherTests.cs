@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     [BrowseNames.EventId] = new Variant(eventId),
                     [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
                     [BrowseNames.Time] = new Variant((DateTimeUtc)when),
-                    [BrowseNames.Message] = new Variant(new LocalizedText("hello")),
+                    [BrowseNames.Message] = new Variant(new LocalizedText("hello"))
                 });
 
             IList<StatusCode> insertStatuses = await provider.InsertEventsAsync(
@@ -88,7 +88,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = filter,
+                    Filter = filter
                 },
                 default,
                 CancellationToken.None);
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
                 CancellationToken.None);

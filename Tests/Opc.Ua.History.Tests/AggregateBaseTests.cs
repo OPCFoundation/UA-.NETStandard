@@ -522,7 +522,7 @@ namespace Opc.Ua.History.Tests
             StartBeforeEnd,
             StartAfterEnd,
             BothBeforeData,
-            BothAfterData,
+            BothAfterData
         }
 
         private async Task ExecuteAggregateScenarioAsync(

@@ -70,9 +70,9 @@ namespace Opc.Ua.Client.Tests.Historian
                     {
                         new()
                         {
-                            StatusCode = StatusCodes.BadHistoryOperationInvalid,
-                        },
-                    }.ToArrayOf(),
+                            StatusCode = StatusCodes.BadHistoryOperationInvalid
+                        }
+                    }.ToArrayOf()
                 }));
 
             var client = new HistoryClient(mockSession.Object);
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistoryReadResponse>(new HistoryReadResponse
                 {
-                    Results = Array.Empty<HistoryReadResult>().ToArrayOf(),
+                    Results = Array.Empty<HistoryReadResult>().ToArrayOf()
                 }));
 
             var client = new HistoryClient(mockSession.Object);
@@ -146,9 +146,9 @@ namespace Opc.Ua.Client.Tests.Historian
                             new()
                             {
                                 StatusCode = StatusCodes.Good,
-                                ContinuationPoint = (ByteString)new byte[] { 0x01 },
-                            },
-                        }.ToArrayOf(),
+                                ContinuationPoint = (ByteString)new byte[] { 0x01 }
+                            }
+                        }.ToArrayOf()
                     });
                 });
 
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
                 {
-                    Results = Array.Empty<HistoryUpdateResult>().ToArrayOf(),
+                    Results = Array.Empty<HistoryUpdateResult>().ToArrayOf()
                 }));
 
             var client = new HistoryClient(mockSession.Object);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Tests.Historian
                         new Variant(1.0),
                         StatusCodes.Good,
                         sourceTimestamp: now,
-                        serverTimestamp: now),
+                        serverTimestamp: now)
                 }).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty,

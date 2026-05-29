@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddSeconds(slots + 1),
                     MaxValues = 0,
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None).ConfigureAwait(false);
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         {
                             Message = $"w{writerIndex}-{i}",
                             UserName = $"u{writerIndex}",
-                            AnnotationTime = when,
+                            AnnotationTime = when
                         };
                         IList<StatusCode> statuses = await provider.InsertAnnotationsAsync(
                             context, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddDays(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None).ConfigureAwait(false);
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         StartTime = BaseTime.AddYears(-1),
                         EndTime = BaseTime.AddYears(1),
                         MaxValues = 0,
-                        IsForward = true,
+                        IsForward = true
                     },
                     token,
                     CancellationToken.None).ConfigureAwait(false);

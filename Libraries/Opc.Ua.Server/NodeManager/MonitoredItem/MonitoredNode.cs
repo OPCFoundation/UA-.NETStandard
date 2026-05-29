@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
             {
                 SingleReader = true,
                 FullMode = BoundedChannelFullMode.Wait,
-                AllowSynchronousContinuations = false,
+                AllowSynchronousContinuations = false
             });
             m_consumerCts = new CancellationTokenSource();
             m_consumerTask = Task.Run(() => ProcessChannelAsync(m_consumerCts.Token));

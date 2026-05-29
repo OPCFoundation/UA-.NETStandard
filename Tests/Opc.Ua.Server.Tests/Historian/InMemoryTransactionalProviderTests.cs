@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 MakeValue(BaseTime.AddSeconds(1), 1.0),
                 MakeValue(BaseTime.AddSeconds(2), 2.0),
-                MakeValue(BaseTime.AddSeconds(3), 3.0),
+                MakeValue(BaseTime.AddSeconds(3), 3.0)
             };
 
             IList<StatusCode> statuses = await provider.InsertAtomicAsync(
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 MakeValue(BaseTime.AddSeconds(1), 1.0),
                 MakeValue(BaseTime.AddSeconds(2), 2.0), // collision
-                MakeValue(BaseTime.AddSeconds(3), 3.0),
+                MakeValue(BaseTime.AddSeconds(3), 3.0)
             };
 
             IList<StatusCode> statuses = await provider.InsertAtomicAsync(
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddSeconds(10),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None);

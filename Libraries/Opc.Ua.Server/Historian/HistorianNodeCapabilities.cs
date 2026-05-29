@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Historian
             DeleteRaw = true,
             DeleteAtTime = true,
             InsertAnnotation = true,
-            ServerTimestampSupported = true,
+            ServerTimestampSupported = true
         };
 
         /// <summary>True if the node supports raw history reads (always true for historizing nodes).</summary>

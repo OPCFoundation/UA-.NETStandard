@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("resolve-override", 1),
-                BrowseName = new QualifiedName("Var"),
+                BrowseName = new QualifiedName("Var")
             };
 
             var sentinel = new InMemoryHistorianProvider();
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var node = new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
-                BrowseName = new QualifiedName("Var"),
+                BrowseName = new QualifiedName("Var")
             };
 
             IHistorianProvider? resolved = HistorianDispatcher.ResolveProvider(
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("resolve-null", 1),
-                BrowseName = new QualifiedName("Var"),
+                BrowseName = new QualifiedName("Var")
             };
 
             IHistorianProvider? resolved = HistorianDispatcher.ResolveProvider(
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(1),
-                IsDeleteModified = false,
+                IsDeleteModified = false
             };
 
             var result = new HistoryUpdateResult();
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddSeconds(10),
-                IsDeleteModified = false,
+                IsDeleteModified = false
             };
 
             var result = new HistoryUpdateResult();
@@ -161,12 +161,12 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddSeconds(10),
-                IsReadModified = false,
+                IsReadModified = false
             };
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
             var readResult = new HistoryReadResult();
             ServiceResult readError = await HistorianDispatcher.DispatchRawReadAsync(
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var details = new DeleteAtTimeDetails
             {
                 NodeId = nodeId,
-                ReqTimes = new DateTimeUtc[] { HarnessFixture.BaseTime },
+                ReqTimes = new DateTimeUtc[] { HarnessFixture.BaseTime }
             };
 
             var result = new HistoryUpdateResult();
@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 new(new Variant(10), StatusCodes.Good, sourceTimestamp: t0, serverTimestamp: t0),
                 new(new Variant(20), StatusCodes.Good, sourceTimestamp: t1, serverTimestamp: t1),
-                new(new Variant(30), StatusCodes.Good, sourceTimestamp: t2, serverTimestamp: t2),
+                new(new Variant(30), StatusCodes.Good, sourceTimestamp: t2, serverTimestamp: t2)
             };
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
             await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var details = new DeleteAtTimeDetails
             {
                 NodeId = nodeId,
-                ReqTimes = new DateTimeUtc[] { t0, unknown1, t1, unknown2 },
+                ReqTimes = new DateTimeUtc[] { t0, unknown1, t1, unknown2 }
             };
 
             BaseDataVariableState node = CreateVariable(nodeId);
@@ -254,13 +254,13 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(1),
-                ProcessingInterval = 10000,
+                ProcessingInterval = 10000
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var seedValues = new List<DataValue>
             {
                 new(new Variant(100.0), StatusCodes.Good, sourceTimestamp: t10, serverTimestamp: t10),
-                new(new Variant(200.0), StatusCodes.Good, sourceTimestamp: t20, serverTimestamp: t20),
+                new(new Variant(200.0), StatusCodes.Good, sourceTimestamp: t20, serverTimestamp: t20)
             };
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
             await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);
@@ -297,13 +297,13 @@ namespace Opc.Ua.Server.Tests.Historian
             var details = new ReadAtTimeDetails
             {
                 ReqTimes = new DateTimeUtc[] { t15 },
-                UseSimpleBounds = false,
+                UseSimpleBounds = false
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
@@ -332,13 +332,13 @@ namespace Opc.Ua.Server.Tests.Historian
             var details = new ReadAtTimeDetails
             {
                 ReqTimes = new DateTimeUtc[] { HarnessFixture.BaseTime },
-                UseSimpleBounds = false,
+                UseSimpleBounds = false
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HarnessFixture h = CreateHarness();
             var nodeToRead = new HistoryReadValueId
             {
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             ServiceResult error = HistorianDispatcher.ReleaseContinuationPoint(
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var randomCp = new ByteString(Guid.NewGuid().ToByteArray());
             var nodeToRead = new HistoryReadValueId
             {
-                ContinuationPoint = randomCp,
+                ContinuationPoint = randomCp
             };
 
             ServiceResult error = HistorianDispatcher.ReleaseContinuationPoint(
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("TestVar"),
                 AccessLevel = AccessLevels.HistoryReadOrWrite,
-                Historizing = true,
+                Historizing = true
             };
         }
 

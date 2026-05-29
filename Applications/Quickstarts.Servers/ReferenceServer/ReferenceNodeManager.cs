@@ -5536,7 +5536,7 @@ namespace Quickstarts.ReferenceServer
                     BuiltInType.Int32 => new Variant(value),
                     BuiltInType.Float => new Variant((float)value),
                     BuiltInType.Double => new Variant((double)value),
-                    _ => new Variant(value),
+                    _ => new Variant(value)
                 };
                 seed.Add(new DataValue(
                     variant,

@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState variable = CreateVariable("annot.var");
             var capabilities = new HistorianNodeCapabilities
             {
-                InsertAnnotation = true,
+                InsertAnnotation = true
             };
 
             builder.Historize(
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 BrowseName = new QualifiedName(name, Ns),
                 DisplayName = new LocalizedText(name),
                 DataType = DataTypeIds.Double,
-                ValueRank = ValueRanks.Scalar,
+                ValueRank = ValueRanks.Scalar
             };
         }
 

@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("PagedVar"),
                 AccessLevel = AccessLevels.HistoryRead,
-                Historizing = true,
+                Historizing = true
             };
 
             var details = new ReadRawModifiedDetails
@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(5),
                 NumValuesPerNode = 10,
-                IsReadModified = false,
+                IsReadModified = false
             };
 
             ByteString cp = ByteString.Empty;
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 var nodeToRead = new HistoryReadValueId
                 {
                     NodeId = nodeId,
-                    ContinuationPoint = cp,
+                    ContinuationPoint = cp
                 };
                 var result = new HistoryReadResult();
 
@@ -138,7 +138,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = parentNodeId,
                 BrowseName = new QualifiedName("ParentVar"),
                 AccessLevel = AccessLevels.HistoryReadOrWrite,
-                Historizing = true,
+                Historizing = true
             };
 
             DateTime when = HarnessFixture.BaseTime.AddSeconds(5);
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 Message = "comment",
                 UserName = "tester",
-                AnnotationTime = when,
+                AnnotationTime = when
             };
 
             var insertDetails = new UpdateStructureDataDetails
@@ -155,8 +155,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Insert,
                 UpdateValues = new DataValue[]
                 {
-                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
-                },
+                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue)
+                }
             };
 
             var insertResult = new HistoryUpdateResult();
@@ -179,8 +179,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Remove,
                 UpdateValues = new DataValue[]
                 {
-                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
-                },
+                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue)
+                }
             };
 
             var removeResult = new HistoryUpdateResult();
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 Message = "via-direct-insert",
                 UserName = "tester",
-                AnnotationTime = when,
+                AnnotationTime = when
             };
             await h.Provider.InsertAnnotationsAsync(
                 insertContext, parentNodeId, [annotation], CancellationToken.None);
@@ -220,20 +220,20 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = parentNodeId,
                 BrowseName = new QualifiedName("ParentVar"),
                 AccessLevel = AccessLevels.HistoryRead,
-                Historizing = true,
+                Historizing = true
             };
 
             var details = new ReadRawModifiedDetails
             {
                 IsReadModified = false,
                 StartTime = HarnessFixture.BaseTime,
-                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1)
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = new NodeId("parent.var.Annotations", 1),
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();

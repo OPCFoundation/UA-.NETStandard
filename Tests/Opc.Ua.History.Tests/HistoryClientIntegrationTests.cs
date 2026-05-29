@@ -214,7 +214,7 @@ namespace Opc.Ua.History.Tests
             {
                 now.AddMinutes(-30),
                 now.AddMinutes(-20),
-                now.AddMinutes(-10),
+                now.AddMinutes(-10)
             };
 
             var values = new List<DataValue>();
@@ -319,7 +319,7 @@ namespace Opc.Ua.History.Tests
             {
                 baseTs,
                 baseTs.AddSeconds(1),
-                baseTs.AddSeconds(2),
+                baseTs.AddSeconds(2)
             };
 
             var insertValues = new DataValue[3];
@@ -368,7 +368,7 @@ namespace Opc.Ua.History.Tests
                 new(new Variant(20.0), StatusCodes.Good,
                     sourceTimestamp: ts1, serverTimestamp: ts1),
                 new(new Variant(30.0), StatusCodes.Good,
-                    sourceTimestamp: ts2, serverTimestamp: ts2),
+                    sourceTimestamp: ts2, serverTimestamp: ts2)
             };
 
             await client.InsertAsync(m_doubleNodeId, insertValues);

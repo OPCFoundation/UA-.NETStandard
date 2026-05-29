@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Historian
                 StartTime = startTime,
                 EndTime = endTime,
                 NumValuesPerNode = maxValuesPerNode,
-                ReturnBounds = returnBounds,
+                ReturnBounds = returnBounds
             };
 
             await foreach (DataValue value in ReadRawOrModifiedAsync(
@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.Historian
                 IsReadModified = true,
                 StartTime = startTime,
                 EndTime = endTime,
-                NumValuesPerNode = maxValuesPerNode,
+                NumValuesPerNode = maxValuesPerNode
             };
 
             await foreach (DataValue value in ReadRawOrModifiedAsync(
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.Historian
                 NodeId = nodeId,
                 IsDeleteModified = isDeleteModified,
                 StartTime = startTime,
-                EndTime = endTime,
+                EndTime = endTime
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Historian
             var details = new DeleteAtTimeDetails
             {
                 NodeId = nodeId,
-                ReqTimes = typed,
+                ReqTimes = typed
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -248,8 +248,8 @@ namespace Opc.Ua.Client.Historian
                         new()
                         {
                             NodeId = nodeId,
-                            ContinuationPoint = continuationPoint,
-                        },
+                            ContinuationPoint = continuationPoint
+                        }
                     };
 
                     HistoryReadResponse response = await Session.HistoryReadAsync(
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.Historian
                     {
                         var releaseNodes = new HistoryReadValueId[]
                         {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint },
+                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
                         };
                         _ = await Session.HistoryReadAsync(
                             null,
@@ -362,7 +362,7 @@ namespace Opc.Ua.Client.Historian
             {
                 NodeId = nodeId,
                 PerformInsertReplace = performUpdate,
-                UpdateValues = updateValues,
+                UpdateValues = updateValues
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(

@@ -353,7 +353,7 @@ namespace Opc.Ua.Server.Historian
                     BrowseName = browseName,
                     DisplayName = LocalizedText.From(BrowseNames.Annotations),
                     AccessLevel = historyAccessLevel,
-                    UserAccessLevel = historyAccessLevel,
+                    UserAccessLevel = historyAccessLevel
                 };
                 annotations.NodeId = annotations.NodeId.IsNull
                     ? new NodeId(variable.NodeId + "/Annotations", variable.NodeId.NamespaceIndex)

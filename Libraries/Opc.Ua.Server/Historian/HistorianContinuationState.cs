@@ -125,6 +125,6 @@ namespace Opc.Ua.Server.Historian
         Processed,
         AtTime,
         Annotations,
-        Events,
+        Events
     }
 }

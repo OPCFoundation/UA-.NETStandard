@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Historian
                 PerformUpdateType.Insert => await data.InsertAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Replace => await data.ReplaceAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Update => await data.UpdateAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count),
+                _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
             };
 
             result.OperationResults = ToStatusArray(statuses);
@@ -400,7 +400,7 @@ namespace Opc.Ua.Server.Historian
                         PercentDataGood = 100,
                         TreatUncertainAsBad = false,
                         UseSlopedExtrapolation = false,
-                        UseServerCapabilitiesDefaults = false,
+                        UseServerCapabilitiesDefaults = false
                     };
             }
 
@@ -411,7 +411,7 @@ namespace Opc.Ua.Server.Historian
                 StartTime = details.StartTime,
                 EndTime = details.EndTime,
                 ProcessingInterval = details.ProcessingInterval,
-                Configuration = config,
+                Configuration = config
             };
 
             // Native push-down path
@@ -459,7 +459,7 @@ namespace Opc.Ua.Server.Historian
                 EndTime = details.StartTime <= details.EndTime ? details.EndTime : details.StartTime,
                 MaxValues = 0,
                 IsForward = true,
-                ReturnBounds = true,
+                ReturnBounds = true
             };
 
             HistorianResumeToken token2 = default;
@@ -506,7 +506,7 @@ namespace Opc.Ua.Server.Historian
                 IndexRange = nodeToRead.ParsedIndexRange,
                 DataEncoding = nodeToRead.DataEncoding,
                 BufferedProcessedOutputs = values,
-                BufferedProcessedOffset = 0,
+                BufferedProcessedOffset = 0
             };
             EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
             return ServiceResult.Good;
@@ -618,7 +618,7 @@ namespace Opc.Ua.Server.Historian
                 {
                     NodeId = node.NodeId,
                     RequestedTimes = typedTimes,
-                    UseSimpleBounds = details.UseSimpleBounds,
+                    UseSimpleBounds = details.UseSimpleBounds
                 };
                 IList<DataValue> values = await atTime.ReadAtTimeAsync(
                     opContext, atTimeRequest, cancellationToken).ConfigureAwait(false);
@@ -719,7 +719,7 @@ namespace Opc.Ua.Server.Historian
                     StartTime = start,
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
-                    IsForward = isForward,
+                    IsForward = isForward
                 };
                 resumeToken = default;
             }
@@ -826,7 +826,7 @@ namespace Opc.Ua.Server.Historian
                     opContext, parentVariable.NodeId, annotationList, cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Remove => await annotations.DeleteAnnotationsAsync(
                     opContext, parentVariable.NodeId, times, cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count),
+                _ => RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count)
             };
 
             result.OperationResults = ToStatusArray(statuses);
@@ -886,7 +886,7 @@ namespace Opc.Ua.Server.Historian
                     AnnotationRequest = request,
                     TimestampsToReturn = timestampsToReturn,
                     IndexRange = indexRange,
-                    DataEncoding = dataEncoding,
+                    DataEncoding = dataEncoding
                 };
             }
 
@@ -969,7 +969,7 @@ namespace Opc.Ua.Server.Historian
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
                     IsForward = isForward,
-                    Filter = details.Filter,
+                    Filter = details.Filter
                 };
                 token = default;
             }
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Server.Historian
 
             result.HistoryData = new ExtensionObject(new HistoryEvent
             {
-                Events = fields,
+                Events = fields
             });
 
             SaveOrReleaseEventContinuation(
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Server.Historian
                     opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Update => await events.UpdateEventsAsync(
                     opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, decoded.Count),
+                _ => RepeatStatus(StatusCodes.BadInvalidArgument, decoded.Count)
             };
 
             result.OperationResults = ToStatusArray(statuses);
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Server.Historian
                     Kind = HistorianReadKind.Events,
                     ResumeToken = nextToken,
                     EventRequest = request,
-                    TimestampsToReturn = TimestampsToReturn.Source,
+                    TimestampsToReturn = TimestampsToReturn.Source
                 };
             }
 
@@ -1369,7 +1369,7 @@ namespace Opc.Ua.Server.Historian
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
                     IsForward = isForward,
-                    ReturnBounds = details.ReturnBounds,
+                    ReturnBounds = details.ReturnBounds
                 };
                 token = default;
             }
@@ -1434,7 +1434,7 @@ namespace Opc.Ua.Server.Historian
                     StartTime = start,
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
-                    IsForward = isForward,
+                    IsForward = isForward
                 };
                 token = default;
             }
@@ -1548,7 +1548,7 @@ namespace Opc.Ua.Server.Historian
                     ModifiedRequest = modifiedRequest,
                     TimestampsToReturn = timestampsToReturn,
                     IndexRange = indexRange,
-                    DataEncoding = dataEncoding ?? QualifiedName.Null,
+                    DataEncoding = dataEncoding ?? QualifiedName.Null
                 };
             }
 
@@ -1598,7 +1598,7 @@ namespace Opc.Ua.Server.Historian
             var data = new HistoryModifiedData
             {
                 DataValues = filtered,
-                ModificationInfos = modInfos,
+                ModificationInfos = modInfos
             };
             result.HistoryData = new ExtensionObject(data);
         }
@@ -1723,7 +1723,7 @@ namespace Opc.Ua.Server.Historian
                 EndTime = max,
                 MaxValues = 0,
                 IsForward = true,
-                ReturnBounds = true,
+                ReturnBounds = true
             };
 
             var collected = new List<DataValue>();
@@ -1831,7 +1831,7 @@ namespace Opc.Ua.Server.Historian
                 PerformUpdateType.Insert => HistoryUpdateType.Insert,
                 PerformUpdateType.Replace => HistoryUpdateType.Replace,
                 PerformUpdateType.Update => HistoryUpdateType.Update,
-                _ => HistoryUpdateType.Insert,
+                _ => HistoryUpdateType.Insert
             };
         }
 
