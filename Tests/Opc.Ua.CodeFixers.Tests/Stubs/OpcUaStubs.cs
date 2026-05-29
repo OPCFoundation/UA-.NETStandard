@@ -423,6 +423,18 @@ namespace Opc.Ua
         public EncodeableFactory Factory { get; } = new EncodeableFactory();
     }
 
+    // ─── Stubs for UA0021 (CertificateValidator / CertificateValidationEventArgs rename) ───
+    // The legacy types are kept here so the analyzer's "symbol-present + [Obsolete]" branch
+    // can be exercised. The 1.6 replacements (ICertificateManager, ICertificateValidatorEx,
+    // CertificateValidationResult) are stubbed to verify the analyzer does NOT fire on them.
+    [Obsolete("Use ICertificateManager (via CertificateManagerFactory.Create) instead. See MigrationGuide.md#ua0021.")]
+    public class CertificateValidator { }
+    [Obsolete("Use CertificateValidationResult returned from ICertificateValidatorEx.ValidateAsync instead. See MigrationGuide.md#ua0021.")]
+    public class CertificateValidationEventArgs : EventArgs { }
+    public interface ICertificateManager { }
+    public interface ICertificateValidatorEx { }
+    public class CertificateValidationResult { }
+
     // ─── OpcUaShim marker attribute and shim wrappers used by analyzer tests ───
     [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
     public sealed class OpcUaShimAttribute : Attribute

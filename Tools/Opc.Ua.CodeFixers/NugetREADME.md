@@ -52,6 +52,7 @@ ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
 | UA0018 | Info     | `CertificateIdentifier.Certificate` getter                                              |
 | UA0019 | Warning  | `new DataValue(StatusCode[, ts])`                                                       |
 | UA0020 | Warning  | `EncodeableFactory.GlobalFactory` / `Create()`                                          |
+| UA0021 | Info     | `CertificateValidator` / `CertificateValidationEventArgs` (structural rename in 1.6)    |
 
 ## What the shim provides
 
@@ -110,6 +111,12 @@ diagnostics from the failure set:
 
 Remove each entry as you finish fixing the corresponding rule, and drop the
 whole block once the CodeFixers package is removed.
+
+## Packaging note
+
+The analyzer DLL also hosts the matching `CodeFixProvider` types. This is a
+deliberate single-assembly design; `RS1038` (recommending separation) is
+suppressed at the project level via `<NoWarn>`.
 
 ## Suppression recipes
 

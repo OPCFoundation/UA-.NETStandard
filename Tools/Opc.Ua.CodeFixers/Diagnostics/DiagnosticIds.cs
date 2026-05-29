@@ -54,6 +54,7 @@ namespace Opc.Ua.CodeFixers.Diagnostics
         public const string UA0018 = "UA0018";
         public const string UA0019 = "UA0019";
         public const string UA0020 = "UA0020";
+        public const string UA0021 = "UA0021";
 
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";

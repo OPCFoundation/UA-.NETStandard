@@ -12,13 +12,25 @@
                  itself doesn't reference Workspaces types. -->
     <NoWarn>$(NoWarn);RS1007;RS1038</NoWarn>
   </PropertyGroup>
-  <!-- Package as analyzer + code-fix provider -->
+  <!-- Package as analyzer + code-fix provider + multi-TFM shim DLLs.
+       Layout is driven by Opc.Ua.CodeFixers.nuspec so we can declare the six
+       OPC UA NuGet dependencies without polluting Directory.Packages.props
+       (those packages are outputs of this repo, not inputs at restore time). -->
   <PropertyGroup>
     <PackageId>$(PackagePrefix).Opc.Ua.CodeFixers</PackageId>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <NoPackageAnalysis>true</NoPackageAnalysis>
     <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- Nuspec-based pack can't auto-author a snupkg from project sources;
+         the analyzer is shipped as a single DLL and consumers don't need symbols. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <NuspecFile>$(MSBuildThisFileDirectory)Opc.Ua.CodeFixers.nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildThisFileDirectory)</NuspecBasePath>
+    <!-- NuspecProperties is materialized in _SetCodeFixersNuspecProperties below,
+         after Nerdbank.GitVersioning has populated $(PackageVersion). Setting it
+         here in a static PropertyGroup would capture empty version. -->
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
@@ -31,19 +43,36 @@
     <InternalsVisibleTo Include="Opc.Ua.CodeFixers.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Pack the build props so consumers wire up help links and configuration. -->
-    <None Include="OPCFoundation.Opc.Ua.CodeFixers.props" Visible="false" Pack="true" PackagePath="build" />
+    <!-- The build props is referenced in the nuspec; surface it in the IDE too. -->
+    <None Include="OPCFoundation.Opc.Ua.CodeFixers.props" Visible="false" Pack="false" />
     <!-- Roslyn release tracking files. -->
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
-  <!-- Pack the analyzer DLL into the analyzers/dotnet/cs folder so consumers auto-load it. -->
-  <Target Name="_AddAnalyzerToPackage">
-    <ItemGroup>
-      <TfmSpecificPackageFile Include="$(OutputPath)$(AssemblyName).dll" PackagePath="analyzers/dotnet/cs/" />
-    </ItemGroup>
+  <!-- A ProjectReference is the simplest way to make NuGet restore the shim's
+       assets file. We mark it as a build-only dependency (no compile reference,
+       no transitive flow). The actual multi-TFM build happens in the target below. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.CodeFixers.Shim\Opc.Ua.CodeFixers.Shim.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- Ensure the multi-TFM shim is built (all TFMs) before pack consumes its DLLs.
+       The ProjectReference above only triggers a build of the single closest TFM;
+       invoking the shim's outer build here materializes every TFM under
+       bin\$(Configuration)\<tfm>\ that the nuspec <files> entries reference. -->
+  <Target Name="_BuildShimAllTfmsBeforePack" BeforeTargets="GenerateNuspec">
+    <MSBuild Projects="..\Opc.Ua.CodeFixers.Shim\Opc.Ua.CodeFixers.Shim.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
   </Target>
-  <PropertyGroup>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_AddAnalyzerToPackage</TargetsForTfmSpecificContentInPackage>
-  </PropertyGroup>
+  <!-- Populate NuspecProperties after $(PackageVersion) is materialized (NBGV runs
+       inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
+  <Target Name="_SetCodeFixersNuspecProperties" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.CodeFixers.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.CodeFixers.Shim\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.Opc.Ua.CodeFixers.props</NuspecProperties>
+    </PropertyGroup>
+  </Target>
 </Project>
