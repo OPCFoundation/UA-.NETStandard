@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             IList<StatusCode> statuses = await provider.InsertAtomicAsync(
-                context, nodeId, values, CancellationToken.None);
+                context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
             foreach (StatusCode sc in statuses)
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // Pre-existing entry at t=2 — will collide with the atomic insert below.
             await provider.InsertAsync(context, nodeId,
-                [MakeValue(BaseTime.AddSeconds(2), 99.0)], CancellationToken.None);
+                [MakeValue(BaseTime.AddSeconds(2), 99.0)], CancellationToken.None).ConfigureAwait(false);
 
             var batch = new List<DataValue>
             {
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             IList<StatusCode> statuses = await provider.InsertAtomicAsync(
-                context, nodeId, batch, CancellationToken.None);
+                context, nodeId, batch, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
             Assert.That(statuses[1].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
@@ -112,7 +112,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     IsForward = true
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(1),
                 "Only the pre-existing value should remain; rollback discarded the rest.");

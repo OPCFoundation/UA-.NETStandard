@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     details,
                     TimestampsToReturn.Source,
                     result,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(ServiceResult.IsGood(error), Is.True);
 
@@ -166,7 +166,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 parent,
                 insertDetails,
                 insertResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(insertError), Is.True);
             Assert.That(insertResult.OperationResults, Has.Count.EqualTo(1));
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 parent,
                 removeDetails,
                 removeResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(removeError), Is.True);
             Assert.That(removeResult.OperationResults, Has.Count.EqualTo(1));
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 AnnotationTime = when
             };
             await h.Provider.InsertAnnotationsAsync(
-                insertContext, parentNodeId, [annotation], CancellationToken.None);
+                insertContext, parentNodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
             var parent = new BaseDataVariableState(null)
             {
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 result,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(
