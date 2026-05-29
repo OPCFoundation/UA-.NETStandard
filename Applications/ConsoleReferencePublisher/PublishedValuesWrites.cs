@@ -349,11 +349,11 @@ namespace Quickstarts.ConsoleReferencePublisher
         )
         {
             // Read value to be incremented
-            DataValue? dataValue = m_dataStore.ReadPublishedDataItem(
+            if (!m_dataStore.TryReadPublishedDataItem(
                 new NodeId(variable.Name!, namespaceIndex),
-                Attributes.Value
-            );
-            if (dataValue == null || dataValue.WrappedValue.IsNull)
+                Attributes.Value,
+                out DataValue dataValue) ||
+                dataValue.WrappedValue.IsNull)
             {
                 return;
             }
@@ -367,7 +367,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
                         bool boolValue = (bool)dataValue.WrappedValue.ConvertToBoolean();
-                        dataValue.WrappedValue = !boolValue;
+                        dataValue = dataValue.WithWrappedValue(!boolValue);
                         valueUpdated = true;
                     }
                     break;
@@ -375,7 +375,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
                         byte byteValue = (byte)dataValue.WrappedValue.ConvertToByte();
-                        dataValue.WrappedValue = (byte)(byteValue + 1);
+                        dataValue = dataValue.WithWrappedValue((byte)(byteValue + 1));
                         valueUpdated = true;
                     }
                     break;
@@ -384,7 +384,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         int intIdentifier = (short)dataValue.WrappedValue.ConvertToInt16();
                         Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
-                        dataValue.WrappedValue = (short)Interlocked.Increment(ref intIdentifier);
+                        dataValue = dataValue.WithWrappedValue((short)Interlocked.Increment(ref intIdentifier));
                         valueUpdated = true;
                     }
                     break;
@@ -400,7 +400,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                         {
                             int32Value = 0;
                         }
-                        dataValue.WrappedValue = Interlocked.Increment(ref int32Value);
+                        dataValue = dataValue.WithWrappedValue(Interlocked.Increment(ref int32Value));
                         valueUpdated = true;
                     }
                     break;
@@ -409,7 +409,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         int intIdentifier = (sbyte)dataValue.WrappedValue.ConvertToSByte();
                         Interlocked.CompareExchange(ref intIdentifier, 0, sbyte.MaxValue);
-                        dataValue.WrappedValue = (sbyte)Interlocked.Increment(ref intIdentifier);
+                        dataValue = dataValue.WithWrappedValue((sbyte)Interlocked.Increment(ref intIdentifier));
                         valueUpdated = true;
                     }
                     break;
@@ -418,7 +418,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         int intIdentifier = dataValue.WrappedValue.ConvertToUInt16().GetUInt16();
                         Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
-                        dataValue.WrappedValue = (ushort)Interlocked.Increment(ref intIdentifier);
+                        dataValue = dataValue.WithWrappedValue((ushort)Interlocked.Increment(ref intIdentifier));
                         valueUpdated = true;
                     }
                     break;
@@ -427,7 +427,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         long longIdentifier = dataValue.WrappedValue.ConvertToUInt32().GetUInt32();
                         Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
-                        dataValue.WrappedValue = (uint)Interlocked.Increment(ref longIdentifier);
+                        dataValue = dataValue.WithWrappedValue((uint)Interlocked.Increment(ref longIdentifier));
                         valueUpdated = true;
                     }
                     else if (variable.ValueRank == ValueRanks.OneDimension)
@@ -441,7 +441,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                                 Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
                                 valuesList[i] = (uint)Interlocked.Increment(ref longIdentifier);
                             }
-                            dataValue.WrappedValue = valuesList.ToArrayOf();
+                            dataValue = dataValue.WithWrappedValue(valuesList.ToArrayOf());
                             valueUpdated = true;
                         }
                     }
@@ -452,7 +452,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                         ulong uint64Value = (ulong)dataValue.WrappedValue.ConvertToUInt64();
                         float longIdentifier = uint64Value + 1;
                         Interlocked.CompareExchange(ref longIdentifier, 0, ulong.MaxValue);
-                        dataValue.WrappedValue = (ulong)longIdentifier;
+                        dataValue = dataValue.WithWrappedValue((ulong)longIdentifier);
                         valueUpdated = true;
                     }
                     break;
@@ -461,7 +461,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         float floatValue = (float)dataValue.WrappedValue.ConvertToFloat();
                         Interlocked.CompareExchange(ref floatValue, 0, float.MaxValue);
-                        dataValue.WrappedValue = floatValue + 1;
+                        dataValue = dataValue.WithWrappedValue(floatValue + 1);
                         valueUpdated = true;
                     }
                     break;
@@ -470,21 +470,21 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         double doubleValue = (double)dataValue.WrappedValue.ConvertToDouble();
                         Interlocked.CompareExchange(ref doubleValue, 0, double.MaxValue);
-                        dataValue.WrappedValue = doubleValue + 1;
+                        dataValue = dataValue.WithWrappedValue(doubleValue + 1);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.DateTime:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        dataValue.WrappedValue = DateTimeUtc.Now;
+                        dataValue = dataValue.WithWrappedValue(DateTimeUtc.Now);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Guid:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        dataValue.WrappedValue = Uuid.NewUuid();
+                        dataValue = dataValue.WithWrappedValue(Uuid.NewUuid());
                         valueUpdated = true;
                     }
                     break;
@@ -493,7 +493,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) %
                             m_aviationAlphabet.Length;
-                        dataValue.WrappedValue = m_aviationAlphabet[m_aviationAlphabetIndex];
+                        dataValue = dataValue.WithWrappedValue(m_aviationAlphabet[m_aviationAlphabetIndex]);
                         valueUpdated = true;
                     }
                     break;

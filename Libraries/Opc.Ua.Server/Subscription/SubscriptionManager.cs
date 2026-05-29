@@ -199,8 +199,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void RaiseSubscriptionEvent(ISubscription subscription, bool deleted)
         {
-            SubscriptionEventHandler? handler = null;
-
+            SubscriptionEventHandler? handler;
             lock (m_eventLock)
             {
                 handler = m_SubscriptionCreated;
@@ -506,7 +505,7 @@ namespace Opc.Ua.Server
             // remove the expired subscription status change notifications for this session
             lock (m_statusMessagesLock)
             {
-                if (m_statusMessages.TryGetValue(sessionId, out Queue<StatusMessage>? statusQueue))
+                if (m_statusMessages.TryGetValue(sessionId, out _))
                 {
                     m_statusMessages.Remove(sessionId);
                 }

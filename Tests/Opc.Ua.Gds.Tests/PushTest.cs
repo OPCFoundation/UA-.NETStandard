@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -46,6 +46,7 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using OpcUa = Opc.Ua;
+
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -471,7 +472,6 @@ namespace Opc.Ua.Gds.Tests
 
             return ExpandedNodeId.ToNodeId(groups[3].NodeId, m_pushClient.PushClient.Session.NamespaceUris);
         }
-
 
         [Test]
         [Order(301)]
@@ -932,7 +932,8 @@ namespace Opc.Ua.Gds.Tests
                     .CreateApplicationCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
-                        m_selfSignedServerCert.Subject + "1")
+                        m_selfSignedServerCert.Subject + "1",
+                        m_domainNames)
                     .SetECCurve(curve.Value)
                     .CreateForECDsa();
             }
@@ -943,7 +944,8 @@ namespace Opc.Ua.Gds.Tests
                     .CreateApplicationCertificate(
                         m_applicationRecord.ApplicationUri,
                         m_applicationRecord.ApplicationNames[0].Text,
-                        m_selfSignedServerCert.Subject + "1")
+                        m_selfSignedServerCert.Subject + "1",
+                        m_domainNames)
                     .CreateForRSA();
             }
 
@@ -1540,8 +1542,8 @@ namespace Opc.Ua.Gds.Tests
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IncludeSubtypes = true,
-                NodeClassMask = (uint) NodeClass.Object,
-                ResultMask = (uint) BrowseResultMask.All,
+                NodeClassMask = (uint)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
             };
 
             BrowseResponse results = await m_pushClient.PushClient.Session.BrowseAsync(

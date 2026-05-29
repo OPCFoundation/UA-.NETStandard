@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using ISession = Opc.Ua.Client.ISession;
-
 namespace Opc.Ua.Client.Roles
 {
     /// <summary>

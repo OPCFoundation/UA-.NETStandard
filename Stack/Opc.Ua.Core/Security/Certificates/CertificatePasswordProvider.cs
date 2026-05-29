@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -181,11 +181,16 @@ namespace Opc.Ua
             {
                 // The store hands out per-call ISecret views over a
                 // private byte[] copy; SetAsync on InMemorySecretStore
-                // completes synchronously so blocking is safe here.
+                // completes synchronously. Asserting the sync completion
+                // keeps this constructor genuinely non-blocking: any
+                // pluggable ISecretStore that needs to await must be
+                // initialised via a separate async factory.
                 System.Threading.Tasks.ValueTask vt = store.SetAsync(id, passwordBytes);
                 if (!vt.IsCompletedSuccessfully)
                 {
-                    vt.AsTask().GetAwaiter().GetResult();
+                    throw new InvalidOperationException(
+                        "InMemorySecretStore.SetAsync did not complete synchronously; " +
+                        "asynchronous secret stores require an async CertificatePasswordProvider factory.");
                 }
             }
 

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua.WotCon.Server.Assets
@@ -51,19 +50,20 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         public IWotAssetProvider? Provider { get; set; }
 
-        /// <summary>Variables created from TD properties keyed by NodeId.</summary>
-        public Dictionary<NodeId, (BaseDataVariableState Variable, WotPropertyTag Tag)> Properties { get; }
-            = new Dictionary<NodeId, (BaseDataVariableState, WotPropertyTag)>();
+        /// <summary>
+        /// Variables created from TD properties keyed by NodeId.
+        /// </summary>
+        public Dictionary<NodeId, (BaseDataVariableState Variable, WotPropertyTag Tag)> Properties { get; } = [];
 
-        /// <summary>Methods created from TD actions keyed by NodeId.</summary>
-        public Dictionary<NodeId, (MethodState Method, WotActionTag Tag)> Actions { get; }
-            = new Dictionary<NodeId, (MethodState, WotActionTag)>();
+        /// <summary>
+        /// Methods created from TD actions keyed by NodeId.
+        /// </summary>
+        public Dictionary<NodeId, (MethodState Method, WotActionTag Tag)> Actions { get; } = [];
 
         /// <summary>
         /// Active observation callbacks keyed by monitored-item id, used to
         /// route value changes from the provider back to the right variable.
         /// </summary>
-        public Dictionary<uint, OnWotValueChange> SubscriberCallbacks { get; }
-            = new Dictionary<uint, OnWotValueChange>();
+        public Dictionary<uint, OnWotValueChange> SubscriberCallbacks { get; } = [];
     }
 }

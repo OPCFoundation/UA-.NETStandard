@@ -29,14 +29,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Server.UserManagement;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -54,7 +56,7 @@ namespace Quickstarts.ReferenceServer
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
     /// </para>
     /// </remarks>
-    public class ReferenceServer : ReverseConnectServer
+    public partial class ReferenceServer : ReverseConnectServer
     {
         /// <summary>
         /// Create reference server
@@ -84,6 +86,8 @@ namespace Quickstarts.ReferenceServer
                 "CertificateAuthorityAdmin",
                 Encoding.UTF8.GetBytes("demo"),
                 [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, Role.AuthenticatedUser]);
+
+            m_userManagement = new UserManagement(m_userDatabase, new Opc.Ua.Range(256, 1));
         }
 
         /// <summary>
@@ -102,6 +106,11 @@ namespace Quickstarts.ReferenceServer
         /// and requires authenticated user access for certificate provisioning
         /// </summary>
         public bool ProvisioningMode { get; set; }
+
+        /// <summary>
+        /// The user database used for credential verification and user management.
+        /// </summary>
+        public IUserDatabase UserDatabase => m_userDatabase;
 
         /// <summary>
         /// If true, the server creates the FileSystem node manager that
@@ -162,6 +171,7 @@ namespace Quickstarts.ReferenceServer
                         UseSamplingGroupsInReferenceNodeManager);
 #pragma warning restore CA2000
                     asyncNodeManagers = [referenceNodeManager];
+                    m_referenceNodeManager = referenceNodeManager;
                     referenceNodeManager = null;
                 }
                 finally
@@ -190,7 +200,7 @@ namespace Quickstarts.ReferenceServer
                 // Server.FileSystem object (i=16314).
                 Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
                     FileSystemProvider ?? CreateDefaultFileSystemProvider();
-                nodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
+                asyncNodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
                     server, configuration, provider));
             }
 
@@ -208,6 +218,8 @@ namespace Quickstarts.ReferenceServer
             // AliasNameNodeManager configured with their own namespace.
             ConfigureAliasNameStore(server);
 
+            ServerInternal.SetUserManagement(m_userManagement);
+
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
@@ -219,12 +231,12 @@ namespace Quickstarts.ReferenceServer
             }
 
             var tagVariables = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                Opc.Ua.ObjectIds.TagVariables,
-                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.TagVariables),
+                ObjectIds.TagVariables,
+                QualifiedName.From(BrowseNames.TagVariables),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
             var topics = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                Opc.Ua.ObjectIds.Topics,
-                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Topics),
+                ObjectIds.Topics,
+                QualifiedName.From(BrowseNames.Topics),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
 
             // Root the Aliases (i=23470) object too so FindAlias /
@@ -239,12 +251,12 @@ namespace Quickstarts.ReferenceServer
             // so this is a server-side capability only and does not
             // expose mutation methods over the wire on the standard node.
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
-                Opc.Ua.ObjectIds.Aliases,
-                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
-                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
+                ObjectIds.Aliases,
+                QualifiedName.From(BrowseNames.Aliases),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory |
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
                 subCategories: [tagVariables, topics]);
 
             // CA2000: ownership transferred to the registry which disposes
@@ -260,7 +272,7 @@ namespace Quickstarts.ReferenceServer
                 ? (ushort)refServerNsIndex
                 : ushort.MaxValue;
 
-            NodeId aliasFor = Opc.Ua.ReferenceTypeIds.AliasFor;
+            NodeId aliasFor = ReferenceTypeIds.AliasFor;
 
             if (refServerNs != ushort.MaxValue)
             {
@@ -280,10 +292,10 @@ namespace Quickstarts.ReferenceServer
                     new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
             }
 
-            store.Seed(Opc.Ua.ObjectIds.Topics, "ServerEvents",
-                Opc.Ua.ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
-            store.Seed(Opc.Ua.ObjectIds.Topics, "AuditEvents",
-                new ExpandedNodeId(Opc.Ua.ObjectTypes.AuditEventType),
+            store.Seed(ObjectIds.Topics, "ServerEvents",
+                ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
+            store.Seed(ObjectIds.Topics, "AuditEvents",
+                new ExpandedNodeId(ObjectTypes.AuditEventType),
                 serverUri: null, referenceTypeId: aliasFor);
 
             provider.AliasNameStoreRegistry.Register(store);
@@ -293,10 +305,25 @@ namespace Quickstarts.ReferenceServer
                 string name,
                 ExpandedNodeId target)
             {
-                store.Seed(Opc.Ua.ObjectIds.TagVariables, name, target,
+                store.Seed(ObjectIds.TagVariables, name, target,
                     serverUri: null,
-                    referenceTypeId: Opc.Ua.ReferenceTypeIds.AliasFor);
+                    referenceTypeId: ReferenceTypeIds.AliasFor);
             }
+        }
+
+        /// <summary>
+        /// Overrides the SDK default factory to plug in a
+        /// reference-server-specific <see cref="ConfigurationNodeManager"/>
+        /// that applies a few CTT-only address-space tweaks (Server-node
+        /// RolePermissions, HasAddIn instance, optional EngineeringUnits
+        /// on AnalogItemType). Keeping these out of the SDK avoids
+        /// polluting the standard nodeset for non-CTT hosts.
+        /// </summary>
+        protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new ReferenceServerMainNodeManagerFactory(configuration, server);
         }
 
         /// <summary>
@@ -304,7 +331,7 @@ namespace Quickstarts.ReferenceServer
         /// rooted at a per-process temp folder. Override
         /// <see cref="FileSystemProvider"/> to mount a different backend.
         /// </summary>
-        private static Opc.Ua.Server.FileSystem.IFileSystemProvider CreateDefaultFileSystemProvider()
+        private static Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider CreateDefaultFileSystemProvider()
         {
             string root = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
@@ -580,29 +607,42 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            if (m_userDatabase.CheckCredentials(userName, password))
+            if (!m_userDatabase.CheckCredentials(userName, password))
             {
-                var userIdentity = new UserIdentity(userTokenHandler);
-                ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
-                return new RoleBasedIdentity(
-                    userIdentity,
-                    roles,
-                    ServerInternal.MessageContext.NamespaceUris);
+                // construct translation object with default text.
+                var info = new TranslationInfo(
+                    "InvalidPassword",
+                    "en-US",
+                    "Invalid username or password.",
+                    userName);
+
+                // create an exception with a vendor defined sub-code.
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        LoadServerProperties().ProductUri,
+                        new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
+                        new LocalizedText(info)));
             }
 
-            // construct translation object with default text.
-            var info = new TranslationInfo(
-                "InvalidPassword",
-                "en-US",
-                "Invalid username or password.",
-                userName);
+            ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
+            var identity = new UserIdentity(userTokenHandler);
+            try
+            {
+                if (roles != null && roles.Contains(Role.SecurityAdmin))
+                {
+                    return new SystemConfigurationIdentity(identity);
+                }
 
-            // create an exception with a vendor defined sub-code.
-            throw new ServiceResultException(
-                new ServiceResult(
-                    LoadServerProperties().ProductUri,
-                    new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
-                    new LocalizedText(info)));
+                return new RoleBasedIdentity(
+                    identity,
+                    roles ?? [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
+            }
+            catch
+            {
+                // UserIdentity is no longer IDisposable; nothing to release.
+                throw;
+            }
         }
 
         /// <summary>
@@ -739,7 +779,22 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_userManagement.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
         private CertificateManager? m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
+        // CA2213: ownership transferred to MasterNodeManager which disposes child node managers on shutdown.
+#pragma warning disable CA2213
+        private ReferenceNodeManager? m_referenceNodeManager;
+#pragma warning restore CA2213
+        private readonly UserManagement m_userManagement;
     }
 }

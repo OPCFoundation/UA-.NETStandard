@@ -34,8 +34,10 @@ using System.Linq;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Core.Tests.Types.Encoders;
+using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Test;
+
+using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -366,7 +368,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case XmlElement x:
                     return new ExtensionObject(nodeId, x);
                 case IEncodeable e:
-                    return new ExtensionObject(e, true);
+                    return new ExtensionObject(nodeId, e, true);
                 default:
                     throw new ArgumentException(
                         $"Unsupported data type {data.GetType()}" +

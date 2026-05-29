@@ -58,7 +58,10 @@ namespace Opc.Ua.Server
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </para>
     /// </remarks>
-    public class ServerInternalData : IServerInternal, AliasNames.IAliasNameStoreRegistryProvider
+    public class ServerInternalData :
+        IServerInternal,
+        AliasNames.IAliasNameStoreRegistryProvider,
+        Historian.IHistorianRegistryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -92,6 +95,7 @@ namespace Opc.Ua.Server
 
             ServerUris = new StringTable();
             TypeTree = new TypeTable(NamespaceUris);
+            HistorianRegistry = new Historian.HistorianProviderRegistry(NamespaceUris);
 
             // add the server uri to the server table.
             ServerUris.Append(m_configuration.ApplicationUri!);
@@ -129,6 +133,7 @@ namespace Opc.Ua.Server
                 SubscriptionManager?.Dispose();
                 MonitoredItemQueueFactory?.Dispose();
                 (AliasNameStoreRegistry as IDisposable)?.Dispose();
+                (HistorianRegistry as IDisposable)?.Dispose();
             }
         }
 
@@ -143,6 +148,15 @@ namespace Opc.Ua.Server
             = new AliasNames.AliasNameStoreRegistry();
 
         /// <summary>
+        /// The server-wide registry of Part 11 historian providers.
+        /// Surfaces through the optional
+        /// <see cref="Historian.IHistorianRegistryProvider"/> interface so
+        /// consumers can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public Historian.IHistorianProviderRegistry HistorianRegistry { get; }
+
+        /// <summary>
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
@@ -152,7 +166,7 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
-        public Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; private set; }
+        public UserManagement.IUserManagement? UserManagement { get; private set; }
 
         /// <summary>
         /// The subscription manager to use with the server.
@@ -253,12 +267,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void SetRoleManager(IRoleManager roleManager)
         {
-            if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
-            RoleManager = roleManager;
+            RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         }
 
         /// <inheritdoc/>
-        public void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement)
+        public void SetUserManagement(UserManagement.IUserManagement userManagement)
         {
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
         }
@@ -535,6 +548,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        [Obsolete("Use CloseSessionAsync instead.")]
         public void CloseSession(
             OperationContext context,
             NodeId sessionId,
@@ -699,6 +713,19 @@ namespace Opc.Ua.Server
             serverCapabilities.MaxSubscriptions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
+            // Expose MaxSubscriptionsPerSession (optional property
+            // on ServerCapabilitiesType per Part 5 §6.3) so clients that
+            // enumerate per-session limits get a defined value instead of a
+            // missing-attribute response. Use the configured global
+            // MaxSubscriptionCount as the per-session ceiling — the SDK
+            // doesn't track per-session limits separately at this layer.
+            if (serverCapabilities.MaxSubscriptionsPerSession == null)
+            {
+                serverCapabilities.AddMaxSubscriptionsPerSession(DefaultSystemContext);
+            }
+            serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
+                m_configuration.ServerConfiguration.MaxSubscriptionCount);
+
             // Any operational limits Property that is provided shall have a non zero value.
             OperationLimitsState? operationLimits = serverCapabilities.OperationLimits;
             OperationLimits configOperationLimits = m_configuration.ServerConfiguration
@@ -859,7 +886,7 @@ namespace Opc.Ua.Server
 
             var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
             configurationNodeManager?.CreateServerConfiguration(
-                DefaultSystemContext,
+                    DefaultSystemContext,
                 m_configuration);
 
             // Initialize history capabilities and update Server EventNotifier accordingly
@@ -871,23 +898,6 @@ namespace Opc.Ua.Server
             auditing!.OnSimpleWriteValue += OnWriteAuditing;
             auditing.OnSimpleReadValue += OnReadAuditing;
             auditing.Value = Auditing;
-            auditing.RolePermissions =
-            [
-                new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
-                    },
-                    new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                        Permissions = (uint)(
-                            PermissionType.Browse |
-                            PermissionType.Write |
-                            PermissionType.ReadRolePermissions |
-                            PermissionType.Read)
-                    }
-            ];
             auditing.AccessLevel = AccessLevels.CurrentRead;
             auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             auditing.MinimumSamplingInterval = 1000;

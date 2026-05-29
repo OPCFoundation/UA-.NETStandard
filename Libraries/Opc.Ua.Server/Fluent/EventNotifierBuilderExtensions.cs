@@ -82,6 +82,12 @@ namespace Opc.Ua.Server.Fluent
         /// the items as <c>BaseEventState</c> through
         /// <c>ReportEvent</c>.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeBuilder"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="factory"/> is null.
+        /// </exception>
         public static INodeBuilder<TNotifier> Publish<TNotifier, TEvent>(
             this INodeBuilder<TNotifier> nodeBuilder,
             Func<TNotifier, ISystemContext, CancellationToken, IAsyncEnumerable<TEvent>> factory,
@@ -127,6 +133,12 @@ namespace Opc.Ua.Server.Fluent
         /// Event payload type. Must derive from
         /// <see cref="BaseEventState"/>.
         /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeBuilder"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="source"/> is null.
+        /// </exception>
         public static INodeBuilder<TNotifier> Publish<TNotifier, TEvent>(
             this INodeBuilder<TNotifier> nodeBuilder,
             IAsyncEnumerable<TEvent> source,

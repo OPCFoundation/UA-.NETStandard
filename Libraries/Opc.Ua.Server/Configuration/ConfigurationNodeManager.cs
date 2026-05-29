@@ -187,7 +187,8 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).ConfigureAwait(false);
+                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
+                                    .ConfigureAwait(false);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
                             // remove the reference to server node because it is set as parent
@@ -292,6 +293,8 @@ namespace Opc.Ua.Server
                 m_serverConfigurationNode = null;
                 m_userManagementBinding?.Dispose();
                 m_userManagementBinding = null;
+
+                StopAlarmMonitoring();
             }
 
             base.Dispose(disposing);
@@ -326,6 +329,12 @@ namespace Opc.Ua.Server
                 UpdateCertificateAsync);
             configNode.CreateSigningRequest!.OnCallAsync =
                 new CreateSigningRequestMethodStateMethodAsyncCallHandler(CreateSigningRequestAsync);
+            if (configNode.CreateSelfSignedCertificate != null)
+            {
+                configNode.CreateSelfSignedCertificate.OnCallAsync =
+                    new CreateSelfSignedCertificateMethodStateMethodAsyncCallHandler(
+                        CreateSelfSignedCertificateAsync);
+            }
             configNode.ApplyChanges!.OnCallMethod2
                 = new GenericMethodCalledEventHandler2(ApplyChanges);
             configNode.GetRejectedList!.OnCall
@@ -351,6 +360,14 @@ namespace Opc.Ua.Server
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
+            // OPC 10000-12 §7.8.3: populate the optional alarm property
+            // values (ExpirationDate, TrustListId, LastUpdateTime) from
+            // the current certificate and CRL state. Active-state
+            // transitions (SetActiveState) are not performed during
+            // CreateAddressSpace to avoid event-notification issues before
+            // the subscription infrastructure is ready.
+            EvaluateCertificateAlarms(systemContext);
+
             // find ServerNamespaces node and subscribe to StateChanged
 
             if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
@@ -375,15 +392,22 @@ namespace Opc.Ua.Server
             if (Server is IServerInternal serverInternal && serverInternal.UserManagement != null)
             {
                 m_userManagementBinding?.Dispose();
-                m_userManagementBinding = Opc.Ua.Server.UserManagement.UserManagementBinding.Bind(
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
                     this,
                     serverInternal.UserManagement,
                     serverInternal.SessionManager);
             }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
+                    .AsTask().GetAwaiter().GetResult();
+            }
         }
 
         ///<inheritdoc/>
-        public NamespaceMetadataState? GetNamespaceMetadataState(string namespaceUri)
+        public async ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
             if (namespaceUri == null)
             {
@@ -400,8 +424,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceMetadataState? namespaceMetadataState = FindNamespaceMetadataState(
-                namespaceUri);
+            NamespaceMetadataState? namespaceMetadataState = await FindNamespaceMetadataStateAsync(
+                namespaceUri, cancellationToken).ConfigureAwait(false);
 
             lock (m_namespaceMetadataStatesLock)
             {
@@ -413,7 +437,7 @@ namespace Opc.Ua.Server
         }
 
         ///<inheritdoc/>
-        public NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex)
+        public async ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(ushort namespaceIndex, CancellationToken cancellationToken = default)
         {
             lock (m_namespaceMetadataStatesLock)
             {
@@ -426,7 +450,7 @@ namespace Opc.Ua.Server
             }
 
             string? namespaceUri = Server.NamespaceUris.GetString(namespaceIndex);
-            NamespaceMetadataState? namespaceMetadataState = GetNamespaceMetadataState(namespaceUri!);
+            NamespaceMetadataState? namespaceMetadataState = await GetNamespaceMetadataStateAsync(namespaceUri!, cancellationToken).ConfigureAwait(false);
 
             lock (m_namespaceMetadataStatesLock)
             {
@@ -439,8 +463,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<NamespaceMetadataState> CreateNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
-            NamespaceMetadataState? namespaceMetadataState = FindNamespaceMetadataState(
-                namespaceUri);
+            NamespaceMetadataState? namespaceMetadataState = await FindNamespaceMetadataStateAsync(
+                namespaceUri, cancellationToken).ConfigureAwait(false);
 
             if (namespaceMetadataState == null)
             {
@@ -533,6 +557,12 @@ namespace Opc.Ua.Server
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
+            // OPC 10000-12 §7.10.3: the private key is sensitive material;
+            // it must not be persisted into the
+            // CertificateUpdateRequested / CertificateUpdated audit events.
+            // The audit payload still reflects the public-key certificate,
+            // issuer chain and key format so administrators can correlate
+            // the request without exposing the secret.
             ArrayOf<Variant> inputArguments =
             [
                 certificateGroupId,
@@ -540,7 +570,7 @@ namespace Opc.Ua.Server
                 certificate,
                 issuerCertificates,
                 privateKeyFormat!,
-                privateKey
+                Opc.Ua.Server.AuditEvents.RedactedPrivateKey
             ];
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
@@ -1085,6 +1115,125 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Creates a new self-signed certificate per OPC 10000-12 §7.10.6.
+        /// The server generates a key pair internally, builds a self-signed
+        /// certificate with the requested subject / DNS / IP and lifetime,
+        /// stores it, and returns the DER-encoded public certificate.
+        /// </summary>
+        private ValueTask<CreateSelfSignedCertificateMethodStateResult>
+            CreateSelfSignedCertificateAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> dnsNames,
+            ArrayOf<string> ipAddresses,
+            ushort lifetimeInDays,
+            ushort keySizeInBits,
+            CancellationToken cancellationToken)
+        {
+            HasApplicationSecureAdminAccess(context);
+
+            ServerCertificateGroup? certificateGroup = VerifyGroupAndTypeId(
+                certificateGroupId,
+                certificateTypeId);
+
+            if (string.IsNullOrEmpty(subjectName))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "SubjectName must be provided.");
+            }
+
+            if (lifetimeInDays == 0)
+            {
+                lifetimeInDays = CertificateFactory.DefaultLifeTime;
+            }
+
+            // merge DNS names and IP addresses into one domain list
+            var domainNames = new List<string>();
+            if (!dnsNames.IsNull)
+            {
+                foreach (string dns in dnsNames)
+                {
+                    if (!string.IsNullOrEmpty(dns))
+                    {
+                        domainNames.Add(dns);
+                    }
+                }
+            }
+            if (!ipAddresses.IsNull)
+            {
+                foreach (string ip in ipAddresses)
+                {
+                    if (!string.IsNullOrEmpty(ip))
+                    {
+                        domainNames.Add(ip);
+                    }
+                }
+            }
+
+            ICertificateBuilder builder = s_certificateFactory
+                .CreateApplicationCertificate(
+                    m_configuration.ApplicationUri!,
+                    m_configuration.ApplicationName!,
+                    subjectName,
+                    [.. domainNames])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddDays(lifetimeInDays));
+
+            Certificate certificate;
+            if (certificateTypeId.IsNull ||
+                certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                ushort keySize = keySizeInBits > 0
+                    ? keySizeInBits
+                    : CertificateFactory.DefaultKeySize;
+                certificate = builder.SetRSAKeySize(keySize).CreateForRSA();
+            }
+            else
+            {
+                ECCurve? curve =
+                    CryptoUtils.GetCurveFromCertificateTypeId(certificateTypeId)
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The ECC certificate type is not supported.");
+                certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
+            }
+
+            // persist the new self-signed certificate into the group's
+            // configured store so it survives restarts and becomes the
+            // active application certificate.
+            CertificateIdentifier? existingIdent = certificateGroup!.ApplicationCertificates
+                .ToList()
+                .FirstOrDefault(c => c.CertificateType == certificateTypeId);
+
+            if (existingIdent != null)
+            {
+                existingIdent.RawData = certificate.RawData;
+            }
+
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Created self-signed certificate {Subject} for {Group}/{Type}.",
+                certificate.Subject,
+                certificateGroupId,
+                certificateTypeId);
+
+            var certBytes = certificate.RawData.ToByteString();
+            return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
+                new CreateSelfSignedCertificateMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    Certificate = certBytes
+                });
+        }
+
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
             MethodState method,
@@ -1408,7 +1557,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
-        private NamespaceMetadataState? FindNamespaceMetadataState(string namespaceUri)
+        private async ValueTask<NamespaceMetadataState?> FindNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1444,12 +1593,12 @@ namespace Opc.Ua.Server
                 {
                     if (!serverNamespacesReference.IsInverse)
                     {
-                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references
+                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references.
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
                             Server.NamespaceUris);
-                        if (Server.NodeManager.FindNodeInAddressSpaceAsync(
-                            nameSpaceNodeId).AsTask().GetAwaiter().GetResult() is not NamespaceMetadataState namespaceMetadata)
+                        if (await Server.NodeManager.FindNodeInAddressSpaceAsync(
+                            nameSpaceNodeId, cancellationToken).ConfigureAwait(false) is not NamespaceMetadataState namespaceMetadata)
                         {
                             continue;
                         }
@@ -1578,6 +1727,121 @@ namespace Opc.Ua.Server
             public CertificateCollection IssuerCollection { get; set; } = null!;
         }
 
+        /// <summary>
+        /// Evaluates certificate expiration and trust-list staleness for
+        /// all certificate groups and activates/deactivates the optional
+        /// <c>CertificateExpired</c> and <c>TrustListOutOfDate</c> alarm
+        /// instances per OPC 10000-12 §7.8.3.
+        /// </summary>
+        /// <inheritdoc/>
+        public void StartAlarmMonitoring(TimeSpan interval)
+        {
+            if (m_alarmTimer != null)
+            {
+                return;
+            }
+
+            m_alarmTimer = new Timer(
+                _ =>
+                {
+                    try
+                    {
+                        EvaluateCertificateAlarms(SystemContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogWarning(ex, "Alarm evaluation tick failed.");
+                    }
+                },
+                null,
+                interval,
+                interval);
+        }
+
+        /// <inheritdoc/>
+        public void StopAlarmMonitoring()
+        {
+            m_alarmTimer?.Dispose();
+            m_alarmTimer = null;
+        }
+
+        private void EvaluateCertificateAlarms(ISystemContext context)
+        {
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            {
+                CertificateGroupState node = certGroup.Node!;
+
+                try
+                {
+                    // --- CertificateExpired alarm ---
+                    // Only populate properties if the optional alarm instance
+                    // was loaded from the predefined nodeset. We set property
+                    // values directly rather than calling SetActiveState to
+                    // avoid triggering event notifications during server
+                    // startup (which can fail before subscriptions exist).
+                    if (node.CertificateExpired?.ExpirationDate != null)
+                    {
+                        DateTime expirationDate = DateTime.MaxValue;
+
+                        foreach (CertificateIdentifier certIdent in certGroup.ApplicationCertificates)
+                        {
+                            if (certIdent.RawData != null && certIdent.RawData.Length > 0)
+                            {
+                                try
+                                {
+                                    using var cert = Certificate.FromRawData(certIdent.RawData);
+                                    if (cert.NotAfter < expirationDate)
+                                    {
+                                        expirationDate = cert.NotAfter;
+                                    }
+                                }
+                                catch
+                                {
+                                    // ignore parsing errors
+                                }
+                            }
+                        }
+
+                        if (expirationDate != DateTime.MaxValue)
+                        {
+                            node.CertificateExpired.ExpirationDate.Value = expirationDate;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to evaluate CertificateExpired alarm for group {Group}.",
+                        certGroup.BrowseName);
+                }
+
+                try
+                {
+                    // --- TrustListOutOfDate alarm ---
+                    if (node.TrustListOutOfDate?.TrustListId != null)
+                    {
+                        node.TrustListOutOfDate.TrustListId.Value =
+                            node.TrustList?.NodeId ?? default;
+
+                        if (node.TrustListOutOfDate.LastUpdateTime != null)
+                        {
+                            node.TrustListOutOfDate.LastUpdateTime.Value =
+                                (DateTime)(node.TrustList?.LastUpdateTime?.Value
+                                    ?? (DateTimeUtc)DateTime.MinValue);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to evaluate TrustListOutOfDate alarm for group {Group}.",
+                        certGroup.BrowseName);
+                }
+            }
+        }
+
         private class ServerCertificateGroup
         {
             public string BrowseName { get; set; } = null!;
@@ -1593,11 +1857,12 @@ namespace Opc.Ua.Server
 
 #pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
         private ServerConfigurationState? m_serverConfigurationNode;
-        private Opc.Ua.Server.UserManagement.UserManagementBinding? m_userManagementBinding;
+        private UserManagement.UserManagementBinding? m_userManagementBinding;
 #pragma warning restore CA2213
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
+        private Timer? m_alarmTimer;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();

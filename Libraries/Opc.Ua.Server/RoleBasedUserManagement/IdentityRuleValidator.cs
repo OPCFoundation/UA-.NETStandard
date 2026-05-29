@@ -64,7 +64,6 @@ namespace Opc.Ua.Server
                             new LocalizedText($"Criteria must be empty for {rule.CriteriaType}."));
                     }
                     return ServiceResult.Good;
-
                 case IdentityCriteriaType.UserName:
                 case IdentityCriteriaType.Role:
                 case IdentityCriteriaType.GroupId:
@@ -75,7 +74,6 @@ namespace Opc.Ua.Server
                             new LocalizedText($"Criteria must be non-empty for {rule.CriteriaType}."));
                     }
                     return ServiceResult.Good;
-
                 case IdentityCriteriaType.Thumbprint:
                     if (!IsValidThumbprint(criteria))
                     {
@@ -84,7 +82,6 @@ namespace Opc.Ua.Server
                                 "Thumbprint must be an upper-case hexadecimal string with no spaces."));
                     }
                     return ServiceResult.Good;
-
                 case IdentityCriteriaType.X509Subject:
                     if (!IsValidX509Subject(criteria))
                     {
@@ -93,7 +90,6 @@ namespace Opc.Ua.Server
                                 "X509 subject must match the format Name=\"Value\"/Name=\"Value\"... per Part 18 §4.4.3."));
                     }
                     return ServiceResult.Good;
-
                 default:
                     return new ServiceResult(StatusCodes.BadInvalidArgument,
                         new LocalizedText($"Unknown criteriaType {rule.CriteriaType}."));
@@ -127,11 +123,11 @@ namespace Opc.Ua.Server
             }
             foreach (char c in criteria)
             {
-                if (c >= '0' && c <= '9')
+                if (c is >= '0' and <= '9')
                 {
                     continue;
                 }
-                if (c >= 'A' && c <= 'F')
+                if (c is >= 'A' and <= 'F')
                 {
                     continue;
                 }
@@ -162,7 +158,7 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                string name = criteria.Substring(nameStart, index - nameStart);
+                string name = criteria[nameStart..index];
                 if (!IsKnownSubjectName(name))
                 {
                     return false;
@@ -242,7 +238,7 @@ namespace Opc.Ua.Server
                 {
                     break;
                 }
-                string name = subject.Substring(nameStart, i - nameStart).Trim();
+                string name = subject[nameStart..i].Trim();
                 i++; // skip '='
                 string value;
                 if (i < subject.Length && subject[i] == '"')
@@ -253,7 +249,7 @@ namespace Opc.Ua.Server
                     {
                         i++;
                     }
-                    value = subject.Substring(vs, i - vs);
+                    value = subject[vs..i];
                     if (i < subject.Length)
                     {
                         i++; // skip closing quote
@@ -266,7 +262,7 @@ namespace Opc.Ua.Server
                     {
                         i++;
                     }
-                    value = subject.Substring(vs, i - vs).Trim();
+                    value = subject[vs..i].Trim();
                 }
                 if (name.Length > 0 && IsKnownSubjectName(name))
                 {
@@ -284,9 +280,9 @@ namespace Opc.Ua.Server
             var sb = new StringBuilder();
             foreach (string name in order)
             {
-                foreach ((string Name, string Value) pair in pairs)
+                foreach ((string Name, string Value) in pairs)
                 {
-                    if (!string.Equals(pair.Name, name, StringComparison.Ordinal))
+                    if (!string.Equals(Name, name, StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -294,11 +290,11 @@ namespace Opc.Ua.Server
                     {
                         sb.Append('/');
                     }
-                    sb.Append(pair.Name);
-                    sb.Append('=');
-                    sb.Append('"');
-                    sb.Append(pair.Value);
-                    sb.Append('"');
+                    sb.Append(Name)
+                        .Append('=')
+                        .Append('"')
+                        .Append(Value)
+                        .Append('"');
                 }
             }
             return sb.ToString();
@@ -313,7 +309,7 @@ namespace Opc.Ua.Server
             {
                 return string.Empty;
             }
-            return thumbprint!.Replace(" ", string.Empty).ToUpper(CultureInfo.InvariantCulture);
+            return thumbprint!.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpper(CultureInfo.InvariantCulture);
         }
     }
 }

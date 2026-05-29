@@ -1218,9 +1218,7 @@ namespace Opc.Ua
                 case BuiltInType.ExtensionObject:
                     return new SystemType<ExtensionObject>(builtInType);
                 case BuiltInType.Number:
-                    return new SystemType<Variant>(builtInType);
                 case BuiltInType.Integer:
-                    return new SystemType<Variant>(builtInType);
                 case BuiltInType.UInteger:
                     return new SystemType<Variant>(builtInType);
                 case BuiltInType.Enumeration:
@@ -1650,6 +1648,13 @@ namespace Opc.Ua
                     return Unknown;
                 }
 
+                // check for encodeable object.
+                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
+                    name == "IEncodeable")
+                {
+                    return Scalars.ExtensionObject;
+                }
+
                 // check for generic type.
                 if (systemType.GetTypeInfo().IsGenericType)
                 {
@@ -1674,13 +1679,6 @@ namespace Opc.Ua
                     }
 
                     return Unknown;
-                }
-
-                // check for encodeable object.
-                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
-                    name == "IEncodeable")
-                {
-                    return Scalars.ExtensionObject;
                 }
 
                 return Unknown;
@@ -1818,7 +1816,7 @@ namespace Opc.Ua
                 case BuiltInType.Variant:
                     return Variant.Null;
                 case BuiltInType.DataValue:
-                    return (DataValue)null!;
+                    return DataValue.Null;
                 case BuiltInType.Enumeration:
                     return 0;
                 case BuiltInType.Number:

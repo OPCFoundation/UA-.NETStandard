@@ -254,7 +254,9 @@ namespace Opc.Ua.Sample
             // must release the lock before removing cross references to other node managers.
             if (referencesToRemove.Count > 0)
             {
+#pragma warning disable CS0618 // sync RemoveReferences obsolete; this Quickstart still uses sync DeleteNode flow.
                 Server.NodeManager.RemoveReferences(referencesToRemove);
+#pragma warning restore CS0618
             }
 
             return found;
@@ -1299,13 +1301,9 @@ namespace Opc.Ua.Sample
                     // owned by this node manager.
                     nodeToRead.Processed = true;
 
-                    // create an initial value.
-                    DataValue value = values[ii] = new DataValue();
-
-                    value.WrappedValue = default;
-                    value.ServerTimestamp = DateTime.UtcNow;
-                    value.SourceTimestamp = DateTime.MinValue;
-                    value.StatusCode = StatusCodes.Good;
+                    // create an initial value with the current server timestamp.
+                    DataValue value = values[ii] = DataValue.Null
+                        .WithServerTimestamp(DateTimeUtc.Now);
 
                     // check if the node is ready for reading.
                     if (source.ValidationRequired)
@@ -1326,7 +1324,8 @@ namespace Opc.Ua.Sample
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
+                    values[ii] = value;
                 }
 
                 // check for nothing to do.
@@ -1354,7 +1353,7 @@ namespace Opc.Ua.Sample
                         nodeToRead.AttributeId,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
-                        value);
+                        ref value);
                 }
             }
         }
@@ -2036,7 +2035,7 @@ namespace Opc.Ua.Sample
                 // subscribe to events.
                 if (monitoredNode == null)
                 {
-                    instance.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                    instance.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
                 }
 
                 monitoredNode.SubscribeToEvents(systemContext, monitoredItem);
@@ -2107,7 +2106,7 @@ namespace Opc.Ua.Sample
             // subscribe to events.
             if (monitoredNode == null)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             monitoredNode.SubscribeToEvents(systemContext, monitoredItem);
@@ -2463,20 +2462,18 @@ namespace Opc.Ua.Sample
             IDataChangeMonitoredItem2 monitoredItem,
             bool ignoreFilters)
         {
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = node.Node.ReadAttribute(
                 context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             monitoredItem.QueueValue(initialValue, error, ignoreFilters);
 
@@ -2575,7 +2572,7 @@ namespace Opc.Ua.Sample
 
             if (source.Handle is not MonitoredNode monitoredNode)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             // check if the variable needs to be sampled.
@@ -2632,20 +2629,18 @@ namespace Opc.Ua.Sample
             monitoredItem = null!;
 
             // read initial value.
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = source.ReadAttribute(
                 context,
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -2656,7 +2651,7 @@ namespace Opc.Ua.Sample
                     return error;
                 }
 
-                initialValue.StatusCode = error.StatusCode;
+                initialValue = initialValue.WithStatus(error.StatusCode);
                 _ = ServiceResult.Good;
             }
 
@@ -2687,7 +2682,7 @@ namespace Opc.Ua.Sample
 
             if (source.Handle is not MonitoredNode monitoredNode)
             {
-                source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
+                source.Handle = monitoredNode = new MonitoredNode(Server, this.ToAsyncNodeManager(), source);
             }
 
             // determine the sampling interval.
@@ -2736,7 +2731,7 @@ namespace Opc.Ua.Sample
             }
 
             // report the initial value.
-            datachangeItem.QueueValue(initialValue, null!, true);
+            datachangeItem.QueueValue(initialValue, null, true);
 
             // do any post processing.
             OnCreateMonitoredItem(context, itemToCreate, monitoredNode, datachangeItem);

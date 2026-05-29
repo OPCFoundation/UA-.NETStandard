@@ -306,23 +306,88 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        protected override ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
+        protected override async ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
             DateTime publishTime, DataChangeNotification notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
-            return m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
-                publishTime, m_monitoredItems.CreateNotification(notification),
-                publishStateMask, stringTable);
+            try
+            {
+                await m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
+                    publishTime, m_monitoredItems.CreateNotification(notification),
+                    publishStateMask, stringTable).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (PoolNotifications)
+                {
+                    ReuseDataChangeNotification(notification);
+                }
+            }
         }
 
         /// <inheritdoc/>
-        protected override ValueTask OnEventDataNotificationAsync(uint sequenceNumber,
+        protected override async ValueTask OnEventDataNotificationAsync(uint sequenceNumber,
             DateTime publishTime, EventNotificationList notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
-            return m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
-                publishTime, m_monitoredItems.CreateNotification(notification),
-                publishStateMask, stringTable);
+            try
+            {
+                await m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
+                    publishTime, m_monitoredItems.CreateNotification(notification),
+                    publishStateMask, stringTable).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (PoolNotifications)
+                {
+                    ReuseEventNotificationList(notification);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Walk a dispatched <see cref="DataChangeNotification"/> after the
+        /// handler returns and release pooled payload instances back to
+        /// their activators. Items that do not implement
+        /// <see cref="IPooledEncodeable"/> are skipped silently — this
+        /// allows the walk to be safe before source-gen learns to emit
+        /// the interface for tagged types, and serves as the universal
+        /// dispatch path for any future pooled payload variant.
+        /// </summary>
+        private static void ReuseDataChangeNotification(DataChangeNotification notification)
+        {
+            ReadOnlySpan<MonitoredItemNotification> items =
+                notification.MonitoredItems.Span;
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (items[i] is IPooledEncodeable item)
+                {
+                    item.Reuse();
+                }
+            }
+            if (notification is IPooledEncodeable container)
+            {
+                container.Reuse();
+            }
+        }
+
+        /// <summary>
+        /// Event-side companion to <see cref="ReuseDataChangeNotification"/>.
+        /// </summary>
+        private static void ReuseEventNotificationList(EventNotificationList notification)
+        {
+            ReadOnlySpan<EventFieldList> events = notification.Events.Span;
+            for (int i = 0; i < events.Length; i++)
+            {
+                if (events[i] is IPooledEncodeable evt)
+                {
+                    evt.Reuse();
+                }
+            }
+            if (notification is IPooledEncodeable container)
+            {
+                container.Reuse();
+            }
         }
 
         /// <inheritdoc/>

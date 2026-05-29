@@ -69,12 +69,7 @@ namespace Opc.Ua.Server.AliasNames
         public InMemoryAliasNameStore(
             IReadOnlyList<AliasNameCategoryDescriptor> rootCategories)
         {
-            if (rootCategories == null)
-            {
-                throw new ArgumentNullException(nameof(rootCategories));
-            }
-
-            RootCategories = rootCategories;
+            RootCategories = rootCategories ?? throw new ArgumentNullException(nameof(rootCategories));
 
             // Flatten the descriptor tree into a category lookup table.
             foreach (AliasNameCategoryDescriptor root in rootCategories)
@@ -98,8 +93,8 @@ namespace Opc.Ua.Server.AliasNames
         /// <inheritdoc/>
         public uint? GetLastChange(NodeId categoryId)
         {
-            if (categoryId.IsNull
-                || !m_categories.TryGetValue(categoryId, out CategoryEntry? entry))
+            if (categoryId.IsNull ||
+                !m_categories.TryGetValue(categoryId, out CategoryEntry? entry))
             {
                 return null;
             }
@@ -122,6 +117,13 @@ namespace Opc.Ua.Server.AliasNames
         /// the local server.</param>
         /// <param name="referenceTypeId">Reference type — typically
         /// <c>ReferenceTypeIds.AliasFor</c>.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="name"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="categoryId"/> does not match a registered
+        /// category.
+        /// </exception>
         public void Seed(
             NodeId categoryId,
             string name,
@@ -542,7 +544,7 @@ namespace Opc.Ua.Server.AliasNames
             List<KeyValuePair<MappingKey, string?>> bucket)
         {
             var targets = new ExpandedNodeId[bucket.Count];
-            var serverUris = new string[bucket.Count];
+            string[] serverUris = new string[bucket.Count];
             for (int i = 0; i < bucket.Count; i++)
             {
                 targets[i] = bucket[i].Key.TargetNode;
@@ -563,8 +565,8 @@ namespace Opc.Ua.Server.AliasNames
             ITypeTable typeTree)
         {
             // Null/empty/References → match every alias regardless of refType.
-            if (filter.IsNull
-                || filter.Equals(ReferenceTypeIds.References))
+            if (filter.IsNull ||
+                filter.Equals(ReferenceTypeIds.References))
             {
                 return true;
             }

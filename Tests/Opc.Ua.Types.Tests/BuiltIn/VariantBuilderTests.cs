@@ -221,7 +221,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var input = new DataValue(Variant.From(42));
             Variant variant = builder.WithValue(input);
             DataValue result = builder.GetValue(variant);
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result, Is.EqualTo(input));
         }
 

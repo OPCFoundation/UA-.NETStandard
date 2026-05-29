@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="fieldName">The field name to be used to encode this object, by default it is null.</param>
         internal void Encode(PubSubJsonEncoder jsonEncoder, string? fieldName = null)
         {
-            jsonEncoder.PushStructure(fieldName!);
+            jsonEncoder.PushStructure(fieldName);
             if (HasDataSetMessageHeader)
             {
                 EncodeDataSetMessageHeader(jsonEncoder);
@@ -205,7 +205,7 @@ namespace Opc.Ua.PubSub.Encoding
             if (!jsonDecoder.ReadField(kFieldPayload, out object token))
             {
                 // Decode the Messages element in case there is no "Payload" structure
-                jsonDecoder.ReadField(null!, out token);
+                jsonDecoder.ReadField(null, out token);
                 payloadStructureName = null;
             }
 
@@ -236,7 +236,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 // try decoding Payload Structure
-                bool wasPush = jsonDecoder.PushStructure(payloadStructureName!);
+                bool wasPush = jsonDecoder.PushStructure(payloadStructureName);
                 if (wasPush)
                 {
                     DataSet = DecodePayloadContent(jsonDecoder, dataSetReader)!;
@@ -264,12 +264,12 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 FieldMetaData? fieldMetaData = dataSetMetaData?.Fields[index];
 
-                if (jsonDecoder.ReadField(fieldMetaData!.Name!, out _))
+                if (jsonDecoder.ReadField(fieldMetaData!.Name, out _))
                 {
                     switch (m_fieldTypeEncoding)
                     {
                         case FieldTypeEncodingMask.Variant:
-                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name!);
+                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name);
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                             break;
                         case FieldTypeEncodingMask.DataValue:
-                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name!);
+                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name);
                             var dataValue = new DataValue(Variant.Null);
                             try
                             {
@@ -313,7 +313,7 @@ namespace Opc.Ua.PubSub.Encoding
                                     bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
                                     if (wasPush3)
                                     {
-                                        dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
+                                        dataValue = dataValue.WithStatus(jsonDecoder.ReadStatusCode("Code"));
                                         jsonDecoder.Pop();
                                     }
                                 }
@@ -321,29 +321,29 @@ namespace Opc.Ua.PubSub.Encoding
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.SourceTimestamp) != 0)
                                 {
-                                    dataValue.SourceTimestamp = jsonDecoder.ReadDateTime(
-                                        "SourceTimestamp");
+                                    dataValue = dataValue.WithSourceTimestamp(
+                                        jsonDecoder.ReadDateTime("SourceTimestamp"));
                                 }
 
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.SourcePicoSeconds) != 0)
                                 {
-                                    dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16(
-                                        "SourcePicoseconds");
+                                    dataValue = dataValue.WithSourcePicoseconds(
+                                        jsonDecoder.ReadUInt16("SourcePicoseconds"));
                                 }
 
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.ServerTimestamp) != 0)
                                 {
-                                    dataValue.ServerTimestamp = jsonDecoder.ReadDateTime(
-                                        "ServerTimestamp");
+                                    dataValue = dataValue.WithServerTimestamp(
+                                        jsonDecoder.ReadDateTime("ServerTimestamp"));
                                 }
 
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.ServerPicoSeconds) != 0)
                                 {
-                                    dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16(
-                                        "ServerPicoseconds");
+                                    dataValue = dataValue.WithServerPicoseconds(
+                                        jsonDecoder.ReadUInt16("ServerPicoseconds"));
                                 }
                                 dataValues.Add(dataValue);
                             }
@@ -493,8 +493,9 @@ namespace Opc.Ua.PubSub.Encoding
         private void EncodeField(PubSubJsonEncoder encoder, Field field)
         {
             string fieldName = field.FieldMetaData!.Name!;
+            DataValue fieldValue = field.Value;
 
-            Variant valueToEncode = field.Value!.WrappedValue;
+            Variant valueToEncode = fieldValue.WrappedValue;
 
             // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
             if (valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode &&
@@ -506,9 +507,9 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             if (m_fieldTypeEncoding != FieldTypeEncodingMask.DataValue &&
-                StatusCode.IsBad(field.Value.StatusCode))
+                StatusCode.IsBad(fieldValue.StatusCode))
             {
-                valueToEncode = field.Value.StatusCode;
+                valueToEncode = fieldValue.StatusCode;
             }
 
             switch (m_fieldTypeEncoding)
@@ -536,31 +537,31 @@ namespace Opc.Ua.PubSub.Encoding
                         PubSubJsonEncoding.NonReversible);
                     break;
                 case FieldTypeEncodingMask.DataValue:
-                    var dataValue = new DataValue { WrappedValue = valueToEncode };
+                    var dataValue = new DataValue(valueToEncode);
 
                     if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
                     {
-                        dataValue.StatusCode = field.Value.StatusCode;
+                        dataValue = dataValue.WithStatus(fieldValue.StatusCode);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
                     {
-                        dataValue.SourceTimestamp = field.Value.SourceTimestamp;
+                        dataValue = dataValue.WithSourceTimestamp(fieldValue.SourceTimestamp);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
                     {
-                        dataValue.SourcePicoseconds = field.Value.SourcePicoseconds;
+                        dataValue = dataValue.WithSourcePicoseconds(fieldValue.SourcePicoseconds);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
                     {
-                        dataValue.ServerTimestamp = field.Value.ServerTimestamp;
+                        dataValue = dataValue.WithServerTimestamp(fieldValue.ServerTimestamp);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
                     {
-                        dataValue.ServerPicoseconds = field.Value.ServerPicoseconds;
+                        dataValue = dataValue.WithServerPicoseconds(fieldValue.ServerPicoseconds);
                     }
 
                     // If the DataSetFieldContentMask results in a DataValue representation,

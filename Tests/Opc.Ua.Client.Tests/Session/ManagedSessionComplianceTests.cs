@@ -42,6 +42,8 @@ using Opc.Ua.Tests;
 
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
     /// <summary>
@@ -618,6 +620,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(string),
                         typeof(uint),
                         typeof(bool),
+                        typeof(bool),
                         typeof(bool)
                     ],
                     null);
@@ -635,6 +638,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     default(ArrayOf<string>),
                     "TestManagedSession",
                     60000u,
+                    false,
                     false,
                     false
                 ]);

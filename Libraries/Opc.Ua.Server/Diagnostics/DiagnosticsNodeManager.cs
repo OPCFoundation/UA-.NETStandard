@@ -145,11 +145,17 @@ namespace Opc.Ua.Server
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-            // sampling interval diagnostics not supported by the server.
+            // SamplingIntervalDiagnosticsArray is part of the
+            // standard nodeset; rather than deleting the node (which makes
+            // reads return BadNodeIdUnknown), leave it in place with a
+            // default empty value. Per Part 5 §6.4.7 the array is optional
+            // and an empty array is a valid representation of "no per-
+            // sampling-interval diagnostics tracked".
             ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
                 ObjectIds.Server_ServerDiagnostics);
 
-            if (serverDiagnosticsNode != null)
+            if (serverDiagnosticsNode != null
+                && serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
             {
                 NodeState? samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
                     SystemContext,
@@ -164,6 +170,29 @@ namespace Opc.Ua.Server
                     serverDiagnosticsNode.SamplingIntervalDiagnosticsArray = null;
                 }
             }
+
+            // Issue #3720: the standard NodeSet shipped at Stack/Opc.Ua.Core/
+            // Schema/Opc.Ua.NodeSet2.xml omits the GeneratesEvent reference on
+            // StateMachineType (i=2299) and FiniteStateMachineType (i=2771)
+            // even though Part 5 §6.4.2 requires instances to surface the
+            // events emitted on state changes (TransitionEventType i=2311).
+            // Inject the missing forward reference at load time so subtype
+            // instances inherit it via the type chain.
+            //
+            // Idempotent: NodeState.AddReference dedupes on (refType, isInverse,
+            // targetId) so re-running this on a hot-reload is a no-op.
+            BaseObjectTypeState stateMachineType = FindPredefinedNode<BaseObjectTypeState>(
+                ObjectTypeIds.StateMachineType);
+            stateMachineType?.AddReference(
+                ReferenceTypeIds.GeneratesEvent,
+                isInverse: false,
+                ObjectTypeIds.TransitionEventType);
+            BaseObjectTypeState finiteStateMachineType = FindPredefinedNode<BaseObjectTypeState>(
+                ObjectTypeIds.FiniteStateMachineType);
+            finiteStateMachineType?.AddReference(
+                ReferenceTypeIds.GeneratesEvent,
+                isInverse: false,
+                ObjectTypeIds.TransitionEventType);
 
             // The nodes are now loaded by the DiagnosticsNodeManager from the file
             // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
@@ -275,7 +304,8 @@ namespace Opc.Ua.Server
             }
 
             if (context is ISessionSystemContext session &&
-                subscription.SessionId != null! && !subscription.SessionId.Equals(session.SessionId))
+                subscription.SessionId != null! &&
+                !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -1105,7 +1135,7 @@ namespace Opc.Ua.Server
                     // create new node if not found.
                     historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
 
-                    NodeId nodeId = await CreateNodeAsync(
+                    _ = await CreateNodeAsync(
                         SystemContext,
                         default,
                         ReferenceTypeIds.HasComponent,
@@ -1113,20 +1143,8 @@ namespace Opc.Ua.Server
                         historyServerCapabilitiesNode,
                         cancellationToken).ConfigureAwait(false);
 
-                    historyServerCapabilitiesNode.AccessHistoryDataCapability!.Value = false;
-                    historyServerCapabilitiesNode.AccessHistoryEventsCapability!.Value = false;
                     historyServerCapabilitiesNode.MaxReturnDataValues!.Value = 0;
                     historyServerCapabilitiesNode.MaxReturnEventValues!.Value = 0;
-                    historyServerCapabilitiesNode.ReplaceDataCapability!.Value = false;
-                    historyServerCapabilitiesNode.UpdateDataCapability!.Value = false;
-                    historyServerCapabilitiesNode.InsertEventCapability!.Value = false;
-                    historyServerCapabilitiesNode.ReplaceEventCapability!.Value = false;
-                    historyServerCapabilitiesNode.UpdateEventCapability!.Value = false;
-                    historyServerCapabilitiesNode.InsertAnnotationCapability!.Value = false;
-                    historyServerCapabilitiesNode.InsertDataCapability!.Value = false;
-                    historyServerCapabilitiesNode.DeleteRawCapability!.Value = false;
-                    historyServerCapabilitiesNode.DeleteAtTimeCapability!.Value = false;
-                    historyServerCapabilitiesNode.ServerTimestampSupported!.Value = false;
 
                     ServerCapabilitiesState parent = FindPredefinedNode<ServerCapabilitiesState>(
                         ObjectIds.Server_ServerCapabilities);
@@ -1144,6 +1162,25 @@ namespace Opc.Ua.Server
                     }
 
                     await AddPredefinedNodeAsync(SystemContext, historyServerCapabilitiesNode, cancellationToken).ConfigureAwait(false);
+                }
+
+                // Overlay the registered-historian rollup onto the
+                // capabilities node so the values reflect what the
+                // installed providers actually advertise. Runs whether
+                // the node was found in the predefined nodeset or
+                // freshly created above.
+                Historian.HistorianNodeCapabilities? rolled = await RollUpHistorianCapabilitiesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                if (rolled != null)
+                {
+                    historyServerCapabilitiesNode.AccessHistoryDataCapability!.Value = rolled.ReadRawData;
+                    historyServerCapabilitiesNode.ReplaceDataCapability!.Value = rolled.ReplaceData;
+                    historyServerCapabilitiesNode.UpdateDataCapability!.Value = rolled.UpdateData;
+                    historyServerCapabilitiesNode.InsertAnnotationCapability!.Value = rolled.InsertAnnotation;
+                    historyServerCapabilitiesNode.InsertDataCapability!.Value = rolled.InsertData;
+                    historyServerCapabilitiesNode.DeleteRawCapability!.Value = rolled.DeleteRaw;
+                    historyServerCapabilitiesNode.DeleteAtTimeCapability!.Value = rolled.DeleteAtTime;
+                    historyServerCapabilitiesNode.ServerTimestampSupported!.Value = rolled.ServerTimestampSupported;
                 }
 
                 m_historyCapabilities = historyServerCapabilitiesNode;
@@ -2111,14 +2148,14 @@ namespace Opc.Ua.Server
                             monitoredItem.AttributeId,
                             monitoredItem.IndexRange,
                             monitoredItem.DataEncoding,
-                            value);
+                            ref value);
 
                         if (ServiceResult.IsBad(error))
                         {
                             value = new DataValue(error.StatusCode);
                         }
 
-                        value.ServerTimestamp = DateTime.UtcNow;
+                        value = value.WithServerTimestamp(DateTime.UtcNow);
 
                         // queue the value.
                         monitoredItem.QueueValue(value, error);
@@ -2149,6 +2186,79 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<uint, ISampledDataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState? m_historyCapabilities;
+
+        /// <summary>
+        /// Aggregates the per-node capabilities advertised by every
+        /// registered historian provider into a single union view used
+        /// to populate the server-wide <c>HistoryServerCapabilities</c>
+        /// flags.
+        /// </summary>
+        private async ValueTask<Historian.HistorianNodeCapabilities?> RollUpHistorianCapabilitiesAsync(
+            CancellationToken cancellationToken)
+        {
+            if (Server is not Historian.IHistorianRegistryProvider registry)
+            {
+                return null;
+            }
+
+            IReadOnlyCollection<Historian.IHistorianProvider> providers = registry.HistorianRegistry.Providers;
+            if (providers.Count == 0)
+            {
+                return null;
+            }
+
+            var rolled = new Historian.HistorianNodeCapabilities
+            {
+                ReadRawData = true,
+                ReadModifiedData = false,
+                ReadAtTime = false,
+                ReadProcessedData = false,
+            };
+            bool insertData = false;
+            bool replaceData = false;
+            bool updateData = false;
+            bool deleteRaw = false;
+            bool deleteAtTime = false;
+            bool insertAnnotation = false;
+            bool serverTimestampSupported = false;
+
+            foreach (Historian.IHistorianProvider provider in providers)
+            {
+                Historian.HistorianNodeCapabilities caps;
+                try
+                {
+                    caps = await provider.GetCapabilitiesAsync(NodeId.Null, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (NotSupportedException)
+                {
+                    continue;
+                }
+                catch (InvalidOperationException)
+                {
+                    continue;
+                }
+
+                insertData |= caps.InsertData;
+                replaceData |= caps.ReplaceData;
+                updateData |= caps.UpdateData;
+                deleteRaw |= caps.DeleteRaw;
+                deleteAtTime |= caps.DeleteAtTime;
+                insertAnnotation |= caps.InsertAnnotation;
+                serverTimestampSupported |= caps.ServerTimestampSupported;
+            }
+
+            return rolled with
+            {
+                InsertData = insertData,
+                ReplaceData = replaceData,
+                UpdateData = updateData,
+                DeleteRaw = deleteRaw,
+                DeleteAtTime = deleteAtTime,
+                InsertAnnotation = insertAnnotation,
+                ServerTimestampSupported = serverTimestampSupported,
+            };
+        }
 
         private static readonly NodeId[] s_kWellKnownRoles =
         [

@@ -33,7 +33,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -52,10 +51,13 @@ namespace Opc.Ua.Server.Tests.Fluent
     {
         private const ushort kNs = 2;
         private const string kNamespaceUri = "http://test.org/UA/Publish/";
-        // Generous timeout: reconcile/worker tasks run on the thread pool which
-        // can be starved when the broader test suite (e.g. AsyncCustomNodeManager
-        // tests with [Parallelizable(ParallelScope.All)]) saturates CPU. 15s
-        // keeps green runs under 1s while eliminating false negatives under load.
+
+        /// <summary>
+        /// Generous timeout: reconcile/worker tasks run on the thread pool which
+        /// can be starved when the broader test suite (e.g. AsyncCustomNodeManager
+        /// tests with [Parallelizable(ParallelScope.All)]) saturates CPU. 15s
+        /// keeps green runs under 1s while eliminating false negatives under load.
+        /// </summary>
         private static readonly TimeSpan s_signalTimeout = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan s_negativeWindow = TimeSpan.FromMilliseconds(250);
 
@@ -109,7 +111,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             m_queueFactory?.Dispose();
         }
 
-        #region Lazy / eager activation
 
         [Test]
         public async Task Publish_LazyDefault_DoesNotInvokeFactoryUntilEventsAreMonitoredAsync()
@@ -186,9 +187,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
 
-        #endregion
 
-        #region Event delivery
 
         [Test]
         public async Task Publish_ActivatedSource_DeliversEventsThroughOnReportEventAsync()
@@ -207,7 +206,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -238,7 +237,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -282,18 +281,18 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            ByteString customEventId = Uuid.NewUuid().ToByteString();
+            var customEventId = Uuid.NewUuid().ToByteString();
             var customSource = new NodeId("OtherSource", kNs);
             const string kCustomSourceName = "AlternateName";
             const ushort kCustomSeverity = 800;
 
-            BaseEventState authored = new BaseEventState(parent: null);
+            var authored = new BaseEventState(parent: null);
             authored.EventId = PropertyState<ByteString>.With<VariantBuilder>(authored, customEventId);
             authored.SourceNode = PropertyState<NodeId>.With<VariantBuilder>(authored, customSource);
             authored.SourceName = PropertyState<string>.With<VariantBuilder>(authored, kCustomSourceName);
             authored.Severity = PropertyState<ushort>.With<VariantBuilder>(authored, kCustomSeverity);
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -327,7 +326,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             manager.EventSources.Register(
                 notifier,
                 (_, _, ct) => channel.Reader.ReadAllAsync(ct),
@@ -349,9 +348,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
-        #endregion
 
-        #region Errors and validation
 
         [Test]
         public async Task Publish_FactoryThrows_InvokesOnErrorAndStopsSourceAsync()
@@ -470,9 +467,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     options: null));
         }
 
-        #endregion
 
-        #region Auto-promote and root-notifier
 
         [Test]
         public void Publish_AutoPromotesEventNotifierBit()
@@ -488,7 +483,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 options: null);
 
             Assert.That(
-                (notifier.EventNotifier & EventNotifiers.SubscribeToEvents),
+                notifier.EventNotifier & EventNotifiers.SubscribeToEvents,
                 Is.EqualTo(EventNotifiers.SubscribeToEvents),
                 "Publish must auto-promote SubscribeToEvents on the notifier.");
         }
@@ -507,9 +502,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
         }
 
-        #endregion
 
-        #region Lifecycle / dispose
 
         [Test]
         public async Task Dispose_CancelsActiveIteratorAsync()
@@ -536,9 +529,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
 
-        #endregion
 
-        #region Extension method (Publish on builder)
 
         [Test]
         public void Publish_OnNonFluentManager_ThrowsBadConfigurationErrorWithManagerType()
@@ -564,7 +555,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             INodeBuilder<BaseObjectState> nodeBuilder = nonFluentBuilder.Node<BaseObjectState>(notifier.BrowseName.Name);
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                nodeBuilder.Publish<BaseObjectState, BaseEventState>(
+                nodeBuilder.Publish(
                     (_, _, ct) => EmptyStream(ct)));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -600,9 +591,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             };
 
-            Channel<BaseEventState> channel = Channel.CreateUnbounded<BaseEventState>();
+            var channel = Channel.CreateUnbounded<BaseEventState>();
             builder.Node<BaseObjectState>(notifier.BrowseName.Name)
-                .Publish<BaseObjectState, BaseEventState>(
+                .Publish(
                     (_, _, ct) => channel.Reader.ReadAllAsync(ct),
                     new EventPublishOptions { AlwaysOn = true });
 
@@ -647,7 +638,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     source: AsyncEnumerable.Empty<BaseEventState>()));
 
             Assert.Throws<ArgumentNullException>(() =>
-                nodeBuilder.Publish<BaseObjectState, BaseEventState>(
+                nodeBuilder.Publish(
                     source: (IAsyncEnumerable<BaseEventState>)null));
         }
 
@@ -658,9 +649,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null));
         }
 
-        #endregion
 
-        #region Helpers
 
         private TestablePublishManager CreateManager()
         {
@@ -709,16 +698,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                 _ = addTask.AsTask().GetAwaiter().GetResult();
             }
             return notifier;
-        }
-
-        private static async Task WaitForAsync(Task task)
-        {
-            Task completed = await Task.WhenAny(task, Task.Delay(s_signalTimeout)).ConfigureAwait(false);
-            if (completed != task)
-            {
-                Assert.Fail($"Operation did not signal within {s_signalTimeout.TotalSeconds:F1}s.");
-            }
-            await task.ConfigureAwait(false);
         }
 
         private static async Task<T> WaitForAsync<T>(Task<T> task)
@@ -787,10 +766,14 @@ namespace Opc.Ua.Server.Tests.Fluent
         private sealed class AsyncCountdown
         {
             private int m_remaining;
+
             private readonly TaskCompletionSource<bool> m_done =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public AsyncCountdown(int target) => m_remaining = target;
+            public AsyncCountdown(int target)
+            {
+                m_remaining = target;
+            }
 
             public void SignalOne()
             {
@@ -800,12 +783,18 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             }
 
-            public Task<bool> WaitAsync() => m_done.Task;
+            public Task<bool> WaitAsync()
+            {
+                return m_done.Task;
+            }
         }
 
         private static class AsyncEnumerable
         {
-            public static IAsyncEnumerable<T> Empty<T>() => EmptyImpl<T>();
+            public static IAsyncEnumerable<T> Empty<T>()
+            {
+                return EmptyImpl<T>();
+            }
 
             private static async IAsyncEnumerable<T> EmptyImpl<T>(
                 [EnumeratorCancellation] CancellationToken ct = default)
@@ -839,6 +828,5 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
-        #endregion
     }
 }

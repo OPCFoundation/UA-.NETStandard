@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, logger, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, logger, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
-            m_eventSources = new EventSourceRegistry(this, m_logger);
+            EventSources = new EventSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Fluent
         /// <c>Configure</c> and by generated wrappers; not intended for
         /// direct subclass use.
         /// </summary>
-        internal EventSourceRegistry EventSources => m_eventSources;
+        internal EventSourceRegistry EventSources { get; }
 
         /// <summary>
         /// Attaches this manager's event-source registry to the supplied
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new System.ArgumentNullException(nameof(builder));
             }
-            builder.AttachEventSources(m_eventSources);
+            builder.AttachEventSources(EventSources);
         }
 
         /// <summary>
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Fluent
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            m_eventSources.SignalReconcile();
+            EventSources.SignalReconcile();
             return base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken);
         }
 
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
-                m_eventSources.Dispose();
+                EventSources.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -215,7 +215,5 @@ namespace Opc.Ua.Server.Fluent
         {
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
-
-        private readonly EventSourceRegistry m_eventSources;
     }
 }

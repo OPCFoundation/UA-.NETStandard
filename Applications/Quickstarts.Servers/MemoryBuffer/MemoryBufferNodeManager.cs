@@ -298,20 +298,18 @@ namespace MemoryBuffer
             }
 
             // read initial value.
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.Good
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = source.ReadAttribute(
                 context,
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue);
+                ref initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -510,13 +508,11 @@ namespace MemoryBuffer
             if (previousMode == MonitoringMode.Disabled &&
                 monitoringMode != MonitoringMode.Disabled)
             {
-                var initialValue = new DataValue
-                {
-                    WrappedValue = default,
-                    ServerTimestamp = DateTime.UtcNow,
-                    SourceTimestamp = DateTime.MinValue,
-                    StatusCode = StatusCodes.Good
-                };
+                var initialValue = new DataValue(
+                    Variant.Null,
+                    StatusCodes.Good,
+                    DateTime.MinValue,
+                    DateTime.UtcNow);
 
                 var tag = new MemoryTagState(buffer, datachangeItem.Offset);
 
@@ -525,7 +521,7 @@ namespace MemoryBuffer
                     datachangeItem.AttributeId,
                     default,
                     default,
-                    initialValue);
+                    ref initialValue);
 
                 datachangeItem.QueueValue(initialValue, error);
             }

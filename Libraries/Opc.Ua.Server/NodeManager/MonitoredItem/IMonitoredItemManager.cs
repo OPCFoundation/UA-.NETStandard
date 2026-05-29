@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -59,7 +61,7 @@ namespace Opc.Ua.Server
         /// </summary>
         ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             uint subscriptionId,
@@ -100,18 +102,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the monitoring mode for a monitored item
         /// </summary>
-        (ServiceResult, MonitoringMode?) SetMonitoringMode(
+        ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            NodeHandle handle);
+            NodeHandle handle,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Restore a monitored item
         /// </summary>
         bool RestoreMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             IStoredMonitoredItem storedMonitoredItem,

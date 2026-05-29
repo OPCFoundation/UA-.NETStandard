@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Quickstarts.ReferenceServer;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
@@ -30,7 +32,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(metadata.NamespaceUri.Value, Is.EqualTo(namespaceUri));
 
             // Act 2: GetNamespaceMetadataState
-            NamespaceMetadataState metadataGet = configManager.GetNamespaceMetadataState(namespaceUri);
+            NamespaceMetadataState metadataGet = await configManager.GetNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
             Assert.That(metadataGet, Is.SameAs(metadata));
 
             // Act 3: Verify Event Subscription
@@ -138,6 +140,23 @@ namespace Opc.Ua.Server.Tests
             Assert.That(eventRaised, Is.True, "DefaultPermissionsChanged event should be raised for manually added metadata node");
 
             // Cleanup
+            await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ConfigurationNodeManager_NoUserManagement_RemovesUserManagementNodeAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+            IServerInternal serverInternal = server.CurrentInstance;
+            Assert.That(serverInternal.UserManagement, Is.Null);
+
+            NodeState userManagementNode = await serverInternal.NodeManager
+                .FindNodeInAddressSpaceAsync(ObjectIds.UserManagement)
+                .ConfigureAwait(false);
+            Assert.That(userManagementNode, Is.Null);
+
             await fixture.StopAsync().ConfigureAwait(false);
         }
     }

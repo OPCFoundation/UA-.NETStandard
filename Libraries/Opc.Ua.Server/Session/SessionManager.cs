@@ -31,10 +31,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+
+// TODO: RCS1256 — needs polyfill for net48
+#pragma warning disable RCS1256 // Invalid argument null check
 
 namespace Opc.Ua.Server
 {
@@ -92,10 +96,7 @@ namespace Opc.Ua.Server
                 // tearing down sessions to avoid late-stage callbacks racing
                 // with disposal.
                 IRoleManager? subscribed = Interlocked.Exchange(ref m_subscribedRoleManager, null);
-                if (subscribed != null)
-                {
-                    subscribed.RoleConfigurationChanged -= OnRoleConfigurationChanged;
-                }
+                subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
 
                 // create snapshot of all sessions
                 KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
@@ -638,18 +639,22 @@ namespace Opc.Ua.Server
         /// Assigns mandatory roles to the effective identity based on the session's security context.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Per OPC UA Part 3 §4.9, the <see cref="Role.TrustedApplication"/> role is always
         /// assigned when a Session has been authenticated with a trusted ApplicationInstance
         /// Certificate and uses at least a signed communication channel.
-        ///
+        /// </para>
+        /// <para>
         /// Per OPC UA Part 18 §4.4 the live <see cref="IRoleManager"/> identity-mapping rules
         /// are evaluated and any matching roles are layered on top of the identity supplied
         /// by the ImpersonateUser callback.
-        ///
+        /// </para>
+        /// <para>
         /// Per OPC UA Part 18 §5.2.8, when the session authenticates via a USERNAME token and
         /// the user has the <see cref="UserConfigurationMask.MustChangePassword"/> bit set,
         /// the session is restricted to the <see cref="Role.Anonymous"/> role only — the
         /// session can only call <c>ChangePassword</c> until the password is changed.
+        /// </para>
         /// </remarks>
         protected virtual IUserIdentity AddMandatoryRoles(
             ISession session,
@@ -661,9 +666,9 @@ namespace Opc.Ua.Server
             // is callable by USERNAME sessions regardless of role; once the
             // password is changed the next ActivateSession will see
             // MustChangePassword == false and grant the full role set.
-            if (effectiveIdentity.TokenType == UserTokenType.UserName
-                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
-                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            if (effectiveIdentity.TokenType == UserTokenType.UserName &&
+                !string.IsNullOrEmpty(effectiveIdentity.DisplayName) &&
+                m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbiMustChange)
                 {
@@ -698,14 +703,14 @@ namespace Opc.Ua.Server
             IRoleManager roleManager = m_server.RoleManager;
             if (roleManager != null)
             {
-                System.Collections.Generic.IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
+                IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
                     session.ClientCertificate,
                     context.ChannelContext?.EndpointDescription);
 
                 if (dynamicRoleIds.Count > 0)
                 {
-                    var dynamicRoles = new System.Collections.Generic.List<Role>(dynamicRoleIds.Count);
+                    var dynamicRoles = new List<Role>(dynamicRoleIds.Count);
                     foreach (NodeId roleId in dynamicRoleIds)
                     {
                         dynamicRoles.Add(new Role(roleId, roleId.ToString()));
@@ -745,10 +750,10 @@ namespace Opc.Ua.Server
         /// </param>
         protected virtual ServiceResult ComputeActivationStatus(IUserIdentity effectiveIdentity)
         {
-            if (effectiveIdentity != null
-                && effectiveIdentity.TokenType == UserTokenType.UserName
-                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
-                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            if (effectiveIdentity != null &&
+                effectiveIdentity.TokenType == UserTokenType.UserName &&
+                !string.IsNullOrEmpty(effectiveIdentity.DisplayName) &&
+                m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
             {
                 return new ServiceResult(StatusCodes.GoodPasswordChangeRequired);
             }
@@ -761,6 +766,7 @@ namespace Opc.Ua.Server
         /// marked stale by a Role configuration change.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Implements OPC UA Part 18 §4.4.1 "live re-evaluation": when an
         /// <see cref="IRoleManager"/> identity-mapping rule changes, sessions
         /// receive the new role grants on the next request without needing
@@ -768,11 +774,13 @@ namespace Opc.Ua.Server
         /// <see cref="AddMandatoryRoles"/> using the original impersonated
         /// <see cref="ISession.Identity"/> as the starting point, so the
         /// outcome is deterministic and idempotent.
-        ///
+        /// </para>
+        /// <para>
         /// Multiple concurrent requests racing through this method may each
         /// compute the same refresh; the last writer wins. This is acceptable
         /// because the computation is pure with respect to the current
         /// RoleManager state.
+        /// </para>
         /// </remarks>
         protected virtual void ReevaluateIdentityIfStale(
             ISession session,
@@ -865,14 +873,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (previous != null)
-            {
-                previous.RoleConfigurationChanged -= OnRoleConfigurationChanged;
-            }
-            if (current != null)
-            {
-                current.RoleConfigurationChanged += OnRoleConfigurationChanged;
-            }
+            previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+            current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
         }
 
         /// <summary>
@@ -1295,6 +1297,12 @@ namespace Opc.Ua.Server
             {
                 m_clientLockouts.TryRemove(clientKey, out _);
             }
+        }
+
+        /// <inheritdoc/>
+        public void ClearAuthenticationLockouts()
+        {
+            m_clientLockouts.Clear();
         }
 
         /// <summary>

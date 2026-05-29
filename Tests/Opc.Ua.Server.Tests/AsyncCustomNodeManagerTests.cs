@@ -44,6 +44,7 @@ namespace Opc.Ua.Server.Tests
 {
     [TestFixture(AsyncCustomNodeManagerType.MonitoredNodeMonitoredItemManager)]
     [TestFixture(AsyncCustomNodeManagerType.SamplingGroupMonitoredItemManager)]
+    [TestFixture(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)]
     [Category("AsyncCustomNodeManager")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
@@ -63,6 +64,7 @@ namespace Opc.Ua.Server.Tests
         private ServerSystemContext m_serverSystemContext;
         private NamespaceTable m_namespaceTable;
         private readonly string m_testNamespaceUri = "http://test.org/UA/Data/";
+        private readonly AsyncCustomNodeManagerType m_managerType;
         private readonly bool m_useSamplingGroups;
         private static readonly ArrayOf<double> s_value = [10.0, 200.0, 30.0];
         private static readonly ArrayOf<double> s_expected = [10.0, 20.0, 30.0];
@@ -71,11 +73,13 @@ namespace Opc.Ua.Server.Tests
         public enum AsyncCustomNodeManagerType
         {
             MonitoredNodeMonitoredItemManager,
-            SamplingGroupMonitoredItemManager
+            SamplingGroupMonitoredItemManager,
+            CustomNodeManager2ViaAdapter
         }
 
         public AsyncCustomNodeManagerTests(AsyncCustomNodeManagerType managerType)
         {
+            m_managerType = managerType;
             m_useSamplingGroups = managerType == AsyncCustomNodeManagerType.SamplingGroupMonitoredItemManager;
         }
 
@@ -131,21 +135,24 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void Constructor_SetsPropertiesCorrectly()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
 
-            Assert.That(manager.MaxQueueSize, Is.EqualTo(100));
-            Assert.That(manager.MaxDurableQueueSize, Is.EqualTo(200));
+            Assert.That(acnm.MaxQueueSize, Is.EqualTo(100));
+            Assert.That(acnm.MaxDurableQueueSize, Is.EqualTo(200));
             Assert.That(manager.NamespaceIndexes, Has.Count.EqualTo(1));
             Assert.That(manager.NamespaceUris, Contains.Item(m_testNamespaceUri));
-            Assert.That(manager.Logger, Is.EqualTo(m_mockLogger.Object));
+            Assert.That(acnm.Logger, Is.EqualTo(m_mockLogger.Object));
             Assert.That(manager.SyncNodeManager, Is.Not.Null);
-            Assert.That(manager.SystemContext.NodeIdFactory, Is.SameAs(manager));
+            Assert.That(acnm.SystemContext.NodeIdFactory, Is.SameAs(acnm));
         }
 
         [Test]
         public void NodeIDFactoryGeneratesNodesInTheRightNamespaceWithoutDuplicates()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             ServerSystemContext context = manager.SystemContext;
             var generatedNodeIds = new HashSet<NodeId>(NodeIdComparer.Default);
 
@@ -164,7 +171,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task FindPredefinedNode_ReturnsNodeOnlyWhenTypeMatchesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var baseObject = new BaseObjectState(null);
@@ -187,7 +194,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CreateNodeAsync_AddsNodeToPredefinedNodesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var baseObject = new BaseObjectState(null);
@@ -211,7 +218,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task DeleteNodeAsync_RemovesNodeFromPredefinedNodesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var baseObject = new BaseObjectState(null);
@@ -236,7 +243,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CreateAddressSpaceAsync_LoadsNodesFromOverrideAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var folder = new FolderState(null);
             folder.CreateAsPredefinedNode(manager.SystemContext);
@@ -255,7 +262,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task DeleteAddressSpaceAsync_DisposesAllNodesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null);
@@ -274,7 +281,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task GetManagerHandleAsync_ReturnsHandleForExistingNodeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var baseObject = new BaseObjectState(null);
@@ -302,7 +309,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task GetNodeMetadataAsync_ReturnsMetadataForNodeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -337,7 +344,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ReadAsync_ReadsValueFromNodeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -363,7 +370,7 @@ namespace Opc.Ua.Server.Tests
                 AttributeId = Attributes.Value
             };
             var nodesToRead = new List<ReadValueId> { readValueId, readValueId2 };
-            var values = new List<DataValue> { null };
+            var values = new List<DataValue> { default };
             var errors = new List<ServiceResult> { null };
 
             // Act
@@ -390,7 +397,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ReadAsync_UsesNodeStateAsyncReadCallback()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -419,7 +427,7 @@ namespace Opc.Ua.Server.Tests
                     AttributeId = Attributes.Value
                 }
             };
-            var values = new List<DataValue> { null };
+            var values = new List<DataValue> { default };
             var errors = new List<ServiceResult> { null };
 
             await manager.ReadAsync(
@@ -429,7 +437,7 @@ namespace Opc.Ua.Server.Tests
                 values,
                 errors).ConfigureAwait(false);
 
-            Assert.That(values[0], Is.Not.Null);
+            Assert.That(values[0].IsNull, Is.False);
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(asyncCallbackCalled, Is.True);
@@ -439,7 +447,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TranslateBrowsePathAsync_ResolvesTargetsAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -481,7 +489,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task BrowseAsync_ReturnsChildReferencesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var parent = new BaseObjectState(null);
@@ -523,7 +531,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task WriteAsync_WritesValueToNodeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -573,7 +581,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task WriteAsync_UsesNodeStateAsyncWriteCallback()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -621,7 +630,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task WriteAsync_WritesOutOfRangeScalarValueToAnalogItemReturnsBadOutOfRangeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -663,7 +672,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task WriteAsync_WritesOutOfRangeArrayValueToAnalogItemReturnsBadOutOfRangeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -706,7 +715,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task WriteAsync_PublishesValueToMonitoredItemQueueAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -784,13 +793,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(hadMore, Is.False);
             if (!m_useSamplingGroups)
             {
-                // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks
-                Assert.That(notifications, Has.Count.EqualTo(2));
-                MonitoredItemNotification notification = notifications.Dequeue();
-                MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-                Assert.That((int)notification.Value.WrappedValue, Is.Zero);
-                Assert.That((int)notificationAfterWrite.Value.WrappedValue, Is.EqualTo(123));
-                Assert.That(diagnostics, Has.Count.EqualTo(2));
+                // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks.
+                // With channel-based delivery the initial and write updates can be coalesced.
+                Assert.That(notifications, Has.Count.GreaterThanOrEqualTo(1));
+                bool writeNotificationSeen = notifications.Any(n => (int)n.Value.WrappedValue == 123);
+                for (int i = 0; i < 5 && !writeNotificationSeen; i++)
+                {
+                    await Task.Delay(20).ConfigureAwait(false);
+                    _ = monitoredItem.Publish(
+                        new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
+                        notifications,
+                        diagnostics,
+                        10,
+                        m_mockLogger.Object);
+                    writeNotificationSeen = notifications.Any(n => (int)n.Value.WrappedValue == 123);
+                }
+
+                Assert.That(writeNotificationSeen, Is.True);
+                Assert.That(diagnostics, Has.Count.EqualTo(notifications.Count));
                 Assert.That(monitoredItem.IsReadyToPublish, Is.False);
             }
             // For SamplingGroupMonitoredItemManager the background sampling timer fires
@@ -801,7 +821,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task WriteEngineeringUnitsAsync_PublishesSemanticsChangedValueToMonitoredItemQueueAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new AnalogItemState(null);
@@ -911,7 +932,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReferencesAsync_AddsExternalReferencesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var baseObject = new BaseObjectState(null);
@@ -949,7 +970,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task DeleteReferenceAsync_RemovesBidirectionalReferencesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -985,7 +1006,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CreateMonitoredItemsAsync_CreatesItemAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1043,7 +1064,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ModifyMonitoredItemsAsync_ModifiesItemAsync()
         {
             // Setup manager and node
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1112,7 +1133,7 @@ namespace Opc.Ua.Server.Tests
         public async Task SetMonitoringModeAsync_ChangesModeAsync()
         {
             // Setup manager and node
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1172,7 +1193,7 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteMonitoredItemsAsync_DeletesItemAsync()
         {
             // Setup manager and node
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1231,7 +1252,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CallAsync_InvokesRegisteredMethodAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -1312,7 +1333,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CallAsync_InvokesMethodFromObjectTypeAsync()
         {
             // Arrange: set up ObjectType with a method, and an Object instance with that TypeDefinitionId
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -1359,7 +1380,7 @@ namespace Opc.Ua.Server.Tests
             instance.CreateAsPredefinedNode(context);
 
             // Register the ObjectType via AddPredefinedNodeAsync (not AddNodeAsync, which requires BaseInstanceState)
-            await manager.AddPredefinedNodePublicAsync(context, objectType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, objectType).ConfigureAwait(false);
             await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
 
             // Register the ObjectType in the TypeTree so FindSuperType works
@@ -1402,7 +1423,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task FindMethodStateAsyncResolvesMethodFromSuperTypeOfObjectType()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -1438,8 +1459,8 @@ namespace Opc.Ua.Server.Tests
                 derivedType.CreateAsPredefinedNode(context);
                 instance.CreateAsPredefinedNode(context);
 
-                await manager.AddPredefinedNodePublicAsync(context, baseType).ConfigureAwait(false);
-                await manager.AddPredefinedNodePublicAsync(context, derivedType).ConfigureAwait(false);
+                await manager.AddPredefinedNodeAsync(context, baseType).ConfigureAwait(false);
+                await manager.AddPredefinedNodeAsync(context, derivedType).ConfigureAwait(false);
                 await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
 
                 m_mockServer.Object.TypeTree.AddSubtype(baseType.NodeId, NodeId.Null);
@@ -1476,7 +1497,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Arrange: set up a type hierarchy: BaseType -> DerivedType, method on BaseType
             // Object instance has TypeDefinitionId = DerivedType
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -1531,8 +1552,8 @@ namespace Opc.Ua.Server.Tests
             instance.CreateAsPredefinedNode(context);
 
             // Register the ObjectType nodes via AddPredefinedNodeAsync (not AddNodeAsync, which requires BaseInstanceState)
-            await manager.AddPredefinedNodePublicAsync(context, baseType).ConfigureAwait(false);
-            await manager.AddPredefinedNodePublicAsync(context, derivedType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, baseType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, derivedType).ConfigureAwait(false);
             await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
 
             // Register the type hierarchy in the TypeTree
@@ -1576,7 +1597,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task HistoryReadAsync_ReturnsUnsupportedForNodesWithoutHistoryAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1622,7 +1643,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task HistoryUpdateAsync_ReturnsUnsupportedForNodesWithoutHistoryAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1670,7 +1691,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ConditionRefreshAsync_ReturnsGoodWhenMonitoringServerAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = ObjectIds.Server,
@@ -1692,7 +1713,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscribeToEventsAsync_ReturnsBadNodeIdInvalidForUnknownSourceAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var monitoredItem = new TestEventMonitoredItem { NodeId = ObjectIds.Server };
             var context = new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None);
 
@@ -1708,7 +1729,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscribeToAllEventsAsync_ReturnsGoodWhenNoRootNotifiersAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var monitoredItem = new TestEventMonitoredItem { NodeId = ObjectIds.Server };
             var context = new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None);
 
@@ -1724,7 +1745,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RestoreMonitoredItemsAsync_RestoresStoredItemsAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             m_mockServer.Setup(s => s.IsRunning).Returns(false);
 
             ServerSystemContext context = manager.SystemContext;
@@ -1764,7 +1785,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TransferMonitoredItemsAsync_MarksItemsProcessedAndTriggersResendAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null);
@@ -1814,7 +1835,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SessionClosingAsync_CompletesWithoutErrorAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var context = new OperationContext(new RequestHeader(), null, RequestType.CloseSession, RequestLifetime.None);
 
             await manager.SessionClosingAsync(context, new NodeId(10), true).ConfigureAwait(false);
@@ -1826,7 +1847,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task IsNodeInViewAsync_ReturnsFalseForUnknownHandleAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var context = new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
 
             bool result = await manager.IsNodeInViewAsync(context, ObjectIds.Server, new object()).ConfigureAwait(false);
@@ -1840,7 +1861,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task GetPermissionMetadataAsync_ReturnsAccessAndRoleInformationAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null);
@@ -1892,7 +1913,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateRolePermissionsAsync_ReturnsGoodWhenPermissionNotRequiredAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServiceResult result = await manager.ValidateRolePermissionsAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
                 NodeId.Null,
@@ -1904,7 +1925,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateEventRolePermissionsAsync_ReturnsGoodWhenEventInformationMissingAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var monitoredItem = new TestEventMonitoredItem
             {
                 EffectiveIdentity = Mock.Of<IUserIdentity>(),
@@ -1931,7 +1952,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddRootNotifierAsyncAddsNodeToRootNotifiersAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -1947,7 +1968,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddRootNotifierAsyncSetsOnReportEventCallbackAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -1962,7 +1983,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddRootNotifierAsyncAddsHasNotifierReferenceToServerAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -1981,7 +2002,7 @@ namespace Opc.Ua.Server.Tests
         {
             // The Server object itself must not get the HasNotifier→Server reference
             // to prevent infinite recursion in event reporting.
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var serverNode = new BaseObjectState(null)
             {
                 NodeId = ObjectIds.Server,
@@ -2000,7 +2021,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddRootNotifierAsyncIsIdempotentAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -2025,7 +2046,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RemoveRootNotifierAsyncRemovesFromRootNotifiersAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -2043,7 +2064,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RemoveRootNotifierAsyncClearsOnReportEventCallbackAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -2061,7 +2082,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RemoveRootNotifierAsyncRemovesHasNotifierReferenceAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -2083,7 +2104,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RemoveRootNotifierAsyncIsNoopForUnknownNotifierAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -2104,7 +2125,7 @@ namespace Opc.Ua.Server.Tests
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
 
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null)
             {
@@ -2131,7 +2152,7 @@ namespace Opc.Ua.Server.Tests
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
 
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var notifier = new BaseObjectState(null);
             notifier.CreateAsPredefinedNode(manager.SystemContext);
@@ -2149,7 +2170,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscribeToEventsAsyncSucceedsForValidEventNotifierNodeAsyncAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2187,7 +2208,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscribeToEventsAsyncUnsubscribeRemovesEventMonitoredItemAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2224,7 +2245,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscribeToEventsAsyncReturnsBadNotSupportedForNodeWithoutEventNotifierAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2251,7 +2272,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscribeToAllEventsAsyncSubscribesToRootNotifiersAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2286,7 +2307,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ConditionRefreshAsyncReturnsGoodForManagedMonitoredItemAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2324,7 +2345,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ConditionRefreshAsyncSkipsItemsNotManagedByThisNodeManagerAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             var externalItem = new TestEventMonitoredItem
             {
@@ -2344,7 +2365,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncCreatesRootNotifierForInverseHasNotifierToExternalNodeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2367,7 +2388,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncDoesNotCreateRootNotifierForForwardHasNotifierAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2388,7 +2409,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncWithNodeHavingNoReferencesProducesNoExternalRefsAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2397,7 +2418,7 @@ namespace Opc.Ua.Server.Tests
             source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("SourceNoRefs", nsIdx);
             source.BrowseName = new QualifiedName("SourceNoRefs", nsIdx);
-            await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, source).ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
@@ -2408,7 +2429,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncSkipsReferenceWithAbsoluteTargetIdAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2428,7 +2449,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncSkipsHasSubtypeReferencesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2449,7 +2470,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncAddsInverseHasEncodingToTypeTreeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2477,7 +2498,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncAddsReverseReferenceToInternalTargetAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2494,8 +2515,8 @@ namespace Opc.Ua.Server.Tests
             target.BrowseName = new QualifiedName("Target", nsIdx);
 
             source.AddReference(ReferenceTypeIds.HasComponent, false, target.NodeId);
-            await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
-            await manager.AddPredefinedNodePublicAsync(context, target).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, source).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, target).ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
@@ -2510,7 +2531,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncDoesNotDuplicateReverseReferenceForInternalTargetAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2525,8 +2546,8 @@ namespace Opc.Ua.Server.Tests
             target.BrowseName = new QualifiedName("Target", nsIdx);
 
             source.AddReference(ReferenceTypeIds.HasComponent, false, target.NodeId);
-            await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
-            await manager.AddPredefinedNodePublicAsync(context, target).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, source).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, target).ConfigureAwait(false);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
@@ -2544,7 +2565,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncSkipsExternalReferenceForTargetInSameNamespaceAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2567,7 +2588,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncAddsExternalReferenceForExternalNamespaceTargetAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2594,7 +2615,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddReverseReferencesAsyncAppendsToExistingExternalReferenceListAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -2624,7 +2645,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetNamespacesUpdatesUrisAndIndexes()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             const string ns1 = "http://test.org/ns1/";
             const string ns2 = "http://test.org/ns2/";
 
@@ -2637,7 +2658,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetNamespacesRegistersUrisInServerNamespaceTable()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             const string ns1 = "http://test.org/ns1/";
             const string ns2 = "http://test.org/ns2/";
 
@@ -2652,7 +2673,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetNamespacesEmptyArrayClearsNamespacesAndIndexes()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             manager.SetNamespacesPublic();
 
@@ -2664,7 +2685,7 @@ namespace Opc.Ua.Server.Tests
         public void SetNamespacesReusesPreviouslyRegisteredUri()
         {
             // GetIndexOrAppend must not duplicate URIs already in the table
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort originalIndex = manager.NamespaceIndexes[0];
 
             manager.SetNamespacesPublic(m_testNamespaceUri);
@@ -2675,7 +2696,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetNamespaceIndexesLooksUpUrisFromServerTable()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             const string ns1 = "http://test.org/idx1/";
             const string ns2 = "http://test.org/idx2/";
             ushort idx1 = m_namespaceTable.GetIndexOrAppend(ns1);
@@ -2690,7 +2711,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetNamespaceIndexesEmptyArrayClearsNamespacesAndIndexes()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             manager.SetNamespaceIndexesPublic([]);
 
@@ -2701,7 +2722,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void NamespaceUrisSetterAppendsToServerTableAndUpdatesIndexes()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             const string ns1 = "http://test.org/setter1/";
             const string ns2 = "http://test.org/setter2/";
 
@@ -2716,7 +2737,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void NamespaceUrisSetterNullThrowsArgumentNullException()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             Assert.Throws<ArgumentNullException>(() => manager.SetNamespaceUrisPublic(null));
         }
@@ -2724,7 +2745,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void NamespaceIndexReturnsFirstIndex()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort firstIndex = manager.NamespaceIndexes[0];
 
             Assert.That(manager.NamespaceIndex, Is.EqualTo(firstIndex));
@@ -2733,6 +2754,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ConstructorWithMultipleNamespacesRegistersAllInServerTable()
         {
+            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter, "Requires AsyncCustomNodeManager features");
             const string ns1 = "http://test.org/multi1/";
             const string ns2 = "http://test.org/multi2/";
             var manager = new TestableAsyncCustomNodeManager(
@@ -2752,7 +2774,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsNodeIdInNamespaceTrueForManagedNamespace()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("TestNode", nsIdx)), Is.True);
@@ -2761,7 +2783,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsNodeIdInNamespaceFalseForUnmanagedNamespace()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             // Namespace 0 is the OPC UA built-in namespace, never managed by this node manager
             Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("TestNode", 0)), Is.False);
         }
@@ -2769,7 +2791,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsNodeIdInNamespaceFalseForNullNodeId()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             Assert.That(manager.IsNodeIdInNamespacePublic(NodeId.Null), Is.False);
         }
@@ -2777,7 +2799,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsNodeIdInNamespaceAfterSetNamespacesReflectsNewNamespaces()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort oldIdx = manager.NamespaceIndexes[0];
             const string newNs = "http://test.org/new/";
 
@@ -2791,7 +2813,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsHandleInNamespaceReturnsHandleForManagedNamespace()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("H", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -2804,7 +2826,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsHandleInNamespaceReturnsNullForUnmanagedNamespace()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             var node = new BaseObjectState(null) { NodeId = new NodeId("H", 0) };
             var handle = new NodeHandle(node.NodeId, node);
 
@@ -2814,7 +2836,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsHandleInNamespaceReturnsNullForNonHandleObject()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             Assert.That(manager.IsHandleInNamespacePublic("not-a-handle"), Is.Null);
         }
@@ -2822,7 +2844,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void IsHandleInNamespaceReturnsNullForNullInput()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
 
             Assert.That(manager.IsHandleInNamespacePublic(null), Is.Null);
         }
@@ -2830,7 +2852,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void SetNamespacesAffectsNewNodeIdGeneration()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             const string newNs = "http://test.org/newnodeid/";
             manager.SetNamespacesPublic(newNs);
             ushort newIdx = manager.NamespaceIndexes[0];
@@ -2844,7 +2867,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddNodeToComponentCacheNullHandleReturnsNodeUnchanged()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
 
             NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null, node);
@@ -2855,7 +2879,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddNodeToComponentCacheFirstAddCreatesEntry()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -2871,7 +2896,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddNodeToComponentCacheSecondAddIncrementsRefCountAndReturnsCachedNode()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode2", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -2895,7 +2921,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddNodeToComponentCacheDistinctNodesStoredIndependently()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var nodeA = new BaseObjectState(null) { NodeId = new NodeId("A", nsIdx) };
@@ -2913,7 +2940,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddNodeToComponentCacheWithComponentPathStoresRootAtRootId()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle) = CreateComponentPathFixture(nsIdx);
@@ -2930,7 +2958,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void AddNodeToComponentCacheWithComponentPathSecondAddIncrementsRefCount()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle) = CreateComponentPathFixture(nsIdx);
@@ -2957,7 +2986,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void LookupNodeInComponentCacheBeforeAnyAddReturnsNull()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -2970,7 +3000,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void LookupNodeInComponentCacheUnknownNodeIdReturnsNull()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var knownNode = new BaseObjectState(null) { NodeId = new NodeId("Known", nsIdx) };
@@ -2986,7 +3017,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void LookupNodeInComponentCacheWithComponentPathUnknownRootIdReturnsNull()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             // Nothing added — lookup with a component path handle must return null
@@ -3006,7 +3038,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveNodeFromComponentCacheNullHandleIsNoop()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
 
             // Must not throw
             Assert.DoesNotThrow(() =>
@@ -3016,7 +3049,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveNodeFromComponentCacheUnknownHandleIsNoop()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null);
 
@@ -3028,7 +3062,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveNodeFromComponentCacheSingleAddThenRemoveEvictsEntry()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("Evict", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -3044,7 +3079,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveNodeFromComponentCacheTwoAddsThenOneRemoveEntryRemains()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("Shared", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -3061,7 +3097,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RemoveNodeFromComponentCacheWithComponentPathUsesRootIdAsKey()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle) = CreateComponentPathFixture(nsIdx);
@@ -3119,7 +3156,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncNullFilterReturnsGoodAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
 
             var varState = new BaseDataVariableState(null);
             AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
@@ -3138,7 +3176,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncUnknownFilterTypeReturnsBadFilterNotAllowedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
@@ -3158,7 +3197,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterOnNonValueAttributeReturnsBadFilterNotAllowedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
@@ -3184,7 +3224,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUnsupportedAggregateReturnsBadAggregateNotSupportedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var unsupportedAggregateId = new NodeId("UnsupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager();
@@ -3212,7 +3253,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncValidAggregateFilterSetsServerAggregateFilterAsFilterToUseAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
@@ -3243,7 +3285,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingIntervalAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
@@ -3273,7 +3316,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToMinimumProcessingIntervalAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             const double minimumProcessingInterval = 500;
@@ -3304,7 +3348,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUseServerCapabilitiesDefaultsUpdatesAggregateConfigurationAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
@@ -3334,7 +3379,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonValueAttributeReturnsBadFilterNotAllowedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
@@ -3355,7 +3401,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonVariableNodeReturnsBadFilterNotAllowedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             ushort nsIdx = manager.NamespaceIndexes[0];
             var objNode = new BaseObjectState(null) { NodeId = new NodeId("Obj", nsIdx) };
             var handle = new NodeHandle(objNode.NodeId, objNode);
@@ -3376,7 +3423,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsSuccessAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
@@ -3397,7 +3445,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNonNumericTypeReturnsBadFilterNotAllowedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.String };
@@ -3419,7 +3468,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNumericTypeSetsFilterToUseAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
@@ -3443,7 +3493,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupportedAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
@@ -3465,7 +3516,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithEURangeSetsFilterToUseAndRangeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
+            
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -3508,7 +3560,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddPredefinedNodeAsyncWithNonReferenceBaseTypeStateAddsSubtypeToTypeTreeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var dataType = new DataTypeState
@@ -3518,7 +3570,7 @@ namespace Opc.Ua.Server.Tests
                 SuperTypeId = NodeId.Null
             };
 
-            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, dataType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, dataType).ConfigureAwait(false);
 
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(dataType.NodeId), Is.True);
             Assert.That(manager.PredefinedNodes.ContainsKey(dataType.NodeId), Is.True);
@@ -3527,7 +3579,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddPredefinedNodeAsyncWithReferenceTypeStateAddsReferenceSubtypeToTypeTreeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var refType = new ReferenceTypeState
@@ -3537,7 +3589,7 @@ namespace Opc.Ua.Server.Tests
                 SuperTypeId = NodeId.Null
             };
 
-            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, refType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, refType).ConfigureAwait(false);
 
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(refType.NodeId), Is.True);
             // FindReferenceType uses the browse name registered by AddReferenceSubtype
@@ -3549,7 +3601,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddPredefinedNodeAsyncRecursivelyAddsUnknownSuperTypeFromPredefinedNodesAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var parentType = new DataTypeState
@@ -3570,7 +3622,7 @@ namespace Opc.Ua.Server.Tests
                 SuperTypeId = parentType.NodeId
             };
 
-            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, childType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, childType).ConfigureAwait(false);
 
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(parentType.NodeId), Is.True);
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(childType.NodeId), Is.True);
@@ -3582,7 +3634,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddPredefinedNodeAsyncSkipsSuperTypeRecursionWhenSuperTypeAlreadyKnownAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             // Pre-register the parent type in the TypeTree directly
@@ -3597,7 +3649,7 @@ namespace Opc.Ua.Server.Tests
                 SuperTypeId = parentNodeId
             };
 
-            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, childType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, childType).ConfigureAwait(false);
 
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(childType.NodeId), Is.True);
             Assert.That(
@@ -3612,7 +3664,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddPredefinedNodeAsyncWithNullSuperTypeIdSkipsRecursionAndAddsToTypeTreeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var rootType = new DataTypeState
@@ -3622,7 +3674,7 @@ namespace Opc.Ua.Server.Tests
                 SuperTypeId = NodeId.Null
             };
 
-            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, rootType).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(manager.SystemContext, rootType).ConfigureAwait(false);
 
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(rootType.NodeId), Is.True);
             Assert.That(
@@ -3633,7 +3685,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AddPredefinedNodeAsyncWithNonBaseTypeStateNodeDoesNotAddToTypeTreeAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
@@ -3642,7 +3694,7 @@ namespace Opc.Ua.Server.Tests
             objectNode.NodeId = new NodeId("PlainObject", nsIdx);
             objectNode.BrowseName = new QualifiedName("PlainObject", nsIdx);
 
-            await manager.AddPredefinedNodePublicAsync(context, objectNode).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, objectNode).ConfigureAwait(false);
 
             Assert.That(manager.PredefinedNodes.ContainsKey(objectNode.NodeId), Is.True);
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(objectNode.NodeId), Is.False);
@@ -3652,7 +3704,7 @@ namespace Opc.Ua.Server.Tests
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Not used for security purposes")]
         public async Task ChaosTest_ConcurrentReadWriteBrowseAndMonitoredItemOperationsDoNotThrowAsync()
         {
-            using TestableAsyncCustomNodeManager manager = CreateManager();
+            using ITestNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             const int nodeCount = 20;
@@ -3705,7 +3757,7 @@ namespace Opc.Ua.Server.Tests
                                 {
                                     new() { NodeId = node.NodeId, AttributeId = Attributes.Value }
                                 };
-                                var values = new List<DataValue> { null };
+                                var values = new List<DataValue> { default };
                                 var errors = new List<ServiceResult> { null };
                                 await manager.ReadAsync(
                                     new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
@@ -3917,8 +3969,22 @@ namespace Opc.Ua.Server.Tests
             return new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, m_mockSession.Object);
         }
 
-        private TestableAsyncCustomNodeManager CreateManager()
+        private ITestNodeManager CreateManager()
         {
+            if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
+            {
+                var cnm2 = new TestableCustomNodeManager2(
+                    m_mockServer.Object,
+                    m_configuration,
+                    m_useSamplingGroups,
+                    m_mockLogger.Object,
+                    m_testNamespaceUri);
+                var adapter = new AsyncNodeManagerAdapter(cnm2);
+                var adapterWrapper = new TestableCustomNodeManager2Adapter(cnm2, adapter);
+                SetupMasterNodeManager(adapterWrapper);
+                return adapterWrapper;
+            }
+
             var manager = new TestableAsyncCustomNodeManager(
                 m_mockServer.Object,
                 m_configuration,
@@ -3931,7 +3997,7 @@ namespace Opc.Ua.Server.Tests
             return manager;
         }
 
-        private void SetupMasterNodeManager(TestableAsyncCustomNodeManager manager)
+        private void SetupMasterNodeManager(ITestNodeManager manager)
         {
             m_mockMasterNodeManager
                 .Setup(m => m.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
@@ -3957,7 +4023,8 @@ namespace Opc.Ua.Server.Tests
         }
     }
 
-    public class TestableAsyncCustomNodeManager : AsyncCustomNodeManager
+#nullable disable
+    public class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
     {
         public NodeStateCollection NodesToLoad { get; set; }
 
@@ -4024,7 +4091,7 @@ namespace Opc.Ua.Server.Tests
 
         public void SetNamespaceUrisPublic(IEnumerable<string> uris)
         {
-            NamespaceUris = uris;
+            NamespaceUris = uris!;
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
@@ -4084,11 +4151,20 @@ namespace Opc.Ua.Server.Tests
         {
             return AddPredefinedNodeAsync(context, node, cancellationToken);
         }
+
+        ValueTask ITestNodeManager.AddPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken ct)
+            => AddPredefinedNodeAsync(context, node, ct);
+
+        T ITestNodeManager.FindPredefinedNode<T>(NodeId nodeId)
+            => FindPredefinedNode<T>(nodeId);
     }
 
     internal sealed class TestEventMonitoredItem : IEventMonitoredItem
     {
-        public INodeManager NodeManager { get; set; }
+        public IAsyncNodeManager NodeManager { get; set; }
 
         public ISession Session { get; set; }
 
@@ -4245,4 +4321,543 @@ namespace Opc.Ua.Server.Tests
 
         public int TypeMask { get; set; }
     }
+
+    /// <summary>
+    /// Unified interface for both <see cref="TestableAsyncCustomNodeManager"/> and
+    /// <see cref="TestableCustomNodeManager2Adapter"/> so that tests can run against either.
+    /// </summary>
+#nullable enable
+    internal interface ITestNodeManager : IAsyncNodeManager, IDisposable
+    {
+        NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
+        ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
+        ServerSystemContext SystemContext { get; }
+        IReadOnlyList<ushort> NamespaceIndexes { get; }
+        ushort NamespaceIndex { get; }
+        NodeState Find(NodeId nodeId);
+        NodeId New(ISystemContext context, NodeState node);
+        ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
+        ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken ct = default);
+        ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
+        T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
+
+        /// <summary>Optional: set nodes to be loaded by CreateAddressSpaceAsync.</summary>
+        NodeStateCollection? NodesToLoad { get; set; }
+
+        /// <summary>Tests whether a NodeId belongs to a managed namespace.</summary>
+        bool IsNodeIdInNamespacePublic(NodeId nodeId);
+
+        /// <summary>Validates if a manager handle belongs to this node manager's namespace.</summary>
+        NodeHandle? IsHandleInNamespacePublic(object? managerHandle);
+
+        /// <summary>Adds a node to the component cache.</summary>
+        NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node);
+
+        /// <summary>Removes a node from the component cache.</summary>
+        void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle);
+
+        /// <summary>Looks up a node in the component cache.</summary>
+        NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle);
+
+        /// <summary>Validates monitoring filter.</summary>
+        ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            uint attributeId,
+            double samplingInterval,
+            uint queueSize,
+            ExtensionObject filter,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Gets the root notifiers dictionary.</summary>
+        NodeIdDictionary<NodeState> RootNotifiers { get; }
+
+        /// <summary>Adds a root notifier.</summary>
+        ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
+
+        /// <summary>Removes a root notifier.</summary>
+        ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
+
+        /// <summary>Invokes the OnReportEvent handler.</summary>
+        void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget);
+
+        /// <summary>Adds reverse references from predefined nodes to external targets.</summary>
+        ValueTask AddReverseReferencesPublicAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Sets namespace URIs.</summary>
+        void SetNamespacesPublic(params string[] namespaceUris);
+
+        /// <summary>Sets namespace indexes.</summary>
+        void SetNamespaceIndexesPublic(ushort[] namespaceIndexes);
+
+        /// <summary>Sets namespace URIs via the property setter.</summary>
+        void SetNamespaceUrisPublic(IEnumerable<string>? uris);
+    }
+
+    /// <summary>A testable subclass of <see cref="CustomNodeManager2"/> that exposes protected members.</summary>
+    public class TestableCustomNodeManager2 : CustomNodeManager2
+    {
+        public TestableCustomNodeManager2(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            bool useSamplingGroups,
+            ILogger logger,
+            params string[] namespaceUris)
+            : base(server, configuration, useSamplingGroups, logger, namespaceUris)
+        {
+        }
+
+        public NodeStateCollection? NodesToLoad { get; set; }
+
+        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new NodeIdDictionary<MonitoredNode2> MonitoredNodes => base.MonitoredNodes;
+        public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
+
+        public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
+            => AddPredefinedNode(context, node);
+
+        public bool IsNodeIdInNamespacePublic(NodeId nodeId)
+            => IsNodeIdInNamespace(nodeId);
+
+        public NodeHandle? IsHandleInNamespacePublic(object? managerHandle)
+            => IsHandleInNamespace(managerHandle!);
+
+        public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
+            => AddNodeToComponentCache(context, handle, node);
+
+        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
+            => RemoveNodeFromComponentCache(context, handle!);
+
+        public NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
+            => LookupNodeInComponentCache(context, handle);
+
+        public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            uint attributeId,
+            double samplingInterval,
+            uint queueSize,
+            ExtensionObject filter,
+            CancellationToken cancellationToken = default)
+        {
+            StatusCode statusCode = ValidateMonitoringFilter(
+                context, handle, attributeId, samplingInterval, queueSize, filter,
+                out MonitoringFilter filterToUse, out Range range, out MonitoringFilterResult filterResult);
+            var result = new AsyncCustomNodeManager.ValidateMonitoringFilterResult
+            {
+                StatusCode = statusCode,
+                FilterToUse = filterToUse,
+                Range = range,
+                FilterResult = filterResult
+            };
+            return new ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult>(result);
+        }
+
+        protected override NodeStateCollection? LoadPredefinedNodes(ISystemContext context)
+        {
+            if (NodesToLoad != null)
+            {
+                return NodesToLoad;
+            }
+
+            return base.LoadPredefinedNodes(context);
+        }
+
+        public NodeIdDictionary<NodeState> RootNotifiersDictionary
+        {
+            get
+            {
+                var dict = new NodeIdDictionary<NodeState>();
+                if (base.RootNotifiers != null)
+                {
+                    foreach (var n in base.RootNotifiers)
+                    {
+                        dict[n.NodeId] = n;
+                    }
+                }
+                return dict;
+            }
+        }
+
+        public void AddRootNotifierPublic(NodeState notifier)
+            => AddRootNotifier(notifier);
+
+        public void RemoveRootNotifierPublic(NodeState notifier)
+            => RemoveRootNotifier(notifier);
+
+        public void SetNamespacesPublic(params string[] namespaceUris)
+            => SetNamespaces(namespaceUris);
+
+        public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
+            => SetNamespaceIndexes(namespaceIndexes);
+
+        public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
+            => NamespaceUris = uris!;
+
+        public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
+            => OnReportEvent(context, node, filterTarget);
+    }
+
+    /// <summary>
+    /// Wraps a <see cref="TestableCustomNodeManager2"/> behind an <see cref="AsyncNodeManagerAdapter"/>
+    /// and implements <see cref="ITestNodeManager"/> so that the same tests can run against CNM2.
+    /// </summary>
+    internal sealed class TestableCustomNodeManager2Adapter : ITestNodeManager
+    {
+        private readonly TestableCustomNodeManager2 m_cnm2;
+        private readonly AsyncNodeManagerAdapter m_adapter;
+
+        public TestableCustomNodeManager2Adapter(
+            TestableCustomNodeManager2 cnm2,
+            AsyncNodeManagerAdapter adapter)
+        {
+            m_cnm2 = cnm2;
+            m_adapter = adapter;
+        }
+
+        // ITestNodeManager state properties — delegate to m_cnm2
+        public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
+        public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_cnm2.MonitoredNodes;
+        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_cnm2.MonitoredItems;
+        public ServerSystemContext SystemContext => m_cnm2.SystemContext;
+        public IReadOnlyList<ushort> NamespaceIndexes => m_cnm2.NamespaceIndexes;
+        public ushort NamespaceIndex => m_cnm2.NamespaceIndex;
+        public NodeState Find(NodeId nodeId) => m_cnm2.Find(nodeId)!;
+        public NodeId New(ISystemContext context, NodeState node) => m_cnm2.New(context, node);
+        public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState => m_cnm2.FindPredefinedNode<T>(nodeId)!;
+
+        public NodeStateCollection? NodesToLoad
+        {
+            get => m_cnm2.NodesToLoad;
+            set => m_cnm2.NodesToLoad = value;
+        }
+
+        public bool IsNodeIdInNamespacePublic(NodeId nodeId)
+            => m_cnm2.IsNodeIdInNamespacePublic(nodeId);
+
+        public NodeHandle? IsHandleInNamespacePublic(object? managerHandle)
+            => m_cnm2.IsHandleInNamespacePublic(managerHandle);
+
+        public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
+            => m_cnm2.AddNodeToComponentCachePublic(context, handle, node);
+
+        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
+            => m_cnm2.RemoveNodeFromComponentCachePublic(context, handle);
+
+        public NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
+            => m_cnm2.LookupNodeInComponentCachePublic(context, handle);
+
+        public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            uint attributeId,
+            double samplingInterval,
+            uint queueSize,
+            ExtensionObject filter,
+            CancellationToken cancellationToken = default)
+            => m_cnm2.ValidateMonitoringFilterPublicAsync(
+                context, handle, attributeId, samplingInterval, queueSize, filter, cancellationToken);
+
+        public ValueTask<NodeId> AddNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            BaseInstanceState instance,
+            CancellationToken ct = default)
+        {
+            if (!parentId.IsNull && m_cnm2.PredefinedNodes.TryGetValue(parentId, out NodeState? parent))
+            {
+                parent.AddChild(instance);
+            }
+            m_cnm2.AddPredefinedNodePublic(context, instance);
+            return new ValueTask<NodeId>(instance.NodeId);
+        }
+
+        public ValueTask<bool> DeleteNodeAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            CancellationToken ct = default)
+            => new ValueTask<bool>(m_cnm2.DeleteNode(context, nodeId));
+
+        public ValueTask AddPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken ct = default)
+        {
+            m_cnm2.AddPredefinedNodePublic(context, node);
+            return default;
+        }
+
+        // IAsyncNodeManager — delegate to m_adapter
+        public IEnumerable<string> NamespaceUris => m_adapter.NamespaceUris;
+        public INodeManager SyncNodeManager => m_adapter.SyncNodeManager;
+
+        public ValueTask CreateAddressSpaceAsync(IDictionary<NodeId, IList<IReference>> externalReferences, CancellationToken cancellationToken = default)
+            => m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+
+        public ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+            => m_adapter.DeleteAddressSpaceAsync(cancellationToken);
+
+        public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+            => m_adapter.GetManagerHandleAsync(nodeId, cancellationToken);
+
+        public ValueTask AddReferencesAsync(
+            IDictionary<NodeId, IList<IReference>> references,
+            CancellationToken cancellationToken = default)
+            => m_adapter.AddReferencesAsync(references, cancellationToken);
+
+        public ValueTask<ServiceResult> DeleteReferenceAsync(
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            bool deleteBidirectional,
+            CancellationToken cancellationToken = default)
+            => m_adapter.DeleteReferenceAsync(
+                sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional, cancellationToken);
+
+        public ValueTask<NodeMetadata> GetNodeMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            CancellationToken cancellationToken = default)
+            => m_adapter.GetNodeMetadataAsync(context, targetHandle, resultMask, cancellationToken);
+
+        public ValueTask<NodeMetadata?> GetPermissionMetadataAsync(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            CancellationToken cancellationToken = default)
+            => m_adapter.GetPermissionMetadataAsync(
+                context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly, cancellationToken);
+
+        public ValueTask<ContinuationPoint?> BrowseAsync(
+            OperationContext context,
+            ContinuationPoint continuationPoint,
+            IList<ReferenceDescription> references,
+            CancellationToken cancellationToken = default)
+            => m_adapter.BrowseAsync(context, continuationPoint, references, cancellationToken);
+
+        public ValueTask<bool> IsNodeInViewAsync(
+            OperationContext context,
+            NodeId viewId,
+            object nodeHandle,
+            CancellationToken cancellationToken = default)
+            => m_adapter.IsNodeInViewAsync(context, viewId, nodeHandle, cancellationToken);
+
+        public ValueTask TranslateBrowsePathAsync(
+            OperationContext context,
+            object sourceHandle,
+            RelativePathElement relativePath,
+            IList<ExpandedNodeId> targetIds,
+            IList<NodeId> unresolvedTargetIds,
+            CancellationToken cancellationToken = default)
+            => m_adapter.TranslateBrowsePathAsync(
+                context, sourceHandle, relativePath, targetIds, unresolvedTargetIds, cancellationToken);
+
+        public ValueTask ReadAsync(
+            OperationContext context,
+            double maxAge,
+            ArrayOf<ReadValueId> nodesToRead,
+            IList<DataValue> values,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken);
+
+        public ValueTask WriteAsync(
+            OperationContext context,
+            ArrayOf<WriteValue> nodesToWrite,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.WriteAsync(context, nodesToWrite, errors, cancellationToken);
+
+        public ValueTask HistoryReadAsync(
+            OperationContext context,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            ArrayOf<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.HistoryReadAsync(
+                context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors, cancellationToken);
+
+        public ValueTask HistoryUpdateAsync(
+            OperationContext context,
+            Type detailsType,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.HistoryUpdateAsync(context, detailsType, nodesToUpdate, results, errors, cancellationToken);
+
+        public ValueTask CallAsync(
+            OperationContext context,
+            ArrayOf<CallMethodRequest> methodsToCall,
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.CallAsync(context, methodsToCall, results, errors, cancellationToken);
+
+        public ValueTask<MethodState> FindMethodStateAsync(
+            OperationContext context,
+            CallMethodRequest methodToCall,
+            CancellationToken cancellationToken = default)
+            => m_adapter.FindMethodStateAsync(context, methodToCall, cancellationToken);
+
+        public ValueTask<ServiceResult> SubscribeToEventsAsync(
+            OperationContext context,
+            object sourceId,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default)
+            => m_adapter.SubscribeToEventsAsync(
+                context, sourceId, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+
+        public ValueTask<ServiceResult> SubscribeToAllEventsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default)
+            => m_adapter.SubscribeToAllEventsAsync(
+                context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+
+        public ValueTask<ServiceResult> ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+            => m_adapter.ConditionRefreshAsync(context, monitoredItems, cancellationToken);
+
+        public ValueTask CreateMonitoredItemsAsync(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
+            MonitoredItemIdFactory monitoredItemIdFactory,
+            CancellationToken cancellationToken = default)
+            => m_adapter.CreateMonitoredItemsAsync(
+                context, subscriptionId, publishingInterval, timestampsToReturn, itemsToCreate,
+                errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory, cancellationToken);
+
+        public ValueTask ModifyMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.ModifyMonitoredItemsAsync(
+                context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors, cancellationToken);
+
+        public ValueTask DeleteMonitoredItemsAsync(
+            OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors, cancellationToken);
+
+        public ValueTask SetMonitoringModeAsync(
+            OperationContext context,
+            MonitoringMode monitoringMode,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.SetMonitoringModeAsync(
+                context, monitoringMode, monitoredItems, processedItems, errors, cancellationToken);
+
+        public ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default)
+            => m_adapter.TransferMonitoredItemsAsync(
+                context, sendInitialValues, monitoredItems, processedItems, errors, cancellationToken);
+
+        public ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+            => m_adapter.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+
+        public ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            CancellationToken cancellationToken = default)
+            => m_adapter.SessionActivatedAsync(context, sessionId, cancellationToken);
+
+        public ValueTask RestoreMonitoredItemsAsync(
+            IList<IStoredMonitoredItem> itemsToRestore,
+            IList<IMonitoredItem> monitoredItems,
+            IUserIdentity savedOwnerIdentity,
+            CancellationToken cancellationToken = default)
+            => m_adapter.RestoreMonitoredItemsAsync(
+                itemsToRestore, monitoredItems, savedOwnerIdentity, cancellationToken);
+
+        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            CancellationToken cancellationToken = default)
+            => m_adapter.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget, cancellationToken);
+
+        public ValueTask<ServiceResult> ValidateRolePermissionsAsync(
+            OperationContext operationContext,
+            NodeId nodeId,
+            PermissionType requestedPermission,
+            CancellationToken cancellationToken = default)
+            => m_adapter.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
+
+        public NodeIdDictionary<NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
+
+        public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
+        {
+            m_cnm2.AddRootNotifierPublic(notifier);
+            return default;
+        }
+
+        public ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
+        {
+            m_cnm2.RemoveRootNotifierPublic(notifier);
+            return default;
+        }
+
+        public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
+        {
+            m_cnm2.InvokeOnReportEvent(context, node, filterTarget);
+        }
+
+        public ValueTask AddReverseReferencesPublicAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+            => m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+
+        public void SetNamespacesPublic(params string[] namespaceUris)
+            => m_cnm2.SetNamespacesPublic(namespaceUris);
+
+        public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
+            => m_cnm2.SetNamespaceIndexesPublic(namespaceIndexes);
+
+        public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
+            => m_cnm2.SetNamespaceUrisPublic(uris);
+
+        public void Dispose() => m_adapter.Dispose();
+    }
+#nullable restore
 }

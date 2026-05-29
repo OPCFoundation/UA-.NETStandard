@@ -95,12 +95,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId">Alternative type id</param>
         /// <param name="body">Encodeable body</param>
-        internal ExtensionObject(ExpandedNodeId typeId, IEncodeable body)
+        /// <param name="copy">Clone the encodeable</param>
+        public ExtensionObject(ExpandedNodeId typeId, IEncodeable body, bool copy = false)
         {
             if (body != null)
             {
                 TypeId = typeId.IsNull ? body.TypeId : typeId;
-                m_body = body;
+                m_body = copy ? body.Clone() : body;
             }
         }
 
@@ -301,9 +302,9 @@ namespace Opc.Ua
         /// </summary>
         private static bool TypeIdMatches(ExpandedNodeId typeId, IEncodeable encodeable)
         {
-            return typeId == encodeable.TypeId
-                || typeId == encodeable.BinaryEncodingId
-                || typeId == encodeable.XmlEncodingId;
+            return typeId == encodeable.TypeId ||
+                typeId == encodeable.BinaryEncodingId ||
+                typeId == encodeable.XmlEncodingId;
         }
 
         /// <inheritdoc/>
@@ -425,7 +426,7 @@ namespace Opc.Ua
         /// Try get as json
         /// </summary>
         public bool TryGetAsJson(
-            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string json,
+            [MaybeNullWhen(false)] out string json,
             IServiceMessageContext? messageContext = null)
         {
             if (m_body is string s)

@@ -8,6 +8,10 @@ parameters:
   poolImage: 'ubuntu-22.04'
   jobnamesuffix: 'net100cc'
   customtestarget: ''
+  # See ci.yml: passing pool config via parameter because root-pipeline
+  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
+  # included templates at compile-time.
+  poolName: ''
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
   displayName: Coverage ${{ parameters.agent }} ${{ parameters.configuration }}
@@ -21,7 +25,12 @@ jobs:
     ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
-    vmImage: ${{ parameters.poolImage }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.poolImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 8.0'

@@ -2714,7 +2714,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.GetInt32(), Is.EqualTo(value));
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
@@ -2744,7 +2744,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.SourceTimestamp, Is.EqualTo(expected));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(picoseconds));
         }
@@ -4556,15 +4556,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sourceTime = new DateTimeUtc(2024, 6, 15, 12, 0, 0);
             var serverTime = new DateTimeUtc(2024, 6, 15, 12, 0, 1);
-            var dataValue = new DataValue
-            {
-                WrappedValue = new Variant(42),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = sourceTime,
-                SourcePicoseconds = 100,
-                ServerTimestamp = serverTime,
-                ServerPicoseconds = 200
-            };
+            var dataValue = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                sourceTime,
+                serverTime,
+                100,
+                200);
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDataValue(null, dataValue);
@@ -4576,7 +4574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             DataValue result = decoder.ReadDataValue(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue, Is.EqualTo(new Variant(42)));
             Assert.That(result.SourceTimestamp, Is.EqualTo(sourceTime));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(100));
@@ -4641,7 +4639,35 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
             Assert.That(result.TryGetValue(out TestEncodeable _), Is.True);
+        }
+
+        [Test]
+        public void ReadExtensionObjectPreservesEncodingTypeId()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.AddEncodeableType(typeof(TestEncodeableWithDifferentTypeIds));
+
+            var testEncodeable = new TestEncodeableWithDifferentTypeIds();
+            var extensionObject = new ExtensionObject(testEncodeable);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteExtensionObject(null, extensionObject);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ExtensionObject result = decoder.ReadExtensionObject(null);
+
+            // Assert
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
+            Assert.That(result.TypeId, Is.Not.EqualTo(testEncodeable.TypeId));
+            Assert.That(result.TryGetValue(out TestEncodeableWithDifferentTypeIds _), Is.True);
         }
 
         [Test]
@@ -5676,7 +5702,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            ArrayOf<DataValue> values = [new DataValue { StatusCode = StatusCodes.Good }];
+            ArrayOf<DataValue> values = [DataValue.FromStatusCode(StatusCodes.Good)];
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
                 encoder => encoder.WriteDataValueArray(null, values),
@@ -6392,6 +6418,31 @@ namespace Opc.Ua.Types.Tests.Encoders
             public object Clone()
             {
                 return new TestEncodeableNs1();
+            }
+        }
+
+        private sealed class TestEncodeableWithDifferentTypeIds : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(20000, 0);
+            public ExpandedNodeId BinaryEncodingId => new(20001, 0);
+            public ExpandedNodeId XmlEncodingId => new(20002, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithDifferentTypeIds;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithDifferentTypeIds();
             }
         }
 

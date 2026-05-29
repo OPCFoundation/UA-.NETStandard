@@ -55,6 +55,7 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Initialises a new <see cref="WotConnectivityNodeManager"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
         public WotConnectivityNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -111,12 +112,12 @@ namespace Opc.Ua.WotCon.Server
                     SymbolicName = assetName,
                     BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
                     DisplayName = new LocalizedText(assetName),
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
-                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
+                    ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
                 };
                 asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
-                asset.AddReference(Opc.Ua.ReferenceTypeIds.HasInterface, isInverse: false,
-                    ExpandedNodeId.ToNodeId(Opc.Ua.WotCon.ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
+                asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
+                    ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
 
                 if (asset.WoTFile != null)
                 {
@@ -127,8 +128,8 @@ namespace Opc.Ua.WotCon.Server
                 }
 
                 m_managementObject!.AddChild(asset);
-                m_managementObject.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
-                asset.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
+                m_managementObject.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
+                asset.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
 
                 await AddPredefinedNodeAsync(SystemContext, asset, ct).ConfigureAwait(false);
                 return new AssetEntry(assetName, asset);
@@ -146,7 +147,7 @@ namespace Opc.Ua.WotCon.Server
             try
             {
                 m_managementObject?.RemoveReference(
-                    Opc.Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
+                    Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
                 m_managementObject?.RemoveChild(asset);
                 await DeleteNodeAsync(SystemContext, asset.NodeId, ct).ConfigureAwait(false);
             }
@@ -172,7 +173,7 @@ namespace Opc.Ua.WotCon.Server
         {
             if (predefinedNode is BaseObjectState passive &&
                 passive.TypeDefinitionId == ExpandedNodeId.ToNodeId(
-                    Opc.Ua.WotCon.ObjectTypeIds.WoTAssetConnectionManagementType,
+                    ObjectTypeIds.WoTAssetConnectionManagementType,
                     Server.NamespaceUris))
             {
                 WoTAssetConnectionManagementState active = passive as WoTAssetConnectionManagementState
@@ -233,10 +234,6 @@ namespace Opc.Ua.WotCon.Server
             }
             base.Dispose(disposing);
         }
-
-        // ----------------------------------------------------------------
-        // Monitored item plumbing
-        // ----------------------------------------------------------------
 
         /// <inheritdoc/>
         protected override void OnMonitoredItemCreated(
@@ -319,10 +316,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
-            void OnChange(WotPropertyTag t, Variant value, StatusCode status, DateTime timestamp)
-            {
-                OnProviderValueChange(variable, value, status, timestamp);
-            }
+            void OnChange(WotPropertyTag t, Variant value, StatusCode status, DateTime timestamp) => OnProviderValueChange(variable, value, status, timestamp);
             lock (entry.SubscriberCallbacks)
             {
                 entry.SubscriberCallbacks[subscriberId] = OnChange;
@@ -384,12 +378,6 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
-        private static Variant ToVariant(object? value) => WotVariantHelper.ToVariant(value);
-
-        // ----------------------------------------------------------------
-        // Management object wiring
-        // ----------------------------------------------------------------
-
         private WoTAssetConnectionManagementState Promote(ISystemContext context, BaseObjectState passive)
         {
             var active = new WoTAssetConnectionManagementState(passive.Parent);
@@ -400,14 +388,8 @@ namespace Opc.Ua.WotCon.Server
 
         private void WireManagementMethods(WoTAssetConnectionManagementState management)
         {
-            if (management.CreateAsset != null)
-            {
-                management.CreateAsset.OnCallAsync = OnCreateAssetAsync;
-            }
-            if (management.DeleteAsset != null)
-            {
-                management.DeleteAsset.OnCallAsync = OnDeleteAssetAsync;
-            }
+            management.CreateAsset?.OnCallAsync = OnCreateAssetAsync;
+            management.DeleteAsset?.OnCallAsync = OnDeleteAssetAsync;
             management.DiscoverAssets ??= management.AddDiscoverAssets(SystemContext);
             management.DiscoverAssets.OnCallAsync = OnDiscoverAssetsAsync;
 
@@ -457,9 +439,8 @@ namespace Opc.Ua.WotCon.Server
                 child.ValueRank = ValueRanks.Scalar;
                 child.AccessLevel = kv.Value.Writable ? AccessLevels.CurrentReadOrWrite : AccessLevels.CurrentRead;
                 child.UserAccessLevel = child.AccessLevel;
-                object? initial = kv.Value.InitialValue
-                    ?? TypeInfo.GetDefaultValue(kv.Value.DataType, ValueRanks.Scalar);
-                child.Value = ToVariant(initial);
+                child.Value = kv.Value.InitialValue
+                    ?? TypeInfo.GetDefaultVariantValue(kv.Value.DataType, ValueRanks.Scalar);
                 if (!string.IsNullOrEmpty(kv.Value.Description))
                 {
                     child.Description = new LocalizedText(kv.Value.Description);
@@ -500,7 +481,10 @@ namespace Opc.Ua.WotCon.Server
             (ServiceResult status, IReadOnlyList<string> endpoints) = await m_registry
                 .DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false);
             string[] arr = new string[endpoints.Count];
-            for (int i = 0; i < endpoints.Count; i++) { arr[i] = endpoints[i]; }
+            for (int i = 0; i < endpoints.Count; i++)
+            {
+                arr[i] = endpoints[i];
+            }
             return new DiscoverAssetsMethodStateResult
             {
                 ServiceResult = status,
@@ -543,10 +527,6 @@ namespace Opc.Ua.WotCon.Server
             };
         }
 
-        // ----------------------------------------------------------------
-        // Helpers
-        // ----------------------------------------------------------------
-
         private void AssignChildNodeIds(NodeState node, string parentPath)
         {
             var children = new List<BaseInstanceState>();
@@ -563,7 +543,7 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotConnectivityServerOptions m_options;
         private readonly AssetRegistry m_registry;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
-        private readonly object m_changeLock = new();
+        private readonly Lock m_changeLock = new();
         private WoTAssetConnectionManagementState? m_managementObject;
         private long m_nextDynamicId = 1_000_000;
     }

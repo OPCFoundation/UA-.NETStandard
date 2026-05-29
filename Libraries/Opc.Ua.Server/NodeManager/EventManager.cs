@@ -66,8 +66,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<IEventMonitoredItem>? monitoredItems = null;
-
+                List<IEventMonitoredItem>? monitoredItems;
                 lock (m_lock)
                 {
                     monitoredItems = [.. m_monitoredItems.Values];
@@ -103,7 +102,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public IEventMonitoredItem CreateMonitoredItem(
             OperationContext context,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object handle,
             uint subscriptionId,
             MonitoredItemIdFactory monitoredItemIdFactory,
@@ -149,7 +148,7 @@ namespace Opc.Ua.Server
                     itemToCreate.RequestedParameters.ClientHandle,
                     filter,
                     filter,
-                    null!,
+                    null,
                     samplingInterval,
                     revisedQueueSize,
                     itemToCreate.RequestedParameters.DiscardOldest,
@@ -167,7 +166,7 @@ namespace Opc.Ua.Server
         /// Restore a MonitoredItem after a restart
         /// </summary>
         public IEventMonitoredItem RestoreMonitoredItem(
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             object handle,
             IStoredMonitoredItem storedMonitoredItem)
         {

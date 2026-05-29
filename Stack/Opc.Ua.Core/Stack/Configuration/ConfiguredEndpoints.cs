@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -749,7 +749,7 @@ namespace Opc.Ua
 #if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                     servers.TryAdd(server.ApplicationUri!, server);
 #else
-                    System.Collections.Generic.Polyfills.TryAdd(servers, server.ApplicationUri!, server);
+                    servers.TryAdd(server.ApplicationUri!, server);
 #endif
                 }
             }
@@ -1244,7 +1244,7 @@ namespace Opc.Ua
             }
             else
             {
-                endpointUrl = Utils.ParseUri(m_description.EndpointUrl!)!;
+                endpointUrl = Utils.ParseUri(m_description.EndpointUrl)!;
             }
 
             // get the know discovery URLs.

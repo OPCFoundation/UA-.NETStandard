@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -149,7 +148,7 @@ namespace Opc.Ua.Client.FileSystem
             {
                 return dir;
             }
-            throw (Exception)FileSystemErrors.NotFound(path, targetIsDirectory: true);
+            throw FileSystemErrors.NotFound(path, targetIsDirectory: true);
         }
 
         /// <summary>
@@ -166,7 +165,7 @@ namespace Opc.Ua.Client.FileSystem
             {
                 return file;
             }
-            throw (Exception)FileSystemErrors.NotFound(path, targetIsDirectory: false);
+            throw FileSystemErrors.NotFound(path, targetIsDirectory: false);
         }
 
         /// <summary>
@@ -252,7 +251,7 @@ namespace Opc.Ua.Client.FileSystem
                 {
                     UaFileSystemInfo info = await BuildInfoAsync(
                         new ResolvedNode(childId.Value, segment),
-                        segments.Take(i + 1).ToArray(),
+                        [.. segments.Take(i + 1)],
                         ct).ConfigureAwait(false);
                     if (info is UaDirectoryInfo dir)
                     {
@@ -264,8 +263,8 @@ namespace Opc.Ua.Client.FileSystem
                 }
                 if (!createIntermediate && !isLast)
                 {
-                    throw (Exception)FileSystemErrors.NotFound(
-                        UaPath.Format(segments.Take(i + 1).ToArray()),
+                    throw FileSystemErrors.NotFound(
+                        UaPath.Format([.. segments.Take(i + 1)]),
                         targetIsDirectory: true);
                 }
                 if (segment.NamespaceIndex != 0)
@@ -304,7 +303,7 @@ namespace Opc.Ua.Client.FileSystem
             }
             else
             {
-                string parentPath = UaPath.Format(segments.Take(segments.Length - 1).ToArray());
+                string parentPath = UaPath.Format([.. segments.Take(segments.Length - 1)]);
                 if (createIntermediate)
                 {
                     parent = await CreateDirectoryAsync(parentPath, true, ct).ConfigureAwait(false);
@@ -336,11 +335,7 @@ namespace Opc.Ua.Client.FileSystem
             bool recursive = false,
             CancellationToken ct = default)
         {
-            UaFileSystemInfo? info = await GetInfoAsync(path, ct).ConfigureAwait(false);
-            if (info == null)
-            {
-                throw (Exception)FileSystemErrors.NotFound(path, targetIsDirectory: false);
-            }
+            UaFileSystemInfo? info = await GetInfoAsync(path, ct).ConfigureAwait(false) ?? throw FileSystemErrors.NotFound(path, targetIsDirectory: false);
             await DeleteCoreAsync(info, recursive, ct).ConfigureAwait(false);
         }
 
@@ -353,11 +348,7 @@ namespace Opc.Ua.Client.FileSystem
             string destPath,
             CancellationToken ct = default)
         {
-            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false);
-            if (src == null)
-            {
-                throw (Exception)FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
-            }
+            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false) ?? throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
             return await MoveOrCopyAsync(src, destPath, copy: false, ct).ConfigureAwait(false);
         }
 
@@ -370,11 +361,7 @@ namespace Opc.Ua.Client.FileSystem
             string destPath,
             CancellationToken ct = default)
         {
-            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false);
-            if (src == null)
-            {
-                throw (Exception)FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
-            }
+            UaFileSystemInfo? src = await GetInfoAsync(srcPath, ct).ConfigureAwait(false) ?? throw FileSystemErrors.NotFound(srcPath, targetIsDirectory: false);
             return await MoveOrCopyAsync(src, destPath, copy: true, ct).ConfigureAwait(false);
         }
 
@@ -703,7 +690,7 @@ namespace Opc.Ua.Client.FileSystem
             }
             else
             {
-                string parentPath = UaPath.Format(segments.Take(segments.Length - 1).ToArray());
+                string parentPath = UaPath.Format([.. segments.Take(segments.Length - 1)]);
                 destDir = await GetDirectoryAsync(parentPath, ct).ConfigureAwait(false);
             }
             return await MoveOrCopyAsync(source, destDir, segments[^1].Name!, copy, ct)
@@ -778,7 +765,7 @@ namespace Opc.Ua.Client.FileSystem
                     RelativePath = new RelativePath { Elements = [element] }
                 });
             }
-            ArrayOf<BrowsePath> browsePaths = browsePathsList.ToArrayOf();
+            var browsePaths = browsePathsList.ToArrayOf();
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
@@ -788,7 +775,7 @@ namespace Opc.Ua.Client.FileSystem
 
             // Collect resolved property NodeIds.
             var nodesToReadList = new List<ReadValueId>(kFileTypePropertyNames.Length);
-            var indexToProperty = new int[kFileTypePropertyNames.Length];
+            int[] indexToProperty = new int[kFileTypePropertyNames.Length];
             for (int i = 0; i < kFileTypePropertyNames.Length; i++)
             {
                 BrowsePathResult result = response.Results[i];
@@ -810,7 +797,7 @@ namespace Opc.Ua.Client.FileSystem
                         targetIsDirectory: false);
                 }
 
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     result.Targets[0].TargetId,
                     Session.MessageContext.NamespaceUris);
                 indexToProperty[nodesToReadList.Count] = i;
@@ -826,7 +813,7 @@ namespace Opc.Ua.Client.FileSystem
                 return default;
             }
 
-            ArrayOf<ReadValueId> nodesToRead = nodesToReadList.ToArrayOf();
+            var nodesToRead = nodesToReadList.ToArrayOf();
             ReadResponse readResponse = await Session.ReadAsync(
                 null,
                 0.0,
@@ -955,8 +942,8 @@ namespace Opc.Ua.Client.FileSystem
                 {
                     if (throwOnMissing)
                     {
-                        throw (Exception)FileSystemErrors.NotFound(
-                            UaPath.Format(segments.Take(i + 1).ToArray()),
+                        throw FileSystemErrors.NotFound(
+                            UaPath.Format([.. segments.Take(i + 1)]),
                             targetIsDirectory: !isLast);
                     }
                     return null;
@@ -1034,7 +1021,7 @@ namespace Opc.Ua.Client.FileSystem
             if (segments.Length > 1)
             {
                 ResolvedNode? parent = await ResolveSegmentsAsync(
-                    segments.Take(segments.Length - 1).ToArray(),
+                    [.. segments.Take(segments.Length - 1)],
                     throwOnMissing: true,
                     ct).ConfigureAwait(false);
                 if (parent != null)
@@ -1044,7 +1031,7 @@ namespace Opc.Ua.Client.FileSystem
                         parent: null, // grandparent reference omitted for the synthesized parent stub
                         parent.Value.NodeId,
                         parent.Value.BrowseName,
-                        segments.Take(segments.Length - 1).ToArray());
+                        [.. segments.Take(segments.Length - 1)]);
                 }
             }
             else
@@ -1077,10 +1064,10 @@ namespace Opc.Ua.Client.FileSystem
             bool includeFiles,
             bool includeDirectories)
         {
-            NodeId childId = ExpandedNodeId.ToNodeId(
+            var childId = ExpandedNodeId.ToNodeId(
                 reference.NodeId,
                 Session.MessageContext.NamespaceUris);
-            NodeId typeDef = ExpandedNodeId.ToNodeId(
+            var typeDef = ExpandedNodeId.ToNodeId(
                 reference.TypeDefinition,
                 Session.MessageContext.NamespaceUris);
             QualifiedName name = reference.BrowseName;

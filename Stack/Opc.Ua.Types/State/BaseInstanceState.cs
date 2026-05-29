@@ -314,7 +314,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                BaseVariableState? childVariable = children[ii] as BaseVariableState;
+                var childVariable = children[ii] as BaseVariableState;
 
                 childVariable?.MinimumSamplingInterval = minimumSamplingInterval;
 
@@ -353,7 +353,7 @@ namespace Opc.Ua
                 relativePath,
                 0,
                 attributeId,
-                dataValue);
+                ref dataValue);
 
             if (ServiceResult.IsBad(result))
             {

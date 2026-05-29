@@ -167,7 +167,7 @@ namespace Opc.Ua.Server
         /// <c>ServerConfiguration.UserManagement</c>. Integrators inject a
         /// concrete instance by calling <see cref="SetUserManagement"/>.
         /// </summary>
-        Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; }
+        UserManagement.IUserManagement? UserManagement { get; }
 
         /// <summary>
         /// The manager for active subscriptions.
@@ -250,6 +250,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        [Obsolete("Use CloseSessionAsync instead.")]
         void CloseSession(OperationContext context, NodeId sessionId, bool deleteSubscriptions);
 
         /// <summary>
@@ -352,19 +353,19 @@ namespace Opc.Ua.Server
         /// binds the address space (typically before <c>StartServer</c>).
         /// Integrators use this to plug a persistent backing store, an LDAP
         /// directory, etc., in place of the default in-memory
-        /// <see cref="Opc.Ua.Server.RoleManager"/>.
+        /// <see cref="Server.RoleManager"/>.
         /// </summary>
         /// <param name="roleManager">The role manager to use.</param>
         void SetRoleManager(IRoleManager roleManager);
 
         /// <summary>
         /// Replaces the user-management facade with a custom
-        /// <see cref="Opc.Ua.Server.UserManagement.IUserManagement"/>
+        /// <see cref="UserManagement.IUserManagement"/>
         /// implementation. Must be called before the configuration node
         /// manager binds the address space (typically before <c>StartServer</c>).
         /// </summary>
         /// <param name="userManagement">The user-management facade.</param>
-        void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement);
+        void SetUserManagement(UserManagement.IUserManagement userManagement);
 
         /// <summary>
         /// Stores the AggregateManager in the datastore.

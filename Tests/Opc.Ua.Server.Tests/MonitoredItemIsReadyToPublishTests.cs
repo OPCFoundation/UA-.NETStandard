@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Tests
         {
             serverMock ??= CreateServerMock(telemetry);
 
-            var nodeMangerMock = new Mock<INodeManager>();
+            var nodeMangerMock = new Mock<IAsyncNodeManager>();
 
             filterToUse ??= new MonitoringFilter();
 

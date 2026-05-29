@@ -228,7 +228,7 @@ namespace Opc.Ua.Aot.Tests
                 {
                     if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                         (ep.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
-                        ep.SecurityPolicyUri == SecurityPolicies.Basic256Sha256))
+                            ep.SecurityPolicyUri == SecurityPolicies.Basic256Sha256))
                     {
                         selectedEndpoint = ep;
                         break;

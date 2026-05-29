@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.MonitoringMode,
                 Is.EqualTo(MonitoringMode.Reporting));
             Assert.That(restored.IsDurable, Is.True);
-            Assert.That(restored.LastValue, Is.Not.Null);
+            Assert.That(restored.LastValue.IsNull, Is.False);
             Assert.That((int)restored.LastValue.WrappedValue,
                 Is.EqualTo(42));
         }

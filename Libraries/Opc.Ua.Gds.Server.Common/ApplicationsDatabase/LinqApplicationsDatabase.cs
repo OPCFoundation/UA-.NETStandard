@@ -187,12 +187,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 Application? record =
                         (from ii in Applications
                          where ii.ApplicationId == applicationId
-                         select ii).SingleOrDefault();
-
-                if (record == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNotFound);
-                }
+                         select ii).SingleOrDefault() ??
+                        throw new ServiceResultException(StatusCodes.BadNotFound);
 
                 if (record.ApplicationUri != application.ApplicationUri)
                 {
@@ -381,10 +377,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                IEnumerable<Application> results =
-                    from x in Applications
-                    where x.ApplicationUri == applicationUri
-                    select x;
+                // Per OPC UA Part 12, an empty applicationUri filter matches
+                // all registered Applications.
+                IEnumerable<Application> results = string.IsNullOrEmpty(applicationUri)
+                    ? Applications
+                    : from x in Applications
+                      where x.ApplicationUri == applicationUri
+                      select x;
 
                 var records = new List<ApplicationRecordDataType>();
 
@@ -566,7 +565,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     {
                         if (maxRecordsToReturn != 0 && records.Count >= maxRecordsToReturn)
                         {
-                            nextRecordId = result.ID + 1;
+                            // Return the ID of the LAST included record (lastID),
+                            // not result.ID + 1. The filter on the next page is
+                            // 'startingRecordId < x.ID', so passing lastID
+                            // returns records with ID > lastID — i.e. starting
+                            // from the current (excluded) result. Using
+                            // result.ID + 1 here would skip the current result.
+                            // Mirrors the same off-by-one fix already applied
+                            // to QueryServers.
+                            nextRecordId = lastID;
                             break;
                         }
 

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -77,17 +77,8 @@ namespace Opc.Ua.Client.AliasNames.Refresh
             Action onInvalidate,
             CancellationToken ct)
         {
-            if (client == null)
-            {
-                throw new ArgumentNullException(nameof(client));
-            }
-            if (onInvalidate == null)
-            {
-                throw new ArgumentNullException(nameof(onInvalidate));
-            }
-
-            m_client = client;
-            m_onInvalidate = onInvalidate;
+            m_client = client ?? throw new ArgumentNullException(nameof(client));
+            m_onInvalidate = onInvalidate ?? throw new ArgumentNullException(nameof(onInvalidate));
 
             NodeId lastChangeId = await client
                 .ResolveLastChangeNodeIdAsync(ct)
@@ -112,7 +103,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 {
                     DisplayName = Options.SubscriptionDisplayName,
                     PublishingEnabled = true,
-                    PublishingInterval = (int)Options.PublishingIntervalMs,
+                    PublishingInterval = (int)Options.PublishingIntervalMs
                 };
                 client.Session.AddSubscription(subscription);
                 await subscription.CreateAsync(ct).ConfigureAwait(false);
@@ -127,7 +118,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 SamplingInterval = (int)Options.SamplingIntervalMs,
                 QueueSize = 1,
                 DiscardOldest = true,
-                MonitoringMode = MonitoringMode.Reporting,
+                MonitoringMode = MonitoringMode.Reporting
             };
             item.Notification += OnNotification;
             subscription.AddItem(item);
@@ -199,9 +190,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
             // The data-change notification carries a DataValue in the
             // first value of NotificationValue. Extract the uint and
             // compare on inequality.
-            MonitoredItemNotification? notification = item.LastValue
-                as MonitoredItemNotification;
-            if (notification == null)
+            if (item.LastValue is not MonitoredItemNotification notification)
             {
                 return;
             }

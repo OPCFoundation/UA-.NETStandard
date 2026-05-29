@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Xml;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -85,6 +84,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Initializes a new <see cref="FluentBuilderGenerator"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
         public FluentBuilderGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
@@ -131,12 +131,12 @@ namespace Opc.Ua.SourceGeneration
             // depth-first and emit nested type declarations.
             LinkChildWrappers();
 
-            string fileStem = string.IsNullOrEmpty(OverrideManagerClassName)
-                ? nsPrefix
-                : OverrideManagerClassName;
             string fileName = Path.Combine(
                 m_context.OutputFolder,
-                CoreUtils.Format("{0}.FluentBuilders.g.cs", fileStem));
+                CoreUtils.Format("{0}.FluentBuilders.g.cs",
+                    string.IsNullOrEmpty(OverrideManagerClassName)
+                        ? nsPrefix
+                        : OverrideManagerClassName));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -339,7 +339,6 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, hnode.Instance);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "Builder");
-            string nsUri = ResolveNodeBrowseNamespace(hnode.Instance);
             var wrapper = new InstanceWrapper
             {
                 Key = key,
@@ -347,7 +346,7 @@ namespace Opc.Ua.SourceGeneration
                 LeafName = leafName,
                 ParentKey = parentKey,
                 NodeStateType = ResolveStateClrType(hnode.Instance),
-                BrowseNamespaceUri = nsUri,
+                BrowseNamespaceUri = ResolveNodeBrowseNamespace(hnode.Instance),
                 SupportsPublish = QualifiesAsEventNotifier(hnode.Instance),
                 Children = [],
                 ChildObjectKeys = [],
@@ -429,7 +428,7 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, method);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
-            var wrapper = new MethodWrapper
+            m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
@@ -438,7 +437,6 @@ namespace Opc.Ua.SourceGeneration
                 Inputs = method.InputArguments ?? [],
                 Outputs = method.OutputArguments ?? []
             };
-            m_methodWrappers[key] = wrapper;
         }
 
         // ============================================================
@@ -489,6 +487,7 @@ namespace Opc.Ua.SourceGeneration
         /// Verifies that no two children of the same wrapper sanitize to
         /// the same C# accessor identifier.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Two children of the same wrapper resolve to the same C# accessor name.</exception>
         private void ValidateNoCollisions()
         {
             foreach (InstanceWrapper wrapper in m_wrappers.Values)
@@ -526,8 +525,8 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine();
             writer.WriteLine("/// <summary>");
             writer.WriteLine(
-                "/// Source-generated typed sibling of"
-                + " <see cref=\"global::Opc.Ua.Server.Fluent.INodeManagerBuilder\"/>");
+                "/// Source-generated typed sibling of" +
+                " <see cref=\"global::Opc.Ua.Server.Fluent.INodeManagerBuilder\"/>");
             writer.WriteLine(
                 "/// that surfaces typed accessors for the predefined-instance tree.");
             writer.WriteLine("/// </summary>");
@@ -567,8 +566,8 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine();
             writer.WriteLine("/// <summary>");
             writer.WriteLine(
-                "/// Internal proxy that wraps the runtime fluent"
-                + " <c>NodeManagerBuilder</c>");
+                "/// Internal proxy that wraps the runtime fluent" +
+                " <c>NodeManagerBuilder</c>");
             writer.WriteLine("/// to surface the typed <see cref=\"{0}\"/> facade.", interfaceName);
             writer.WriteLine("/// </summary>");
             writer.WriteLine(
@@ -649,7 +648,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                string browseName = GetBrowseName(root);
+
+                _ = GetBrowseName(root);
                 string nsUri = ResolveNodeBrowseNamespace(root);
                 writer.WriteLine();
                 writer.WriteLine("    /// <inheritdoc/>");
@@ -1015,26 +1015,23 @@ namespace Opc.Ua.SourceGeneration
                         returnTypeAnnotation);
                 }
             }
+            else if (inputs.Length == 0 && outputs.Length == 0)
+            {
+                handlerType = "global::System.Action";
+            }
+            else if (outputs.Length == 0)
+            {
+                handlerType = CoreUtils.Format(
+                    "global::System.Action<{0}>",
+                    FormatInputTypeList(inputs, targetNamespace, namespaces));
+            }
             else
             {
-                if (inputs.Length == 0 && outputs.Length == 0)
-                {
-                    handlerType = "global::System.Action";
-                }
-                else if (outputs.Length == 0)
-                {
-                    handlerType = CoreUtils.Format(
-                        "global::System.Action<{0}>",
-                        FormatInputTypeList(inputs, targetNamespace, namespaces));
-                }
-                else
-                {
-                    handlerType = CoreUtils.Format(
-                        "global::System.Func<{0}{1}{2}>",
-                        FormatInputTypeList(inputs, targetNamespace, namespaces),
-                        inputs.Length == 0 ? string.Empty : ", ",
-                        StripAngleBrackets(returnTypeAnnotation, defaultIfEmpty: "void"));
-                }
+                handlerType = CoreUtils.Format(
+                    "global::System.Func<{0}{1}{2}>",
+                    FormatInputTypeList(inputs, targetNamespace, namespaces),
+                    inputs.Length == 0 ? string.Empty : ", ",
+                    StripAngleBrackets(returnTypeAnnotation, defaultIfEmpty: "void"));
             }
 
             writer.WriteLine();
@@ -1098,20 +1095,17 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine(").ConfigureAwait(false);");
                 }
             }
+            else if (outputs.Length == 0)
+            {
+                writer.Write("{0}handler(", lambdaIndent);
+                EmitInputArgPassThrough(writer, inputs, withCt: false);
+                writer.WriteLine(");");
+            }
             else
             {
-                if (outputs.Length == 0)
-                {
-                    writer.Write("{0}handler(", lambdaIndent);
-                    EmitInputArgPassThrough(writer, inputs, withCt: false);
-                    writer.WriteLine(");");
-                }
-                else
-                {
-                    writer.Write("{0}var __r = handler(", lambdaIndent);
-                    EmitInputArgPassThrough(writer, inputs, withCt: false);
-                    writer.WriteLine(");");
-                }
+                writer.Write("{0}var __r = handler(", lambdaIndent);
+                EmitInputArgPassThrough(writer, inputs, withCt: false);
+                writer.WriteLine(");");
             }
 
             // Marshal outputs.
@@ -1205,9 +1199,9 @@ namespace Opc.Ua.SourceGeneration
         /// surrounding OnCall.
         /// </summary>
         /// <remarks>
-        /// The base <see cref="Opc.Ua.MethodState"/> dispatcher
+        /// The base <see cref="MethodState"/> dispatcher
         /// pre-populates the outputs list with one default-valued
-        /// <see cref="Opc.Ua.Variant"/> per declared output argument
+        /// <see cref="Variant"/> per declared output argument
         /// before invoking the user handler, so the wrapper assigns
         /// boxed values by index rather than appending to avoid
         /// double-counting outputs at the wire.
@@ -1281,8 +1275,8 @@ namespace Opc.Ua.SourceGeneration
                     outputs[ii].ValueRank,
                     targetNamespace,
                     namespaces,
-                    outputs[ii].IsOptional));
-                sb.Append(" Item" + (ii + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    outputs[ii].IsOptional))
+                    .Append(" Item" + (ii + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
             sb.Append(")>");
             return sb.ToString();
@@ -1389,8 +1383,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return ComposeKey(root, string.Empty);
             }
-            string parentPath = relativePath[..^trim];
-            return ComposeKey(root, parentPath);
+            return ComposeKey(root, relativePath[..^trim]);
         }
 
         /// <summary>
@@ -1468,9 +1461,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                string refName = reference.ReferenceType?.Name;
-                if (refName == "GeneratesEvent" ||
-                    refName == "AlwaysGeneratesEvent")
+                if (reference.ReferenceType?.Name is "GeneratesEvent" or
+                    "AlwaysGeneratesEvent")
                 {
                     return true;
                 }
@@ -1509,12 +1501,10 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetVariableValueClrType(VariableDesign variable)
         {
-            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
-            Namespace[] namespaces = m_context.ModelDesign.Namespaces;
             return variable.DataTypeNode.GetMethodArgumentTypeAsCode(
                 variable.ValueRank,
-                targetNamespace,
-                namespaces,
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
                 isOptional: false);
         }
 
@@ -1558,13 +1548,16 @@ namespace Opc.Ua.SourceGeneration
         private Dictionary<string, InstanceWrapper> m_wrappers = [];
         private Dictionary<string, MethodWrapper> m_methodWrappers = [];
 
-        // Single nesting step. Wrappers are emitted inside the body of
-        // the file template at column 4; each additional nesting level
-        // adds one Indent.
+        /// <summary>
+        /// Single nesting step. Wrappers are emitted inside the body of
+        /// the file template at column 4; each additional nesting level
+        /// adds one Indent.
+        /// </summary>
         private const string Indent = "    ";
 
         private static string ToolName
             => System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
+
         private static string ToolVersion
             => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
@@ -1595,10 +1588,18 @@ namespace Opc.Ua.SourceGeneration
             public string BrowseName;
             public string BrowseNamespaceUri;
             public ChildKind Kind;
-            public string ValueClrType;       // Variable
-            public string WrapperClassName;   // Method or Object
-            public string ChildKey;           // Object — key into m_wrappers
-            public string ChildStateType;     // Object — node state type
+
+            /// <summary>CLR type name of the variable's value.</summary>
+            public string ValueClrType;
+
+            /// <summary>Generated wrapper class name for a method or object child.</summary>
+            public string WrapperClassName;
+
+            /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
+            public string ChildKey;
+
+            /// <summary>Node state type for object children.</summary>
+            public string ChildStateType;
         }
 
         private sealed class MethodWrapper

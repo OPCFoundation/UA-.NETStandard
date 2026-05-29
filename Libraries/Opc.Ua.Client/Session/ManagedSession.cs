@@ -74,7 +74,8 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             bool checkDomain,
-            bool transferSubscriptionsOnRecreate)
+            bool transferSubscriptionsOnRecreate,
+            bool poolNotifications)
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
@@ -93,6 +94,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = sessionTimeout;
             m_checkDomain = checkDomain;
             m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
+            m_poolNotifications = poolNotifications;
 
             StateMachine = new ConnectionStateMachine(
                 reconnectPolicy, logger);
@@ -134,6 +136,12 @@ namespace Opc.Ua.Client
         /// subscriptions before falling back to per-subscription
         /// recreate. Default <c>false</c> — recreate is the universal
         /// fallback; transfer requires server support.</param>
+        /// <param name="poolNotifications">When <c>true</c>, the V2
+        /// subscription manager calls <see cref="IPooledEncodeable.Reuse"/>
+        /// on notification payload instances after handler dispatch to
+        /// release them back to their activator pools. Default
+        /// <c>false</c>. See <c>ManagedSessionOptions.PoolNotifications</c>
+        /// for the retain-by-copy contract.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -150,6 +158,7 @@ namespace Opc.Ua.Client
             bool checkDomain = false,
             ISubscriptionEngineFactory? engineFactory = null,
             bool transferSubscriptionsOnRecreate = false,
+            bool poolNotifications = false,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -183,7 +192,8 @@ namespace Opc.Ua.Client
                 sessionName,
                 sessionTimeout,
                 checkDomain,
-                transferSubscriptionsOnRecreate);
+                transferSubscriptionsOnRecreate,
+                poolNotifications);
 
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
@@ -672,13 +682,8 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             StateMachine.RequestClose();
-            Session? session = m_session;
-            if (session != null)
-            {
-                return await session.CloseAsync(
-                    timeout, closeChannel, ct)
-                    .ConfigureAwait(false);
-            }
+
+            await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);            
 
             return StatusCodes.Good;
         }
@@ -853,13 +858,20 @@ namespace Opc.Ua.Client
                 // setting persists for the entire session lifetime
                 // once applied here. No-op when the classic engine is
                 // in use.
-                if (m_transferSubscriptionsOnRecreate &&
+                if ((m_transferSubscriptionsOnRecreate || m_poolNotifications) &&
                     session.SubscriptionEngine
                         is DefaultSubscriptionEngine v2 &&
                     v2.SubscriptionManager
                         is Subscriptions.SubscriptionManager v2Manager)
                 {
-                    v2Manager.TransferSubscriptionsOnRecreate = true;
+                    if (m_transferSubscriptionsOnRecreate)
+                    {
+                        v2Manager.TransferSubscriptionsOnRecreate = true;
+                    }
+                    if (m_poolNotifications)
+                    {
+                        v2Manager.PoolNotifications = true;
+                    }
                 }
 
                 if (m_redundancyHandler != null)
@@ -1191,6 +1203,7 @@ namespace Opc.Ua.Client
         private readonly uint m_sessionTimeout;
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
+        private readonly bool m_poolNotifications;
         private ServerRedundancyInfo? m_redundancyInfo;
         private int m_disposed;
     }

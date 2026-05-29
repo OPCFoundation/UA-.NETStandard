@@ -14,12 +14,21 @@ parameters:
   poolImage: 'windows-2025-vs2026'
   jobnamesuffix: ''
   solutions: ''
+  # See ci.yml: passing pool config via parameter because root-pipeline
+  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
+  # included templates at compile-time.
+  poolName: ''
 
 jobs:
 - job: buildslnprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Build Solutions Jobs
   pool:
-    vmImage: 'windows-2025-vs2026'
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.poolImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.poolImage }}
   steps:
   - task: PowerShell@2
     name: solutionmatrix
@@ -31,12 +40,17 @@ jobs:
 
 - job: buildallsln${{ parameters.jobnamesuffix }}
   displayName: Build Solution
-  timeoutInMinutes: 60
+  timeoutInMinutes: 120
   dependsOn: buildslnprep${{ parameters.jobnamesuffix }}
   strategy:
     matrix: $[ dependencies.buildslnprep${{ parameters.jobnamesuffix }}.outputs['solutionmatrix.jobMatrix'] ]
   pool:
-    vmImage: ${{ parameters.poolImage }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.poolImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 10.0'

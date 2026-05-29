@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -51,6 +51,18 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The object that combines the status code and diagnostic info structures.</value>
         ServiceResult ServerError { get; }
+
+        /// <summary>
+        /// An optional hook that can mutate the service response before
+        /// it is returned to the client. Production servers leave this
+        /// null. Test code can install an
+        /// <see cref="IServiceResponseMutator"/> to inject service-level
+        /// error codes or alter response fields for client conformance
+        /// testing. The mutator is invoked from
+        /// <see cref="EndpointBase"/> immediately after the service has
+        /// produced the response and before the response is dispatched.
+        /// </summary>
+        IServiceResponseMutator? ResponseMutator { get; }
 
         /// <summary>
         /// Returns the endpoints supported by the server.

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -49,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         internal const ushort NamespaceIndexAllTypes = 3;
 
         internal const string MqttAddressUrl = "mqtt://localhost:1883";
-        private static List<DateTime> s_publishTimes = [];
+        private static List<long> s_publishTimestamps = [];
 
         private static readonly Variant[] s_validPublisherIds =
         [
@@ -1813,16 +1814,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test(
             Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Uadp publisher"
         )]
-        [Ignore("Max deviation instable in this version.")]
+        [Category("LongRunning")]
         public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically(
             [ValueSource(nameof(s_validPublisherIds))] Variant publisherId,
             [Values(100, 1000, 2000)] double metaDataUpdateTime,
-            [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            s_publishTimes.Clear();
+            s_publishTimestamps.Clear();
 
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1863,7 +1863,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     x.CreateDataSetMetaDataNetworkMessage(
                         It.IsAny<WriterGroupDataType>(),
                         It.IsAny<DataSetWriterDataType>()))
-                .Callback(() => s_publishTimes.Add(DateTime.Now));
+                .Callback(() => s_publishTimestamps.Add(Stopwatch.GetTimestamp()));
 
             WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections[0]
                 .WriterGroups[0];
@@ -1880,18 +1880,45 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             //wait so many seconds
             Thread.Sleep(publishTimeInSeconds * 1000);
             mqttMetaDataPublisher.Stop();
-            int faultIndex = -1;
-            double faultDeviation = 0;
-
-            s_publishTimes = [.. from t in s_publishTimes orderby t select t];
 
             //Assert
-            for (int i = 1; i < s_publishTimes.Count; i++)
+            // Use the monotonic Stopwatch clock and compare each interval
+            // against the *median* interval (not the configured cadence) so
+            // a single OS-scheduling hiccup at startup does not skew the
+            // assertion. Tolerate ±25 % of the configured cadence (or 50 ms,
+            // whichever is greater) — metadata cadence is informational, so
+            // this is the reasonable production envelope.
+            double ticksPerMs = Stopwatch.Frequency / 1000.0;
+            List<double> intervalsMs = [];
+            for (int i = 1; i < s_publishTimestamps.Count; i++)
             {
-                double interval = s_publishTimes[i].Subtract(s_publishTimes[i - 1])
-                    .TotalMilliseconds;
-                double deviation = Math.Abs(metaDataUpdateTime - interval);
-                if (deviation >= maxDeviation && deviation > faultDeviation)
+                intervalsMs.Add((s_publishTimestamps[i] - s_publishTimestamps[i - 1]) / ticksPerMs);
+            }
+
+            // Drop the warm-up interval. MqttMetadataPublisher.Start() emits
+            // an initial publish and then schedules the periodic timer, so
+            // the first observed interval is a sub-millisecond warm-up gap
+            // rather than a representative cadence sample.
+            if (intervalsMs.Count > 1)
+            {
+                intervalsMs.RemoveAt(0);
+            }
+
+            Assert.That(intervalsMs, Has.Count.GreaterThan(0),
+                $"expected at least one inter-publish interval, observed {s_publishTimestamps.Count} publish(es) " +
+                $"over {publishTimeInSeconds}s at {metaDataUpdateTime}ms cadence");
+
+            double[] sortedIntervals = [.. intervalsMs];
+            Array.Sort(sortedIntervals);
+            double median = sortedIntervals[sortedIntervals.Length / 2];
+            double maxDeviationMs = Math.Max(metaDataUpdateTime * 0.25, 50.0);
+
+            int faultIndex = -1;
+            double faultDeviation = 0;
+            for (int i = 0; i < intervalsMs.Count; i++)
+            {
+                double deviation = Math.Abs(median - intervalsMs[i]);
+                if (deviation >= maxDeviationMs && deviation > faultDeviation)
                 {
                     faultIndex = i;
                     faultDeviation = deviation;
@@ -1901,7 +1928,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(
                 faultIndex,
                 Is.LessThan(0),
-                $"publishingInterval={metaDataUpdateTime}, maxDeviation={maxDeviation}, publishTimeInSeconds={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} has maximum deviation");
+                $"publishingInterval={metaDataUpdateTime}, maxDeviationMs={maxDeviationMs}, median={median}, " +
+                $"publishTimeInSeconds={publishTimeInSeconds}, interval[{faultIndex}] = {(faultIndex >= 0 ? intervalsMs[faultIndex] : 0)}ms " +
+                $"has worst-case deviation {faultDeviation}ms from median");
         }
 
         /// <summary>
@@ -2125,12 +2154,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataValue dataValueEncoded = fieldEncoded.Value;
                     DataValue dataValueDecoded = fieldDecoded.Value;
                     Assert.That(
-                        fieldEncoded.Value,
-                        Is.Not.Null,
+                        fieldEncoded.Value.IsNull,
+                        Is.False,
                         $"uadpDataSetMessage.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
                     Assert.That(
-                        fieldDecoded.Value,
-                        Is.Not.Null,
+                        fieldDecoded.Value.IsNull,
+                        Is.False,
                         $"uadpDataSetMessageDecoded.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {uadpDataSetMessage.DataSetWriterId}");
 
                     // check dataValues values

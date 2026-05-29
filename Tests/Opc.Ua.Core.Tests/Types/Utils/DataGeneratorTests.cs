@@ -428,7 +428,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void GetRandomDataValueProducesValue()
         {
             DataValue result = m_generator.GetRandomDataValue();
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
         }
 
         [Test]

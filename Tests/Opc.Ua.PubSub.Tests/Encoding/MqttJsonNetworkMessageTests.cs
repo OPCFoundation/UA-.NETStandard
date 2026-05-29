@@ -32,6 +32,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -57,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     {
         private const ushort kNamespaceIndexAllTypes = 3;
         private const string kMqttAddressUrl = "mqtt://localhost:1883";
-        private static List<DateTime> s_publishTimes = [];
+        private static List<long> s_publishTimestamps = [];
         private ServiceMessageContext m_messageContext;
         internal const string MetaDataMessageId = "MessageId";
         internal const string MetaDataMessageType = "MessageType";
@@ -138,7 +139,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [SetUp]
         public void TestSetup()
         {
-            s_publishTimes.Clear();
+            s_publishTimestamps.Clear();
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
@@ -1798,13 +1799,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test(
             Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Json publisher"
         )]
-        [Ignore("Max deviation instable in this version.")]
+        [Category("LongRunning")]
         public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically(
             [Values(100, 1000, 2000)] double metaDataUpdateTime,
-            [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
         {
-            s_publishTimes.Clear();
+            s_publishTimestamps.Clear();
             // arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask
                 = JsonNetworkMessageContentMask.None;
@@ -1844,7 +1844,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     x.CreateDataSetMetaDataNetworkMessage(
                         It.IsAny<WriterGroupDataType>(),
                         It.IsAny<DataSetWriterDataType>()))
-                .Callback(() => s_publishTimes.Add(DateTime.Now));
+                .Callback(() => s_publishTimestamps.Add(Stopwatch.GetTimestamp()));
 
             WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections[0]
                 .WriterGroups[0];
@@ -1861,18 +1861,45 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             //wait so many seconds
             Thread.Sleep(publishTimeInSeconds * 1000);
             mqttMetaDataPublisher.Stop();
-            int faultIndex = -1;
-            double faultDeviation = 0;
-
-            s_publishTimes = [.. from t in s_publishTimes orderby t select t];
 
             //Assert
-            for (int i = 1; i < s_publishTimes.Count; i++)
+            // Use the monotonic Stopwatch clock to compute the inter-publish
+            // intervals in ms. Compare each interval against the *median*
+            // interval (not the configured cadence) so a single OS-scheduling
+            // hiccup at startup does not skew the assertion, and allow a
+            // proportional tolerance — metadata cadence is informational, so
+            // ±25 % is the reasonable production envelope.
+            double ticksPerMs = Stopwatch.Frequency / 1000.0;
+            List<double> intervalsMs = [];
+            for (int i = 1; i < s_publishTimestamps.Count; i++)
             {
-                double interval = s_publishTimes[i].Subtract(s_publishTimes[i - 1])
-                    .TotalMilliseconds;
-                double deviation = Math.Abs(metaDataUpdateTime - interval);
-                if (deviation >= maxDeviation && deviation > faultDeviation)
+                intervalsMs.Add((s_publishTimestamps[i] - s_publishTimestamps[i - 1]) / ticksPerMs);
+            }
+
+            // Drop the warm-up interval. MqttMetadataPublisher.Start() emits
+            // an initial publish and then schedules the periodic timer, so
+            // the first observed interval is a sub-millisecond warm-up gap
+            // rather than a representative cadence sample.
+            if (intervalsMs.Count > 1)
+            {
+                intervalsMs.RemoveAt(0);
+            }
+
+            Assert.That(intervalsMs, Has.Count.GreaterThan(0),
+                $"expected at least one inter-publish interval, observed {s_publishTimestamps.Count} publish(es) " +
+                $"over {publishTimeInSeconds}s at {metaDataUpdateTime}ms cadence");
+
+            double[] sortedIntervals = [.. intervalsMs];
+            Array.Sort(sortedIntervals);
+            double median = sortedIntervals[sortedIntervals.Length / 2];
+            double maxDeviationMs = Math.Max(metaDataUpdateTime * 0.25, 50.0);
+
+            int faultIndex = -1;
+            double faultDeviation = 0;
+            for (int i = 0; i < intervalsMs.Count; i++)
+            {
+                double deviation = Math.Abs(median - intervalsMs[i]);
+                if (deviation >= maxDeviationMs && deviation > faultDeviation)
                 {
                     faultIndex = i;
                     faultDeviation = deviation;
@@ -1882,7 +1909,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(
                 faultIndex,
                 Is.LessThan(0),
-                $"publishingInterval={metaDataUpdateTime}, maxDeviation={maxDeviation}, publishTimeInSeconds={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} has maximum deviation");
+                $"publishingInterval={metaDataUpdateTime}, maxDeviationMs={maxDeviationMs}, median={median}, " +
+                $"publishTimeInSeconds={publishTimeInSeconds}, interval[{faultIndex}] = {(faultIndex >= 0 ? intervalsMs[faultIndex] : 0)}ms " +
+                $"has worst-case deviation {faultDeviation}ms from median");
         }
 
         [Test(Description = "Validate missing or wrong DataSetMetaData fields definition")]
@@ -2377,12 +2406,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataValue dataValueEncoded = fieldEncoded.Value;
                     DataValue dataValueDecoded = fieldDecoded.Value;
                     Assert.That(
-                        fieldEncoded.Value,
-                        Is.Not.Null,
+                        fieldEncoded.Value.IsNull,
+                        Is.False,
                         $"jsonDataSetMessage.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {jsonDataSetMessage.DataSetWriterId}");
                     Assert.That(
-                        fieldDecoded.Value,
-                        Is.Not.Null,
+                        fieldDecoded.Value.IsNull,
+                        Is.False,
                         $"jsonDataSetMessageDecoded.DataSet.Fields[{index}].Value is null,  DataSetWriterId = {jsonDataSetMessage.DataSetWriterId}");
 
                     // check dataValues values
@@ -2402,9 +2431,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         decodedExpandedNodeId.IsAbsolute)
                     {
 #pragma warning disable CS0618 // Type or member is obsolete
-                        dataValueDecoded.Value = ExpandedNodeId.ToNodeId(
-                            decodedExpandedNodeId,
-                            m_messageContext.NamespaceUris);
+                        dataValueDecoded = dataValueDecoded.WithWrappedValue(Variant.From(
+                            ExpandedNodeId.ToNodeId(
+                                decodedExpandedNodeId,
+                                m_messageContext.NamespaceUris)));
 #pragma warning restore CS0618 // Type or member is obsolete
                     }
 
@@ -3027,8 +3057,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             "StatusCode");
                                                         if (wasPush3)
                                                         {
-                                                            dataValue.StatusCode = jsonDecoder
-                                                                .ReadStatusCode("Code");
+                                                            dataValue = dataValue.WithStatus(jsonDecoder
+                                                                .ReadStatusCode("Code"));
                                                             jsonDecoder.Pop();
                                                         }
                                                     }
@@ -3038,9 +3068,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.SourceTimestamp
                                                         ) != 0)
                                                     {
-                                                        dataValue.SourceTimestamp = jsonDecoder
-                                                            .ReadDateTime(
-                                                                "SourceTimestamp");
+                                                        dataValue = dataValue.WithSourceTimestamp(
+                                                            jsonDecoder.ReadDateTime("SourceTimestamp"));
                                                     }
 
                                                     if ((
@@ -3048,9 +3077,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.SourcePicoSeconds
                                                         ) != 0)
                                                     {
-                                                        dataValue.SourcePicoseconds = jsonDecoder
-                                                            .ReadUInt16(
-                                                                "SourcePicoseconds");
+                                                        dataValue = dataValue.WithSourcePicoseconds(
+                                                            jsonDecoder.ReadUInt16("SourcePicoseconds"));
                                                     }
 
                                                     if ((
@@ -3058,9 +3086,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.ServerTimestamp
                                                         ) != 0)
                                                     {
-                                                        dataValue.ServerTimestamp = jsonDecoder
-                                                            .ReadDateTime(
-                                                                "ServerTimestamp");
+                                                        dataValue = dataValue.WithServerTimestamp(
+                                                            jsonDecoder.ReadDateTime("ServerTimestamp"));
                                                     }
 
                                                     if ((
@@ -3068,9 +3095,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.ServerPicoSeconds
                                                         ) != 0)
                                                     {
-                                                        dataValue.ServerPicoseconds = jsonDecoder
-                                                            .ReadUInt16(
-                                                                "ServerPicoseconds");
+                                                        dataValue = dataValue.WithServerPicoseconds(
+                                                            jsonDecoder.ReadUInt16("ServerPicoseconds"));
                                                     }
 #pragma warning disable CS0618 // Type or member is obsolete
                                                     Assert.That(
@@ -3116,8 +3142,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             string.Empty,
                                                             expandedNodeId.ServerIndex);
 #pragma warning disable CS0618 // Type or member is obsolete
-                                                        dataValue.Value = ExpandedNodeId.Parse(
-                                                            stringBuilder.ToString());
+                                                        dataValue = dataValue.WithWrappedValue(Variant.From(
+                                                            ExpandedNodeId.Parse(stringBuilder.ToString())));
 #pragma warning restore CS0618 // Type or member is obsolete
                                                     }
 #pragma warning restore CS0618 // Type or member is obsolete

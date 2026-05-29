@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using Opc.Ua.Client.AliasNames.Refresh;
 
 namespace Opc.Ua.Client.AliasNames
@@ -51,14 +50,6 @@ namespace Opc.Ua.Client.AliasNames
         Manual = 0,
 
         /// <summary>
-        /// Deprecated alias for
-        /// <see cref="AutoOnLastChangePolling"/>; retained for source
-        /// compatibility with code that targeted the v1 resolver.
-        /// </summary>
-        [Obsolete("Use AutoOnLastChangePolling for explicit semantics.")]
-        AutoOnLastChange = 1,
-
-        /// <summary>
         /// On the first call, the resolver polls the category's
         /// <c>LastChange</c> property (Part 17 §6.3.1) every
         /// <see cref="AliasNameResolverOptions.PublishingIntervalMs"/>
@@ -76,7 +67,7 @@ namespace Opc.Ua.Client.AliasNames
         /// (wrap-safe). Requires a server that supports subscriptions
         /// and exposes <c>LastChange</c>.
         /// </summary>
-        AutoOnLastChangeMonitoredItem = 2,
+        AutoOnLastChangeMonitoredItem = 2
     }
 
     /// <summary>

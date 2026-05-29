@@ -41,7 +41,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Security.Cryptography.Cng" />
-    <PackageReference Include="System.Formats.Asn1" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

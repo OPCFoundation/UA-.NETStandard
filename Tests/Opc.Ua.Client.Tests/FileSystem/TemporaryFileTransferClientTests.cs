@@ -36,6 +36,8 @@ using NUnit.Framework;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Tests;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests.FileSystem
 {
     /// <summary>
@@ -51,7 +53,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task CommitAsyncSendsCloseAndCommitOnceAsync()
         {
-            using TempTransferHarness harness = TempTransferHarness.Create();
+            using var harness = TempTransferHarness.Create();
             UaTemporaryWriteFile temp = await harness
                 .GenerateForWriteAsync().ConfigureAwait(false);
             await harness.WriteSomeBytesAsync(temp).ConfigureAwait(false);
@@ -68,7 +70,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task DisposeWithoutCommitSendsCloseAsync()
         {
-            using TempTransferHarness harness = TempTransferHarness.Create();
+            using var harness = TempTransferHarness.Create();
             UaTemporaryWriteFile temp = await harness
                 .GenerateForWriteAsync().ConfigureAwait(false);
 
@@ -82,7 +84,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task GenerateForReadReturnsStreamThatClosesHandleOnDisposeAsync()
         {
-            using TempTransferHarness harness = TempTransferHarness.Create();
+            using var harness = TempTransferHarness.Create();
             UaFileStream stream = await harness.Client
                 .GenerateFileForReadAsync(default, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -95,7 +97,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [Test]
         public async Task TempStreamWrapperDisposeDoesNotCloseHandleAsync()
         {
-            using TempTransferHarness harness = TempTransferHarness.Create();
+            using var harness = TempTransferHarness.Create();
             UaTemporaryWriteFile temp = await harness
                 .GenerateForWriteAsync().ConfigureAwait(false);
 

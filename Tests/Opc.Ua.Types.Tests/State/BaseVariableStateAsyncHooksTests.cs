@@ -125,8 +125,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.GetDouble(), Is.EqualTo(42.5));
@@ -153,7 +152,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             var dv = new DataValue();
-            ValueTask<ServiceResult> readTask = v.ReadAttributeAsync(
+            ValueTask<(ServiceResult, DataValue)> readTask = v.ReadAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv);
 
             Assert.That(inHandlerGate.Wait(TimeSpan.FromSeconds(5)), Is.True,
@@ -163,7 +162,7 @@ namespace Opc.Ua.Types.Tests.State
             // if the read path released the lock before awaiting the
             // handler.
             bool lockAcquired = false;
-            Task lockTask = Task.Run(() =>
+            var lockTask = Task.Run(() =>
             {
 #pragma warning disable CA2002
                 lock (v)
@@ -178,7 +177,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(lockAcquired, Is.True);
 
             releaseGate.Set();
-            ServiceResult result = await readTask.ConfigureAwait(false);
+            (ServiceResult result, _) = await readTask.ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
@@ -200,8 +199,7 @@ namespace Opc.Ua.Types.Tests.State
                 new AttributeSimpleReadResult(ServiceResult.Good, new Variant(123.5)));
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.GetDouble(), Is.EqualTo(123.5));
@@ -221,8 +219,7 @@ namespace Opc.Ua.Types.Tests.State
                 new AttributeSimpleReadResult(ServiceResult.Good, new Variant(123.5)));
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadWaitingForInitialData));
         }
@@ -253,7 +250,8 @@ namespace Opc.Ua.Types.Tests.State
             // The async hook contract mirrors the sync flow: exceptions
             // (including OperationCanceledException) are caught and surfaced
             // as a Bad ServiceResult, never thrown to the caller.
-            ServiceResult result = await v.ReadAttributeAsync(
+            ServiceResult result;
+            (result, dv) = await v.ReadAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv, cts.Token).ConfigureAwait(false);
 
             Assert.That(seenToken, Is.EqualTo(cts.Token), "Cancellation token must propagate to the hook.");
@@ -270,8 +268,7 @@ namespace Opc.Ua.Types.Tests.State
             v.OnReadValueAsync = (c, n, range, encoding, ct) => throw new InvalidOperationException("boom");
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
             Assert.That(dv.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
@@ -295,12 +292,10 @@ namespace Opc.Ua.Types.Tests.State
                     new AttributeWriteResult(ServiceResult.Good));
             };
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(99.5),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(99.5),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -322,12 +317,10 @@ namespace Opc.Ua.Types.Tests.State
                 new ValueTask<AttributeWriteResult>(
                     new AttributeWriteResult(StatusCodes.BadInvalidArgument));
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(99.5),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(99.5),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -350,12 +343,10 @@ namespace Opc.Ua.Types.Tests.State
             v.OnSimpleWriteValueAsync = (c, n, value, ct) => new ValueTask<AttributeWriteResult>(
                 new AttributeWriteResult(ServiceResult.Good));
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(11.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(11.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -373,12 +364,10 @@ namespace Opc.Ua.Types.Tests.State
                 new AttributeWriteResult(ServiceResult.Good));
 
             var range = NumericRange.Parse("0:3");
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(11.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(11.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, range, dv).ConfigureAwait(false);
@@ -399,8 +388,7 @@ namespace Opc.Ua.Types.Tests.State
             v.Value = 5.5;
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.GetDouble(), Is.EqualTo(5.5));
@@ -413,12 +401,10 @@ namespace Opc.Ua.Types.Tests.State
             BaseDataVariableState v = CreateReadableVariable();
             v.Value = 1.0;
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(2.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(2.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -441,7 +427,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(
                 ctx, Attributes.DisplayName, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
@@ -465,8 +451,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             var dv = new DataValue();
-            ServiceResult result = await v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
+            (ServiceResult result, dv) = await v.ReadAttributeAsync(ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).ConfigureAwait(false);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadNotReadable));
         }
@@ -483,12 +468,10 @@ namespace Opc.Ua.Types.Tests.State
                 return new ValueTask<AttributeWriteResult>(default(AttributeWriteResult));
             };
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(2.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(2.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);

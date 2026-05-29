@@ -135,6 +135,15 @@ namespace Opc.Ua.Server.Fluent
         /// resolved node. Throws if the node is not a
         /// <see cref="BaseVariableState"/>.
         /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The resolved node is not a <see cref="BaseVariableState"/>.
+        /// </exception>
         public static IVariableBuilder<TValue> AsVariable<TValue>(this INodeBuilder builder)
         {
             if (builder == null)

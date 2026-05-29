@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.FileSystem
         /// <summary>
         /// A write-only <see cref="System.IO.Stream"/> wrapper around
         /// the underlying server handle. The wrapper's
-        /// <see cref="System.IO.Stream.Dispose()"/> is suppressed —
+        /// <see cref="Stream.Dispose()"/> is suppressed —
         /// disposal is owned by <see cref="UaTemporaryWriteFile"/> and
         /// must go through <see cref="CommitAsync"/> or
         /// <see cref="DisposeAsync"/>.

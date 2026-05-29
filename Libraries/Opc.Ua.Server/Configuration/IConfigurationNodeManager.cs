@@ -58,12 +58,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
         /// </summary>
-        NamespaceMetadataState? GetNamespaceMetadataState(string namespaceUri);
+        ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(string namespaceUri, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified namespace index
         /// </summary>
-        NamespaceMetadataState? GetNamespaceMetadataState(ushort namespaceIndex);
+        ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(ushort namespaceIndex, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Determine if the impersonated user has admin access.
@@ -78,5 +78,21 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"/>
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier trustedStore);
+
+        /// <summary>
+        /// Starts periodic evaluation of <c>CertificateExpired</c> and
+        /// <c>TrustListOutOfDate</c> alarms per OPC 10000-12 §7.8.3.
+        /// Call this after the server is fully started so that
+        /// <c>SetActiveState</c> can safely emit event notifications.
+        /// </summary>
+        /// <param name="interval">
+        /// Evaluation interval. A typical value is 60 seconds.
+        /// </param>
+        void StartAlarmMonitoring(TimeSpan interval);
+
+        /// <summary>
+        /// Stops the periodic alarm evaluation.
+        /// </summary>
+        void StopAlarmMonitoring();
     }
 }

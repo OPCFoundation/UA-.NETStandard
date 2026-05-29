@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
                 CancellationToken.None);
 
             await Task.Delay(50);
-            Assert.That(invalidations, Is.EqualTo(0));
+            Assert.That(invalidations, Is.Zero);
         }
 
         [Test]
@@ -102,11 +102,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
             AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
 
             uint nextReturn = 5;
-            harness.ReadHandler = _ => new DataValue
-            {
-                WrappedValue = new Variant(nextReturn),
-                StatusCode = StatusCodes.Good
-            };
+            harness.ReadHandler = _ => new DataValue(new Variant(nextReturn), StatusCodes.Good);
 
             int invalidations = 0;
             await using var strategy = new PollingAliasNameRefreshStrategy(
@@ -132,11 +128,7 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
             AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
-            harness.ReadHandler = _ => new DataValue
-            {
-                WrappedValue = new Variant((uint)1),
-                StatusCode = StatusCodes.Good
-            };
+            harness.ReadHandler = _ => new DataValue(new Variant((uint)1), StatusCodes.Good);
 
             int invalidations = 0;
             var strategy = new PollingAliasNameRefreshStrategy(

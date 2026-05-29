@@ -116,15 +116,16 @@ namespace Opc.Ua.Gds.Server
         /// by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             m_logger.LogInformation("Creating the Node Managers.");
 
-            var nodeManagers = new List<INodeManager>
+            // create the custom node managers.
+            var nodeManagers = new IAsyncNodeManager[]
             {
-                // create the custom node managers.
                 new ApplicationsNodeManager(
                     server,
                     configuration,
@@ -135,7 +136,8 @@ namespace Opc.Ua.Gds.Server
             };
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
+            return new ValueTask<IMasterNodeManager>(
+                new MasterNodeManager(server, configuration, null, nodeManagers));
         }
 
         /// <summary>
@@ -215,7 +217,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (m_contexts.TryGetValue(
                     context.RequestId,
-                    out ImpersonationContext? impersonationContext))
+                    out _))
                 {
                     m_contexts.Remove(context.RequestId);
                 }
@@ -234,9 +236,18 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
+                // When the user database implements IGdsUserDatabase,
+                // look up the ApplicationIds the user may administer
+                // so that the ApplicationAdmin privilege is active.
+                IReadOnlyList<NodeId>? administeredAppIds =
+                    (m_userDatabase as IGdsUserDatabase)
+                        ?.GetAdministeredApplicationIds(userNameToken.UserName);
+
                 args.Identity = new GdsRoleBasedIdentity(
                     new UserIdentity(userNameToken),
                     roles,
+                    default,
+                    administeredAppIds,
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
             }

@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public SamplingGroup(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             List<SamplingRateGroup> samplingRates,
             OperationContext context,
             double samplingInterval,
@@ -125,10 +125,10 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Reset();
 
                 m_samplingTask = Task.Factory.StartNew(
-                    () => SampleMonitoredItems(m_samplingInterval),
+                    () => SampleMonitoredItemsAsync(m_samplingInterval, CancellationToken.None).AsTask(),
                     default, // TODO: Pass a cancellation token
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                    TaskScheduler.Default).Unwrap();
             }
         }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    _ = Task.Run(() => DoSample(itemsToSample));
+                    _ = Task.Run(async () => await DoSampleAsync(itemsToSample, CancellationToken.None));
                 }
 
                 // remove items.
@@ -374,13 +374,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
-        private void SampleMonitoredItems(object data)
+        private async ValueTask SampleMonitoredItemsAsync(double samplingInterval, CancellationToken cancellationToken = default)
         {
             try
             {
                 m_logger.LogTrace("Server: {Name} Thread Started.", Thread.CurrentThread.Name);
 
-                int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
+                int sleepCycle = Convert.ToInt32(samplingInterval, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
 
                 while (m_server.IsRunning)
@@ -424,7 +424,7 @@ namespace Opc.Ua.Server
                     }
 
                     // sample the values.
-                    DoSample(items);
+                    await DoSampleAsync(items, cancellationToken).ConfigureAwait(false);
 
                     int delay = (int)(HiResClock.UtcNow - start).TotalMilliseconds;
                     timeToWait = sleepCycle;
@@ -455,12 +455,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Samples the values of the items.
         /// </summary>
-        private void DoSample(object state)
+        private async ValueTask DoSampleAsync(List<ISampledDataChangeMonitoredItem> items, CancellationToken cancellationToken = default)
         {
             try
             {
                 // read values for all enabled items.
-                if (state is List<ISampledDataChangeMonitoredItem> items && items.Count > 0)
+                if (items != null && items.Count > 0)
                 {
                     var itemsToRead = new List<ReadValueId>(items.Count);
                     var values = new List<DataValue>(items.Count);
@@ -473,7 +473,7 @@ namespace Opc.Ua.Server
                         readValueId.Processed = false;
                         itemsToRead.Add(readValueId);
 
-                        values.Add(null!);
+                        values.Add(default);
                         errors.Add(null!);
                     }
 
@@ -492,12 +492,12 @@ namespace Opc.Ua.Server
                     }
 
                     // read values.
-                    m_nodeManager.Read(context, 0, itemsToRead, values, errors);
+                    await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
 
                     // update monitored items.
                     for (int ii = 0; ii < items.Count; ii++)
                     {
-                        if (values[ii] == null)
+                        if (values[ii].IsNull)
                         {
                             values[ii] = DataValue.FromStatusCode(
                                 StatusCodes.BadInternalError,
@@ -517,7 +517,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
-        private readonly INodeManager m_nodeManager;
+        private readonly IAsyncNodeManager m_nodeManager;
         private ISession? m_session;
         private readonly IUserIdentity? m_effectiveIdentity;
         private readonly DiagnosticsMasks m_diagnosticsMask;

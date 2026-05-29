@@ -52,7 +52,7 @@ namespace Opc.Ua.Lds.Server
     {
         private readonly ITelemetryContext m_telemetry;
         private ILogger m_log;
-        private SemaphoreSlim m_lock;
+        private readonly SemaphoreSlim m_lock;
         private MulticastDiscovery m_multicast;
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Opc.Ua.Lds.Server
 
         /// <summary>
         /// Optional hook tests use to plug in a multicast layer prior to
-        /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, System.Threading.CancellationToken)"/>.
+        /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken)"/>.
         /// </summary>
         public Func<LdsServer, MulticastDiscovery> MulticastFactory { get; set; }
 
@@ -93,18 +93,80 @@ namespace Opc.Ua.Lds.Server
             m_log = m_telemetry?.CreateLogger<LdsServer>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<LdsServer>.Instance;
 
-            // mark capabilities so this server self-advertises as an LDS / LDS-ME.
-            if (ServerCapabilities.IsNull || ServerCapabilities.Count == 0)
-            {
-                ServerCapabilities = new[] { "LDS" };
-            }
-
-            // wire up the optional multicast layer.
+            // wire up the optional multicast layer first so the capability
+            // computation below can reflect whether LDS-ME is available.
             if (MulticastFactory != null)
             {
                 m_multicast = MulticastFactory(this);
             }
+
+            // Mark capabilities so this server self-advertises as an LDS or
+            // LDS-ME per OPC 10000-12 Annex D. The "LDS-ME" identifier is
+            // added when the MulticastExtension is configured so peers
+            // searching via FindServersOnNetwork can identify multicast-
+            // capable LDS instances.
+            ServerCapabilities = ComputeServerCapabilities(
+                ServerCapabilities,
+                m_multicast != null);
         }
+
+        /// <summary>
+        /// Computes the capability set self-advertised by this LDS per
+        /// OPC 10000-12 Annex D.
+        /// </summary>
+        /// <remarks>
+        /// Always includes <c>LDS</c>; adds <c>LDS-ME</c> when the
+        /// MulticastExtension is available. Preserves any caller-provided
+        /// extra capabilities so applications can still surface custom
+        /// identifiers.
+        /// </remarks>
+        /// <param name="existing">Capabilities seeded prior to startup.</param>
+        /// <param name="hasMulticast">
+        /// <c>true</c> if the LDS-ME multicast layer is configured.
+        /// </param>
+        public static ArrayOf<string> ComputeServerCapabilities(
+            ArrayOf<string> existing,
+            bool hasMulticast)
+        {
+            if (existing.IsNull || existing.Count == 0)
+            {
+                return hasMulticast
+                    ? [s_ldsCapability, s_ldsMeCapability]
+                    : [s_ldsCapability];
+            }
+
+            bool hasLds = false;
+            bool hasLdsMe = false;
+            foreach (string capability in existing)
+            {
+                if (string.Equals(capability, s_ldsCapability, StringComparison.Ordinal))
+                {
+                    hasLds = true;
+                }
+                else if (string.Equals(capability, s_ldsMeCapability, StringComparison.Ordinal))
+                {
+                    hasLdsMe = true;
+                }
+            }
+
+            var additions = new List<string>(2);
+            if (!hasLds)
+            {
+                additions.Add(s_ldsCapability);
+            }
+            if (hasMulticast && !hasLdsMe)
+            {
+                additions.Add(s_ldsMeCapability);
+            }
+
+            return additions.Count == 0
+                ? existing
+                : ArrayOf.Combine(existing, [.. additions]);
+        }
+
+        // OPC 10000-12 Annex D capability identifiers exposed by an LDS.
+        private const string s_ldsCapability = "LDS";
+        private const string s_ldsMeCapability = "LDS-ME";
 
         /// <inheritdoc />
         protected override async ValueTask StartApplicationAsync(
@@ -116,12 +178,11 @@ namespace Opc.Ua.Lds.Server
             if (m_multicast != null)
             {
                 IList<string> capabilities = ServerCapabilities.IsNull
-                    ? new List<string>()
+                    ? []
                     : ServerCapabilities.ToList();
-                IList<string> baseUris = BaseAddresses
+                IList<string> baseUris = [.. BaseAddresses
                     .Select(b => b.Url?.ToString())
-                    .Where(u => !string.IsNullOrEmpty(u))
-                    .ToList();
+                    .Where(u => !string.IsNullOrEmpty(u))];
                 await m_multicast
                     .StartAsync(configuration.ApplicationUri, baseUris, capabilities, cancellationToken)
                     .ConfigureAwait(false);
@@ -171,11 +232,11 @@ namespace Opc.Ua.Lds.Server
 
                 ICollection<string> uriFilter = serverUris.IsNull
                     ? Array.Empty<string>()
-                    : (ICollection<string>)serverUris.ToList();
+                    : serverUris.ToList();
 
                 // include the LDS itself unless filtered out.
-                if (baseAddresses.Count > 0
-                    && (uriFilter.Count == 0 || uriFilter.Contains(ServerDescription.ApplicationUri)))
+                if (baseAddresses.Count > 0 &&
+                    (uriFilter.Count == 0 || uriFilter.Contains(ServerDescription.ApplicationUri)))
                 {
                     servers.Add(TranslateApplicationDescription(
                         parsedEndpointUrl,
@@ -186,13 +247,10 @@ namespace Opc.Ua.Lds.Server
 
                 ICollection<string> requestedLocales = localeIds.IsNull
                     ? Array.Empty<string>()
-                    : (ICollection<string>)localeIds.ToList();
+                    : localeIds.ToList();
 
                 // append registered servers that pass the filter.
-                foreach (ApplicationDescription registered in Store.Find(uriFilter, requestedLocales))
-                {
-                    servers.Add(registered);
-                }
+                servers.AddRange(Store.Find(uriFilter, requestedLocales));
             }
             finally
             {
@@ -333,7 +391,7 @@ namespace Opc.Ua.Lds.Server
 
             ICollection<string> capFilter = serverCapabilityFilter.IsNull
                 ? Array.Empty<string>()
-                : (ICollection<string>)serverCapabilityFilter.ToList();
+                : serverCapabilityFilter.ToList();
 
             (IList<ServerOnNetwork> records, DateTime lastReset) =
                 Store.ListOnNetwork(startingRecordId, maxRecordsToReturn, capFilter);
@@ -350,6 +408,7 @@ namespace Opc.Ua.Lds.Server
         /// Validates a <see cref="RegisteredServer"/> against Part 12 §6.4.2/§6.4.5
         /// requirements, returning the appropriate status code on failure.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
         protected virtual ServiceResult ValidateRegistration(
             SecureChannelContext secureChannelContext,
             RegisteredServer server)
@@ -363,7 +422,7 @@ namespace Opc.Ua.Lds.Server
             // (Sign or SignAndEncrypt). None is rejected.
             MessageSecurityMode mode = secureChannelContext?.EndpointDescription?.SecurityMode
                 ?? MessageSecurityMode.Invalid;
-            if (mode == MessageSecurityMode.None || mode == MessageSecurityMode.Invalid)
+            if (mode is MessageSecurityMode.None or MessageSecurityMode.Invalid)
             {
                 return new ServiceResult(StatusCodes.BadSecurityChecksFailed,
                     new LocalizedText("RegisterServer requires a signed secure channel."));
@@ -404,10 +463,10 @@ namespace Opc.Ua.Lds.Server
             {
                 try
                 {
-                    using Certificate cert = Certificate.FromRawData(certBytes);
+                    using var cert = Certificate.FromRawData(certBytes);
                     IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
-                    if (applicationUris.Count > 0
-                        && !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
+                    if (applicationUris.Count > 0 &&
+                        !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
                     {
                         return new ServiceResult(StatusCodes.BadServerUriInvalid,
                             new LocalizedText("ServerUri does not match the certificate ApplicationUri."));
@@ -518,7 +577,7 @@ namespace Opc.Ua.Lds.Server
             }
 
             endpoints = endpointsList.ToArray();
-            return hosts.Values.ToList();
+            return [.. hosts.Values];
         }
 
         /// <inheritdoc />
@@ -531,6 +590,16 @@ namespace Opc.Ua.Lds.Server
         protected override EndpointBase GetEndpointInstance(ServerBase server)
         {
             return new DiscoveryEndpoint(server);
+        }
+
+        /// <inheritdoc />
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_lock?.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }

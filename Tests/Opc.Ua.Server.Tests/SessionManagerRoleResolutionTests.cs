@@ -35,6 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.Server.UserManagement;
 using Opc.Ua.Tests;
 
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
@@ -86,7 +87,7 @@ namespace Opc.Ua.Server.Tests
         {
             var session = new Mock<ISession>();
             session.Setup(s => s.ClientCertificate)
-                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+                .Returns((Security.Certificates.Certificate)null!);
             return session;
         }
 
@@ -95,7 +96,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
             identity.Setup(i => i.DisplayName).Returns(userName);
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
             return identity.Object;
         }
 
@@ -417,7 +418,7 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.Identity).Returns(originalIdentity);
             session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
             session.Setup(s => s.ClientCertificate)
-                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+                .Returns((Security.Certificates.Certificate)null!);
             session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
                 .Callback<IUserIdentity>(id => refreshed = id);
 
@@ -440,7 +441,7 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.Identity).Returns(originalIdentity);
             session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
             session.Setup(s => s.ClientCertificate)
-                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+                .Returns((Security.Certificates.Certificate)null!);
             session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
                 .Throws(new InvalidOperationException("session disposed"));
 
@@ -484,7 +485,7 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.Identity).Returns(originalIdentity);
             session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
             session.Setup(s => s.ClientCertificate)
-                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+                .Returns((Security.Certificates.Certificate)null!);
             session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
                 .Callback<IUserIdentity>(id => refreshed = id);
 
@@ -548,7 +549,7 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.Identity).Returns(originalIdentity);
             session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
             session.Setup(s => s.ClientCertificate)
-                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+                .Returns((Security.Certificates.Certificate)null!);
             session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
                 .Callback<IUserIdentity>(id => refreshed = id);
 

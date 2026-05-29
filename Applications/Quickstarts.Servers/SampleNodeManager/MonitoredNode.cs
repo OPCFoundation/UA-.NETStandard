@@ -40,7 +40,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Initializes the instance with the context for the node being monitored.
         /// </summary>
-        public MonitoredNode(IServerInternal server, INodeManager nodeManager, NodeState node)
+        public MonitoredNode(IServerInternal server, IAsyncNodeManager nodeManager, NodeState node)
         {
             Server = server;
             NodeManager = nodeManager;
@@ -55,7 +55,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The node manager that the node belongs to.
         /// </summary>
-        public INodeManager NodeManager { get; }
+        public IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
         /// The node being monitored.
@@ -257,7 +257,7 @@ namespace Opc.Ua.Sample
                     // check if the node has been deleted.
                     if ((masks & NodeStateChangeMasks.Deleted) != 0)
                     {
-                        monitoredItem.QueueValue(null!, StatusCodes.BadNodeIdUnknown, false);
+                        monitoredItem.QueueValue(default, StatusCodes.BadNodeIdUnknown, false);
                         continue;
                     }
 

@@ -30,6 +30,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -39,7 +42,7 @@ namespace Opc.Ua.Server
     public class MonitoredNodeMonitoredItemManager : IMonitoredItemManager
     {
         /// <inheritdoc/>
-        public MonitoredNodeMonitoredItemManager(INodeManager3 nodeManager, IServerInternal server)
+        public MonitoredNodeMonitoredItemManager(IAsyncNodeManager nodeManager, IServerInternal server)
         {
             m_nodeManager = nodeManager;
             m_server = server;
@@ -56,7 +59,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             uint subscriptionId,
@@ -94,7 +97,7 @@ namespace Opc.Ua.Server
             // create the item.
             ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
                 server,
-                m_nodeManager,
+                nodeManager,
                 handle,
                 subscriptionId,
                 monitoredItemId,
@@ -138,6 +141,21 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
+            var nodes = MonitoredNodes.Values.ToList();
+            MonitoredNodes.Clear();
+
+            foreach (MonitoredNode2 node in nodes)
+            {
+                node.Dispose();
+            }
+
+            var items = MonitoredItems.Values.ToList();
+            MonitoredItems.Clear();
+
+            foreach (IMonitoredItem item in items)
+            {
+                item.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -156,7 +174,10 @@ namespace Opc.Ua.Server
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(handle.NodeId);
+                    monitoredNode.Dispose();
                 }
+
+                monitoredItem.Dispose();
             }
             else
             {
@@ -167,11 +188,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode?) SetMonitoringMode(
+        public async ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            NodeHandle handle)
+            NodeHandle handle,
+            CancellationToken cancellationToken = default)
         {
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
@@ -180,7 +202,7 @@ namespace Opc.Ua.Server
             if (monitoringMode == MonitoringMode.Reporting &&
                 previousMode == MonitoringMode.Disabled)
             {
-                handle.MonitoredNode.QueueValue(context, handle.Node, monitoredItem);
+                await handle.MonitoredNode.QueueValueAsync(context, handle.Node, monitoredItem, cancellationToken).ConfigureAwait(false);
             }
 
             return (StatusCodes.Good, previousMode);
@@ -189,7 +211,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool RestoreMonitoredItem(
             IServerInternal server,
-            INodeManager nodeManager,
+            IAsyncNodeManager nodeManager,
             ServerSystemContext context,
             NodeHandle handle,
             IStoredMonitoredItem storedMonitoredItem,
@@ -311,7 +333,7 @@ namespace Opc.Ua.Server
             return (monitoredNode, ServiceResult.Good);
         }
 
-        private readonly INodeManager3 m_nodeManager;
+        private readonly IAsyncNodeManager m_nodeManager;
         private readonly IServerInternal m_server;
     }
 }

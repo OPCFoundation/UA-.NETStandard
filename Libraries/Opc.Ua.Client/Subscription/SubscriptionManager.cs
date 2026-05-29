@@ -89,6 +89,9 @@ namespace Opc.Ua.Client.Subscriptions
         public bool TransferSubscriptionsOnRecreate { get; set; }
 
         /// <inheritdoc/>
+        public bool PoolNotifications { get; set; }
+
+        /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <inheritdoc/>
@@ -898,7 +901,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     maxWaitTime /= workers;
 #endif
-                    m_logger.LogInformation(
+                    m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Waiting max {Time}ms for acks to arrive.",
                         Index, maxWaitTime);
                     cts.CancelAfter(maxWaitTime);
@@ -917,7 +920,7 @@ namespace Opc.Ua.Client.Subscriptions
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
                     ArrayOf<SubscriptionAcknowledgement> acks = ackList;
-                    m_logger.LogInformation(
+                    m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Publish {Count} acks after pausing {Duration}.",
                         Index,
                         acks.Count,

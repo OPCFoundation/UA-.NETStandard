@@ -41,6 +41,8 @@ using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
 
+using Opc.Ua.Client.TestFramework;
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -4069,7 +4071,7 @@ namespace Opc.Ua.Client.Tests
                     It.Is<CancellationToken>(t => t == ct)))
                 .ReturnsAsync(new ReadResponse
                 {
-                    Results = [new DataValue { StatusCode = StatusCodes.Good }],
+                    Results = [DataValue.FromStatusCode(StatusCodes.Good)],
                     DiagnosticInfos = [new DiagnosticInfo()]
                 })
                 .Verifiable(Times.Once);

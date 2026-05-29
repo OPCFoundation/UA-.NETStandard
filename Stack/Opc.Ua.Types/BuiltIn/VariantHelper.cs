@@ -133,7 +133,7 @@ namespace Opc.Ua
                     result = AsT(value.GetStatusCode());
                     break;
                 case Type t when t == typeof(DataValue):
-                    result = AsRefT(value.GetDataValue());
+                    result = AsT(value.GetDataValue());
                     break;
                 case Type t when t == typeof(ExtensionObject):
                     result = AsT(value.GetExtensionObject());
@@ -386,8 +386,10 @@ namespace Opc.Ua
                     }
                     result = AsRefT(encodeables);
                     break;
-                case Type t when t.IsArray && t.GetArrayRank() == 1 &&
-                    t.GetElementType() is Type et && et.IsEnum:
+                case Type t when t.IsArray &&
+                    t.GetArrayRank() == 1 &&
+                    t.GetElementType() is Type et &&
+                    et.IsEnum:
                     ArrayOf<int> enumValues = value.GetInt32Array();
                     result = AsRefT(enumValues.ToArray()!);
                     break;

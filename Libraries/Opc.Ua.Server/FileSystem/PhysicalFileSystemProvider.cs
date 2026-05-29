@@ -107,10 +107,9 @@ namespace Opc.Ua.Server.FileSystem
                 Directory.CreateDirectory(m_rootDirectory);
             }
 
-            string resolvedMount = !string.IsNullOrEmpty(mountName)
+            MountName = !string.IsNullOrEmpty(mountName)
                 ? mountName!
                 : new DirectoryInfo(m_rootDirectory).Name;
-            MountName = resolvedMount;
             IsWritable = isWritable;
         }
 
@@ -325,6 +324,9 @@ namespace Opc.Ua.Server.FileSystem
         /// path while rejecting any attempt to escape the configured
         /// root via <c>..</c> segments or rooted paths.
         /// </summary>
+        /// <exception cref="UnauthorizedAccessException">
+        /// <paramref name="path"/> escapes the configured provider root.
+        /// </exception>
         private string ResolveAbsolute(string path)
         {
             string relative = NormaliseRelative(path);
@@ -335,7 +337,7 @@ namespace Opc.Ua.Server.FileSystem
 
             if (full.Length < m_rootDirectory.Length ||
                 (!string.Equals(full, m_rootDirectory, StringComparison.Ordinal) &&
-                 !full.StartsWith(m_rootPrefix, StringComparison.Ordinal)))
+                    !full.StartsWith(m_rootPrefix, StringComparison.Ordinal)))
             {
                 throw new UnauthorizedAccessException(
                     $"Path '{path}' escapes the provider root.");
@@ -355,8 +357,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return string.Empty;
             }
-            string trimmed = path.TrimStart('/');
-            return trimmed.Replace('/', Path.DirectorySeparatorChar);
+            return path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
         }
 
         private static string JoinProviderPath(string basePath, string name)
@@ -375,7 +376,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             string name = string.IsNullOrEmpty(providerPath)
                 ? MountName
-                : providerPath.Substring(providerPath.LastIndexOf('/') + 1);
+                : providerPath[(providerPath.LastIndexOf('/') + 1)..];
 
             if (isDirectory)
             {
@@ -429,12 +430,12 @@ namespace Opc.Ua.Server.FileSystem
             Directory.CreateDirectory(target);
             foreach (string dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
             {
-                string sub = dir.Substring(source.Length).TrimStart(Path.DirectorySeparatorChar);
+                string sub = dir[source.Length..].TrimStart(Path.DirectorySeparatorChar);
                 Directory.CreateDirectory(Path.Combine(target, sub));
             }
             foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
             {
-                string sub = file.Substring(source.Length).TrimStart(Path.DirectorySeparatorChar);
+                string sub = file[source.Length..].TrimStart(Path.DirectorySeparatorChar);
                 File.Copy(file, Path.Combine(target, sub), overwrite: false);
             }
         }

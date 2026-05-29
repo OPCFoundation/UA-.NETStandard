@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
@@ -38,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reference description
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ReferenceDescription :
         IEncodeable,
         IEquatable<ReferenceDescription>,

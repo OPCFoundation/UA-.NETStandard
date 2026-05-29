@@ -53,6 +53,26 @@ namespace Opc.Ua.Lds.Server
         /// </summary>
         public const string OpcUaServiceType = "_opcua-tcp._tcp";
 
+        private static readonly char[] s_capsSeparator = [','];
+
+        /// <summary>
+        /// OPC 10000-12 §6.5.5 reverse-connect URL prefix: when a Client or
+        /// ClientAndServer announces reverse-connect support its
+        /// DiscoveryUrl is prefixed with <c>rcp+</c> (e.g.
+        /// <c>rcp+opc.tcp://host:port/path</c>). The prefix is transported
+        /// via the mDNS TXT record (key <see cref="ReverseConnectTxtKey"/>)
+        /// so peers can reconstruct it after discovery.
+        /// </summary>
+        public const string ReverseConnectScheme = "rcp+";
+
+        /// <summary>
+        /// TXT-record key that carries the reverse-connect prefix when a
+        /// Client / ClientAndServer announces an <c>rcp+</c> DiscoveryUrl.
+        /// Presence of the key (any non-empty value) indicates the URL
+        /// should be reconstructed with the <see cref="ReverseConnectScheme"/>.
+        /// </summary>
+        public const string ReverseConnectTxtKey = "rc";
+
         private readonly RegisteredServerStore m_store;
         private readonly ILogger m_logger;
         private readonly bool m_loopbackOnly;
@@ -69,16 +89,13 @@ namespace Opc.Ua.Lds.Server
         /// <param name="loopbackOnly">When true, restricts announcements and
         ///   queries to the loopback NIC. Used by in-process tests.</param>
         /// <param name="logger">Optional logger.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="store"/> is null.</exception>
         public MulticastDiscovery(
             RegisteredServerStore store,
             bool loopbackOnly = false,
             ILogger logger = null)
         {
-            if (store == null)
-            {
-                throw new ArgumentNullException(nameof(store));
-            }
-            m_store = store;
+            m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_loopbackOnly = loopbackOnly;
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
         }
@@ -96,6 +113,9 @@ namespace Opc.Ua.Lds.Server
         /// <param name="discoveryUrls">The LDS's discovery URLs.</param>
         /// <param name="capabilities">The LDS's server capabilities (e.g. LDS, LDS-ME).</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentException"><paramref name="applicationUri"/> is null or empty.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="discoveryUrls"/> is null.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="capabilities"/> is null.</exception>
         public Task StartAsync(
             string applicationUri,
             IList<string> discoveryUrls,
@@ -249,18 +269,19 @@ namespace Opc.Ua.Lds.Server
 
                 string path = "/";
                 List<string> caps = [];
+                bool reverseConnect = false;
                 if (txt != null)
                 {
                     foreach (string str in txt.Strings)
                     {
                         if (str.StartsWith("path=", StringComparison.Ordinal))
                         {
-                            path = str.Substring("path=".Length);
+                            path = str["path=".Length..];
                         }
                         else if (str.StartsWith("caps=", StringComparison.Ordinal))
                         {
-                            foreach (string raw in str.Substring("caps=".Length)
-                                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                            foreach (string raw in str["caps=".Length..]
+                                .Split(s_capsSeparator, StringSplitOptions.RemoveEmptyEntries))
                             {
                                 string trimmed = raw.Trim();
                                 if (trimmed.Length > 0)
@@ -269,10 +290,24 @@ namespace Opc.Ua.Lds.Server
                                 }
                             }
                         }
+                        else if (str.StartsWith(
+                                ReverseConnectTxtKey + "=",
+                                StringComparison.Ordinal))
+                        {
+                            // OPC 10000-12 §6.5.5: any non-empty value
+                            // indicates the announced DiscoveryUrl is a
+                            // reverse-connect (rcp+) URL.
+                            string value = str.Substring(
+                                ReverseConnectTxtKey.Length + 1);
+                            reverseConnect = !string.IsNullOrEmpty(value) &&
+                                value != "0";
+                        }
                     }
                 }
 
-                string discoveryUrl = $"opc.tcp://{address}:{srv.Port}{path}";
+                string discoveryUrl = reverseConnect
+                    ? $"{ReverseConnectScheme}opc.tcp://{address}:{srv.Port}{path}"
+                    : $"opc.tcp://{address}:{srv.Port}{path}";
 
                 m_store.UpsertMulticastRecord(
                     serverUri: null,
@@ -293,7 +328,19 @@ namespace Opc.Ua.Lds.Server
         {
             try
             {
-                Uri parsed = new(discoveryUrl, UriKind.Absolute);
+                // Preserve the rcp+ reverse-connect prefix (OPC 10000-12
+                // §6.5.5). Reverse-connect URLs are emitted on the mDNS
+                // SRV record using the underlying transport's host/port,
+                // with the prefix captured in a dedicated TXT key so
+                // discovery peers can reconstruct it verbatim.
+                bool reverseConnect = discoveryUrl.StartsWith(
+                    ReverseConnectScheme,
+                    StringComparison.Ordinal);
+                string transportUrl = reverseConnect
+                    ? discoveryUrl[ReverseConnectScheme.Length..]
+                    : discoveryUrl;
+
+                Uri parsed = new(transportUrl, UriKind.Absolute);
                 if (parsed.Port <= 0)
                 {
                     return null;
@@ -313,6 +360,10 @@ namespace Opc.Ua.Lds.Server
                 if (capabilities.Count > 0)
                 {
                     profile.AddProperty("caps", string.Join(",", capabilities));
+                }
+                if (reverseConnect)
+                {
+                    profile.AddProperty(ReverseConnectTxtKey, "1");
                 }
 
                 return profile;
@@ -342,8 +393,8 @@ namespace Opc.Ua.Lds.Server
                 IPInterfaceProperties ipProps = nic.GetIPProperties();
                 foreach (UnicastIPAddressInformation u in ipProps.UnicastAddresses)
                 {
-                    if (u.Address.AddressFamily == AddressFamily.InterNetwork
-                        || u.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                    if (u.Address.AddressFamily is AddressFamily.InterNetwork or
+                        AddressFamily.InterNetworkV6)
                     {
                         yield return u.Address;
                     }
@@ -360,13 +411,13 @@ namespace Opc.Ua.Lds.Server
 
             // mDNS instance names should be friendly UTF-8 strings; strip URI scheme.
             int schemeIdx = applicationUri.IndexOf("://", StringComparison.Ordinal);
-            string trimmed = schemeIdx >= 0 ? applicationUri.Substring(schemeIdx + 3) : applicationUri;
+            string trimmed = schemeIdx >= 0 ? applicationUri[(schemeIdx + 3)..] : applicationUri;
             // limit length and replace separators that confuse some browsers.
             string sanitized = trimmed
                 .Replace('/', '-')
                 .Replace(':', '-')
                 .Replace('?', '-');
-            return sanitized.Length > 63 ? sanitized.Substring(0, 63) : sanitized;
+            return sanitized.Length > 63 ? sanitized[..63] : sanitized;
         }
     }
 }

@@ -43,9 +43,9 @@ namespace Boiler
         /// </summary>
         public double UpdateMeasurement(AnalogItemState<double> source)
         {
-            var measurement = m_measurement!;
-            var setPoint = m_setPoint!;
-            var controlOut = m_controlOut!;
+            PropertyState<double> measurement = m_measurement!;
+            PropertyState<double> setPoint = m_setPoint!;
+            PropertyState<double> controlOut = m_controlOut!;
 
             Range? range = source.EURange?.Value;
             measurement.Value = source.Value;

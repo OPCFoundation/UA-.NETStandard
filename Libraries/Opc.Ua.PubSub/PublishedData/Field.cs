@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Get/Set Value
         /// </summary>
-        public DataValue? Value { get; set; }
+        public DataValue Value { get; set; }
 
         /// <summary>
         /// Get/Set Target NodeId
@@ -68,9 +68,9 @@ namespace Opc.Ua.PubSub.PublishedData
         public new object MemberwiseClone()
         {
             var copy = base.MemberwiseClone() as Field;
-            if (Value != null && copy != null)
+            if (!Value.IsNull && copy != null)
             {
-                copy.Value = CoreUtils.Clone(Value);
+                copy.Value = Value.Copy();
             }
 
             if (FieldMetaData != null && copy != null)

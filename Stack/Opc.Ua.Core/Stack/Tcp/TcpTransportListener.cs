@@ -1066,19 +1066,20 @@ namespace Opc.Ua.Bindings
             uint requestId,
             IServiceRequest request)
         {
+            IServiceResponse? response = null;
             try
             {
                 if (m_callback != null)
                 {
                     var context = new SecureChannelContext(
                         channel.GlobalChannelId,
-                        channel.EndpointDescription!,
+                        channel.EndpointDescription,
                         RequestEncoding.Binary,
                         channel.ClientCertificate?.RawData,
                         channel.ServerCertificate?.RawData,
                         channel.ChannelThumbprint);
 
-                    IServiceResponse response = await m_callback.ProcessRequestAsync(
+                    response = await m_callback.ProcessRequestAsync(
                         context,
                         request).ConfigureAwait(false);
 
@@ -1128,6 +1129,15 @@ namespace Opc.Ua.Bindings
                         faultEx,
                         "TCPLISTENER - Failed to send fault response to client.");
                 }
+            }
+            finally
+            {
+                // Return decoded request and response to their activator
+                // pools for reuse. Both have been fully consumed at this
+                // point: the request by the service handler and the
+                // response by the channel's wire-encode path.
+                (request as IPooledEncodeable)?.Reuse();
+                (response as IPooledEncodeable)?.Reuse();
             }
         }
 
@@ -1207,8 +1217,12 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_lock = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        // These fields are populated by Open(); they remain non-null for the lifetime of the
-        // listener (Close()/Dispose() do not reassign to null).
+
+        /// <summary>
+        /// These fields are populated by Open(); they remain non-null
+        /// for the lifetime of the listener (Close()/Dispose() do not
+        /// reassign to null).
+        /// </summary>
         private List<EndpointDescription> m_descriptions = null!;
         private BufferManager m_bufferManager = null!;
         private ChannelQuotas m_quotas = null!;

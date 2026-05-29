@@ -159,16 +159,17 @@ namespace Opc.Ua.PubSub.PublishedData
                                 };
 
                                 // retrieve value from DataStore
-                                DataValue? dataValue = null;
+                                DataValue dataValue = default;
 
                                 if (!publishedVariable.PublishedVariable.IsNull)
                                 {
-                                    dataValue = m_dataStore.ReadPublishedDataItem(
+                                    m_dataStore.TryReadPublishedDataItem(
                                         publishedVariable.PublishedVariable,
-                                        publishedVariable.AttributeId);
+                                        publishedVariable.AttributeId,
+                                        out dataValue);
                                 }
 
-                                if (dataValue == null)
+                                if (dataValue.IsNull)
                                 {
                                     //try to get the dataValue from ExtensionFields
                                     /*If an entry of the PublishedData references one of the ExtensionFields, the substituteValue shall contain the
@@ -180,27 +181,31 @@ namespace Opc.Ua.PubSub.PublishedData
                                             .ExtensionFields
                                             .Find(x =>
                                                 x.Key == extensionFieldName);
-                                        if (extensionField != null)
+                                        if (!extensionField.Key.IsNull)
                                         {
                                             dataValue = new DataValue(extensionField.Value);
                                         }
                                     }
-                                    dataValue ??= DataValue.FromStatusCode(StatusCodes.Bad, DateTime.UtcNow);
+                                    if (dataValue.IsNull)
+                                    {
+                                        dataValue = DataValue.FromStatusCode(StatusCodes.Bad, DateTime.UtcNow);
+                                    }
                                 }
                                 else
                                 {
-                                    dataValue = CoreUtils.Clone(dataValue);
+                                    dataValue = dataValue.Copy();
 
                                     //check StatusCode and return SubstituteValue if possible
-                                    if (dataValue!.StatusCode == StatusCodes.Bad &&
+                                    if (dataValue.StatusCode == StatusCodes.Bad &&
                                         publishedVariable.SubstituteValue != Variant.Null)
                                     {
-                                        dataValue.WrappedValue = publishedVariable.SubstituteValue;
-                                        dataValue.StatusCode = StatusCodes.UncertainSubstituteValue;
+                                        dataValue = dataValue
+                                            .WithWrappedValue(publishedVariable.SubstituteValue)
+                                            .WithStatus(StatusCodes.UncertainSubstituteValue);
                                     }
                                 }
 
-                                dataValue.ServerTimestamp = DateTime.UtcNow;
+                                dataValue = dataValue.WithServerTimestamp(DateTimeUtc.Now);
 
                                 Field field = dataSet.Fields[i];
                                 Variant variant = dataValue.WrappedValue;
@@ -221,8 +226,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 ShouldBringToConstraints(
                                                     (uint)strFieldValue.Length))
                                             {
-                                                dataValue.WrappedValue = Variant.From(
-                                                    strFieldValue[..(int)field.FieldMetaData.MaxStringLength]);
+                                                dataValue = dataValue.WithWrappedValue(Variant.From(
+                                                    strFieldValue[..(int)field.FieldMetaData.MaxStringLength]));
                                             }
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
@@ -243,11 +248,12 @@ namespace Opc.Ua.PubSub.PublishedData
                                                         buffer[idx] = valueArray[idx];
                                                     }
                                                 }
-                                                dataValue.WrappedValue = Variant.From(buffer.ToArrayOf());
+                                                dataValue = dataValue.WithWrappedValue(
+                                                    Variant.From(buffer.ToArrayOf()));
                                             }
                                             else
                                             {
-                                                dataValue.WrappedValue = default;
+                                                dataValue = dataValue.WithWrappedValue(default);
                                             }
                                         }
                                         break;
@@ -261,7 +267,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 Array.Resize(
                                                     ref byteArray,
                                                     (int)field.FieldMetaData.MaxStringLength);
-                                                dataValue.WrappedValue = Variant.From(ByteString.From(byteArray));
+                                                dataValue = dataValue.WithWrappedValue(
+                                                    Variant.From(ByteString.From(byteArray)));
                                             }
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
@@ -286,11 +293,11 @@ namespace Opc.Ua.PubSub.PublishedData
                                                     }
                                                 }
                                                 valueArray = buffer.ToArrayOf();
-                                                dataValue.WrappedValue = Variant.From(valueArray);
+                                                dataValue = dataValue.WithWrappedValue(Variant.From(valueArray));
                                             }
                                             else
                                             {
-                                                dataValue.WrappedValue = default;
+                                                dataValue = dataValue.WithWrappedValue(default);
                                             }
                                         }
                                         break;

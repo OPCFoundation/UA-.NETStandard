@@ -44,6 +44,8 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
+using Opc.Ua.Server.TestFramework;
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
@@ -139,7 +141,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify session is functional by reading server state
             DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-            Assert.That(result, Is.Not.Null, "Should be able to read server state");
+            Assert.That(result.IsNull, Is.False, "Should be able to read server state");
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good), "Read operation should succeed");
 
             await session.CloseAsync(5_000, true).ConfigureAwait(false);
@@ -211,7 +213,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify session is functional by reading server state
             DataValue result = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
-            Assert.That(result, Is.Not.Null, "Should be able to read server state");
+            Assert.That(result.IsNull, Is.False, "Should be able to read server state");
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good), "Read operation should succeed");
 
             await session.CloseAsync(5_000, true).ConfigureAwait(false);

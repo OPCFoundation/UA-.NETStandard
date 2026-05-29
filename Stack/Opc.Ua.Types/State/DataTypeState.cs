@@ -238,15 +238,12 @@ namespace Opc.Ua
                 case Attributes.DataTypeDefinition:
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
-                    NodeAttributeEventHandler<ExtensionObject>? onReadDataTypeDefinition
-                        = OnReadDataTypeDefinition;
-
-                    if (onReadDataTypeDefinition != null)
+                    if (OnReadDataTypeDefinition is { } onReadDataTypeDefinition)
                     {
                         result = onReadDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
@@ -256,8 +253,7 @@ namespace Opc.Ua
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, default);
                         }
-#pragma warning restore CS8602
-#pragma warning restore CS8600
+#pragma warning restore CS8602, CS8600
                         value = dataTypeDefinition;
                     }
 
@@ -295,15 +291,12 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ExtensionObject>? onWriteDataTypeDefinition
-                        = OnWriteDataTypeDefinition;
-
-                    if (onWriteDataTypeDefinition != null)
+                    if (OnWriteDataTypeDefinition is { } onWriteDataTypeDefinition)
                     {
                         result = onWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
 
-                    if (ServiceResult.IsGood(result!))
+                    if (ServiceResult.IsGood(result))
                     {
                         m_dataTypeDefinition = dataTypeDefinition;
                     }

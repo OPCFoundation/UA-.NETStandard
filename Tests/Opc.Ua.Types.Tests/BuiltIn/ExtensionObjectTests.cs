@@ -301,7 +301,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var binaryDifferentId = new ExtensionObject(encodeable.BinaryEncodingId, bytes);
             Assert.That(binary, Is.Not.EqualTo(binaryDifferentId));
 
-            string json = "{\"value\":42}";
+            const string json = /*lang=json,strict*/ "{\"value\":42}";
             var jsonExt = new ExtensionObject(encodeable.TypeId, json);
             var jsonDifferentId = new ExtensionObject(encodeable.XmlEncodingId, json);
             Assert.That(jsonExt, Is.Not.EqualTo(jsonDifferentId));
@@ -331,8 +331,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var body = new TestEncodeable(11);
             var left = new ExtensionObject(body);
             var right = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(11));
-            Assert.That(left == right, Is.True);
-            Assert.That(left != right, Is.False);
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(left, Is.EqualTo(right));
         }
 
         /// <summary>

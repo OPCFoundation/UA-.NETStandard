@@ -5,11 +5,26 @@ parameters:
   configuration: 'Release'
   agents: '@{}'
   jobnamesuffix: ''
+  # Set hosted=true to force all jobs in this template invocation onto
+  # Microsoft-hosted agents (bypasses the netstandard managed DevOps pool).
+  # Use this for stages that target macOS, which the managed pool does not
+  # provide.
+  hosted: false
+  # See ci.yml: passing pool config via parameters because root-pipeline
+  # variables defined in ${{ if ... }}: blocks aren't reliably visible to
+  # included templates at compile-time.
+  poolName: ''
+  windowsImage: 'windows-2025-vs2026'
 jobs:
 - job: testaotprep${{ parameters.jobnamesuffix }}
   displayName: Prepare AoT Test Jobs ${{ parameters.configuration }}
   pool:
-    vmImage: 'windows-2025-vs2026'
+    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals ${{ parameters.windowsImage }}
+    ${{ else }}:
+      vmImage: ${{ parameters.windowsImage }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -24,14 +39,19 @@ jobs:
 - job: testaot${{ parameters.jobnamesuffix }}
   displayName: AoT Tests
   dependsOn: testaotprep${{ parameters.jobnamesuffix }}
-  timeoutInMinutes: 30
+  timeoutInMinutes: 60
   strategy:
     matrix: $[dependencies.testaotprep${{ parameters.jobnamesuffix }}.outputs['aotmatrix.jobMatrix'] ]
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   pool:
-    vmImage: $(poolImage)
+    ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
+      name: ${{ parameters.poolName }}
+      demands:
+        - ImageOverride -equals $(poolImage)
+    ${{ else }}:
+      vmImage: $(poolImage)
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 10.0'
