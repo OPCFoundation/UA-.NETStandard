@@ -220,7 +220,7 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IGdsServerBuilder AddIdentityAuthenticator<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAuth>(
                 this IGdsServerBuilder gdsBuilder)
-            where TAuth : class, Opc.Ua.Identity.IUserTokenAuthenticator
+            where TAuth : class, IUserTokenAuthenticator
         {
             ToServerBuilder(gdsBuilder).AddIdentityAuthenticator<TAuth>(
 );

@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -61,7 +63,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task GetManagedApplicationsReturnsEmptyWhenNoneAdded()
         {
-            var apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
+            IReadOnlyList<ManagedApplicationInfo> apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(apps, Is.Empty);
         }
 
@@ -76,7 +78,7 @@ namespace Opc.Ua.Gds.Tests
                 Enabled = true
             });
 
-            var apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
+            IReadOnlyList<ManagedApplicationInfo> apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(apps, Has.Count.EqualTo(1));
             Assert.That(apps[0].ApplicationUri, Is.EqualTo(AppUri));
             Assert.That(apps[0].Enabled, Is.True);
@@ -108,7 +110,7 @@ namespace Opc.Ua.Gds.Tests
             m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = AppUri });
             Assert.That(m_store.RemoveApplication(AppUri), Is.True);
 
-            var apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
+            IReadOnlyList<ManagedApplicationInfo> apps = await m_store.GetManagedApplicationsAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(apps, Is.Empty);
         }
 
@@ -146,7 +148,7 @@ namespace Opc.Ua.Gds.Tests
                 AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
             // Try to write with stale version 0 → should fail
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.WriteConfigurationAsync(
                     AppUri, [2], 0, CancellationToken.None).ConfigureAwait(false));
 
@@ -168,7 +170,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ConfirmUpdateRejectsUnknownApp()
         {
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.ConfirmUpdateAsync("urn:unknown", 1, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
@@ -182,7 +184,7 @@ namespace Opc.Ua.Gds.Tests
             await m_store.WriteConfigurationAsync(
                 AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.ConfirmUpdateAsync(AppUri, 999, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -340,7 +342,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void AccessTokenResultPropertiesCanBeSet()
         {
-            var expiry = DateTime.UtcNow.AddHours(1);
+            DateTime expiry = DateTime.UtcNow.AddHours(1);
             var result = new AccessTokenResult
             {
                 AccessToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
@@ -365,7 +367,7 @@ namespace Opc.Ua.Gds.Tests
             if (provider == null)
 #pragma warning restore CA1508
             {
-                var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     await Task.CompletedTask.ConfigureAwait(false);
                     throw new ServiceResultException(StatusCodes.BadNotSupported);
@@ -410,8 +412,8 @@ namespace Opc.Ua.Gds.Tests
         {
             // Compile-time verification that the interface has
             // the ConfigurationDataStore property.
-            var type = typeof(IManagedApplicationsNodeManager);
-            var prop = type.GetProperty(nameof(IManagedApplicationsNodeManager.ConfigurationDataStore));
+            Type type = typeof(IManagedApplicationsNodeManager);
+            PropertyInfo? prop = type.GetProperty(nameof(IManagedApplicationsNodeManager.ConfigurationDataStore));
             Assert.That(prop, Is.Not.Null);
             Assert.That(prop!.PropertyType, Is.EqualTo(typeof(IConfigurationDataStore)));
         }
