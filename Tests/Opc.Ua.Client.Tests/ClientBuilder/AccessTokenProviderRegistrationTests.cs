@@ -46,6 +46,12 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
     [SetUICulture("en-us")]
     public sealed class AccessTokenProviderRegistrationTests
     {
+        private static readonly string[] s_expectedAuthorityOrder =
+        [
+            "https://one.example",
+            "https://two.example"
+        ];
+
         [Test]
         public void AddAccessTokenProviderTypedRegistersProvider()
         {
@@ -107,11 +113,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .Select(provider => provider.AuthorityUri)
                 .ToList();
 
-            Assert.That(authorities, Is.EqualTo(new[]
-            {
-                "https://one.example",
-                "https://two.example"
-            }));
+            Assert.That(authorities, Is.EqualTo(s_expectedAuthorityOrder));
         }
 
         public sealed class TypedAccessTokenProvider : StubAccessTokenProvider

@@ -53,6 +53,9 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
     {
         private const string Issuer = "urn:opcua:test:gds-edge";
         private const string Audience = "urn:opcua:test:server-edge";
+        private static readonly string[] s_duplicateAndWhitespaceScopes =
+            ["read", "read", "", "  ", "write"];
+        private static readonly string[] s_dedupedScopes = ["read", "write"];
 
         [Test]
         public void IssueAsyncWithoutSigningCertificateThrowsBadConfigurationError()
@@ -263,7 +266,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 new TokenIssuanceRequest(
                     "subject-1",
                     Audience,
-                    new[] { "read", "read", "", "  ", "write" },
+                    s_duplicateAndWhitespaceScopes,
                     new Dictionary<string, object?>(),
                     TimeSpan.FromMinutes(5)))
                 .ConfigureAwait(false);
@@ -271,7 +274,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             string[] parts = Encoding.UTF8.GetString(token.TokenData.ToArray()).Split('.');
             using JsonDocument payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
             Assert.That(payloadDocument.RootElement.GetProperty("scope").GetString(), Is.EqualTo("read write"));
-            Assert.That(token.GrantedScopes, Is.EqualTo(new[] { "read", "write" }));
+            Assert.That(token.GrantedScopes, Is.EqualTo(s_dedupedScopes));
         }
 
         [Test]

@@ -45,6 +45,7 @@ namespace Opc.Ua.Server.Tests.Identity
     {
         private const string CredentialId = "credential-store-1";
         private static readonly byte[] s_secret = [1, 2, 3, 4, 5];
+        private static readonly string[] s_orderedIds = ["aaa", "bbb", "ccc"];
 
         [Test]
         public async Task GetAsyncReturnsNullForUnknownCredentialId()
@@ -147,7 +148,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             IReadOnlyList<string> ids = await store.ListAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ids, Is.EqualTo(new[] { "aaa", "bbb", "ccc" }));
+            Assert.That(ids, Is.EqualTo(s_orderedIds));
         }
 
         [Test]
