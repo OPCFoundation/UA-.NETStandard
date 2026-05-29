@@ -287,7 +287,7 @@ namespace Opc.Ua.Server
 
             if (audience.ValueKind == JsonValueKind.String)
             {
-                return string.Equals(audience.GetString(), m_expectedAudience!, StringComparison.Ordinal);
+                return string.Equals(audience.GetString(), m_expectedAudience, StringComparison.Ordinal);
             }
 
             if (audience.ValueKind != JsonValueKind.Array)
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server
             foreach (JsonElement value in audience.EnumerateArray())
             {
                 if (value.ValueKind == JsonValueKind.String &&
-                    string.Equals(value.GetString(), m_expectedAudience!, StringComparison.Ordinal))
+                    string.Equals(value.GetString(), m_expectedAudience, StringComparison.Ordinal))
                 {
                     return true;
                 }

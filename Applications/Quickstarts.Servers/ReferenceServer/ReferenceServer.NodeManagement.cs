@@ -86,7 +86,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     nodesToAdd,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new AddNodesResult[nodesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
@@ -169,7 +169,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     nodesToDelete,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new StatusCode[nodesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
@@ -245,7 +245,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     referencesToAdd,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new StatusCode[referencesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
@@ -320,7 +320,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     referencesToDelete,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new StatusCode[referencesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];

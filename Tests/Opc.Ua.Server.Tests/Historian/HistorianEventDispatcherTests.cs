@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Historian
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
 
             var opContext = new OperationContext(
-                new RequestHeader(), null!, RequestType.HistoryUpdate, RequestLifetime.None);
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var systemContext = new ServerSystemContext(mockServer.Object, opContext);
             return new HistorianOperationContext(
                 systemContext, opContext, null, HistoryUpdateType.Insert);
