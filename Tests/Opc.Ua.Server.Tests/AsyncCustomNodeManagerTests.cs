@@ -4024,7 +4024,7 @@ namespace Opc.Ua.Server.Tests
     }
 
 #nullable disable
-    public class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
+    public sealed class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
     {
         public NodeStateCollection NodesToLoad { get; set; }
 
