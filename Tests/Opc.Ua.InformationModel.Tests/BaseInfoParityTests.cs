@@ -33,9 +33,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.InformationModel.Tests
 {
@@ -878,7 +877,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(
             StatusCode.IsGood(dv.StatusCode),
             Is.True);
-            Assert.That((int)dv.WrappedValue.GetInt32(), Is.EqualTo((int)ServerState.Running));
+            Assert.That(dv.WrappedValue.GetInt32(), Is.EqualTo((int)ServerState.Running));
         }
 
         [Test]

@@ -82,7 +82,7 @@ namespace Opc.Ua.Client.Tests.Identity
             using ISession session = await ClientFixture
                 .ConnectAsync(endpoint, userIdentity)
                 .ConfigureAwait(false);
-            var rawSession = (Opc.Ua.Client.Session)session;
+            var rawSession = (Session)session;
             SecretIdentifier passwordId = await CreatePasswordAsync("password1"u8.ToArray())
                 .ConfigureAwait(false);
             var provider = new UserNamePasswordIdentityProvider(

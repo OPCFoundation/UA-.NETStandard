@@ -44,8 +44,8 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// The dispatcher is stateless apart from continuation-point storage,
     /// which lives in the session via
-    /// <see cref="Opc.Ua.Server.Session.SaveHistoryContinuationPoint"/> /
-    /// <see cref="Opc.Ua.Server.Session.RestoreHistoryContinuationPoint"/>.
+    /// <see cref="Session.SaveHistoryContinuationPoint"/> /
+    /// <see cref="Session.RestoreHistoryContinuationPoint"/>.
     /// </para>
     /// </remarks>
     public static class HistorianDispatcher
@@ -838,7 +838,7 @@ namespace Opc.Ua.Server.Historian
         {
             if (dv.WrappedValue.TryGetValue(out ExtensionObject extension) &&
                 !extension.IsNull &&
-                extension.TryGetValue<Annotation>(out Annotation? annotation))
+                extension.TryGetValue(out Annotation? annotation))
             {
                 return annotation;
             }
@@ -1219,9 +1219,9 @@ namespace Opc.Ua.Server.Historian
             ByteString eventId = ByteString.Empty;
             NodeId eventType = notifierNodeId;
             DateTimeUtc sourceTs = DateTimeUtc.MinValue;
-            var fields = new Dictionary<string, Variant>(System.StringComparer.Ordinal);
+            var fields = new Dictionary<string, Variant>(StringComparer.Ordinal);
 
-            int count = System.Math.Min(filter.SelectClauses.Count, incoming.EventFields.Count);
+            int count = Math.Min(filter.SelectClauses.Count, incoming.EventFields.Count);
             for (int i = 0; i < count; i++)
             {
                 SimpleAttributeOperand op = filter.SelectClauses[i];
@@ -1230,17 +1230,17 @@ namespace Opc.Ua.Server.Historian
 
                 fields[key] = value;
 
-                if (string.Equals(key, BrowseNames.EventId, System.StringComparison.Ordinal) &&
+                if (string.Equals(key, BrowseNames.EventId, StringComparison.Ordinal) &&
                     value.TryGetValue(out ByteString idValue))
                 {
                     eventId = idValue;
                 }
-                else if (string.Equals(key, BrowseNames.EventType, System.StringComparison.Ordinal) &&
+                else if (string.Equals(key, BrowseNames.EventType, StringComparison.Ordinal) &&
                     value.TryGetValue(out NodeId typeValue))
                 {
                     eventType = typeValue;
                 }
-                else if (string.Equals(key, BrowseNames.Time, System.StringComparison.Ordinal) &&
+                else if (string.Equals(key, BrowseNames.Time, StringComparison.Ordinal) &&
                     value.TryGetValue(out DateTimeUtc tsValue))
                 {
                     sourceTs = tsValue;
@@ -1885,7 +1885,7 @@ namespace Opc.Ua.Server.Historian
 
         private static IAuditEventServer? GetAuditServer(ServerSystemContext systemContext)
         {
-            return systemContext.Server as IAuditEventServer;
+            return systemContext.Server;
         }
 
         /// <summary>

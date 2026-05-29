@@ -36,11 +36,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Tests;
-using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Lds.Tests
 {

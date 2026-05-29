@@ -38,10 +38,10 @@ using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Opc.Ua.Test;
-using Range = Opc.Ua.Range;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
+using Opc.Ua.Test;
+using Range = Opc.Ua.Range;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -5496,7 +5496,7 @@ namespace Quickstarts.ReferenceServer
             // server capabilities (HistoryServerCapabilities) reflect what the
             // provider supports. The dispatcher will still prefer the
             // per-node-manager override returned by GetHistorianProvider.
-            if (Server is Opc.Ua.Server.Historian.IHistorianRegistryProvider registry)
+            if (Server is IHistorianRegistryProvider registry)
             {
                 registry.HistorianRegistry.RegisterDefault(m_historian);
             }

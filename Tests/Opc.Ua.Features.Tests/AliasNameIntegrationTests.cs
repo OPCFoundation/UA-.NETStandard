@@ -37,14 +37,13 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
 using Opc.Ua.Client.AliasNames;
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-
-using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Server.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Features.Tests
 {

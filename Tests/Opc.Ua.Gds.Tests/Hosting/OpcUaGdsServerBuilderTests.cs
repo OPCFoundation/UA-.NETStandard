@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             // Both server features published an options registration.
             Assert.That(
-                sp.GetRequiredService<IOptions<Opc.Ua.Server.Hosting.OpcUaServerOptions>>().Value.ApplicationName,
+                sp.GetRequiredService<IOptions<Ua.Server.Hosting.OpcUaServerOptions>>().Value.ApplicationName,
                 Is.EqualTo("RegularServer"));
             Assert.That(
                 sp.GetRequiredService<IOptions<GdsServerOptions>>().Value.ApplicationName,

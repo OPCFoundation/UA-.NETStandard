@@ -1003,10 +1003,10 @@ namespace Opc.Ua.Core.Security.Tests
             Assert.That(
                 ex.StatusCode,
                 Is.AnyOf(
-                    (StatusCode)StatusCodes.BadCertificateTimeInvalid,
-                    (StatusCode)StatusCodes.BadCertificateIssuerTimeInvalid,
-                    (StatusCode)StatusCodes.BadSecurityChecksFailed,
-                    (StatusCode)StatusCodes.BadCertificateInvalid),
+                    StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateIssuerTimeInvalid,
+                    StatusCodes.BadSecurityChecksFailed,
+                    StatusCodes.BadCertificateInvalid),
                 $"Got: {ex.StatusCode}");
         }
 
@@ -1212,15 +1212,15 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.That(
                     ex.StatusCode,
                     Is.AnyOf(
-                        (StatusCode)StatusCodes.BadCertificateUntrusted,
-                        (StatusCode)StatusCodes.BadCertificateChainIncomplete,
-                        (StatusCode)StatusCodes.BadCertificateUseNotAllowed,
-                        (StatusCode)StatusCodes.BadCertificateIssuerUseNotAllowed,
-                        (StatusCode)StatusCodes.BadCertificateInvalid,
-                        (StatusCode)StatusCodes.BadCertificateRevoked,
-                        (StatusCode)StatusCodes.BadCertificateRevocationUnknown,
-                        (StatusCode)StatusCodes.BadCertificateIssuerRevocationUnknown,
-                        (StatusCode)StatusCodes.BadSecurityChecksFailed),
+                        StatusCodes.BadCertificateUntrusted,
+                        StatusCodes.BadCertificateChainIncomplete,
+                        StatusCodes.BadCertificateUseNotAllowed,
+                        StatusCodes.BadCertificateIssuerUseNotAllowed,
+                        StatusCodes.BadCertificateInvalid,
+                        StatusCodes.BadCertificateRevoked,
+                        StatusCodes.BadCertificateRevocationUnknown,
+                        StatusCodes.BadCertificateIssuerRevocationUnknown,
+                        StatusCodes.BadSecurityChecksFailed),
                     $"Got: {ex.StatusCode}");
             }
             finally
@@ -1345,8 +1345,8 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.That(
                         ex.StatusCode,
                         Is.AnyOf(
-                            (StatusCode)StatusCodes.BadCertificateUntrusted,
-                            (StatusCode)StatusCodes.BadSecurityChecksFailed),
+                            StatusCodes.BadCertificateUntrusted,
+                            StatusCodes.BadSecurityChecksFailed),
                         $"Cert with valid modern crypto rejected with: {ex.StatusCode}");
                 }
             }
@@ -1500,7 +1500,7 @@ namespace Opc.Ua.Core.Security.Tests
         private static bool IsEccPolicy(string policyUri)
         {
             return !string.IsNullOrEmpty(policyUri) &&
-                policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
+                policyUri.Contains("#ECC_", StringComparison.Ordinal);
         }
 
         private async Task<ISession> ConnectToSecurePolicyAsync(string policyUri)

@@ -38,8 +38,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -478,7 +478,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
+            var namespaceArray = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(new Variant(["http://server1", "http://server2"]));
 
             sut.Channel
@@ -496,7 +496,7 @@ namespace Opc.Ua.Client.Tests
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Ua.Namespaces.OpcUa, "http://namespace2"]));
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2"]));
 
             sut.Channel.Verify();
@@ -509,9 +509,9 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray1 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            var namespaceArray1 = new DataValue(Variant.From([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             var serverArray1 = new DataValue(Variant.From(["http://server1", "http://server2"]));
-            var namespaceArray2 = new DataValue(Variant.From([Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            var namespaceArray2 = new DataValue(Variant.From([Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
             var serverArray2 = new DataValue(Variant.From(["http://server1", "http://server2", "http://server3"]));
 
             sut.Channel
@@ -533,14 +533,14 @@ namespace Opc.Ua.Client.Tests
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2"]));
 
             // Act
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Ua.Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace3", "http://namespace2"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2", "http://server3"]));
 
             sut.Channel.Verify();
@@ -553,9 +553,9 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray1 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            var namespaceArray1 = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             var serverArray1 = new DataValue(new Variant(["http://server1", "http://server2"]));
-            var namespaceArray2 = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace3"]));
+            var namespaceArray2 = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace3"]));
             var serverArray2 = new DataValue(new Variant(["http://server1"]));
 
             sut.Channel
@@ -577,14 +577,14 @@ namespace Opc.Ua.Client.Tests
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Ua.Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2", "http://namespace3"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1", "http://server2"]));
 
             // Act
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Ua.Namespaces.OpcUa, "http://namespace3"]));
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace3"]));
             Assert.That(sut.ServerUris.ToArray(), Is.EquivalentTo(["http://server1"]));
 
             sut.Channel.Verify();
@@ -597,7 +597,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
+            var namespaceArray = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
 
             sut.Channel
@@ -615,7 +615,7 @@ namespace Opc.Ua.Client.Tests
             await sut.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
             // Assert
-            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Ua.Namespaces.OpcUa, "http://namespace2"]));
+            Assert.That(sut.NamespaceUris.ToArray(), Is.EquivalentTo([Namespaces.OpcUa, "http://namespace2"]));
             Assert.That(sut.ServerUris.ToArray(), Is.Empty);
 
             sut.Channel.Verify();
@@ -628,7 +628,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
+            var namespaceArray = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(new Variant(["http://server1", "http://server2"]));
 
             sut.Channel
@@ -741,7 +741,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
+            var namespaceArray = new DataValue(new Variant([Namespaces.OpcUa, "http://namespace2"]));
             var serverArray = new DataValue(new Variant(67890));
 
             sut.Channel
@@ -1271,7 +1271,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     Results =
                     [
-                        new(ArrayOf.Create([Ua.Namespaces.OpcUa])),
+                        new(ArrayOf.Create([Namespaces.OpcUa])),
                         new(ArrayOf.Empty<string>())
                     ],
                     DiagnosticInfos = []

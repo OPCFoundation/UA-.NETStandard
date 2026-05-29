@@ -38,12 +38,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
-
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
-
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {

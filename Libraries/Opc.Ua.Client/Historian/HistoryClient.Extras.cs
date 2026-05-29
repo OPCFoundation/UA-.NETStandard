@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Historian
             {
                 if (v.WrappedValue.TryGetValue(out ExtensionObject ext) &&
                     !ext.IsNull &&
-                    ext.TryGetValue<Annotation>(out Annotation? annotation))
+                    ext.TryGetValue(out Annotation? annotation))
                 {
                     yield return annotation;
                 }
@@ -328,16 +328,16 @@ namespace Opc.Ua.Client.Historian
             return new HistoricalDataConfigurationInfo
             {
                 HasConfiguration = true,
-                Stepped = !childNodes[0].IsNull ? (bool?)ReadBool(values[0]) : null,
+                Stepped = !childNodes[0].IsNull ? ReadBool(values[0]) : null,
                 Definition = !childNodes[1].IsNull ? ReadString(values[1]) : null,
-                MaxTimeInterval = !childNodes[2].IsNull ? (double?)ReadDouble(values[2]) : null,
-                MinTimeInterval = !childNodes[3].IsNull ? (double?)ReadDouble(values[3]) : null,
-                ExceptionDeviation = !childNodes[4].IsNull ? (double?)ReadDouble(values[4]) : null,
+                MaxTimeInterval = !childNodes[2].IsNull ? ReadDouble(values[2]) : null,
+                MinTimeInterval = !childNodes[3].IsNull ? ReadDouble(values[3]) : null,
+                ExceptionDeviation = !childNodes[4].IsNull ? ReadDouble(values[4]) : null,
                 StartOfArchive = !childNodes[5].IsNull
-                    ? (DateTime?)ReadDateTimeUtc(values[5]).ToDateTime()
+                    ? ReadDateTimeUtc(values[5]).ToDateTime()
                     : null,
                 StartOfOnlineArchive = !childNodes[6].IsNull
-                    ? (DateTime?)ReadDateTimeUtc(values[6]).ToDateTime()
+                    ? ReadDateTimeUtc(values[6]).ToDateTime()
                     : null,
             };
         }
@@ -391,7 +391,7 @@ namespace Opc.Ua.Client.Historian
 
                     bool yieldedSomething = false;
                     if (!result.HistoryData.IsNull &&
-                        result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                        result.HistoryData.TryGetValue(out HistoryData? hd))
                     {
                         DataValue[]? values = hd.DataValues.ToArray();
                         if (values != null && values.Length > 0)
@@ -455,11 +455,11 @@ namespace Opc.Ua.Client.Historian
                     {
                         // ignore — best-effort cleanup
                     }
-                    catch (System.Threading.Tasks.TaskCanceledException)
+                    catch (TaskCanceledException)
                     {
                         // ignore — best-effort cleanup
                     }
-                    catch (System.OperationCanceledException)
+                    catch (OperationCanceledException)
                     {
                         // ignore — best-effort cleanup
                     }

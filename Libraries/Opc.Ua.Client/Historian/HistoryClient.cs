@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Historian
                 [new ExtensionObject(details)],
                 cancellationToken).ConfigureAwait(false);
 
-            return response.Results.Count > 0 ? response.Results[0].StatusCode : (StatusCode)StatusCodes.BadInternalError;
+            return response.Results.Count > 0 ? response.Results[0].StatusCode : StatusCodes.BadInternalError;
         }
 
         /// <summary>Deletes values at the specified timestamps.</summary>
@@ -275,7 +275,7 @@ namespace Opc.Ua.Client.Historian
 
                     bool yieldedSomething = false;
                     if (!result.HistoryData.IsNull &&
-                        result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                        result.HistoryData.TryGetValue(out HistoryData? hd))
                     {
                         DataValue[]? values = hd.DataValues.ToArray();
                         if (values != null && values.Length > 0)
@@ -334,11 +334,11 @@ namespace Opc.Ua.Client.Historian
                     {
                         // best-effort cleanup
                     }
-                    catch (System.Threading.Tasks.TaskCanceledException)
+                    catch (TaskCanceledException)
                     {
                         // best-effort cleanup
                     }
-                    catch (System.OperationCanceledException)
+                    catch (OperationCanceledException)
                     {
                         // best-effort cleanup
                     }

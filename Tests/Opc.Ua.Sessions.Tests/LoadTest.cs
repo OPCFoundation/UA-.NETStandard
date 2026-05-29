@@ -36,11 +36,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
+using ISession = Opc.Ua.Client.ISession;
 using MonitoredItem = Opc.Ua.Client.MonitoredItem;
 using Subscription = Opc.Ua.Client.Subscription;
-using ISession = Opc.Ua.Client.ISession;
-using Opc.Ua.Server;
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
 {
@@ -157,7 +157,7 @@ namespace Opc.Ua.Sessions.Tests
                         ISession session;
                         if (useManagedSession)
                         {
-                            var managedSession = await Opc.Ua.Client.ManagedSession.CreateAsync(
+                            var managedSession = await ManagedSession.CreateAsync(
                                 ClientFixture.Config,
                                 configuredEndpoint,
                                 new DefaultSessionFactory(Telemetry),
@@ -191,7 +191,7 @@ namespace Opc.Ua.Sessions.Tests
                                             SamplingInterval = TimeSpan.Zero,
                                             QueueSize = 1
                                         },
-                                        out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item);
+                                        out Client.Subscriptions.MonitoredItems.IMonitoredItem? item);
 
                                     if (item != null)
                                     {
@@ -782,7 +782,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Routes each <see cref="DataValueChange"/> back to the shared
         /// <paramref name="valueChanges"/> counter dict via <paramref name="clientHandles"/>.
         /// </summary>
-        private sealed class LoadTestDataChangeHandler : Opc.Ua.Client.Subscriptions.ISubscriptionNotificationHandler
+        private sealed class LoadTestDataChangeHandler : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             private readonly ConcurrentDictionary<NodeId, int> m_valueChanges;
             private readonly ConcurrentDictionary<uint, NodeId> m_clientHandles;
@@ -796,17 +796,17 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnDataChangeNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.DataValueChange> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.DataValueChange> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
-                ReadOnlySpan<Opc.Ua.Client.Subscriptions.DataValueChange> changes = notification.Span;
+                ReadOnlySpan<Client.Subscriptions.DataValueChange> changes = notification.Span;
                 for (int i = 0; i < changes.Length; i++)
                 {
-                    Opc.Ua.Client.Subscriptions.DataValueChange change = changes[i];
+                    Client.Subscriptions.DataValueChange change = changes[i];
                     if (change.DiagnosticInfo != null &&
                         !StatusCode.IsGood(change.DiagnosticInfo.InnerStatusCode))
                     {
@@ -826,21 +826,21 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             public ValueTask OnEventDataNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                ReadOnlyMemory<Opc.Ua.Client.Subscriptions.EventNotification> notification,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask,
+                ReadOnlyMemory<Client.Subscriptions.EventNotification> notification,
+                Client.Subscriptions.PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
                 return default;
             }
 
             public ValueTask OnKeepAliveNotificationAsync(
-                Opc.Ua.Client.Subscriptions.ISubscription subscription,
+                Client.Subscriptions.ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
-                Opc.Ua.Client.Subscriptions.PublishState publishStateMask)
+                Client.Subscriptions.PublishState publishStateMask)
             {
                 return default;
             }

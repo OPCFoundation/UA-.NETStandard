@@ -127,7 +127,7 @@ namespace Opc.Ua.History.Tests
                 m_doubleNodeId, new[] { insertValue });
             Assert.That(insertStatuses, Has.Count.EqualTo(1));
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True,
-                $"Insert failed with status 0x{(uint)insertStatuses[0].Code:X8}");
+                $"Insert failed with status 0x{insertStatuses[0].Code:X8}");
 
             // Read back from a tight window around the inserted timestamp.
             var roundTrip = new List<DataValue>();
@@ -257,7 +257,7 @@ namespace Opc.Ua.History.Tests
                     writeStatus.Code,
                     Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
                         .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
-                    $"Unexpected WriteAnnotation failure 0x{(uint)writeStatus.Code:X8}");
+                    $"Unexpected WriteAnnotation failure 0x{writeStatus.Code:X8}");
                 return;
             }
 
@@ -291,14 +291,14 @@ namespace Opc.Ua.History.Tests
                     writeStatus.Code,
                     Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
                         .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
-                    $"Unexpected WriteAnnotation failure 0x{(uint)writeStatus.Code:X8}");
+                    $"Unexpected WriteAnnotation failure 0x{writeStatus.Code:X8}");
                 return;
             }
 
             StatusCode deleteStatus = await client.DeleteAnnotationAsync(
                 m_doubleNodeId, ts);
             Assert.That(StatusCode.IsNotBad(deleteStatus), Is.True,
-                $"DeleteAnnotation failed with 0x{(uint)deleteStatus.Code:X8}");
+                $"DeleteAnnotation failed with 0x{deleteStatus.Code:X8}");
 
             var remaining = new List<Annotation>();
             await foreach (Annotation a in client.ReadAnnotationsAsync(
@@ -340,7 +340,7 @@ namespace Opc.Ua.History.Tests
             StatusCode deleteStatus = await client.DeleteRawAsync(
                 m_doubleNodeId, timestamps[0], timestamps[2].AddMilliseconds(1));
             Assert.That(StatusCode.IsNotBad(deleteStatus), Is.True,
-                $"DeleteRaw failed with 0x{(uint)deleteStatus.Code:X8}");
+                $"DeleteRaw failed with 0x{deleteStatus.Code:X8}");
 
             var remaining = new List<DataValue>();
             await foreach (DataValue dv in client.ReadRawAsync(

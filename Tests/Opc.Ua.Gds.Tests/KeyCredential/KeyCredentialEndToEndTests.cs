@@ -75,7 +75,7 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
             using var resourceStore = new InMemoryKeyCredentialStore();
             await resourceStore.UpdateAsync(
                     credentialId,
-                    new Opc.Ua.Server.KeyCredential(
+                    new Ua.Server.KeyCredential(
                         credentialSecret.ToArray(),
                         DateTime.UtcNow.AddMinutes(10),
                         new Dictionary<string, object>

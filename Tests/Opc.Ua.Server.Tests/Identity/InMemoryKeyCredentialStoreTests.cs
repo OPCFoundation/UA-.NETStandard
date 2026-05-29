@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var store = new InMemoryKeyCredentialStore();
 
-            Opc.Ua.Server.KeyCredential result = await store.GetAsync("unknown", CancellationToken.None)
+            Server.KeyCredential result = await store.GetAsync("unknown", CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(result, Is.Null);
@@ -67,11 +67,11 @@ namespace Opc.Ua.Server.Tests.Identity
 
             await store.UpdateAsync(
                     CredentialId,
-                    new Opc.Ua.Server.KeyCredential(s_secret, expiration, subject: null, scopes: scopes),
+                    new Server.KeyCredential(s_secret, expiration, subject: null, scopes: scopes),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Opc.Ua.Server.KeyCredential stored = await store.GetAsync(CredentialId, CancellationToken.None)
+            Server.KeyCredential stored = await store.GetAsync(CredentialId, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(stored, Is.Not.Null);
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Identity
             using var store = new InMemoryKeyCredentialStore();
             await store.UpdateAsync(
                     CredentialId,
-                    new Opc.Ua.Server.KeyCredential(s_secret, DateTime.UtcNow.AddMinutes(1)),
+                    new Server.KeyCredential(s_secret, DateTime.UtcNow.AddMinutes(1)),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
@@ -95,11 +95,11 @@ namespace Opc.Ua.Server.Tests.Identity
             DateTime newExpiration = DateTime.UtcNow.AddHours(1);
             await store.UpdateAsync(
                     CredentialId,
-                    new Opc.Ua.Server.KeyCredential(replacement, newExpiration),
+                    new Server.KeyCredential(replacement, newExpiration),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Opc.Ua.Server.KeyCredential stored = await store.GetAsync(CredentialId, CancellationToken.None)
+            Server.KeyCredential stored = await store.GetAsync(CredentialId, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(stored.Secret, Is.EqualTo(replacement));
@@ -112,13 +112,13 @@ namespace Opc.Ua.Server.Tests.Identity
             using var store = new InMemoryKeyCredentialStore();
             await store.UpdateAsync(
                     CredentialId,
-                    new Opc.Ua.Server.KeyCredential(s_secret, DateTime.UtcNow.AddMinutes(1)),
+                    new Server.KeyCredential(s_secret, DateTime.UtcNow.AddMinutes(1)),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
             await store.DeleteAsync(CredentialId, CancellationToken.None).ConfigureAwait(false);
 
-            Opc.Ua.Server.KeyCredential after = await store.GetAsync(CredentialId, CancellationToken.None)
+            Server.KeyCredential after = await store.GetAsync(CredentialId, CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(after, Is.Null);
 
@@ -132,17 +132,17 @@ namespace Opc.Ua.Server.Tests.Identity
             using var store = new InMemoryKeyCredentialStore();
             await store.UpdateAsync(
                     "ccc",
-                    new Opc.Ua.Server.KeyCredential(s_secret, DateTime.UtcNow.AddHours(1)),
+                    new Server.KeyCredential(s_secret, DateTime.UtcNow.AddHours(1)),
                     CancellationToken.None)
                 .ConfigureAwait(false);
             await store.UpdateAsync(
                     "aaa",
-                    new Opc.Ua.Server.KeyCredential(s_secret, DateTime.UtcNow.AddHours(1)),
+                    new Server.KeyCredential(s_secret, DateTime.UtcNow.AddHours(1)),
                     CancellationToken.None)
                 .ConfigureAwait(false);
             await store.UpdateAsync(
                     "bbb",
-                    new Opc.Ua.Server.KeyCredential(s_secret, DateTime.UtcNow.AddHours(1)),
+                    new Server.KeyCredential(s_secret, DateTime.UtcNow.AddHours(1)),
                     CancellationToken.None)
                 .ConfigureAwait(false);
 

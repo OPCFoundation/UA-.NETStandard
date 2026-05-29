@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 Assert.That(ServiceResult.IsGood(error), Is.True);
 
-                if (result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                if (result.HistoryData.TryGetValue(out HistoryData? hd))
                 {
                     DataValue[]? values = hd.DataValues.ToArray();
                     if (values != null)
@@ -250,13 +250,13 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(
-                result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd),
+                result.HistoryData.TryGetValue(out HistoryData? hd),
                 Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
 
             Assert.That(values![0].WrappedValue.TryGetValue(out ExtensionObject ext), Is.True);
-            Assert.That(ext.TryGetValue<Annotation>(out Annotation? readBack), Is.True);
+            Assert.That(ext.TryGetValue(out Annotation? readBack), Is.True);
             Assert.That(readBack!.Message, Is.EqualTo("via-direct-insert"));
         }
 

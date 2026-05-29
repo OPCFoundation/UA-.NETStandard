@@ -71,7 +71,7 @@ namespace Quickstarts.ReferenceServer
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            ushort diagnosticsNamespaceIndex = (ushort)Server.NamespaceUris
+            ushort diagnosticsNamespaceIndex = Server.NamespaceUris
                 .GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa + "Diagnostics");
 
             var addedNodes = new List<NodeState>();

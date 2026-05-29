@@ -35,10 +35,10 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests
 {

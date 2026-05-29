@@ -142,7 +142,7 @@ namespace Opc.Ua.Sessions.Tests
                     requestHeader: null,
                     requestHandle: 0,
                     ct: CancellationToken.None).ConfigureAwait(false));
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Description("Cancel - server returns Good but overrides CancelCount to 0. ")]
@@ -180,7 +180,7 @@ namespace Opc.Ua.Sessions.Tests
                     requestHeader: null,
                     requestHandle: 0,
                     ct: CancellationToken.None).ConfigureAwait(false));
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Description("Cancel - server returns Good and increments the actual CancelCount by 1. ")]

@@ -310,7 +310,7 @@ namespace Opc.Ua.InformationModel.Tests
                 "DataType attribute should be readable.");
             Assert.That(
                 dataType.WrappedValue.GetNodeId(),
-                Is.EqualTo((NodeId)DataTypeIds.QualifiedName),
+                Is.EqualTo(DataTypeIds.QualifiedName),
                 "ConformanceUnits DataType must be QualifiedName per Part 5 §6.3.36.");
         }
 
@@ -464,7 +464,7 @@ namespace Opc.Ua.InformationModel.Tests
                 VariableIds.Server_ServerStatus_State)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            int state = (int)result.WrappedValue.GetInt32();
+            int state = result.WrappedValue.GetInt32();
             Assert.That(state,
                 Is.EqualTo((int)ServerState.Running));
         }

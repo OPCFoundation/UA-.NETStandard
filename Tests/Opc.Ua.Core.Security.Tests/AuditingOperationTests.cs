@@ -32,9 +32,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -230,7 +229,7 @@ namespace Opc.Ua.Core.Security.Tests
                         {
                             pubResp = await session.PublishAsync(
                                 null,
-                                System.Array.Empty<SubscriptionAcknowledgement>().ToArrayOf(),
+                                Array.Empty<SubscriptionAcknowledgement>().ToArrayOf(),
                                 CancellationToken.None).ConfigureAwait(false);
                         }
                         catch (ServiceResultException)

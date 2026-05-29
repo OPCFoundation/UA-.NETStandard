@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 list.Add(new DataValue(
                     new Variant(i * 1.0),
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     ts,
                     ts));
             }

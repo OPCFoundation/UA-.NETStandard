@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// Abstraction for the token-issuance back-end of an
     /// OPC 10000-12 §9 AuthorizationService. The default implementation
-    /// delegates JWT signing to <see cref="Opc.Ua.Identity.ITokenIssuer"/>.
+    /// delegates JWT signing to <see cref="Ua.Identity.ITokenIssuer"/>.
     /// </summary>
     /// <remarks>
     /// <para>

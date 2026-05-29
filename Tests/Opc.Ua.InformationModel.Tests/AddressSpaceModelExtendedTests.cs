@@ -198,7 +198,7 @@ Property("ConformanceUnit", "Address Space Base")]
             DataTypeIds.ServerStatusDataType,
             Attributes.DataTypeDefinition).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
-            if (!r.WrappedValue.TryGetStructure<StructureDefinition>(out StructureDefinition _))
+            if (!r.WrappedValue.TryGetStructure(out StructureDefinition _))
             {
                 Assert.Fail("Not a StructureDefinition");
                 return;
@@ -212,7 +212,7 @@ Property("ConformanceUnit", "Address Space Base")]
             DataTypeIds.ServerStatusDataType,
             Attributes.DataTypeDefinition).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
-            if (!r.WrappedValue.TryGetStructure<StructureDefinition>(out StructureDefinition def))
+            if (!r.WrappedValue.TryGetStructure(out StructureDefinition def))
             {
                 Assert.Fail("Could not decode.");
                 return;

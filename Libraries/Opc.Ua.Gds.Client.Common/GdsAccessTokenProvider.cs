@@ -41,7 +41,7 @@ namespace Opc.Ua.Gds.Client
     /// Client-side access-token provider backed by a GDS
     /// AuthorizationService instance.
     /// </summary>
-    public sealed class GdsAccessTokenProvider : Opc.Ua.Identity.IAccessTokenProvider
+    public sealed class GdsAccessTokenProvider : IAccessTokenProvider
     {
         private readonly AuthorizationServiceClient m_client;
         private readonly string m_policyId;

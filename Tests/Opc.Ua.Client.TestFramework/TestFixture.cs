@@ -112,21 +112,21 @@ namespace Opc.Ua.Client.TestFramework
             // Seed default identity-mapping rules so role-based conformance
             // tests can authenticate as admin via the sysadmin/demo credentials.
             // The rules are in-memory and do not persist across restart.
-            Opc.Ua.Server.IRoleManager roleManager = ReferenceServer.CurrentInstance?.RoleManager;
+            Server.IRoleManager roleManager = ReferenceServer.CurrentInstance?.RoleManager;
             if (roleManager != null)
             {
                 roleManager.AddIdentity(
-                    Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
-                    new Opc.Ua.IdentityMappingRuleType
+                    ObjectIds.WellKnownRole_SecurityAdmin,
+                    new IdentityMappingRuleType
                     {
-                        CriteriaType = Opc.Ua.IdentityCriteriaType.UserName,
+                        CriteriaType = IdentityCriteriaType.UserName,
                         Criteria = "sysadmin"
                     });
                 roleManager.AddIdentity(
-                    Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
-                    new Opc.Ua.IdentityMappingRuleType
+                    ObjectIds.WellKnownRole_ConfigureAdmin,
+                    new IdentityMappingRuleType
                     {
-                        CriteriaType = Opc.Ua.IdentityCriteriaType.UserName,
+                        CriteriaType = IdentityCriteriaType.UserName,
                         Criteria = "sysadmin"
                     });
             }
@@ -431,7 +431,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <summary>
         /// Opens a fresh, independent session to the in-process server,
         /// bypassing the retry wrapper that the standard
-        /// <see cref="ClientFixture.ConnectAsync(System.Uri, string, ArrayOf{EndpointDescription}, IUserIdentity)"/>
+        /// <see cref="ClientFixture.ConnectAsync(Uri, string, ArrayOf{EndpointDescription}, IUserIdentity)"/>
         /// applies. Used by RequiresServerMock tests that inject errors
         /// into CreateSession / ActivateSession / CloseSession responses
         /// — without this, the retry loop would consume the one-shot

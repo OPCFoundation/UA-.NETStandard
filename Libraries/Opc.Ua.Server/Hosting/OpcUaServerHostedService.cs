@@ -277,7 +277,7 @@ namespace Opc.Ua.Server.Hosting
             }
 
             ICertificateValidatorEx? certificateValidator =
-                m_application?.ApplicationConfiguration?.CertificateManager as ICertificateValidatorEx;
+                m_application?.ApplicationConfiguration?.CertificateManager;
 
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {

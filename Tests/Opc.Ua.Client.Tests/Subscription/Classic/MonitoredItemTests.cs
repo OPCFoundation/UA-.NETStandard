@@ -32,8 +32,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {

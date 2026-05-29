@@ -299,7 +299,7 @@ namespace TestData
         /// managers (e.g. ReferenceNodeManager) that may also register
         /// a default provider in the same process.
         /// </summary>
-        protected override Opc.Ua.Server.Historian.IHistorianProvider? GetHistorianProvider(NodeState node)
+        protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
             return m_system.Historian;
         }

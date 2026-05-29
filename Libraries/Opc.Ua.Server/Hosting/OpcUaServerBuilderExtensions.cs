@@ -878,7 +878,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 registrationId,
                 options.Audience,
                 CreateIssuerKeyResolver(sp, options)));
-            services.AddSingleton<IIssuerKeyResolver>(sp =>
+            services.AddSingleton(sp =>
                 GetJwtIssuerRegistration(sp, registrationId).KeyResolver);
         }
 

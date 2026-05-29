@@ -274,7 +274,7 @@ namespace Opc.Ua.Gds.Tests.Identity
                 string certificateTypeId,
                 out ByteString certificate)
             {
-                if (object.Equals(applicationId, m_record.ApplicationId) &&
+                if (Equals(applicationId, m_record.ApplicationId) &&
                     string.Equals(
                         certificateTypeId,
                         nameof(Ua.ObjectTypeIds.ApplicationCertificateType),

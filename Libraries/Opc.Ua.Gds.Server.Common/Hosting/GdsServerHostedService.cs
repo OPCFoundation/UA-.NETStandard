@@ -186,7 +186,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates);
 
             await securityBuilder
-                .AddExtension<GlobalDiscoveryServerConfiguration>(
+                .AddExtension(
                     new XmlQualifiedName(
                         nameof(GlobalDiscoveryServerConfiguration),
                         Namespaces.OpcUaGds + "Configuration.xsd"),
@@ -245,7 +245,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             }
 
             ICertificateValidatorEx? certificateValidator =
-                m_application?.ApplicationConfiguration?.CertificateManager as ICertificateValidatorEx;
+                m_application?.ApplicationConfiguration?.CertificateManager;
 
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {

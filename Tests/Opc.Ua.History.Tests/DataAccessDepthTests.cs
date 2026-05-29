@@ -179,7 +179,7 @@ namespace Opc.Ua.History.Tests
             DataValue result = await ReadAttributeAsync(nodeId, Attributes.NodeClass)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            int nodeClass = (int)result.WrappedValue.GetInt32();
+            int nodeClass = result.WrappedValue.GetInt32();
             Assert.That(nodeClass, Is.EqualTo((int)NodeClass.Variable));
         }
 
@@ -1322,7 +1322,7 @@ namespace Opc.Ua.History.Tests
             DataValue result = await ReadAttributeAsync(
                 nodeId, Attributes.NodeClass).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            int nodeClass = (int)result.WrappedValue.GetInt32();
+            int nodeClass = result.WrappedValue.GetInt32();
             Assert.That(nodeClass, Is.EqualTo((int)NodeClass.Variable));
         }
 

@@ -210,7 +210,7 @@ namespace Opc.Ua.InformationModel.Tests
             // server still exposes it.
             if (!hasIdentities)
             {
-                NodeId fallback = Opc.Ua.Core.Security.Tests.WellKnownRoleNodeIds.TryGetChild(
+                NodeId fallback = Core.Security.Tests.WellKnownRoleNodeIds.TryGetChild(
                     ObjectIds.WellKnownRole_Anonymous, "Identities");
                 hasIdentities = !fallback.IsNull;
             }

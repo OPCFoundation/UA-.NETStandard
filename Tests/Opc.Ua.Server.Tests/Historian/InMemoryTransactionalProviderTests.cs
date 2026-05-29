@@ -96,10 +96,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 context, nodeId, batch, CancellationToken.None);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
-            Assert.That((uint)statuses[1].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
+            Assert.That(statuses[1].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
             // Rollback markers on the other two slots.
-            Assert.That((uint)statuses[0].Code, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported.Code));
-            Assert.That((uint)statuses[2].Code, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported.Code));
+            Assert.That(statuses[0].Code, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported.Code));
+            Assert.That(statuses[2].Code, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported.Code));
 
             // Verify nothing else was inserted.
             HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(

@@ -166,7 +166,7 @@ namespace Opc.Ua.Server.Tests.Identity
             };
             await store.UpdateAsync(
                     CredentialId,
-                    new Opc.Ua.Server.KeyCredential(s_secret, expiration, claims, s_scopes),
+                    new Server.KeyCredential(s_secret, expiration, claims, s_scopes),
                     CancellationToken.None)
                 .ConfigureAwait(false);
             return store;

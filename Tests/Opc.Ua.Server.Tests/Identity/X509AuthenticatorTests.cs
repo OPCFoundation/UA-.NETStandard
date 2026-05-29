@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.Identity
             public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
-                Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
                 CancellationToken ct = default)
             {
                 LastTrustList = trustList;

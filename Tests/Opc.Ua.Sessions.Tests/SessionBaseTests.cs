@@ -776,7 +776,7 @@ namespace Opc.Ua.Sessions.Tests
         private async Task AssertCreateSessionAcceptsTimeoutMutationAsync(
             Action<CreateSessionRequest, CreateSessionResponse> mutate)
         {
-            using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(mutate);
+            using IDisposable expectation = MockController.WhenRequest(mutate);
 
             // The client must accept whatever RevisedSessionTimeout the
             // server returns — assert the connection completes without
@@ -864,13 +864,13 @@ namespace Opc.Ua.Sessions.Tests
         public Task CreateSessionWithInjectedEmptyServerEndpointsAsync()
         {
             return AssertCreateSessionToleratesServerEndpointsMutationAsync(
-                mutate: (req, resp) => resp.ServerEndpoints = System.Array.Empty<EndpointDescription>().ToArrayOf());
+                mutate: (req, resp) => resp.ServerEndpoints = Array.Empty<EndpointDescription>().ToArrayOf());
         }
 
         private async Task AssertCreateSessionToleratesServerEndpointsMutationAsync(
             Action<CreateSessionRequest, CreateSessionResponse> mutate)
         {
-            using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(mutate);
+            using IDisposable expectation = MockController.WhenRequest(mutate);
 
             ISession session = null;
             try
@@ -904,7 +904,7 @@ namespace Opc.Ua.Sessions.Tests
         public async Task CreateSessionWithInjectedEmptyServerSoftwareCertificatesAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
-                (req, resp) => resp.ServerSoftwareCertificates = System.Array.Empty<SignedSoftwareCertificate>().ToArrayOf());
+                (req, resp) => resp.ServerSoftwareCertificates = Array.Empty<SignedSoftwareCertificate>().ToArrayOf());
 
             ISession session = await OpenAuxSessionAsync().ConfigureAwait(false);
             try
@@ -980,7 +980,7 @@ namespace Opc.Ua.Sessions.Tests
         private async Task AssertCreateSessionAcceptsMessageSizeMutationAsync(
             Action<CreateSessionRequest, CreateSessionResponse> mutate)
         {
-            using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(mutate);
+            using IDisposable expectation = MockController.WhenRequest(mutate);
 
             ISession session = await OpenAuxSessionAsync().ConfigureAwait(false);
             try
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Sessions.Tests
                 // returns the status code so callers can log it without
                 // a try/catch — assert against the returned code.
                 StatusCode result = await aux.CloseAsync(5000, true, CancellationToken.None).ConfigureAwait(false);
-                Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadSessionIdInvalid));
+                Assert.That(result, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             }
             finally
             {
@@ -1210,7 +1210,7 @@ namespace Opc.Ua.Sessions.Tests
                 (req, resp) =>
                 {
                     int n = resp.Results == null ? 0 : resp.Results.Count;
-                    var mutated = new StatusCode[System.Math.Max(n, 1)];
+                    var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
                         mutated[i] = (i < n && i > 0) ? resp.Results[i] : StatusCodes.Good;
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Sessions.Tests
                 (req, resp) =>
                 {
                     int n = resp.Results == null ? 0 : resp.Results.Count;
-                    var mutated = new StatusCode[System.Math.Max(n, 1)];
+                    var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
                         mutated[i] = StatusCodes.BadCertificateUriInvalid;

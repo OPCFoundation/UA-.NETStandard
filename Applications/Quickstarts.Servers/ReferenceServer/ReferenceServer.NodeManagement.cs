@@ -514,7 +514,7 @@ namespace Quickstarts.ReferenceServer
                 item.NodeId,
                 cancellationToken).ConfigureAwait(false);
 
-            return removed ? (StatusCode)StatusCodes.Good : StatusCodes.BadNodeIdUnknown;
+            return removed ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown;
         }
 
         /// <summary>

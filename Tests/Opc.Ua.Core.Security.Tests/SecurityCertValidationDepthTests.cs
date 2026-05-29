@@ -911,7 +911,7 @@ namespace Opc.Ua.Core.Security.Tests
         private static bool IsEccPolicy(string policyUri)
         {
             return !string.IsNullOrEmpty(policyUri) &&
-                policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
+                policyUri.Contains("#ECC_", StringComparison.Ordinal);
         }
 
         private EndpointDescription FindEp(

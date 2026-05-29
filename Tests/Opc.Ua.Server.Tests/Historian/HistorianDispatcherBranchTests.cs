@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
                 h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 TimestampsToReturn.Source, readResult, CancellationToken.None);
 
             Assert.That(ServiceResult.IsGood(readError), Is.True);
-            if (readResult.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+            if (readResult.HistoryData.TryGetValue(out HistoryData? hd))
             {
                 Assert.That(hd.DataValues, Is.Empty);
             }
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchDeleteAtTimeAsync(
                 h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -238,9 +238,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.OperationResults, Has.Count.EqualTo(4));
             Assert.That(StatusCode.IsGood(result.OperationResults[0]), Is.True);
-            Assert.That(result.OperationResults[1], Is.EqualTo((StatusCode)StatusCodes.BadNoEntryExists));
+            Assert.That(result.OperationResults[1], Is.EqualTo(StatusCodes.BadNoEntryExists));
             Assert.That(StatusCode.IsGood(result.OperationResults[2]), Is.True);
-            Assert.That(result.OperationResults[3], Is.EqualTo((StatusCode)StatusCodes.BadNoEntryExists));
+            Assert.That(result.OperationResults[3], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
         [Test]
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 h.SystemContext, h.Provider, node, nodeToRead, details,
                 bogusAggregateId, TimestampsToReturn.Source, result, CancellationToken.None);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadAggregateNotSupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
         }
 
         [Test]
@@ -312,11 +312,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 TimestampsToReturn.Source, result, CancellationToken.None);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
-            Assert.That(result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
             Assert.That(values![0].SourceTimestamp.ToDateTime(), Is.EqualTo(t15));
-            Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainDataSubNormal));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
             double interpolated = Convert.ToDouble(values[0].WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
             Assert.That(interpolated, Is.EqualTo(150.0).Within(0.01));
         }
@@ -346,7 +346,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 h.SystemContext, mockProvider.Object, node, nodeToRead, details,
                 TimestampsToReturn.Source, result, CancellationToken.None);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = HistorianDispatcher.ReleaseContinuationPoint(
                 h.SystemContext, nodeToRead);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         [Test]
@@ -377,7 +377,7 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = HistorianDispatcher.ReleaseContinuationPoint(
                 h.SystemContext, nodeToRead);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         private static BaseDataVariableState CreateVariable(NodeId nodeId)

@@ -41,9 +41,9 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests
 {

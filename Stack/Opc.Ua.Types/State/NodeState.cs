@@ -3678,7 +3678,7 @@ namespace Opc.Ua
             // intermediate With-chain allocations.
             StatusCode finalStatus = (result != null && result != ServiceResult.Good)
                 ? result.StatusCode
-                : (StatusCode)StatusCodes.Good;
+                : StatusCodes.Good;
             Variant finalValue = StatusCode.IsBad(finalStatus) ? Variant.Null : valueToRead;
 
             value = new DataValue(

@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
         public void AddLoggingNullArgsThrow()
         {
             Assert.That(
-                () => OpcUaServiceCollectionExtensions.AddLogging((IOpcUaBuilder)null!),
+                () => OpcUaServiceCollectionExtensions.AddLogging(null!),
                 Throws.ArgumentNullException);
 
             var services = new ServiceCollection();
@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
         public void AddMetricsNullArgsThrow()
         {
             Assert.That(
-                () => OpcUaServiceCollectionExtensions.AddMetrics((IOpcUaBuilder)null!),
+                () => OpcUaServiceCollectionExtensions.AddMetrics(null!),
                 Throws.ArgumentNullException);
 
             var services = new ServiceCollection();

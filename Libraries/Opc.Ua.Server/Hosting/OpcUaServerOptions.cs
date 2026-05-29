@@ -37,7 +37,7 @@ namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
     /// Options for an OPC UA server hosted by the .NET Generic Host via
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServerBuilderExtensions.AddServer(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Server.Hosting.OpcUaServerOptions})"/>.
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServerBuilderExtensions.AddServer(IOpcUaBuilder,Action{OpcUaServerOptions})"/>.
     /// </summary>
     /// <remarks>
     /// Only the most common knobs are exposed directly. Use

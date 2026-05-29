@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             using (var writer = XmlWriter.Create(stream, settings))
             using (
                 var encoder = new XmlEncoder(
-                    new XmlQualifiedName("ByteStrings", Ua.Types.Namespaces.OpcUaXsd),
+                    new XmlQualifiedName("ByteStrings", Types.Namespaces.OpcUaXsd),
                     writer,
                     ServiceMessageContext.Create(Telemetry)))
             {

@@ -34,8 +34,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.FileSystem;
-using Opc.Ua.Tests;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.FileSystem
 {

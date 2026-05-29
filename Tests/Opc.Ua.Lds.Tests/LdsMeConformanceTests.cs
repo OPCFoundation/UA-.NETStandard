@@ -327,7 +327,7 @@ namespace Opc.Ua.Lds.Tests
 
         private void SeedRecord(string serverUri, string serverName, IList<string> caps, string discoveryUrl)
         {
-            Lds.Store.SeedRegistration(new Opc.Ua.Lds.Server.RegistrationEntry
+            Lds.Store.SeedRegistration(new Server.RegistrationEntry
             {
                 ServerUri = serverUri,
                 ProductUri = "uri:test",

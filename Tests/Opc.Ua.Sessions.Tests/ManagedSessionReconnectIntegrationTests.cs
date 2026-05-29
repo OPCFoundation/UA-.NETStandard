@@ -41,14 +41,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
+using Opc.Ua.Client.TestFramework;
 using IServerRedundancyHandler = Opc.Ua.Client.IServerRedundancyHandler;
-using Subscription = Opc.Ua.Client.Subscription;
 using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
+using Subscription = Opc.Ua.Client.Subscription;
 using V2 = Opc.Ua.Client.Subscriptions;
-
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
 {

@@ -31,9 +31,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
-
 using Opc.Ua.Client.TestFramework;
+using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
 
 // Conformance tests use inline literal arrays as expected-value
 // assertions; the per-call allocation cost is irrelevant for tests

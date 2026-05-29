@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 if (!m_archives.TryGetValue(nodeId, out NodeArchive? archive))
                 {
-                    return new ValueTask<StatusCode>((StatusCode)StatusCodes.GoodNoData);
+                    return new ValueTask<StatusCode>(StatusCodes.GoodNoData);
                 }
 
                 DateTime start = startTime.ToDateTime();
@@ -378,9 +378,9 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                 }
 
-                return new ValueTask<StatusCode>((StatusCode)(removed > 0
+                return new ValueTask<StatusCode>(removed > 0
                     ? StatusCodes.Good
-                    : StatusCodes.GoodNoData));
+                    : StatusCodes.GoodNoData);
             }
         }
 
@@ -1149,7 +1149,7 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             IEnumerable<ModificationEntry> source = request.IsForward
                 ? archive.ModifiedLog
-                : System.Linq.Enumerable.Reverse(archive.ModifiedLog);
+                : Enumerable.Reverse(archive.ModifiedLog);
 
             DateTime lastEmittedKey = DateTime.MinValue;
             int lastEmittedSequence = -1;

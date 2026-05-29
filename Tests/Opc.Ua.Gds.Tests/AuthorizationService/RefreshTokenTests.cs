@@ -339,7 +339,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             ILogger logger = NUnitTelemetryContext.Create().CreateLogger<RefreshTokenTests>();
             auditServer.ReportAccessTokenIssuedAuditEvent(
                 auditServer.DefaultAuditContext,
-                Opc.Ua.ObjectIds.Server,
+                Ua.ObjectIds.Server,
                 new MethodState(null),
                 [Audience],
                 logger,
@@ -400,11 +400,11 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private sealed class AuthorizationServiceNodeManagerFactory : IAsyncNodeManagerFactory
         {
             private readonly GlobalDiscoveryServerConfiguration m_gdsConfiguration;
-            private readonly Opc.Ua.Gds.Server.IAccessTokenProvider m_accessTokenProvider;
+            private readonly Server.IAccessTokenProvider m_accessTokenProvider;
 
             public AuthorizationServiceNodeManagerFactory(
                 GlobalDiscoveryServerConfiguration gdsConfiguration,
-                Opc.Ua.Gds.Server.IAccessTokenProvider accessTokenProvider)
+                Server.IAccessTokenProvider accessTokenProvider)
             {
                 m_gdsConfiguration = gdsConfiguration;
                 m_accessTokenProvider = accessTokenProvider;

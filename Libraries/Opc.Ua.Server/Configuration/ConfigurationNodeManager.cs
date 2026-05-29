@@ -617,7 +617,7 @@ namespace Opc.Ua.Server
                 certificate,
                 issuerCertificates,
                 privateKeyFormat!,
-                Opc.Ua.Server.AuditEvents.RedactedPrivateKey
+                AuditEvents.RedactedPrivateKey
             ];
 
             Server.ReportCertificateUpdateRequestedAuditEvent(

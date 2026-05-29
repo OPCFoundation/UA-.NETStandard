@@ -354,7 +354,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(original.Equals(updated), Is.False);
             Assert.That(original.WrappedValue, Is.EqualTo(new Variant(1)));
             Assert.That(updated.WrappedValue, Is.EqualTo(new Variant(99)));
-            Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(updated.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -365,7 +365,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             DataValue updated = original.WithStatus(StatusCodes.Bad);
 
-            Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Bad));
+            Assert.That(updated.StatusCode, Is.EqualTo(StatusCodes.Bad));
             Assert.That(updated.WrappedValue, Is.EqualTo(new Variant("hi")));
             Assert.That(updated.SourceTimestamp, Is.EqualTo(ts));
             Assert.That(updated.ServerTimestamp, Is.EqualTo(ts));
@@ -437,7 +437,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .WithServerPicoseconds(11);
 
             Assert.That(result.WrappedValue.AsBoxedObject(), Is.EqualTo(123.45));
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.SourceTimestamp, Is.EqualTo(src));
             Assert.That(result.ServerTimestamp, Is.EqualTo(srv));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(7));

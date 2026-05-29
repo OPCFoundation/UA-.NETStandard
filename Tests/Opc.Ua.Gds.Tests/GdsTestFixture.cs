@@ -127,7 +127,7 @@ namespace Opc.Ua.Gds.Tests
 
             // Ensure the session factory knows about GDS types
             if (!Session.Factory.ContainsEncodeableType(
-                Gds.DataTypeIds.ApplicationRecordDataType))
+                DataTypeIds.ApplicationRecordDataType))
             {
                 Session.Factory.Builder.AddOpcUaGds().Commit();
             }
@@ -135,7 +135,7 @@ namespace Opc.Ua.Gds.Tests
             // Also ensure the session's message context factory knows
             // about GDS types so the binary decoder can decode them.
             if (!Session.MessageContext.Factory.ContainsEncodeableType(
-                Gds.DataTypeIds.ApplicationRecordDataType))
+                DataTypeIds.ApplicationRecordDataType))
             {
                 Session.MessageContext.Factory.Builder.AddOpcUaGds().Commit();
             }

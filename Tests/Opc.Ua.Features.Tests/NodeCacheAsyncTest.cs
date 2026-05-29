@@ -33,11 +33,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using INodeCache = Opc.Ua.Client.INodeCache;
-using Opc.Ua.Server.Tests;
-
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests;
+using INodeCache = Opc.Ua.Client.INodeCache;
 
 namespace Opc.Ua.Features.Tests
 {

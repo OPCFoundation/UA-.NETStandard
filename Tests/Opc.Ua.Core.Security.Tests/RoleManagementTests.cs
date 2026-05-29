@@ -33,8 +33,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -296,7 +296,7 @@ namespace Opc.Ua.Core.Security.Tests
 
                 DataValue dv = await ReadPropertyValueAsync(identitiesId, adminSession)
                     .ConfigureAwait(false);
-                Assert.That(dv.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
             }
             finally
             {
@@ -389,7 +389,7 @@ namespace Opc.Ua.Core.Security.Tests
 
                 DataValue dv = await ReadPropertyValueAsync(excludeId, adminSession)
                     .ConfigureAwait(false);
-                Assert.That(dv.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(dv.WrappedValue.TryGetValue(out bool _), Is.True);
             }
             finally
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Core.Security.Tests
                     ?? result?.StatusCode
                     ?? StatusCodes.Good;
                 Assert.That(statusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             finally
             {
@@ -1666,7 +1666,7 @@ namespace Opc.Ua.Core.Security.Tests
                     ?? result?.StatusCode
                     ?? StatusCodes.Good;
                 Assert.That(statusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             finally
             {

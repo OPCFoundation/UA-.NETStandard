@@ -58,7 +58,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     /// </remarks>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd, Name = "DataValue")]
+    [DataContract(Namespace = Namespaces.OpcUaXsd, Name = "DataValue")]
     public sealed class SerializableDataValue
     {
         /// <summary>

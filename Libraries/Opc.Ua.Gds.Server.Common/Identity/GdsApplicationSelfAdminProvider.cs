@@ -156,7 +156,7 @@ namespace Opc.Ua.Gds.Server.Identity
         {
             if (identity is GdsRoleBasedIdentity existing &&
                 existing.Roles.Contains(GdsRole.ApplicationSelfAdmin) &&
-                object.Equals(existing.ApplicationId, applicationId))
+                Equals(existing.ApplicationId, applicationId))
             {
                 return identity;
             }

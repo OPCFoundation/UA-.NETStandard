@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             IList<StatusCode> second = await provider.InsertAsync(
                 context, nodeId, [MakeValue(when, 1.5)], CancellationToken.None);
-            Assert.That((uint)second[0].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
+            Assert.That(second[0].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
         }
 
         [Test]
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [MakeValue(BaseTime.AddSeconds(15), 42.0)],
                 CancellationToken.None);
 
-            Assert.That((uint)statuses[0].Code, Is.EqualTo(StatusCodes.BadNoEntryExists.Code));
+            Assert.That(statuses[0].Code, Is.EqualTo(StatusCodes.BadNoEntryExists.Code));
         }
 
         [Test]

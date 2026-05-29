@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
-            Opc.Ua.Server.KeyCredential stored = await store.GetAsync("credential-1", CancellationToken.None)
+            Server.KeyCredential stored = await store.GetAsync("credential-1", CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(stored, Is.Not.Null);
             Assert.That(stored.Secret, Is.EqualTo(secret));
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             using var store = new InMemoryKeyCredentialStore();
             await store.UpdateAsync(
                     "browse-credential",
-                    new Opc.Ua.Server.KeyCredential([9, 8, 7], DateTime.UtcNow.AddHours(1)),
+                    new Server.KeyCredential([9, 8, 7], DateTime.UtcNow.AddHours(1)),
                     CancellationToken.None)
                 .ConfigureAwait(false);
             var subject = new KeyCredentialPushSubject(store);

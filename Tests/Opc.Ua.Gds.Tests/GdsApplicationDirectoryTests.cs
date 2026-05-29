@@ -56,7 +56,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task GdsApplicationDirectorySetUp()
         {
             // Resolve the GDS Directory object NodeId
-            m_directoryNodeId = ToNodeId(Gds.ObjectIds.Directory);
+            m_directoryNodeId = ToNodeId(ObjectIds.Directory);
             Assert.That(m_directoryNodeId, Is.Not.Null, "GDS Directory NodeId could not be resolved.");
 
             // Verify the Directory node is accessible
@@ -82,7 +82,7 @@ namespace Opc.Ua.Gds.Tests
         {
             // Browse the Server object to find the Directory folder.
             // The GDS Directory object has a namespace-qualified browse name.
-            NodeId serverNodeId = Opc.Ua.ObjectIds.Server;
+            NodeId serverNodeId = Ua.ObjectIds.Server;
             ReferenceDescription[] children = await BrowseChildrenAsync(serverNodeId).ConfigureAwait(false);
 
             ReferenceDescription directory = children.FirstOrDefault(
@@ -90,7 +90,7 @@ namespace Opc.Ua.Gds.Tests
             if (directory == null)
             {
                 // The Directory object may be under the Objects folder instead
-                children = await BrowseChildrenAsync(Opc.Ua.ObjectIds.ObjectsFolder)
+                children = await BrowseChildrenAsync(Ua.ObjectIds.ObjectsFolder)
                     .ConfigureAwait(false);
                 directory = children.FirstOrDefault(
                     r => r.BrowseName.Name == "Directory");
@@ -282,7 +282,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RegisterApplicationWithValidDescriptionReturnsGoodAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("RegValid");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("RegValid");
 
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
             Assert.That(appId, Is.Not.Null);
@@ -295,7 +295,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RegisterApplicationReturnsValidNodeIdAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("RegNodeId");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("RegNodeId");
 
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
             Assert.That(appId, Is.Not.Null);
@@ -308,10 +308,10 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RegisterApplicationAsServerTypeAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("ServerType", ApplicationType.Server);
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("ServerType", ApplicationType.Server);
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ApplicationType, Is.EqualTo(ApplicationType.Server));
 
             await UnregisterApplicationAsync(appId).ConfigureAwait(false);
@@ -320,10 +320,10 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RegisterApplicationAsClientTypeAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("ClientType", ApplicationType.Client);
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("ClientType", ApplicationType.Client);
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ApplicationType, Is.EqualTo(ApplicationType.Client));
 
             await UnregisterApplicationAsync(appId).ConfigureAwait(false);
@@ -332,7 +332,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RegisterApplicationTwiceWithSameUriReturnsSameIdAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("DupReg");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("DupReg");
 
             NodeId appId1 = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Gds.Tests
             appRecord.ApplicationId = appId1;
             await UpdateApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId1).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId1).ConfigureAwait(false);
             Assert.That(retrieved.ApplicationId, Is.EqualTo(appId1),
                 "Re-registering the same URI through UpdateApplication should retain the same ApplicationId.");
 
@@ -354,10 +354,10 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task FindApplicationsWithMatchingUriReturnsRegisteredAppAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("FindMatch");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("FindMatch");
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            List<Gds.ApplicationRecordDataType> results = await FindApplicationsAsync(
+            List<ApplicationRecordDataType> results = await FindApplicationsAsync(
                 appRecord.ApplicationUri).ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty,
                 "FindApplications should return at least one match.");
@@ -370,7 +370,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task FindApplicationsWithNonMatchingUriReturnsEmptyAsync()
         {
-            List<Gds.ApplicationRecordDataType> results = await FindApplicationsAsync(
+            List<ApplicationRecordDataType> results = await FindApplicationsAsync(
                 "urn:opcfoundation.org:tests:nonexistent:app:xyz").ConfigureAwait(false);
             Assert.That(results, Has.Count.Zero,
                 "FindApplications with non-matching URI should return empty.");
@@ -379,10 +379,10 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task GetApplicationWithValidIdReturnsDescriptionAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("GetValid");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("GetValid");
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved, Is.Not.Null);
             Assert.That(retrieved.ApplicationUri, Is.EqualTo(appRecord.ApplicationUri));
             Assert.That(retrieved.ProductUri, Is.EqualTo(appRecord.ProductUri));
@@ -400,10 +400,10 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task VerifyApplicationRecordDataTypeFieldsAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("FieldCheck");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("FieldCheck");
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ApplicationId, Is.Not.Null, "ApplicationId should not be null.");
             Assert.That(retrieved.ApplicationId.IsNull, Is.False);
             Assert.That(retrieved.ApplicationUri, Is.Not.Null.And.Not.Empty);
@@ -417,11 +417,11 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task VerifyApplicationHasServerCapabilitiesAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("Capabilities");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("Capabilities");
             appRecord.ServerCapabilities = new string[] { "DA", "HDA" }.ToArrayOf();
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ServerCapabilities, Is.Not.Null);
             Assert.That(retrieved.ServerCapabilities.Count, Is.GreaterThan(0));
 
@@ -431,14 +431,14 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task UpdateApplicationModifiesDescriptionAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("Update");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("Update");
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
             appRecord.ApplicationId = appId;
             appRecord.ProductUri = "urn:opcfoundation.org:tests:test:product:updated";
             await UpdateApplicationAsync(appRecord).ConfigureAwait(false);
 
-            Gds.ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
+            ApplicationRecordDataType retrieved = await GetApplicationAsync(appId).ConfigureAwait(false);
             Assert.That(retrieved.ProductUri,
                 Is.EqualTo("urn:opcfoundation.org:tests:test:product:updated"));
 
@@ -448,7 +448,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task UnregisterApplicationReturnsGoodAsync()
         {
-            Gds.ApplicationRecordDataType appRecord = CreateTestApplicationRecord("UnregGood");
+            ApplicationRecordDataType appRecord = CreateTestApplicationRecord("UnregGood");
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
             Assert.That(appId.IsNull, Is.False);
 
@@ -466,10 +466,10 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private async Task<NodeId> RegisterApplicationAsync(
-            Gds.ApplicationRecordDataType appRecord,
+            ApplicationRecordDataType appRecord,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -495,7 +495,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -516,11 +516,11 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private async Task<Gds.ApplicationRecordDataType> GetApplicationAsync(
+        private async Task<ApplicationRecordDataType> GetApplicationAsync(
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_GetApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -545,7 +545,7 @@ namespace Opc.Ua.Gds.Tests
 
             // The output may be an ExtensionObject containing the decoded type,
             // or a Variant wrapping the structure directly.
-            if (outputArg.TryGetStructure(out Gds.ApplicationRecordDataType directResult))
+            if (outputArg.TryGetStructure(out ApplicationRecordDataType directResult))
             {
                 return directResult;
             }
@@ -559,7 +559,7 @@ namespace Opc.Ua.Gds.Tests
                     throw new ServiceResultException(StatusCodes.BadNotFound);
                 }
 
-                if (eo.TryGetValue(out Gds.ApplicationRecordDataType eoResult, Session.MessageContext))
+                if (eo.TryGetValue(out ApplicationRecordDataType eoResult, Session.MessageContext))
                 {
                     return eoResult;
                 }
@@ -582,10 +582,10 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private async Task UpdateApplicationAsync(
-            Gds.ApplicationRecordDataType appRecord,
+            ApplicationRecordDataType appRecord,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UpdateApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -604,11 +604,11 @@ namespace Opc.Ua.Gds.Tests
                 $"UpdateApplication failed: {response.Results[0].StatusCode}");
         }
 
-        private async Task<List<Gds.ApplicationRecordDataType>> FindApplicationsAsync(
+        private async Task<List<ApplicationRecordDataType>> FindApplicationsAsync(
             string applicationUri,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_FindApplications);
+            NodeId methodId = ToNodeId(MethodIds.Directory_FindApplications);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -634,12 +634,12 @@ namespace Opc.Ua.Gds.Tests
             Variant outputArg = response.Results[0].OutputArguments[0];
 
             // Extract the array of ExtensionObjects using the proper ArrayOf<T> cast
-            var records = new List<Gds.ApplicationRecordDataType>();
+            var records = new List<ApplicationRecordDataType>();
             if (outputArg.TryGetValue(out ArrayOf<ExtensionObject> eoArray))
             {
                 foreach (ExtensionObject eo in eoArray)
                 {
-                    if (eo.TryGetValue(out Gds.ApplicationRecordDataType record, Session.MessageContext))
+                    if (eo.TryGetValue(out ApplicationRecordDataType record, Session.MessageContext))
                     {
                         records.Add(record);
                     }

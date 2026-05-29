@@ -39,7 +39,7 @@ namespace Opc.Ua.Gds.Server.Hosting
     public sealed class GdsDefaultIdentityAuthenticatorOptions : DefaultAuthenticatorOptions
     {
         /// <summary>
-        /// Register <see cref="Opc.Ua.Gds.Server.Identity.GdsApplicationSelfAdminProvider"/> with the default authenticators.
+        /// Register <see cref="Identity.GdsApplicationSelfAdminProvider"/> with the default authenticators.
         /// </summary>
         public bool EnableGdsApplicationSelfAdminProvider { get; set; } = true;
     }

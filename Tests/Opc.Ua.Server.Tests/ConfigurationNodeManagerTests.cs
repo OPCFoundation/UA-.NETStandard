@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Quickstarts.ReferenceServer;
 using Opc.Ua.Server.TestFramework;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
