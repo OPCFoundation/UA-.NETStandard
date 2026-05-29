@@ -187,7 +187,7 @@ namespace Opc.Ua.Client
         private static string CreateNonce()
         {
             byte[] nonce = new byte[32];
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(nonce);
             }
@@ -283,7 +283,7 @@ namespace Opc.Ua.Client
                         false,
                         ct
                     ]);
-                var (credentialId, credentialSecret, _, securityPolicyUri, grantedRoles) =
+                (string? credentialId, ByteString credentialSecret, string _, string? securityPolicyUri, ArrayOf<NodeId> grantedRoles) =
                     await AwaitValueTaskAsync<(
                             string credentialId,
                             ByteString credentialSecret,

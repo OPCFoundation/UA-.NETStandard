@@ -230,8 +230,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
 
-            ByteString evtId1 = (ByteString)new byte[] { 0x01 };
-            ByteString evtId2 = (ByteString)new byte[] { 0x02 };
+            var evtId1 = (ByteString)new byte[] { 0x01 };
+            var evtId2 = (ByteString)new byte[] { 0x02 };
 
             var events = new List<HistorianEventRecord>
             {
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
 
-            ByteString evtId = (ByteString)new byte[] { 0xAA };
+            var evtId = (ByteString)new byte[] { 0xAA };
             var original = new HistorianEventRecord(
                 evtId, ObjectTypeIds.BaseEventType,
                 (DateTimeUtc)BaseTime.AddSeconds(10),
@@ -319,9 +319,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
 
-            ByteString id1 = (ByteString)new byte[] { 0x01 };
-            ByteString id2 = (ByteString)new byte[] { 0x02 };
-            ByteString id3 = (ByteString)new byte[] { 0x03 };
+            var id1 = (ByteString)new byte[] { 0x01 };
+            var id2 = (ByteString)new byte[] { 0x02 };
+            var id3 = (ByteString)new byte[] { 0x03 };
 
             var events = new List<HistorianEventRecord>
             {

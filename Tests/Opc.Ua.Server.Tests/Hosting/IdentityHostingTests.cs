@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public void ConfiguredJwtIssuerRegistersResolverAndAuthenticator()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             RSAParameters parameters = rsa.ExportParameters(false);
             IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>
             {

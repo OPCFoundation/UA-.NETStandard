@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             "If the Server timestamp is missing the Picoseconds are ignored.")]
         public void EncodeDataValueWithoutValueProperty()
         {
-            var dataValue = new DataValue(Variant.Null).WithSourcePicoseconds(1);
+            DataValue dataValue = new DataValue(Variant.Null).WithSourcePicoseconds(1);
             EncodeDataValueWithoutValuePropertyTest(dataValue);
             dataValue = new DataValue(Variant.Null, StatusCodes.Good, new DateTime(2001, 01, 01).ToUniversalTime());
             EncodeDataValueWithoutValuePropertyTest(dataValue);

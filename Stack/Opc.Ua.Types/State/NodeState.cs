@@ -1435,7 +1435,7 @@ namespace Opc.Ua
 
             using var decoder = new XmlDecoder(null, reader, messageContext);
             // check if a namespace table was provided.
-            NamespaceTable? namespaceUris = new NamespaceTable();
+            var namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
             {

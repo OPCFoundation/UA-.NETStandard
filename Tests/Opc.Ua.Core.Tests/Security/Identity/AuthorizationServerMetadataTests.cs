@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseNullReturnsEmpty()
         {
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(null);
+            var metadata = AuthorizationServerMetadata.Parse(null);
             Assert.That(metadata.AuthorityUri, Is.Null);
             Assert.That(metadata.ResourceUri, Is.Null);
             Assert.That(metadata.RequestTypes, Is.Empty);
@@ -57,14 +57,14 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseEmptyReturnsEmpty()
         {
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse("");
+            var metadata = AuthorizationServerMetadata.Parse("");
             Assert.That(metadata.AuthorityUri, Is.Null);
         }
 
         [Test]
         public void ParseWhitespaceReturnsEmpty()
         {
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse("   \t \r\n");
+            var metadata = AuthorizationServerMetadata.Parse("   \t \r\n");
             Assert.That(metadata.AuthorityUri, Is.Null);
         }
 
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 }
                 """;
 
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(payload);
+            var metadata = AuthorizationServerMetadata.Parse(payload);
 
             Assert.That(
                 metadata.AuthorityUri,
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             const string payload = """{"resourceUri":"urn:opcfoundation:test"}""";
 
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(payload);
+            var metadata = AuthorizationServerMetadata.Parse(payload);
 
             Assert.That(metadata.ResourceUri, Is.EqualTo("urn:opcfoundation:test"));
         }
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 }
                 """;
 
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(payload);
+            var metadata = AuthorizationServerMetadata.Parse(payload);
 
             Assert.That(metadata.AuthorityUri, Is.EqualTo("https://idp.example.com"));
             Assert.That(metadata.TokenEndpoint, Is.EqualTo("https://idp.example.com/token"));
@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             // are still tolerated.
             const string payload = """{"requestTypes":"client_credentials"}""";
 
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(payload);
+            var metadata = AuthorizationServerMetadata.Parse(payload);
 
             Assert.That(metadata.RequestTypes, Is.EqualTo(s_singleClientCredentials));
         }
@@ -162,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 }
                 """;
 
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(payload);
+            var metadata = AuthorizationServerMetadata.Parse(payload);
 
             Assert.That(metadata.AdditionalFields.ContainsKey("tenant_id"), Is.True);
             Assert.That(metadata.AdditionalFields.ContainsKey("pkce_required"), Is.True);

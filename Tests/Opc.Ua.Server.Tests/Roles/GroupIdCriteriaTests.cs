@@ -47,7 +47,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_GroupClaimMatchingCriteria_GrantsRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithGroupRule("engineering-leads");
+            using RoleManager manager = CreateManagerWithGroupRule("engineering-leads");
             var identity = new ClaimsTestIdentity(groups: s_engineeringLeadGroups);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_GroupClaimNotMatchingCriteria_DoesNotGrantRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithGroupRule("engineering-leads");
+            using RoleManager manager = CreateManagerWithGroupRule("engineering-leads");
             var identity = new ClaimsTestIdentity(groups: s_operatorGroups);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_IdentityWithoutClaims_DoesNotGrantGroupRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithGroupRule("engineering-leads");
+            using RoleManager manager = CreateManagerWithGroupRule("engineering-leads");
             IUserIdentity identity = CreatePlainIdentity();
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_EmptyGroups_DoesNotGrantGroupRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithGroupRule("engineering-leads");
+            using RoleManager manager = CreateManagerWithGroupRule("engineering-leads");
             var identity = new ClaimsTestIdentity(groups: Array.Empty<string>());
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);

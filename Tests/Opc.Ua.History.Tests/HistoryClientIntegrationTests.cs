@@ -315,7 +315,7 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(301);
-            var timestamps = new[]
+            DateTime[] timestamps = new[]
             {
                 baseTs,
                 baseTs.AddSeconds(1),

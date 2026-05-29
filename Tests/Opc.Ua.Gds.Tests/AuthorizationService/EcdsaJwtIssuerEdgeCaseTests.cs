@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             string[] parts = Encoding.UTF8.GetString(token.TokenData.ToArray()).Split('.');
             Assert.That(parts, Has.Length.EqualTo(3));
 
-            using JsonDocument headerDocument = JsonDocument.Parse(Base64UrlDecode(parts[0]));
+            using var headerDocument = JsonDocument.Parse(Base64UrlDecode(parts[0]));
             JsonElement header = headerDocument.RootElement;
             Assert.That(header.GetProperty("alg").GetString(), Is.EqualTo("ES384"));
             Assert.That(header.GetProperty("kid").GetString(), Is.EqualTo(certificate.Thumbprint));
@@ -194,7 +194,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
 
             string[] parts = Encoding.UTF8.GetString(token.TokenData.ToArray()).Split('.');
-            using JsonDocument headerDocument = JsonDocument.Parse(Base64UrlDecode(parts[0]));
+            using var headerDocument = JsonDocument.Parse(Base64UrlDecode(parts[0]));
             JsonElement header = headerDocument.RootElement;
             Assert.That(header.GetProperty("alg").GetString(), Is.EqualTo("RS256"));
 
@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
 
             string[] parts = Encoding.UTF8.GetString(token.TokenData.ToArray()).Split('.');
-            using JsonDocument payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
+            using var payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
             JsonElement payload = payloadDocument.RootElement;
             Assert.That(payload.GetProperty("iss").GetString(), Is.EqualTo(Issuer));
             Assert.That(payload.GetProperty("sub").GetString(), Is.EqualTo("subject-1"));
@@ -274,7 +274,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
 
             string[] parts = Encoding.UTF8.GetString(token.TokenData.ToArray()).Split('.');
-            using JsonDocument payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
+            using var payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
             Assert.That(payloadDocument.RootElement.GetProperty("scope").GetString(), Is.EqualTo("read write"));
             Assert.That(token.GrantedScopes, Is.EqualTo(s_dedupedScopes));
         }

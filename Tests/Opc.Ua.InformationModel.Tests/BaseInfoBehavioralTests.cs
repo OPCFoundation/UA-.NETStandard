@@ -1467,7 +1467,7 @@ namespace Opc.Ua.InformationModel.Tests
             }
 
             ReferenceDescription parent = browseResp.Results[0].References[0];
-            NodeId parentId = ExpandedNodeId.ToNodeId(
+            var parentId = ExpandedNodeId.ToNodeId(
                 parent.NodeId, Session.NamespaceUris);
             Assert.That(parentId, Is.EqualTo(VariableTypeIds.BaseDataVariableType),
                 "SelectionListType should be a subtype of BaseDataVariableType.");
@@ -1494,7 +1494,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore("SelectionDescriptions optional property not exposed.");
             }
 
-            NodeId selDescId = ExpandedNodeId.ToNodeId(
+            var selDescId = ExpandedNodeId.ToNodeId(
                 selDesc.NodeId, Session.NamespaceUris);
             DataValue dt = await ReadAttributeAsync(
                 selDescId, Attributes.DataType).ConfigureAwait(false);
@@ -1525,7 +1525,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore("RestrictToList optional property not exposed.");
             }
 
-            NodeId restrictId = ExpandedNodeId.ToNodeId(
+            var restrictId = ExpandedNodeId.ToNodeId(
                 restrict.NodeId, Session.NamespaceUris);
             DataValue dt = await ReadAttributeAsync(
                 restrictId, Attributes.DataType).ConfigureAwait(false);

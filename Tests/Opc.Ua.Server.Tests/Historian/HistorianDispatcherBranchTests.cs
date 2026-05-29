@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("del-raw-nondp", 1);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var mockProvider = new Mock<IHistorianProvider>();
 
             var details = new DeleteRawModifiedDetails
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             NodeId nodeId = h.SeedSamples(5);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
 
             var details = new DeleteRawModifiedDetails
             {
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("del-at-nondp", 1);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var mockProvider = new Mock<IHistorianProvider>();
 
             var details = new DeleteAtTimeDetails
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ReqTimes = new DateTimeUtc[] { t0, unknown1, t1, unknown2 },
             };
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchDeleteAtTimeAsync(
                 h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarnessWithAggregateManager();
             NodeId nodeId = h.SeedSamples(5);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
 
             var details = new ReadProcessedDetails
             {
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
             await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             DateTime t15 = HarnessFixture.BaseTime.AddSeconds(15);
 
             var details = new ReadAtTimeDetails
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("at-time-nondp", 1);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var mockProvider = new Mock<IHistorianProvider>();
 
             var details = new ReadAtTimeDetails

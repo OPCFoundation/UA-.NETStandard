@@ -214,7 +214,7 @@ namespace Opc.Ua.Gds.Server
             uint currentVersion,
             CancellationToken ct)
         {
-            var entry = m_configs.GetOrAdd(applicationUri, _ => new ConfigEntry());
+            ConfigEntry entry = m_configs.GetOrAdd(applicationUri, _ => new ConfigEntry());
 
             lock (entry)
             {

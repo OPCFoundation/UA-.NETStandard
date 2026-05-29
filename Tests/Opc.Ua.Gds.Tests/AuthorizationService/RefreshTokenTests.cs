@@ -244,9 +244,9 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
 
         private async Task<AuthorizationServiceClient> CreateClientAsync()
         {
-            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.AuthorizationServices, m_session.NamespaceUris);
+            var folderId = ExpandedNodeId.ToNodeId(ObjectIds.AuthorizationServices, m_session.NamespaceUris);
             ReferenceDescription[] children = await BrowseChildrenAsync(folderId).ConfigureAwait(false);
-            NodeId serviceTypeId = ExpandedNodeId.ToNodeId(
+            var serviceTypeId = ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.AuthorizationServiceType,
                 m_session.NamespaceUris);
             ReferenceDescription service = children.FirstOrDefault(reference =>

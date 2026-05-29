@@ -1332,7 +1332,7 @@ namespace Opc.Ua.History.Tests
             DataValue result = await ReadAttributeAsync(
                 nodeId, Attributes.DataType).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            var dataType = result.WrappedValue.GetNodeId();
+            NodeId dataType = result.WrappedValue.GetNodeId();
             Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));
         }
 

@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     await Task.Delay(15).ConfigureAwait(false);
                 }
 
-                var completed = await Task.WhenAny(
+                Task completed = await Task.WhenAny(
                     tcsFirstGoodInsert.Task,
                     Task.Delay(TimeSpan.FromSeconds(3))).ConfigureAwait(false);
                 Assert.That(completed, Is.EqualTo(tcsFirstGoodInsert.Task),

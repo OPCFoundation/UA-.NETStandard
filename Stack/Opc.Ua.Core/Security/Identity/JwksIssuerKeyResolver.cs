@@ -253,7 +253,7 @@ namespace Opc.Ua.Identity
 
         private ReadOnlyCollection<IssuerVerificationKey> ParseJwks(string json)
         {
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object ||
                 !root.TryGetProperty("keys", out JsonElement keysElement) ||

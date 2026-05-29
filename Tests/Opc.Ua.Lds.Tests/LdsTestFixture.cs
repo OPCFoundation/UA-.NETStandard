@@ -150,7 +150,7 @@ namespace Opc.Ua.Lds.Tests
 
         protected Task<DiscoveryClient> CreateDiscoveryClientAsync(CancellationToken ct = default)
         {
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
             return DiscoveryClient.CreateAsync(
                 ServerUrl,
                 endpointConfiguration,
@@ -185,7 +185,7 @@ namespace Opc.Ua.Lds.Tests
                     $"LDS does not expose endpoint with policy={securityPolicy} mode={securityMode}.");
             }
 
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
 
             Certificate instanceCertificate = ClientFixture.Config.CertificateManager?
                 .GetInstanceCertificate(matching.SecurityPolicyUri ?? SecurityPolicies.None)?

@@ -515,7 +515,7 @@ namespace Opc.Ua.Client.Historian
             {
                 return NodeId.Null;
             }
-            NodeId resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
+            var resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
             return resolved.IsNull ? NodeId.Null : resolved;
         }
 

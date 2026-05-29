@@ -176,7 +176,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static bool HasPoolableBase(DataTypeDesign datatype)
         {
-            DataTypeDesign current = datatype.BaseTypeNode as DataTypeDesign;
+            var current = datatype.BaseTypeNode as DataTypeDesign;
             while (current is not null)
             {
                 if (current.BasicDataType == BasicDataType.Structure)

@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
             string? algorithm;
             try
             {
-                using JsonDocument headerDocument = JsonDocument.Parse(headerBytes);
+                using var headerDocument = JsonDocument.Parse(headerBytes);
                 JsonElement header = headerDocument.RootElement;
                 keyId = GetOptionalString(header, "kid");
                 algorithm = GetOptionalString(header, "alg");
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using JsonDocument payloadDocument = JsonDocument.Parse(payloadBytes);
+                using var payloadDocument = JsonDocument.Parse(payloadBytes);
                 JsonElement payload = payloadDocument.RootElement;
                 ServiceResult? validationError = ValidatePayload(payload);
                 if (ServiceResult.IsBad(validationError))

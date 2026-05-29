@@ -54,7 +54,7 @@ namespace Opc.Ua.Gds.Tests.Identity
         public async Task CertMatchesRegisteredAppGrantsApplicationSelfAdminAsync()
         {
             using Certificate channelCertificate = CreateCertificate("CN=SelfAdminMatch");
-            NodeId applicationId = new NodeId("app-match", 2);
+            var applicationId = new NodeId("app-match", 2);
             var database = new StubApplicationsDatabase(ApplicationUri, applicationId, channelCertificate.RawData);
             var provider = new GdsApplicationSelfAdminProvider(
                 database,
@@ -140,8 +140,8 @@ namespace Opc.Ua.Gds.Tests.Identity
         public async Task ExistingGdsIdentityPreservesAdministeredApplicationsAndAddsSelfAdminAsync()
         {
             using Certificate channelCertificate = CreateCertificate("CN=ExistingGdsIdentity");
-            NodeId applicationId = new NodeId("app-self-admin", 2);
-            NodeId administeredId = new NodeId("app-administered", 2);
+            var applicationId = new NodeId("app-self-admin", 2);
+            var administeredId = new NodeId("app-administered", 2);
             NamespaceTable namespaces = CreateNamespaceTable();
             var database = new StubApplicationsDatabase(ApplicationUri, applicationId, channelCertificate.RawData);
             var provider = new GdsApplicationSelfAdminProvider(

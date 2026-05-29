@@ -399,7 +399,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // Validate the parent node id and resolve it to the local server.
-            NodeId parentNodeId = ExpandedNodeId.ToNodeId(
+            var parentNodeId = ExpandedNodeId.ToNodeId(
                 item.ParentNodeId,
                 ServerInternal.NamespaceUris);
 
@@ -437,7 +437,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // Validate the type definition.
-            NodeId typeDefinitionId = ExpandedNodeId.ToNodeId(
+            var typeDefinitionId = ExpandedNodeId.ToNodeId(
                 item.TypeDefinition,
                 ServerInternal.NamespaceUris);
 
@@ -544,7 +544,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadSourceNodeIdInvalid;
             }
 
-            NodeId targetNodeId = ExpandedNodeId.ToNodeId(
+            var targetNodeId = ExpandedNodeId.ToNodeId(
                 item.TargetNodeId,
                 ServerInternal.NamespaceUris);
             if (targetNodeId.IsNull)

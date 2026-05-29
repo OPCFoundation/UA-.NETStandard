@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 #pragma warning disable CA2000 // IssuerVerificationKey owns the RSA instance; TODO: replace with ownership annotations when available.
         private static IssuerVerificationKey CreateKey(string kid)
         {
-            RSA rsa = RSA.Create(2048);
+            var rsa = RSA.Create(2048);
             return new IssuerVerificationKey(kid, rsa, "RS256");
         }
 #pragma warning restore CA2000

@@ -491,7 +491,7 @@ namespace Opc.Ua.Gds.Server
             ushort namespaceIndex = NamespaceIndexes[1];
             if (folder == null)
             {
-                NodeId folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
+                var folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
                 folder = FindPredefinedNode<BaseObjectState>(folderId);
             }
 

@@ -196,7 +196,7 @@ namespace Opc.Ua.Gds.Server.Identity
                     return true;
                 }
 
-                using Certificate registeredCertificate = Certificate.FromRawData(certificate);
+                using var registeredCertificate = Certificate.FromRawData(certificate);
                 if (string.Equals(
                         registeredCertificate.Thumbprint,
                         channelThumbprint,

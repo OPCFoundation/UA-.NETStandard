@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests.Historian
             const int totalInserts = 1000;
 
             using var cts = new CancellationTokenSource();
-            Task writer = Task.Run(async () =>
+            var writer = Task.Run(async () =>
             {
                 for (int i = 0; i < totalInserts; i++)
                 {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             await provider.InsertAsync(context, nodeId, seed, CancellationToken.None).ConfigureAwait(false);
 
-            Task replacer = Task.Run(async () =>
+            var replacer = Task.Run(async () =>
             {
                 for (int i = 0; i < slots; i++)
                 {
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         .ConfigureAwait(false);
                 }
             });
-            Task reader = Task.Run(async () =>
+            var reader = Task.Run(async () =>
             {
                 for (int iter = 0; iter < 50; iter++)
                 {
@@ -255,21 +255,21 @@ namespace Opc.Ua.Server.Tests.Historian
                 provider.Register(ids[i]);
             }
 
-            Task registrarA = Task.Run(() =>
+            var registrarA = Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
                 {
                     provider.Register(ids[i % ids.Length]);
                 }
             });
-            Task registrarB = Task.Run(() =>
+            var registrarB = Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
                 {
                     provider.Register(ids[i % ids.Length]);
                 }
             });
-            Task inserter = Task.Run(async () =>
+            var inserter = Task.Run(async () =>
             {
                 for (int i = 0; i < iterations; i++)
                 {

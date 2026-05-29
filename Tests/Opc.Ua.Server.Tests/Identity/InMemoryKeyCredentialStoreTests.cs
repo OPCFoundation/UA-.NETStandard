@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Identity
         public async Task UpdateAsyncStoresSecretAndExpirationAndSubject()
         {
             using var store = new InMemoryKeyCredentialStore();
-            DateTime expiration = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var expiration = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             string[] scopes = ["ua.read", "ua.write"];
 
             await store.UpdateAsync(

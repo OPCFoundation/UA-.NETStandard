@@ -712,7 +712,7 @@ namespace Opc.Ua.Server
         {
             UserTokenType tokenType = identity.TokenType;
             string criteria = rule.Criteria ?? string.Empty;
-            IIdentityClaims? claims = identity as IIdentityClaims;
+            var claims = identity as IIdentityClaims;
 
             return rule.CriteriaType switch
             {

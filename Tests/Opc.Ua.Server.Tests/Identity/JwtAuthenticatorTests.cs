@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncRs256TokenAcceptedAndClaimsExtracted()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string jwt = CreateJwt(
                 "RS256",
@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncEs256TokenAccepted()
         {
-            using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             using IssuerVerificationKey key = CreateEcdsaVerificationKey(ecdsa, "kid-ec");
             string jwt = CreateJwt(
                 "ES256",
@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncExpiredTokenRejected()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string jwt = CreateJwt(
                 "RS256",
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncWrongAudienceRejected()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string jwt = CreateJwt(
                 "RS256",
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncWrongIssuerRejected()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string jwt = CreateJwt(
                 "RS256",
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncMalformedTokenRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
 
             AuthenticationResult result = await AuthenticateAsync("not-a-jwt", key).ConfigureAwait(false);
@@ -224,14 +224,14 @@ namespace Opc.Ua.Server.Tests.Identity
 #pragma warning disable CA2000 // IssuerVerificationKey owns verification keys; TODO: add ownership annotations when available.
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            RSA publicKey = RSA.Create();
+            var publicKey = RSA.Create();
             publicKey.ImportParameters(rsa.ExportParameters(false));
             return new IssuerVerificationKey(keyId, publicKey, "RS256");
         }
 
         private static IssuerVerificationKey CreateEcdsaVerificationKey(ECDsa ecdsa, string keyId)
         {
-            ECDsa publicKey = ECDsa.Create(ecdsa.ExportParameters(false));
+            var publicKey = ECDsa.Create(ecdsa.ExportParameters(false));
             return new IssuerVerificationKey(keyId, publicKey, "ES256");
         }
 #pragma warning restore CA2000

@@ -53,8 +53,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         {
             await using var strategy = new ManualAliasNameRefreshStrategy();
             int invalidations = 0;
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var harness = AliasNameSessionHarness.Create();
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
 
             await strategy.StartAsync(
                 client,
@@ -98,8 +98,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         [Test]
         public async Task FiresOnValueDifferenceAndWrapAroundAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var harness = AliasNameSessionHarness.Create();
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
 
             uint nextReturn = 5;
             harness.ReadHandler = _ => new DataValue(new Variant(nextReturn), StatusCodes.Good);
@@ -126,8 +126,8 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
         [Test]
         public async Task DisposeAsyncStopsTimerAsync()
         {
-            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
-            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var harness = AliasNameSessionHarness.Create();
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
             harness.ReadHandler = _ => new DataValue(new Variant((uint)1), StatusCodes.Good);
 
             int invalidations = 0;

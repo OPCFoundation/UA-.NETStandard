@@ -62,7 +62,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryReadVariable(h, "RelCp");
+        BaseDataVariableState variable = CreateHistoryReadVariable(h, "RelCp");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var nodesToRead = new List<HistoryReadValueId>
@@ -93,7 +93,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryReadVariable(h, "RawRead");
+        BaseDataVariableState variable = CreateHistoryReadVariable(h, "RawRead");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var provider = new InMemoryHistorianProvider();
@@ -289,7 +289,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryReadVariable(h, "TsInvalid");
+        BaseDataVariableState variable = CreateHistoryReadVariable(h, "TsInvalid");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var provider = new InMemoryHistorianProvider();
@@ -305,7 +305,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
         var results = new List<HistoryReadResult> { null! };
         var errors = new List<ServiceResult> { null! };
 
-        var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+        ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
             await h.Manager.HistoryReadAsync(
                 h.OperationContext, details,
                 (TimestampsToReturn)99,
@@ -319,7 +319,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryReadVariable(h, "NoTs");
+        BaseDataVariableState variable = CreateHistoryReadVariable(h, "NoTs");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var provider = new InMemoryHistorianProvider();
@@ -336,7 +336,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
         var results = new List<HistoryReadResult> { null! };
         var errors = new List<ServiceResult> { null! };
 
-        var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+        ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
             await h.Manager.HistoryReadAsync(
                 h.OperationContext, details,
                 TimestampsToReturn.Source,
@@ -350,7 +350,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryReadVariable(h, "AggMismatch");
+        BaseDataVariableState variable = CreateHistoryReadVariable(h, "AggMismatch");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var provider = new InMemoryHistorianProvider();
@@ -369,7 +369,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
         var results = new List<HistoryReadResult> { null! };
         var errors = new List<ServiceResult> { null! };
 
-        var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+        ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
             await h.Manager.HistoryReadAsync(
                 h.OperationContext, details,
                 TimestampsToReturn.Source,
@@ -383,7 +383,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryWriteVariable(h, "InsertData");
+        BaseDataVariableState variable = CreateHistoryWriteVariable(h, "InsertData");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var provider = new InMemoryHistorianProvider();
@@ -436,7 +436,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryWriteVariable(h, "DeleteRaw");
+        BaseDataVariableState variable = CreateHistoryWriteVariable(h, "DeleteRaw");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         var provider = new InMemoryHistorianProvider();
@@ -566,7 +566,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
     {
         using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
 
-        var variable = CreateHistoryWriteVariable(h, "NoProvider");
+        BaseDataVariableState variable = CreateHistoryWriteVariable(h, "NoProvider");
         await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
         // Intentionally do NOT register a provider.

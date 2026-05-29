@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task AugmenterRejectingShortCircuitsTheChain()
         {
-            ServiceResult rejection = new ServiceResult(StatusCodes.BadIdentityTokenRejected);
+            var rejection = new ServiceResult(StatusCodes.BadIdentityTokenRejected);
             var registry = new ServerIdentityRegistry(
                 new StubAuthenticator(AuthenticationResult.Accept(new NamedIdentity("original"))));
             var rejectingAugmenter = new StubAugmenter(AuthenticationResult.Reject(rejection));

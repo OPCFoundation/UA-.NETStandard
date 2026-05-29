@@ -173,7 +173,7 @@ namespace Opc.Ua.InformationModel.Tests
         public async Task AliasForRefTypeExistsAsync()
         {
             // Standard nodeset has AliasFor at i=23469, not i=23471.
-            var id = ReferenceTypeIds.AliasFor;
+            NodeId id = ReferenceTypeIds.AliasFor;
             DataValue r = await RdAttr(id, Attributes.BrowseName).ConfigureAwait(
             false);
             if (StatusCode.IsBad(r.StatusCode))

@@ -196,7 +196,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .RefreshTokenAsync(Audience, original.RefreshToken!)
                 .ConfigureAwait(false);
 
-            using JsonDocument payload = JsonDocument.Parse(Base64UrlDecode(refreshed.AccessToken.Split('.')[1]));
+            using var payload = JsonDocument.Parse(Base64UrlDecode(refreshed.AccessToken.Split('.')[1]));
             JsonElement root = payload.RootElement;
             Assert.That(root.GetProperty("scope").GetString(), Is.EqualTo("read"));
             string[] roles = [.. root.GetProperty("roles")

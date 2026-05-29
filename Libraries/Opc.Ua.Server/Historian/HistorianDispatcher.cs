@@ -634,7 +634,7 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
-            var samples = await CollectAllRawAsync(opContext, raw, node.NodeId, typedTimes, cancellationToken)
+            List<DataValue> samples = await CollectAllRawAsync(opContext, raw, node.NodeId, typedTimes, cancellationToken)
                 .ConfigureAwait(false);
 
             var produced = new List<DataValue>(typedTimes.Count);

@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public async Task PerIssuerAudienceOverridesDefaultAudience()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             RSAParameters parameters = rsa.ExportParameters(false);
             var services = new ServiceCollection();
             services.AddLogging();

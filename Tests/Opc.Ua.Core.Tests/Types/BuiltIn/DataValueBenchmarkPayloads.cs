@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         public static DataValue[] BuildScalarDoubles(int count, int seed = 42)
         {
-            UnsecureRandom rand = new UnsecureRandom(seed);
+            var rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         public static DataValue[] BuildScalarStrings(int count, int seed = 42)
         {
-            UnsecureRandom rand = new UnsecureRandom(seed);
+            var rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             int length = 1024,
             int seed = 42)
         {
-            UnsecureRandom rand = new UnsecureRandom(seed);
+            var rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {

@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncAnonymousTokenReturnsNotHandled()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             var authenticator = new JwtAuthenticator(new StubResolver(Issuer, key), Audience, TimeSpan.Zero);
 
@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncSamlIssuedTokenReturnsNotHandled()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             var authenticator = new JwtAuthenticator(new StubResolver(Issuer, key), Audience, TimeSpan.Zero);
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncEmptyTokenDataRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             AuthenticationResult result = await Authenticate(string.Empty, key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncTokenWithBadBase64UrlRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             AuthenticationResult result = await Authenticate("!@#.!@#.!@#", key).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncTokenWithHeaderNotJsonRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string header = Base64UrlEncode(Encoding.UTF8.GetBytes("not-json"));
             string payload = Base64UrlEncode(Encoding.UTF8.GetBytes("{}"));
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncTokenWithoutAlgRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string header = Base64UrlEncode(Encoding.UTF8.GetBytes("{\"typ\":\"JWT\"}"));
             string payload = Base64UrlEncode(Encoding.UTF8.GetBytes("{}"));
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncPayloadNotJsonRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string header = "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
             string headerEncoded = Base64UrlEncode(Encoding.UTF8.GetBytes(header));
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncMissingExpClaimRejectedAsInvalid()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string payload = "{\"iss\":\"" + Issuer + "\",\"sub\":\"x\",\"aud\":\"" + Audience + "\"}";
             string jwt = SignRsa(rsa, "RS256", "kid-rsa", payload);
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncNotBeforeInFutureRejected()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string payload = "{\"iss\":\"" +
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncIssuedAtInFutureRejected()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string payload = "{\"iss\":\"" +
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public async Task AuthenticateAsyncTokenWithMismatchedKidRejected()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string payload = "{\"iss\":\"" +
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Tests.Identity
 #pragma warning disable CA2000 // IssuerVerificationKey owns verification key.
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            RSA publicKey = RSA.Create();
+            var publicKey = RSA.Create();
             publicKey.ImportParameters(rsa.ExportParameters(false));
             return new IssuerVerificationKey(keyId, publicKey, "RS256");
         }

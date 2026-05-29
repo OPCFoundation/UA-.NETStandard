@@ -90,13 +90,13 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             string[] parts = jwt.Split('.');
             Assert.That(parts, Has.Length.EqualTo(3));
 
-            using JsonDocument headerDocument = JsonDocument.Parse(Base64UrlDecode(parts[0]));
+            using var headerDocument = JsonDocument.Parse(Base64UrlDecode(parts[0]));
             JsonElement header = headerDocument.RootElement;
             Assert.That(header.GetProperty("alg").GetString(), Is.EqualTo("ES256"));
             Assert.That(header.GetProperty("typ").GetString(), Is.EqualTo("JWT"));
             Assert.That(header.GetProperty("kid").GetString(), Is.EqualTo(certificate.Thumbprint));
 
-            using JsonDocument payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
+            using var payloadDocument = JsonDocument.Parse(Base64UrlDecode(parts[1]));
             JsonElement payload = payloadDocument.RootElement;
             Assert.That(payload.GetProperty("iss").GetString(), Is.EqualTo(Issuer));
             Assert.That(payload.GetProperty("aud").GetString(), Is.EqualTo(Audience));

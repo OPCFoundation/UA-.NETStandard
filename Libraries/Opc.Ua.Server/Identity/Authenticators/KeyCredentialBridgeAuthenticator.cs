@@ -247,7 +247,7 @@ namespace Opc.Ua.Server
 
         private static BridgeToken DecodeToken(byte[] tokenBytes)
         {
-            using JsonDocument document = JsonDocument.Parse(tokenBytes);
+            using var document = JsonDocument.Parse(tokenBytes);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 throw new JsonException("KeyCredential token must be a JSON object.");

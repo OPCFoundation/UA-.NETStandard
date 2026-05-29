@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                             continue;
                         }
 
-                        DateTime key = value.SourceTimestamp.ToDateTime();
+                        var key = value.SourceTimestamp.ToDateTime();
                         if (archive.Raw.ContainsKey(key))
                         {
                             statuses[i] = StatusCodes.BadEntryExists;
@@ -352,8 +352,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return new ValueTask<StatusCode>(StatusCodes.GoodNoData);
                 }
 
-                DateTime start = startTime.ToDateTime();
-                DateTime end = endTime.ToDateTime();
+                var start = startTime.ToDateTime();
+                var end = endTime.ToDateTime();
                 if (start > end)
                 {
                     (start, end) = (end, start);
@@ -414,7 +414,7 @@ namespace Opc.Ua.Server.Historian.InMemory
 
                 for (int i = 0; i < timestamps.Count; i++)
                 {
-                    DateTime key = timestamps[i].ToDateTime();
+                    var key = timestamps[i].ToDateTime();
                     if (archive.Raw.TryGetValue(key, out DataValue prior))
                     {
                         archive.Raw.Remove(key);
@@ -587,8 +587,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                 snapshot = [.. list];
             }
 
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 
@@ -600,7 +600,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < snapshot.Length && page.Count < cap; i++)
                 {
                     HistorianEventRecord rec = snapshot[i];
-                    DateTime ts = rec.SourceTimestamp.ToDateTime();
+                    var ts = rec.SourceTimestamp.ToDateTime();
                     if (ts < lo || ts >= hi)
                     {
                         continue;
@@ -613,7 +613,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = snapshot.Length - 1; i >= 0 && page.Count < cap; i--)
                 {
                     HistorianEventRecord rec = snapshot[i];
-                    DateTime ts = rec.SourceTimestamp.ToDateTime();
+                    var ts = rec.SourceTimestamp.ToDateTime();
                     if (ts < lo || ts >= hi)
                     {
                         continue;
@@ -799,7 +799,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         continue;
                     }
 
-                    DateTime key = value.SourceTimestamp.ToDateTime();
+                    var key = value.SourceTimestamp.ToDateTime();
                     bool exists = archive.Raw.TryGetValue(key, out DataValue prior);
 
                     switch (updateType)
@@ -887,7 +887,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         return statuses;
                     }
 
-                    DateTime key = value.SourceTimestamp.ToDateTime();
+                    var key = value.SourceTimestamp.ToDateTime();
                     bool exists = archive.Raw.ContainsKey(key);
 
                     StatusCode preflightResult = updateType switch
@@ -921,7 +921,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < values.Count; i++)
                 {
                     DataValue value = values[i];
-                    DateTime key = value.SourceTimestamp.ToDateTime();
+                    var key = value.SourceTimestamp.ToDateTime();
                     if (archive.Raw.TryGetValue(key, out DataValue prior))
                     {
                         LogModification(archive, prior, updateType, context.DefaultModificationInfo);
@@ -972,7 +972,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         continue;
                     }
 
-                    DateTime key = annotation.AnnotationTime.ToDateTime();
+                    var key = annotation.AnnotationTime.ToDateTime();
                     bool exists = archive.Annotations.ContainsKey(key);
 
                     switch (updateType)
@@ -1024,8 +1024,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianRawReadRequest request,
             DateTime resumeAt)
         {
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = request.IsForward ? start : end;
             DateTime hi = request.IsForward ? end : start;
             if (lo > hi)
@@ -1139,8 +1139,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianModifiedReadRequest request,
             DateTime resumeAt)
         {
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             foreach (ModificationEntry entry in source)
             {
-                DateTime sourceTs = entry.Value.SourceTimestamp.ToDateTime();
+                var sourceTs = entry.Value.SourceTimestamp.ToDateTime();
                 if (sourceTs < lo || sourceTs >= hi)
                 {
                     continue;
@@ -1192,8 +1192,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianAnnotationReadRequest request,
             DateTime resumeAt)
         {
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 

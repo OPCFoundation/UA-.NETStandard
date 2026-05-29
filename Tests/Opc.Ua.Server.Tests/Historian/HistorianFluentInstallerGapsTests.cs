@@ -112,7 +112,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("disp.var");
+            BaseDataVariableState variable = CreateVariable("disp.var");
             builder.Historize(
                 variable,
                 autoCapture: true,
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("nocap.var");
+            BaseDataVariableState variable = CreateVariable("nocap.var");
 
             // autoCapture: false skips AttachAutoCapture, so no
             // systemContext is needed — passing null is valid.
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("browse.var");
+            BaseDataVariableState variable = CreateVariable("browse.var");
             builder.Historize(
                 variable,
                 installConfigurationOnBrowse: true,
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("annot.var");
+            BaseDataVariableState variable = CreateVariable("annot.var");
             var capabilities = new HistorianNodeCapabilities
             {
                 InsertAnnotation = true,

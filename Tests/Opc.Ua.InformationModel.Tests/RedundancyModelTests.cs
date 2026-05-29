@@ -133,7 +133,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(
                 StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
-            var dataType = response.Results[0].WrappedValue.GetNodeId();
+            NodeId dataType = response.Results[0].WrappedValue.GetNodeId();
             // DataTypeId i=851 is the RedundancySupport enumeration
             Assert.That(dataType, Is.EqualTo(DataTypeIds.RedundancySupport),
                 "RedundancySupport DataType should be RedundancySupport enum.");

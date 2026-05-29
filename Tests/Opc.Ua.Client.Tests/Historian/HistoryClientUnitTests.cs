@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Tests.Historian
                 }));
 
             var client = new HistoryClient(mockSession.Object);
-            NodeId nodeId = new NodeId("TestNode", 2);
+            var nodeId = new NodeId("TestNode", 2);
             DateTime start = DateTime.UtcNow.AddHours(-1);
             DateTime end = DateTime.UtcNow;
 

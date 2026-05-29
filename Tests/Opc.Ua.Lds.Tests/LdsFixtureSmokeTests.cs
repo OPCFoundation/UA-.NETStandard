@@ -94,7 +94,7 @@ namespace Opc.Ua.Lds.Tests
 
         private Task<DiscoveryClient> CreateDiscoveryClientAsync()
         {
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
             return DiscoveryClient.CreateAsync(
                 ServerUrl,
                 endpointConfiguration,

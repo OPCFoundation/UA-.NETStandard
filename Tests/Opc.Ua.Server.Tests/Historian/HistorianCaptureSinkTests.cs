@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task StateChangedWithValueMaskEnqueuesSampleAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("v1");
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: kFastFlush);
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task StateChangedWithoutValueMaskIsIgnoredAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vIgnore");
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: kFastFlush);
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task MultipleQuickUpdatesAreBatchedAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vBatch");
             // Larger BatchTarget so all updates land in one flush.
             var opts = new HistorianCaptureOptions
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task BulkProviderReceivesSingleCallPerFlushAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             var counting = new CountingBulkProvider(fixture.Provider);
             fixture.Builder.UseProvider(counting);
             BaseDataVariableState v = fixture.MakeVariable("vCount");
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task NonBulkProviderFallsBackToPerNodeInsertAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             var nonBulk = new NonBulkProvider(fixture.Provider);
             fixture.Builder.UseProvider(nonBulk);
             BaseDataVariableState v = fixture.MakeVariable("vNonBulk");
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AutoCaptureOptOutDoesNotInstallHandlerAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vOptOut");
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, autoCapture: false);
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task BoundedQueueDropsOldestUnderOverloadAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             // Slow the consumer down by using a provider that pauses each flush.
             var slow = new SlowProvider(fixture.Provider, TimeSpan.FromMilliseconds(50));
             fixture.Builder.UseProvider(slow);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DisposeAsyncFlushesPendingSamplesAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vFlush");
             // Wide window so samples remain in the channel until dispose.
             var opts = new HistorianCaptureOptions
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ProviderExceptionDoesNotCrashConsumerAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             var flaky = new FlakyProvider(fixture.Provider, failures: 2);
             fixture.Builder.UseProvider(flaky);
             BaseDataVariableState v = fixture.MakeVariable("vFlaky");
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task MultipleVariablesShareSinkAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v1 = fixture.MakeVariable("vA");
             BaseDataVariableState v2 = fixture.MakeVariable("vB");
             fixture.Builder.Historize(v1, systemContext: fixture.SystemContext, captureOptions: kFastFlush);
@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DefaultIsOptInAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vDefault");
             // No autoCapture argument — verify default is true.
             fixture.Builder.Historize(

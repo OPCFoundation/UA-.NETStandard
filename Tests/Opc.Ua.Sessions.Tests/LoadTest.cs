@@ -157,7 +157,7 @@ namespace Opc.Ua.Sessions.Tests
                         ISession session;
                         if (useManagedSession)
                         {
-                            var managedSession = await ManagedSession.CreateAsync(
+                            ManagedSession managedSession = await ManagedSession.CreateAsync(
                                 ClientFixture.Config,
                                 configuredEndpoint,
                                 new DefaultSessionFactory(Telemetry),
@@ -170,7 +170,7 @@ namespace Opc.Ua.Sessions.Tests
 
                             for (int j = 0; j < subscriptionsPerSession; j++)
                             {
-                                var subscription = managedSession.AddSubscription(
+                                Client.Subscriptions.ISubscription subscription = managedSession.AddSubscription(
                                     handler,
                                     o => o with
                                     {

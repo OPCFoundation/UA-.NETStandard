@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.Tests.Identity
 
         private async Task<SecretIdentifier> CreatePasswordAsync(byte[] password)
         {
-            SecretIdentifier id = new SecretIdentifier(
+            var id = new SecretIdentifier(
                 "password-" + m_secretCounter++,
                 InMemorySecretStore.DefaultStoreType);
             await m_secretStore.SetAsync(id, password).ConfigureAwait(false);

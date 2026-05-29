@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void CtorRejectsEmptyAlgorithm()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             ArgumentException ex = Assert.Throws<ArgumentException>(
                 () => new IssuerVerificationKey("kid", rsa, ""))!;
             Assert.That(ex.ParamName, Is.EqualTo("algorithm"));
@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             // ECDiffieHellman is an AsymmetricAlgorithm but is neither RSA
             // nor ECDsa, so it should be rejected.
-            using ECDiffieHellman ecdh = ECDiffieHellman.Create();
+            using var ecdh = ECDiffieHellman.Create();
             ArgumentException ex = Assert.Throws<ArgumentException>(
                 () => new IssuerVerificationKey("kid", ecdh, "RS256"))!;
             Assert.That(ex.ParamName, Is.EqualTo("key"));
@@ -78,7 +78,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyRs256SignatureAcceptsValidSignature()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             byte[] data = Encoding.UTF8.GetBytes("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9");
             byte[] sig = rsa.SignData(
                 data,
@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyRs256SignatureRejectsTamperedData()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             byte[] data = Encoding.UTF8.GetBytes("original payload");
             byte[] sig = rsa.SignData(
                 data,
@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyPs256SignatureAcceptsValidSignature()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             byte[] data = Encoding.UTF8.GetBytes("payload");
             byte[] sig = rsa.SignData(
                 data,
@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyEs256SignatureAcceptsValidSignature()
         {
-            using ECDsa ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             byte[] data = Encoding.UTF8.GetBytes("payload");
             byte[] sig = ec.SignData(data, HashAlgorithmName.SHA256);
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyAfterDisposeThrows()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
             key.Dispose();
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyRejectsNullSigningInput()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
@@ -159,7 +159,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyRejectsNullSignature()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void VerifyUnsupportedAlgorithmThrows()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using var key = new IssuerVerificationKey("kid-1", rsa, "HS256");
 
             Assert.That(

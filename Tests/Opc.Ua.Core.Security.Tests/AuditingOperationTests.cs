@@ -329,7 +329,7 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     return false;
                 }
-                NodeId parent = ExpandedNodeId.ToNodeId(
+                var parent = ExpandedNodeId.ToNodeId(
                     resp.Results[0].References[0].NodeId, session.NamespaceUris);
                 if (parent == expected)
                 {
@@ -373,7 +373,7 @@ namespace Opc.Ua.Core.Security.Tests
                     $"{result.StatusCode}");
             }
 
-            var dataType =
+            NodeId dataType =
                 result.WrappedValue.GetNodeId();
             Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean),
                 "Server_Auditing DataType should be Boolean.");

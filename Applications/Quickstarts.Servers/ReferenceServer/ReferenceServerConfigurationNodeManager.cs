@@ -110,7 +110,7 @@ namespace Quickstarts.ReferenceServer
                     PermissionType.AddReference |
                     PermissionType.RemoveReference |
                     PermissionType.DeleteNode;
-                var permissions = new RolePermissionType[]
+                ArrayOf<RolePermissionType> permissions = new RolePermissionType[]
                 {
                     new()
                     {
@@ -181,7 +181,7 @@ namespace Quickstarts.ReferenceServer
             if (analogItemType != null &&
                 analogItemType.FindChild(SystemContext, new QualifiedName(BrowseNames.EngineeringUnits, 0)) == null)
             {
-                PropertyState<EUInformation> euProperty = PropertyState<EUInformation>
+                var euProperty = PropertyState<EUInformation>
                     .With<StructureBuilder<EUInformation>>(analogItemType);
                 euProperty.SymbolicName = BrowseNames.EngineeringUnits;
                 euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;

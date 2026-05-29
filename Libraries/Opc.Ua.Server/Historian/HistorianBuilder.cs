@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public InMemoryHistorianProvider UseInMemory(InMemoryHistorianOptions? options = null)
         {
-            var provider = options is null
+            InMemoryHistorianProvider provider = options is null
                 ? new InMemoryHistorianProvider()
                 : new InMemoryHistorianProvider(options);
             Provider = provider;

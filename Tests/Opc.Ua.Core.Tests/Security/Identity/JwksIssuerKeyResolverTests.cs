@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncFetchesAndCachesInitialKeys()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using var handler = new QueueMessageHandler(CreateJwks(CreateRsaJwk(rsa, "kid-rsa", "sig")));
             using var httpClient = new HttpClient(handler, disposeHandler: false);
             using var resolver = new JwksIssuerKeyResolver(
@@ -72,8 +72,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncRefreshesMissAfterMinimumInterval()
         {
-            using RSA first = RSA.Create(2048);
-            using RSA second = RSA.Create(2048);
+            using var first = RSA.Create(2048);
+            using var second = RSA.Create(2048);
             var timeProvider = new FakeTimeProvider();
             using var handler = new QueueMessageHandler(
                 CreateJwks(CreateRsaJwk(first, "kid-1", "sig")),
@@ -102,8 +102,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncParsesRsaAndEcKeys()
         {
-            using RSA rsa = RSA.Create(2048);
-            using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using var rsa = RSA.Create(2048);
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             using var handler = new QueueMessageHandler(CreateJwks(
                 CreateRsaJwk(rsa, "kid-rsa", "sig"),
                 CreateEcJwk(ecdsa, "kid-ec")));
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task GetKeysAsyncFiltersEncryptionOnlyKeys()
         {
-            using RSA rsa = RSA.Create(2048);
+            using var rsa = RSA.Create(2048);
             using var handler = new QueueMessageHandler(CreateJwks(CreateRsaJwk(rsa, "kid-enc", "enc")));
             using var httpClient = new HttpClient(handler, disposeHandler: false);
             using var resolver = new JwksIssuerKeyResolver(

@@ -1259,7 +1259,7 @@ namespace Opc.Ua.Server
                 certificateGroupId,
                 certificateTypeId);
 
-            var certBytes = certificate.RawData.ToByteString();
+            ByteString certBytes = certificate.RawData.ToByteString();
             return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
                 new CreateSelfSignedCertificateMethodStateResult
                 {

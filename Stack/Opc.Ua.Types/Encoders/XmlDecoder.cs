@@ -962,7 +962,7 @@ namespace Opc.Ua
             DateTimeUtc serverTimestamp = ReadDateTime("ServerTimestamp");
             ushort serverPicoseconds = ReadUInt16("ServerPicoseconds");
 
-            DataValue value = new DataValue(
+            var value = new DataValue(
                 variant,
                 statusCode,
                 sourceTimestamp,

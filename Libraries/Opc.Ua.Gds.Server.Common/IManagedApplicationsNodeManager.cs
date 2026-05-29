@@ -230,7 +230,7 @@ namespace Opc.Ua.Gds.Server
             // Build a deterministic NodeId from the ApplicationUri.
             string safeId = info.ApplicationUri.Replace(':', '_').Replace('/', '_');
 
-            NodeId nodeId = new NodeId(safeId, NamespaceIndexes[0]);
+            var nodeId = new NodeId(safeId, NamespaceIndexes[0]);
 
             var appNode = new ApplicationConfigurationState(null)
             {

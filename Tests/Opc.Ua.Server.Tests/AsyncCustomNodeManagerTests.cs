@@ -4487,7 +4487,7 @@ namespace Opc.Ua.Server.Tests
                 var dict = new NodeIdDictionary<NodeState>();
                 if (RootNotifiers != null)
                 {
-                    foreach (var n in RootNotifiers)
+                    foreach (NodeState n in RootNotifiers)
                     {
                         dict[n.NodeId] = n;
                     }

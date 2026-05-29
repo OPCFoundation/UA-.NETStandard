@@ -141,7 +141,7 @@ namespace Opc.Ua.Gds.Server.Identity
                 scopes = NormalizeScopes(m_options.DefaultScopes);
             }
 
-            Guid requestId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
             m_requests[requestId] = new RequestRecord(
                 resourceId,
                 policyId ?? string.Empty,
@@ -400,7 +400,7 @@ namespace Opc.Ua.Gds.Server.Identity
         private static string CreateRefreshToken()
         {
             byte[] bytes = new byte[32];
-            using (RandomNumberGenerator generator = RandomNumberGenerator.Create())
+            using (var generator = RandomNumberGenerator.Create())
             {
                 generator.GetBytes(bytes);
             }

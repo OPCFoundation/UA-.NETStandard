@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void PageEmptyIsFinalWithNoValues()
         {
-            var page = HistorianPage<HistoricalDataValue>.Empty;
+            HistorianPage<HistoricalDataValue> page = HistorianPage<HistoricalDataValue>.Empty;
 
             Assert.That(page.Values, Has.Count.EqualTo(0));
             Assert.That(page.IsFinal, Is.True);
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void NodeCapabilitiesReadOnlyHasNoUpdateFlags()
         {
-            var caps = HistorianNodeCapabilities.ReadOnly;
+            HistorianNodeCapabilities caps = HistorianNodeCapabilities.ReadOnly;
 
             Assert.That(caps.ReadRawData, Is.True);
             Assert.That(caps.ReadModifiedData, Is.True);
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void NodeCapabilitiesReadWriteHasAllUpdateFlags()
         {
-            var caps = HistorianNodeCapabilities.ReadWrite;
+            HistorianNodeCapabilities caps = HistorianNodeCapabilities.ReadWrite;
 
             Assert.That(caps.InsertData, Is.True);
             Assert.That(caps.ReplaceData, Is.True);

@@ -44,7 +44,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_BareAccessTokenRoleMatchingCriteria_GrantsRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithRoleRule("Engineer");
+            using RoleManager manager = CreateManagerWithRoleRule("Engineer");
             var identity = new ClaimsTestIdentity(roles: s_engineerRoles);
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_PrefixedAccessTokenRoleMatchingIssuer_GrantsRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithRoleRule("https://idp.example.com/Engineer");
+            using RoleManager manager = CreateManagerWithRoleRule("https://idp.example.com/Engineer");
             var identity = new ClaimsTestIdentity(
                 roles: s_engineerRoles,
                 issuer: "https://idp.example.com");
@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests
         public void ResolveGrantedRoles_PrefixedAccessTokenRoleWithDifferentIssuer_DoesNotGrantRole()
         {
             AssertMessageContextCanBeCreated();
-            using var manager = CreateManagerWithRoleRule("https://idp.example.com/Engineer");
+            using RoleManager manager = CreateManagerWithRoleRule("https://idp.example.com/Engineer");
             var identity = new ClaimsTestIdentity(
                 roles: s_engineerRoles,
                 issuer: "https://other-idp.example.com");
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests
             AssertMessageContextCanBeCreated();
             string grantedRoleCriteria = ObjectIds.WellKnownRole_AuthenticatedUser.ToString();
 
-            using var manager = CreateManagerWithRoleRule(grantedRoleCriteria);
+            using RoleManager manager = CreateManagerWithRoleRule(grantedRoleCriteria);
             var identity = new ClaimsTestIdentity(
                 tokenType: UserTokenType.UserName,
                 roles: s_engineerRoles);
