@@ -46,9 +46,11 @@ namespace Opc.Ua.Lds.Tests
     [Category("DiscoveryServices")]
     public class DiscoveryRegisterTests : LdsTestFixture
     {
-        // The cert used by ClientFixture has ApplicationUri matching this value.
-        // Per Part 12 §6.4.2 the LDS verifies cert.ApplicationUri == server.ServerUri
-        // so positive tests use it as the registered ServerUri.
+        /// <summary>
+        /// The cert used by ClientFixture has ApplicationUri matching this value.
+        /// Per Part 12 §6.4.2 the LDS verifies cert.ApplicationUri == server.ServerUri
+        /// so positive tests use it as the registered ServerUri.
+        /// </summary>
         private const string ClientApplicationUri =
             "urn:localhost:opcfoundation.org:TestClient";
 

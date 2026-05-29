@@ -274,9 +274,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             };
         }
 
-        // 5-frame dispatch chain so the JIT must materialise the
-        // DataValue between calls — keeps the per-call copy visible
-        // in the disassembly.
+        /// <summary>
+        /// 5-frame dispatch chain so the JIT must materialise the
+        /// DataValue between calls — keeps the per-call copy visible
+        /// in the disassembly.
+        /// </summary>
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static uint DispatchFrame1(DataValue value)

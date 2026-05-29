@@ -59,11 +59,13 @@ namespace Opc.Ua.History.Tests
     [NonParallelizable]
     public class HistoryClientIntegrationTests : TestFixture
     {
-        // Use Scalar_Static_Double for history. Scalar_Static_Int32 has explicit
-        // RolePermissions that grant anonymous Browse|Read|Write but NOT
-        // ReadHistory/InsertHistory, so anonymous sessions get
-        // BadUserAccessDenied on its history endpoints. Double has no
-        // RolePermissions set, so the role-permission gate doesn't run.
+        /// <summary>
+        /// Use Scalar_Static_Double for history. Scalar_Static_Int32 has explicit
+        /// RolePermissions that grant anonymous Browse|Read|Write but NOT
+        /// ReadHistory/InsertHistory, so anonymous sessions get
+        /// BadUserAccessDenied on its history endpoints. Double has no
+        /// RolePermissions set, so the role-permission gate doesn't run.
+        /// </summary>
         private NodeId m_doubleNodeId;
 
         [OneTimeSetUp]

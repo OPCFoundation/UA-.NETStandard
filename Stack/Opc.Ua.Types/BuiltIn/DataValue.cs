@@ -625,11 +625,13 @@ namespace Opc.Ua
 
             return defaultValue;
         }
-        // Sentinel: true iff the struct was constructed via a public ctor or
-        // factory. default(DataValue) leaves it false, which is what IsNull
-        // reports. Adds ~4 bytes after alignment; this is intentional —
-        // distinguishing "absent" from "explicitly empty" is required to
-        // round-trip the spec-defined wire encoding faithfully.
+        /// <summary>
+        /// Sentinel: true iff the struct was constructed via a public ctor or
+        /// factory. default(DataValue) leaves it false, which is what IsNull
+        /// reports. Adds ~4 bytes after alignment; this is intentional —
+        /// distinguishing "absent" from "explicitly empty" is required to
+        /// round-trip the spec-defined wire encoding faithfully.
+        /// </summary>
         private readonly bool m_set;
     }
 }
