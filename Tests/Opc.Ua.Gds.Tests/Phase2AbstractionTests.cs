@@ -92,7 +92,7 @@ namespace Opc.Ua.Gds.Tests
         public void AddApplicationRejectsEmptyUri()
         {
             Assert.That(
-                () => m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = "" }),
+                () => m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = string.Empty }),
                 Throws.TypeOf<ArgumentException>());
         }
 

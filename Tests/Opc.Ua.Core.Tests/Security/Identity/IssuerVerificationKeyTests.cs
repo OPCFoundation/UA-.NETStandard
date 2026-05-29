@@ -60,7 +60,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             using var rsa = RSA.Create(2048);
             ArgumentException ex = Assert.Throws<ArgumentException>(
-                () => new IssuerVerificationKey("kid", rsa, ""))!;
+                () => new IssuerVerificationKey("kid", rsa, string.Empty))!;
             Assert.That(ex.ParamName, Is.EqualTo("algorithm"));
         }
 

@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private const string Audience = "urn:opcua:test:server-edge";
 
         private static readonly string[] s_duplicateAndWhitespaceScopes =
-            ["read", "read", "", "  ", "write"];
+            ["read", "read", string.Empty, "  ", "write"];
 
         private static readonly string[] s_dedupedScopes = ["read", "write"];
 

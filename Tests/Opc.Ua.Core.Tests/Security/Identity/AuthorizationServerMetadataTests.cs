@@ -57,7 +57,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void ParseEmptyReturnsEmpty()
         {
-            var metadata = AuthorizationServerMetadata.Parse("");
+            var metadata = AuthorizationServerMetadata.Parse(string.Empty);
             Assert.That(metadata.AuthorityUri, Is.Null);
         }
 
