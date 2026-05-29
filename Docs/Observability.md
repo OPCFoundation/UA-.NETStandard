@@ -513,7 +513,7 @@ to the stack.
 
 **File:** `Libraries/Opc.Ua.Client/Session/ManagedSessionFactory.cs`
 
-- **ADDED** in 1.6 as a new factory.
+- **ADDED** in 2.0 as a new factory.
 - Creates `ManagedSession` instances that automatically handle reconnection and failover.
 - Uses `DefaultSessionFactory` internally to create the raw `Session` that is wrapped by `ManagedSession`.
 - Constructor: `public ManagedSessionFactory(ITelemetryContext telemetry)`.

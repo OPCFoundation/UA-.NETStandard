@@ -31,7 +31,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and (durable) Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
-#### **New in 1.6**
+#### **New in 2.0**
 
 * **Type safe built in types**
 * Source generator generated code behind during build
