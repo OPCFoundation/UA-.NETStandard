@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the underlying session used to invoke methods.
         /// </summary>
-        protected ISessionClient Session { get; }
+        public ISessionClient Session { get; }
 
         /// <summary>
         /// Gets the NodeId of the wrapped Object instance.
@@ -87,7 +87,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the telemetry context used for diagnostics.
         /// </summary>
-        protected ITelemetryContext Telemetry { get; }
+        public ITelemetryContext Telemetry { get; }
 
         /// <summary>
         /// Calls the method identified by <paramref name="methodId"/> on
@@ -136,6 +136,65 @@ namespace Opc.Ua
             }
 
             return results[0].OutputArguments;
+        }
+
+        /// <summary>
+        /// Resolves the NodeId of a HasComponent-referenced Object
+        /// child of the wrapped object via
+        /// <c>TranslateBrowsePathsToNodeIds</c>. Used by every
+        /// source-generated typed Object-child accessor (e.g.
+        /// <c>AlarmConditionTypeClient.GetShelvingStateAsync</c>).
+        /// Returns <see cref="NodeId.Null"/> when the server does not
+        /// expose the child (Optional children, unknown namespace,
+        /// BadNotFound).
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI in which the
+        /// child's browse name lives.</param>
+        /// <param name="browseName">The unqualified child browse
+        /// name.</param>
+        /// <param name="ct">Cancellation token.</param>
+        protected async ValueTask<NodeId> ResolveChildNodeIdAsync(
+            string namespaceUri,
+            string browseName,
+            CancellationToken ct = default)
+        {
+            int nsIdx = Session.MessageContext.NamespaceUris.GetIndex(namespaceUri);
+            if (nsIdx < 0)
+            {
+                return NodeId.Null;
+            }
+            ArrayOf<BrowsePath> paths = ArrayOf.Wrapped(new[]
+            {
+                new BrowsePath
+                {
+                    StartingNode = ObjectId,
+                    RelativePath = new RelativePath
+                    {
+                        Elements = ArrayOf.Wrapped(new[]
+                        {
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName(browseName, (ushort)nsIdx)
+                            }
+                        })
+                    }
+                }
+            });
+
+            TranslateBrowsePathsToNodeIdsResponse response =
+                await Session.TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
+                    .ConfigureAwait(false);
+            if (response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode) ||
+                response.Results[0].Targets.Count == 0)
+            {
+                return NodeId.Null;
+            }
+            return ExpandedNodeId.ToNodeId(
+                response.Results[0].Targets[0].TargetId,
+                Session.MessageContext.NamespaceUris);
         }
     }
 }

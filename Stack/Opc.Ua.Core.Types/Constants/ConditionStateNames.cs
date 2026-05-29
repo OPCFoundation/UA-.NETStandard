@@ -103,5 +103,35 @@ namespace Opc.Ua
         /// The name of the LowLowActive state.
         /// </summary>
         public const string LowLowActive = "LowLowActive";
+
+        /// <summary>
+        /// The name of the Silenced state.
+        /// </summary>
+        public const string Silenced = "Silenced";
+
+        /// <summary>
+        /// The name of the Not Silenced state.
+        /// </summary>
+        public const string NotSilenced = "Not Silenced";
+
+        /// <summary>
+        /// The name of the Out of Service state.
+        /// </summary>
+        public const string OutOfService = "Out of Service";
+
+        /// <summary>
+        /// The name of the In Service state.
+        /// </summary>
+        public const string InService = "In Service";
+
+        /// <summary>
+        /// The name of the Latched state.
+        /// </summary>
+        public const string Latched = "Latched";
+
+        /// <summary>
+        /// The name of the Unlatched state.
+        /// </summary>
+        public const string Unlatched = "Unlatched";
     }
 }
