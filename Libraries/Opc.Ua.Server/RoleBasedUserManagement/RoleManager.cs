@@ -756,8 +756,8 @@ namespace Opc.Ua.Server
                 return claims.Roles.Contains(criteria, StringComparer.Ordinal);
             }
 
-            string issuer = criteria.Substring(0, separator);
-            string roleName = criteria.Substring(separator + 1);
+            string issuer = criteria[..separator];
+            string roleName = criteria[(separator + 1)..];
             return !string.IsNullOrEmpty(issuer) &&
                 !string.IsNullOrEmpty(roleName) &&
                 string.Equals(claims.Issuer, issuer, StringComparison.Ordinal) &&

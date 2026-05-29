@@ -51,22 +51,9 @@ namespace Opc.Ua.Identity
             ISecretRegistry registry,
             SecretIdentifier passwordId)
         {
-            if (username == null)
-            {
-                throw new ArgumentNullException(nameof(username));
-            }
-            if (registry == null)
-            {
-                throw new ArgumentNullException(nameof(registry));
-            }
-            if (passwordId == null)
-            {
-                throw new ArgumentNullException(nameof(passwordId));
-            }
-
-            m_username = username;
-            m_registry = registry;
-            m_passwordId = passwordId;
+            m_username = username ?? throw new ArgumentNullException(nameof(username));
+            m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            m_passwordId = passwordId ?? throw new ArgumentNullException(nameof(passwordId));
         }
 
         /// <inheritdoc/>
@@ -103,13 +90,9 @@ namespace Opc.Ua.Identity
 
             ISecret? secret = await m_registry
                 .GetAsync(m_passwordId, ct)
-                .ConfigureAwait(false);
-            if (secret == null)
-            {
-                throw ServiceResultException.Create(
+                .ConfigureAwait(false) ?? throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
                     "Password secret could not be resolved for the selected username policy.");
-            }
 
             try
             {

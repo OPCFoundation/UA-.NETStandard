@@ -329,12 +329,9 @@ namespace Opc.Ua.Server
                 UpdateCertificateAsync);
             configNode.CreateSigningRequest!.OnCallAsync =
                 new CreateSigningRequestMethodStateMethodAsyncCallHandler(CreateSigningRequestAsync);
-            if (configNode.CreateSelfSignedCertificate != null)
-            {
-                configNode.CreateSelfSignedCertificate.OnCallAsync =
+            configNode.CreateSelfSignedCertificate?.OnCallAsync =
                     new CreateSelfSignedCertificateMethodStateMethodAsyncCallHandler(
                         CreateSelfSignedCertificateAsync);
-            }
             configNode.ApplyChanges!.OnCallMethod2
                 = new GenericMethodCalledEventHandler2(ApplyChanges);
             configNode.GetRejectedList!.OnCall
@@ -520,13 +517,9 @@ namespace Opc.Ua.Server
             }
 
             NodeState? node = FindPredefinedNode<NodeState>(
-                KeyCredentialPushSubject.StandardConfigurationFolderNodeId);
-            if (node == null)
-            {
-                node = await Server.NodeManager
+                KeyCredentialPushSubject.StandardConfigurationFolderNodeId) ?? await Server.NodeManager
                     .FindNodeInAddressSpaceAsync(KeyCredentialPushSubject.StandardConfigurationFolderNodeId, cancellationToken)
                     .ConfigureAwait(false);
-            }
 
             if (node is not KeyCredentialConfigurationFolderState folder)
             {
@@ -1260,10 +1253,7 @@ namespace Opc.Ua.Server
                 .ToList()
                 .FirstOrDefault(c => c.CertificateType == certificateTypeId);
 
-            if (existingIdent != null)
-            {
-                existingIdent.RawData = certificate.RawData;
-            }
+            existingIdent?.RawData = certificate.RawData;
 
             m_logger.LogInformation(
                 Utils.TraceMasks.Security,
@@ -1871,12 +1861,9 @@ namespace Opc.Ua.Server
                         node.TrustListOutOfDate.TrustListId.Value =
                             node.TrustList?.NodeId ?? default;
 
-                        if (node.TrustListOutOfDate.LastUpdateTime != null)
-                        {
-                            node.TrustListOutOfDate.LastUpdateTime.Value =
+                        node.TrustListOutOfDate.LastUpdateTime?.Value =
                                 (DateTime)(node.TrustList?.LastUpdateTime?.Value
                                     ?? (DateTimeUtc)DateTime.MinValue);
-                        }
                     }
                 }
                 catch (Exception ex)

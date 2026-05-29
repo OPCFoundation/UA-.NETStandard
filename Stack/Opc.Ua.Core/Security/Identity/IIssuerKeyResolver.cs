@@ -93,7 +93,7 @@ namespace Opc.Ua.Identity
                     "Algorithm must be supplied.",
                     nameof(algorithm));
             }
-            if (key is not RSA && key is not ECDsa)
+            if (key is not RSA and not ECDsa)
             {
                 throw new ArgumentException(
                     "Only RSA and ECDsa keys are supported.",

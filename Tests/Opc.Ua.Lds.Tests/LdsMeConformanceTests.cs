@@ -144,7 +144,7 @@ namespace Opc.Ua.Lds.Tests
                 await FindServersOnNetworkAsync(startingRecordId: 0, maxRecords: 2).ConfigureAwait(false);
             Assert.That(page1.Count, Is.EqualTo(2));
 
-            uint nextStart = page1[page1.Count - 1].RecordId + 1;
+            uint nextStart = page1[^1].RecordId + 1;
             (ArrayOf<ServerOnNetwork> page2, _) =
                 await FindServersOnNetworkAsync(startingRecordId: nextStart, maxRecords: 2).ConfigureAwait(false);
             Assert.That(page2.Count, Is.GreaterThanOrEqualTo(2));

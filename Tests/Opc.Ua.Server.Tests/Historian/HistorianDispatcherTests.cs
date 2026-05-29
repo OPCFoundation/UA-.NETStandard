@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Insert,
                 UpdateValues = new DataValue[]
                 {
-                    new DataValue(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
+                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
                 },
             };
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Remove,
                 UpdateValues = new DataValue[]
                 {
-                    new DataValue(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
+                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
                 },
             };
 

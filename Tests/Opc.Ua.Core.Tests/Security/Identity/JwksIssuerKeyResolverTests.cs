@@ -196,7 +196,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         private sealed class QueueMessageHandler : HttpMessageHandler
         {
-            private readonly Queue<string> m_responses = new Queue<string>();
+            private readonly Queue<string> m_responses = new();
 
             public QueueMessageHandler(params string[] responses)
             {
@@ -223,7 +223,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         private sealed class FakeTimeProvider : TimeProvider
         {
-            private DateTimeOffset m_now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            private DateTimeOffset m_now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
             public override DateTimeOffset GetUtcNow()
             {

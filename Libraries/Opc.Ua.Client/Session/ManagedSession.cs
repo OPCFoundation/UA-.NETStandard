@@ -1217,10 +1217,7 @@ namespace Opc.Ua.Client
             long attemptVersion = 0;
             while (!ct.IsCancellationRequested)
             {
-                if (attemptCompletion == null)
-                {
-                    attemptCompletion = BeginIdentityRefreshAttempt(out attemptVersion);
-                }
+                attemptCompletion ??= BeginIdentityRefreshAttempt(out attemptVersion);
 
                 TaskCompletionSource<object?> currentCompletion = attemptCompletion;
                 long currentVersion = attemptVersion;

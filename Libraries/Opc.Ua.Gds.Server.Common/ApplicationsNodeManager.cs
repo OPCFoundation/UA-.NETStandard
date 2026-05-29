@@ -569,10 +569,7 @@ namespace Opc.Ua.Gds.Server
 
             service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
             service.ServiceCertificate!.Value = ByteString.Empty;
-            if (service.UserTokenPolicies != null)
-            {
-                service.UserTokenPolicies.Value = m_configuration.ServerConfiguration?.UserTokenPolicies ?? default;
-            }
+            service.UserTokenPolicies?.Value = m_configuration.ServerConfiguration?.UserTokenPolicies ?? default;
             ConfigureAuthorizationServiceNode(service);
 
             return service;
@@ -755,10 +752,7 @@ namespace Opc.Ua.Gds.Server
 
                     keyCredNode.StartRequest!.OnCallAsync = OnKeyCredentialStartRequestAsync;
                     keyCredNode.FinishRequest!.OnCallAsync = OnKeyCredentialFinishRequestAsync;
-                    if (keyCredNode.Revoke != null)
-                    {
-                        keyCredNode.Revoke.OnCallAsync = OnKeyCredentialRevokeAsync;
-                    }
+                    keyCredNode.Revoke?.OnCallAsync = OnKeyCredentialRevokeAsync;
 
                     return keyCredNode;
                 case ObjectTypes.AuthorizationServiceType:
@@ -780,22 +774,10 @@ namespace Opc.Ua.Gds.Server
         private void ConfigureAuthorizationServiceNode(AuthorizationServiceState authServiceNode)
         {
             authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
-            if (authServiceNode.RequestAccessToken != null)
-            {
-                authServiceNode.RequestAccessToken.OnCallAsync = OnRequestAccessTokenAsync;
-            }
-            if (authServiceNode.StartRequestToken != null)
-            {
-                authServiceNode.StartRequestToken.OnCallAsync = OnStartRequestTokenAsync;
-            }
-            if (authServiceNode.FinishRequestToken != null)
-            {
-                authServiceNode.FinishRequestToken.OnCallAsync = OnFinishRequestTokenAsync;
-            }
-            if (authServiceNode.RefreshToken != null)
-            {
-                authServiceNode.RefreshToken.OnCallAsync = OnRefreshTokenAsync;
-            }
+            authServiceNode.RequestAccessToken?.OnCallAsync = OnRequestAccessTokenAsync;
+            authServiceNode.StartRequestToken?.OnCallAsync = OnStartRequestTokenAsync;
+            authServiceNode.FinishRequestToken?.OnCallAsync = OnFinishRequestTokenAsync;
+            authServiceNode.RefreshToken?.OnCallAsync = OnRefreshTokenAsync;
         }
 
         private ServiceResult OnAddSelfAdminRolePermissions(

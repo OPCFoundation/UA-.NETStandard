@@ -220,14 +220,9 @@ namespace Opc.Ua.Gds.Server
                 SessionSystemContext sc => sc.OperationContext as OperationContext,
                 SystemContext sc => sc.OperationContext as OperationContext,
                 _ => null
-            };
-
-            if (operationContext == null)
-            {
-                throw new ServiceResultException(
+            } ?? throw new ServiceResultException(
                     StatusCodes.BadSecurityModeInsufficient,
                     "Unable to verify secure channel requirements.");
-            }
 
             MessageSecurityMode securityMode = operationContext
                 .ChannelContext?
@@ -237,8 +232,8 @@ namespace Opc.Ua.Gds.Server
 
             bool ok = requireEncryption
                 ? securityMode == MessageSecurityMode.SignAndEncrypt
-                : securityMode == MessageSecurityMode.Sign ||
-                    securityMode == MessageSecurityMode.SignAndEncrypt;
+                : securityMode is MessageSecurityMode.Sign or
+                    MessageSecurityMode.SignAndEncrypt;
 
             if (!ok)
             {

@@ -214,9 +214,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var seedValues = new List<DataValue>
             {
-                new DataValue(new Variant(10), StatusCodes.Good, sourceTimestamp: t0, serverTimestamp: t0),
-                new DataValue(new Variant(20), StatusCodes.Good, sourceTimestamp: t1, serverTimestamp: t1),
-                new DataValue(new Variant(30), StatusCodes.Good, sourceTimestamp: t2, serverTimestamp: t2),
+                new(new Variant(10), StatusCodes.Good, sourceTimestamp: t0, serverTimestamp: t0),
+                new(new Variant(20), StatusCodes.Good, sourceTimestamp: t1, serverTimestamp: t1),
+                new(new Variant(30), StatusCodes.Good, sourceTimestamp: t2, serverTimestamp: t2),
             };
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
             await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);
@@ -285,8 +285,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var seedValues = new List<DataValue>
             {
-                new DataValue(new Variant(100.0), StatusCodes.Good, sourceTimestamp: t10, serverTimestamp: t10),
-                new DataValue(new Variant(200.0), StatusCodes.Good, sourceTimestamp: t20, serverTimestamp: t20),
+                new(new Variant(100.0), StatusCodes.Good, sourceTimestamp: t10, serverTimestamp: t10),
+                new(new Variant(200.0), StatusCodes.Good, sourceTimestamp: t20, serverTimestamp: t20),
             };
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
             await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);

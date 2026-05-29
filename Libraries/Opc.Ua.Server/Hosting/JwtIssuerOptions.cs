@@ -267,7 +267,7 @@ namespace Opc.Ua.Server.Hosting
 
             string base64 = ReplaceOrdinal(
                 ReplaceOrdinal(
-                    ReplaceOrdinal(pem.Substring(contentStart, footerIndex - contentStart), "\n", string.Empty),
+                    ReplaceOrdinal(pem[contentStart..footerIndex], "\n", string.Empty),
                     " ",
                     string.Empty),
                 "\t",

@@ -156,8 +156,8 @@ namespace Opc.Ua.Gds.Server
         // Well-known NodeIds from the base UA namespace (ns=0).
         // Using numeric literals avoids ambiguity between the GDS and
         // base-UA generated ObjectTypes/Objects classes.
-        private static readonly NodeId ManagedApplicationsFolderId = new NodeId(16706u);
-        private static readonly NodeId ApplicationConfigurationTypeId = new NodeId(25731u);
+        private static readonly NodeId ManagedApplicationsFolderId = new(16706u);
+        private static readonly NodeId ApplicationConfigurationTypeId = new(25731u);
 
         private readonly IConfigurationDataStore m_dataStore;
         private readonly Dictionary<string, ApplicationConfigurationState> m_appNodes = new(System.StringComparer.Ordinal);
@@ -243,30 +243,15 @@ namespace Opc.Ua.Gds.Server
             };
 
             // Populate properties from the ManagedApplicationInfo.
-            if (appNode.ApplicationUri != null)
-            {
-                appNode.ApplicationUri.Value = info.ApplicationUri;
-            }
+            appNode.ApplicationUri?.Value = info.ApplicationUri;
 
-            if (appNode.ProductUri != null)
-            {
-                appNode.ProductUri.Value = info.ProductUri ?? string.Empty;
-            }
+            appNode.ProductUri?.Value = info.ProductUri ?? string.Empty;
 
-            if (appNode.ApplicationType != null)
-            {
-                appNode.ApplicationType.Value = info.ApplicationType;
-            }
+            appNode.ApplicationType?.Value = info.ApplicationType;
 
-            if (appNode.Enabled != null)
-            {
-                appNode.Enabled.Value = info.Enabled;
-            }
+            appNode.Enabled?.Value = info.Enabled;
 
-            if (appNode.IsNonUaApplication != null)
-            {
-                appNode.IsNonUaApplication.Value = info.IsNonUaApplication;
-            }
+            appNode.IsNonUaApplication?.Value = info.IsNonUaApplication;
 
             await AddPredefinedNodeAsync(SystemContext, appNode).ConfigureAwait(false);
 

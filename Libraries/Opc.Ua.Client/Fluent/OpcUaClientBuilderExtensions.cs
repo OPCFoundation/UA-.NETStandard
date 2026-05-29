@@ -278,12 +278,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton(sp =>
             {
-                IAccessTokenProvider provider = factory(sp);
-                if (provider == null)
-                {
-                    throw new InvalidOperationException(
+                IAccessTokenProvider provider = factory(sp) ?? throw new InvalidOperationException(
                         "Access-token provider factory returned null.");
-                }
                 return provider;
             });
             return builder;
@@ -630,13 +626,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     return manager;
                 }
 
-                ApplicationConfiguration? configuration = options.Configuration;
-                if (configuration == null)
-                {
-                    throw new InvalidOperationException(
+                ApplicationConfiguration? configuration = options.Configuration ?? throw new InvalidOperationException(
                         "OpcUaClientOptions.Configuration must be set before " +
                         "resolving ReverseConnectManager.");
-                }
 
                 configuration.ClientConfiguration ??= new ClientConfiguration();
                 var clientEndpoints = new ReverseConnectClientEndpoint[

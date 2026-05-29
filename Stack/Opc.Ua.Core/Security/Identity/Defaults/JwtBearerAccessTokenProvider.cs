@@ -52,16 +52,12 @@ namespace Opc.Ua.Identity
             DateTime expiresAt,
             string displayName = "")
         {
-            if (authorityUri == null)
-            {
-                throw new ArgumentNullException(nameof(authorityUri));
-            }
             if (tokenBytes == null)
             {
                 throw new ArgumentNullException(nameof(tokenBytes));
             }
 
-            AuthorityUri = authorityUri;
+            AuthorityUri = authorityUri ?? throw new ArgumentNullException(nameof(authorityUri));
             m_tokenBytes = (byte[])tokenBytes.Clone();
             m_expiresAt = expiresAt;
             m_displayName = displayName ?? string.Empty;

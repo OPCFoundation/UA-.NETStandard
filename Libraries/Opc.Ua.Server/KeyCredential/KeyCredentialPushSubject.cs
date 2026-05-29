@@ -265,10 +265,7 @@ namespace Opc.Ua.Server
             }
 
             await m_store.DeleteAsync(credentialId, ct).ConfigureAwait(false);
-            if (state.Parent != null)
-            {
-                state.Parent.RemoveChild(state);
-            }
+            state.Parent?.RemoveChild(state);
             await RemoveNodeAsync(state, ct).ConfigureAwait(false);
             return ServiceResult.Good;
         }

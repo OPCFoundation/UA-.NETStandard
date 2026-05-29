@@ -890,7 +890,7 @@ namespace Opc.Ua.InformationModel.Tests
                 async () => await Session.BrowseNextAsync(
                     null,
                     releaseContinuationPoints: false,
-                    new ByteString[] { new ByteString(new byte[] { 0x01 }.AsMemory()) }.ToArrayOf(),
+                    new ByteString[] { new(new byte[] { 0x01 }.AsMemory()) }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(injected));

@@ -850,10 +850,7 @@ namespace Opc.Ua.Sessions.Tests
                         // no longer matches the one returned by Discovery.
                         foreach (EndpointDescription ep in resp.ServerEndpoints)
                         {
-                            if (ep.Server != null)
-                            {
-                                ep.Server.ApplicationUri = "urn:mock:tampered";
-                            }
+                            ep.Server?.ApplicationUri = "urn:mock:tampered";
                         }
                     }
                 });

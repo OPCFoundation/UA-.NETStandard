@@ -117,14 +117,7 @@ namespace Opc.Ua.Identity
                     "JWKS URI must be an absolute URI.",
                     nameof(jwksUri));
             }
-            if (httpClient == null)
-            {
-                throw new ArgumentNullException(nameof(httpClient));
-            }
-            if (timeProvider == null)
-            {
-                throw new ArgumentNullException(nameof(timeProvider));
-            }
+
             if (minRefreshInterval < TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(
@@ -134,8 +127,8 @@ namespace Opc.Ua.Identity
 
             IssuerUri = issuerUri;
             m_jwksUri = parsedJwksUri;
-            m_httpClient = httpClient;
-            m_timeProvider = timeProvider;
+            m_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_minRefreshInterval = minRefreshInterval;
 
             if (allowedAlgorithms != null)

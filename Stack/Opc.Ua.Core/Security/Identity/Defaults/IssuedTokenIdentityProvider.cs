@@ -50,17 +50,8 @@ namespace Opc.Ua.Identity
             IAccessTokenProvider accessTokenProvider,
             string profileUri = Profiles.JwtUserToken)
         {
-            if (accessTokenProvider == null)
-            {
-                throw new ArgumentNullException(nameof(accessTokenProvider));
-            }
-            if (profileUri == null)
-            {
-                throw new ArgumentNullException(nameof(profileUri));
-            }
-
-            m_accessTokenProvider = accessTokenProvider;
-            m_profileUri = profileUri;
+            m_accessTokenProvider = accessTokenProvider ?? throw new ArgumentNullException(nameof(accessTokenProvider));
+            m_profileUri = profileUri ?? throw new ArgumentNullException(nameof(profileUri));
         }
 
         /// <inheritdoc/>

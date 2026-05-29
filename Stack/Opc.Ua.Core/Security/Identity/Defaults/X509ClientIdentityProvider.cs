@@ -50,22 +50,9 @@ namespace Opc.Ua.Identity
             ICertificatePasswordProvider passwordProvider,
             ICertificateProvider certificateProvider)
         {
-            if (certificateId == null)
-            {
-                throw new ArgumentNullException(nameof(certificateId));
-            }
-            if (passwordProvider == null)
-            {
-                throw new ArgumentNullException(nameof(passwordProvider));
-            }
-            if (certificateProvider == null)
-            {
-                throw new ArgumentNullException(nameof(certificateProvider));
-            }
-
-            m_certificateId = certificateId;
-            m_passwordProvider = passwordProvider;
-            m_certificateProvider = certificateProvider;
+            m_certificateId = certificateId ?? throw new ArgumentNullException(nameof(certificateId));
+            m_passwordProvider = passwordProvider ?? throw new ArgumentNullException(nameof(passwordProvider));
+            m_certificateProvider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
         }
 
         /// <inheritdoc/>

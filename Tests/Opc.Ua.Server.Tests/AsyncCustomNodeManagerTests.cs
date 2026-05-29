@@ -4577,7 +4577,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context,
             NodeId nodeId,
             CancellationToken ct = default)
-            => new ValueTask<bool>(m_cnm2.DeleteNode(context, nodeId));
+            => new(m_cnm2.DeleteNode(context, nodeId));
 
         public ValueTask AddPredefinedNodeAsync(
             ISystemContext context,

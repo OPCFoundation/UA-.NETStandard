@@ -89,16 +89,8 @@ namespace Opc.Ua.Identity
             string displayName,
             string[]? grantedScopes = null)
         {
-            if (profileUri == null)
-            {
-                throw new ArgumentNullException(nameof(profileUri));
-            }
-            if (tokenData == null)
-            {
-                throw new ArgumentNullException(nameof(tokenData));
-            }
-            ProfileUri = profileUri;
-            m_tokenData = tokenData;
+            ProfileUri = profileUri ?? throw new ArgumentNullException(nameof(profileUri));
+            m_tokenData = tokenData ?? throw new ArgumentNullException(nameof(tokenData));
             ExpiresAt = expiresAt;
             DisplayName = displayName ?? string.Empty;
             GrantedScopes = grantedScopes ?? [];

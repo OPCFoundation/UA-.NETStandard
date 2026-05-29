@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Tests.Identity
         private sealed class FakeTimeProvider : TimeProvider
         {
             private readonly List<FakeTimer> m_timers = [];
-            private DateTimeOffset m_utcNow = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            private DateTimeOffset m_utcNow = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
             public override DateTimeOffset GetUtcNow()
             {

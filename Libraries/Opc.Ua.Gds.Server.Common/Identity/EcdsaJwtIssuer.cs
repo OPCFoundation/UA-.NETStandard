@@ -285,13 +285,9 @@ namespace Opc.Ua.Gds.Server.Identity
             }
             else
             {
-                using RSA? rsa = certificate.GetRSAPrivateKey();
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(
+                using RSA? rsa = certificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "AuthorizationService signing certificate must use ECDSA or RSA.");
-                }
                 algorithm = "RS256";
             }
 
