@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var store = new InMemoryKeyCredentialStore();
             ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(
-                async () => await store.GetAsync(string.Empty, CancellationToken.None));
+                async () => await store.GetAsync(string.Empty, CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("credentialId"));
         }
 
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var store = new InMemoryKeyCredentialStore();
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await store.UpdateAsync(CredentialId, null, CancellationToken.None));
+                async () => await store.UpdateAsync(CredentialId, null, CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("credential"));
         }
 
@@ -176,7 +176,7 @@ namespace Opc.Ua.Server.Tests.Identity
             store.Dispose();
 
             Assert.ThrowsAsync<ObjectDisposedException>(
-                async () => await store.GetAsync(CredentialId, CancellationToken.None));
+                async () => await store.GetAsync(CredentialId, CancellationToken.None).ConfigureAwait(false));
         }
     }
 }

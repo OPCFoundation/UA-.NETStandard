@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var second = new StubProvider("second", UserTokenType.UserName, DateTime.UtcNow.AddMinutes(5));
             var provider = new CompositeClientIdentityProvider(first, second);
 
-            IUserIdentity identity = await provider.GetIdentityAsync(policy, context);
+            IUserIdentity identity = await provider.GetIdentityAsync(policy, context).ConfigureAwait(false);
 
             Assert.That(identity.DisplayName, Is.EqualTo("first"));
             Assert.That(first.GetIdentityCallCount, Is.EqualTo(1));
@@ -68,10 +68,10 @@ namespace Opc.Ua.Client.Tests.Identity
             UserTokenPolicy userNamePolicy = CreatePolicy(UserTokenType.UserName);
             UserTokenPolicy certificatePolicy = CreatePolicy(UserTokenType.Certificate);
 
-            await provider.GetIdentityAsync(userNamePolicy, CreateContext(userNamePolicy));
+            await provider.GetIdentityAsync(userNamePolicy, CreateContext(userNamePolicy)).ConfigureAwait(false);
             Assert.That(provider.ExpiresAt, Is.EqualTo(later));
 
-            await provider.GetIdentityAsync(certificatePolicy, CreateContext(certificatePolicy));
+            await provider.GetIdentityAsync(certificatePolicy, CreateContext(certificatePolicy)).ConfigureAwait(false);
             Assert.That(provider.ExpiresAt, Is.EqualTo(earlier));
         }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 new StubProvider("user", UserTokenType.UserName, DateTime.MaxValue));
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await provider.GetIdentityAsync(policy, context));
+                async () => await provider.GetIdentityAsync(policy, context).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
 

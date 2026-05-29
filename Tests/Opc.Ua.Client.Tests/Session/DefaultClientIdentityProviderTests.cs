@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var provider = new AnonymousIdentityProvider();
             UserTokenPolicy policy = CreatePolicy(UserTokenType.Anonymous);
 
-            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy));
+            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false);
 
             Assert.That(identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
             Assert.That(identity.PolicyId, Is.EqualTo(policy.PolicyId));
@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var provider = new UserNamePasswordIdentityProvider("user1", registry, id);
             UserTokenPolicy policy = CreatePolicy(UserTokenType.UserName);
 
-            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy));
+            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false);
 
             Assert.That(identity.TokenType, Is.EqualTo(UserTokenType.UserName));
             Assert.That(identity.DisplayName, Is.EqualTo("user1"));
@@ -90,7 +90,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 new InMemoryCertificateProvider(certificate));
             UserTokenPolicy policy = CreatePolicy(UserTokenType.Certificate);
 
-            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy));
+            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false);
 
             Assert.That(identity.TokenType, Is.EqualTo(UserTokenType.Certificate));
             Assert.That(identity.PolicyId, Is.EqualTo(policy.PolicyId));
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Tests.Identity
             policy.IssuedTokenType = Profiles.JwtUserToken;
             policy.IssuerEndpointUrl = "{\"authorityUri\":\"https://issuer.example\"}";
 
-            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy));
+            IUserIdentity identity = await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false);
 
             Assert.That(identity.TokenType, Is.EqualTo(UserTokenType.IssuedToken));
             Assert.That(identity.PolicyId, Is.EqualTo(policy.PolicyId));

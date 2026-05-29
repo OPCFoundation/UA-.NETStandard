@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     Audience,
                     Array.Empty<string>(),
                     new Dictionary<string, object?>(),
-                    TimeSpan.FromMinutes(5))));
+                    TimeSpan.FromMinutes(5))).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
@@ -97,7 +97,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     Audience,
                     Array.Empty<string>(),
                     new Dictionary<string, object?>(),
-                    TimeSpan.FromMinutes(5))));
+                    TimeSpan.FromMinutes(5))).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     string.Empty,
                     Array.Empty<string>(),
                     new Dictionary<string, object?>(),
-                    TimeSpan.FromMinutes(5))));
+                    TimeSpan.FromMinutes(5))).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }

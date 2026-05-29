@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             registry.RegisterAugmenter(new ThrowingAugmenter());
 
             InvalidTimeZoneException ex = Assert.ThrowsAsync<InvalidTimeZoneException>(
-                async () => await registry.AuthenticateAsync(MakeContext()))!;
+                async () => await registry.AuthenticateAsync(MakeContext()).ConfigureAwait(false))!;
 
             Assert.That(ex.Message, Is.EqualTo("augmenter boom"));
         }

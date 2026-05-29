@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests.Identity
                     "identity token invalid"));
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await provider.AcquireIdentityAsync(endpoint, messageContext));
+                async () => await provider.AcquireIdentityAsync(endpoint, messageContext).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var provider = new StubProvider(UserTokenType.UserName);
 
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await provider.AcquireIdentityAsync(null!, messageContext));
+                async () => await provider.AcquireIdentityAsync(null!, messageContext).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("endpointDescription"));
         }
 
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var provider = new StubProvider(UserTokenType.UserName);
 
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await provider.AcquireIdentityAsync(endpoint, null!));
+                async () => await provider.AcquireIdentityAsync(endpoint, null!).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("messageContext"));
         }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.Tests.Identity
             var provider = new StubProvider(UserTokenType.UserName);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await provider.AcquireIdentityAsync(endpoint, messageContext));
+                async () => await provider.AcquireIdentityAsync(endpoint, messageContext).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
 

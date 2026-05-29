@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await authenticator.AuthenticateAsync(CreateContext(
-                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, tokenData))));
+                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, tokenData))).ConfigureAwait(false));
 
             Assert.That(ex.Message, Is.EqualTo("kaboom"));
         }
