@@ -33,11 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests

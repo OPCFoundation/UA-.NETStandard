@@ -30,9 +30,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Server;
 using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.InformationModel.Tests

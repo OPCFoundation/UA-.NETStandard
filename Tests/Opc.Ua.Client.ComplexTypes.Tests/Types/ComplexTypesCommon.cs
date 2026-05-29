@@ -34,7 +34,6 @@ using System.Linq;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Core.TestFramework;
 using Opc.Ua.Test;
 

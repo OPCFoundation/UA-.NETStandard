@@ -35,7 +35,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using NUnit.Framework;
-using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Core.TestFramework;
 using Opc.Ua.Tests;
 
