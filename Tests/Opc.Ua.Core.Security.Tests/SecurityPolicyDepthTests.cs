@@ -303,6 +303,7 @@ namespace Opc.Ua.Core.Security.Tests
                 session.Dispose();
             }
         }
+
         [Test]
         public async Task SessionSecurityDetailsRecordedAsync()
         {
@@ -321,6 +322,7 @@ namespace Opc.Ua.Core.Security.Tests
                 session.Dispose();
             }
         }
+
         private async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync()
         {
             var endpointConfiguration =

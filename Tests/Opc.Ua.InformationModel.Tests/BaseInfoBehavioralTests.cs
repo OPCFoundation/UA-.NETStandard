@@ -768,6 +768,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid),
                 "Invalid subscription should return BadSubscriptionIdInvalid.");
         }
+
         [Test]
         public async Task GetMonitoredItemsErr003CrossSessionReturnsBadStatusAsync()
         {
@@ -809,6 +810,7 @@ namespace Opc.Ua.InformationModel.Tests
                 await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
             }
         }
+
         [Test]
         public async Task ResendData000BrowseMethodAsync()
         {
@@ -1218,6 +1220,7 @@ namespace Opc.Ua.InformationModel.Tests
                 }
             }
         }
+
         [Test]
         public async Task DeviceFailure000BrowseSubtypesAsync()
         {
@@ -1230,6 +1233,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
                 "DeviceFailureEventType should exist.");
         }
+
         [Test]
         public async Task EventQueueOverflow001TypeExistsAsync()
         {
@@ -1265,6 +1269,7 @@ namespace Opc.Ua.InformationModel.Tests
                 EventQueueOverflowEventTypeId).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True);
         }
+
         [Test]
         public async Task ProgressEvents001TypeExistsAsync()
         {

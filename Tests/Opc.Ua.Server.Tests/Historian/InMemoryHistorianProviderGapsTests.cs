@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Tests.Historian
     public class InMemoryHistorianProviderGapsTests
     {
         private const ushort NamespaceIndex = 1;
+
         private static readonly DateTime BaseTime =
             new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 

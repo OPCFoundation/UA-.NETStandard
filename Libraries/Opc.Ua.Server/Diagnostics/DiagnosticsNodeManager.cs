@@ -154,8 +154,8 @@ namespace Opc.Ua.Server
             ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
                 ObjectIds.Server_ServerDiagnostics);
 
-            if (serverDiagnosticsNode != null
-                && serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
+            if (serverDiagnosticsNode != null &&
+                serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
             {
                 NodeState? samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
                     SystemContext,

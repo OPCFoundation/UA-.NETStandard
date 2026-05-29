@@ -308,11 +308,11 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         protected static bool IsTransientCiTimeoutStatus(StatusCode code)
         {
-            return code == StatusCodes.BadRequestTimeout
-                || code == StatusCodes.BadRequestInterrupted
-                || code == StatusCodes.BadConnectionClosed
-                || code == StatusCodes.BadSecureChannelClosed
-                || code == StatusCodes.BadSecurityChecksFailed
+            return code == StatusCodes.BadRequestTimeout ||
+                code == StatusCodes.BadRequestInterrupted ||
+                code == StatusCodes.BadConnectionClosed ||
+                code == StatusCodes.BadSecureChannelClosed ||
+                code == StatusCodes.BadSecurityChecksFailed
                 // BadSubscriptionIdInvalid 'Subscription belongs to a different session'
                 // is observed on the windows-latest Conformance runner when a test
                 // takes longer than the session timeout and the reconnect handler

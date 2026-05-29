@@ -274,8 +274,8 @@ namespace Opc.Ua.Client.Historian
                     liveContinuationPoint = result.ContinuationPoint;
 
                     bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull
-                        && result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                    if (!result.HistoryData.IsNull &&
+                        result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
                     {
                         DataValue[]? values = hd.DataValues.ToArray();
                         if (values != null && values.Length > 0)

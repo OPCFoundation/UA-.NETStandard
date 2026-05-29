@@ -327,8 +327,8 @@ namespace Opc.Ua.Features.Tests
         /// </summary>
         private static void IgnoreIfDiscoveredFileNotReadable(StatusCode openStatus)
         {
-            if (openStatus == StatusCodes.BadUserAccessDenied
-                || openStatus == StatusCodes.BadNotReadable)
+            if (openStatus == StatusCodes.BadUserAccessDenied ||
+                openStatus == StatusCodes.BadNotReadable)
             {
                 Assert.Ignore(
                     $"Discovered file not readable by test process ({openStatus}).");
@@ -725,8 +725,8 @@ namespace Opc.Ua.Features.Tests
                     Assert.That(variant.TryGetValue(out uint u32), Is.True);
                     return u32;
                 default:
-                    Assert.Fail("OpenCount must be UInt16 or UInt32 per Part 5 §A.2.5; "
-                        + "got " + variant.TypeInfo.BuiltInType + ".");
+                    Assert.Fail("OpenCount must be UInt16 or UInt32 per Part 5 §A.2.5; " +
+                        "got " + variant.TypeInfo.BuiltInType + ".");
                     return 0UL;
             }
         }

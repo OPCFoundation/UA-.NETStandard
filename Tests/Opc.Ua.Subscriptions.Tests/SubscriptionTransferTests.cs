@@ -63,6 +63,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
             Assert.That(Session, Is.Not.Null, "Failed to create signed transfer session");
         }
+
         [Test]
         public async Task TransferAfterSessionCloseWithDeleteSubscriptionsTrueAsync()
         {

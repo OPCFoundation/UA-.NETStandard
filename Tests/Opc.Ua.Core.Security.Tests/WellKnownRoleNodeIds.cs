@@ -48,10 +48,10 @@ namespace Opc.Ua.Core.Security.Tests
 
         public static NodeId TryGetChild(NodeId parentId, string childName)
         {
-            if (parentId == null || parentId.IsNull
-                || parentId.IdType != IdType.Numeric
-                || parentId.NamespaceIndex != 0
-                || string.IsNullOrEmpty(childName))
+            if (parentId == null || parentId.IsNull ||
+                parentId.IdType != IdType.Numeric ||
+                parentId.NamespaceIndex != 0 ||
+                string.IsNullOrEmpty(childName))
             {
                 return NodeId.Null;
             }

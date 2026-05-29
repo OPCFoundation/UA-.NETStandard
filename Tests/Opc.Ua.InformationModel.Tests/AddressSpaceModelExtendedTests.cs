@@ -100,6 +100,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("HasAddIn"));
         }
+
         [Test]
         public async Task HasAddInIsSubtypeOfHasComponentAsync()
         {
@@ -111,6 +112,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.That(Pid(r), Is.EqualTo(ReferenceTypeIds.HasComponent));
         }
+
         [Test]
         public async Task AddInForwardRefsFromServerAsync()
         {
@@ -122,6 +124,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.That(r, Is.Not.Null);
         }
+
         [Test]
         public async Task AddInInstanceBrowseNameNotEmptyAsync()
         {
@@ -136,6 +139,7 @@ Property("ConformanceUnit", "Address Space Base")]
                 Assert.That(rd.BrowseName.Name, Is.Not.Null.And.Not.Empty);
             }
         }
+
         [Test]
         public async Task AddInTargetIsObjectAsync()
         {
@@ -150,6 +154,7 @@ Property("ConformanceUnit", "Address Space Base")]
                 Assert.That(rd.NodeClass, Is.EqualTo(NodeClass.Object));
             }
         }
+
         [Test]
         public async Task AddInInverseRefExistsAsync()
         {
@@ -169,6 +174,7 @@ Property("ConformanceUnit", "Address Space Base")]
                 ResultMask = (uint)BrowseResultMask.All } }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
             Assert.That(inv.Results[0].References.Count, Is.GreaterThan(0));
         }
+
         [Test]
         public async Task StructureDataTypeHasDefinitionAsync()
         {
@@ -176,6 +182,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task EnumDataTypeHasDefinitionAsync()
         {
@@ -183,6 +190,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task DefinitionContainsStructDefAsync()
         {
@@ -196,6 +204,7 @@ Property("ConformanceUnit", "Address Space Base")]
                 return;
             }
         }
+
         [Test]
         public async Task DefinitionFieldsHaveNamesAsync()
         {
@@ -214,6 +223,7 @@ Property("ConformanceUnit", "Address Space Base")]
                 Assert.That(f.Name, Is.Not.Null.And.Not.Empty);
             }
         }
+
         [Test]
         public async Task DictFolderExistsAsync()
         {
@@ -225,6 +235,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("Dictionaries"));
         }
+
         [Test]
         public async Task DictEntryTypeExistsAsync()
         {
@@ -234,6 +245,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("DictionaryEntryType"));
         }
+
         [Test]
         public async Task UriDictEntryTypeExistsAsync()
         {
@@ -242,6 +254,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("UriDictionaryEntryType"));
         }
+
         [Test]
         public async Task IrdiDictEntryTypeExistsAsync()
         {
@@ -250,6 +263,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("IrdiDictionaryEntryType"));
         }
+
         [Test]
         public async Task HasDictEntryRefTypeExistsAsync()
         {
@@ -258,6 +272,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("HasDictionaryEntry"));
         }
+
         [Test]
         public async Task DictEntryIsSubtypeOfBaseAsync()
         {
@@ -267,6 +282,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Is.True);
             Assert.That(Pid(r), Is.EqualTo(ObjectTypeIds.BaseObjectType));
         }
+
         [Test]
         public async Task UriDictIsSubtypeOfEntryAsync()
         {
@@ -276,6 +292,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Is.True);
             Assert.That(Pid(r), Is.EqualTo(DictEntryTypeId));
         }
+
         [Test]
         public async Task IrdiDictIsSubtypeOfEntryAsync()
         {
@@ -285,6 +302,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Is.True);
             Assert.That(Pid(r), Is.EqualTo(DictEntryTypeId));
         }
+
         [Test]
         public async Task HasDictEntryIsNonHierarchicalAsync()
         {
@@ -294,6 +312,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Is.True);
             Assert.That(Pid(r), Is.EqualTo(ReferenceTypeIds.NonHierarchicalReferences));
         }
+
         [Test]
         public async Task BaseInterfaceTypeExistsAsync()
         {
@@ -302,6 +321,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("BaseInterfaceType"));
         }
+
         [Test]
         public async Task HasInterfaceRefTypeExistsAsync()
         {
@@ -310,6 +330,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("HasInterface"));
         }
+
         [Test]
         public async Task BaseInterfaceIsSubtypeOfBaseObjectAsync()
         {
@@ -319,6 +340,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Is.GreaterThan(0));
             Assert.That(Pid(r), Is.EqualTo(ObjectTypeIds.BaseObjectType));
         }
+
         [Test]
         public async Task AccessLevelExReadableAsync()
         {
@@ -326,6 +348,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode) || r.StatusCode.Code == StatusCodes.BadAttributeIdInvalid, Is.True);
         }
+
         [Test]
         public async Task AtomicBitsAccessLevelExAsync()
         {
@@ -339,6 +362,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.WrappedValue.GetUInt32(), Is.GreaterThanOrEqualTo(0u));
         }
+
         [Test]
         public async Task ArrayVarValueRankIsOneDimAsync()
         {
@@ -348,6 +372,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<int>(default), Is.EqualTo(ValueRanks.OneDimension));
         }
+
         [Test]
         public async Task ScalarVarValueRankIsScalarAsync()
         {
@@ -357,6 +382,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<int>(default), Is.EqualTo(ValueRanks.Scalar));
         }
+
         [Test]
         public async Task NonVolatileBitInAccessLevelAsync()
         {
@@ -366,6 +392,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.WrappedValue.GetByte(), Is.GreaterThanOrEqualTo((byte)0));
         }
+
         [Test]
         public async Task NonVolatileBitInAccessLevelExAsync()
         {
@@ -378,6 +405,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task ServerHasNotifierRefsAsync()
         {
@@ -385,6 +413,7 @@ Property("ConformanceUnit", "Address Space Base")]
             false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task NotifierHierarchyNoLoopsAsync()
         {
@@ -418,6 +447,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.Pass("No loops.");
         }
+
         [Test]
         public async Task HasEventSourceRefExistsAsync()
         {
@@ -426,6 +456,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("HasEventSource"));
         }
+
         [Test]
         public async Task SourceHierarchyNoLoopsAsync()
         {
@@ -459,6 +490,7 @@ Property("ConformanceUnit", "Address Space Base")]
             }
             Assert.Pass("No loops.");
         }
+
         [Test]
         public async Task HasEventSourceIsSubtypeOfHierarchicalAsync()
         {
@@ -467,6 +499,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(r.References.Count, Is.GreaterThan(0));
             Assert.That(Pid(r), Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
         }
+
         [Test]
         public async Task SystemEventTypeExistsAsync()
         {
@@ -475,6 +508,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("SystemEventType"));
         }
+
         [Test]
         public async Task TransitionEventTypeExistsAsync()
         {
@@ -484,6 +518,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("TransitionEventType"));
         }
+
         [Test]
         public async Task ConditionTypeExistsAsync()
         {
@@ -492,6 +527,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.GetValue<QualifiedName>(default).Name, Is.EqualTo("ConditionType"));
         }
+
         [Test]
         public async Task WriteMaskOnObjectNodeAsync()
         {
@@ -499,6 +535,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert
             .That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task WriteMaskOnMethodNodeAsync()
         {
@@ -507,6 +544,7 @@ Property("ConformanceUnit", "Address Space Base")]
             DataValue r = await RdAttr(mid, Attributes.WriteMask).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task WriteMaskOnObjectTypeNodeAsync()
         {
@@ -514,6 +552,7 @@ Property("ConformanceUnit", "Address Space Base")]
             false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task UserWriteMaskOnObjectNodeAsync()
         {
@@ -521,6 +560,7 @@ Property("ConformanceUnit", "Address Space Base")]
             false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task UserWriteMaskOnObjectTypeNodeAsync()
         {
@@ -528,6 +568,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task UserAccessLevelHistoryReadBitAsync()
         {
@@ -537,6 +578,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
             Assert.That(r.WrappedValue.GetByte(), Is.GreaterThanOrEqualTo((byte)0));
         }
+
         [Test]
         public async Task UserAccessLevelHistoryWriteBitAsync()
         {
@@ -545,6 +587,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Attributes.UserAccessLevel).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
         }
+
         [Test]
         public async Task AccessLevelExOnVariableAsync()
         {
@@ -552,6 +595,7 @@ Property("ConformanceUnit", "Address Space Base")]
             .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode) || r.StatusCode.Code == StatusCodes.BadAttributeIdInvalid, Is.True);
         }
+
         [Test]
         public async Task MethodInputArgsValueRankIsArrayAsync()
         {
@@ -573,6 +617,7 @@ Property("ConformanceUnit", "Address Space Base")]
             Assert.That(StatusCode.IsGood(vr.StatusCode), Is.True);
             Assert.That(vr.GetValue<int>(default), Is.EqualTo(ValueRanks.OneDimension));
         }
+
         [Test]
         public async Task MethodMetaDataTargetIsVariableAsync()
         {
@@ -587,6 +632,7 @@ Property("ConformanceUnit", "Address Space Base")]
                 }
             }
         }
+
         [Test]
         public async Task MethodOutputArgsIsArgArrayAsync()
         {
@@ -609,6 +655,7 @@ Property("ConformanceUnit", "Address Space Base")]
             ExtensionObject[] args = val.GetValue<ExtensionObject[]>(default);
             Assert.That(args, Is.Not.Null.And.Not.Empty);
         }
+
         [Test]
         public async Task MethodHasArgDescRefAsync()
         {

@@ -626,6 +626,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
         }
+
         [Description("CreateSession – injects service result Bad_SecureChannelIdInvalid in the response.")]
         [Test]
         public Task CreateSessionWithInjectedBadSecureChannelIdInvalidAsync()

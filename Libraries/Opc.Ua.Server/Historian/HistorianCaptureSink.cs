@@ -246,8 +246,8 @@ namespace Opc.Ua.Server.Historian
             windowCts.CancelAfter(m_options.BatchWindow);
             try
             {
-                while (total < m_options.BatchTarget
-                    && await m_channel.Reader.WaitToReadAsync(windowCts.Token).ConfigureAwait(false))
+                while (total < m_options.BatchTarget &&
+                    await m_channel.Reader.WaitToReadAsync(windowCts.Token).ConfigureAwait(false))
                 {
                     while (total < m_options.BatchTarget && m_channel.Reader.TryRead(out CaptureEvent ev))
                     {

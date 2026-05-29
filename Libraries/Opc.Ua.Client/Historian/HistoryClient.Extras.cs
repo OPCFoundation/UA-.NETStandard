@@ -159,9 +159,9 @@ namespace Opc.Ua.Client.Historian
                 annotationsNode, new ExtensionObject(details),
                 TimestampsToReturn.Source, cancellationToken).ConfigureAwait(false))
             {
-                if (v.WrappedValue.TryGetValue(out ExtensionObject ext)
-                    && !ext.IsNull
-                    && ext.TryGetValue<Annotation>(out Annotation? annotation))
+                if (v.WrappedValue.TryGetValue(out ExtensionObject ext) &&
+                    !ext.IsNull &&
+                    ext.TryGetValue<Annotation>(out Annotation? annotation))
                 {
                     yield return annotation;
                 }
@@ -389,8 +389,8 @@ namespace Opc.Ua.Client.Historian
                     liveContinuationPoint = result.ContinuationPoint;
 
                     bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull
-                        && result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                    if (!result.HistoryData.IsNull &&
+                        result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
                     {
                         DataValue[]? values = hd.DataValues.ToArray();
                         if (values != null && values.Length > 0)

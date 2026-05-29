@@ -334,6 +334,7 @@ namespace Opc.Ua.Core.Security.Tests
                 UserDb.DeleteUser(u);
             }
         }
+
         [Test]
         public void AddTenUsersSequentially()
         {
@@ -527,6 +528,7 @@ namespace Opc.Ua.Core.Security.Tests
                 UserDb.DeleteUser(u);
             }
         }
+
         [Test]
         public void AllRolesAssignableToUser()
         {
@@ -545,6 +547,7 @@ namespace Opc.Ua.Core.Security.Tests
                 UserDb.DeleteUser(u);
             }
         }
+
         [Test]
         public void CaseSensitiveUserName()
         {

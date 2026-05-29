@@ -60,10 +60,10 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public static bool IsAnnotationsProperty(NodeState? node)
         {
-            return node is PropertyState property
-                && string.Equals(property.BrowseName.Name, BrowseNames.Annotations, StringComparison.Ordinal)
-                && property.BrowseName.NamespaceIndex == 0
-                && property.Parent is BaseVariableState;
+            return node is PropertyState property &&
+                string.Equals(property.BrowseName.Name, BrowseNames.Annotations, StringComparison.Ordinal) &&
+                property.BrowseName.NamespaceIndex == 0 &&
+                property.Parent is BaseVariableState;
         }
 
         /// <summary>
@@ -835,9 +835,9 @@ namespace Opc.Ua.Server.Historian
 
         private static Annotation? DecodeAnnotation(DataValue dv)
         {
-            if (dv.WrappedValue.TryGetValue(out ExtensionObject extension)
-                && !extension.IsNull
-                && extension.TryGetValue<Annotation>(out Annotation? annotation))
+            if (dv.WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                !extension.IsNull &&
+                extension.TryGetValue<Annotation>(out Annotation? annotation))
             {
                 return annotation;
             }
@@ -984,8 +984,8 @@ namespace Opc.Ua.Server.Historian
 
             // Evaluate the WhereClause if any elements are present.
             IReadOnlyList<HistorianEventRecord> filtered = page.Values;
-            if (details.Filter.WhereClause.Elements.Count > 0
-                && systemContext.Server is IServerInternal serverInternal)
+            if (details.Filter.WhereClause.Elements.Count > 0 &&
+                systemContext.Server is IServerInternal serverInternal)
             {
                 var context = new FilterContext(
                     serverInternal.NamespaceUris,
@@ -1229,18 +1229,18 @@ namespace Opc.Ua.Server.Historian
 
                 fields[key] = value;
 
-                if (string.Equals(key, BrowseNames.EventId, System.StringComparison.Ordinal)
-                    && value.TryGetValue(out ByteString idValue))
+                if (string.Equals(key, BrowseNames.EventId, System.StringComparison.Ordinal) &&
+                    value.TryGetValue(out ByteString idValue))
                 {
                     eventId = idValue;
                 }
-                else if (string.Equals(key, BrowseNames.EventType, System.StringComparison.Ordinal)
-                    && value.TryGetValue(out NodeId typeValue))
+                else if (string.Equals(key, BrowseNames.EventType, System.StringComparison.Ordinal) &&
+                    value.TryGetValue(out NodeId typeValue))
                 {
                     eventType = typeValue;
                 }
-                else if (string.Equals(key, BrowseNames.Time, System.StringComparison.Ordinal)
-                    && value.TryGetValue(out DateTimeUtc tsValue))
+                else if (string.Equals(key, BrowseNames.Time, System.StringComparison.Ordinal) &&
+                    value.TryGetValue(out DateTimeUtc tsValue))
                 {
                     sourceTs = tsValue;
                 }

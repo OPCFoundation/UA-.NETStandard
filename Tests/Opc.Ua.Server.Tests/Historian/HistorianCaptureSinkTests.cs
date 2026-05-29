@@ -61,6 +61,7 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort kNs = 2;
         private static readonly TimeSpan kFlushWait = TimeSpan.FromSeconds(2);
+
         private static readonly HistorianCaptureOptions kFastFlush = new()
         {
             BatchTarget = 1,

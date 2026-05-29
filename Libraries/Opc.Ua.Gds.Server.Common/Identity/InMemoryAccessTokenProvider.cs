@@ -54,8 +54,10 @@ namespace Opc.Ua.Gds.Server.Identity
         private readonly ITokenIssuer m_tokenIssuer;
         private readonly AuthorizationServiceOptions m_options;
         private readonly ConcurrentDictionary<Guid, RequestRecord> m_requests = new();
+
         private readonly ConcurrentDictionary<string, IssuedTokenRecord> m_issuedTokens =
             new(StringComparer.Ordinal);
+
         private readonly ConcurrentDictionary<string, DateTime> m_revokedTokens =
             new(StringComparer.Ordinal);
 

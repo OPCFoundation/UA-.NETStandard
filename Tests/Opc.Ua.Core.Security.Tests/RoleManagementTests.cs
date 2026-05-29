@@ -965,8 +965,8 @@ namespace Opc.Ua.Core.Security.Tests
 
                     // BadMethodInvalid is also a valid denial outcome — the role
                     // permission filter hides the method from non-admin sessions.
-                    if (result.StatusCode == StatusCodes.BadUserAccessDenied
-                        || result.StatusCode == StatusCodes.BadMethodInvalid)
+                    if (result.StatusCode == StatusCodes.BadUserAccessDenied ||
+                        result.StatusCode == StatusCodes.BadMethodInvalid)
                     {
                         Assert.Pass("Server correctly denied access.");
                     }
@@ -1397,8 +1397,8 @@ namespace Opc.Ua.Core.Security.Tests
                     // the role permission check hides the method from browse, so
                     // calling it returns "method not on object" rather than the
                     // semantically clearer BadUserAccessDenied.
-                    if (result.StatusCode == StatusCodes.BadUserAccessDenied
-                        || result.StatusCode == StatusCodes.BadMethodInvalid)
+                    if (result.StatusCode == StatusCodes.BadUserAccessDenied ||
+                        result.StatusCode == StatusCodes.BadMethodInvalid)
                     {
                         Assert.Pass("Server correctly denied access.");
                     }

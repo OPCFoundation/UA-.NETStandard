@@ -94,14 +94,14 @@ namespace Quickstarts.ReferenceServer
                 const PermissionType browseAndRead =
                     PermissionType.Browse | PermissionType.Read | PermissionType.ReceiveEvents;
                 const PermissionType fullAdmin =
-                    PermissionType.Browse | PermissionType.ReadRolePermissions
-                    | PermissionType.WriteAttribute | PermissionType.WriteRolePermissions
-                    | PermissionType.WriteHistorizing | PermissionType.Read
-                    | PermissionType.Write | PermissionType.ReadHistory
-                    | PermissionType.InsertHistory | PermissionType.ModifyHistory
-                    | PermissionType.DeleteHistory | PermissionType.ReceiveEvents
-                    | PermissionType.Call | PermissionType.AddReference
-                    | PermissionType.RemoveReference | PermissionType.DeleteNode;
+                    PermissionType.Browse | PermissionType.ReadRolePermissions |
+                    PermissionType.WriteAttribute | PermissionType.WriteRolePermissions |
+                    PermissionType.WriteHistorizing | PermissionType.Read |
+                    PermissionType.Write | PermissionType.ReadHistory |
+                    PermissionType.InsertHistory | PermissionType.ModifyHistory |
+                    PermissionType.DeleteHistory | PermissionType.ReceiveEvents |
+                    PermissionType.Call | PermissionType.AddReference |
+                    PermissionType.RemoveReference | PermissionType.DeleteNode;
                 var permissions = new RolePermissionType[]
                 {
                     new()
@@ -170,8 +170,8 @@ namespace Quickstarts.ReferenceServer
             // value).
             BaseVariableTypeState analogItemType = FindPredefinedNode<BaseVariableTypeState>(
                 VariableTypeIds.AnalogItemType);
-            if (analogItemType != null
-                && analogItemType.FindChild(SystemContext, new QualifiedName(BrowseNames.EngineeringUnits, 0)) == null)
+            if (analogItemType != null &&
+                analogItemType.FindChild(SystemContext, new QualifiedName(BrowseNames.EngineeringUnits, 0)) == null)
             {
                 PropertyState<EUInformation> euProperty = PropertyState<EUInformation>
                     .With<StructureBuilder<EUInformation>>(analogItemType);

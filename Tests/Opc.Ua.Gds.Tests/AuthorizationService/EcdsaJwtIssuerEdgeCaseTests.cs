@@ -53,8 +53,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
     {
         private const string Issuer = "urn:opcua:test:gds-edge";
         private const string Audience = "urn:opcua:test:server-edge";
+
         private static readonly string[] s_duplicateAndWhitespaceScopes =
             ["read", "read", "", "  ", "write"];
+
         private static readonly string[] s_dedupedScopes = ["read", "write"];
 
         [Test]

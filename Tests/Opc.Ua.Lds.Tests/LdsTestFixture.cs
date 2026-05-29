@@ -170,8 +170,8 @@ namespace Opc.Ua.Lds.Tests
             EndpointDescription matching = null;
             foreach (EndpointDescription e in endpoints)
             {
-                if (string.Equals(e.SecurityPolicyUri, securityPolicy, StringComparison.Ordinal)
-                    && e.SecurityMode == securityMode)
+                if (string.Equals(e.SecurityPolicyUri, securityPolicy, StringComparison.Ordinal) &&
+                    e.SecurityMode == securityMode)
                 {
                     matching = e;
                     break;

@@ -70,8 +70,8 @@ namespace Opc.Ua.Lds.Tests
             bool foundOpcTcp = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.EndpointUrl != null
-                    && ep.EndpointUrl.StartsWith("opc.tcp://", System.StringComparison.Ordinal))
+                if (ep.EndpointUrl != null &&
+                    ep.EndpointUrl.StartsWith("opc.tcp://", System.StringComparison.Ordinal))
                 {
                     foundOpcTcp = true;
                     break;

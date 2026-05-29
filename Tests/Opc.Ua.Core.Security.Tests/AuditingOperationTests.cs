@@ -209,8 +209,8 @@ namespace Opc.Ua.Core.Security.Tests
                             null, subscriptionId, TimestampsToReturn.Neither,
                             new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                             CancellationToken.None).ConfigureAwait(false);
-                    if (miResp.Results.Count == 0
-                        || !StatusCode.IsGood(miResp.Results[0].StatusCode))
+                    if (miResp.Results.Count == 0 ||
+                        !StatusCode.IsGood(miResp.Results[0].StatusCode))
                     {
                         Assert.Ignore(
                             "Could not subscribe to events on Server " +
@@ -246,8 +246,8 @@ namespace Opc.Ua.Core.Security.Tests
                             {
                                 foreach (EventFieldList ef in eventList.Events)
                                 {
-                                    if (ef.EventFields.Count > 0
-                                        && ef.EventFields[0].TryGetValue(out NodeId eventType))
+                                    if (ef.EventFields.Count > 0 &&
+                                        ef.EventFields[0].TryGetValue(out NodeId eventType))
                                     {
                                         candidateEventTypes.Add(eventType);
                                     }
@@ -343,6 +343,7 @@ namespace Opc.Ua.Core.Security.Tests
                 return false;
             }
         }
+
         [Test]
         public async Task ServerAuditingPropertyIsBoolAsync()
         {
@@ -608,6 +609,7 @@ namespace Opc.Ua.Core.Security.Tests
                     "AuditConditionShelvingEventType not supported.");
             }
         }
+
         private async Task<DataValue> ReadAttributeAsync(
             NodeId nodeId, uint attributeId)
         {
