@@ -261,9 +261,11 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Walks the supertype chain of <paramref name="objectType"/> and
-        /// returns the union of the browse names of every method
-        /// declared anywhere above it. Used to decide which generated
-        /// methods need the C# <c>new</c> modifier (method shadowing).
+        /// returns the union of the emitted C# member names of every
+        /// method declared anywhere above it. Used to decide which
+        /// generated methods need the C# <c>new</c> modifier (method
+        /// shadowing). Method names are emitted as
+        /// <c>{methodSymbolicName}Async</c>.
         /// </summary>
         private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
         {
@@ -276,7 +278,34 @@ namespace Opc.Ua.SourceGeneration
                     string name = method.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
-                        names.Add(name);
+                        names.Add(name + "Async");
+                    }
+                }
+                current = parent.BaseTypeNode;
+            }
+            return names;
+        }
+
+        /// <summary>
+        /// Walks the supertype chain and returns the union of the
+        /// emitted C# accessor names for Object children declared
+        /// anywhere above <paramref name="objectType"/>. The generated
+        /// subtype accessor uses the C# <c>new</c> modifier to hide
+        /// the parent's accessor (same emitted name). Child accessors
+        /// are emitted as <c>Get{childBrowseName}Async</c>.
+        /// </summary>
+        private HashSet<string> CollectInheritedObjectChildNames(ObjectTypeDesign objectType)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            TypeDesign current = objectType.BaseTypeNode;
+            while (current is ObjectTypeDesign parent)
+            {
+                foreach (ObjectDesign child in GetDeclaredObjectChildren(parent))
+                {
+                    string name = child.SymbolicName?.Name;
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        names.Add("Get" + name + "Async");
                     }
                 }
                 current = parent.BaseTypeNode;
@@ -301,6 +330,9 @@ namespace Opc.Ua.SourceGeneration
             // Stash inherited method names so LoadTemplate_Method can
             // emit the C# 'new' modifier on shadowed methods.
             m_inheritedMethodNames = CollectInheritedMethodNames(objectType);
+            // And inherited Object child names so the Object accessor
+            // emitter does the same.
+            m_inheritedObjectChildNames = CollectInheritedObjectChildNames(objectType);
 
             context.Template.AddReplacement(Tokens.SymbolicName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, className);
@@ -312,7 +344,166 @@ namespace Opc.Ua.SourceGeneration
                 methods,
                 LoadTemplate_Method);
 
+            List<ObjectDesign> objectChildren = GetDeclaredObjectChildren(objectType);
+            // Compute the same-class own-method emitted names so the
+            // child accessor emitter can detect collisions on this
+            // class (child accessor emits Get{X}Async; method emits
+            // {Name}Async). Without this, a method named 'GetFoo' and
+            // a child named 'Foo' would both produce GetFooAsync.
+            HashSet<string> declaredEmittedMethodNames = [];
+            foreach (MethodDesign m in methods)
+            {
+                if (!string.IsNullOrEmpty(m.SymbolicName?.Name))
+                {
+                    declaredEmittedMethodNames.Add(m.SymbolicName.Name + "Async");
+                }
+            }
+            m_inheritedAccessorNames = declaredEmittedMethodNames;
+            context.Template.AddReplacement(
+                Tokens.ListOfChildren,
+                ObjectTypeProxyTemplates.ChildAccessor,
+                objectChildren,
+                LoadTemplate_ObjectChildAccessor,
+                WriteTemplate_ObjectChildAccessor);
+
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Returns the Object children declared directly on the type
+        /// (excludes inherited children — they are surfaced via the
+        /// proxy inheritance chain). Each child becomes a typed,
+        /// lazily-resolved accessor on the parent's generated client.
+        /// </summary>
+        private List<ObjectDesign> GetDeclaredObjectChildren(ObjectTypeDesign objectType)
+        {
+            var result = new List<ObjectDesign>();
+            InstanceDesign[] children = objectType.Children?.Items;
+            if (children == null)
+            {
+                return result;
+            }
+            foreach (InstanceDesign child in children)
+            {
+                if (child is not ObjectDesign objectChild)
+                {
+                    continue;
+                }
+                if (m_context.ModelDesign.IsExcluded(objectChild))
+                {
+                    continue;
+                }
+                if (objectChild.TypeDefinitionNode is not ObjectTypeDesign)
+                {
+                    continue;
+                }
+                if (string.IsNullOrEmpty(objectChild.SymbolicName?.Name))
+                {
+                    continue;
+                }
+                result.Add(objectChild);
+            }
+            result.Sort(static (a, b) => string.CompareOrdinal(
+                a.SymbolicName?.Name,
+                b.SymbolicName?.Name));
+            return result;
+        }
+
+        /// <summary>
+        /// Selects the per-item template for one Object child of the
+        /// parent type. Returns the
+        /// <see cref="ObjectTypeProxyTemplates.ChildAccessor"/> template
+        /// for emittable children, or <c>null</c> to skip emission for
+        /// children whose generated name would collide with a
+        /// same-class method (e.g. method <c>GetFoo</c> + child
+        /// <c>Foo</c> would both emit <c>GetFooAsync</c>).
+        /// </summary>
+        private TemplateString LoadTemplate_ObjectChildAccessor(ILoadContext context)
+        {
+            if (context.Target is not ObjectDesign objectChild)
+            {
+                return null;
+            }
+            if (objectChild.TypeDefinitionNode is not ObjectTypeDesign typeDef)
+            {
+                return null;
+            }
+            string childBrowseName = objectChild.SymbolicName?.Name;
+            if (string.IsNullOrEmpty(childBrowseName))
+            {
+                return null;
+            }
+            string emittedName = "Get" + childBrowseName + "Async";
+            if (m_inheritedAccessorNames != null &&
+                m_inheritedAccessorNames.Contains(emittedName))
+            {
+                return null;
+            }
+            string typeName = typeDef.SymbolicName?.Name;
+            if (string.IsNullOrEmpty(typeName))
+            {
+                return null;
+            }
+            return ObjectTypeProxyTemplates.ChildAccessor;
+        }
+
+        /// <summary>
+        /// Fills the <see cref="ObjectTypeProxyTemplates.ChildAccessor"/>
+        /// template tokens for one Object child of the parent type.
+        /// </summary>
+        private bool WriteTemplate_ObjectChildAccessor(IWriteContext context)
+        {
+            if (context.Target is not ObjectDesign objectChild)
+            {
+                return false;
+            }
+            if (objectChild.TypeDefinitionNode is not ObjectTypeDesign typeDef)
+            {
+                return false;
+            }
+            string childBrowseName = objectChild.SymbolicName.Name;
+            string typeName = typeDef.SymbolicName.Name;
+            string typeNamespace = ResolveProxyNamespaceForType(typeDef);
+            string clientType = CoreUtils.Format(
+                "global::{0}.{1}Client", typeNamespace, typeName);
+            string emittedName = "Get" + childBrowseName + "Async";
+
+            string browseNameNamespaceUri = objectChild.SymbolicName?.Namespace;
+            if (string.IsNullOrEmpty(browseNameNamespaceUri))
+            {
+                browseNameNamespaceUri = m_context.ModelDesign.TargetNamespace?.Value;
+            }
+            string fieldName = CoreUtils.Format("m_{0}", LowerFirst(childBrowseName));
+            // 'new' is needed if the EMITTED name shadows ANY
+            // inherited emitted member (a sibling child accessor or
+            // an inherited method). Without this, hiding an inherited
+            // method 'GetFoo' (emitted as GetFooAsync) from a subtype
+            // child 'Foo' (emitted as GetFooAsync) triggers CS0108.
+            bool isShadow = (m_inheritedObjectChildNames != null &&
+                m_inheritedObjectChildNames.Contains(emittedName)) ||
+                (m_inheritedMethodNames != null &&
+                m_inheritedMethodNames.Contains(emittedName));
+
+            context.Template.AddReplacement(Tokens.BrowseName, childBrowseName);
+            context.Template.AddReplacement(Tokens.TypeName, typeName);
+            context.Template.AddReplacement(Tokens.ClassName, clientType);
+            context.Template.AddReplacement(Tokens.AccessModifier, isShadow ? "new " : string.Empty);
+            context.Template.AddReplacement(Tokens.BrowseNameNamespaceUri, browseNameNamespaceUri ?? string.Empty);
+            context.Template.AddReplacement(Tokens.FieldName, fieldName);
+            return context.Template.Render();
+        }
+
+        private static string LowerFirst(string s)
+        {
+            if (string.IsNullOrEmpty(s))
+            {
+                return s;
+            }
+            if (char.IsLower(s[0]))
+            {
+                return s;
+            }
+            return char.ToLowerInvariant(s[0]) + s.Substring(1);
         }
 
         /// <summary>
@@ -344,7 +535,7 @@ namespace Opc.Ua.SourceGeneration
                 outputs, targetNamespace, namespaces);
 
             bool isShadow = m_inheritedMethodNames != null &&
-                m_inheritedMethodNames.Contains(methodName);
+                m_inheritedMethodNames.Contains(methodName + "Async");
 
             // ----------------------------------------------------------------
             // XML doc and signature
@@ -724,5 +915,7 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly IGeneratorContext m_context;
         private HashSet<string> m_inheritedMethodNames;
+        private HashSet<string> m_inheritedAccessorNames;
+        private HashSet<string> m_inheritedObjectChildNames;
     }
 }
