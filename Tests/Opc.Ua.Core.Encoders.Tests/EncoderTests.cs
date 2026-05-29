@@ -35,7 +35,6 @@ using System;
 using System.IO;
 using System.Xml;
 using NUnit.Framework;
-
 using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Core.Encoders.Tests

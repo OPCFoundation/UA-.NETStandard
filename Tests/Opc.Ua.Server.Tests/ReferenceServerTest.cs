@@ -38,7 +38,6 @@ using NUnit.Framework;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-
 using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests

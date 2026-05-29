@@ -40,7 +40,6 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
-
 using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates

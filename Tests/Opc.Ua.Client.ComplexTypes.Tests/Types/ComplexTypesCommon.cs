@@ -36,7 +36,6 @@ using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Core.Encoders.Tests;
 using Opc.Ua.Test;
-
 using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types

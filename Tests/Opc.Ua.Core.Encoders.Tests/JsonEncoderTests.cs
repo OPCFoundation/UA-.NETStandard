@@ -41,7 +41,6 @@ using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
-
 using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Core.Encoders.Tests

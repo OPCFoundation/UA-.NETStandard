@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using Opc.Ua.Tests;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Client.Tests.FileSystem

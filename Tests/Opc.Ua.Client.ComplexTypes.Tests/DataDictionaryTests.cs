@@ -37,7 +37,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
-
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
 

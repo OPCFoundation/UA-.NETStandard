@@ -34,7 +34,6 @@ using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-
 using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Core.Encoders.Tests

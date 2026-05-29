@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-
 using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
