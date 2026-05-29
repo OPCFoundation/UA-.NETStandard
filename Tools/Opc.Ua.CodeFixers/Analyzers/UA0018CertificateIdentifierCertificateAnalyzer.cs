@@ -66,24 +66,28 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 return;
             }
 
-            if (!property.IsObsolete())
+            bool isShim = property.IsOpcUaShim("UA0018");
+            if (!isShim)
             {
-                return;
-            }
+                if (!property.IsObsolete())
+                {
+                    return;
+                }
 
-            INamedTypeSymbol containing = property.ContainingType;
-            if (containing is null)
-            {
-                return;
-            }
+                INamedTypeSymbol containing = property.ContainingType;
+                if (containing is null)
+                {
+                    return;
+                }
 
-            string typeName = containing.Name;
-            if (typeName is null ||
-                !(typeName == CertificateIdentifierTypeSuffix ||
-                  typeName.EndsWith(CertificateIdentifierTypeSuffix, System.StringComparison.Ordinal) ||
-                  typeName.Contains(CertificateIdentifierTypeSuffix)))
-            {
-                return;
+                string typeName = containing.Name;
+                if (typeName is null ||
+                    !(typeName == CertificateIdentifierTypeSuffix ||
+                      typeName.EndsWith(CertificateIdentifierTypeSuffix, System.StringComparison.Ordinal) ||
+                      typeName.Contains(CertificateIdentifierTypeSuffix)))
+                {
+                    return;
+                }
             }
 
             context.ReportDiagnostic(Diagnostic.Create(

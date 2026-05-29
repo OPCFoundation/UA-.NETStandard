@@ -63,7 +63,7 @@ namespace Opc.Ua.CodeFixers.Analyzers
         {
             INamedTypeSymbol sessionInterface = context.Compilation.GetTypeByMetadataName("Opc.Ua.ISession");
             INamedTypeSymbol variantType = context.Compilation.GetTypeByMetadataName("Opc.Ua.Variant");
-            if (sessionInterface is null || variantType is null)
+            if (variantType is null)
             {
                 return;
             }
@@ -89,11 +89,22 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 return;
             }
 
-            ITypeSymbol receiverType = context.SemanticModel
-                .GetTypeInfo(memberAccess.Expression, context.CancellationToken).Type;
-            if (receiverType is null || !receiverType.IsAssignableTo(sessionInterface))
+            IMethodSymbol resolvedMethod = context.SemanticModel
+                .GetSymbolInfo(invocation, context.CancellationToken).Symbol as IMethodSymbol;
+            bool isShim = resolvedMethod.IsOpcUaShim("UA0008");
+
+            if (!isShim)
             {
-                return;
+                if (sessionInterface is null)
+                {
+                    return;
+                }
+                ITypeSymbol receiverType = context.SemanticModel
+                    .GetTypeInfo(memberAccess.Expression, context.CancellationToken).Type;
+                if (receiverType is null || !receiverType.IsAssignableTo(sessionInterface))
+                {
+                    return;
+                }
             }
 
             int firstVariadicIndex = methodName == "Call" ? 2 : 3;
@@ -123,7 +134,10 @@ namespace Opc.Ua.CodeFixers.Analyzers
             ImmutableDictionary<string, string> properties = ImmutableDictionary<string, string>.Empty
                 .Add(MethodNameProperty, methodName);
 
-            string display = receiverType.Name + "." + methodName;
+            ITypeSymbol displayReceiver = context.SemanticModel
+                .GetTypeInfo(memberAccess.Expression, context.CancellationToken).Type;
+            string receiverName = displayReceiver?.Name ?? "ISession";
+            string display = receiverName + "." + methodName;
             context.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.UA0008_SessionCallParamsObject,
                 invocation.GetLocation(),

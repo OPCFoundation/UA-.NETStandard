@@ -163,5 +163,28 @@ namespace Opc.Ua.CodeFixers.Tests.Analyzers
 
             Assert.That(fixedSource, Is.EqualTo(expected));
         }
+
+        [Test]
+        public async Task ReportsDiagnosticOnShimExtensionCallAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static void M(Session session, NodeId objId, NodeId methodId)
+                    {
+                #pragma warning disable CS0618
+                        SessionShim.Call(session, objId, methodId, 1, "two");
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0008SessionCallParamsObjectAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0008"), Is.True,
+                "Expected UA0008 to fire on a call resolving to a [OpcUaShim(\"UA0008\")] member.");
+        }
     }
 }

@@ -171,7 +171,7 @@ namespace Opc.Ua.Configuration
         [Obsolete("Use StopAsync")]
         public void Stop()
         {
-            Server?.Stop();
+            Server?.StopAsync().AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
@@ -293,7 +293,15 @@ namespace Opc.Ua.Configuration
 
             // Trace off
 #pragma warning disable CS0618 // Type or member is obsolete
-            ApplicationConfiguration.TraceConfiguration.ApplySettings();
+            TraceConfiguration traceConfiguration = ApplicationConfiguration.TraceConfiguration;
+            if (traceConfiguration.OutputFilePath != null)
+            {
+                Utils.SetTraceLog(traceConfiguration.OutputFilePath, traceConfiguration.DeleteOnLoad);
+            }
+            Utils.SetTraceMask(traceConfiguration.TraceMasks);
+            Utils.SetTraceOutput(traceConfiguration.TraceMasks == 0
+                ? Utils.TraceOutput.Off
+                : Utils.TraceOutput.DebugAndFile);
 #pragma warning restore CS0618 // Type or member is obsolete
 
             return new ApplicationConfigurationBuilder(this);

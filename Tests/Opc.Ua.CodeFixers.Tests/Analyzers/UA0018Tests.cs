@@ -136,5 +136,29 @@ namespace Opc.Ua.CodeFixers.Tests.Analyzers
             Assert.That(diags.Any(d => d.Id == "UA0018"), Is.False,
                 "Certificate property on an unrelated type must not trigger UA0018.");
         }
+
+        [Test]
+        public async Task ReportsDiagnosticOnShimPropertyAccessAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static object? M(CertificateIdentifierShimHost host)
+                    {
+                #pragma warning disable CS0618
+                        return host.Certificate;
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(
+                    new UA0018CertificateIdentifierCertificateAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0018"), Is.True,
+                "Expected UA0018 to fire on a property carrying [OpcUaShim(\"UA0018\")].");
+        }
     }
 }

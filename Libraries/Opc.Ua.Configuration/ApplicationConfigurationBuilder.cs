@@ -365,7 +365,18 @@ namespace Opc.Ua.Configuration
             }
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            ApplicationConfiguration.TraceConfiguration?.ApplySettings();
+            TraceConfiguration? traceConfiguration = ApplicationConfiguration.TraceConfiguration;
+            if (traceConfiguration != null)
+            {
+                if (traceConfiguration.OutputFilePath != null)
+                {
+                    Utils.SetTraceLog(traceConfiguration.OutputFilePath, traceConfiguration.DeleteOnLoad);
+                }
+                Utils.SetTraceMask(traceConfiguration.TraceMasks);
+                Utils.SetTraceOutput(traceConfiguration.TraceMasks == 0
+                    ? Utils.TraceOutput.Off
+                    : Utils.TraceOutput.DebugAndFile);
+            }
 #pragma warning restore CS0618 // Type or member is obsolete
 
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)

@@ -164,5 +164,28 @@ namespace Opc.Ua.CodeFixers.Tests.Analyzers
             Assert.That(diags.Any(d => d.Id == "UA0015"), Is.False,
                 "RegisterApplication on an unrelated type must not trigger UA0015.");
         }
+
+        [Test]
+        public async Task ReportsDiagnosticOnShimExtensionCallAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static void M(GlobalDiscoveryServerClient client)
+                    {
+                #pragma warning disable CS0618
+                        client.RegisterApplicationLegacy("urn:foo");
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0015GdsSyncToAsyncAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0015"), Is.True,
+                "Expected UA0015 to fire on a call resolving to a [OpcUaShim(\"UA0015\")] extension.");
+        }
     }
 }

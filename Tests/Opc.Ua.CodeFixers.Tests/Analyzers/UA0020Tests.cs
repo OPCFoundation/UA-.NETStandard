@@ -173,6 +173,52 @@ namespace Opc.Ua.CodeFixers.Tests.Analyzers
                 "Form A (GlobalFactory) must not register any code-fix actions.");
         }
 
+        [Test]
+        public async Task ReportsDiagnosticOnShimGlobalFactoryAccessAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static EncodeableFactory M()
+                    {
+                #pragma warning disable CS0618
+                        return EncodeableFactoryShim.GlobalFactory;
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0020"), Is.True,
+                "Expected UA0020 to fire on a property carrying [OpcUaShim(\"UA0020\")].");
+        }
+
+        [Test]
+        public async Task ReportsDiagnosticOnShimCreateInvocationAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static EncodeableFactory M(EncodeableFactory factory)
+                    {
+                #pragma warning disable CS0618
+                        return EncodeableFactoryShim.Create(factory);
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0020EncodeableFactoryRenameAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0020"), Is.True,
+                "Expected UA0020 to fire on a Create invocation carrying [OpcUaShim(\"UA0020\")].");
+        }
+
         private static async Task<CodeAction[]> CollectFixActionsAsync(
             Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer analyzer,
             CodeFixProvider codeFix,

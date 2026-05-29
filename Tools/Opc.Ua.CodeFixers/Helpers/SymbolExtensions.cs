@@ -59,6 +59,49 @@ namespace Opc.Ua.CodeFixers.Helpers
         }
 
         /// <summary>
+        /// True iff <paramref name="symbol"/> carries
+        /// <c>[Opc.Ua.OpcUaShimAttribute(ruleId)]</c> for the given
+        /// <paramref name="ruleId"/>. For extension methods reduced from a
+        /// static declaration, also inspects <see cref="IMethodSymbol.ReducedFrom"/>
+        /// since the attribute lives on the original declaration.
+        /// </summary>
+        public static bool IsOpcUaShim(this ISymbol symbol, string ruleId)
+        {
+            if (symbol is null)
+            {
+                return false;
+            }
+            if (HasShimAttribute(symbol, ruleId))
+            {
+                return true;
+            }
+            if (symbol is IMethodSymbol method && method.ReducedFrom != null)
+            {
+                return HasShimAttribute(method.ReducedFrom, ruleId);
+            }
+            return false;
+        }
+
+        private static bool HasShimAttribute(ISymbol symbol, string ruleId)
+        {
+            foreach (AttributeData attr in symbol.GetAttributes())
+            {
+                INamedTypeSymbol cls = attr.AttributeClass;
+                if (cls is null || cls.ToDisplayString() != "Opc.Ua.OpcUaShimAttribute")
+                {
+                    continue;
+                }
+                if (attr.ConstructorArguments.Length == 1 &&
+                    attr.ConstructorArguments[0].Value is string id &&
+                    id == ruleId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// True iff <paramref name="member"/> is declared (directly or via override)
         /// on the named type referenced by <paramref name="declaringTypeFullName"/>.
         /// </summary>

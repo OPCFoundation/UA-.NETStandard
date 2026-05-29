@@ -792,10 +792,17 @@ namespace Opc.Ua.Client
                 return (false, Array.Empty<ServiceResult>());
             }
         }
-    }
 
-    public partial class Session
-    {
+        // ----------------------------------------------------------------
+        // The following static factory helpers were originally declared as
+        // `public partial class Session` members on the Session type in
+        // Libraries/Opc.Ua.Client. Cross-assembly partial classes are not
+        // supported, so when migrated into this shim assembly they are
+        // hosted as static methods on SessionObsolete. Callers that
+        // previously invoked `Session.Create(...)` / `Session.Recreate(...)`
+        // must now call `SessionObsolete.Create(...)` / `SessionObsolete.Recreate(...)`.
+        // ----------------------------------------------------------------
+
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>

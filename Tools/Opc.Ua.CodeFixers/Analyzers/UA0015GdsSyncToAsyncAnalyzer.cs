@@ -74,10 +74,6 @@ namespace Opc.Ua.CodeFixers.Analyzers
                     targets.Add(sym);
                 }
             }
-            if (targets.Count == 0)
-            {
-                return;
-            }
 
             context.RegisterOperationAction(
                 ctx => AnalyzeInvocation(ctx, targets),
@@ -95,15 +91,19 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 return;
             }
 
-            INamedTypeSymbol containing = method.ContainingType;
-            if (containing is null || !targets.Contains(containing))
+            bool isShim = method.IsOpcUaShim("UA0015");
+            if (!isShim)
             {
-                return;
-            }
+                INamedTypeSymbol containing = method.ContainingType;
+                if (containing is null || !targets.Contains(containing))
+                {
+                    return;
+                }
 
-            if (!method.IsObsolete())
-            {
-                return;
+                if (!method.IsObsolete())
+                {
+                    return;
+                }
             }
 
             context.ReportDiagnostic(Diagnostic.Create(

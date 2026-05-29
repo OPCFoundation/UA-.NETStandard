@@ -91,32 +91,36 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 return;
             }
 
-            if (!method.IsObsolete())
+            bool isShim = method.IsOpcUaShim("UA0011");
+            if (!isShim && !method.IsObsolete())
             {
                 return;
             }
 
-            INamedTypeSymbol containing = method.ContainingType;
-            if (containing is null)
+            if (!isShim)
             {
-                return;
-            }
-
-            bool declaredOnHandler = SymbolEqualityComparer.Default.Equals(containing, tokenHandler);
-            if (!declaredOnHandler)
-            {
-                bool implementsHandler = false;
-                foreach (INamedTypeSymbol iface in containing.AllInterfaces)
-                {
-                    if (SymbolEqualityComparer.Default.Equals(iface, tokenHandler))
-                    {
-                        implementsHandler = true;
-                        break;
-                    }
-                }
-                if (!implementsHandler)
+                INamedTypeSymbol containing = method.ContainingType;
+                if (containing is null)
                 {
                     return;
+                }
+
+                bool declaredOnHandler = SymbolEqualityComparer.Default.Equals(containing, tokenHandler);
+                if (!declaredOnHandler)
+                {
+                    bool implementsHandler = false;
+                    foreach (INamedTypeSymbol iface in containing.AllInterfaces)
+                    {
+                        if (SymbolEqualityComparer.Default.Equals(iface, tokenHandler))
+                        {
+                            implementsHandler = true;
+                            break;
+                        }
+                    }
+                    if (!implementsHandler)
+                    {
+                        return;
+                    }
                 }
             }
 

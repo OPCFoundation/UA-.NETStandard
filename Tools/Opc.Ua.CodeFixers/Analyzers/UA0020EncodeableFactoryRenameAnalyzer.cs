@@ -32,6 +32,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using Opc.Ua.CodeFixers.Diagnostics;
+using Opc.Ua.CodeFixers.Helpers;
 
 namespace Opc.Ua.CodeFixers.Analyzers
 {
@@ -65,14 +66,23 @@ namespace Opc.Ua.CodeFixers.Analyzers
         {
             IPropertyReferenceOperation reference = (IPropertyReferenceOperation)context.Operation;
             IPropertySymbol property = reference.Property;
-            if (property is null || property.Name != "GlobalFactory" || !property.IsStatic)
+            if (property is null || property.Name != "GlobalFactory")
             {
                 return;
             }
-            INamedTypeSymbol containing = property.ContainingType;
-            if (containing is null || containing.ToDisplayString() != EncodeableFactoryTypeName)
+
+            bool isShim = property.IsOpcUaShim("UA0020");
+            if (!isShim)
             {
-                return;
+                if (!property.IsStatic)
+                {
+                    return;
+                }
+                INamedTypeSymbol containing = property.ContainingType;
+                if (containing is null || containing.ToDisplayString() != EncodeableFactoryTypeName)
+                {
+                    return;
+                }
             }
 
             ImmutableDictionary<string, string> properties = ImmutableDictionary<string, string>.Empty
@@ -90,14 +100,23 @@ namespace Opc.Ua.CodeFixers.Analyzers
         {
             IInvocationOperation invocation = (IInvocationOperation)context.Operation;
             IMethodSymbol method = invocation.TargetMethod;
-            if (method is null || method.Name != "Create" || method.IsStatic || method.Parameters.Length != 0)
+            if (method is null || method.Name != "Create")
             {
                 return;
             }
-            INamedTypeSymbol containing = method.ContainingType;
-            if (containing is null || containing.ToDisplayString() != EncodeableFactoryTypeName)
+
+            bool isShim = method.IsOpcUaShim("UA0020");
+            if (!isShim)
             {
-                return;
+                if (method.IsStatic || method.Parameters.Length != 0)
+                {
+                    return;
+                }
+                INamedTypeSymbol containing = method.ContainingType;
+                if (containing is null || containing.ToDisplayString() != EncodeableFactoryTypeName)
+                {
+                    return;
+                }
             }
 
             ImmutableDictionary<string, string> properties = ImmutableDictionary<string, string>.Empty

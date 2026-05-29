@@ -139,5 +139,52 @@ namespace Opc.Ua.CodeFixers.Tests.Analyzers
             Assert.That(diags.Any(d => d.Id == "UA0011"), Is.False,
                 "Encrypt on an unrelated type must not trigger UA0011.");
         }
+
+        [Test]
+        public async Task ReportsDiagnosticOnShimExtensionCallAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static byte[] M(IUserIdentityTokenHandler handler, byte[] bytes)
+                    {
+                #pragma warning disable CS0618
+                        return UserIdentityTokenHandlerShim.Encrypt(handler, bytes);
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+
+            Diagnostic? ua0011 = diags.SingleOrDefault(d => d.Id == "UA0011");
+            Assert.That(ua0011, Is.Not.Null,
+                "Expected UA0011 to fire on shim extension call carrying [OpcUaShim(\"UA0011\")].");
+        }
+
+        [Test]
+        public async Task DoesNotReportOnShimWithDifferentRuleIdAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static byte[] M(IUserIdentityTokenHandler handler, byte[] bytes)
+                    {
+                #pragma warning disable CS0618
+                        return UserIdentityTokenHandlerShim.EncryptUnrelated(handler, bytes);
+                #pragma warning restore CS0618
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0011TokenHandlerSyncToAsyncAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0011"), Is.False,
+                "A shim attribute with a different RuleId must not trigger UA0011.");
+        }
     }
 }

@@ -422,6 +422,79 @@ namespace Opc.Ua
     {
         public EncodeableFactory Factory { get; } = new EncodeableFactory();
     }
+
+    // ─── OpcUaShim marker attribute and shim wrappers used by analyzer tests ───
+    [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
+    public sealed class OpcUaShimAttribute : Attribute
+    {
+        public string RuleId { get; }
+        public OpcUaShimAttribute(string ruleId) { RuleId = ruleId; }
+    }
+
+    // Shim for UA0008: Call/CallAsync with raw object args on ISession-like receiver.
+    public static class SessionShim
+    {
+        [Obsolete("Use ISession.Call(params Variant[]) instead.")]
+        [OpcUaShim("UA0008")]
+        public static object Call(this ISession session, NodeId objectId, NodeId methodId, params object[] args)
+            => null!;
+
+        [Obsolete("Use ISession.CallAsync(params Variant[]) instead.")]
+        [OpcUaShim("UA0008")]
+        public static Task<object> CallAsync(
+            this ISession session, NodeId objectId, NodeId methodId, CancellationToken ct, params object[] args)
+            => Task.FromResult<object>(null!);
+    }
+
+    // Shim for UA0011: synchronous Encrypt/Decrypt/Sign/Verify on token handler.
+    public static class UserIdentityTokenHandlerShim
+    {
+        [Obsolete("Use EncryptAsync instead.")]
+        [OpcUaShim("UA0011")]
+        public static byte[] Encrypt(this IUserIdentityTokenHandler handler, byte[] data) => null!;
+
+        [Obsolete("Use DecryptAsync instead.")]
+        [OpcUaShim("UA0011")]
+        public static byte[] Decrypt(this IUserIdentityTokenHandler handler, byte[] data) => null!;
+
+        // Same shape, different RuleId — used to verify rule-id filtering.
+        [Obsolete("Different-rule shim used for negative test.")]
+        [OpcUaShim("UA9999")]
+        public static byte[] EncryptUnrelated(this IUserIdentityTokenHandler handler, byte[] data) => null!;
+    }
+
+    // Shim for UA0015: synchronous GDS/LDS members.
+    public static class GdsClientShim
+    {
+        [Obsolete("Use RegisterApplicationAsync instead.")]
+        [OpcUaShim("UA0015")]
+        public static void RegisterApplicationLegacy(this GlobalDiscoveryServerClient client, string applicationUri) { }
+
+        [Obsolete("Use FindServersAsync instead.")]
+        [OpcUaShim("UA0015")]
+        public static string[] FindServersLegacy(this LocalDiscoveryServerClient client, string endpoint)
+            => System.Array.Empty<string>();
+    }
+
+    // Shim for UA0018: CertificateIdentifier.Certificate getter relocated to shim.
+    public class CertificateIdentifierShimHost
+    {
+        [Obsolete("Use CertificateIdentifierResolver.ResolveAsync instead.")]
+        [OpcUaShim("UA0018")]
+        public object? Certificate => null;
+    }
+
+    // Shim for UA0020: EncodeableFactory.GlobalFactory / Create relocated to shim.
+    public static class EncodeableFactoryShim
+    {
+        [Obsolete("Use ServiceMessageContext.Factory instead.")]
+        [OpcUaShim("UA0020")]
+        public static EncodeableFactory GlobalFactory => new EncodeableFactory();
+
+        [Obsolete("Use Fork() instead.")]
+        [OpcUaShim("UA0020")]
+        public static EncodeableFactory Create(this EncodeableFactory factory) => new EncodeableFactory();
+    }
 }
 
 namespace Microsoft.Extensions.Logging
