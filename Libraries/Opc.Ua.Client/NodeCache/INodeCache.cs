@@ -87,6 +87,19 @@ namespace Opc.Ua.Client
         void Clear();
 
         /// <summary>
+        /// Invalidates a single cached node, dropping its cached
+        /// state and references. Pure local-state mutation — does
+        /// not contact the server.
+        /// </summary>
+        /// <remarks>
+        /// Implementations that cannot perform per-node eviction may
+        /// fall back to <see cref="Clear"/>. <see cref="NodeCache"/>
+        /// performs true per-node eviction.
+        /// </remarks>
+        /// <param name="nodeId">The node id to invalidate.</param>
+        void InvalidateNode(NodeId nodeId);
+
+        /// <summary>
         /// Force-fetches a node from the server and updates the cache.
         /// Returns <c>null</c> when the node does not exist or cannot
         /// be read.

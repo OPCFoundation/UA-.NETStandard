@@ -296,6 +296,23 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Enables address-space model change tracking. The session
+        /// auto-starts a <see cref="ModelChange.IModelChangeTracker"/>
+        /// after connect that invalidates the node cache and exposes
+        /// changes via <see cref="ManagedSession.ModelChange"/>.
+        /// Disabled by default.
+        /// </summary>
+        public ManagedSessionBuilder WithModelChangeTracking(
+            bool enabled = true)
+        {
+            m_options = m_options with
+            {
+                ModelChangeTracking = enabled
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific session factory. By default, the builder
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
@@ -321,7 +338,7 @@ namespace Opc.Ua.Client
         /// accumulated options.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
+        public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
             if (opts.Endpoint == null)
@@ -358,7 +375,7 @@ namespace Opc.Ua.Client
                 preferredLocales = new ArrayOf<string>(arr);
             }
 
-            return ManagedSession.CreateAsync(
+            ManagedSession session = await ManagedSession.CreateAsync(
                 m_configuration,
                 opts.Endpoint,
                 sessionFactory,
@@ -373,7 +390,14 @@ namespace Opc.Ua.Client
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
                 opts.PoolNotifications,
-                ct);
+                ct).ConfigureAwait(false);
+
+            if (opts.ModelChangeTracking)
+            {
+                await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+            }
+
+            return session;
         }
     }
 }

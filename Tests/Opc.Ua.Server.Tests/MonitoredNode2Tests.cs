@@ -1318,5 +1318,130 @@ namespace Opc.Ua.Server.Tests
 
             return monitoredItemMock;
         }
+
+        /// <summary>
+        /// Verifies that the event permission decision is cached per
+        /// (item, EventTypeId, SourceNode) tuple so a busy notifier does not
+        /// re-run <see cref="IAsyncNodeManager.ValidateEventRolePermissionsAsync"/>
+        /// for each subsequent event with the same identity.
+        /// </summary>
+        [Test]
+        public void OnReportEvent_RepeatedEventsWithSameIdentity_PermissionValidatedOnce()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Server", 0),
+                BrowseName = new QualifiedName("Server", 0)
+            };
+
+            int validationCalls = 0;
+            using var firstValidationSignal = new ManualResetEventSlim(false);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref validationCalls);
+                    firstValidationSignal.Set();
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(1u);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(eventItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectIds.Server };
+                return ev;
+            }
+
+            monitoredNode.OnReportEvent(context, node, BuildEvent());
+            Assert.That(firstValidationSignal.Wait(TimeSpan.FromSeconds(30)), Is.True);
+
+            for (int i = 0; i < 4; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            monitoredNode.Dispose();
+
+            Assert.That(validationCalls, Is.EqualTo(1));
+            int queueCount = eventItemMock.Invocations
+                .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            Assert.That(queueCount, Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Verifies that removing an event monitored item drops its cached
+        /// permission verdicts so a re-added item is re-validated.
+        /// </summary>
+        [Test]
+        public void Remove_EventMonitoredItem_DropsCacheEntries()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Server", 0),
+                BrowseName = new QualifiedName("Server", 0)
+            };
+
+            int validationCalls = 0;
+            using var validationSignal = new ManualResetEventSlim(false);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref validationCalls);
+                    validationSignal.Set();
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(7u);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(eventItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectIds.Server };
+                return ev;
+            }
+
+            monitoredNode.OnReportEvent(context, node, BuildEvent());
+            Assert.That(validationSignal.Wait(TimeSpan.FromSeconds(30)), Is.True);
+            validationSignal.Reset();
+
+            monitoredNode.Remove(eventItemMock.Object);
+            monitoredNode.Add(eventItemMock.Object);
+
+            monitoredNode.OnReportEvent(context, node, BuildEvent());
+            Assert.That(validationSignal.Wait(TimeSpan.FromSeconds(30)), Is.True);
+
+            monitoredNode.Dispose();
+
+            Assert.That(validationCalls, Is.EqualTo(2));
+        }
     }
 }
