@@ -4632,7 +4632,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates if the specified event monitored item has enough permissions to receive the specified event
         /// </summary>
-        public async ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             CancellationToken cancellationToken = default)
@@ -4655,6 +4655,30 @@ namespace Opc.Ua.Server
 
             var operationContext = new OperationContext(monitoredItem);
 
+            return ValidateEventReceivePermissionsAsync(
+                operationContext,
+                eventTypeId,
+                sourceNodeId,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates <see cref="PermissionType.ReceiveEvents"/> on both the
+        /// event type node and the source node of an event. Spec reference
+        /// Part 3 §8.55 (PermissionType bit 11): "A Client only receives an
+        /// Event if this bit is set on the Node identified by the
+        /// EventTypeId field and on the Node identified by the SourceNode
+        /// field." Exposed so callers that have already extracted the two
+        /// NodeIds (for example a per-monitored-item cache) can avoid the
+        /// extra event-state inspection that
+        /// <see cref="ValidateEventRolePermissionsAsync"/> performs.
+        /// </summary>
+        public async ValueTask<ServiceResult> ValidateEventReceivePermissionsAsync(
+            OperationContext operationContext,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken = default)
+        {
             // validate the event type id permissions as specified
             ServiceResult result = await ValidateRolePermissionsAsync(
                 operationContext,

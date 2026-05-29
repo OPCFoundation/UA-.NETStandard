@@ -4450,6 +4450,24 @@ namespace Opc.Ua.Server
 
             var operationContext = new OperationContext(monitoredItem);
 
+            return ValidateEventReceivePermissions(operationContext, eventTypeId, sourceNodeId);
+        }
+
+        /// <summary>
+        /// Validates <see cref="PermissionType.ReceiveEvents"/> on both the
+        /// event type node and the source node of an event. Spec reference
+        /// Part 3 §8.55 (PermissionType bit 11). Exposed so callers that
+        /// have already extracted the two NodeIds (for example a
+        /// per-monitored-item cache) can avoid the extra event-state
+        /// inspection that
+        /// <see cref="ValidateEventRolePermissions(IEventMonitoredItem, IFilterTarget)"/>
+        /// performs.
+        /// </summary>
+        public ServiceResult ValidateEventReceivePermissions(
+            OperationContext operationContext,
+            NodeId eventTypeId,
+            NodeId sourceNodeId)
+        {
             // validate the event type id permissions as specified
             ServiceResult result = ValidateRolePermissions(
                 operationContext,
