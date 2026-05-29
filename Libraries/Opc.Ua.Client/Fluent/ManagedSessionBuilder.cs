@@ -406,14 +406,10 @@ namespace Opc.Ua.Client
                 preferredLocales = new ArrayOf<string>(arr);
             }
 
-<<<<<<< HEAD
 #pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
             IUserIdentity? identity = opts.Identity;
 #pragma warning restore CS0618
-            return ManagedSession.CreateAsync(
-=======
             ManagedSession session = await ManagedSession.CreateAsync(
->>>>>>> origin/master
                 m_configuration,
                 opts.Endpoint,
                 sessionFactory,
@@ -428,11 +424,8 @@ namespace Opc.Ua.Client
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
                 opts.PoolNotifications,
-<<<<<<< HEAD
                 opts.IdentityProvider,
                 opts.TimeProvider,
-                ct);
-=======
                 ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)
@@ -441,7 +434,6 @@ namespace Opc.Ua.Client
             }
 
             return session;
->>>>>>> origin/master
         }
     }
 }

@@ -50,13 +50,9 @@ namespace Alarms
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-<<<<<<< HEAD
-#pragma warning disable CA2000 // ownership of AlarmNodeManager transfers to the caller via the returned ValueTask<IAsyncNodeManager>
-=======
             // CA2000: ownership of the returned IAsyncNodeManager
             // transfers to the MasterNodeManager which disposes it.
 #pragma warning disable CA2000
->>>>>>> origin/master
             return new ValueTask<IAsyncNodeManager>(
                 new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!));
 #pragma warning restore CA2000
@@ -435,42 +431,38 @@ namespace Alarms
                     optional: true);
                 m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
 
-<<<<<<< HEAD
-                await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
-=======
-                    // Set up the alarm group + suppression engine demo. The
-                    // analog alarms are added to an AlarmGroupState and a
-                    // MaintenanceMode boolean is registered as the
-                    // suppression source. When the source flips true, the
-                    // engine suppresses every alarm member; when it flips
-                    // back to false the suppression clears automatically.
-                    m_analogGroup = CreateAlarmGroup(alarmsFolder, "AnalogGroup");
-                    foreach (AlarmHolder holder in m_alarms.Values)
+                // Set up the alarm group + suppression engine demo. The
+                // analog alarms are added to an AlarmGroupState and a
+                // MaintenanceMode boolean is registered as the
+                // suppression source. When the source flips true, the
+                // engine suppresses every alarm member; when it flips
+                // back to false the suppression clears automatically.
+                m_analogGroup = CreateAlarmGroup(alarmsFolder, "AnalogGroup");
+                foreach (AlarmHolder holder in m_alarms.Values)
+                {
+                    if (holder.Alarm is AlarmConditionState alarmState)
                     {
-                        if (holder.Alarm is AlarmConditionState alarmState)
-                        {
-                            m_analogGroup.AddMember(alarmState);
-                        }
+                        m_analogGroup.AddMember(alarmState);
                     }
+                }
 
-                    m_maintenanceMode = AlarmHelpers.CreateVariable(
-                        alarmsFolder,
-                        NamespaceIndex,
-                        alarmsNodeName + ".MaintenanceMode",
-                        "MaintenanceMode",
-                        boolValue: false);
-                    m_maintenanceMode.OnWriteValue = OnMaintenanceModeWritten;
+                m_maintenanceMode = AlarmHelpers.CreateVariable(
+                    alarmsFolder,
+                    NamespaceIndex,
+                    alarmsNodeName + ".MaintenanceMode",
+                    "MaintenanceMode",
+                    boolValue: false);
+                m_maintenanceMode.OnWriteValue = OnMaintenanceModeWritten;
 
-                    m_suppressionEngine = new AlarmSuppressionEngine();
-                    m_suppressionEngine.RegisterSuppressionGroup(
-                        m_analogGroup.State,
-                        () => m_maintenanceMode != null
-                              && m_maintenanceMode.Value.TryGetValue(out bool b)
-                              && b,
-                        [.. GetAlarmStates()]);
+                m_suppressionEngine = new AlarmSuppressionEngine();
+                m_suppressionEngine.RegisterSuppressionGroup(
+                    m_analogGroup.State,
+                    () => m_maintenanceMode != null
+                          && m_maintenanceMode.Value.TryGetValue(out bool b)
+                          && b,
+                    [.. GetAlarmStates()]);
 
-                    await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
->>>>>>> origin/master
+                await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
 
                 // ownership transferred to predefined nodes
                 alarmsFolder = null;

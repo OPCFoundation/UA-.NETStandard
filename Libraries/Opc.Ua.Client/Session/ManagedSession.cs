@@ -1475,14 +1475,12 @@ namespace Opc.Ua.Client
                 return;
             }
 
-<<<<<<< HEAD
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
-=======
+
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work
             // completes against a still-valid session.
             await DisposeStreamingAsync().ConfigureAwait(false);
->>>>>>> origin/master
 
             await StateMachine.DisposeAsync()
                 .ConfigureAwait(false);
