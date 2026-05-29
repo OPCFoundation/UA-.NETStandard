@@ -1,35 +1,23 @@
-## Proposed changes
+# Description
 
-Describe the changes here to communicate to the maintainers why we should accept this pull request. If it fixes a bug or resolves a feature request, be sure to link to that issue.
+_Describe the changes here to communicate to the maintainers why they should accept this pull request. By default - this will become the Commit message after merging and thus define history._
 
 ## Related Issues
 
-- Fixes #
+_Reference all GitHub issues this PR addresses. If there is no issue yet, open one and link it here._
 
-## Types of changes
+_If this is a relatively large or complex change, a design must have been discussed in the related tracking issue and signed off (which becomes the Architectural Decision Record (ADR))._
 
-What types of changes does your code introduce?
-_Put an `x` in the boxes that apply. You can also fill these out after creating the PR._
-
-- [ ] Bugfix (non-breaking change which fixes an issue)
-- [ ] Enhancement (non-breaking change which adds functionality)
-- [ ] Test enhancement (non-breaking change to increase test coverage)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected, requires version increase of Nuget packages)
-- [ ] Documentation Update (if none of the other choices apply)
+- Fixes #github-issue-number, ...
 
 ## Checklist
 
-_Put an `x` in the boxes that apply. You can also fill these out after creating the PR. If you're unsure about any of them, don't hesitate to ask. We're here to help! This is simply a reminder of what we are going to look for before merging your code._
+_Put an `x` in the boxes that apply. You can complete these step by step after opening the PR._
 
-- [ ] I have read the [CONTRIBUTING](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/CONTRIBUTING.md) doc.
-- [ ] I have signed the [CLA](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf).
-- [ ] I ran tests locally with my changes, all passed.
-- [ ] I fixed all failing tests in the CI pipelines. 
-- [ ] I fixed all introduced issues with CodeQL and LGTM.
+- [ ] I have signed the [CLA](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf) and read the [CONTRIBUTING](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/CONTRIBUTING.md) doc.
 - [ ] I have added tests that prove my fix is effective or that my feature works and increased code coverage.
-- [ ] I have added necessary documentation (if appropriate).
-- [ ] Any dependent changes have been merged and published in downstream modules.
-
-## Further comments
-
-If this is a relatively large or complex change, kick off the discussion by explaining why you chose the solution you did and what alternatives you considered, etc...
+- [ ] I have added all necessary documentation.
+- [ ] I have verified that my changes do not introduce (new) build or analyzer warnings.
+- [ ] I ran **all** tests locally using the **UA.slnx** solution against at least .net **framework** and .net **10**, and all passed.
+- [ ] I fixed **all** failing and flaky tests in the CI pipelines and **all** CodeQL warnings.
+- [ ] I have addressed **all** PR feedback received.

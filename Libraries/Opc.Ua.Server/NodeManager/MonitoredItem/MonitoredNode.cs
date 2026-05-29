@@ -173,6 +173,7 @@ namespace Opc.Ua.Server
         public void Remove(IEventMonitoredItem eventItem)
         {
             EventMonitoredItems.TryRemove(eventItem.Id, out _);
+            DropEventPermissionCacheEntries(eventItem.Id);
 
             if (EventMonitoredItems.IsEmpty)
             {
@@ -337,6 +338,13 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task ProcessEventSnapshotAsync(EventSnapshot snapshot, CancellationToken cancellationToken)
         {
+            // Extract EventTypeId + SourceNodeId once so the per-item
+            // permission cache can be keyed by them. The asynchronous
+            // permission lookup is the dominant cost; caching the verdict
+            // per (item, eventType, sourceNode) avoids two role-validation
+            // calls per delivered event.
+            (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(snapshot.EventTargetSnapshot);
+
             foreach (KeyValuePair<uint, IEventMonitoredItem> kvp in EventMonitoredItems)
             {
                 IEventMonitoredItem monitoredItem = kvp.Value;
@@ -357,9 +365,11 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServiceResult validationResult = await NodeManager.ValidateEventRolePermissionsAsync(
-                    monitoredItem,
+                ServiceResult validationResult = await GetOrAddEventPermissionAsync(
+                    monitoredItem!,
                     e,
+                    eventTypeId,
+                    sourceNodeId,
                     cancellationToken).ConfigureAwait(false);
 
                 if (ServiceResult.IsBad(validationResult))
@@ -380,6 +390,69 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Extracts the <c>EventTypeId</c> and <c>SourceNode</c> from an
+        /// event payload. Returns default <see cref="NodeId"/> values when
+        /// the payload is not a <see cref="BaseEventState"/> (or wrapped
+        /// in an <see cref="InstanceStateSnapshot"/> over one), in which
+        /// case the result is not cached.
+        /// </summary>
+        private static (NodeId EventTypeId, NodeId SourceNodeId) ExtractEventIdentity(IFilterTarget filterTarget)
+        {
+            BaseEventState? baseEventState = filterTarget as BaseEventState;
+            if (baseEventState == null && filterTarget is InstanceStateSnapshot snapshot)
+            {
+                baseEventState = snapshot.Handle as BaseEventState;
+            }
+
+            if (baseEventState == null)
+            {
+                return (default, default);
+            }
+
+            NodeId eventTypeId = baseEventState.EventType?.Value ?? default;
+            NodeId sourceNodeId = baseEventState.SourceNode?.Value ?? default;
+            return (eventTypeId, sourceNodeId);
+        }
+
+        /// <summary>
+        /// Returns the cached permission verdict for the
+        /// (item, eventType, sourceNode) tuple, computing and caching it
+        /// on miss. Falls back to an uncached lookup when either NodeId
+        /// is null so events that don't carry the standard identity
+        /// fields still go through the per-event check.
+        /// </summary>
+        private async ValueTask<ServiceResult> GetOrAddEventPermissionAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
+        {
+            if (eventTypeId.IsNull || sourceNodeId.IsNull)
+            {
+                // Not a cacheable identity — defer to the existing path.
+                return await NodeManager.ValidateEventRolePermissionsAsync(
+                    monitoredItem,
+                    filterTarget,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            var key = new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId);
+            if (m_eventPermissionCache.TryGetValue(key, out ServiceResult? cached) && cached != null)
+            {
+                return cached;
+            }
+
+            ServiceResult result = await NodeManager.ValidateEventRolePermissionsAsync(
+                monitoredItem,
+                filterTarget,
+                cancellationToken).ConfigureAwait(false);
+
+            m_eventPermissionCache[key] = result;
+            return result;
+        }
+
+        /// <summary>
         /// Processes a <see cref="DataChangeSnapshot"/> from the channel.
         /// </summary>
         private async Task ProcessDataChangeSnapshotAsync(DataChangeSnapshot snapshot, CancellationToken cancellationToken)
@@ -393,6 +466,7 @@ namespace Opc.Ua.Server
             if ((snapshot.Changes & NodeStateChangeMasks.RolePermissions) != 0)
             {
                 m_permissionCache.Clear();
+                m_eventPermissionCache.Clear();
             }
 
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
@@ -577,6 +651,15 @@ namespace Opc.Ua.Server
                     m_contextCache.TryRemove(id, out _);
                 }
             }
+
+            foreach (KeyValuePair<uint, IEventMonitoredItem> kvp in EventMonitoredItems)
+            {
+                IEventMonitoredItem monitoredItem = kvp.Value;
+                if (monitoredItem?.Session?.Id.Equals(sessionId) == true)
+                {
+                    DropEventPermissionCacheEntries(monitoredItem.Id);
+                }
+            }
         }
 
         /// <summary>
@@ -587,12 +670,31 @@ namespace Opc.Ua.Server
         private void OnDefaultPermissionsChanged(object? sender, EventArgs e)
         {
             m_permissionCache.Clear();
+            m_eventPermissionCache.Clear();
+        }
+
+        /// <summary>
+        /// Drops every <see cref="EventPermissionCacheKey"/> entry that
+        /// belongs to the specified monitored item id.
+        /// </summary>
+        private void DropEventPermissionCacheEntries(uint monitoredItemId)
+        {
+            foreach (KeyValuePair<EventPermissionCacheKey, ServiceResult> entry in m_eventPermissionCache)
+            {
+                if (entry.Key.MonitoredItemId == monitoredItemId)
+                {
+                    m_eventPermissionCache.TryRemove(entry.Key, out _);
+                }
+            }
         }
 
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
             new();
 
         private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
+            new();
+
+        private readonly ConcurrentDictionary<EventPermissionCacheKey, ServiceResult> m_eventPermissionCache =
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;

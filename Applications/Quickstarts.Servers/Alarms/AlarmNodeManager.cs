@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Alarms;
 
 namespace Alarms
 {
@@ -49,7 +50,13 @@ namespace Alarms
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+<<<<<<< HEAD
 #pragma warning disable CA2000 // ownership of AlarmNodeManager transfers to the caller via the returned ValueTask<IAsyncNodeManager>
+=======
+            // CA2000: ownership of the returned IAsyncNodeManager
+            // transfers to the MasterNodeManager which disposes it.
+#pragma warning disable CA2000
+>>>>>>> origin/master
             return new ValueTask<IAsyncNodeManager>(
                 new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!));
 #pragma warning restore CA2000
@@ -96,6 +103,8 @@ namespace Alarms
             if (disposing)
             {
                 DisposeTimer();
+                m_suppressionEngine?.Dispose();
+                m_suppressionEngine = null;
 
                 m_logger.LogInformation("Alarms: Disposed AlarmNodeManager");
             }
@@ -426,7 +435,42 @@ namespace Alarms
                     optional: true);
                 m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
 
+<<<<<<< HEAD
                 await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
+=======
+                    // Set up the alarm group + suppression engine demo. The
+                    // analog alarms are added to an AlarmGroupState and a
+                    // MaintenanceMode boolean is registered as the
+                    // suppression source. When the source flips true, the
+                    // engine suppresses every alarm member; when it flips
+                    // back to false the suppression clears automatically.
+                    m_analogGroup = CreateAlarmGroup(alarmsFolder, "AnalogGroup");
+                    foreach (AlarmHolder holder in m_alarms.Values)
+                    {
+                        if (holder.Alarm is AlarmConditionState alarmState)
+                        {
+                            m_analogGroup.AddMember(alarmState);
+                        }
+                    }
+
+                    m_maintenanceMode = AlarmHelpers.CreateVariable(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        alarmsNodeName + ".MaintenanceMode",
+                        "MaintenanceMode",
+                        boolValue: false);
+                    m_maintenanceMode.OnWriteValue = OnMaintenanceModeWritten;
+
+                    m_suppressionEngine = new AlarmSuppressionEngine();
+                    m_suppressionEngine.RegisterSuppressionGroup(
+                        m_analogGroup.State,
+                        () => m_maintenanceMode != null
+                              && m_maintenanceMode.Value.TryGetValue(out bool b)
+                              && b,
+                        [.. GetAlarmStates()]);
+
+                    await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
+>>>>>>> origin/master
 
                 // ownership transferred to predefined nodes
                 alarmsFolder = null;
@@ -441,6 +485,70 @@ namespace Alarms
             {
                 m_logger.LogError(e, "Error creating the AlarmNodeManager address space.");
             }
+        }
+
+        /// <summary>
+        /// Creates an <see cref="AlarmGroupState"/> inside the given
+        /// folder and wraps it in an <see cref="AlarmGroup"/> helper.
+        /// </summary>
+        private AlarmGroup CreateAlarmGroup(FolderState parent, string name)
+        {
+            var state = new AlarmGroupState(parent)
+            {
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = ObjectTypeIds.AlarmGroupType,
+                NodeId = new NodeId(parent.NodeId.IdentifierAsString + "." + name, NamespaceIndex),
+                BrowseName = new QualifiedName(name, NamespaceIndex),
+                DisplayName = new LocalizedText("en", name)
+            };
+            parent.AddChild(state);
+
+            // Opt the group + its parent into NodeVersion-based model
+            // change tracking so any future Create/DeleteNodeAsync on
+            // members of the group emits a GeneralModelChangeEvent.
+            EnableModelChangeTrackingFor(state);
+            EnableModelChangeTrackingFor(parent);
+
+            return new AlarmGroup(state);
+        }
+
+        /// <summary>
+        /// Returns every <see cref="AlarmConditionState"/> instance the
+        /// node manager currently owns; used to register the suppression
+        /// engine members.
+        /// </summary>
+        private IEnumerable<AlarmConditionState> GetAlarmStates()
+        {
+            foreach (AlarmHolder holder in m_alarms.Values)
+            {
+                if (holder.Alarm is AlarmConditionState alarm)
+                {
+                    yield return alarm;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Re-evaluates the suppression engine whenever the
+        /// <c>MaintenanceMode</c> variable is written. Suppresses every
+        /// alarm in the analog group when MaintenanceMode is true.
+        /// </summary>
+        private ServiceResult OnMaintenanceModeWritten(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref Variant value,
+            ref StatusCode statusCode,
+            ref DateTimeUtc timestamp)
+        {
+            if (node is BaseDataVariableState variable)
+            {
+                variable.Value = value;
+            }
+            m_suppressionEngine?.Evaluate(SystemContext);
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1135,5 +1243,8 @@ namespace Alarms
 
         private const ushort kSimulationInterval = 100;
         private Timer? m_simulationTimer;
+        private AlarmGroup? m_analogGroup;
+        private BaseDataVariableState? m_maintenanceMode;
+        private AlarmSuppressionEngine? m_suppressionEngine;
     }
 }

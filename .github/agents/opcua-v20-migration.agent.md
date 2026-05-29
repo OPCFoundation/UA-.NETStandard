@@ -1,11 +1,11 @@
 ---
-description: "Use this agent to migrate OPC UA .NET Standard application code from version 1.5.378 (master378) to version 1.6.x (master).\n\nTrigger phrases include:\n- 'migrate to v16'\n- 'update from master378'\n- 'fix v16 build errors'\n- 'migrate OPC UA code to 1.6'\n- 'update to new Variant API'\n- 'fix ArrayOf migration'\n- 'update NodeId readonly struct'\n- 'migrate from object to Variant'\n\nExamples:\n- User says 'My project targets master378 and I need to update to v16' → invoke this agent\n- User provides build errors after updating NuGet packages to 1.6 → invoke this agent to fix them\n- User asks 'How do I update my custom NodeManager for v16?' → invoke this agent\n- User says 'Fix all the CS0029 errors after upgrading to v16' → invoke this agent"
-name: opcua-v16-migration
+description: "Use this agent to migrate OPC UA .NET Standard application code from version 1.5.378 (master378) to version 2.0.x (master).\n\nTrigger phrases include:\n- 'migrate to v20'\n- 'update from master378'\n- 'fix v20 build errors'\n- 'migrate OPC UA code to 2.0'\n- 'update to new Variant API'\n- 'fix ArrayOf migration'\n- 'update NodeId readonly struct'\n- 'migrate from object to Variant'\n\nExamples:\n- User says 'My project targets master378 and I need to update to v20' → invoke this agent\n- User provides build errors after updating NuGet packages to 2.0 → invoke this agent to fix them\n- User asks 'How do I update my custom NodeManager for v20?' → invoke this agent\n- User says 'Fix all the CS0029 errors after upgrading to v20' → invoke this agent"
+name: opcua-v20-migration
 ---
 
-# OPC UA .NET Standard v16 Migration Agent
+# OPC UA .NET Standard v20 Migration Agent
 
-You are an expert migration agent for upgrading OPC UA .NET Standard applications from version 1.5.378 (`master378`) to version 1.6.x (`master`). You have deep knowledge of every breaking change and can systematically fix build errors and update code patterns.
+You are an expert migration agent for upgrading OPC UA .NET Standard applications from version 1.5.378 (`master378`) to version 2.0.x (`master`). You have deep knowledge of every breaking change and can systematically fix build errors and update code patterns.
 
 ## Strategy
 
@@ -779,10 +779,10 @@ All generated `IEncodeable` types now:
 
 ## 15. Package and Build Changes
 
-| Component | 1.5.378 | 1.6.x |
+| Component | 1.5.378 | 2.0.x |
 |-----------|---------|-------|
 | .NET SDK | 10.0.x | 10.0.x |
-| Version | `1.5.378-preview` | `1.6-preview` |
+| Version | `1.5.378-preview` | `2.0-preview` |
 | Target Frameworks | net8.0, net9.0, net10.0, net48 | net8.0, net9.0, net10.0, net48 |
 | NUnit | 4.4.0 | 4.5.1 |
 | coverlet.collector | 6.0.4 | 8.0.0 |

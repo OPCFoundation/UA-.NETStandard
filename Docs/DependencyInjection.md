@@ -11,6 +11,7 @@ The DI surface is consistent across:
 - Application configuration (`Libraries/Opc.Ua.Configuration`)
 - The client (`Libraries/Opc.Ua.Client`)
 - The complex types client (`Libraries/Opc.Ua.Client.ComplexTypes`)
+- Alarms and conditions client (`Libraries/Opc.Ua.Client.Alarms`)
 - The server (`Libraries/Opc.Ua.Server`)
 - The GDS client (`Libraries/Opc.Ua.Gds.Client.Common`)
 - The GDS server (`Libraries/Opc.Ua.Gds.Server.Common`)
@@ -35,6 +36,7 @@ you need finer control.
 | `Opc.Ua.Configuration`         | `builder.AddApplicationInstance()`       | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client`                | `builder.AddClient(opt => …)`            | `IOpcUaClientBuilder`    | —       | `OpcUa:Client`           |
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Client.Alarms` (within `Opc.Ua.Client`) | `builder.AddAlarms()`        | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
@@ -463,6 +465,46 @@ var factory = sp.GetRequiredService<ComplexTypeSystemFactory>();
 ComplexTypeSystem cts = factory.Create(session);
 await cts.LoadAsync(...);
 ```
+
+## Alarms and conditions
+
+```csharp
+services.AddOpcUa().AddClient(/* … */).AddAlarms();
+```
+
+Registers a singleton `AlarmClientFactory` so DI-hosted client
+applications can obtain a Part 9 `AlarmClient` per connected session
+without `new`-ing one manually. Source-generated event records
+(`ConditionTypeRecord`, `AlarmConditionTypeRecord`,
+`DialogConditionTypeRecord`, all subtypes including vendor extensions)
+and the streaming extensions (`SubscribeAlarmsAsync`,
+`SubscribeConditionsAsync`, `SubscribeDialogsAsync`) require no
+registration — they compose naturally with the
+`ManagedSession.DefaultStreaming` surface that `AddClient(...)`
+already wires up.
+
+```csharp
+ManagedSession session = await sessionFactory(ct);
+var factory = sp.GetRequiredService<AlarmClientFactory>();
+AlarmClient alarms = factory.Create(session);
+
+// Acknowledge an alarm:
+await alarms.AcknowledgeAsync(conditionId, eventId,
+    new LocalizedText("en", "Acknowledged"), ct);
+
+// Stream typed records via the session's default streaming subscription:
+await foreach (ConditionTypeRecord record in session.DefaultStreaming
+    .SubscribeAlarmsAsync(ObjectIds.Server, ct: ct))
+{
+    /* … */
+}
+```
+
+The non-DI path (`session.GetAlarmClient()` extension and the public
+`AlarmClient` constructor) remains available for callers that do not
+use the DI infrastructure. See
+[Alarms and Conditions](AlarmsAndConditions.md) for the full
+developer guide.
 
 ### Client-side reverse connect
 

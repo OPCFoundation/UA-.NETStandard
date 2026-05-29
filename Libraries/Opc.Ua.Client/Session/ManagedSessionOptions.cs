@@ -151,5 +151,23 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool PoolNotifications { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// When <c>true</c>, the <see cref="ManagedSession"/> automatically
+        /// enables address-space model change tracking once connected.
+        /// It subscribes to <c>GeneralModelChangeEventType</c> on the
+        /// server's notifier (and to <c>SemanticChangeEventType</c>),
+        /// invalidates the session's <see cref="INodeCache"/> when changes
+        /// are reported, and exposes the changes via
+        /// <see cref="ManagedSession.ModelChange"/>.
+        /// </para>
+        /// <para>
+        /// Default: <c>false</c>. Enable for applications that cache
+        /// browse results long-term and need to react to dynamic
+        /// address-space changes (devices joining/leaving, type updates).
+        /// </para>
+        /// </summary>
+        public bool ModelChangeTracking { get; init; }
     }
 }
