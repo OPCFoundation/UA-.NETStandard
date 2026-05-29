@@ -1441,16 +1441,13 @@ namespace Opc.Ua.Stress.Tests
         {
             try
             {
-                TransferSubscriptionsResponse resp =
-                    await target.TransferSubscriptionsAsync(
-                        null,
-                        new uint[] { subId }.ToArrayOf(),
-                        sendInitial,
-                        CancellationToken.None).ConfigureAwait(false);
-
                 // Per-result Bad statuses are expected outcomes for negative
                 // tests; do not treat them as "service not supported".
-                return resp;
+                return await target.TransferSubscriptionsAsync(
+                    null,
+                    new uint[] { subId }.ToArrayOf(),
+                    sendInitial,
+                    CancellationToken.None).ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadServiceUnsupported ||

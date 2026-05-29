@@ -944,8 +944,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void ValidateAlgorithms(JwtIssuerOptions options)
         {
-            IReadOnlyList<string> algorithms = options.GetEffectiveAlgorithms();
-            foreach (string algorithm in algorithms)
+            foreach (string algorithm in options.GetEffectiveAlgorithms())
             {
                 if (string.IsNullOrWhiteSpace(algorithm))
                 {

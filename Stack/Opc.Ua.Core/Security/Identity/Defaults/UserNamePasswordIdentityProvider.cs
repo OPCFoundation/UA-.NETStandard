@@ -96,11 +96,10 @@ namespace Opc.Ua.Identity
 
             try
             {
-                var identity = new UserIdentity(m_username, secret.Bytes)
+                return new UserIdentity(m_username, secret.Bytes)
                 {
                     PolicyId = policy.PolicyId ?? string.Empty
                 };
-                return identity;
             }
             finally
             {

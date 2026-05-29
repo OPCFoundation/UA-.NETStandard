@@ -200,8 +200,7 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
             // Existing extension methods on IDependencyInjectionBuilder must
             // still resolve through the new builder type.
             var services = new ServiceCollection();
-            IOpcUaBuilder builder = services.AddOpcUa();
-            IDependencyInjectionBuilder legacy = builder;
+            IDependencyInjectionBuilder legacy = services.AddOpcUa();
             Assert.That(legacy.Services, Is.SameAs(services));
         }
 

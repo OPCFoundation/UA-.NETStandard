@@ -278,9 +278,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton(sp =>
             {
-                IAccessTokenProvider provider = factory(sp) ?? throw new InvalidOperationException(
+                return factory(sp) ?? throw new InvalidOperationException(
                         "Access-token provider factory returned null.");
-                return provider;
             });
             return builder;
         }
