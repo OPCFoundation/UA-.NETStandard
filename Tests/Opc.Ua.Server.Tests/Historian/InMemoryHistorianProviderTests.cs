@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
 
-            uint pageSize = 10;
+            const uint pageSize = 10;
             var allReturned = new List<DataValue>();
             HistorianResumeToken token = default;
             int pages = 0;

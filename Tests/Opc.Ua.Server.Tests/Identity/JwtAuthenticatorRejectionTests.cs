@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
-            string header = "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
+            const string header = "{\"alg\":\"RS256\",\"kid\":\"kid-rsa\",\"typ\":\"JWT\"}";
             string headerEncoded = Base64UrlEncode(Encoding.UTF8.GetBytes(header));
             string payloadEncoded = Base64UrlEncode(Encoding.UTF8.GetBytes("not-json"));
             string signingInput = headerEncoded + "." + payloadEncoded;
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
-            string payload = "{\"iss\":\"" + Issuer + "\",\"sub\":\"x\",\"aud\":\"" + Audience + "\"}";
+            const string payload = "{\"iss\":\"" + Issuer + "\",\"sub\":\"x\",\"aud\":\"" + Audience + "\"}";
             string jwt = SignRsa(rsa, "RS256", "kid-rsa", payload);
 
             AuthenticationResult result = await Authenticate(jwt, key).ConfigureAwait(false);

@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task FromJwtStringUsesUtf8Encoding()
         {
-            string jwt = "header.payload-✓.signature";
+            const string jwt = "header.payload-✓.signature";
             var provider = JwtBearerAccessTokenProvider.FromJwtString(
                 "https://issuer.example",
                 jwt,

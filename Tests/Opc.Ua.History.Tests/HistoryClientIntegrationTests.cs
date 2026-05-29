@@ -240,8 +240,8 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime ts = DateTime.UtcNow.AddYears(-10).AddSeconds(101);
-            string message = "IntegrationTest annotation";
-            string userName = "TestUser";
+            const string message = "IntegrationTest annotation";
+            const string userName = "TestUser";
 
             StatusCode writeStatus = await client.WriteAnnotationAsync(
                 m_doubleNodeId, ts, message, userName).ConfigureAwait(false);
@@ -277,7 +277,7 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime ts = DateTime.UtcNow.AddYears(-10).AddSeconds(201);
-            string message = "ToDelete";
+            const string message = "ToDelete";
 
             StatusCode writeStatus = await client.WriteAnnotationAsync(
                 m_doubleNodeId, ts, message, "TestUser").ConfigureAwait(false);

@@ -1027,7 +1027,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public Task CertValidation010InvalidSignatureAsync()
         {
-            string slug = "corrupted010";
+            const string slug = "corrupted010";
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
             using Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);

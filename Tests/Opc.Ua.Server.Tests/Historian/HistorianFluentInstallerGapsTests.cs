@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void HistorianBuilderRegisterForNamespaceBindsToNamespaceUri()
         {
             var nsTable = new NamespaceTable();
-            string nsUri = "urn:test:ns-bind";
+            const string nsUri = "urn:test:ns-bind";
             ushort nsIndex = (ushort)nsTable.Append(nsUri);
 
             IServerInternal server = CreateServerWithRegistry(nsTable);
