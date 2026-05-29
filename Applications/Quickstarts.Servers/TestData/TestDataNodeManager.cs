@@ -49,8 +49,10 @@ namespace TestData
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+#pragma warning disable CA2000 // ownership of TestDataNodeManager transfers to the caller via the returned ValueTask<IAsyncNodeManager>
             return new ValueTask<IAsyncNodeManager>(
                 new TestDataNodeManager(server, configuration, [.. NamespacesUris]));
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>
