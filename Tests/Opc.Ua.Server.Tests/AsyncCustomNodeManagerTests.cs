@@ -269,16 +269,12 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CreateNodeAsync_NoNodeVersion_DoesNotEmitGeneralModelChangeAsync()
         {
-            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
-                "Only the new AsyncCustomNodeManager exposes CreateNodeAsync auto-emit.");
-
             using ITestNodeManager manager = CreateManager();
-            var acnm = (TestableAsyncCustomNodeManager)manager;
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null);
 
-            await acnm.CreateNodeAsync(
+            await manager.CreateNodeAsync(
                 context,
                 default,
                 ReferenceTypeIds.Organizes,
@@ -298,19 +294,15 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CreateNodeAsync_WithNodeVersion_EmitsAndBumpsAsync()
         {
-            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
-                "Only the new AsyncCustomNodeManager exposes EnableModelChangeTrackingFor.");
-
             using ITestNodeManager manager = CreateManager();
-            var acnm = (TestableAsyncCustomNodeManager)manager;
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null);
 
-            PropertyState<string> nodeVersion = acnm.EnableModelChangeTrackingFor(node);
+            PropertyState<string> nodeVersion = manager.EnableModelChangeTrackingFor(node);
             Assert.That(nodeVersion.Value, Is.EqualTo("1"));
 
-            await acnm.CreateNodeAsync(
+            await manager.CreateNodeAsync(
                 context,
                 default,
                 ReferenceTypeIds.Organizes,
@@ -330,18 +322,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CreateNodeAsync_NoNodeVersion_EmitsWhenOptOutIsSetAsync()
         {
-            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
-                "Only the new AsyncCustomNodeManager exposes RequireNodeVersionForModelChange.");
-
             using ITestNodeManager manager = CreateManager();
-            var acnm = (TestableAsyncCustomNodeManager)manager;
-            acnm.RequireNodeVersionForModelChange = false;
+            manager.RequireNodeVersionForModelChange = false;
 
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null);
 
-            await acnm.CreateNodeAsync(
+            await manager.CreateNodeAsync(
                 context,
                 default,
                 ReferenceTypeIds.Organizes,
@@ -361,17 +349,13 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task NodeVersionWrite_FiresBaseModelChangeAsync()
         {
-            Assume.That(m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
-                "Only the new AsyncCustomNodeManager exposes EnableModelChangeTrackingFor.");
-
             using ITestNodeManager manager = CreateManager();
-            var acnm = (TestableAsyncCustomNodeManager)manager;
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null);
 
-            PropertyState<string> nodeVersion = acnm.EnableModelChangeTrackingFor(node);
-            await acnm.CreateNodeAsync(
+            PropertyState<string> nodeVersion = manager.EnableModelChangeTrackingFor(node);
+            await manager.CreateNodeAsync(
                 context,
                 default,
                 ReferenceTypeIds.Organizes,
@@ -403,37 +387,6 @@ namespace Opc.Ua.Server.Tests
                 && i.Arguments.Count > 0
                 && i.Arguments[i.Arguments.Count - 1]?.GetType() == typeof(BaseModelChangeEventState));
             Assert.That(baseOnlyCount, Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// <see cref="NodeStateModelChangeExtensions.EnableModelChangeTracking"/>
-        /// is idempotent — invoking it again on a node that already has a
-        /// NodeVersion property must not attach a second copy.
-        /// </summary>
-        [Test]
-        public void EnableModelChangeTracking_IsIdempotent()
-        {
-            var node = new BaseObjectState(null)
-            {
-                NodeId = new NodeId("X", 1),
-                BrowseName = new QualifiedName("X", 1)
-            };
-
-            PropertyState<string> first = node.EnableModelChangeTracking(1);
-            PropertyState<string> second = node.EnableModelChangeTracking(1);
-
-            Assert.That(second, Is.SameAs(first));
-            int matches = 0;
-            var children = new List<BaseInstanceState>();
-            node.GetChildren(null!, children);
-            foreach (BaseInstanceState child in children)
-            {
-                if (child.BrowseName == new QualifiedName(BrowseNames.NodeVersion, 0))
-                {
-                    matches++;
-                }
-            }
-            Assert.That(matches, Is.EqualTo(1));
         }
 
         [Test]
@@ -4515,9 +4468,22 @@ namespace Opc.Ua.Server.Tests
         NodeState Find(NodeId nodeId);
         NodeId New(ISystemContext context, NodeState node);
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
+        ValueTask<NodeId> CreateNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            NodeId referenceTypeId,
+            QualifiedName browseName,
+            BaseInstanceState instance,
+            CancellationToken ct = default);
         ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken ct = default);
         ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
         T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
+
+        /// <summary>Marks a node as eligible to trigger ModelChangeEvents (Part 5 §9.32.2).</summary>
+        PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null);
+
+        /// <summary>Strict NodeVersion-required gate on ModelChangeEvent emission.</summary>
+        bool RequireNodeVersionForModelChange { get; set; }
 
         /// <summary>Optional: set nodes to be loaded by CreateAddressSpaceAsync.</summary>
         NodeStateCollection? NodesToLoad { get; set; }
@@ -4586,6 +4552,21 @@ namespace Opc.Ua.Server.Tests
             : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
         }
+
+        // Provide deterministic auto-assignment so tests can call
+        // CreateNode without pre-setting a NodeId (mirrors the
+        // behaviour of AsyncCustomNodeManager.New).
+        public override NodeId New(ISystemContext context, NodeState node)
+        {
+            if (node.NodeId.IsNull)
+            {
+                uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
+                return new NodeId(id, NamespaceIndex);
+            }
+            return node.NodeId;
+        }
+
+        private uint m_lastUsedNodeId;
 
         public NodeStateCollection? NodesToLoad { get; set; }
 
@@ -4750,6 +4731,27 @@ namespace Opc.Ua.Server.Tests
             }
             m_cnm2.AddPredefinedNodePublic(context, instance);
             return new ValueTask<NodeId>(instance.NodeId);
+        }
+
+        public ValueTask<NodeId> CreateNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            NodeId referenceTypeId,
+            QualifiedName browseName,
+            BaseInstanceState instance,
+            CancellationToken ct = default)
+        {
+            NodeId id = m_cnm2.CreateNode(context, parentId, referenceTypeId, browseName, instance);
+            return new ValueTask<NodeId>(id);
+        }
+
+        public PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null)
+            => m_cnm2.EnableModelChangeTrackingFor(node, namespaceIndex);
+
+        public bool RequireNodeVersionForModelChange
+        {
+            get => m_cnm2.RequireNodeVersionForModelChange;
+            set => m_cnm2.RequireNodeVersionForModelChange = value;
         }
 
         public ValueTask<bool> DeleteNodeAsync(

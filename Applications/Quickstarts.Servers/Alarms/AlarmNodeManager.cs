@@ -50,8 +50,12 @@ namespace Alarms
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+            // CA2000: ownership of the returned IAsyncNodeManager
+            // transfers to the MasterNodeManager which disposes it.
+#pragma warning disable CA2000
             return new ValueTask<IAsyncNodeManager>(
                 new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!));
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>

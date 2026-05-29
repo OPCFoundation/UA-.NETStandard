@@ -485,7 +485,19 @@ namespace Opc.Ua.Server
 
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
-            return instance.NodeId;
+            NodeId resultId = instance.NodeId;
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeAdded(resultId, instance.TypeDefinitionId);
+                if (!parentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceAdded(parentId);
+                }
+                EmitModelChange(contextToUse);
+            }
+
+            return resultId;
         }
 
         /// <summary>
