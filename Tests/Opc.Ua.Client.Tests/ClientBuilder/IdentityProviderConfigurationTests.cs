@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using ServiceProvider sp = services.BuildServiceProvider();
             IClientIdentityProvider provider = sp.GetRequiredService<IClientIdentityProvider>();
 
-            Assert.That(provider.SupportedTokenTypes, Is.EqualTo(new[] { UserTokenType.Anonymous }));
+            Assert.That(provider.SupportedTokenTypes, Is.EqualTo([UserTokenType.Anonymous]));
             Assert.That(provider.CanSatisfy(CreatePolicy(UserTokenType.Anonymous), CreateContext()), Is.True);
             Assert.That(provider.CanSatisfy(CreatePolicy(UserTokenType.UserName), CreateContext()), Is.False);
             Assert.That(provider.CanSatisfy(CreatePolicy(UserTokenType.Certificate), CreateContext()), Is.False);
@@ -84,12 +84,12 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using ServiceProvider sp = services.BuildServiceProvider();
             IClientIdentityProvider provider = sp.GetRequiredService<IClientIdentityProvider>();
 
-            Assert.That(provider.SupportedTokenTypes, Is.EqualTo(new[]
-            {
+            Assert.That(provider.SupportedTokenTypes, Is.EqualTo(
+            [
                 UserTokenType.IssuedToken,
                 UserTokenType.Certificate,
                 UserTokenType.UserName
-            }));
+            ]));
         }
 
         [Test]
@@ -105,12 +105,12 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using ServiceProvider sp = services.BuildServiceProvider();
             IClientIdentityProvider provider = sp.GetRequiredService<IClientIdentityProvider>();
 
-            Assert.That(provider.SupportedTokenTypes, Is.EqualTo(new[]
-            {
+            Assert.That(provider.SupportedTokenTypes, Is.EqualTo(
+            [
                 UserTokenType.UserName,
                 UserTokenType.Certificate,
                 UserTokenType.IssuedToken
-            }));
+            ]));
         }
 
         [Test]
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             public char[] GetPassword(CertificateIdentifier certificateIdentifier)
             {
-                return Array.Empty<char>();
+                return [];
             }
         }
 
@@ -271,7 +271,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 #pragma warning disable CA2000 // ownership of the AccessToken transfers to the caller via the returned ValueTask
                 return new ValueTask<AccessToken>(new AccessToken(
                     Profiles.JwtUserToken,
-                    new byte[] { 1 },
+                    [1],
                     DateTime.MaxValue,
                     AuthorityUri));
 #pragma warning restore CA2000

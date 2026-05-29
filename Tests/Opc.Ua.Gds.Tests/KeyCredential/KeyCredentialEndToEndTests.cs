@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
                     credentialId,
                     credentialSecret.ToArray(),
                     DateTime.UtcNow.AddMinutes(5),
-                    new[] { securityPolicyUri })),
+                    [securityPolicyUri])),
                 "urn:test:gds");
             AccessToken accessToken = await provider.AcquireAsync(
                     new AuthorizationServerMetadata { AuthorityUri = "urn:test:gds" },

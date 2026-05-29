@@ -345,7 +345,7 @@ namespace Opc.Ua.Server
             {
                 return string.IsNullOrWhiteSpace(single)
                     ? Array.Empty<string>()
-                    : new[] { single };
+                    : [single];
             }
 
             if (value is IEnumerable<string> strings)

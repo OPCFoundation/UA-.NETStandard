@@ -523,11 +523,11 @@ namespace Opc.Ua.Client.Historian
             IReadOnlyList<NodeId> nodes,
             CancellationToken cancellationToken)
         {
-            ReadValueId[] requests = nodes.Select(n => new ReadValueId
+            ReadValueId[] requests = [.. nodes.Select(n => new ReadValueId
             {
                 NodeId = n,
                 AttributeId = Attributes.Value,
-            }).ToArray();
+            })];
 
             ReadResponse response = await Session.ReadAsync(
                 null,

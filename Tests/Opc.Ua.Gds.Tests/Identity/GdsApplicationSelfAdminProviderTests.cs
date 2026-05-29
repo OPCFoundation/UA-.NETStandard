@@ -244,7 +244,7 @@ namespace Opc.Ua.Gds.Tests.Identity
             public ApplicationRecordDataType[] FindApplications(string applicationUri)
             {
                 return string.Equals(applicationUri, m_applicationUri, StringComparison.Ordinal)
-                    ? new[] { m_record }
+                    ? [m_record]
                     : [];
             }
 

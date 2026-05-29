@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         private const string Issuer = "https://issuer.example.test";
         private const string DefaultAudience = "urn:opcua:default-server";
         private const string OverrideAudience = "urn:opcua:issuer-server";
-        private static readonly string[] s_rs256Algorithms = { "RS256" };
+        private static readonly string[] s_rs256Algorithms = ["RS256"];
 
         [Test]
         public void ValidateRejectsMissingIssuerUri()

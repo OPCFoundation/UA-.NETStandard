@@ -551,7 +551,7 @@ namespace Opc.Ua.Identity
                     {
                         if (!keyed.TryGetValue(key.KeyId, out List<IssuerVerificationKey>? matchingKeys))
                         {
-                            matchingKeys = new List<IssuerVerificationKey>();
+                            matchingKeys = [];
                             keyed[key.KeyId] = matchingKeys;
                         }
                         matchingKeys.Add(key);

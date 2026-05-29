@@ -60,7 +60,7 @@ namespace Opc.Ua.Identity
 
             var context = new IdentitySelectionContext(
                 endpointDescription,
-                endpointDescription.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>(),
+                endpointDescription.UserIdentityTokens.ToArray() ?? [],
                 messageContext);
             return provider.AcquireIdentityAsync(context, ct);
         }

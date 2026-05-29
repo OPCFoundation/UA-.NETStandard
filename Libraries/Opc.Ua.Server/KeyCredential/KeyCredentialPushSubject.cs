@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
                 browseName,
                 resourceUri,
                 profileUri,
-                endpointUrls.ToArray() ?? Array.Empty<string>());
+                endpointUrls.ToArray() ?? []);
             await AddNodeAsync(state, ct).ConfigureAwait(false);
             return new CreateCredentialMethodStateResult
             {

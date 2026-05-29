@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.Identity
             UserNamePasswordAuthenticator authenticator = CreateAuthenticator(out _, out _);
 
             AuthenticationResult result = await authenticator.AuthenticateAsync(
-                CreateContext(new UserNameIdentityTokenHandler("alice", System.Array.Empty<byte>())))
+                CreateContext(new UserNameIdentityTokenHandler("alice", [])))
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));

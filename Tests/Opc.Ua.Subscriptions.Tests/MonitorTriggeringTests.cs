@@ -2497,8 +2497,8 @@ namespace Opc.Ua.Subscriptions.Tests
             // with each common coercion until one succeeds.
             if (writeResp.Results[0] == StatusCodes.BadTypeMismatch)
             {
-                Variant[] coercions = new[]
-                {
+                Variant[] coercions =
+                [
                     Variant.From((double)value),
                     Variant.From((uint)value),
                     Variant.From((short)value),
@@ -2508,7 +2508,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     Variant.From((float)value),
                     Variant.From((byte)value),
                     Variant.From((sbyte)value)
-                };
+                ];
                 for (int i = 0; i < coercions.Length; i++)
                 {
                     WriteResponse retry = await Session.WriteAsync(

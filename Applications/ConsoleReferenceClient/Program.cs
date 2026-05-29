@@ -368,7 +368,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             "console-reference-client-password",
                             passwordStore.StoreType);
                         await passwordStore
-                            .SetAsync(passwordId, userpassword ?? Array.Empty<byte>(), ct)
+                            .SetAsync(passwordId, userpassword ?? [], ct)
                             .ConfigureAwait(false);
                         identityProviders.Add(new UserNamePasswordIdentityProvider(
                             username!,

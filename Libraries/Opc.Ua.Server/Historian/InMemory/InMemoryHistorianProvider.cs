@@ -368,7 +368,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
                 else
                 {
-                    List<DateTime> toRemove = archive.Raw.Keys.Where(k => k >= start && k < end).ToList();
+                    List<DateTime> toRemove = [.. archive.Raw.Keys.Where(k => k >= start && k < end)];
                     foreach (DateTime key in toRemove)
                     {
                         DataValue prior = archive.Raw[key];

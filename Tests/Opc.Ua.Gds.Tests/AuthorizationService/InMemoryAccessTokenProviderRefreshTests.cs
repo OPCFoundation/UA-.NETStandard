@@ -199,10 +199,9 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             using JsonDocument payload = JsonDocument.Parse(Base64UrlDecode(refreshed.AccessToken.Split('.')[1]));
             JsonElement root = payload.RootElement;
             Assert.That(root.GetProperty("scope").GetString(), Is.EqualTo("read"));
-            string[] roles = root.GetProperty("roles")
+            string[] roles = [.. root.GetProperty("roles")
                 .EnumerateArray()
-                .Select(role => role.GetString() ?? string.Empty)
-                .ToArray();
+                .Select(role => role.GetString() ?? string.Empty)];
             Assert.That(roles, Is.EqualTo(s_authenticatedUserRole));
         }
 
@@ -215,11 +214,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             InMemoryAccessTokenProvider provider = CreateProvider(certificateProvider, options);
 
             AccessTokenResult original = await IssueTokenAsync(provider).ConfigureAwait(false);
-            Task<AccessTokenResult>[] tasks = Enumerable.Range(0, 8)
+            Task<AccessTokenResult>[] tasks = [.. Enumerable.Range(0, 8)
                 .Select(_ => Task.Run(async () => await provider
                     .RefreshTokenAsync(Audience, original.RefreshToken!)
-                    .ConfigureAwait(false)))
-                .ToArray();
+                    .ConfigureAwait(false)))];
 
             try
             {
@@ -271,7 +269,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     resourceId,
                     "jwt",
                     ByteString.From(Encoding.UTF8.GetBytes(string.Join(" ", scopes))),
-                    new UserIdentity("sysadmin", Array.Empty<byte>()))
+                    new UserIdentity("sysadmin", []))
                 .ConfigureAwait(false);
 
             return await provider

@@ -42,7 +42,7 @@ namespace Opc.Ua.Gds.Server
         public string AccessToken { get; set; } = string.Empty;
 
         /// <summary>The raw access-token bytes as carried by issued identity tokens.</summary>
-        public byte[] AccessTokenBytes { get; set; } = Array.Empty<byte>();
+        public byte[] AccessTokenBytes { get; set; } = [];
 
         /// <summary>The access-token type, such as <c>JWT</c>.</summary>
         public string TokenType { get; set; } = string.Empty;

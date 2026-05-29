@@ -410,7 +410,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Provider = new InMemoryHistorianProvider();
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
-                m_continuationStore = new Dictionary<Guid, object>();
+                m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
                 mockSession

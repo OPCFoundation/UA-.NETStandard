@@ -141,7 +141,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             key.Dispose();
 
             Assert.That(
-                () => key.VerifySignature(new byte[] { 1 }, new byte[] { 1 }),
+                () => key.VerifySignature([1], [1]),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => key.VerifySignature(null!, new byte[] { 0 }))!;
+                () => key.VerifySignature(null!, [0]))!;
             Assert.That(ex.ParamName, Is.EqualTo("signingInput"));
         }
 
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => key.VerifySignature(new byte[] { 0 }, null!))!;
+                () => key.VerifySignature([0], null!))!;
             Assert.That(ex.ParamName, Is.EqualTo("signature"));
         }
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using var key = new IssuerVerificationKey("kid-1", rsa, "HS256");
 
             Assert.That(
-                () => key.VerifySignature(new byte[] { 0 }, new byte[] { 0 }),
+                () => key.VerifySignature([0], [0]),
                 Throws.TypeOf<NotSupportedException>());
         }
     }

@@ -56,12 +56,12 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Gets inline static public keys for this issuer.
         /// </summary>
-        public IList<JwtStaticKeyOptions> StaticKeys { get; } = new List<JwtStaticKeyOptions>();
+        public IList<JwtStaticKeyOptions> StaticKeys { get; } = [];
 
         /// <summary>
         /// Gets the JWS algorithms this issuer is allowed to use.
         /// </summary>
-        public IList<string> Algorithms { get; } = new List<string> { "RS256" };
+        public IList<string> Algorithms { get; } = ["RS256"];
 
         /// <summary>
         /// Gets or sets the expected audience for this issuer. When empty, the

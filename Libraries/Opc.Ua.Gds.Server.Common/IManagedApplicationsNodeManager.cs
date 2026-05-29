@@ -275,7 +275,7 @@ namespace Opc.Ua.Gds.Server
             // (the folder is owned by the core node manager).
             if (!externalReferences.TryGetValue(ManagedApplicationsFolderId, out IList<IReference>? refs))
             {
-                refs = new List<IReference>();
+                refs = [];
                 externalReferences[ManagedApplicationsFolderId] = refs;
             }
 

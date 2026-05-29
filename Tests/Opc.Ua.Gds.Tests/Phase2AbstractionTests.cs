@@ -126,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
         {
             m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = AppUri });
 
-            byte[] payload = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+            byte[] payload = [0xCA, 0xFE, 0xBA, 0xBE];
             uint newVersion = await m_store.WriteConfigurationAsync(
                 AppUri, payload, 0, CancellationToken.None).ConfigureAwait(false);
 
@@ -143,12 +143,12 @@ namespace Opc.Ua.Gds.Tests
 
             // Write version 0 → 1
             await m_store.WriteConfigurationAsync(
-                AppUri, new byte[] { 1 }, 0, CancellationToken.None).ConfigureAwait(false);
+                AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
             // Try to write with stale version 0 → should fail
             var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.WriteConfigurationAsync(
-                    AppUri, new byte[] { 2 }, 0, CancellationToken.None).ConfigureAwait(false));
+                    AppUri, [2], 0, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -159,7 +159,7 @@ namespace Opc.Ua.Gds.Tests
             m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = AppUri });
 
             uint version = await m_store.WriteConfigurationAsync(
-                AppUri, new byte[] { 1 }, 0, CancellationToken.None).ConfigureAwait(false);
+                AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
             Assert.DoesNotThrowAsync(async () =>
                 await m_store.ConfirmUpdateAsync(AppUri, version, CancellationToken.None).ConfigureAwait(false));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Tests
             m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = AppUri });
 
             await m_store.WriteConfigurationAsync(
-                AppUri, new byte[] { 1 }, 0, CancellationToken.None).ConfigureAwait(false);
+                AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
             var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_store.ConfirmUpdateAsync(AppUri, 999, CancellationToken.None).ConfigureAwait(false));
@@ -194,10 +194,10 @@ namespace Opc.Ua.Gds.Tests
             m_store.AddApplication(new ManagedApplicationInfo { ApplicationUri = AppUri });
 
             uint v1 = await m_store.WriteConfigurationAsync(
-                AppUri, new byte[] { 1 }, 0, CancellationToken.None).ConfigureAwait(false);
+                AppUri, [1], 0, CancellationToken.None).ConfigureAwait(false);
 
             uint v2 = await m_store.WriteConfigurationAsync(
-                AppUri, new byte[] { 2 }, v1, CancellationToken.None).ConfigureAwait(false);
+                AppUri, [2], v1, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(v2, Is.GreaterThan(v1));
         }

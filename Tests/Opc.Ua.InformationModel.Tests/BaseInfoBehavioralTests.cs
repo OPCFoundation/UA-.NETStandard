@@ -1773,7 +1773,7 @@ namespace Opc.Ua.InformationModel.Tests
                 case BuiltInType.UInt32:
                     if (variant.TryGetValue(out uint single))
                     {
-                        return new[] { single };
+                        return [single];
                     }
                     break;
             }

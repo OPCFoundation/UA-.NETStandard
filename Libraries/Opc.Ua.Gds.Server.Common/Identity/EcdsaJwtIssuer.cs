@@ -439,10 +439,9 @@ namespace Opc.Ua.Gds.Server.Identity
             IEnumerable<string> values = requestedScopes.Count != 0
                 ? requestedScopes
                 : defaultScopes;
-            return values
+            return [.. values
                 .Where(scope => !string.IsNullOrWhiteSpace(scope))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+                .Distinct(StringComparer.Ordinal)];
         }
 
         private static string EcdsaAlgorithm(int keySize)

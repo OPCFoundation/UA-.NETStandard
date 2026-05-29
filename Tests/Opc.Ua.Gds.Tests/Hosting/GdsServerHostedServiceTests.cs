@@ -372,7 +372,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             var handler = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
-                new byte[] { 0x01 });
+                [0x01]);
             var userTokenPolicy = new UserTokenPolicy(UserTokenType.IssuedToken);
             var endpointDescription = new EndpointDescription
             {

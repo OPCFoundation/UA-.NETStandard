@@ -1586,7 +1586,7 @@ namespace Opc.Ua.Client
                     context = new IdentitySelectionContext(
                         m_endpoint.Description,
                         m_endpoint.Description.UserIdentityTokens.ToArray() ??
-                        Array.Empty<UserTokenPolicy>(),
+                        [],
                         MessageContext);
                 }
 

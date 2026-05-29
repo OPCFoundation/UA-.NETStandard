@@ -165,7 +165,7 @@ namespace Opc.Ua.InformationModel.Tests
             await BrowseRequiresMandatoryMethodsAsync(
                 folderNodeId: new NodeId(15443),
                 folderName: "SecurityGroups (i=15443)",
-                expectedMethods: new[] { "AddSecurityGroup", "RemoveSecurityGroup" })
+                expectedMethods: ["AddSecurityGroup", "RemoveSecurityGroup"])
                 .ConfigureAwait(false);
         }
 
@@ -178,7 +178,7 @@ namespace Opc.Ua.InformationModel.Tests
             await BrowseRequiresMandatoryMethodsAsync(
                 folderNodeId: new NodeId(25440),
                 folderName: "KeyPushTargets (i=25440)",
-                expectedMethods: new[] { "AddPushTarget", "RemovePushTarget" })
+                expectedMethods: ["AddPushTarget", "RemovePushTarget"])
                 .ConfigureAwait(false);
         }
 

@@ -846,7 +846,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             var rsaCertType = new NodeId(12560u);
-            byte[] invalidCert = new byte[] { 0x30, 0x82, 0x00, 0x01 };
+            byte[] invalidCert = [0x30, 0x82, 0x00, 0x01];
             try
             {
                 CallMethodResult result = await CallMethodAsync(

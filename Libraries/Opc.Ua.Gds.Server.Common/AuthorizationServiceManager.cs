@@ -137,10 +137,9 @@ namespace Opc.Ua.Gds.Server
             string[] scopes = DecodeScopes(requestorData);
             if (scopes.Length == 0)
             {
-                scopes = m_options.DefaultScopes
+                scopes = [.. m_options.DefaultScopes
                     .Where(scope => !string.IsNullOrWhiteSpace(scope))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray();
+                    .Distinct(StringComparer.Ordinal)];
             }
 
             ValidateAccess(callerIdentity, resourceId, scopes);
@@ -203,15 +202,14 @@ namespace Opc.Ua.Gds.Server
         {
             if (requestorData.Length == 0)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             string text = System.Text.Encoding.UTF8.GetString(requestorData.ToArray());
-            return text
+            return [.. text
                 .Split(s_scopeSeparators, StringSplitOptions.RemoveEmptyEntries)
                 .Where(scope => !string.IsNullOrWhiteSpace(scope))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+                .Distinct(StringComparer.Ordinal)];
         }
     }
 }

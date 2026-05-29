@@ -104,7 +104,7 @@ namespace Opc.Ua.Gds.Server.Identity
                 GetSubject(identityToken, null),
                 resourceId,
                 scopes,
-                Array.Empty<string>(),
+                [],
                 ct)
                 .ConfigureAwait(false);
             using (token)
@@ -176,10 +176,8 @@ namespace Opc.Ua.Gds.Server.Identity
             }
 
             string[] roles = requestedRoles.IsEmpty
-                ? Array.Empty<string>()
-                : requestedRoles.ToArray()!
-                    .Where(role => !string.IsNullOrWhiteSpace(role))
-                    .ToArray();
+                ? []
+                : [.. requestedRoles.ToArray()!.Where(role => !string.IsNullOrWhiteSpace(role))];
             string subject = GetSubject(userIdentityToken, request.Subject);
             AccessToken token = await IssueAsync(
                 subject,
@@ -198,8 +196,8 @@ namespace Opc.Ua.Gds.Server.Identity
                 m_issuedTokens[refreshToken] = new IssuedTokenRecord(
                     subject,
                     request.ResourceId,
-                    request.Scopes.ToArray(),
-                    roles.ToArray(),
+                    [.. request.Scopes],
+                    [.. roles],
                     refreshExpiry);
             }
 
@@ -297,8 +295,8 @@ namespace Opc.Ua.Gds.Server.Identity
             m_issuedTokens[newRefreshToken] = new IssuedTokenRecord(
                 record.Subject,
                 record.ResourceId,
-                record.Scopes.ToArray(),
-                record.Roles.ToArray(),
+                [.. record.Scopes],
+                [.. record.Roles],
                 newRefreshExpiry);
 
             using (token)
@@ -382,23 +380,21 @@ namespace Opc.Ua.Gds.Server.Identity
         {
             if (requestorData.Length == 0)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             string text = Encoding.UTF8.GetString(requestorData.ToArray());
-            return text
+            return [.. text
                 .Split(s_scopeSeparators, StringSplitOptions.RemoveEmptyEntries)
                 .Where(scope => !string.IsNullOrWhiteSpace(scope))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+                .Distinct(StringComparer.Ordinal)];
         }
 
         private static string[] NormalizeScopes(IEnumerable<string> scopes)
         {
-            return scopes
+            return [.. scopes
                 .Where(scope => !string.IsNullOrWhiteSpace(scope))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+                .Distinct(StringComparer.Ordinal)];
         }
 
         private static string CreateRefreshToken()

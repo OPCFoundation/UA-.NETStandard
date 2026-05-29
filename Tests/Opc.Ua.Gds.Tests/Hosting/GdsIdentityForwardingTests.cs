@@ -259,9 +259,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
         private static string[] DescribeDelta(IServiceCollection services, int startIndex)
         {
-            return services.Skip(startIndex)
-                .Select(Describe)
-                .ToArray();
+            return [.. services.Skip(startIndex).Select(Describe)];
         }
 
         private static string Describe(ServiceDescriptor descriptor)

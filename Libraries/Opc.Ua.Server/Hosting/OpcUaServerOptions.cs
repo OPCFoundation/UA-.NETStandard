@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Hosting
         /// <see cref="UserTokenType.Anonymous"/>.
         /// </summary>
         public IList<OpcUaUserTokenPolicy> UserTokenPolicies { get; }
-            = new List<OpcUaUserTokenPolicy>();
+            = [];
 
         /// <summary>
         /// Server-side identity authenticators and trusted JWT issuers.

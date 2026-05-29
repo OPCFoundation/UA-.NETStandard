@@ -267,24 +267,22 @@ namespace Opc.Ua.Client
             {
                 object? startResult = m_startRequest.Invoke(
                     m_client,
-                    new object?[]
-                    {
+                    [
                         m_applicationUri,
                         m_publicKey,
                         m_securityPolicyUri,
                         m_requestedRoles,
                         ct
-                    });
+                    ]);
                 NodeId requestId = await AwaitValueTaskAsync<NodeId>(startResult).ConfigureAwait(false);
 
                 object? finishResult = m_finishRequest.Invoke(
                     m_client,
-                    new object?[]
-                    {
+                    [
                         requestId,
                         false,
                         ct
-                    });
+                    ]);
                 var (credentialId, credentialSecret, _, securityPolicyUri, grantedRoles) =
                     await AwaitValueTaskAsync<(
                             string credentialId,
@@ -306,7 +304,7 @@ namespace Opc.Ua.Client
                     credentialId,
                     credentialSecret.ToArray(),
                     DateTime.MinValue,
-                    scopes.ToArray());
+                    [.. scopes]);
             }
 
             private static async ValueTask<T> AwaitValueTaskAsync<T>(object? valueTask)

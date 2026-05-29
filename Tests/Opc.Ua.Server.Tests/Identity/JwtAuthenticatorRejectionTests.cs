@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .AuthenticateAsync(CreateContext(
                     new IssuedIdentityTokenHandler(
                         "http://opcfoundation.org/UA/UserToken#SAML",
-                        new byte[] { 1, 2, 3 })))
+                        [1, 2, 3])))
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
@@ -111,7 +111,7 @@ namespace Opc.Ua.Server.Tests.Identity
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string header = Base64UrlEncode(Encoding.UTF8.GetBytes("not-json"));
             string payload = Base64UrlEncode(Encoding.UTF8.GetBytes("{}"));
-            string signature = Base64UrlEncode(new byte[] { 1, 2, 3 });
+            string signature = Base64UrlEncode([1, 2, 3]);
             AuthenticationResult result = await Authenticate(header + "." + payload + "." + signature, key)
                 .ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests.Identity
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
             string header = Base64UrlEncode(Encoding.UTF8.GetBytes("{\"typ\":\"JWT\"}"));
             string payload = Base64UrlEncode(Encoding.UTF8.GetBytes("{}"));
-            string signature = Base64UrlEncode(new byte[] { 1, 2, 3 });
+            string signature = Base64UrlEncode([1, 2, 3]);
             AuthenticationResult result = await Authenticate(header + "." + payload + "." + signature, key)
                 .ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 "." +
                 Base64UrlEncode(Encoding.UTF8.GetBytes("{}")) +
                 "." +
-                Base64UrlEncode(new byte[] { 1 }));
+                Base64UrlEncode([1]));
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await authenticator.AuthenticateAsync(CreateContext(
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null));
             AuthenticationResult result = await authenticator
                 .AuthenticateAsync(CreateContext(
-                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, new byte[] { 1 })))
+                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1])))
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -272,7 +272,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await authenticator
                 .AuthenticateAsync(CreateContext(
-                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, new byte[] { 1 })))
+                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1])))
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests.Identity
             public StubResolver(string issuerUri, params IssuerVerificationKey[] keys)
             {
                 IssuerUri = issuerUri;
-                m_keys = keys ?? Array.Empty<IssuerVerificationKey>();
+                m_keys = keys ?? [];
             }
 
             public string IssuerUri { get; }

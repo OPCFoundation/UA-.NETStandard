@@ -728,7 +728,7 @@ public class AsyncCustomNodeManagerHistoryRoutingTests
 
     private sealed class HistoryRoutingTestNodeManager : AsyncCustomNodeManager
     {
-        public NodeIdDictionary<IHistorianProvider> ProviderMap { get; } = new();
+        public NodeIdDictionary<IHistorianProvider> ProviderMap { get; } = [];
 
         public HistoryRoutingTestNodeManager(
             IServerInternal server,

@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             resolver.Dispose();
 
             Assert.That(
-                () => key.VerifySignature(new byte[] { 1 }, new byte[] { 1 }),
+                () => key.VerifySignature([1], [1]),
                 Throws.TypeOf<ObjectDisposedException>());
         }
 

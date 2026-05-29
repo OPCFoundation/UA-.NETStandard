@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests.Identity
             public FakeSecretRegistry(byte[] secretBytes)
             {
                 m_secretBytes = secretBytes;
-                LastSecret = new FakeSecret(Array.Empty<byte>());
+                LastSecret = new FakeSecret([]);
             }
 
             public FakeSecret LastSecret { get; private set; }
@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Tests.Identity
         {
             public char[] GetPassword(CertificateIdentifier certificateIdentifier)
             {
-                return Array.Empty<char>();
+                return [];
             }
         }
 

@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .AddAccessTokenProvider<TypedAccessTokenProvider>();
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            List<IAccessTokenProvider> providers = sp.GetServices<IAccessTokenProvider>().ToList();
+            List<IAccessTokenProvider> providers = [.. sp.GetServices<IAccessTokenProvider>()];
 
             Assert.That(providers, Has.Count.EqualTo(1));
             Assert.That(providers[0], Is.InstanceOf<TypedAccessTokenProvider>());
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .AddAccessTokenProvider(instance);
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            List<IAccessTokenProvider> providers = sp.GetServices<IAccessTokenProvider>().ToList();
+            List<IAccessTokenProvider> providers = [.. sp.GetServices<IAccessTokenProvider>()];
 
             Assert.That(providers, Has.Count.EqualTo(1));
             Assert.That(providers[0], Is.SameAs(instance));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .AddAccessTokenProvider(_ => new StubAccessTokenProvider("https://factory.example"));
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            List<IAccessTokenProvider> providers = sp.GetServices<IAccessTokenProvider>().ToList();
+            List<IAccessTokenProvider> providers = [.. sp.GetServices<IAccessTokenProvider>()];
 
             Assert.That(providers, Has.Count.EqualTo(1));
             Assert.That(providers[0].AuthorityUri, Is.EqualTo("https://factory.example"));
@@ -109,9 +109,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .AddAccessTokenProvider(_ => new StubAccessTokenProvider("https://two.example"));
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            List<string> authorities = sp.GetServices<IAccessTokenProvider>()
-                .Select(provider => provider.AuthorityUri)
-                .ToList();
+            List<string> authorities = [.. sp.GetServices<IAccessTokenProvider>().Select(provider => provider.AuthorityUri)];
 
             Assert.That(authorities, Is.EqualTo(s_expectedAuthorityOrder));
         }
@@ -142,7 +140,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 #pragma warning disable CA2000 // ownership of the AccessToken transfers to the caller via the returned ValueTask
                 return new ValueTask<AccessToken>(new AccessToken(
                     Profiles.JwtUserToken,
-                    new byte[] { 1 },
+                    [1],
                     DateTime.MaxValue,
                     AuthorityUri));
 #pragma warning restore CA2000

@@ -69,19 +69,19 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         private static readonly string[] s_canonicalRequestTypes =
-        {
+        [
             "authorization_code",
             "client_credentials"
-        };
+        ];
 
         private static readonly string[] s_canonicalScopes =
-        {
+        [
             "UAPubSub",
             "read:nodes"
-        };
+        ];
 
-        private static readonly string[] s_singleClientCredentials = { "client_credentials" };
-        private static readonly string[] s_oidcScopes = { "openid", "profile" };
+        private static readonly string[] s_singleClientCredentials = ["client_credentials"];
+        private static readonly string[] s_oidcScopes = ["openid", "profile"];
 
         [Test]
         public void ParseExtractsCanonicalFields()

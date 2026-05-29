@@ -89,9 +89,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
             Assert.That(factory, Is.Not.Null);
 
-            OpcUaServerNodeManagerRegistration[] regs = sp
-                .GetServices<OpcUaServerNodeManagerRegistration>()
-                .ToArray();
+            OpcUaServerNodeManagerRegistration[] regs = [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
             Assert.That(regs, Has.Length.GreaterThanOrEqualTo(1));
             Assert.That(
                 regs.Any(r => ReferenceEquals(r.SyncFactory, factory)),

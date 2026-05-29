@@ -445,13 +445,13 @@ namespace Opc.Ua.Lds.Tests
 
             // Filter by first uri -> only that one (LDS self filtered out).
             ArrayOf<ApplicationDescription> filtered =
-                await FindServersAsync(new[] { ClientApplicationUri }).ConfigureAwait(false);
+                await FindServersAsync([ClientApplicationUri]).ConfigureAwait(false);
             Assert.That(filtered.Count, Is.EqualTo(1));
             Assert.That(filtered[0].ApplicationUri, Is.EqualTo(ClientApplicationUri));
 
             // Filter by second uri -> only that one.
             ArrayOf<ApplicationDescription> filtered2 =
-                await FindServersAsync(new[] { secondUri }).ConfigureAwait(false);
+                await FindServersAsync([secondUri]).ConfigureAwait(false);
             Assert.That(filtered2.Count, Is.EqualTo(1));
             Assert.That(filtered2[0].ApplicationUri, Is.EqualTo(secondUri));
         }

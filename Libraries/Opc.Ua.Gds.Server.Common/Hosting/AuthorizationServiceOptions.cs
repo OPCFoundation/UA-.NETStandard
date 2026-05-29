@@ -79,12 +79,12 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// Gets the audience URIs that may receive tokens. When empty, the
         /// default implementation accepts the requested resource URI.
         /// </summary>
-        public IList<string> AllowedAudiences { get; } = new List<string>();
+        public IList<string> AllowedAudiences { get; } = [];
 
         /// <summary>
         /// Gets the scopes granted when the caller did not request scopes.
         /// </summary>
-        public IList<string> DefaultScopes { get; } = new List<string>();
+        public IList<string> DefaultScopes { get; } = [];
 
         /// <summary>
         /// Gets or sets an optional authorization predicate over caller,

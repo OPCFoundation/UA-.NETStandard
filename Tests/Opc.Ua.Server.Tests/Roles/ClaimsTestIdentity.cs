@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests
             Subject = subject ?? displayName;
             Claims = BuildClaims(Groups, Roles, Issuer, Subject);
             GrantedRoleIds = grantedRoleIds == null
-                ? ArrayOf.Empty<NodeId>()
+                ? []
                 : ArrayOf.Wrapped(grantedRoleIds.ToArray());
         }
 

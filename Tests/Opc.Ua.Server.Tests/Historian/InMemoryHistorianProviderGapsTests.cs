@@ -218,10 +218,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             // t1 and t2 deleted ([1,3) range); t0, t3, t4 remain.
             Assert.That(page.Values, Has.Count.EqualTo(3));
-            double[] remaining = page.Values
-                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))
-                .ToArray();
-            Assert.That(remaining, Is.EqualTo(new[] { 0.0, 3.0, 4.0 }));
+            double[] remaining = [.. page.Values.Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))];
+            Assert.That(remaining, Is.EqualTo([0.0, 3.0, 4.0]));
         }
 
         [Test]
@@ -360,7 +358,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(page.Values, Has.Count.EqualTo(2));
 
-            ByteString[] remainingIds = page.Values.Select(v => v.EventId).ToArray();
+            ByteString[] remainingIds = [.. page.Values.Select(v => v.EventId)];
             Assert.That(remainingIds, Does.Contain(id1));
             Assert.That(remainingIds, Does.Contain(id3));
             Assert.That(remainingIds, Does.Not.Contain(id2));
@@ -404,10 +402,8 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page = await ReadAll(provider, context, nodeId);
             Assert.That(page.Values, Has.Count.EqualTo(3));
 
-            double[] vals = page.Values
-                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))
-                .ToArray();
-            Assert.That(vals, Is.EqualTo(new[] { 100.0, 200.0, 300.0 }));
+            double[] vals = [.. page.Values.Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))];
+            Assert.That(vals, Is.EqualTo([100.0, 200.0, 300.0]));
         }
 
         private static DataValue MakeValue(DateTime sourceTimestamp, double value)

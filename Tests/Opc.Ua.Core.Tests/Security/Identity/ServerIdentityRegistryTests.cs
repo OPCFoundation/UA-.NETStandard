@@ -82,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             var userName = new StubAuthenticator(UserTokenType.UserName, null);
             var registry = new ServerIdentityRegistry(anonymous, userName);
 
-            var userNameToken = new UserNameIdentityTokenHandler("alice", new byte[] { 0x01 });
+            var userNameToken = new UserNameIdentityTokenHandler("alice", [0x01]);
             AuthenticationContext userNameCtx = MakeContext(userNameToken);
             AuthenticationResult userNameResult = await registry.AuthenticateAsync(userNameCtx).ConfigureAwait(false);
 
@@ -100,7 +100,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             var jwtHandler = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
-                new byte[] { 0x10 });
+                [0x10]);
             AuthenticationContext context = MakeContext(jwtHandler);
 
             AuthenticationResult result = await registry.AuthenticateAsync(context).ConfigureAwait(false);
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             var jwtHandler = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
-                new byte[] { 0x10 });
+                [0x10]);
             AuthenticationContext context = MakeContext(jwtHandler);
 
             AuthenticationResult result = await registry.AuthenticateAsync(context).ConfigureAwait(false);
@@ -141,7 +141,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             var jwtHandler = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
-                new byte[] { 0x10 });
+                [0x10]);
             AuthenticationContext context = MakeContext(jwtHandler);
 
             AuthenticationResult result = await registry.AuthenticateAsync(context).ConfigureAwait(false);
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             AuthenticationContext context = MakeContext(new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
-                new byte[] { 0x10 }));
+                [0x10]));
             AuthenticationResult result = await registry.AuthenticateAsync(context).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
@@ -195,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             registry.Register(first);
             registry.Register(second);
 
-            var userNameToken = new UserNameIdentityTokenHandler("alice", new byte[] { 0x01 });
+            var userNameToken = new UserNameIdentityTokenHandler("alice", [0x01]);
             AuthenticationResult result = await registry
                 .AuthenticateAsync(MakeContext(userNameToken))
                 .ConfigureAwait(false);

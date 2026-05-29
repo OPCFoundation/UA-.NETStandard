@@ -47,6 +47,6 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Trusted JWT issuers declared for server-side issued-token validation.
         /// </summary>
-        public IList<JwtIssuerOptions> Issuers { get; } = new List<JwtIssuerOptions>();
+        public IList<JwtIssuerOptions> Issuers { get; } = [];
     }
 }

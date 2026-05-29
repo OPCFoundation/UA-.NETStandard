@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.IssuedToken);
             identity.Setup(i => i.DisplayName).Returns("claims-user");
-            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
             return identity.Object;
         }
 

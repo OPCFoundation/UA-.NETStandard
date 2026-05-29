@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds.Client
             }
 
             string[] scopes = metadata.Scopes.Count == 0
-                ? Array.Empty<string>()
+                ? []
                 : [.. metadata.Scopes];
             ByteString requestorData = scopes.Length == 0
                 ? ByteString.Empty

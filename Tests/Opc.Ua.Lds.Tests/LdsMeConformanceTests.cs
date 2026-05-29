@@ -336,7 +336,7 @@ namespace Opc.Ua.Lds.Tests
                 IsOnline = true,
                 LastSeenUtc = DateTime.UtcNow,
                 MdnsServerName = serverName,
-                ServerCapabilities = new List<string>(caps)
+                ServerCapabilities = [.. caps]
             });
         }
 

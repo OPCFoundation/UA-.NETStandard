@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Hosting
         /// <see cref="ServerConfiguration.ReverseConnect"/>.
         /// </summary>
         public IList<ServerReverseConnectClientOptions> Clients { get; }
-            = new List<ServerReverseConnectClientOptions>();
+            = [];
 
         /// <summary>
         /// Interval in milliseconds between reverse-connect attempts.

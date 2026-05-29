@@ -30,9 +30,9 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;

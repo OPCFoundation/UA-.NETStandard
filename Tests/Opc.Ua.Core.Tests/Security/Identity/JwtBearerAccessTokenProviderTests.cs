@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             var provider = new JwtBearerAccessTokenProvider(
                 "https://issuer.example",
-                new byte[] { 1, 2, 3 },
+                [1, 2, 3],
                 TimeProvider.System.GetUtcNow().UtcDateTime.AddMinutes(5),
                 "jwt");
 
@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task AcquireAsyncClonesBytesForEachToken()
         {
-            byte[] supplied = { 1, 2, 3 };
+            byte[] supplied = [1, 2, 3];
             var provider = new JwtBearerAccessTokenProvider(
                 "https://issuer.example",
                 supplied,
@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             var provider = new JwtBearerAccessTokenProvider(
                 "https://issuer.example",
-                new byte[] { 1 },
+                [1],
                 TimeProvider.System.GetUtcNow().UtcDateTime.AddMinutes(-5));
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(

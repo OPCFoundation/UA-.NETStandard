@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            IList<IHostedService> hosted = sp.GetServices<IHostedService>().ToList();
+            IList<IHostedService> hosted = [.. sp.GetServices<IHostedService>()];
             int serverCount = hosted.Count(h => h is OpcUaServerHostedService);
             int ldsCount = hosted.Count(h => h.GetType().Name == "LdsServerHostedService");
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            IList<IHostedService> hosted = sp.GetServices<IHostedService>().ToList();
+            IList<IHostedService> hosted = [.. sp.GetServices<IHostedService>()];
             int serverCount = hosted.Count(h => h is OpcUaServerHostedService);
             int gdsCount = hosted.Count(h => h.GetType().Name == "GdsServerHostedService");
 
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            IList<IHostedService> hosted = sp.GetServices<IHostedService>().ToList();
+            IList<IHostedService> hosted = [.. sp.GetServices<IHostedService>()];
             int gdsCount = hosted.Count(h => h.GetType().Name == "GdsServerHostedService");
             int ldsCount = hosted.Count(h => h.GetType().Name == "LdsServerHostedService");
 
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             using ServiceProvider sp = services.BuildServiceProvider();
 
             IList<OpcUaServerNodeManagerRegistration> registrations =
-                sp.GetServices<OpcUaServerNodeManagerRegistration>().ToList();
+                [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
 
             int fakeCount = registrations.Count(
                 r => r.AsyncFactory is FakeAsyncNodeManagerFactory);
@@ -322,7 +322,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             using ServiceProvider sp = services.BuildServiceProvider();
 
             IList<OpcUaServerNodeManagerRegistration> registrations =
-                sp.GetServices<OpcUaServerNodeManagerRegistration>().ToList();
+                [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
 
             int wotCount = registrations.Count(
                 r => r.SyncFactory is WotConnectivityNodeManagerFactory);

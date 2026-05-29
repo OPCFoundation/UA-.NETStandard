@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
         private sealed class RecordingRegistry : IServerIdentityRegistry
         {
-            public List<IUserTokenAuthenticator> Authenticators { get; } = new List<IUserTokenAuthenticator>();
+            public List<IUserTokenAuthenticator> Authenticators { get; } = [];
 
             public void Register(IUserTokenAuthenticator authenticator)
             {

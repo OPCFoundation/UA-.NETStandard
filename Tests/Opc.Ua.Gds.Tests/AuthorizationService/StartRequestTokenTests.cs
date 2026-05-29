@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     Audience,
                     "jwt",
                     ByteString.From(Encoding.UTF8.GetBytes("read write")),
-                    new UserIdentity("sysadmin", Array.Empty<byte>()))
+                    new UserIdentity("sysadmin", []))
                 .ConfigureAwait(false);
 
             AccessTokenResult tokenResult = await manager
