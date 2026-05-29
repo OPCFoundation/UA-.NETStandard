@@ -158,6 +158,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a client identity provider implementation.
         /// </summary>
+        /// <typeparam name="TProvider">The concrete identity-provider type to register.</typeparam>
         public static IOpcUaClientBuilder AddIdentityProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
             this IOpcUaClientBuilder builder)
@@ -224,6 +225,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers an access-token provider implementation.
         /// </summary>
+        /// <typeparam name="TProvider">The concrete access-token-provider type to register.</typeparam>
         public static IOpcUaClientBuilder AddAccessTokenProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
             this IOpcUaClientBuilder builder)

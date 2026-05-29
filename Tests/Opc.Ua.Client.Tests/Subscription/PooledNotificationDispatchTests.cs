@@ -309,6 +309,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// tests in the same run can leave entries that confuse identity
         /// assertions.
         /// </summary>
+        /// <typeparam name="T">The pooled encodeable element type.</typeparam>
         private static void DrainPool<T>(PooledEncodeableType<T> activator,
             int limit = 64)
             where T : class, IPooledEncodeable, new()

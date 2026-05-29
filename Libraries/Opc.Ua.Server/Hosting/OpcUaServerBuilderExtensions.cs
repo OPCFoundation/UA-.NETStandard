@@ -251,6 +251,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a server-side identity authenticator and adds it to the server registry on startup.
         /// </summary>
+        /// <typeparam name="TAuth">The concrete authenticator type to register.</typeparam>
         public static IOpcUaServerBuilder AddIdentityAuthenticator<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAuth>(
                 this IOpcUaServerBuilder builder)
@@ -270,6 +271,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a server-side identity augmenter and adds it to the server registry on startup.
         /// </summary>
+        /// <typeparam name="TAugmenter">The concrete augmenter type to register.</typeparam>
         public static IOpcUaServerBuilder AddIdentityAugmenter<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAugmenter>(
                 this IOpcUaServerBuilder builder)
