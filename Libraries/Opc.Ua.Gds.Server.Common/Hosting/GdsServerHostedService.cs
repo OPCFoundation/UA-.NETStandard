@@ -410,8 +410,10 @@ namespace Opc.Ua.Gds.Server.Hosting
                         m_configurationStore));
                 }
 
+#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
                 return new ValueTask<IMasterNodeManager>(
                     new MasterNodeManager(server, configuration, null, nodeManagers, null));
+#pragma warning restore CA2000
             }
         }
     }

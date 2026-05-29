@@ -166,8 +166,10 @@ namespace Opc.Ua.Gds.Server
             };
 
             // create master node manager.
+#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
             return new ValueTask<IMasterNodeManager>(
                 new MasterNodeManager(server, configuration, null, nodeManagers));
+#pragma warning restore CA2000
         }
 
         /// <summary>
