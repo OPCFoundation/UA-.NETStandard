@@ -2627,7 +2627,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     collected.Add(h);
                 }
-                if (expectedHandles.All(h => collected.Contains(h)))
+                if (expectedHandles.All(collected.Contains))
                 {
                     return collected;
                 }

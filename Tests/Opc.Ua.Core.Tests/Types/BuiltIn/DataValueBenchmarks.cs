@@ -279,23 +279,38 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         // in the disassembly.
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame1(DataValue value) => DispatchFrame2(value) ^ 0xA;
+        private static uint DispatchFrame1(DataValue value)
+        {
+            return DispatchFrame2(value) ^ 0xA;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame2(DataValue value) => DispatchFrame3(value) ^ 0xB;
+        private static uint DispatchFrame2(DataValue value)
+        {
+            return DispatchFrame3(value) ^ 0xB;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame3(DataValue value) => DispatchFrame4(value) ^ 0xC;
+        private static uint DispatchFrame3(DataValue value)
+        {
+            return DispatchFrame4(value) ^ 0xC;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame4(DataValue value) => DispatchFrame5(value) ^ 0xD;
+        private static uint DispatchFrame4(DataValue value)
+        {
+            return DispatchFrame5(value) ^ 0xD;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame5(DataValue value) => value.StatusCode.Code;
+        private static uint DispatchFrame5(DataValue value)
+        {
+            return value.StatusCode.Code;
+        }
 
         private ITelemetryContext? m_telemetry;
         private IServiceMessageContext? m_context;

@@ -541,10 +541,7 @@ namespace Opc.Ua.Server
                     folder,
                     SystemContext,
                     (state, ct) => AddPredefinedNodeAsync(SystemContext, state, ct),
-                    async (state, ct) =>
-                    {
-                        await DeleteNodeAsync(SystemContext, state.NodeId, ct).ConfigureAwait(false);
-                    },
+                    async (state, ct) => await DeleteNodeAsync(SystemContext, state.NodeId, ct).ConfigureAwait(false),
                     cancellationToken)
                 .ConfigureAwait(false);
         }

@@ -436,7 +436,9 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public override bool Equals(object? obj)
-            => obj is DataValue other && Equals(other);
+        {
+            return obj is DataValue other && Equals(other);
+        }
 
         /// <inheritdoc/>
         public bool Equals(DataValue other)

@@ -59,34 +59,42 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 001-01: Interpolative aggregate, single node, startTime = endTime, useServerCapabilitiesDefaults.")]
         [Test]
         public async Task ReadProcessedInterpolativeBaseCase01Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Interpolative,
-                TimeArrangement.StartEqualsEnd,
-                IntervalDefault).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Interpolative,
+                        TimeArrangement.StartEqualsEnd,
+                        IntervalDefault).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 001-02: Interpolative aggregate, single node, startTime < endTime within range, useServerCapabilitiesDefaults.")]
         [Test]
         public async Task ReadProcessedInterpolativeBaseCase02Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Interpolative,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Interpolative,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 001-03: Interpolative aggregate, single node, startTime > endTime (reverse).")]
         [Test]
         public async Task ReadProcessedInterpolativeBaseCase03Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Interpolative,
-                TimeArrangement.StartAfterEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Interpolative,
+                        TimeArrangement.StartAfterEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 001-04: Interpolative aggregate, single node, longer processing interval.")]
         [Test]
         public async Task ReadProcessedInterpolativeBaseCase04Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Interpolative,
-                TimeArrangement.StartBeforeEnd,
-                IntervalLong).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Interpolative,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalLong).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 002-XX  Average aggregate, time arrangements
@@ -95,34 +103,42 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 002-01: Average aggregate, single node, startTime = endTime.")]
         [Test]
         public async Task ReadProcessedAverageBaseCase01Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Average,
-                TimeArrangement.StartEqualsEnd,
-                IntervalDefault).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Average,
+                        TimeArrangement.StartEqualsEnd,
+                        IntervalDefault).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 002-02: Average aggregate, single node, startTime < endTime, default processing interval.")]
         [Test]
         public async Task ReadProcessedAverageBaseCase02Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Average,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Average,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 002-03: Average aggregate, reverse time order.")]
         [Test]
         public async Task ReadProcessedAverageBaseCase03Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Average,
-                TimeArrangement.StartAfterEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Average,
+                        TimeArrangement.StartAfterEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 002-04: Average aggregate, long processing interval.")]
         [Test]
         public async Task ReadProcessedAverageBaseCase04Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Average,
-                TimeArrangement.StartBeforeEnd,
-                IntervalLong).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Average,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalLong).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 003-XX  TimeAverage aggregate
@@ -131,34 +147,42 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 003-01: TimeAverage aggregate, single node, startTime = endTime.")]
         [Test]
         public async Task ReadProcessedTimeAverageBaseCase01Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_TimeAverage,
-                TimeArrangement.StartEqualsEnd,
-                IntervalDefault).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_TimeAverage,
+                        TimeArrangement.StartEqualsEnd,
+                        IntervalDefault).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 003-02: TimeAverage aggregate, single node, startTime < endTime.")]
         [Test]
         public async Task ReadProcessedTimeAverageBaseCase02Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_TimeAverage,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_TimeAverage,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 003-03: TimeAverage aggregate, reverse time order.")]
         [Test]
         public async Task ReadProcessedTimeAverageBaseCase03Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_TimeAverage,
-                TimeArrangement.StartAfterEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_TimeAverage,
+                        TimeArrangement.StartAfterEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 003-04: TimeAverage aggregate, longer processing interval.")]
         [Test]
         public async Task ReadProcessedTimeAverageBaseCase04Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_TimeAverage,
-                TimeArrangement.StartBeforeEnd,
-                IntervalLong).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_TimeAverage,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalLong).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 004-XX  Total aggregate
@@ -167,34 +191,42 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 004-01: Total aggregate, single node, startTime = endTime.")]
         [Test]
         public async Task ReadProcessedTotalBaseCase01Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Total,
-                TimeArrangement.StartEqualsEnd,
-                IntervalDefault).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Total,
+                        TimeArrangement.StartEqualsEnd,
+                        IntervalDefault).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 004-02: Total aggregate, single node, startTime < endTime.")]
         [Test]
         public async Task ReadProcessedTotalBaseCase02Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Total,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Total,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 004-03: Total aggregate, reverse time order.")]
         [Test]
         public async Task ReadProcessedTotalBaseCase03Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Total,
-                TimeArrangement.StartAfterEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Total,
+                        TimeArrangement.StartAfterEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 004-04: Total aggregate, longer processing interval.")]
         [Test]
         public async Task ReadProcessedTotalBaseCase04Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Total,
-                TimeArrangement.StartBeforeEnd,
-                IntervalLong).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Total,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalLong).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 005-XX  Min/Max with edge cases (out-of-range times etc.)
@@ -203,54 +235,66 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 005-01: Minimum aggregate, both startTime and endTime before recorded data.")]
         [Test]
         public async Task ReadProcessedMinMaxBaseCase01Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Minimum,
-                TimeArrangement.BothBeforeData,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Minimum,
+                        TimeArrangement.BothBeforeData,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 005-02: Maximum aggregate, both startTime and endTime before recorded data.")]
         [Test]
         public async Task ReadProcessedMinMaxBaseCase02Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Maximum,
-                TimeArrangement.BothBeforeData,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Maximum,
+                        TimeArrangement.BothBeforeData,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 005-03: Minimum aggregate, both startTime and endTime after recorded data.")]
         [Test]
         public async Task ReadProcessedMinMaxBaseCase03Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Minimum,
-                TimeArrangement.BothAfterData,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Minimum,
+                        TimeArrangement.BothAfterData,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 005-04: Maximum aggregate, both startTime and endTime after recorded data.")]
         [Test]
         public async Task ReadProcessedMinMaxBaseCase04Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Maximum,
-                TimeArrangement.BothAfterData,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Maximum,
+                        TimeArrangement.BothAfterData,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 005-05: Minimum aggregate, normal time range.")]
         [Test]
         public async Task ReadProcessedMinMaxBaseCase05Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Minimum,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Minimum,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 005-06: Maximum aggregate, normal time range.")]
         [Test]
         public async Task ReadProcessedMinMaxBaseCase06Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Maximum,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Maximum,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 006  Count aggregate
@@ -259,10 +303,12 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 006: Count aggregate, single node, startTime < endTime.")]
         [Test]
         public async Task ReadProcessedCountBaseAsync()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_Count,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_Count,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 007  NumberOfTransitions aggregate
@@ -271,11 +317,13 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 007: NumberOfTransitions aggregate, single node, startTime < endTime.")]
         [Test]
         public async Task ReadProcessedNumberOfTransitionsBaseAsync()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_NumberOfTransitions,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_NumberOfTransitions,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // 008-XX  Standard deviation aggregate
@@ -284,29 +332,35 @@ namespace Opc.Ua.History.Tests
         [Description("Aggregate - Base 008-01: Standard deviation (sample) aggregate, single node, startTime < endTime.")]
         [Test]
         public async Task ReadProcessedStandardDeviationBaseCase01Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_StandardDeviationSample,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_StandardDeviationSample,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 008-02: Standard deviation (population) aggregate, single node.")]
         [Test]
         public async Task ReadProcessedStandardDeviationBaseCase02Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_StandardDeviationPopulation,
-                TimeArrangement.StartBeforeEnd,
-                IntervalShort,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_StandardDeviationPopulation,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalShort,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         [Description("Aggregate - Base 008-03: Standard deviation aggregate with longer processing interval.")]
         [Test]
         public async Task ReadProcessedStandardDeviationBaseCase03Async()
-            => await ExecuteAggregateScenarioAsync(
-                ObjectIds.AggregateFunction_StandardDeviationSample,
-                TimeArrangement.StartBeforeEnd,
-                IntervalLong,
-                allowAnyResult: true).ConfigureAwait(false);
+        {
+            await ExecuteAggregateScenarioAsync(
+                        ObjectIds.AggregateFunction_StandardDeviationSample,
+                        TimeArrangement.StartBeforeEnd,
+                        IntervalLong,
+                        allowAnyResult: true).ConfigureAwait(false);
+        }
 
         // ------------------------------------------------------------------
         // Err-XXX  Error / negative cases

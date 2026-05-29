@@ -432,11 +432,16 @@ namespace Opc.Ua.Server.Tests.Historian
             public int BulkCalls;
             public int PerNodeCalls;
 
-            public CountingBulkProvider(InMemoryHistorianProvider inner) => m_inner = inner;
+            public CountingBulkProvider(InMemoryHistorianProvider inner)
+            {
+                m_inner = inner;
+            }
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -447,19 +452,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
 
             public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext c, IReadOnlyDictionary<NodeId, IList<DataValue>> b, CancellationToken ct)
@@ -477,11 +490,16 @@ namespace Opc.Ua.Server.Tests.Historian
             private readonly InMemoryHistorianProvider m_inner;
             public int PerNodeCalls;
 
-            public NonBulkProvider(InMemoryHistorianProvider inner) => m_inner = inner;
+            public NonBulkProvider(InMemoryHistorianProvider inner)
+            {
+                m_inner = inner;
+            }
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -492,19 +510,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
         }
 
         // Slows down each insert; used to provoke backpressure-induced drops.
@@ -524,7 +550,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public async ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -535,19 +563,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
 
             public async ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext c, IReadOnlyDictionary<NodeId, IList<DataValue>> b, CancellationToken ct)
@@ -574,7 +610,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -588,19 +626,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
 
             public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext c, IReadOnlyDictionary<NodeId, IList<DataValue>> b, CancellationToken ct)

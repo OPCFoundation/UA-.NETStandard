@@ -206,7 +206,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
 
             public bool IsTouched => m_touched;
-            public void Touch() => m_touched = true;
+            public void Touch()
+            {
+                m_touched = true;
+            }
 
             public void Encode(IEncoder encoder)
             {
@@ -214,8 +217,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             public void Decode(IDecoder decoder)
             {
             }
-            public bool IsEqual(IEncodeable? encodeable) => ReferenceEquals(this, encodeable);
-            public object Clone() => MemberwiseClone();
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return ReferenceEquals(this, encodeable);
+            }
+
+            public object Clone()
+            {
+                return MemberwiseClone();
+            }
 
             public void Reuse()
             {

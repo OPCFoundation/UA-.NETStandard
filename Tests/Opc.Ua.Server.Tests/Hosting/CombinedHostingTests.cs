@@ -314,10 +314,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             services.AddOpcUa()
                 .AddServer(opt => ConfigureServerOptions(opt, "WotConHostServer"))
                 .Services.AddOpcUa()
-                .AddWotConServer(opt =>
-                {
-                    opt.AssetNamespaceUri = "urn:test:wot:assets";
-                });
+                .AddWotConServer(opt => opt.AssetNamespaceUri = "urn:test:wot:assets");
 
             using ServiceProvider sp = services.BuildServiceProvider();
 

@@ -224,7 +224,10 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
 
             public ActivitySource ActivitySource { get; } = new("Stub");
 
-            public Meter CreateMeter() => new("Stub");
+            public Meter CreateMeter()
+            {
+                return new("Stub");
+            }
         }
     }
 }

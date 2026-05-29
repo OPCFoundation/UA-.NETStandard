@@ -73,8 +73,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             return AssertNoneChannelAcceptsCertAsync(
                 slug: "wrong-host-none",
-                makeCert: (subject, uri) =>
-                    TestCertificateFactory.CreateWrongHostnameAppInstanceCert(subject, uri));
+                makeCert: TestCertificateFactory.CreateWrongHostnameAppInstanceCert);
         }
 
         [Test]

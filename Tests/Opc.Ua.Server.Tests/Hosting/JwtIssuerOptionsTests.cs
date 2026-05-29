@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             var options = new JwtIssuerOptions();
             options.StaticKeys.Add(new JwtStaticKeyOptions { RsaModulus = "AQAB", RsaExponent = "AQAB" });
 
-            Assert.That(() => options.Validate(), Throws.InvalidOperationException);
+            Assert.That(options.Validate, Throws.InvalidOperationException);
         }
 
         [Test]
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             var options = new JwtIssuerOptions { IssuerUri = Issuer };
 
-            Assert.That(() => options.Validate(), Throws.InvalidOperationException);
+            Assert.That(options.Validate, Throws.InvalidOperationException);
         }
 
         [Test]

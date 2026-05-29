@@ -332,7 +332,10 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public int TotalInsertedSamples => Volatile.Read(ref m_totalInsertedSamples);
 
-            public BlockingProvider(Task gate) => m_gate = gate;
+            public BlockingProvider(Task gate)
+            {
+                m_gate = gate;
+            }
 
             public async ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext context,

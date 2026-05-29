@@ -4154,10 +4154,14 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context,
             NodeState node,
             CancellationToken ct)
-            => AddPredefinedNodeAsync(context, node, ct);
+        {
+            return AddPredefinedNodeAsync(context, node, ct);
+        }
 
         T ITestNodeManager.FindPredefinedNode<T>(NodeId nodeId)
-            => FindPredefinedNode<T>(nodeId);
+        {
+            return FindPredefinedNode<T>(nodeId);
+        }
     }
 
     internal sealed class TestEventMonitoredItem : IEventMonitoredItem
@@ -4415,22 +4419,34 @@ namespace Opc.Ua.Server.Tests
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
-            => AddPredefinedNode(context, node);
+        {
+            AddPredefinedNode(context, node);
+        }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
-            => IsNodeIdInNamespace(nodeId);
+        {
+            return IsNodeIdInNamespace(nodeId);
+        }
 
         public NodeHandle? IsHandleInNamespacePublic(object? managerHandle)
-            => IsHandleInNamespace(managerHandle!);
+        {
+            return IsHandleInNamespace(managerHandle!);
+        }
 
         public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
-            => AddNodeToComponentCache(context, handle, node);
+        {
+            return AddNodeToComponentCache(context, handle, node);
+        }
 
         public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
-            => RemoveNodeFromComponentCache(context, handle!);
+        {
+            RemoveNodeFromComponentCache(context, handle!);
+        }
 
         public NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
-            => LookupNodeInComponentCache(context, handle);
+        {
+            return LookupNodeInComponentCache(context, handle);
+        }
 
         public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
@@ -4481,22 +4497,34 @@ namespace Opc.Ua.Server.Tests
         }
 
         public void AddRootNotifierPublic(NodeState notifier)
-            => AddRootNotifier(notifier);
+        {
+            AddRootNotifier(notifier);
+        }
 
         public void RemoveRootNotifierPublic(NodeState notifier)
-            => RemoveRootNotifier(notifier);
+        {
+            RemoveRootNotifier(notifier);
+        }
 
         public void SetNamespacesPublic(params string[] namespaceUris)
-            => SetNamespaces(namespaceUris);
+        {
+            SetNamespaces(namespaceUris);
+        }
 
         public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
-            => SetNamespaceIndexes(namespaceIndexes);
+        {
+            SetNamespaceIndexes(namespaceIndexes);
+        }
 
         public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
-            => NamespaceUris = uris!;
+        {
+            NamespaceUris = uris!;
+        }
 
         public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
-            => OnReportEvent(context, node, filterTarget);
+        {
+            OnReportEvent(context, node, filterTarget);
+        }
     }
 
     /// <summary>
@@ -4523,9 +4551,20 @@ namespace Opc.Ua.Server.Tests
         public ServerSystemContext SystemContext => m_cnm2.SystemContext;
         public IReadOnlyList<ushort> NamespaceIndexes => m_cnm2.NamespaceIndexes;
         public ushort NamespaceIndex => m_cnm2.NamespaceIndex;
-        public NodeState Find(NodeId nodeId) => m_cnm2.Find(nodeId)!;
-        public NodeId New(ISystemContext context, NodeState node) => m_cnm2.New(context, node);
-        public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState => m_cnm2.FindPredefinedNode<T>(nodeId)!;
+        public NodeState Find(NodeId nodeId)
+        {
+            return m_cnm2.Find(nodeId)!;
+        }
+
+        public NodeId New(ISystemContext context, NodeState node)
+        {
+            return m_cnm2.New(context, node);
+        }
+
+        public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            return m_cnm2.FindPredefinedNode<T>(nodeId)!;
+        }
 
         public NodeStateCollection? NodesToLoad
         {
@@ -4534,19 +4573,29 @@ namespace Opc.Ua.Server.Tests
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)
-            => m_cnm2.IsNodeIdInNamespacePublic(nodeId);
+        {
+            return m_cnm2.IsNodeIdInNamespacePublic(nodeId);
+        }
 
         public NodeHandle? IsHandleInNamespacePublic(object? managerHandle)
-            => m_cnm2.IsHandleInNamespacePublic(managerHandle);
+        {
+            return m_cnm2.IsHandleInNamespacePublic(managerHandle);
+        }
 
         public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
-            => m_cnm2.AddNodeToComponentCachePublic(context, handle, node);
+        {
+            return m_cnm2.AddNodeToComponentCachePublic(context, handle, node);
+        }
 
         public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
-            => m_cnm2.RemoveNodeFromComponentCachePublic(context, handle);
+        {
+            m_cnm2.RemoveNodeFromComponentCachePublic(context, handle);
+        }
 
         public NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
-            => m_cnm2.LookupNodeInComponentCachePublic(context, handle);
+        {
+            return m_cnm2.LookupNodeInComponentCachePublic(context, handle);
+        }
 
         public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
@@ -4556,8 +4605,10 @@ namespace Opc.Ua.Server.Tests
             uint queueSize,
             ExtensionObject filter,
             CancellationToken cancellationToken = default)
-            => m_cnm2.ValidateMonitoringFilterPublicAsync(
-                context, handle, attributeId, samplingInterval, queueSize, filter, cancellationToken);
+        {
+            return m_cnm2.ValidateMonitoringFilterPublicAsync(
+                        context, handle, attributeId, samplingInterval, queueSize, filter, cancellationToken);
+        }
 
         public ValueTask<NodeId> AddNodeAsync(
             ServerSystemContext context,
@@ -4577,7 +4628,9 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context,
             NodeId nodeId,
             CancellationToken ct = default)
-            => new(m_cnm2.DeleteNode(context, nodeId));
+        {
+            return new(m_cnm2.DeleteNode(context, nodeId));
+        }
 
         public ValueTask AddPredefinedNodeAsync(
             ISystemContext context,
@@ -4593,18 +4646,26 @@ namespace Opc.Ua.Server.Tests
         public INodeManager SyncNodeManager => m_adapter.SyncNodeManager;
 
         public ValueTask CreateAddressSpaceAsync(IDictionary<NodeId, IList<IReference>> externalReferences, CancellationToken cancellationToken = default)
-            => m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+        {
+            return m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+        }
 
         public ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
-            => m_adapter.DeleteAddressSpaceAsync(cancellationToken);
+        {
+            return m_adapter.DeleteAddressSpaceAsync(cancellationToken);
+        }
 
         public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
-            => m_adapter.GetManagerHandleAsync(nodeId, cancellationToken);
+        {
+            return m_adapter.GetManagerHandleAsync(nodeId, cancellationToken);
+        }
 
         public ValueTask AddReferencesAsync(
             IDictionary<NodeId, IList<IReference>> references,
             CancellationToken cancellationToken = default)
-            => m_adapter.AddReferencesAsync(references, cancellationToken);
+        {
+            return m_adapter.AddReferencesAsync(references, cancellationToken);
+        }
 
         public ValueTask<ServiceResult> DeleteReferenceAsync(
             object sourceHandle,
@@ -4613,15 +4674,19 @@ namespace Opc.Ua.Server.Tests
             ExpandedNodeId targetId,
             bool deleteBidirectional,
             CancellationToken cancellationToken = default)
-            => m_adapter.DeleteReferenceAsync(
-                sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional, cancellationToken);
+        {
+            return m_adapter.DeleteReferenceAsync(
+                        sourceHandle, referenceTypeId, isInverse, targetId, deleteBidirectional, cancellationToken);
+        }
 
         public ValueTask<NodeMetadata> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
             CancellationToken cancellationToken = default)
-            => m_adapter.GetNodeMetadataAsync(context, targetHandle, resultMask, cancellationToken);
+        {
+            return m_adapter.GetNodeMetadataAsync(context, targetHandle, resultMask, cancellationToken);
+        }
 
         public ValueTask<NodeMetadata?> GetPermissionMetadataAsync(
             OperationContext context,
@@ -4630,22 +4695,28 @@ namespace Opc.Ua.Server.Tests
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
-            => m_adapter.GetPermissionMetadataAsync(
-                context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly, cancellationToken);
+        {
+            return m_adapter.GetPermissionMetadataAsync(
+                        context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly, cancellationToken);
+        }
 
         public ValueTask<ContinuationPoint?> BrowseAsync(
             OperationContext context,
             ContinuationPoint continuationPoint,
             IList<ReferenceDescription> references,
             CancellationToken cancellationToken = default)
-            => m_adapter.BrowseAsync(context, continuationPoint, references, cancellationToken);
+        {
+            return m_adapter.BrowseAsync(context, continuationPoint, references, cancellationToken);
+        }
 
         public ValueTask<bool> IsNodeInViewAsync(
             OperationContext context,
             NodeId viewId,
             object nodeHandle,
             CancellationToken cancellationToken = default)
-            => m_adapter.IsNodeInViewAsync(context, viewId, nodeHandle, cancellationToken);
+        {
+            return m_adapter.IsNodeInViewAsync(context, viewId, nodeHandle, cancellationToken);
+        }
 
         public ValueTask TranslateBrowsePathAsync(
             OperationContext context,
@@ -4654,8 +4725,10 @@ namespace Opc.Ua.Server.Tests
             IList<ExpandedNodeId> targetIds,
             IList<NodeId> unresolvedTargetIds,
             CancellationToken cancellationToken = default)
-            => m_adapter.TranslateBrowsePathAsync(
-                context, sourceHandle, relativePath, targetIds, unresolvedTargetIds, cancellationToken);
+        {
+            return m_adapter.TranslateBrowsePathAsync(
+                        context, sourceHandle, relativePath, targetIds, unresolvedTargetIds, cancellationToken);
+        }
 
         public ValueTask ReadAsync(
             OperationContext context,
@@ -4664,14 +4737,18 @@ namespace Opc.Ua.Server.Tests
             IList<DataValue> values,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken);
+        {
+            return m_adapter.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken);
+        }
 
         public ValueTask WriteAsync(
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.WriteAsync(context, nodesToWrite, errors, cancellationToken);
+        {
+            return m_adapter.WriteAsync(context, nodesToWrite, errors, cancellationToken);
+        }
 
         public ValueTask HistoryReadAsync(
             OperationContext context,
@@ -4682,8 +4759,10 @@ namespace Opc.Ua.Server.Tests
             IList<HistoryReadResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.HistoryReadAsync(
-                context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors, cancellationToken);
+        {
+            return m_adapter.HistoryReadAsync(
+                        context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors, cancellationToken);
+        }
 
         public ValueTask HistoryUpdateAsync(
             OperationContext context,
@@ -4692,7 +4771,9 @@ namespace Opc.Ua.Server.Tests
             IList<HistoryUpdateResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.HistoryUpdateAsync(context, detailsType, nodesToUpdate, results, errors, cancellationToken);
+        {
+            return m_adapter.HistoryUpdateAsync(context, detailsType, nodesToUpdate, results, errors, cancellationToken);
+        }
 
         public ValueTask CallAsync(
             OperationContext context,
@@ -4700,13 +4781,17 @@ namespace Opc.Ua.Server.Tests
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.CallAsync(context, methodsToCall, results, errors, cancellationToken);
+        {
+            return m_adapter.CallAsync(context, methodsToCall, results, errors, cancellationToken);
+        }
 
         public ValueTask<MethodState> FindMethodStateAsync(
             OperationContext context,
             CallMethodRequest methodToCall,
             CancellationToken cancellationToken = default)
-            => m_adapter.FindMethodStateAsync(context, methodToCall, cancellationToken);
+        {
+            return m_adapter.FindMethodStateAsync(context, methodToCall, cancellationToken);
+        }
 
         public ValueTask<ServiceResult> SubscribeToEventsAsync(
             OperationContext context,
@@ -4715,8 +4800,10 @@ namespace Opc.Ua.Server.Tests
             IEventMonitoredItem monitoredItem,
             bool unsubscribe,
             CancellationToken cancellationToken = default)
-            => m_adapter.SubscribeToEventsAsync(
-                context, sourceId, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+        {
+            return m_adapter.SubscribeToEventsAsync(
+                        context, sourceId, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+        }
 
         public ValueTask<ServiceResult> SubscribeToAllEventsAsync(
             OperationContext context,
@@ -4724,14 +4811,18 @@ namespace Opc.Ua.Server.Tests
             IEventMonitoredItem monitoredItem,
             bool unsubscribe,
             CancellationToken cancellationToken = default)
-            => m_adapter.SubscribeToAllEventsAsync(
-                context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+        {
+            return m_adapter.SubscribeToAllEventsAsync(
+                        context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+        }
 
         public ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
-            => m_adapter.ConditionRefreshAsync(context, monitoredItems, cancellationToken);
+        {
+            return m_adapter.ConditionRefreshAsync(context, monitoredItems, cancellationToken);
+        }
 
         public ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
@@ -4745,9 +4836,11 @@ namespace Opc.Ua.Server.Tests
             bool createDurable,
             MonitoredItemIdFactory monitoredItemIdFactory,
             CancellationToken cancellationToken = default)
-            => m_adapter.CreateMonitoredItemsAsync(
-                context, subscriptionId, publishingInterval, timestampsToReturn, itemsToCreate,
-                errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory, cancellationToken);
+        {
+            return m_adapter.CreateMonitoredItemsAsync(
+                        context, subscriptionId, publishingInterval, timestampsToReturn, itemsToCreate,
+                        errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory, cancellationToken);
+        }
 
         public ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
@@ -4757,8 +4850,10 @@ namespace Opc.Ua.Server.Tests
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             CancellationToken cancellationToken = default)
-            => m_adapter.ModifyMonitoredItemsAsync(
-                context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors, cancellationToken);
+        {
+            return m_adapter.ModifyMonitoredItemsAsync(
+                        context, timestampsToReturn, monitoredItems, itemsToModify, errors, filterErrors, cancellationToken);
+        }
 
         public ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
@@ -4766,7 +4861,9 @@ namespace Opc.Ua.Server.Tests
             IList<bool> processedItems,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors, cancellationToken);
+        {
+            return m_adapter.DeleteMonitoredItemsAsync(context, monitoredItems, processedItems, errors, cancellationToken);
+        }
 
         public ValueTask SetMonitoringModeAsync(
             OperationContext context,
@@ -4775,8 +4872,10 @@ namespace Opc.Ua.Server.Tests
             IList<bool> processedItems,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.SetMonitoringModeAsync(
-                context, monitoringMode, monitoredItems, processedItems, errors, cancellationToken);
+        {
+            return m_adapter.SetMonitoringModeAsync(
+                        context, monitoringMode, monitoredItems, processedItems, errors, cancellationToken);
+        }
 
         public ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
@@ -4785,42 +4884,54 @@ namespace Opc.Ua.Server.Tests
             IList<bool> processedItems,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
-            => m_adapter.TransferMonitoredItemsAsync(
-                context, sendInitialValues, monitoredItems, processedItems, errors, cancellationToken);
+        {
+            return m_adapter.TransferMonitoredItemsAsync(
+                        context, sendInitialValues, monitoredItems, processedItems, errors, cancellationToken);
+        }
 
         public ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
-            => m_adapter.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+        {
+            return m_adapter.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+        }
 
         public ValueTask SessionActivatedAsync(
             OperationContext context,
             NodeId sessionId,
             CancellationToken cancellationToken = default)
-            => m_adapter.SessionActivatedAsync(context, sessionId, cancellationToken);
+        {
+            return m_adapter.SessionActivatedAsync(context, sessionId, cancellationToken);
+        }
 
         public ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
             IUserIdentity savedOwnerIdentity,
             CancellationToken cancellationToken = default)
-            => m_adapter.RestoreMonitoredItemsAsync(
-                itemsToRestore, monitoredItems, savedOwnerIdentity, cancellationToken);
+        {
+            return m_adapter.RestoreMonitoredItemsAsync(
+                        itemsToRestore, monitoredItems, savedOwnerIdentity, cancellationToken);
+        }
 
         public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             CancellationToken cancellationToken = default)
-            => m_adapter.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget, cancellationToken);
+        {
+            return m_adapter.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget, cancellationToken);
+        }
 
         public ValueTask<ServiceResult> ValidateRolePermissionsAsync(
             OperationContext operationContext,
             NodeId nodeId,
             PermissionType requestedPermission,
             CancellationToken cancellationToken = default)
-            => m_adapter.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
+        {
+            return m_adapter.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
+        }
 
         public NodeIdDictionary<NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
 
@@ -4844,18 +4955,29 @@ namespace Opc.Ua.Server.Tests
         public ValueTask AddReverseReferencesPublicAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
-            => m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+        {
+            return m_adapter.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+        }
 
         public void SetNamespacesPublic(params string[] namespaceUris)
-            => m_cnm2.SetNamespacesPublic(namespaceUris);
+        {
+            m_cnm2.SetNamespacesPublic(namespaceUris);
+        }
 
         public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
-            => m_cnm2.SetNamespaceIndexesPublic(namespaceIndexes);
+        {
+            m_cnm2.SetNamespaceIndexesPublic(namespaceIndexes);
+        }
 
         public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
-            => m_cnm2.SetNamespaceUrisPublic(uris);
+        {
+            m_cnm2.SetNamespaceUrisPublic(uris);
+        }
 
-        public void Dispose() => m_adapter.Dispose();
+        public void Dispose()
+        {
+            m_adapter.Dispose();
+        }
     }
 #nullable restore
 }

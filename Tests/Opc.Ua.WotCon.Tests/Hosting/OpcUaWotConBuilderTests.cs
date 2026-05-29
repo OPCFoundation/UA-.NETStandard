@@ -77,11 +77,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 o.ProductUri = "urn:test:product";
             });
 
-            builder.AddWotConServer(o =>
-            {
-                o.AssetNamespaceUri =
-                    WotConnectivityServerOptions.DefaultAssetNamespaceUri;
-            });
+            builder.AddWotConServer(o => o.AssetNamespaceUri =
+                    WotConnectivityServerOptions.DefaultAssetNamespaceUri);
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
@@ -156,10 +153,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             IServiceCollection services = new ServiceCollection();
             IOpcUaBuilder builder = services.AddOpcUa();
 
-            IOpcUaBuilder returned = builder.AddWotConClient(o =>
-            {
-                o.LazyConnect = false;
-            });
+            IOpcUaBuilder returned = builder.AddWotConClient(o => o.LazyConnect = false);
 
             Assert.That(returned, Is.SameAs(builder));
         }
