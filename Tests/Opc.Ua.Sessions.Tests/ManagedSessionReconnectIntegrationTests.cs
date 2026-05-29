@@ -46,7 +46,6 @@ using IServerRedundancyHandler = Opc.Ua.Client.IServerRedundancyHandler;
 using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
-using Subscription = Opc.Ua.Client.Subscription;
 using V2 = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Sessions.Tests

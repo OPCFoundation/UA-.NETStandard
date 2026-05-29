@@ -50,7 +50,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using ISession = Opc.Ua.Client.ISession;
 using Subscription = Opc.Ua.Client.Subscription;

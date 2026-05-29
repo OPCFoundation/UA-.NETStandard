@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Aot.Tests

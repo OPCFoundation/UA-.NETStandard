@@ -35,7 +35,6 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Lds.Server.Hosting;
-using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Lds.Tests.Hosting
 {

@@ -32,7 +32,6 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.Identity;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {

@@ -39,7 +39,6 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests.AuthorizationService

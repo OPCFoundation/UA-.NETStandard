@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Gds;
 using ISession = Opc.Ua.Client.ISession;
 
 // Conformance tests use inline literal arrays as expected-value

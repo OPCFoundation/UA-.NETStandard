@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
-using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.AliasNames

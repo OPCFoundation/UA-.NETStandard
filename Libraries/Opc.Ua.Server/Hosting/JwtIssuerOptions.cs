@@ -33,7 +33,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Text;
 using Opc.Ua.Identity;
 
 namespace Opc.Ua.Server.Hosting

@@ -38,7 +38,6 @@ using NUnit.Framework.Internal;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests;
 using ContinuationPointPolicy = Opc.Ua.Client.ContinuationPointPolicy;
 using ISession = Opc.Ua.Client.ISession;
 

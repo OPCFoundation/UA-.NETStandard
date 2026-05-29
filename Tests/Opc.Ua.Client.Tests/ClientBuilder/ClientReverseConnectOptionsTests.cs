@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Tests;

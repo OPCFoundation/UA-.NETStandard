@@ -30,7 +30,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 

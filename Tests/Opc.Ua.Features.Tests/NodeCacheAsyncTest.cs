@@ -35,7 +35,6 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests;
 using INodeCache = Opc.Ua.Client.INodeCache;
 
 namespace Opc.Ua.Features.Tests

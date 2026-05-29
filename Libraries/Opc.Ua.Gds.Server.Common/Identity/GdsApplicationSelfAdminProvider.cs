@@ -38,7 +38,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server.Identity
 {

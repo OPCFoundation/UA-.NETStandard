@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Server
 {

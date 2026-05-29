@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
-using Opc.Ua.Server.Historian.InMemory;
 
 namespace TestData
 {

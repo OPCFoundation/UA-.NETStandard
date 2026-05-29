@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Identity;

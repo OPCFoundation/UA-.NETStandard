@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
 
 // Conformance tests use inline literal arrays as expected-value
 // assertions; the per-call allocation cost is irrelevant for tests

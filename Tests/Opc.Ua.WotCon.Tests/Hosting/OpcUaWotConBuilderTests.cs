@@ -33,11 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
-using Opc.Ua.WotCon.Server.Hosting;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {

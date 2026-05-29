@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.Client.ComplexTypes;
 
 using ComplexStructure = Opc.Ua.Encoders.Structure;
 using ComplexUnion = Opc.Ua.Encoders.Union;

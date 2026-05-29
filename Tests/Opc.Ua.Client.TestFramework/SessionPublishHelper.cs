@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Client.TestFramework
 {
