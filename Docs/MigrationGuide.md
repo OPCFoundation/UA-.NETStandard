@@ -1626,10 +1626,12 @@ in a per-instance `ModelChangeAggregator` and emit a
 by Part 5 §6.4.32 but was previously left to derived classes.
 
 If clients were already subscribed to `BaseEventType` on the server
-notifier, they will start receiving the new event type. Clients
-already conformant with Part 5 ignore the event; clients that
-explicitly enumerate events may need to add a filter to skip events
-they do not consume.
+notifier, they will start receiving `GeneralModelChangeEvent`. Existing
+clients that filter events by `EventTypeId` (the common case) keep
+receiving only the types they asked for. Clients that subscribe to
+the broad `BaseEventType` and want to skip model-change traffic should
+add a `not OfType GeneralModelChangeEventType` clause to their
+`EventFilter`.
 
 ```csharp
 // To opt out of auto-emit in a derived node manager:
