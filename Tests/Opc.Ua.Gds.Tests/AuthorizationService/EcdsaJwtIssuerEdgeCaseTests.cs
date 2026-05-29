@@ -309,9 +309,11 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         public void IssuerUriFallsBackToBuiltInWhenOptionsAndDefaultAreEmpty()
         {
             var options = new AuthorizationServiceOptions();
+            using Certificate certificate = CreateEcCertificate(ECCurve.NamedCurves.nistP256);
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
             var issuer = new EcdsaJwtIssuer(
                 options,
-                new InProcessCertificateProvider(CreateEcCertificate(ECCurve.NamedCurves.nistP256)),
+                certificateProvider,
                 NUnitTelemetryContext.Create());
 
             Assert.That(issuer.IssuerUri, Is.EqualTo("urn:opcua:gds:authorization-service"));

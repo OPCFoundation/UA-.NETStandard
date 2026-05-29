@@ -436,6 +436,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                     ? new LinqApplicationsDatabase()
                     : JsonApplicationsDatabase.Load(databaseStorePath);
 
+#pragma warning disable CA2000 // ownership of ApplicationsNodeManager transfers to the caller via the returned ValueTask<IAsyncNodeManager>
                 var applications = new ApplicationsNodeManager(
                     server,
                     configuration,
@@ -448,6 +449,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 };
 
                 return new ValueTask<IAsyncNodeManager>(applications);
+#pragma warning restore CA2000
             }
         }
     }

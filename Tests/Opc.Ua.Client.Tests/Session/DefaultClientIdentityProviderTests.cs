@@ -268,11 +268,13 @@ namespace Opc.Ua.Client.Tests.Identity
                 AuthorizationServerMetadata metadata,
                 CancellationToken ct = default)
             {
+#pragma warning disable CA2000 // ownership of the AccessToken transfers to the caller via the returned ValueTask
                 return new ValueTask<AccessToken>(new AccessToken(
                     Profiles.JwtUserToken,
                     m_tokenBytes,
                     m_expiresAt,
                     "jwt"));
+#pragma warning restore CA2000
             }
         }
     }
