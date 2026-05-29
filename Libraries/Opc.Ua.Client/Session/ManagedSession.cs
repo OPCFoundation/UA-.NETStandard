@@ -724,7 +724,7 @@ namespace Opc.Ua.Client
         {
             StateMachine.RequestClose();
 
-            await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);            
+            await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);
 
             return StatusCodes.Good;
         }

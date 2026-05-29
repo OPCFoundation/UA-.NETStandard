@@ -61,7 +61,8 @@ namespace Opc.Ua.Stress.Tests
         {
             if (Session != null)
             {
-                try { await Session.CloseAsync(5000, true).ConfigureAwait(false); }
+                try
+                { await Session.CloseAsync(5000, true).ConfigureAwait(false); }
                 catch { }
                 Session.Dispose();
             }

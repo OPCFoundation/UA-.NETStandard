@@ -2868,7 +2868,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheNullHandleReturnsNodeUnchanged()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
 
             NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null, node);
@@ -2880,7 +2880,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheFirstAddCreatesEntry()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -2897,7 +2897,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheSecondAddIncrementsRefCountAndReturnsCachedNode()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode2", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -2922,7 +2922,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheDistinctNodesStoredIndependently()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var nodeA = new BaseObjectState(null) { NodeId = new NodeId("A", nsIdx) };
@@ -2941,7 +2941,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheWithComponentPathStoresRootAtRootId()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle) = CreateComponentPathFixture(nsIdx);
@@ -2959,7 +2959,7 @@ namespace Opc.Ua.Server.Tests
         public void AddNodeToComponentCacheWithComponentPathSecondAddIncrementsRefCount()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle) = CreateComponentPathFixture(nsIdx);
@@ -2987,7 +2987,7 @@ namespace Opc.Ua.Server.Tests
         public void LookupNodeInComponentCacheBeforeAnyAddReturnsNull()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -3001,7 +3001,7 @@ namespace Opc.Ua.Server.Tests
         public void LookupNodeInComponentCacheUnknownNodeIdReturnsNull()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var knownNode = new BaseObjectState(null) { NodeId = new NodeId("Known", nsIdx) };
@@ -3018,7 +3018,7 @@ namespace Opc.Ua.Server.Tests
         public void LookupNodeInComponentCacheWithComponentPathUnknownRootIdReturnsNull()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             // Nothing added — lookup with a component path handle must return null
@@ -3039,7 +3039,7 @@ namespace Opc.Ua.Server.Tests
         public void RemoveNodeFromComponentCacheNullHandleIsNoop()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
 
             // Must not throw
             Assert.DoesNotThrow(() =>
@@ -3050,7 +3050,7 @@ namespace Opc.Ua.Server.Tests
         public void RemoveNodeFromComponentCacheUnknownHandleIsNoop()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null);
 
@@ -3063,7 +3063,7 @@ namespace Opc.Ua.Server.Tests
         public void RemoveNodeFromComponentCacheSingleAddThenRemoveEvictsEntry()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("Evict", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -3080,7 +3080,7 @@ namespace Opc.Ua.Server.Tests
         public void RemoveNodeFromComponentCacheTwoAddsThenOneRemoveEntryRemains()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var node = new BaseObjectState(null) { NodeId = new NodeId("Shared", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
@@ -3098,7 +3098,7 @@ namespace Opc.Ua.Server.Tests
         public void RemoveNodeFromComponentCacheWithComponentPathUsesRootIdAsKey()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle) = CreateComponentPathFixture(nsIdx);
@@ -3157,7 +3157,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncNullFilterReturnsGoodAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
 
             var varState = new BaseDataVariableState(null);
             AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
@@ -3177,7 +3177,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncUnknownFilterTypeReturnsBadFilterNotAllowedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
@@ -3198,7 +3198,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncAggregateFilterOnNonValueAttributeReturnsBadFilterNotAllowedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
@@ -3225,7 +3225,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUnsupportedAggregateReturnsBadAggregateNotSupportedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var unsupportedAggregateId = new NodeId("UnsupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager();
@@ -3254,7 +3254,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncValidAggregateFilterSetsServerAggregateFilterAsFilterToUseAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
@@ -3286,7 +3286,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingIntervalAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
@@ -3317,7 +3317,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToMinimumProcessingIntervalAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             const double minimumProcessingInterval = 500;
@@ -3349,7 +3349,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUseServerCapabilitiesDefaultsUpdatesAggregateConfigurationAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
@@ -3380,7 +3380,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonValueAttributeReturnsBadFilterNotAllowedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
             var handle = new NodeHandle(variable.NodeId, variable);
@@ -3402,7 +3402,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonVariableNodeReturnsBadFilterNotAllowedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             ushort nsIdx = manager.NamespaceIndexes[0];
             var objNode = new BaseObjectState(null) { NodeId = new NodeId("Obj", nsIdx) };
             var handle = new NodeHandle(objNode.NodeId, objNode);
@@ -3424,7 +3424,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsSuccessAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
@@ -3446,7 +3446,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNonNumericTypeReturnsBadFilterNotAllowedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.String };
@@ -3469,7 +3469,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNumericTypeSetsFilterToUseAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
@@ -3494,7 +3494,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupportedAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
@@ -3517,7 +3517,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithEURangeSetsFilterToUseAndRangeAsync()
         {
             using ITestNodeManager manager = CreateManager();
-            
+
             SetupNumericTypeTree();
             ushort nsIdx = manager.NamespaceIndexes[0];
 

@@ -207,7 +207,7 @@ namespace Opc.Ua.Server
                     break;
             }
 
-// set the timestamp and status.
+            // set the timestamp and status.
             var value = new DataValue(
                 Variant.From(result),
                 StatusCodes.Good,
@@ -319,7 +319,7 @@ namespace Opc.Ua.Server
                     break;
             }
 
-// set the timestamp and status.
+            // set the timestamp and status.
             var value = new DataValue(
                 Variant.From(result),
                 StatusCodes.Good,

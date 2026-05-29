@@ -54,7 +54,8 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             if (Session != null)
             {
-                try { await Session.CloseAsync(5000, true).ConfigureAwait(false); }
+                try
+                { await Session.CloseAsync(5000, true).ConfigureAwait(false); }
                 catch { }
                 Session.Dispose();
             }

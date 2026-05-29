@@ -208,7 +208,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 DataValue a = values[i];
                 DataValue b = values[i].Copy();
-                if (a.Equals(b)) { equal++; }
+                if (a.Equals(b))
+                { equal++; }
             }
             return equal;
         }

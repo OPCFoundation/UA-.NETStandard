@@ -2167,7 +2167,7 @@ namespace Opc.Ua
                         case "ExtensionObject":
                             return ReadExtensionObject(typeName);
                         case "DataValue":
-return ReadDataValue(typeName);
+                            return ReadDataValue(typeName);
                         case "Matrix":
                             return ReadMatrix(typeName);
                         default:

@@ -792,12 +792,13 @@ namespace Opc.Ua
             if (BeginField(fieldName, value.IsNull, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                    WriteVariant("Value", value.WrappedValue);
-                    WriteStatusCode("StatusCode", value.StatusCode);
-                    WriteDateTime("SourceTimestamp", value.SourceTimestamp);
-                    WriteUInt16("SourcePicoseconds", value.SourcePicoseconds);
-                    WriteDateTime("ServerTimestamp", value.ServerTimestamp);
-                    WriteUInt16("ServerPicoseconds", value.ServerPicoseconds);
+
+                WriteVariant("Value", value.WrappedValue);
+                WriteStatusCode("StatusCode", value.StatusCode);
+                WriteDateTime("SourceTimestamp", value.SourceTimestamp);
+                WriteUInt16("SourcePicoseconds", value.SourcePicoseconds);
+                WriteDateTime("ServerTimestamp", value.ServerTimestamp);
+                WriteUInt16("ServerPicoseconds", value.ServerPicoseconds);
 
                 PopNamespace();
 

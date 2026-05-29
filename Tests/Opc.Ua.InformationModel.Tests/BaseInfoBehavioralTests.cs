@@ -799,7 +799,9 @@ namespace Opc.Ua.InformationModel.Tests
                 }
                 finally
                 {
-                    try { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); }
+                    catch { }
                     otherSession.Dispose();
                 }
             }
