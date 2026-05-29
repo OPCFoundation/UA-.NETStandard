@@ -43,6 +43,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds an already-created provider.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>
         public CompositeClientIdentityProviderBuilder Add(
             IClientIdentityProvider provider)
         {
@@ -79,6 +80,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds username/password identity support from options.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> or <paramref name="registry"/> is <c>null</c>.</exception>
         public CompositeClientIdentityProviderBuilder AddUserName(
             Action<UserNameClientIdentityOptions> configure,
             ISecretRegistry registry)
@@ -124,6 +126,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds X.509 user-certificate identity support from options.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/>, <paramref name="provider"/>, or <paramref name="passwords"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the X.509 configuration is invalid (e.g. both or neither of SubjectName/Thumbprint are set).</exception>
         public CompositeClientIdentityProviderBuilder AddX509(
             Action<X509ClientIdentityOptions> configure,
             ICertificateProvider provider,
@@ -181,6 +185,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds issued-token identity support from options.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> or <paramref name="provider"/> is <c>null</c>.</exception>
         public CompositeClientIdentityProviderBuilder AddIssuedToken(
             Action<IssuedTokenClientIdentityOptions> configure,
             IAccessTokenProvider provider)
