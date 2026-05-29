@@ -35,14 +35,14 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
-    <!-- MinimalPumpServer targets net10.0 only (PublishAot). The Pump
-         test files reference its types, so they compile only on net10.0
-         too. Other TFMs simply skip those three test fixtures. -->
+    <!-- MinimalPumpServer matches AppTargetFrameworks (net48/net8.0/net9.0/net10.0).
+         The DI tests also target net472 where MinimalPumpServer does not exist,
+         so the reference and the Pump-specific fixtures are skipped on net472. -->
     <ProjectReference Include="..\..\Applications\MinimalPumpServer\MinimalPumpServer.csproj"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <Compile Remove="PumpHostingIntegrationTests.cs" />
     <Compile Remove="PumpNodeManagerFactoryTests.cs" />
     <Compile Remove="PumpsNodeSetLoadingTests.cs" />

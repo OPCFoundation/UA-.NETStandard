@@ -124,11 +124,7 @@ string version = await client.ReadSoftwareVersionAsync();
 State-machine drivers (Prepare / Install / Confirm / Uninstall) are
 invoked through the standard `Session.CallAsync` service against the
 method NodeIds resolved with
-`Session.TranslateBrowsePathsToNodeIdsAsync`.
-
-A typed file-transfer upload helper
-(`UploadPackageAsync`) and convenience method-call wrappers will
-follow in a subsequent iteration; for now the sample server
+`Session.TranslateBrowsePathsToNodeIdsAsync`. The sample server
 (`Applications/MinimalSoftwareUpdateServer`) is the canonical
 end-to-end demo of the facet.
 

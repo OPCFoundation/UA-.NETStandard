@@ -2,7 +2,7 @@
 
 The OPC UA source generator emits `[assembly: Opc.Ua.ModelDependencyAttribute(...)]`
 metadata on every assembly that has nodesets or design files in `<AdditionalFiles>`.
-A single attribute now carries both the lightweight dependency-closure information
+A single attribute carries both the lightweight dependency-closure information
 **and**, on the assembly's self-declaration entry, a compact binary type-table
 payload that downstream source generators can decode without re-walking
 `AdditionalFiles`. Each instance of the attribute records, for one model the
@@ -15,7 +15,7 @@ assembly emits or transitively consumes:
 - and — on self-declaration entries only — a base64-encoded Deflate-compressed
   `ModelDependencyV1` type-table payload.
 
-Downstream consumers that reference such an assembly no longer need to re-add
+Downstream consumers that reference such an assembly do not need to re-add
 those upstream nodesets to their own `<AdditionalFiles>`. The generator scans the
 attributes on referenced assemblies and uses them to:
 

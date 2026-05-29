@@ -85,11 +85,10 @@ inside this assembly** via the `<AdditionalFiles>` plumbing in the
 `.csproj`. The generator emits typed `*State` classes, NodeId tables,
 and the `AddOpcUaMachinery` / `AddOpcUaPumps` extension methods that
 `LoadPredefinedNodesAsync` calls. No runtime XML loading happens — the
-`Model/` folder is a build-time input only. Promoting those two models
-to standalone `Libraries/Opc.Ua.Machinery/` / `Libraries/Opc.Ua.Pumps/`
-projects (so consumer assemblies can reference them like `Opc.Ua.Di`)
-is tracked by
-[plans/SourceGeneratedCompanionSpecLibraries.md](../../plans/SourceGeneratedCompanionSpecLibraries.md).
+`Model/` folder is a build-time input only. Consumer assemblies that
+want to reference Machinery or Pumps the same way they reference
+`Opc.Ua.Di` should source-generate against the model XML inside their
+own assembly using the same `<AdditionalFiles>` pattern.
 
 ## Inspecting / extending the sample
 
