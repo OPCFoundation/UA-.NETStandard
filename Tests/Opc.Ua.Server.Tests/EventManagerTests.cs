@@ -182,5 +182,307 @@ namespace Opc.Ua.Server.Tests
 
             item1.Verify(m => m.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
         }
+
+        [Test]
+        public void CreateMonitoredItemReturnsItemAndAddsToList()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using var eventManager = new EventManager(serverMock.Object, 100, 500);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var idFactory = new MonitoredItemIdFactory();
+
+            var createRequest = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = new NodeId(1), AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    SamplingInterval = -1,
+                    QueueSize = 50,
+                    DiscardOldest = true,
+                    ClientHandle = 1,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            IEventMonitoredItem item = eventManager.CreateMonitoredItem(
+                opContext,
+                nodeManagerMock.Object,
+                "handle",
+                1,
+                idFactory,
+                TimestampsToReturn.Both,
+                1000.0,
+                createRequest,
+                new EventFilter(),
+                false);
+
+            Assert.That(item, Is.Not.Null);
+            Assert.That(item.Id, Is.GreaterThan(0u));
+
+            IList<IEventMonitoredItem> items = eventManager.GetMonitoredItems();
+            Assert.That(items, Has.Count.EqualTo(1));
+            Assert.That(items[0], Is.SameAs(item));
+        }
+
+        [Test]
+        public void CreateMonitoredItemCapsQueueSizeForNonDurable()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            // maxQueueSize = 10 for non-durable
+            using var eventManager = new EventManager(serverMock.Object, 10, 500);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var idFactory = new MonitoredItemIdFactory();
+
+            var createRequest = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = new NodeId(1), AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    SamplingInterval = 1000,
+                    QueueSize = 9999, // exceeds max
+                    DiscardOldest = true,
+                    ClientHandle = 1,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            IEventMonitoredItem item = eventManager.CreateMonitoredItem(
+                opContext,
+                nodeManagerMock.Object,
+                "handle",
+                1,
+                idFactory,
+                TimestampsToReturn.Both,
+                1000.0,
+                createRequest,
+                new EventFilter(),
+                false);
+
+            // The queue size should have been capped to maxQueueSize (10)
+            Assert.That(((ISampledDataChangeMonitoredItem)item).QueueSize, Is.EqualTo(10u));
+        }
+
+        [Test]
+        public void ModifyMonitoredItemModifiesExistingItem()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using var eventManager = new EventManager(serverMock.Object, 100, 500);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var idFactory = new MonitoredItemIdFactory();
+
+            var createRequest = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = new NodeId(1), AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    SamplingInterval = 1000,
+                    QueueSize = 50,
+                    DiscardOldest = true,
+                    ClientHandle = 1,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            IEventMonitoredItem item = eventManager.CreateMonitoredItem(
+                opContext,
+                nodeManagerMock.Object,
+                "handle",
+                1,
+                idFactory,
+                TimestampsToReturn.Both,
+                1000.0,
+                createRequest,
+                new EventFilter(),
+                false);
+
+            var modifyRequest = new MonitoredItemModifyRequest
+            {
+                RequestedParameters = new MonitoringParameters
+                {
+                    SamplingInterval = 2000,
+                    QueueSize = 25,
+                    DiscardOldest = false,
+                    ClientHandle = 2,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            eventManager.ModifyMonitoredItem(
+                opContext,
+                item,
+                TimestampsToReturn.Source,
+                modifyRequest,
+                new EventFilter());
+
+            Assert.That(((ISampledDataChangeMonitoredItem)item).QueueSize, Is.EqualTo(25u));
+        }
+
+        [Test]
+        public void ModifyMonitoredItemDoesNothingWhenItemNotOwned()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using var eventManager = new EventManager(serverMock.Object, 100, 500);
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+
+            // Create a mock item with an ID that's not in the event manager
+            var mockItem = new Mock<IEventMonitoredItem>();
+            mockItem.Setup(m => m.Id).Returns(99999u);
+
+            var modifyRequest = new MonitoredItemModifyRequest
+            {
+                RequestedParameters = new MonitoringParameters
+                {
+                    QueueSize = 25,
+                    ClientHandle = 2,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            // Should not throw
+            Assert.DoesNotThrow(() => eventManager.ModifyMonitoredItem(
+                opContext,
+                mockItem.Object,
+                TimestampsToReturn.Source,
+                modifyRequest,
+                new EventFilter()));
+
+            // The mock item's ModifyAttributes should NOT have been called
+            mockItem.Verify(m => m.ModifyAttributes(
+                It.IsAny<DiagnosticsMasks>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.IsAny<uint>(),
+                It.IsAny<MonitoringFilter>(),
+                It.IsAny<MonitoringFilter>(),
+                It.IsAny<Range>(),
+                It.IsAny<double>(),
+                It.IsAny<uint>(),
+                It.IsAny<bool>()), Times.Never);
+        }
+
+        [Test]
+        public void DeleteMonitoredItemRemovesFromList()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using var eventManager = new EventManager(serverMock.Object, 100, 500);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var idFactory = new MonitoredItemIdFactory();
+
+            var createRequest = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = new NodeId(1), AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    SamplingInterval = 1000,
+                    QueueSize = 50,
+                    DiscardOldest = true,
+                    ClientHandle = 1,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            IEventMonitoredItem item = eventManager.CreateMonitoredItem(
+                opContext,
+                nodeManagerMock.Object,
+                "handle",
+                1,
+                idFactory,
+                TimestampsToReturn.Both,
+                1000.0,
+                createRequest,
+                new EventFilter(),
+                false);
+
+            eventManager.DeleteMonitoredItem(item.Id);
+
+            IList<IEventMonitoredItem> items = eventManager.GetMonitoredItems();
+            Assert.That(items, Is.Empty);
+        }
+
+        [Test]
+        public void CreateMonitoredItemUsesPublishingIntervalWhenSamplingNegative()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using var eventManager = new EventManager(serverMock.Object, 100, 500);
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var idFactory = new MonitoredItemIdFactory();
+
+            var createRequest = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = new NodeId(1), AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    SamplingInterval = -1, // negative means use publishing interval
+                    QueueSize = 50,
+                    DiscardOldest = true,
+                    ClientHandle = 1,
+                    Filter = new ExtensionObject(new EventFilter())
+                }
+            };
+
+            IEventMonitoredItem item = eventManager.CreateMonitoredItem(
+                opContext,
+                nodeManagerMock.Object,
+                "handle",
+                1,
+                idFactory,
+                TimestampsToReturn.Both,
+                2000.0, // publishing interval
+                createRequest,
+                new EventFilter(),
+                false);
+
+            Assert.That(item, Is.Not.Null);
+            Assert.That(((ISampledDataChangeMonitoredItem)item).SamplingInterval, Is.EqualTo(2000.0));
+        }
     }
 }
