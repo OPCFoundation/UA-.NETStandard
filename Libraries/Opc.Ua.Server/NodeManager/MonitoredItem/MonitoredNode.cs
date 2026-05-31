@@ -851,12 +851,22 @@ namespace Opc.Ua.Server
                 // Complete the writer; the consumer drains remaining items and exits normally.
                 m_channel.Writer.TryComplete();
 
-                // Complete and cancel all per-item event consumers.
+                // Complete and cancel all per-item event consumers, then wait for them to finish.
                 foreach (KeyValuePair<uint, (Channel<EventSnapshot> Channel, Task Task, CancellationTokenSource Cts)> kvp
                     in m_perItemEventConsumers)
                 {
                     kvp.Value.Channel.Writer.TryComplete();
                     kvp.Value.Cts.Cancel();
+                }
+
+                foreach (KeyValuePair<uint, (Channel<EventSnapshot> Channel, Task Task, CancellationTokenSource Cts)> kvp
+                    in m_perItemEventConsumers)
+                {
+                    try
+                    {
+                        kvp.Value.Task.Wait(TimeSpan.FromSeconds(5));
+                    }
+                    catch { }
                     kvp.Value.Cts.Dispose();
                 }
                 m_perItemEventConsumers.Clear();
