@@ -791,10 +791,505 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         // ----------------------------------------------------------------
+        // WotConnectivityNodeManagerFactory.Create()
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void NodeManagerFactoryCreateReturnsNodeManager()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            var factory = new WotConnectivityNodeManagerFactory(harness.Options);
+
+            INodeManager nm = factory.Create(
+                harness.MockServer.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration
+                    {
+                        MaxNotificationQueueSize = 100,
+                        MaxDurableNotificationQueueSize = 200
+                    }
+                });
+
+            Assert.That(nm, Is.Not.Null);
+            (nm as IDisposable)?.Dispose();
+        }
+
+        // ----------------------------------------------------------------
+        // ReadFromProvider / WriteToProvider — null provider + exception paths
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task ReadFromProviderReturnsBadNotConnectedWhenProviderIsNull()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-read-null", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-read-null",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Value"] = new WotProperty { Type = "number" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            // Replace provider with null to trigger BadNotConnected
+            entry.Provider = null;
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
+                null!, null!, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+        }
+
+        [Test]
+        public async Task ReadFromProviderReturnsBadCommunicationErrorOnException()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-read-exc", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-read-exc",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Value"] = new WotProperty { Type = "number" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            var mockProvider = new Mock<IWotAssetProvider>();
+            mockProvider
+                .Setup(p => p.ReadAsync(It.IsAny<WotPropertyTag>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(ServiceResult, Variant)>(
+                    Task.FromException<(ServiceResult, Variant)>(
+                        new InvalidOperationException("simulated read error"))));
+            entry.Provider = mockProvider.Object;
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            AttributeSimpleReadResult result = await variable.OnSimpleReadValueAsync!(
+                null!, null!, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+        }
+
+        [Test]
+        public async Task WriteToProviderReturnsBadNotConnectedWhenProviderIsNull()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-write-null", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-write-null",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Value"] = new WotProperty { Type = "number", ReadOnly = false }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            entry.Provider = null;
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            AttributeWriteResult result = await variable.OnSimpleWriteValueAsync!(
+                null!, null!, new Variant(42.0), CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+        }
+
+        [Test]
+        public async Task WriteToProviderReturnsBadCommunicationErrorOnException()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-write-exc", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-write-exc",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Value"] = new WotProperty { Type = "number", ReadOnly = false }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            var mockProvider = new Mock<IWotAssetProvider>();
+            mockProvider
+                .Setup(p => p.WriteAsync(
+                    It.IsAny<WotPropertyTag>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    Task.FromException<ServiceResult>(
+                        new InvalidOperationException("simulated write error"))));
+            entry.Provider = mockProvider.Object;
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            AttributeWriteResult result = await variable.OnSimpleWriteValueAsync!(
+                null!, null!, new Variant(42.0), CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Result.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+        }
+
+        // ----------------------------------------------------------------
+        // InvokeAction — null provider + exception + success paths
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task InvokeActionReturnsBadNotConnectedWhenProviderIsNull()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-action-null", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-action-null",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Actions = new Dictionary<string, WotAction>
+                    {
+                        ["Reset"] = new WotAction { Title = "Reset" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            entry.Provider = null;
+
+            (MethodState method, _) = entry.Actions.Values.First();
+            ServiceResult actionResult = await method.OnCallMethod2Async!(
+                null!, null!, NodeId.Null,
+                new ArrayOf<Variant>(), new List<Variant>(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(actionResult.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+        }
+
+        [Test]
+        public async Task InvokeActionSucceedsWithProvider()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-action-ok", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-action-ok",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Actions = new Dictionary<string, WotAction>
+                    {
+                        ["Reset"] = new WotAction { Title = "Reset" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            var mockProvider = new Mock<IWotAssetProvider>();
+            mockProvider
+                .Setup(p => p.InvokeActionAsync(
+                    It.IsAny<WotActionTag>(),
+                    It.IsAny<IReadOnlyList<Variant>>(),
+                    It.IsAny<IList<Variant>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            entry.Provider = mockProvider.Object;
+
+            (MethodState method, _) = entry.Actions.Values.First();
+            ServiceResult actionResult = await method.OnCallMethod2Async!(
+                null!, null!, NodeId.Null,
+                new ArrayOf<Variant>(), new List<Variant>(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(actionResult), Is.True);
+        }
+
+        [Test]
+        public async Task InvokeActionReturnsBadCommunicationErrorOnException()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-action-exc", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-action-exc",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Actions = new Dictionary<string, WotAction>
+                    {
+                        ["Reset"] = new WotAction { Title = "Reset" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            var mockProvider = new Mock<IWotAssetProvider>();
+            mockProvider
+                .Setup(p => p.InvokeActionAsync(
+                    It.IsAny<WotActionTag>(),
+                    It.IsAny<IReadOnlyList<Variant>>(),
+                    It.IsAny<IList<Variant>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    Task.FromException<ServiceResult>(
+                        new InvalidOperationException("simulated action error"))));
+            entry.Provider = mockProvider.Object;
+
+            (MethodState method, _) = entry.Actions.Values.First();
+            ServiceResult actionResult = await method.OnCallMethod2Async!(
+                null!, null!, NodeId.Null,
+                new ArrayOf<Variant>(), new List<Variant>(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(actionResult.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+        }
+
+        // ----------------------------------------------------------------
+        // DeleteAsset — provider disposal path
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task DeleteAssetDisposesProvider()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-del-provider", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+
+            var mockProvider = new Mock<IWotAssetProvider>();
+            mockProvider.Setup(p => p.DisposeAsync()).Returns(ValueTask.CompletedTask);
+            entry.Provider = mockProvider.Object;
+
+            ServiceResult result = await harness.Registry
+                .DeleteAssetAsync(assetId, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            mockProvider.Verify(p => p.DisposeAsync(), Times.Once());
+        }
+
+        [Test]
+        public async Task DeleteAssetContinuesWhenProviderDisposeThrows()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-del-throw", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+
+            var mockProvider = new Mock<IWotAssetProvider>();
+            mockProvider.Setup(p => p.DisposeAsync())
+                .Returns(new ValueTask(
+                    Task.FromException(new InvalidOperationException("dispose blew up"))));
+            entry.Provider = mockProvider.Object;
+
+            // Despite the disposal error the delete should still succeed
+            ServiceResult result = await harness.Registry
+                .DeleteAssetAsync(assetId, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(harness.Registry.FindByNodeId(assetId), Is.Null);
+        }
+
+        // ----------------------------------------------------------------
+        // DiscoverAssets — NotSupportedException from provider
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task DiscoverAssetsNotSupportedExceptionReturnsBadNotSupported()
+        {
+            var mockDiscovery = new Mock<IWotAssetDiscoveryProvider>();
+            mockDiscovery
+                .Setup(d => d.DiscoverAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IReadOnlyList<string>>(
+                    Task.FromException<IReadOnlyList<string>>(
+                        new NotSupportedException("discovery not supported"))));
+
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                discoveryProvider: mockDiscovery.Object);
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (ServiceResult status, IReadOnlyList<string> endpoints) = await harness.Registry
+                .DiscoverAssetsAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(endpoints, Is.Empty);
+        }
+
+        // ----------------------------------------------------------------
+        // CreateAssetForEndpoint — various outcome paths
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task CreateAssetForEndpointSucceedsWithDiscoveryProvider()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory(),
+                new SimulatedWotDiscoveryProvider());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (ServiceResult status, NodeId assetId) = await harness.Registry
+                .CreateAssetForEndpointAsync(
+                    "endpoint-asset",
+                    SimulatedWotDiscoveryProvider.CannedEndpoint,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            Assert.That(assetId.IsNull, Is.False);
+            Assert.That(harness.Registry.AssetNames, Has.Member("endpoint-asset"));
+        }
+
+        [Test]
+        public async Task CreateAssetForEndpointReturnsBadNotSupportedWhenDiscoveryThrowsNotSupported()
+        {
+            var mockDiscovery = new Mock<IWotAssetDiscoveryProvider>();
+            mockDiscovery
+                .Setup(d => d.CreateThingDescriptionAsync(
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ThingDescription>(
+                    Task.FromException<ThingDescription>(
+                        new NotSupportedException("endpoint not supported"))));
+
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory(),
+                mockDiscovery.Object);
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (ServiceResult status, NodeId assetId) = await harness.Registry
+                .CreateAssetForEndpointAsync(
+                    "endpoint-notsupp",
+                    "sim://endpoint/unknown",
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(assetId.IsNull, Is.True);
+            Assert.That(harness.Registry.AssetNames, Has.No.Member("endpoint-notsupp"));
+        }
+
+        [Test]
+        public async Task CreateAssetForEndpointReturnsBadConfigurationErrorOnGeneralException()
+        {
+            var mockDiscovery = new Mock<IWotAssetDiscoveryProvider>();
+            mockDiscovery
+                .Setup(d => d.CreateThingDescriptionAsync(
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ThingDescription>(
+                    Task.FromException<ThingDescription>(
+                        new InvalidOperationException("general failure"))));
+
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory(),
+                mockDiscovery.Object);
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (ServiceResult status, NodeId assetId) = await harness.Registry
+                .CreateAssetForEndpointAsync(
+                    "endpoint-err",
+                    "sim://endpoint/broken",
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(assetId.IsNull, Is.True);
+            Assert.That(harness.Registry.AssetNames, Has.No.Member("endpoint-err"));
+        }
+
+        // ----------------------------------------------------------------
+        // EnumeratePersisted — skip files with invalid asset names
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task EnumeratePersistedSkipsFilesWithInvalidAssetNames()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            // "CON" is a Windows reserved name; WotAssetNameValidator rejects it
+            // on all platforms so the file should be skipped.
+            File.WriteAllText(Path.Combine(_tempFolder, "CON.jsonld"), "{}");
+
+            int count = 0;
+            await foreach ((string _, ThingDescription _) in
+                harness.Registry.EnumeratePersistedAsync(CancellationToken.None)
+                    .ConfigureAwait(false))
+            {
+                count++;
+            }
+
+            Assert.That(count, Is.Zero,
+                "CON.jsonld has an invalid asset name and should have been skipped.");
+        }
+
+        // ----------------------------------------------------------------
         // Harness — minimal in-process node manager backed by a mocked
         // IServerInternal, mirroring AsyncCustomNodeManagerTests.
         // ----------------------------------------------------------------
-
         private sealed class ManagerHarness : IDisposable
         {
             private const string AssetNamespace = "http://opcfoundation.org/UA/WoT-Con/Assets/";

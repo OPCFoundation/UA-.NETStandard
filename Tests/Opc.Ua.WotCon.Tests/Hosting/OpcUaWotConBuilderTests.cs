@@ -28,16 +28,20 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Hosting;
+using Opc.Ua.WotCon.Tests.Providers;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {
@@ -166,6 +170,186 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             });
 
             Assert.That(returned, Is.SameAs(builder));
+        }
+
+        // ----------------------------------------------------------------
+        // AddWotConServer — IConfiguration / IConfigurationSection overloads
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void AddWotConServerFromIConfigurationThrowsForNullConfiguration()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            Assert.That(
+                () => builder.AddWotConServer((IConfiguration)null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddWotConServerFromIConfigurationSectionThrowsForNullSection()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            // Null builder
+            Assert.That(
+                () => OpcUaWotConServerBuilderExtensions
+                    .AddWotConServer(null!, (IConfigurationSection)new Mock<IConfigurationSection>().Object),
+                Throws.ArgumentNullException);
+
+            // Null section
+            Assert.That(
+                () => builder.AddWotConServer((IConfigurationSection)null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddWotConServerFromIConfigurationRegistersFactory()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddServer(o =>
+            {
+                o.ApplicationName = "Test";
+                o.ApplicationUri = "urn:test";
+                o.ProductUri = "urn:test:product";
+            });
+
+            IConfiguration config = new ConfigurationBuilder().Build();
+            builder.AddWotConServer(config);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityNodeManagerFactory factory =
+                sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
+            Assert.That(factory, Is.Not.Null);
+        }
+
+        [Test]
+        public void AddWotConServerFromIConfigurationSectionRegistersFactory()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddServer(o =>
+            {
+                o.ApplicationName = "Test";
+                o.ApplicationUri = "urn:test";
+                o.ProductUri = "urn:test:product";
+            });
+
+            IConfigurationSection section = new ConfigurationBuilder().Build()
+                .GetSection("OpcUa:WotCon:Server");
+            builder.AddWotConServer(section);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityNodeManagerFactory factory =
+                sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
+            Assert.That(factory, Is.Not.Null);
+        }
+
+        // ----------------------------------------------------------------
+        // WotConServerBuilder chaining methods
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void WotConServerBuilderAddAssetProviderGenericRegistersFactory()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            IWotConServerBuilder wotBuilder = builder.AddWotConServer(_ => { });
+
+            wotBuilder.AddAssetProvider<SimulatedWotAssetProviderFactory>();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IEnumerable<IWotAssetProviderFactory> factories =
+                sp.GetServices<IWotAssetProviderFactory>();
+            Assert.That(
+                factories.OfType<SimulatedWotAssetProviderFactory>().Any(),
+                Is.True);
+        }
+
+        [Test]
+        public void WotConServerBuilderAddAssetProviderFuncRegistersFactory()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            IWotConServerBuilder wotBuilder = builder.AddWotConServer(_ => { });
+
+            var canned = new SimulatedWotAssetProviderFactory();
+            wotBuilder.AddAssetProvider(_ => canned);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IEnumerable<IWotAssetProviderFactory> factories =
+                sp.GetServices<IWotAssetProviderFactory>();
+            Assert.That(
+                factories.Any(f => ReferenceEquals(f, canned)),
+                Is.True);
+        }
+
+        [Test]
+        public void WotConServerBuilderAddAssetProviderFuncThrowsForNull()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            IWotConServerBuilder wotBuilder = builder.AddWotConServer(_ => { });
+
+            Assert.That(
+                () => wotBuilder.AddAssetProvider(
+                    (Func<IServiceProvider, IWotAssetProviderFactory>)null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void WotConServerBuilderAddDiscoveryProviderRegistersProvider()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            IWotConServerBuilder wotBuilder = builder.AddWotConServer(_ => { });
+
+            wotBuilder.AddDiscoveryProvider<SimulatedWotDiscoveryProvider>();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IWotAssetDiscoveryProvider? discovery =
+                sp.GetService<IWotAssetDiscoveryProvider>();
+            Assert.That(discovery, Is.InstanceOf<SimulatedWotDiscoveryProvider>());
+        }
+
+        // ----------------------------------------------------------------
+        // AddWotConClient — IConfiguration / IConfigurationSection overloads
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void AddWotConClientFromIConfigurationRegistersClientFactory()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IConfiguration config = new ConfigurationBuilder().Build();
+            builder.AddWotConClient(config);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotConnectivityClient>>? factory =
+                sp.GetService<Func<CancellationToken, Task<WotConnectivityClient>>>();
+            Assert.That(factory, Is.Not.Null);
+        }
+
+        [Test]
+        public void AddWotConClientFromIConfigurationSectionRegistersClientFactory()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            IConfigurationSection section = new ConfigurationBuilder().Build()
+                .GetSection("OpcUa:WotCon:Client");
+            builder.AddWotConClient(section);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotConnectivityClient>>? factory =
+                sp.GetService<Func<CancellationToken, Task<WotConnectivityClient>>>();
+            Assert.That(factory, Is.Not.Null);
         }
     }
 }
