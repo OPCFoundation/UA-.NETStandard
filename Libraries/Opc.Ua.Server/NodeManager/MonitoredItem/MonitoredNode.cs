@@ -62,6 +62,7 @@ namespace Opc.Ua.Server
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             Node = node ?? throw new ArgumentNullException(nameof(node));
             m_logger = server.Telemetry?.CreateLogger<MonitoredNode2>();
+            m_isServerNode = node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
                 SingleReader = true,
@@ -164,6 +165,21 @@ namespace Opc.Ua.Server
         {
             EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
+            if (m_isServerNode)
+            {
+                // For the Server node, create a dedicated channel and consumer per MI
+                // to avoid the single-consumer bottleneck when many MIs subscribe to all events.
+                var cts = new CancellationTokenSource();
+                var channel = Channel.CreateBounded<EventSnapshot>(new BoundedChannelOptions(k_defaultChannelCapacity)
+                {
+                    SingleReader = true,
+                    FullMode = BoundedChannelFullMode.Wait,
+                    AllowSynchronousContinuations = false,
+                });
+                var task = Task.Run(() => ProcessPerItemEventChannelAsync(eventItem, channel.Reader, cts.Token));
+                m_perItemEventConsumers[eventItem.Id] = (channel, task, cts);
+            }
+
             Node.OnReportEvent = OnReportEvent;
         }
 
@@ -175,6 +191,14 @@ namespace Opc.Ua.Server
         {
             EventMonitoredItems.TryRemove(eventItem.Id, out _);
             DropEventPermissionCacheEntries(eventItem.Id);
+
+            if (m_isServerNode &&
+                m_perItemEventConsumers.TryRemove(eventItem.Id, out var consumer))
+            {
+                consumer.Channel.Writer.TryComplete();
+                consumer.Cts.Cancel();
+                consumer.Cts.Dispose();
+            }
 
             if (EventMonitoredItems.IsEmpty)
             {
@@ -207,6 +231,24 @@ namespace Opc.Ua.Server
                 Context = context,
                 EventTargetSnapshot = eventTarget
             };
+
+            if (m_isServerNode)
+            {
+                // Fan out to per-MI channels so each MI is processed concurrently.
+                foreach (KeyValuePair<uint, (Channel<EventSnapshot> Channel, Task Task, CancellationTokenSource Cts)> kvp
+                    in m_perItemEventConsumers)
+                {
+                    try
+                    {
+                        kvp.Value.Channel.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
+                    }
+                    catch (ChannelClosedException)
+                    {
+                        // The per-item channel was completed during removal/disposal.
+                    }
+                }
+                return;
+            }
 
             try
             {
@@ -387,6 +429,82 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredItem?.QueueEvent(e);
+            }
+        }
+
+        /// <summary>
+        /// Consumer loop for a single event monitored item on the Server node.
+        /// Each MI gets its own channel and consumer task to avoid the single-consumer bottleneck.
+        /// </summary>
+        private async Task ProcessPerItemEventChannelAsync(
+            IEventMonitoredItem monitoredItem,
+            ChannelReader<EventSnapshot> reader,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await foreach (EventSnapshot snapshot in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    try
+                    {
+                        IFilterTarget e = snapshot.EventTargetSnapshot;
+
+                        if (e is AuditEventState || (e is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
+                        {
+                            if (!m_server.Auditing)
+                            {
+                                continue;
+                            }
+                            if (monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
+                                    MessageSecurityMode.SignAndEncrypt &&
+                                monitoredItem?.Session?.EndpointDescription?.TransportProfileUri !=
+                                    Profiles.HttpsBinaryTransport)
+                            {
+                                continue;
+                            }
+                        }
+
+                        (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(e);
+
+                        ServiceResult validationResult = await GetOrAddEventPermissionAsync(
+                            monitoredItem!,
+                            e,
+                            eventTypeId,
+                            sourceNodeId,
+                            cancellationToken).ConfigureAwait(false);
+
+                        if (ServiceResult.IsBad(validationResult))
+                        {
+                            continue;
+                        }
+
+                        if (snapshot.Context is ISessionSystemContext sessionContext &&
+                            sessionContext.SessionId is { IsNull: false } contextSessionId &&
+                            monitoredItem?.Session?.Id is { IsNull: false } monitoredItemSessionId &&
+                            !monitoredItemSessionId.Equals(contextSessionId))
+                        {
+                            continue;
+                        }
+
+                        monitoredItem?.QueueEvent(e);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger?.LogWarning(ex, "MonitoredNode2 per-item event consumer encountered an error.");
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // shutdown
+            }
+            catch (Exception ex)
+            {
+                m_logger?.LogError(ex, "MonitoredNode2 per-item event consumer terminated unexpectedly.");
             }
         }
 
@@ -706,6 +824,8 @@ namespace Opc.Ua.Server
         private readonly Channel<INodeNotification> m_channel;
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
+        private readonly bool m_isServerNode;
+        private readonly ConcurrentDictionary<uint, (Channel<EventSnapshot> Channel, Task Task, CancellationTokenSource Cts)> m_perItemEventConsumers = new();
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -730,6 +850,16 @@ namespace Opc.Ua.Server
             {
                 // Complete the writer; the consumer drains remaining items and exits normally.
                 m_channel.Writer.TryComplete();
+
+                // Complete and cancel all per-item event consumers.
+                foreach (KeyValuePair<uint, (Channel<EventSnapshot> Channel, Task Task, CancellationTokenSource Cts)> kvp
+                    in m_perItemEventConsumers)
+                {
+                    kvp.Value.Channel.Writer.TryComplete();
+                    kvp.Value.Cts.Cancel();
+                    kvp.Value.Cts.Dispose();
+                }
+                m_perItemEventConsumers.Clear();
 
                 if (m_consumerTask != null)
                 {
