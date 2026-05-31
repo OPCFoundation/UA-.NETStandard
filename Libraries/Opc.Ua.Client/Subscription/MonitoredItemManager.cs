@@ -700,14 +700,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ArrayOf<Variant> outputArguments = results[0].OutputArguments;
                 if (outputArguments.Count != 2 ||
-                    outputArguments[0].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint[] serverHandles ||
-                    outputArguments[1].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint[] clientHandles ||
-                    clientHandles.Length != serverHandles.Length)
+                    !outputArguments[0].TryGetValue(out ArrayOf<uint> serverHandles) ||
+                    !outputArguments[1].TryGetValue(out ArrayOf<uint> clientHandles) ||
+                    clientHandles.Count != serverHandles.Count)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                         "Output arguments incorrect");
                 }
-                return new MonitoredItemsHandles(true, serverHandles.Zip(clientHandles).ToList());
+                uint[]? serverHandleArray = serverHandles.ToArray();
+                uint[]? clientHandleArray = clientHandles.ToArray();
+                if (serverHandleArray is null || clientHandleArray is null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                        "Output arguments missing handle arrays");
+                }
+                return new MonitoredItemsHandles(true, serverHandleArray.Zip(clientHandleArray).ToList());
             }
             catch (ServiceResultException sre)
             {

@@ -140,7 +140,76 @@ is either:
   (handler-centric, channel-based pipeline, snapshot/restore, OptionsMonitor-driven
   reconciliation, etc.). The matrix above carries the rationale for each.
 
-The classic engine is now eligible for deprecation/deletion in a follow-up PR.
+## 6. Bridge wiring — open TODO before classic engine removal
+
+The V2 parity work above closes the **V2-native API surface**. There is a
+separate open item required before the classic engine can be removed: wire the
+`SubscriptionBridge` so existing consumers calling classic
+`Session.AddSubscription(Subscription)` continue to work when the session's
+engine is the V2 `DefaultSubscriptionEngine`.
+
+**Status today:** documented gap, partial scaffolding in place.
+
+* `Libraries/Opc.Ua.Client/Subscription/SubscriptionBridge.cs` — `SubscriptionBridge`
+  and `ISubscriptionMessageSink` are now `public` (were `internal sealed`).
+* `Libraries/Opc.Ua.Client/Subscription/Classic/Subscription.cs:45` — the classic
+  `Subscription` now implements `ISubscriptionMessageSink` (its existing
+  `SaveMessageInCache(ArrayOf<uint>, NotificationMessage)` signature matches
+  exactly; the interface just makes the contract explicit).
+* `Libraries/Opc.Ua.Client/Session/Session.cs:3126` — `AddSubscription(Subscription)`
+  now carries an XML-doc warning describing the gap.
+* `Tests/Opc.Ua.Subscriptions.Tests/ClassicOnV2EngineBridgeGapTests.cs` —
+  `[Explicit]` test fixture that **reproduces the gap**:
+  `ClassicSubscriptionOnV2EngineReceivesNoNotificationsAsync` runs classic
+  `Subscription` + classic `MonitoredItem` on the V2 engine and asserts
+  `Inconclusive` (no notifications). Once the wiring lands, flip `[Explicit]`
+  off and rewrite the `Assert.Inconclusive` into an `Assert.That(notificationCount, Is.GreaterThan(0))`.
+
+**Remaining wiring (TODO):**
+
+1. **Expose an external-subscription registration hook on
+   `ISubscriptionManager`** so non-V2 owners can plug into the publish dispatch:
+
+   ```csharp
+   bool TryRegisterExternalSubscription(uint subscriptionId, ISubscriptionMessageSink sink);
+   bool TryUnregisterExternalSubscription(uint subscriptionId);
+   ```
+
+   In the V2 publish loop (`SubscriptionManager.cs:937`), when
+   `GetById(subscriptionId)` returns null, consult the external registry; if
+   found, call `sink.SaveMessageInCache(availableSequenceNumbers, notificationMessage)`
+   and increment `m_goodPublishRequestCount` instead of issuing
+   `DeleteSubscriptionsAsync`. Also extend acknowledgement handling so the
+   V2 manager keeps acking on behalf of external subscriptions.
+
+2. **Wire the bridge in `DefaultSubscriptionEngine`** by subscribing to
+   `Session.SubscriptionsChanged` and, for each classic `Subscription` whose
+   `Id` is non-zero, calling `m_manager.TryRegisterExternalSubscription(sub.Id, sub)`.
+   Unregister on remove. Forward `availableSequenceNumbers` through the
+   bridge (the V2 `MessageProcessor` already tracks it as
+   `AvailableInRetransmissionQueue` at `MessageProcessor.cs:118`).
+
+3. **Implement `OnSubscriptionStateChangedAsync` on the bridge** to translate
+   V2 `PublishState` (Republish/Recovered/Transferred) and `SubscriptionState`
+   into classic `PublishStatusChanged` / `StateChanged` invocations. Today
+   the bridge no-ops this callback; many state events still come for free via
+   classic `SaveMessageInCache` (which fires `Recovered` when called after
+   `PublishingStopped`).
+
+4. **Save/Load format migration** — classic `Session.Save` produces a
+   `SubscriptionState`-based binary blob; V2 `SubscriptionManager.LoadAsync`
+   reads a different encoding via `SubscriptionManagerSerializer`. Consumers
+   that persist durable state across restarts need either auto-format
+   detection in V2 `LoadAsync` or a one-way
+   `SubscriptionMigration.UpgradeClassicStream(...)` helper documented in
+   `Docs/MigrationGuide.md`.
+
+5. **Per-item legacy surface** — `IMonitoredItem.Notification` event,
+   `LastValue` / `DequeueValues()`, and event-field helpers
+   (`GetEventTypeAsync`, `GetFieldValue`, `GetEventTime`, `GetFieldName`)
+   are not on the V2 surface. Either restore them as opt-in cache + event,
+   or document the migration recipe in `Docs/MigrationGuide.md` with a
+   handler-side example.
 
 ### V2 surfaces added in this round (final list)
 

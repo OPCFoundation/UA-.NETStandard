@@ -365,7 +365,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             ArrayOf<Variant> outputs = results[0].OutputArguments;
             if (outputs.Count == 0 ||
-                outputs[0].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint revised)
+                !outputs[0].TryGetValue(out uint revised))
             {
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                     "Server.SetSubscriptionDurable returned no revised lifetime.");
