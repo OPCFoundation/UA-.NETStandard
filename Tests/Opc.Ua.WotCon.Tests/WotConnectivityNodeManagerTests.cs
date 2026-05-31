@@ -1903,16 +1903,15 @@ namespace Opc.Ua.WotCon.Tests
                 persistOnSuccess: false,
                 CancellationToken.None).ConfigureAwait(false);
 
-            (BaseDataVariableState variable, WotPropertyTag tag) = entry.Properties.Values.First();
+            (_, WotPropertyTag tag) = entry.Properties.Values.First();
 
             // Exercise all auto-property getters that had 0% coverage.
             Assert.That(tag.NodeId.IsNull, Is.False);
             Assert.That(tag.DataType.IsNull, Is.False);
-            _ = tag.ValueRank;
+            Assert.That(tag.ValueRank, Is.EqualTo(ValueRanks.Scalar));
             Assert.That(tag.ReadOnly, Is.True);
             Assert.That(tag.Observable, Is.True);
             _ = tag.Form; // nullable; just ensure getter doesn't throw
-            _ = variable; // suppress unused warning
         }
 
         // ----------------------------------------------------------------

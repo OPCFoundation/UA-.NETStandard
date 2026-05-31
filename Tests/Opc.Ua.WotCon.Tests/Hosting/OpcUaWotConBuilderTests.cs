@@ -189,18 +189,20 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
+        public void AddWotConServerFromIConfigurationSectionThrowsForNullBuilder()
+        {
+            Assert.That(
+                () => OpcUaWotConServerBuilderExtensions
+                    .AddWotConServer(null!, (IConfigurationSection)new Mock<IConfigurationSection>().Object),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
         public void AddWotConServerFromIConfigurationSectionThrowsForNullSection()
         {
             IServiceCollection services = new ServiceCollection();
             IOpcUaBuilder builder = services.AddOpcUa();
 
-            // Null builder
-            Assert.That(
-                () => OpcUaWotConServerBuilderExtensions
-                    .AddWotConServer(null!, (IConfigurationSection)new Mock<IConfigurationSection>().Object),
-                Throws.ArgumentNullException);
-
-            // Null section
             Assert.That(
                 () => builder.AddWotConServer((IConfigurationSection)null!),
                 Throws.ArgumentNullException);
