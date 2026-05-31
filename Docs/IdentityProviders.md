@@ -497,9 +497,8 @@ The three outcomes:
   returned.
 * `AuthenticationResult.Reject(serviceResult)` — token decoded but
   refused. The status code flows back to the client as the
-  `ActivateSession` response error. Lockout / failure counters
-  integrate with the existing `SessionManager`
-  `RecordFailedAuthentication` path (P2 wires this).
+  `ActivateSession` response error. Lockout / failure counters are
+  recorded through the `SessionManager` failed-authentication path.
 * `AuthenticationResult.NotHandled` — the authenticator does not own
   this token type / profile. The registry moves on to the next
   authenticator and ultimately falls back to the legacy callback when no
@@ -781,8 +780,7 @@ await session.UpdateIdentityAsync(provider, ct).ConfigureAwait(false);
 
 The access-token-backed shipped type is `IssuedTokenIdentityProvider`, which
 wraps an `IAccessTokenProvider` and materializes a UA `IssuedIdentityToken`
-for `ActivateSession`. Earlier design notes that used the name
-`AccessTokenIdentityProvider` should map to this shipped type.
+for `ActivateSession`.
 
 For managed clients, put the same provider on
 `ManagedSessionOptions.IdentityProvider` so `ManagedSession` can refresh
@@ -870,12 +868,10 @@ the change safely.
 ## Implementing your own provider
 
 The shipped interfaces are intentionally small so deployments can build provider packages without changing
-stack internals. If you publish reusable packages, keep the package names below reserved for provider-specific
-adapters and depend on the core OPC UA identity abstractions plus the provider SDK you need.
+stack internals. The sections below show how to implement common provider integrations on top of the core
+OPC UA identity abstractions plus the provider SDK you need.
 
 ### Entra ID provider
-
-Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Entra`.
 
 - Implement `EntraIdAccessTokenProvider : IAccessTokenProvider` by wrapping MSAL
   `IPublicClientApplication` for native/user-delegated clients or `IConfidentialClientApplication` for
@@ -895,8 +891,6 @@ Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Entra`.
 
 ### OIDC provider
 
-Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Oidc`.
-
 - Implement `OidcAccessTokenProvider : IAccessTokenProvider` from an issuer or authority URI. Read
   `.well-known/openid-configuration` to discover the authorization, token, and JWKS endpoints, and map the
   discovered values into `AuthorizationServerMetadata` so existing OPC UA token-policy metadata still drives
@@ -914,8 +908,6 @@ Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Oidc`.
 
 ### Windows Integrated provider
 
-Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Windows`.
-
 - Implement `WindowsIntegratedClientIdentityProvider : IClientIdentityProvider` to run a SPNEGO/Kerberos
   exchange and emit the resulting AP-REQ or wrapped Negotiate token as an issued user token profile owned by
   the package.
@@ -931,8 +923,6 @@ Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.Windows`.
 
 ### ASP.NET Core provider
 
-Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.AspNetCore`.
-
 - Implement `AspNetCoreAccessTokenProvider : IAccessTokenProvider` by adapting `Microsoft.Identity.Web`
   `ITokenAcquisition.GetAccessTokenForUserAsync(...)`. Resolve the current `ClaimsPrincipal` from
   `IHttpContextAccessor` or from an explicit accessor delegate supplied by the host.
@@ -947,31 +937,6 @@ Reserved NuGet package: `OPCFoundation.NetStandard.Opc.Ua.Identity.AspNetCore`.
   request handlers can resolve the identity provider and call `Session.UpdateIdentityAsync(...)`.
 - Server-side JWT validation is the same as other OIDC providers: configure `AddJwtIssuer(...)` or
   `JwtAuthenticator` with the issuer, audience, and JWKS endpoint used by the ASP.NET Core authority.
-
-## Where each authenticator lives
-
-| Authenticator | File path | Package / assembly | TFM support | Notes |
-|---|---|---|---|---|
-| `AnonymousAuthenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\AnonymousAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Enabled by `AddDefaultIdentityAuthenticators()` when `EnableAnonymous` is true. |
-| `UserNamePasswordAuthenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\UserNamePasswordAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Requires `IUserDatabase` and `IUserManagement`. |
-| `X509Authenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\X509Authenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Uses `ICertificateValidatorEx` and the configured user trust list. |
-| `JwtAuthenticator` | `Libraries/Opc.Ua.Server\RoleBasedUserManagement\Authenticators\JwtAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` | Validates `Profiles.JwtUserToken` via `IIssuerKeyResolver`. |
-| `KeyCredentialBridgeAuthenticator` (experimental) | `Libraries/Opc.Ua.Server\Identity\Authenticators\KeyCredentialBridgeAuthenticator.cs` | `Opc.Ua.Server` | `net472; net48; netstandard2.1; net8.0; net9.0; net10.0` (`[Experimental]` attribute on `net8.0+`) | Vendor profile only; not an OPC UA conformance claim. |
-
-## History
-
-| Phase | Commit | Summary |
-|---|---|---|
-| P1 | `735dcd87` | Added identity-provider interfaces, metadata parsing, registry, and verification-key helpers. |
-| P2 | `f097f7e2` | Routed `SessionManager` authentication through the registry and added default anonymous, username/password, X.509, and JWT authenticators. |
-| P3 | `4ecdeb53` | Fixed Part 18 `GroupId` and access-token `Role` criteria to consume `IIdentityClaims`. |
-| P4 | `df56442d` | Added client identity providers, `Session.UpdateIdentityAsync`, and `ManagedSession` refresh integration. |
-| PI | `c8ff0d48` … `073bb377` | Completed DI integration, options binding, JWT issuer configuration, and client composite provider wiring. |
-| G1 | `9da3a6c4` | Made `GdsServerHostedService` consume identity authenticator registrations. |
-| G2 | `c6579e26` | Re-enabled the two previously flaky P4 identity-refresh tests. |
-| P5 | `db27d632` | Migrated reference samples to the registry and marked `SessionManager.ImpersonateUser` obsolete. |
-| P6 | `c3fb4414` | Shipped the modern `StartRequestToken` / `FinishRequestToken` AuthorizationService flow and `ITokenIssuer`. |
-| P7 | `64a1f8c4` | Shipped KeyCredential Push and the experimental KeyCredential bridge authenticator. |
 
 ## See also
 

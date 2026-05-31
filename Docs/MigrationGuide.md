@@ -968,41 +968,6 @@ var options = new ManagedSessionOptions
 };
 ```
 
-#### `RequestAccessTokenAsync` → `StartRequestTokenAsync` / `FinishRequestTokenAsync`
-
-Legacy one-shot client call:
-
-```csharp
-string jwt = await authorizationClient.RequestAccessTokenAsync(
-    identityToken,
-    resourceId: "urn:target-server",
-    ct);
-```
-
-Modern Part 12 v1.05 flow:
-
-```csharp
-(ByteString serviceData, Guid requestId) =
-    await authorizationClient.StartRequestTokenAsync(
-        resourceId: "urn:target-server",
-        policyId: "jwt",
-        requestorData: ByteString.Empty,
-        ct);
-
-(string jwt, DateTime expiresAt, string? refreshToken, DateTime refreshExpiresAt) =
-    await authorizationClient.FinishRequestTokenAsync(
-        requestId,
-        Array.Empty<string>().ToArrayOf(),
-        identityToken,
-        userTokenSignature: new SignatureData(),
-        ct);
-```
-
-Server-side providers should move the authorization decision into
-`StartRequestTokenAsync`, store the pending request id, and have
-`FinishRequestTokenAsync` call an `ITokenIssuer`. Keep
-`RequestAccessTokenAsync` as a thin shim only for legacy clients.
-
 ### Secrets — caller-supplied passwords go through a secret registry
 
 A new low-level abstraction layer carries caller-supplied secrets
