@@ -102,5 +102,15 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="CaptureFullMode.DropOldest"/>.
         /// </summary>
         public CaptureFullMode FullMode { get; init; } = CaptureFullMode.DropOldest;
+
+        /// <summary>
+        /// Number of concurrent consumer tasks that drain the channel and
+        /// flush batches into the provider. A value of 1 (default) gives
+        /// ordered, single-threaded flushing. Higher values improve
+        /// throughput when the provider's insert calls have significant
+        /// latency (e.g. database writes) at the cost of relaxed
+        /// inter-batch ordering. Must be at least 1.
+        /// </summary>
+        public int ConsumerCount { get; init; } = 1;
     }
 }

@@ -172,6 +172,33 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task MultipleConsumersFlushAllSamplesAsync()
+        {
+            var provider = new RecordingBulkProvider();
+            ServerSystemContext ctx = CreateSystemContext();
+            var options = new HistorianCaptureOptions
+            {
+                BatchTarget = 2,
+                BatchWindow = TimeSpan.FromMilliseconds(5),
+                ConsumerCount = 3,
+            };
+
+            await using (var sink = new HistorianCaptureSink(provider, ctx, options))
+            {
+                for (int i = 0; i < 20; i++)
+                {
+                    sink.Enqueue(
+                        new NodeId($"mc{i}", kNs),
+                        new DataValue(new Variant(i), StatusCodes.Good, DateTime.UtcNow));
+                }
+            }
+
+            int totalSamples = provider.BatchSizes.Sum();
+            Assert.That(totalSamples, Is.EqualTo(20),
+                "All 20 samples must be flushed with multiple consumers.");
+        }
+
+        [Test]
         public async Task DropNewestModeDropsNewSamplesUnderBackpressureAsync()
         {
             var tcsUnblock = new TaskCompletionSource<bool>(

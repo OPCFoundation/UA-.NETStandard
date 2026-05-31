@@ -97,17 +97,23 @@ namespace Opc.Ua.Server.Historian
             m_options = options ?? new HistorianCaptureOptions();
             m_logger = systemContext.Server?.Telemetry?.CreateLogger<HistorianCaptureSink>();
 
+            int consumerCount = Math.Max(1, m_options.ConsumerCount);
             var channelOptions = new BoundedChannelOptions(m_options.MaxQueuedSamples)
             {
                 FullMode = MapFullMode(m_options.FullMode),
-                SingleReader = true,
+                SingleReader = consumerCount == 1,
                 SingleWriter = false,
                 AllowSynchronousContinuations = false,
             };
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
             m_shutdownCts = new CancellationTokenSource();
-            m_consumer = Task.Run(() => ConsumeAsync(m_shutdownCts.Token));
+            var consumers = new Task[consumerCount];
+            for (int i = 0; i < consumerCount; i++)
+            {
+                consumers[i] = Task.Run(() => ConsumeAsync(m_shutdownCts.Token));
+            }
+            m_consumers = consumers;
         }
 
         /// <summary>
@@ -180,7 +186,7 @@ namespace Opc.Ua.Server.Historian
             {
                 // Bound the wait — if the consumer is stuck the host
                 // shutdown should not block forever.
-                await m_consumer
+                await Task.WhenAll(m_consumers)
                     .WaitAsync(TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
             }
@@ -347,7 +353,7 @@ namespace Opc.Ua.Server.Historian
         private readonly HistorianCaptureOptions m_options;
         private readonly ILogger? m_logger;
         private readonly Channel<CaptureEvent> m_channel;
-        private readonly Task m_consumer;
+        private readonly Task[] m_consumers;
         private readonly CancellationTokenSource m_shutdownCts;
         private long m_droppedSamples;
         private bool m_disposed;
