@@ -1443,5 +1443,82 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(validationCalls, Is.EqualTo(2));
         }
+
+        /// <summary>
+        /// Verifies that when the MonitoredNode2 is configured for the Server object
+        /// (ObjectIds.Server), multiple consumer tasks drain the shared event channel
+        /// concurrently and all events are delivered to all monitored items.
+        /// </summary>
+        [Test]
+        public void ServerNode_MultipleEventConsumers_AllEventsDelivered()
+        {
+            // Use ObjectIds.Server so the Server-node multi-consumer path is activated
+            var node = new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.Server,
+                BrowseName = new QualifiedName("Server", 0)
+            };
+
+            int validationCalls = 0;
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref validationCalls);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            // Create multiple event monitored items
+            Mock<IEventMonitoredItem> item1Mock = CreateEventMonitoredItemMock(1u);
+            Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
+            Mock<IEventMonitoredItem> item3Mock = CreateEventMonitoredItemMock(3u);
+
+            // Use 3 consumer tasks via the internal constructor
+            var monitoredNode = new MonitoredNode2(
+                nodeManagerMock.Object, serverMock.Object, node, eventConsumerCount: 3);
+            monitoredNode.Add(item1Mock.Object);
+            monitoredNode.Add(item2Mock.Object);
+            monitoredNode.Add(item3Mock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectIds.Server };
+                return ev;
+            }
+
+            const int eventCount = 10;
+            for (int i = 0; i < eventCount; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            // Dispose drains the event channel
+            monitoredNode.Dispose();
+
+            // Each event should be delivered to all 3 monitored items
+            int item1Queued = item1Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item2Queued = item2Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item3Queued = item3Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.That(item1Queued + item2Queued + item3Queued, Is.EqualTo(eventCount * 3),
+                "Every event must be delivered to every monitored item.");
+            Assert.That(item1Queued, Is.EqualTo(eventCount));
+            Assert.That(item2Queued, Is.EqualTo(eventCount));
+            Assert.That(item3Queued, Is.EqualTo(eventCount));
+        }
     }
 }
