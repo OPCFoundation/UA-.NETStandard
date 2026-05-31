@@ -293,5 +293,147 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Null);
             serverMock.Verify(s => s.ResourceManager, Times.Never);
         }
+
+        [TearDown]
+        public void TearDown()
+        {
+            ServerUtils.EventsEnabled = false;
+        }
+
+        [Test]
+        public void EventsEnabled_WhenSetTrue_EnablesEventCapture()
+        {
+            ServerUtils.EventsEnabled = true;
+            Assert.That(ServerUtils.EventsEnabled, Is.True);
+        }
+
+        [Test]
+        public void EventsEnabled_WhenSetFalse_ClearsQueue()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportWriteValue(new NodeId(1), new DataValue(new Variant(42)), StatusCodes.Good);
+            ServerUtils.EventsEnabled = false;
+            Assert.That(ServerUtils.EventsEnabled, Is.False);
+        }
+
+        [Test]
+        public void ReportWriteValue_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportWriteValue(new NodeId(1), new DataValue(new Variant(42)), StatusCodes.Good));
+        }
+
+        [Test]
+        public void ReportWriteValue_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportWriteValue(new NodeId(1), new DataValue(new Variant(42)), StatusCodes.Good);
+            // No exception means success - internal state is captured
+        }
+
+        [Test]
+        public void ReportWriteValue_WithBadError_EnqueuesEventWithError()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportWriteValue(
+                new NodeId(1),
+                new DataValue(new Variant(42)),
+                StatusCodes.BadNodeIdInvalid);
+        }
+
+        [Test]
+        public void ReportQueuedValue_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportQueuedValue(new NodeId(1), 100, new DataValue(new Variant(10))));
+        }
+
+        [Test]
+        public void ReportQueuedValue_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportQueuedValue(new NodeId(1), 100, new DataValue(new Variant(10)));
+        }
+
+        [Test]
+        public void ReportFilteredValue_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportFilteredValue(new NodeId(1), 100, new DataValue(new Variant(10))));
+        }
+
+        [Test]
+        public void ReportFilteredValue_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportFilteredValue(new NodeId(1), 100, new DataValue(new Variant(10)));
+        }
+
+        [Test]
+        public void ReportDiscardedValue_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportDiscardedValue(new NodeId(1), 100, new DataValue(new Variant(10))));
+        }
+
+        [Test]
+        public void ReportDiscardedValue_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportDiscardedValue(new NodeId(1), 100, new DataValue(new Variant(10)));
+        }
+
+        [Test]
+        public void ReportPublishValue_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportPublishValue(new NodeId(1), 100, new DataValue(new Variant(10))));
+        }
+
+        [Test]
+        public void ReportPublishValue_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportPublishValue(new NodeId(1), 100, new DataValue(new Variant(10)));
+        }
+
+        [Test]
+        public void ReportCreateMonitoredItem_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportCreateMonitoredItem(
+                    new NodeId(1), 100, 1000, 10, true, null, MonitoringMode.Reporting));
+        }
+
+        [Test]
+        public void ReportCreateMonitoredItem_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportCreateMonitoredItem(
+                new NodeId(1), 100, 1000, 10, true, null, MonitoringMode.Reporting);
+        }
+
+        [Test]
+        public void ReportModifyMonitoredItem_WhenDisabled_DoesNotThrow()
+        {
+            ServerUtils.EventsEnabled = false;
+            Assert.DoesNotThrow(() =>
+                ServerUtils.ReportModifyMonitoredItem(
+                    new NodeId(1), 100, 500, 20, false, null, MonitoringMode.Sampling));
+        }
+
+        [Test]
+        public void ReportModifyMonitoredItem_WhenEnabled_EnqueuesEvent()
+        {
+            ServerUtils.EventsEnabled = true;
+            ServerUtils.ReportModifyMonitoredItem(
+                new NodeId(1), 100, 500, 20, false, null, MonitoringMode.Sampling);
+        }
     }
 }

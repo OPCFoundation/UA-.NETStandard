@@ -88,6 +88,86 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public void IsTypeOfReturnsTrueWhenTypeDefinitionIsNull()
+        {
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.BaseEventType,
+                new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
+                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+
+            var target = new HistorianEventFilterTarget(record);
+            Assert.That(target.IsTypeOf(null!, NodeId.Null), Is.True);
+        }
+
+        [Test]
+        public void IsTypeOfReturnsFalseWhenNoTypeTreeAndNotExactMatch()
+        {
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.AuditEventType,
+                new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
+                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+
+            var target = new HistorianEventFilterTarget(record);
+            Assert.That(target.IsTypeOf(null!, ObjectTypeIds.BaseEventType), Is.False);
+        }
+
+        [Test]
+        public void GetAttributeValueReturnsNodeIdWhenEmptyPathAndNodeIdAttribute()
+        {
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.BaseEventType,
+                new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
+                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+
+            var target = new HistorianEventFilterTarget(record);
+            ArrayOf<QualifiedName> emptyPath = default;
+            Variant value = target.GetAttributeValue(null!, NodeId.Null, emptyPath, Attributes.NodeId, NumericRange.Null);
+            Assert.That(value.TryGetValue(out NodeId nodeId), Is.True);
+            Assert.That(nodeId, Is.EqualTo(ObjectTypeIds.BaseEventType));
+        }
+
+        [Test]
+        public void GetAttributeValueReturnsEmptyWhenEmptyPathAndNonNodeIdAttribute()
+        {
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.BaseEventType,
+                new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
+                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+
+            var target = new HistorianEventFilterTarget(record);
+            ArrayOf<QualifiedName> emptyPath = default;
+            Variant value = target.GetAttributeValue(null!, NodeId.Null, emptyPath, Attributes.Value, NumericRange.Null);
+            Assert.That(value, Is.EqualTo(Variant.Null));
+        }
+
+        [Test]
+        public void GetAttributeValueResolvesMultiSegmentPath()
+        {
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.BaseEventType,
+                new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
+                new Dictionary<string, Variant>(System.StringComparer.Ordinal)
+                {
+                    ["ConditionName/Severity"] = new Variant((ushort)800),
+                });
+
+            var target = new HistorianEventFilterTarget(record);
+            ArrayOf<QualifiedName> path = new QualifiedName[]
+            {
+                new("ConditionName"),
+                new("Severity")
+            };
+            Variant value = target.GetAttributeValue(null!, NodeId.Null, path, Attributes.Value, NumericRange.Null);
+            Assert.That(value.TryGetValue(out ushort severity), Is.True);
+            Assert.That(severity, Is.EqualTo(800));
+        }
+
+        [Test]
         public void IsTypeOfResolvesSubtypeViaTypeTree()
         {
             // Record's declared type is AuditEventType, which derives from BaseEventType.

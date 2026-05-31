@@ -245,5 +245,108 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
+        [Test]
+        public void TranslateServiceResultNullReturnsNull()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+
+            ServiceResult result = resourceManager.Translate(["en-US"], (ServiceResult)null);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void TranslateServiceResultWithSymbolicIdTranslates()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+            var error = new ServiceResult(new StatusCode(StatusCodes.BadNodeIdInvalid.Code, "BadNodeIdInvalid"));
+
+            ServiceResult translated = resourceManager.Translate(["en-US"], error);
+
+            Assert.That(translated, Is.Not.Null);
+            Assert.That(translated.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void TranslateServiceResultWithLocalizedTextNoPreferredLocalesReturnsOriginal()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+            var localizedText = new LocalizedText("en-US", "Node ID is invalid");
+            var error = new ServiceResult(StatusCodes.BadNodeIdInvalid, localizedText);
+
+            ServiceResult translated = resourceManager.Translate(default, error);
+
+            Assert.That(translated, Is.EqualTo(error));
+        }
+
+        [Test]
+        public void TranslateServiceResultWithLocalizedTextAndPreferredLocalesTranslates()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+            var localizedText = new LocalizedText("en-US", "Node ID is invalid");
+            var error = new ServiceResult(StatusCodes.BadNodeIdInvalid, localizedText);
+
+            ServiceResult translated = resourceManager.Translate(["en-US"], error);
+
+            Assert.That(translated, Is.Not.Null);
+            Assert.That(translated.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void TranslateServiceResultWithEmptyLocalizedTextUsesStatusCode()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+            var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
+
+            ServiceResult translated = resourceManager.Translate(["en-US"], error);
+
+            Assert.That(translated, Is.Not.Null);
+            Assert.That(translated.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void GetAvailableLocalesReturnsEmptyWhenNoTranslationsAdded()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+
+            string[] locales = resourceManager.GetAvailableLocales();
+
+            Assert.That(locales, Is.Empty);
+        }
+
+        [Test]
+        public void GetAvailableLocalesReturnsAddedLocales()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
+            resourceManager.Add("key1", "en-US", "Hello");
+            resourceManager.Add("key1", "de-DE", "Hallo");
+
+            string[] locales = resourceManager.GetAvailableLocales();
+
+            Assert.That(locales, Has.Length.EqualTo(2));
+            Assert.That(locales, Does.Contain("en-US"));
+            Assert.That(locales, Does.Contain("de-DE"));
+        }
     }
 }
