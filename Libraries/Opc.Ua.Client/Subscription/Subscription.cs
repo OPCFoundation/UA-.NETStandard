@@ -155,6 +155,127 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
+            uint triggeringItemClientHandle,
+            IReadOnlyList<uint> linksToAdd,
+            IReadOnlyList<uint> linksToRemove,
+            CancellationToken ct = default)
+        {
+            if (linksToAdd == null)
+            {
+                throw new ArgumentNullException(nameof(linksToAdd));
+            }
+            if (linksToRemove == null)
+            {
+                throw new ArgumentNullException(nameof(linksToRemove));
+            }
+            if (!Created)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadSubscriptionIdInvalid,
+                    "Subscription has not been created.");
+            }
+            if (!m_monitoredItems.TryGetMonitoredItemByClientHandle(
+                triggeringItemClientHandle, out IMonitoredItem? triggeringItem) ||
+                triggeringItem is not MonitoredItems.MonitoredItem triggeringInternal)
+            {
+                throw new ArgumentException(
+                    $"Triggering item with client handle {triggeringItemClientHandle} " +
+                    "is not part of this subscription.",
+                    nameof(triggeringItemClientHandle));
+            }
+            if (!triggeringItem.Created)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadMonitoredItemIdInvalid,
+                    "Triggering item has not been created on the server yet.");
+            }
+
+            // Resolve client handles → server monitored item ids while
+            // keeping a parallel list of the client handles for the
+            // post-call local update. Skipping items not in the
+            // subscription would silently lose links — instead we throw
+            // so the caller can fix the call site.
+            var addServerIds = new uint[linksToAdd.Count];
+            for (int i = 0; i < linksToAdd.Count; i++)
+            {
+                addServerIds[i] = ResolveServerId(linksToAdd[i], nameof(linksToAdd));
+            }
+            var removeServerIds = new uint[linksToRemove.Count];
+            for (int i = 0; i < linksToRemove.Count; i++)
+            {
+                removeServerIds[i] = ResolveServerId(linksToRemove[i], nameof(linksToRemove));
+            }
+
+            SetTriggeringResponse response = await m_context.MonitoredItemServiceSet
+                .SetTriggeringAsync(
+                    null,
+                    Id,
+                    triggeringItem.ServerId,
+                    addServerIds.ToArrayOf(),
+                    removeServerIds.ToArrayOf(),
+                    ct)
+                .ConfigureAwait(false);
+
+            // Update local state only for results with a Good status —
+            // partial failure must not corrupt the in-process tracking.
+            ArrayOf<StatusCode> addResults = response.AddResults;
+            for (int i = 0; i < linksToAdd.Count; i++)
+            {
+                StatusCode status = addResults.Count > i ? addResults[i] : StatusCodes.Bad;
+                if (!StatusCode.IsGood(status))
+                {
+                    continue;
+                }
+                triggeringInternal.AddTriggeredLink(linksToAdd[i]);
+                if (m_monitoredItems.TryGetMonitoredItemByClientHandle(
+                    linksToAdd[i], out IMonitoredItem? triggered) &&
+                    triggered is MonitoredItems.MonitoredItem triggeredInternal)
+                {
+                    triggeredInternal.TriggeringItemClientHandle =
+                        triggeringItemClientHandle;
+                }
+            }
+            ArrayOf<StatusCode> removeResults = response.RemoveResults;
+            for (int i = 0; i < linksToRemove.Count; i++)
+            {
+                StatusCode status = removeResults.Count > i ? removeResults[i] : StatusCodes.Bad;
+                if (!StatusCode.IsGood(status))
+                {
+                    continue;
+                }
+                triggeringInternal.RemoveTriggeredLink(linksToRemove[i]);
+                if (m_monitoredItems.TryGetMonitoredItemByClientHandle(
+                    linksToRemove[i], out IMonitoredItem? triggered) &&
+                    triggered is MonitoredItems.MonitoredItem triggeredInternal &&
+                    triggeredInternal.TriggeringItemClientHandle ==
+                        triggeringItemClientHandle)
+                {
+                    triggeredInternal.TriggeringItemClientHandle = 0;
+                }
+            }
+
+            return response;
+
+            uint ResolveServerId(uint clientHandle, string paramName)
+            {
+                if (!m_monitoredItems.TryGetMonitoredItemByClientHandle(
+                    clientHandle, out IMonitoredItem? item) || item == null)
+                {
+                    throw new ArgumentException(
+                        $"Monitored item with client handle {clientHandle} " +
+                        "is not part of this subscription.",
+                        paramName);
+                }
+                if (!item.Created)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadMonitoredItemIdInvalid,
+                        $"Monitored item {clientHandle} has not been created on the server yet.");
+                }
+                return item.ServerId;
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask RecreateAsync(CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);

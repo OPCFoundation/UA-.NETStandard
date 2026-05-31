@@ -61,8 +61,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Optional subscription engine factory to use when constructing
-        /// a <see cref="Session"/>. When <c>null</c>, the session uses the
-        /// classic engine (<see cref="ClassicSubscriptionEngineFactory"/>).
+        /// a <see cref="Session"/>. When <c>null</c>, the session uses
+        /// the V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>).
         /// </summary>
         public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
 

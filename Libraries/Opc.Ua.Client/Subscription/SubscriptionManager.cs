@@ -325,6 +325,27 @@ namespace Opc.Ua.Client.Subscriptions
             return subscription;
         }
 
+        /// <inheritdoc/>
+        public void Save(System.IO.Stream stream,
+            IServiceMessageContext messageContext,
+            IEnumerable<ISubscription>? subscriptions = null)
+        {
+            SubscriptionManagerSerializer.Save(this, stream, messageContext,
+                subscriptions);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IReadOnlyList<ISubscription>> LoadAsync(
+            System.IO.Stream stream,
+            IServiceMessageContext messageContext,
+            Func<string, ISubscriptionNotificationHandler> handlerFactory,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default)
+        {
+            return SubscriptionManagerSerializer.LoadAsync(this, stream,
+                messageContext, handlerFactory, transferSubscriptions, ct);
+        }
+
         /// <summary>
         /// Resume subscriptions
         /// </summary>

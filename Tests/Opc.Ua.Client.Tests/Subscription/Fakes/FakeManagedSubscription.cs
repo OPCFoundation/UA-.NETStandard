@@ -123,6 +123,25 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnConditionRefreshAsync?.Invoke(ct) ?? default;
         }
 
+        public List<SetTriggeringCall> SetTriggeringCalls { get; } = [];
+        public Func<uint, IReadOnlyList<uint>, IReadOnlyList<uint>,
+            CancellationToken, ValueTask<SetTriggeringResponse>>? OnSetTriggeringAsync
+        { get; set; }
+
+        public ValueTask<SetTriggeringResponse> SetTriggeringAsync(
+            uint triggeringItemClientHandle,
+            IReadOnlyList<uint> linksToAdd,
+            IReadOnlyList<uint> linksToRemove,
+            CancellationToken ct = default)
+        {
+            SetTriggeringCalls.Add(new SetTriggeringCall(
+                triggeringItemClientHandle, linksToAdd, linksToRemove));
+            return OnSetTriggeringAsync?.Invoke(triggeringItemClientHandle,
+                linksToAdd, linksToRemove, ct)
+                ?? new ValueTask<SetTriggeringResponse>(
+                    new SetTriggeringResponse());
+        }
+
         public ValueTask DisposeAsync()
         {
             DisposeAsyncCalls++;
@@ -136,5 +155,10 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         internal readonly record struct TryCompleteTransferCall(
             IReadOnlyList<uint> AvailableSequenceNumbers);
+
+        internal readonly record struct SetTriggeringCall(
+            uint TriggeringItemClientHandle,
+            IReadOnlyList<uint> LinksToAdd,
+            IReadOnlyList<uint> LinksToRemove);
     }
 }

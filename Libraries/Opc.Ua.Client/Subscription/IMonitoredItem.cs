@@ -85,5 +85,23 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// The identifier assigned by the client.
         /// </summary>
         uint ClientHandle { get; }
+
+        /// <summary>
+        /// The client handle of the monitored item that triggers
+        /// this item, or <c>0</c> if no triggering relationship has
+        /// been recorded via
+        /// <see cref="ISubscription.SetTriggeringAsync"/>. Updated only
+        /// after a successful service call result for this link.
+        /// </summary>
+        uint TriggeringItemClientHandle { get; }
+
+        /// <summary>
+        /// Client handles of the monitored items that are triggered
+        /// by this item. Empty when this item does not currently
+        /// trigger any other items. Updated only after successful
+        /// service call results for each link.
+        /// </summary>
+        System.Collections.Generic.IReadOnlyCollection<uint> TriggeredItemClientHandles { get; }
     }
 }
+

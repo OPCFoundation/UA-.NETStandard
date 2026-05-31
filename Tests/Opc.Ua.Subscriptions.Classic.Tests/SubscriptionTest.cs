@@ -40,7 +40,7 @@ using Opc.Ua.Client;
 
 using Opc.Ua.Client.TestFramework;
 
-namespace Opc.Ua.Subscriptions.Tests
+namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
     /// Test Client Services.
@@ -722,8 +722,8 @@ namespace Opc.Ua.Subscriptions.Tests
             // Verify the triggering relationships are tracked
             Assert.That(triggeringItem.TriggeredItems.IsNull, Is.False);
             Assert.That(triggeringItem.TriggeredItems.Count, Is.EqualTo(2));
-            Assert.That(triggeringItem.TriggeredItems.ToList(), Does.Contain(triggeredItem1.ClientHandle));
-            Assert.That(triggeringItem.TriggeredItems.ToList(), Does.Contain(triggeredItem2.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems.ToList(), Has.Member(triggeredItem1.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems.ToList(), Has.Member(triggeredItem2.ClientHandle));
 
             Assert.That(triggeredItem1.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
             Assert.That(triggeredItem2.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));

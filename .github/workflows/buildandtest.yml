@@ -22,7 +22,7 @@ jobs:
       matrix:
         # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
         os: [ubuntu-latest, windows-latest]
-        csproj: [Security.Certificates, Types, Core, Core.Encoders, Core.Security, Server, Client, Client.ComplexTypes, History, InformationModel, Lds, PubSub, Sessions, Subscriptions, Configuration, Gds, SourceGeneration.Stack, SourceGeneration, SourceGeneration.Core, WotCon]
+        csproj: [Security.Certificates, Types, Core, Core.Encoders, Core.Security, Server, Client, Client.ComplexTypes, History, InformationModel, Lds, PubSub, Sessions, Subscriptions, Subscriptions.Classic, Configuration, Gds, SourceGeneration.Stack, SourceGeneration, SourceGeneration.Core, WotCon]
         include:
           - framework: 'net10.0'
             dotnet-version: '10.0.x'

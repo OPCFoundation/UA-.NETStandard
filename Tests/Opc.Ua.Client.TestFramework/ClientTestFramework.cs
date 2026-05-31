@@ -64,6 +64,22 @@ namespace Opc.Ua.Client.TestFramework
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
+
+        /// <summary>
+        /// When non-null, the fixture's <see cref="ClientFixture"/> is
+        /// configured to use this engine factory for every session it
+        /// creates. Defaults to
+        /// <see cref="ClassicSubscriptionEngineFactory.Instance"/> so
+        /// existing classic-engine tests (which use
+        /// <c>TestableSubscription</c> / <c>Session.AddSubscription</c>)
+        /// continue to work after the Session default was flipped to
+        /// the V2 engine. V2-only fixtures should set this to
+        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> or
+        /// <c>null</c> (to use the Session default) during
+        /// <c>OneTimeSetUpAsync</c>.
+        /// </summary>
+        public ISubscriptionEngineFactory ClientFixtureSubscriptionEngineFactory { get; set; }
+            = ClassicSubscriptionEngineFactory.Instance;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
@@ -224,6 +240,15 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry);
+
+            // If a derived fixture pinned the engine factory, propagate
+            // it. Default = null = use Session default (V2 after the
+            // Phase E flip in Session.cs).
+            if (ClientFixtureSubscriptionEngineFactory != null)
+            {
+                ClientFixture.UseSubscriptionEngineFactory(
+                    ClientFixtureSubscriptionEngineFactory);
+            }
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;

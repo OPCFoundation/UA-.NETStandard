@@ -29,9 +29,11 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -73,6 +75,66 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <inheritdoc/>
         public uint ClientHandle { get; private set; }
+
+        /// <inheritdoc/>
+        public uint TriggeringItemClientHandle { get; internal set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyCollection<uint> TriggeredItemClientHandles
+        {
+            get
+            {
+                lock (m_triggeredItemsLock)
+                {
+                    return [.. m_triggeredItems];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Apply server-side identifiers from a saved snapshot to this
+        /// freshly-created monitored item. Used by
+        /// <see cref="ISubscriptionManager.LoadAsync"/> when the caller
+        /// requests <c>transferSubscriptions</c> so the loaded item can
+        /// be matched to its server-side state via
+        /// <c>TransferSubscriptions</c>.
+        /// </summary>
+        /// <remarks>
+        /// Re-assigning <see cref="ClientHandle"/> after construction
+        /// matters because the V2 publish loop dispatches notifications
+        /// by client handle. The snapshot's client handle is the one the
+        /// server still uses; the post-construction one is freshly
+        /// generated and would never match an incoming notification.
+        /// </remarks>
+        internal void ApplyTransferState(uint clientHandle, uint serverId)
+        {
+            ClientHandle = clientHandle;
+            ServerId = serverId;
+        }
+
+        /// <summary>
+        /// Add a triggered item link locally; called by the owning
+        /// subscription after the server reported Good for the link.
+        /// </summary>
+        internal void AddTriggeredLink(uint triggeredClientHandle)
+        {
+            lock (m_triggeredItemsLock)
+            {
+                m_triggeredItems.Add(triggeredClientHandle);
+            }
+        }
+
+        /// <summary>
+        /// Remove a triggered item link locally; called by the owning
+        /// subscription after the server reported Good for the link.
+        /// </summary>
+        internal void RemoveTriggeredLink(uint triggeredClientHandle)
+        {
+            lock (m_triggeredItemsLock)
+            {
+                m_triggeredItems.Remove(triggeredClientHandle);
+            }
+        }
 
         /// <summary>
         /// The subscription that owns the monitored item.
@@ -736,5 +798,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private readonly ILogger m_logger;
         internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;
+        private readonly HashSet<uint> m_triggeredItems = [];
+        private readonly Lock m_triggeredItemsLock = new();
     }
 }

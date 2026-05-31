@@ -37,7 +37,7 @@ using Opc.Ua.Client;
 
 using Opc.Ua.Client.TestFramework;
 
-namespace Opc.Ua.Subscriptions.Tests
+namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
     /// Tests for subscription transfer scenarios.

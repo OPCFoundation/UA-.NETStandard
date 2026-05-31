@@ -35,16 +35,17 @@ using Opc.Ua.Client;
 
 using Opc.Ua.Client.TestFramework;
 
-namespace Opc.Ua.Subscriptions.Tests
+namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
-    /// Integration tests for the pluggable subscription engine.
-    /// Verifies that the <see cref="ClassicSubscriptionEngine"/> works
-    /// end-to-end against a real in-process OPC UA server.
+    /// Integration tests that exercise the classic
+    /// <see cref="ClassicSubscriptionEngineFactory"/> end-to-end against
+    /// the in-process reference server.
     /// </summary>
     [TestFixture]
     [Category("Client")]
     [Category("SubscriptionEngine")]
+    [Category("Classic")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public class SubscriptionEngineIntegrationTests : ClientTestFramework
@@ -57,6 +58,10 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             SupportsExternalServerUrl = true;
             SingleSession = false;
+            // Pin the engine to classic so this test fixture continues to
+            // exercise the classic dispatcher after the Session default
+            // has been flipped to V2.
+            ClientFixtureSubscriptionEngineFactory = ClassicSubscriptionEngineFactory.Instance;
             return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
@@ -98,7 +103,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(
                 factory,
                 Is.InstanceOf<ClassicSubscriptionEngineFactory>(),
-                "Default engine factory should be ClassicSubscriptionEngineFactory");
+                "Engine factory should be ClassicSubscriptionEngineFactory");
 
             TestContext.Out.WriteLine(
                 "SubscriptionEngineFactory type: {0}",
@@ -288,26 +293,6 @@ namespace Opc.Ua.Subscriptions.Tests
 
             bool removed = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.That(removed, Is.True);
-        }
-
-        [Test]
-        [Order(500)]
-        public void EngineFactoryIsAccessibleOnSession()
-        {
-            var session = (Session)Session;
-
-            ISubscriptionEngineFactory factory = session.SubscriptionEngineFactory;
-            Assert.That(factory, Is.Not.Null);
-            Assert.That(factory, Is.SameAs(ClassicSubscriptionEngineFactory.Instance));
-
-            TestContext.Out.WriteLine("Factory: {0}", factory.GetType().FullName);
-
-            // Verify the factory can create an engine when given
-            // a context (validates the factory contract).
-            Assert.That(
-                factory,
-                Is.InstanceOf<ISubscriptionEngineFactory>(),
-                "Factory must implement ISubscriptionEngineFactory");
         }
     }
 }

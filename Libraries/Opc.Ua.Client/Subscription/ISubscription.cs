@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -100,6 +101,39 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         /// <param name="ct"></param>
         ValueTask ConditionRefreshAsync(
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Configure triggering relationships between monitored items
+        /// in this subscription. The triggering item, when it reports
+        /// a notification, causes the linked triggered items to report
+        /// their next sampled value too — even when those triggered
+        /// items are in <see cref="MonitoringMode.Sampling"/> mode.
+        /// Per OPC UA Part 4 §5.13.5, the service call reports per-link
+        /// status; this implementation updates the local triggering
+        /// state on the V2 <see cref="IMonitoredItem"/>s
+        /// <see cref="IMonitoredItem.TriggeringItemClientHandle"/> /
+        /// <see cref="IMonitoredItem.TriggeredItemClientHandles"/> only
+        /// for links whose service result is Good. Partial failures do
+        /// not corrupt local state; callers inspect the returned
+        /// <see cref="SetTriggeringResponse"/> for per-link results.
+        /// </summary>
+        /// <param name="triggeringItemClientHandle">
+        /// Client handle of the monitored item that owns the
+        /// triggering relationships.</param>
+        /// <param name="linksToAdd">Client handles of items to add as
+        /// triggered items. May be empty.</param>
+        /// <param name="linksToRemove">Client handles of items to
+        /// remove from the triggered set. May be empty.</param>
+        /// <param name="ct"></param>
+        /// <exception cref="ArgumentException">Raised when the
+        /// triggering item is not known to this subscription.</exception>
+        /// <exception cref="ServiceResultException">Raised when the
+        /// subscription has not been created on the server yet.</exception>
+        ValueTask<SetTriggeringResponse> SetTriggeringAsync(
+            uint triggeringItemClientHandle,
+            IReadOnlyList<uint> linksToAdd,
+            IReadOnlyList<uint> linksToRemove,
             CancellationToken ct = default);
     }
 }
