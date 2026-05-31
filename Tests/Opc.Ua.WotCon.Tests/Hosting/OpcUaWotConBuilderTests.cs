@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -350,6 +351,29 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Func<CancellationToken, Task<WotConnectivityClient>>? factory =
                 sp.GetService<Func<CancellationToken, Task<WotConnectivityClient>>>();
             Assert.That(factory, Is.Not.Null);
+        }
+        [Test]
+        public void AddWotConClientFromIConfigurationSectionThrowsForNullBuilder()
+        {
+            IConfigurationSection section = new ConfigurationBuilder().Build()
+                .GetSection("OpcUa:WotCon:Client");
+            Assert.That(
+                () => OpcUaWotConClientBuilderExtensions.AddWotConClient(null!, section),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void WotConClientOptionsDefaultsToLazyConnect()
+        {
+            IServiceCollection services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddWotConClient();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IOptions<Opc.Ua.WotCon.Client.Hosting.WotConClientOptions> opts =
+                sp.GetRequiredService<IOptions<Opc.Ua.WotCon.Client.Hosting.WotConClientOptions>>();
+
+            Assert.That(opts.Value.LazyConnect, Is.True);
         }
     }
 }

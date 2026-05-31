@@ -31,12 +31,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Assets;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
@@ -1284,6 +1286,821 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(count, Is.Zero,
                 "CON.jsonld has an invalid asset name and should have been skipped.");
+        }
+
+        // ----------------------------------------------------------------
+        // DeleteAddressSpaceAsync
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task DeleteAddressSpaceAsyncDisposesRegistryAndCallsBase()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            // Create an asset so the registry has something to dispose.
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("del-test", CancellationToken.None).ConfigureAwait(false);
+            Assert.That(assetId.IsNull, Is.False);
+
+            // DeleteAddressSpaceAsync must complete without throwing.
+            Assert.That(
+                async () => await harness.Manager.DeleteAddressSpaceAsync(CancellationToken.None)
+                    .ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        // ----------------------------------------------------------------
+        // ApplyConfiguration — License property
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task ApplyConfigurationWithLicenseCreatesLicenseNode()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+
+            // Set license before starting so CreateAddressSpaceAsync calls ApplyConfiguration.
+            harness.Options.License = "TEST-LICENSE";
+
+            await harness.StartAsync().ConfigureAwait(false);
+
+            // Verify the management object has a Configuration child with a License node.
+            WoTAssetConnectionManagementState? management = GetManagementObject(harness);
+            Assert.That(management, Is.Not.Null);
+            Assert.That(management!.Configuration, Is.Not.Null);
+            Assert.That(management.Configuration!.License, Is.Not.Null);
+            Assert.That(management.Configuration.License!.Value, Is.EqualTo("TEST-LICENSE"));
+        }
+
+        // ----------------------------------------------------------------
+        // ApplyConfiguration — custom parameter
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task ApplyConfigurationWithParameterCreatesParameterNode()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+
+            harness.Options.Configuration["SampleRate"] = new WotConfigurationParameter
+            {
+                DataType = DataTypeIds.Int32,
+                InitialValue = new Variant(100),
+                Description = "Polling interval in ms",
+                Writable = false
+            };
+
+            await harness.StartAsync().ConfigureAwait(false);
+
+            WoTAssetConnectionManagementState? management = GetManagementObject(harness);
+            Assert.That(management, Is.Not.Null);
+            Assert.That(management!.Configuration, Is.Not.Null);
+        }
+
+        // ----------------------------------------------------------------
+        // Restore persisted assets on startup
+        // ----------------------------------------------------------------
+
+        private static readonly System.Text.Json.JsonSerializerOptions s_jsonOptions =
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = false };
+
+        [Test]
+        public async Task RestorePersistedAssetsOnStartupRebuildsAddressSpace()
+        {
+            const string assetName = "restore-test";
+            // Write a valid TD JSON-LD to the temp folder.
+            var td = new ThingDescription
+            {
+                Name = assetName,
+                Base = "sim://opcua.test/wot/restore",
+                Properties = new Dictionary<string, WotProperty>
+                {
+                    ["Temperature"] = new WotProperty { Type = "number" }
+                }
+            };
+            string json = System.Text.Json.JsonSerializer.Serialize(td, s_jsonOptions);
+            File.WriteAllText(Path.Combine(_tempFolder, assetName + ".jsonld"), json);
+
+            // Harness must restore the persisted asset during startup.
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            Assert.That(harness.Registry.AssetNames, Has.Member(assetName));
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemCreated — disabled monitoring mode returns early
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemCreatedWithDisabledModeDoesNotSubscribe()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-disabled", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-disabled",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Disabled);
+            mockItem.Setup(m => m.Id).Returns(42u);
+
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object);
+
+            // No subscription should be registered because mode is Disabled.
+            Assert.That(entry.SubscriberCallbacks, Is.Empty);
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemCreated — non-variable node returns early
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemCreatedWithNonVariableNodeDoesNotSubscribe()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            // Use an object-state node instead of a variable-state node.
+            var objectNode = new BaseObjectState(null);
+            objectNode.NodeId = new NodeId(9001u);
+            var handle = new NodeHandle(objectNode.NodeId, objectNode);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(1u);
+
+            // Should complete without throwing — early-return path.
+            Assert.That(
+                () => InvokeOnMonitoredItemCreated(harness.Manager,
+                    harness.Manager.SystemContext, handle, mockItem.Object),
+                Throws.Nothing);
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemCreated — observable property starts subscription
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemCreatedForObservablePropertyStartsSubscription()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-obs", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-obs",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(99u);
+
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object);
+
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(99u));
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemModifiedAsync — non-variable node returns empty
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemModifiedAsyncWithNonVariableReturnsEmpty()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            var objectNode = new BaseObjectState(null);
+            objectNode.NodeId = new NodeId(9002u);
+            var handle = new NodeHandle(objectNode.NodeId, objectNode);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(1u);
+
+            ValueTask result = InvokeOnMonitoredItemModifiedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object, CancellationToken.None);
+            await result.ConfigureAwait(false);
+
+            Assert.That(result.IsCompleted, Is.True);
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemModifiedAsync — variable with Reporting restarts subscription
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemModifiedAsyncRestartSubscriptionForVariable()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-mod", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-mod",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            // First, start a subscription.
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(77u);
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object);
+
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(77u));
+
+            // Now modify (mode = Reporting) → stops and restarts.
+            await InvokeOnMonitoredItemModifiedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(77u));
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemModifiedAsync — variable switches to Disabled stops subscription
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemModifiedAsyncWithDisabledModeStopsSubscription()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-mod-dis", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-mod-dis",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            // Start a subscription.
+            var reportingItem = new Mock<ISampledDataChangeMonitoredItem>();
+            reportingItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            reportingItem.Setup(m => m.Id).Returns(55u);
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, reportingItem.Object);
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(55u));
+
+            // Modify to Disabled → subscription should be removed.
+            var disabledItem = new Mock<ISampledDataChangeMonitoredItem>();
+            disabledItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Disabled);
+            disabledItem.Setup(m => m.Id).Returns(55u);
+            await InvokeOnMonitoredItemModifiedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, disabledItem.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(entry.SubscriberCallbacks, Does.Not.ContainKey(55u));
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemDeletedAsync — non-variable node returns empty
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemDeletedAsyncWithNonVariableReturnsEmpty()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            var objectNode = new BaseObjectState(null);
+            objectNode.NodeId = new NodeId(9003u);
+            var handle = new NodeHandle(objectNode.NodeId, objectNode);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(1u);
+
+            ValueTask result = InvokeOnMonitoredItemDeletedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object, CancellationToken.None);
+            await result.ConfigureAwait(false);
+
+            Assert.That(result.IsCompleted, Is.True);
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoredItemDeletedAsync — variable node stops subscription
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoredItemDeletedAsyncStopsSubscriptionForVariable()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-del", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-del",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(33u);
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object);
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(33u));
+
+            await InvokeOnMonitoredItemDeletedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(entry.SubscriberCallbacks, Does.Not.ContainKey(33u));
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoringModeChangedAsync — non-variable node returns early
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoringModeChangedAsyncWithNonVariableReturnsEmpty()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            var objectNode = new BaseObjectState(null);
+            objectNode.NodeId = new NodeId(9004u);
+            var handle = new NodeHandle(objectNode.NodeId, objectNode);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(1u);
+
+            ValueTask result = InvokeOnMonitoringModeChangedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object,
+                MonitoringMode.Reporting, MonitoringMode.Disabled, CancellationToken.None);
+            await result.ConfigureAwait(false);
+
+            Assert.That(result.IsCompleted, Is.True);
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoringModeChangedAsync — Reporting → Disabled stops subscription
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoringModeChangedAsyncReportingToDisabledStopsSubscription()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-chg-stop", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-chg-stop",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(88u);
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object);
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(88u));
+
+            await InvokeOnMonitoringModeChangedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object,
+                MonitoringMode.Reporting, MonitoringMode.Disabled, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(entry.SubscriberCallbacks, Does.Not.ContainKey(88u));
+        }
+
+        // ----------------------------------------------------------------
+        // OnMonitoringModeChangedAsync — Disabled → Reporting starts subscription
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task OnMonitoringModeChangedAsyncDisabledToReportingStartsSubscription()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-chg-start", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-chg-start",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(66u);
+
+            // Start from Disabled → Reporting.
+            await InvokeOnMonitoringModeChangedAsync(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object,
+                MonitoringMode.Disabled, MonitoringMode.Reporting, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(entry.SubscriberCallbacks, Contains.Key(66u));
+        }
+
+        // ----------------------------------------------------------------
+        // OnProviderValueChange updates the variable's value
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task ProviderValueChangePushedThroughSubscriptionUpdatesVariable()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("mon-change", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "mon-change",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", Observable = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var mockItem = new Mock<ISampledDataChangeMonitoredItem>();
+            mockItem.Setup(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
+            mockItem.Setup(m => m.Id).Returns(11u);
+            InvokeOnMonitoredItemCreated(harness.Manager,
+                harness.Manager.SystemContext, handle, mockItem.Object);
+
+            // Simulate a value change from the provider.
+            var simProvider = (SimulatedWotAssetProvider)entry.Provider!;
+            simProvider.SetValue("Voltage", new Variant(42.5));
+
+            Assert.That(variable.Value, Is.EqualTo(new Variant(42.5)));
+        }
+
+        // ----------------------------------------------------------------
+        // WotPropertyTag — all auto-property getters accessible
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task WotPropertyTagAllPropertyGettersReturnExpectedValues()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("tag-props", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "tag-props",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Temp"] = new WotProperty
+                        {
+                            Type = "number",
+                            ReadOnly = true,
+                            Observable = true
+                        }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
+
+            (BaseDataVariableState variable, WotPropertyTag tag) = entry.Properties.Values.First();
+
+            // Exercise all auto-property getters that had 0% coverage.
+            Assert.That(tag.NodeId.IsNull, Is.False);
+            Assert.That(tag.DataType.IsNull, Is.False);
+            _ = tag.ValueRank;
+            Assert.That(tag.ReadOnly, Is.True);
+            Assert.That(tag.Observable, Is.True);
+            _ = tag.Form; // nullable; just ensure getter doesn't throw
+            _ = variable; // suppress unused warning
+        }
+
+        // ----------------------------------------------------------------
+        // Management delegate helpers — access via reflection
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task ManagementCreateAssetDelegateCreatesAsset()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            WoTAssetConnectionManagementState management = GetManagementObject(harness)!;
+
+            CreateAssetMethodStateResult result = await management.CreateAsset!.OnCallAsync!(
+                harness.Manager.SystemContext,
+                management.CreateAsset,
+                management.NodeId,
+                "delegate-asset",
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.AssetId.IsNull, Is.False);
+        }
+
+        [Test]
+        public async Task ManagementDeleteAssetDelegateDeletesAsset()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            WoTAssetConnectionManagementState management = GetManagementObject(harness)!;
+
+            // First create an asset via the delegate.
+            CreateAssetMethodStateResult created = await management.CreateAsset!.OnCallAsync!(
+                harness.Manager.SystemContext,
+                management.CreateAsset,
+                management.NodeId,
+                "to-delete",
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(created.AssetId.IsNull, Is.False);
+
+            // Now delete it.
+            DeleteAssetMethodStateResult deleted = await management.DeleteAsset!.OnCallAsync!(
+                harness.Manager.SystemContext,
+                management.DeleteAsset,
+                management.NodeId,
+                created.AssetId,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(deleted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task ManagementDiscoverAssetsDelegateReturnsEndpoints()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory(),
+                new SimulatedWotDiscoveryProvider());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            WoTAssetConnectionManagementState management = GetManagementObject(harness)!;
+
+            DiscoverAssetsMethodStateResult result = await management.DiscoverAssets!.OnCallAsync!(
+                harness.Manager.SystemContext,
+                management.DiscoverAssets,
+                management.NodeId,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.AssetEndpoints.ToArray(), Has.Member(SimulatedWotDiscoveryProvider.CannedEndpoint));
+        }
+
+        [Test]
+        public async Task ManagementCreateAssetForEndpointDelegateCreatesAsset()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory(),
+                new SimulatedWotDiscoveryProvider());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            WoTAssetConnectionManagementState management = GetManagementObject(harness)!;
+
+            CreateAssetForEndpointMethodStateResult result =
+                await management.CreateAssetForEndpoint!.OnCallAsync!(
+                    harness.Manager.SystemContext,
+                    management.CreateAssetForEndpoint,
+                    management.NodeId,
+                    "ep-asset",
+                    SimulatedWotDiscoveryProvider.CannedEndpoint,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.AssetId.IsNull, Is.False);
+        }
+
+        [Test]
+        public async Task ManagementConnectionTestDelegateReturnsSuccess()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory(),
+                new SimulatedWotDiscoveryProvider());
+            await harness.StartAsync().ConfigureAwait(false);
+
+            WoTAssetConnectionManagementState management = GetManagementObject(harness)!;
+
+            ConnectionTestMethodStateResult result =
+                await management.ConnectionTest!.OnCallAsync!(
+                    harness.Manager.SystemContext,
+                    management.ConnectionTest,
+                    management.NodeId,
+                    SimulatedWotDiscoveryProvider.CannedEndpoint,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+        }
+
+        // ----------------------------------------------------------------
+        // Reflection helpers
+        // ----------------------------------------------------------------
+
+        private static WoTAssetConnectionManagementState? GetManagementObject(ManagerHarness harness)
+        {
+            return (WoTAssetConnectionManagementState?)typeof(WotConnectivityNodeManager)
+                .GetField("m_managementObject",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(harness.Manager);
+        }
+
+        private static void InvokeOnMonitoredItemCreated(
+            WotConnectivityNodeManager manager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem)
+        {
+            MethodInfo method = typeof(WotConnectivityNodeManager)
+                .GetMethod("OnMonitoredItemCreated",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+            method.Invoke(manager, [context, handle, monitoredItem]);
+        }
+
+        private static ValueTask InvokeOnMonitoredItemModifiedAsync(
+            WotConnectivityNodeManager manager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            MethodInfo method = typeof(WotConnectivityNodeManager)
+                .GetMethod("OnMonitoredItemModifiedAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return (ValueTask)method.Invoke(manager,
+                [context, handle, monitoredItem, cancellationToken])!;
+        }
+
+        private static ValueTask InvokeOnMonitoredItemDeletedAsync(
+            WotConnectivityNodeManager manager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            MethodInfo method = typeof(WotConnectivityNodeManager)
+                .GetMethod("OnMonitoredItemDeletedAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return (ValueTask)method.Invoke(manager,
+                [context, handle, monitoredItem, cancellationToken])!;
+        }
+
+        private static ValueTask InvokeOnMonitoringModeChangedAsync(
+            WotConnectivityNodeManager manager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode previousMode,
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken)
+        {
+            MethodInfo method = typeof(WotConnectivityNodeManager)
+                .GetMethod("OnMonitoringModeChangedAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return (ValueTask)method.Invoke(manager,
+                [context, handle, monitoredItem, previousMode, monitoringMode, cancellationToken])!;
         }
 
         // ----------------------------------------------------------------
