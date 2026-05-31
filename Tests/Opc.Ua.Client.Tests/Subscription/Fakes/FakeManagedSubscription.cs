@@ -49,6 +49,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// ISubscription / IMessageProcessor settable state
         /// </summary>
         public uint Id { get; set; }
+        public uint ServerId => Id;
         public bool Created { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
         public byte CurrentPriority { get; set; }
@@ -123,6 +124,32 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnConditionRefreshAsync?.Invoke(ct) ?? default;
         }
 
+        public Func<SubscriptionStateSnapshot>? OnSnapshot { get; set; }
+
+        public SubscriptionStateSnapshot Snapshot()
+        {
+            return OnSnapshot?.Invoke() ?? new SubscriptionStateSnapshot
+            {
+                Options = new SubscriptionOptions(),
+                ServerId = Id,
+                AvailableSequenceNumbers = Array.Empty<uint>().ToArrayOf(),
+                MonitoredItems = Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf()
+            };
+        }
+
+        public List<SetSubscriptionDurableCall> SetSubscriptionDurableCalls { get; } = [];
+        public Func<uint, CancellationToken, ValueTask<uint>>? OnSetSubscriptionDurableAsync
+        { get; set; }
+
+        public ValueTask<uint> SetSubscriptionDurableAsync(
+            uint lifetimeInHours, CancellationToken ct = default)
+        {
+            SetSubscriptionDurableCalls.Add(
+                new SetSubscriptionDurableCall(lifetimeInHours));
+            return OnSetSubscriptionDurableAsync?.Invoke(lifetimeInHours, ct)
+                ?? new ValueTask<uint>(lifetimeInHours);
+        }
+
         public List<SetTriggeringCall> SetTriggeringCalls { get; } = [];
         public Func<uint, IReadOnlyList<uint>, IReadOnlyList<uint>,
             CancellationToken, ValueTask<SetTriggeringResponse>>? OnSetTriggeringAsync
@@ -160,5 +187,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             uint TriggeringItemClientHandle,
             IReadOnlyList<uint> LinksToAdd,
             IReadOnlyList<uint> LinksToRemove);
+
+        internal readonly record struct SetSubscriptionDurableCall(
+            uint LifetimeInHours);
     }
 }

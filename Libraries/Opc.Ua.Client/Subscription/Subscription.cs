@@ -53,6 +53,9 @@ namespace Opc.Ua.Client.Subscriptions
         public byte CurrentPriority { get; private set; }
 
         /// <inheritdoc/>
+        public uint ServerId => Id;
+
+        /// <inheritdoc/>
         public TimeSpan CurrentPublishingInterval { get; private set; }
 
         /// <inheritdoc/>
@@ -113,9 +116,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="completion"></param>
         /// <param name="options"></param>
         /// <param name="telemetry"></param>
+        /// <param name="loadState">Optional snapshot of a previously
+        /// active subscription. When supplied, the V2 state machine is
+        /// constructed in "loaded" mode: <see cref="MessageProcessor.Id"/>
+        /// is pre-set to the saved server-side subscription id, the
+        /// supplied monitored items are pre-bound to their saved
+        /// server/client handles, and the initial signal that would
+        /// otherwise trigger <c>CreateSubscription</c> is suppressed.
+        /// The owning <see cref="SubscriptionManager.RestoreAsync"/>
+        /// flow then issues TransferSubscriptions and binds runtime
+        /// state via <see cref="TryCompleteTransferAsync"/>.</param>
         protected Subscription(ISubscriptionContext context, ISubscriptionNotificationHandler handler,
             IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry, SubscriptionLoadState? loadState = null)
             : base(context.SubscriptionServiceSet, completion, telemetry)
         {
             m_handler = handler;
@@ -123,8 +136,28 @@ namespace Opc.Ua.Client.Subscriptions
             m_monitoredItems = new MonitoredItemManager(this, telemetry);
             m_publishTimer = TimeProvider.System.CreateTimer(OnKeepAlive,
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            OnOptionsChanged(options.CurrentValue);
-            m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
+            if (loadState != null)
+            {
+                // Pre-install server-assigned identifiers + items
+                // before hooking change tracking, so the V2 state
+                // machine sees a coherent "loaded" snapshot when it
+                // first wakes.
+                Id = loadState.ServerId;
+                Options = options.CurrentValue;
+                foreach (MonitoredItemLoadState item in loadState.MonitoredItems)
+                {
+                    m_monitoredItems.AddLoaded(item);
+                }
+                // Hook options change tracking but do NOT signal
+                // m_stateControl — the manager's RestoreAsync drives
+                // transfer + completion explicitly.
+                m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
+            }
+            else
+            {
+                OnOptionsChanged(options.CurrentValue);
+                m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
+            }
             m_stateManagement = StateManagerAsync(m_cts.Token);
         }
 
@@ -132,6 +165,26 @@ namespace Opc.Ua.Client.Subscriptions
         public override string ToString()
         {
             return $"{m_context}:{Id}";
+        }
+
+        /// <inheritdoc/>
+        public SubscriptionStateSnapshot Snapshot()
+        {
+            var items = new List<MonitoredItemStateSnapshot>();
+            foreach (IMonitoredItem item in m_monitoredItems.Items)
+            {
+                items.Add(item.Snapshot());
+            }
+            uint[] available = AvailableInRetransmissionQueue == null
+                ? []
+                : [.. AvailableInRetransmissionQueue];
+            return new SubscriptionStateSnapshot
+            {
+                Options = Options,
+                ServerId = Id,
+                AvailableSequenceNumbers = available.ToArrayOf(),
+                MonitoredItems = items.ToArrayOf()
+            };
         }
 
         /// <inheritdoc/>
@@ -276,6 +329,51 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public async ValueTask<uint> SetSubscriptionDurableAsync(
+            uint lifetimeInHours, CancellationToken ct = default)
+        {
+            if (!Created)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSubscriptionIdInvalid,
+                    "Subscription has not been created on the server.");
+            }
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_SetSubscriptionDurable,
+                    InputArguments =
+                    [
+                        new Variant(Id),
+                        new Variant(lifetimeInHours)
+                    ]
+                }
+            ];
+            CallResponse response = await m_context.MethodServiceSet
+                .CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            ArrayOf<CallMethodResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            ClientBase.ValidateResponse(results, methodsToCall);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, methodsToCall);
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                throw new ServiceResultException(ClientBase.GetResult(
+                    results[0].StatusCode, 0, diagnosticInfos,
+                    response.ResponseHeader));
+            }
+            ArrayOf<Variant> outputs = results[0].OutputArguments;
+            if (outputs.Count == 0 ||
+                outputs[0].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint revised)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                    "Server.SetSubscriptionDurable returned no revised lifetime.");
+            }
+            return revised;
+        }
+
+        /// <inheritdoc/>
         public async ValueTask RecreateAsync(CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
@@ -335,6 +433,60 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_stateLock.Release();
             }
+        }
+
+        /// <summary>
+        /// Reset this loaded subscription back into the create-fresh
+        /// pipeline. Called by
+        /// <see cref="SubscriptionManager.RestoreAsync"/> when
+        /// <c>TransferSubscriptions</c> rejects the saved server-side
+        /// id (typically <c>BadSubscriptionIdInvalid</c>): the V2
+        /// engine then drops the loaded identifiers and creates a fresh
+        /// server-side subscription via the normal
+        /// <see cref="StateManagerAsync"/> path.
+        /// </summary>
+        /// <remarks>
+        /// Triggering links captured in the load state are intentionally
+        /// not replayed on recreate — the saved server-side triggering
+        /// relationships are tied to the (now-stale) server item ids.
+        /// Callers that want triggering preserved across a fallback
+        /// recreate must re-issue
+        /// <see cref="SetTriggeringAsync"/> after the items finish
+        /// re-creating.
+        /// </remarks>
+        internal async ValueTask ResetToRecreateAsync(CancellationToken ct)
+        {
+            await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                Id = 0;
+                CurrentPublishingInterval = TimeSpan.Zero;
+                CurrentKeepAliveCount = 0;
+                CurrentLifetimeCount = 0;
+                CurrentPublishingEnabled = false;
+                CurrentPriority = 0;
+                CurrentMaxNotificationsPerPublish = 0;
+                LastSequenceNumberProcessed = 0;
+                LastNotificationTimestamp = 0;
+                AvailableInRetransmissionQueue = [];
+
+                // Reset every loaded item so it queues a fresh
+                // CreateMonitoredItem on the next ApplyChanges pass.
+                foreach (IMonitoredItem item in m_monitoredItems.Items)
+                {
+                    if (item is MonitoredItems.MonitoredItem mi)
+                    {
+                        mi.Reset();
+                    }
+                }
+            }
+            finally
+            {
+                m_stateLock.Release();
+            }
+            // Wake the state manager so the next pass observes
+            // !Created and runs CreateAsync.
+            m_stateControl.Set();
         }
 
         /// <inheritdoc/>
@@ -527,6 +679,38 @@ namespace Opc.Ua.Client.Subscriptions
         protected virtual void OnSubscriptionStateChanged(SubscriptionState state)
         {
             Logger.LogInformation("{Subscription}: {State}.", this, state);
+            FireStateChangedToHandler(state, default);
+        }
+
+        /// <inheritdoc/>
+        protected override void OnPublishStateChanged(PublishState stateMask)
+        {
+            base.OnPublishStateChanged(stateMask);
+            FireStateChangedToHandler(default, stateMask);
+        }
+
+        private void FireStateChangedToHandler(SubscriptionState state,
+            PublishState publishStateMask)
+        {
+            try
+            {
+                // Fire-and-forget: handler is allowed to block, but we
+                // intentionally don't await here because OnSubscriptionStateChanged
+                // is invoked from inside StateManagerAsync (under m_stateLock)
+                // and OnPublishStateChanged is invoked from the publish dispatch
+                // path. Either await would risk a deadlock if the handler
+                // re-enters the engine. Handlers that need backpressure
+                // should buffer in OnSubscriptionStateChangedAsync and
+                // process on a worker.
+                _ = m_handler.OnSubscriptionStateChangedAsync(this, state,
+                    publishStateMask).AsTask();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex,
+                    "{Subscription}: OnSubscriptionStateChangedAsync handler threw.",
+                    this);
+            }
         }
 
         /// <summary>

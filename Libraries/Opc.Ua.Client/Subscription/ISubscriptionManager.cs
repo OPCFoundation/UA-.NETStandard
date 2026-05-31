@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -131,6 +132,35 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         ISubscription Add(ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options);
+
+        /// <summary>
+        /// Restore a single subscription from a snapshot previously
+        /// produced by <see cref="ISubscription.Snapshot"/>. The
+        /// returned subscription is registered with the manager via the
+        /// same path as <see cref="Add"/>.
+        /// </summary>
+        /// <param name="handler">Notification handler for the restored
+        /// subscription.</param>
+        /// <param name="state">Snapshot captured earlier on the source
+        /// session.</param>
+        /// <param name="transferSubscriptions">
+        /// When <c>true</c> the saved server-side subscription id and
+        /// per-item server ids are preserved and an OPC UA
+        /// TransferSubscriptions service call is issued so the new
+        /// session takes over the existing server-side state. If
+        /// transfer is unavailable (e.g. the server returns
+        /// <c>BadSubscriptionIdInvalid</c>), the restore falls back to
+        /// recreate.
+        /// When <c>false</c> the V2 state machine mints fresh
+        /// server-side ids — equivalent to a fresh
+        /// <see cref="Add"/> with the saved configuration.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask<ISubscription> RestoreAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Snapshot all subscriptions managed by this instance and write

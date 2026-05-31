@@ -37,6 +37,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -321,6 +322,151 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 m_logger.LogInformation("{Subscription} ADDED.", subscription);
             }
+            m_publishControl.Set();
+            return subscription;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ISubscription> RestoreAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+            if (state.Options == null)
+            {
+                throw new ArgumentException(
+                    "SubscriptionStateSnapshot.Options is required.",
+                    nameof(state));
+            }
+            if (transferSubscriptions && state.ServerId != 0)
+            {
+                return RestoreTransferAsync(handler, state, ct);
+            }
+            return RestoreRecreateAsync(handler, state, ct);
+        }
+
+        private ValueTask<ISubscription> RestoreRecreateAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            CancellationToken ct)
+        {
+            ISubscription subscription = Add(handler,
+                new OptionsMonitor<SubscriptionOptions>(state.Options));
+            foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
+            {
+                subscription.MonitoredItems.TryAdd(item.Name,
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.Options),
+                    out _);
+            }
+            _ = ct;
+            return new ValueTask<ISubscription>(subscription);
+        }
+
+        private async ValueTask<ISubscription> RestoreTransferAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            CancellationToken ct)
+        {
+            // Build the internal load-state record (decoupled from the
+            // public DTO so the engine has no DTO coupling).
+            var itemLoadStates = new List<MonitoredItemLoadState>(
+                state.MonitoredItems.Count);
+            foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
+            {
+                uint[] triggered = item.TriggeredItemClientHandles.IsNull
+                    ? []
+                    : [.. item.TriggeredItemClientHandles];
+                itemLoadStates.Add(new MonitoredItemLoadState(
+                    item.Name,
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.Options),
+                    item.ClientHandle,
+                    item.ServerId,
+                    item.TriggeringItemClientHandle,
+                    triggered));
+            }
+            var loadState = new SubscriptionLoadState(
+                state.ServerId, itemLoadStates);
+
+            IManagedSubscription subscription = m_session.CreateSubscription(
+                handler,
+                new OptionsMonitor<SubscriptionOptions>(state.Options),
+                this,
+                loadState);
+            lock (m_subscriptionLock)
+            {
+                if (!m_subscriptions.Add(subscription))
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
+                        "Failed to add restored subscription.");
+                }
+                m_logger.LogInformation(
+                    "{Subscription} ADDED (transfer-pending, ServerId={ServerId}).",
+                    subscription, state.ServerId);
+            }
+
+            // Issue TransferSubscriptions for the saved server id.
+            // sendInitialValues honors SubscriptionOptions.SendInitialValuesOnTransfer
+            // (default false) — the snapshot captured the last server-
+            // emitted values, so requesting initial values is only
+            // useful when the caller wants the server to re-emit them
+            // to a fresh notification handler.
+            var ids = new uint[] { state.ServerId };
+            TransferSubscriptionsResponse response = await m_session
+                .TransferSubscriptionsAsync(null, ids.ToArrayOf(),
+                    sendInitialValues: state.Options.SendInitialValuesOnTransfer,
+                    ct).ConfigureAwait(false);
+
+            bool transferred = false;
+            ResponseHeader responseHeader = response.ResponseHeader;
+            if (StatusCode.IsGood(responseHeader.ServiceResult))
+            {
+                ArrayOf<TransferResult> results = response.Results;
+                ClientBase.ValidateResponse(results, ids.ToArrayOf());
+                if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                {
+                    transferred = await subscription.TryCompleteTransferAsync(
+                        results[0].AvailableSequenceNumbers.IsNull
+                            ? []
+                            : [.. results[0].AvailableSequenceNumbers],
+                        ct).ConfigureAwait(false);
+                }
+                else if (results.Count > 0)
+                {
+                    m_logger.LogWarning(
+                        "{Subscription}: TransferSubscriptions per-item " +
+                        "result Bad ({Status}); falling back to recreate.",
+                        subscription, results[0].StatusCode);
+                }
+            }
+            else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+            {
+                m_logger.LogWarning(
+                    "{Subscription}: server does not support " +
+                    "TransferSubscriptions; falling back to recreate.",
+                    subscription);
+            }
+            else
+            {
+                m_logger.LogWarning(
+                    "{Subscription}: TransferSubscriptions service-level " +
+                    "result Bad ({Status}); falling back to recreate.",
+                    subscription, responseHeader.ServiceResult);
+            }
+
+            if (!transferred && subscription is Subscription loaded)
+            {
+                await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
+            }
+
             m_publishControl.Set();
             return subscription;
         }

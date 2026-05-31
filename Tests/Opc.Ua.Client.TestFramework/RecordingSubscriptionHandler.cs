@@ -176,6 +176,26 @@ namespace Opc.Ua.Client.TestFramework
             return default;
         }
 
+        /// <inheritdoc/>
+        public ValueTask OnSubscriptionStateChangedAsync(
+            ISubscription subscription,
+            Opc.Ua.Client.Subscriptions.SubscriptionState state,
+            PublishState publishStateMask,
+            CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref m_stateChangedCount);
+            lock (m_stateChangesLock)
+            {
+                m_stateChanges.Add(new RecordedStateChange(
+                    subscription, state, publishStateMask, DateTime.UtcNow));
+            }
+            if (publishStateMask.HasFlag(PublishState.Transferred))
+            {
+                m_firstTransferred.TrySetResult(true);
+            }
+            return default;
+        }
+
         /// <summary>
         /// Wait until at least one data-change notification has been
         /// observed, or until the timeout / cancellation fires.
@@ -203,6 +223,34 @@ namespace Opc.Ua.Client.TestFramework
             CancellationToken ct = default)
         {
             return WaitAsync(m_firstEvent, timeout, ct);
+        }
+
+        /// <summary>
+        /// Wait until a state-change callback with the
+        /// <see cref="PublishState.Transferred"/> bit set has been
+        /// observed.
+        /// </summary>
+        public Task<bool> WaitForTransferredStateAsync(TimeSpan timeout,
+            CancellationToken ct = default)
+        {
+            return WaitAsync(m_firstTransferred, timeout, ct);
+        }
+
+        /// <summary>
+        /// Total number of <see cref="OnSubscriptionStateChangedAsync"/>
+        /// callbacks observed.
+        /// </summary>
+        public int StateChangedCount => Volatile.Read(ref m_stateChangedCount);
+
+        /// <summary>
+        /// Snapshot of recorded state-change callbacks.
+        /// </summary>
+        public IReadOnlyList<RecordedStateChange> GetStateChangeSnapshot()
+        {
+            lock (m_stateChangesLock)
+            {
+                return m_stateChanges.ToArray();
+            }
         }
 
         /// <summary>
@@ -235,16 +283,23 @@ namespace Opc.Ua.Client.TestFramework
             Interlocked.Exchange(ref m_dataChangeCount, 0);
             Interlocked.Exchange(ref m_eventCount, 0);
             Interlocked.Exchange(ref m_keepAliveCount, 0);
+            Interlocked.Exchange(ref m_stateChangedCount, 0);
             m_lastSequenceNumber.Clear();
             lock (m_recordedChangesLock)
             {
                 m_recordedChanges.Clear();
+            }
+            lock (m_stateChangesLock)
+            {
+                m_stateChanges.Clear();
             }
             m_firstData = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             m_firstEvent = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             m_firstKeepAlive = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_firstTransferred = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
@@ -264,15 +319,20 @@ namespace Opc.Ua.Client.TestFramework
         private int m_dataChangeCount;
         private int m_eventCount;
         private int m_keepAliveCount;
+        private int m_stateChangedCount;
         private TaskCompletionSource<bool> m_firstData =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource<bool> m_firstKeepAlive =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource<bool> m_firstEvent =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource<bool> m_firstTransferred =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly ConcurrentDictionary<ISubscription, uint> m_lastSequenceNumber = new();
         private readonly List<RecordedDataValueChange> m_recordedChanges = [];
         private readonly Lock m_recordedChangesLock = new();
+        private readonly List<RecordedStateChange> m_stateChanges = [];
+        private readonly Lock m_stateChangesLock = new();
     }
 
     /// <summary>
@@ -285,4 +345,13 @@ namespace Opc.Ua.Client.TestFramework
         DataValue Value,
         uint SequenceNumber,
         DateTime PublishTime);
+
+    /// <summary>
+    /// A captured state-change callback for inspection in tests.
+    /// </summary>
+    public sealed record RecordedStateChange(
+        ISubscription Subscription,
+        Opc.Ua.Client.Subscriptions.SubscriptionState State,
+        PublishState PublishStateMask,
+        DateTime ObservedAt);
 }

@@ -108,34 +108,119 @@ namespace Opc.Ua.Subscriptions.Tests
         [CancelAfter(60_000)]
         public async Task TransferViaSaveLoadV2Async(CancellationToken ct)
         {
-            // TODO(V2): transferSubscriptions:true on ISubscriptionManager
-            // .LoadAsync needs a dedicated "load with state" path on the
-            // V2 manager (create the instance without queuing
-            // CreateMonitoredItem, then issue TransferSubscriptions).
-            // Until then, the API throws NotImplementedException so the
-            // gap is honest and visible — see
-            // plans/26-v2-subscription-parity.md.
-            ManagedSession session = await ConnectV2Async(
-                nameof(TransferViaSaveLoadV2Async) + "_throw_check", ct)
-                .ConfigureAwait(false);
+            string saveFile = Path.Combine(Path.GetTempPath(),
+                $"V2Transfer-{Guid.NewGuid():N}.bin");
+
+            ManagedSession originSession = await ConnectV2Async(
+                nameof(TransferViaSaveLoadV2Async) + "_origin", ct,
+                deleteSubscriptionsOnClose: false).ConfigureAwait(false);
+            ManagedSession? targetSession = null;
             try
             {
-                using var emptyStream = new MemoryStream(new byte[1]);
-                Assert.ThrowsAsync<NotImplementedException>(async () =>
-                    await session.SubscriptionManager.LoadAsync(
-                        emptyStream, session.MessageContext,
-                        _ => new RecordingSubscriptionHandler(),
-                        transferSubscriptions: true, ct).ConfigureAwait(false));
+                var originHandler = new RecordingSubscriptionHandler();
+                ISubscription originSub = originSession.AddSubscription(
+                    originHandler, new V2.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromMilliseconds(500),
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100,
+                        PublishingEnabled = true
+                    });
+                bool created = await WaitForAsync(() => originSub.Created,
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(created, Is.True);
+
+                NodeId timeNode = VariableIds.Server_ServerStatus_CurrentTime;
+                Assert.That(originSub.TryAddMonitoredItem(
+                    "CurrentTime", timeNode,
+                    o => o with { SamplingInterval = TimeSpan.FromMilliseconds(100) },
+                    out V2Items.IMonitoredItem? originItem), Is.True);
+
+                bool firstData = await originHandler.WaitForFirstDataAsync(
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(firstData, Is.True);
+
+                uint originSubscriptionServerId = ((V2.Subscription)originSub).Id;
+                uint originItemServerId = originItem!.ServerId;
+                uint originItemClientHandle = originItem.ClientHandle;
+
+                using (var saveStream = File.Create(saveFile))
+                {
+                    originSession.SaveSubscriptions(saveStream);
+                }
+                Assert.That(new FileInfo(saveFile).Length, Is.GreaterThan(0));
+
+                StatusCode close = await originSession.CloseAsync()
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(close), Is.True);
+
+                targetSession = await ConnectV2Async(
+                    nameof(TransferViaSaveLoadV2Async) + "_target", ct)
+                    .ConfigureAwait(false);
+
+                var targetHandler = new RecordingSubscriptionHandler();
+                IReadOnlyList<ISubscription> loaded;
+                using (var input = File.OpenRead(saveFile))
+                {
+                    loaded = await targetSession.LoadSubscriptionsAsync(
+                        input, _ => targetHandler,
+                        transferSubscriptions: true, ct)
+                        .ConfigureAwait(false);
+                }
+                Assert.That(loaded, Has.Count.EqualTo(1));
+                ISubscription transferred = loaded[0];
+
+                // Two valid outcomes after LoadAsync(transferSubscriptions:true):
+                // 1. Transfer succeeded: server id preserved, item server id preserved.
+                // 2. Transfer rejected by server (e.g. BadUserAccessDenied between
+                //    two anonymous sessions per Part 4 §5.13.7): the V2 manager
+                //    falls back to recreate which mints fresh ids.
+                //
+                // Both must produce a working subscription that publishes against
+                // the target session. Distinguish via the preserved id; assert the
+                // outcome is internally consistent.
+                bool transferActuallyTookOver =
+                    ((V2.Subscription)transferred).Id == originSubscriptionServerId;
+                TestContext.Out.WriteLine(transferActuallyTookOver
+                    ? $"Transfer preserved server id {originSubscriptionServerId}"
+                    : $"Transfer denied → fallback recreate (origin Id={originSubscriptionServerId}, new Id={((V2.Subscription)transferred).Id})");
+
+                Assert.That(transferred.MonitoredItems.TryGetMonitoredItemByName(
+                    "CurrentTime", out V2Items.IMonitoredItem? transferredItem),
+                    Is.True);
+                Assert.That(transferredItem, Is.Not.Null);
+                if (transferActuallyTookOver)
+                {
+                    Assert.That(transferredItem!.ServerId,
+                        Is.EqualTo(originItemServerId),
+                        "Transfer should preserve the server item id");
+                    Assert.That(transferredItem.ClientHandle,
+                        Is.EqualTo(originItemClientHandle),
+                        "Transfer should preserve the client handle so " +
+                        "notifications route to the correct item");
+                }
+
+                // Either way, publish must resume against the target session.
+                bool dataAfterTransfer = await targetHandler.WaitForFirstDataAsync(
+                    TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+                Assert.That(dataAfterTransfer, Is.True,
+                    "Restored subscription should publish on the target session");
+
+                await transferred.DisposeAsync().ConfigureAwait(false);
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                try { await originSession.DisposeAsync().ConfigureAwait(false); }
+                catch { /* best effort */ }
+                if (targetSession != null)
+                {
+                    try { await targetSession.CloseAsync().ConfigureAwait(false); }
+                    catch { /* best effort */ }
+                    try { await targetSession.DisposeAsync().ConfigureAwait(false); }
+                    catch { /* best effort */ }
+                }
+                try { File.Delete(saveFile); } catch { /* best effort */ }
             }
-            Assert.Inconclusive(
-                "Save+Load with transferSubscriptions=true is deferred — see " +
-                "plans/26-v2-subscription-parity.md (the V2 manager needs a " +
-                "load-with-state entry point + explicit TransferSubscriptions call).");
         }
 
         // ===== 2. Save → Load with transferSubscriptions = false (recreate fallback) =====

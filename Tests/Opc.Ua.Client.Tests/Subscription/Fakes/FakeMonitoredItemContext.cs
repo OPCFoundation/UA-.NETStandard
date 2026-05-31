@@ -63,6 +63,12 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public string? ToStringValue { get; set; }
 
+        /// <inheritdoc/>
+        public uint SubscriptionId { get; set; }
+
+        /// <inheritdoc/>
+        public IMethodServiceSetClientMethods MethodServiceSet { get; set; } = null!;
+
         public bool NotifyItemChangeResult(V2MonitoredItem monitoredItem,
             int retryCount, V2MonitoredItemOptions source,
             ServiceResult serviceResult, bool final,

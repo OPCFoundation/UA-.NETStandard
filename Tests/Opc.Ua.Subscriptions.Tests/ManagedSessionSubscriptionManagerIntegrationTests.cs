@@ -284,6 +284,15 @@ namespace Opc.Ua.Subscriptions.Tests
                 return default;
             }
 
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+
             public async Task<bool> WaitForDataAsync(
                 TimeSpan timeout, CancellationToken ct)
             {

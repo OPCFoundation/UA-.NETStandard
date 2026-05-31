@@ -1307,6 +1307,15 @@ namespace Opc.Ua.Sessions.Tests
                 Interlocked.Increment(ref KeepAliveCount);
                 return default;
             }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                V2.ISubscription subscription,
+                V2.SubscriptionState state,
+                V2.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
         }
 
         /// <summary>

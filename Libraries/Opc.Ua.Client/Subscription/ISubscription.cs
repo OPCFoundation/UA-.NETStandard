@@ -46,6 +46,15 @@ namespace Opc.Ua.Client.Subscriptions
         bool Created { get; }
 
         /// <summary>
+        /// Server-assigned subscription id. <c>0</c> when the
+        /// subscription has not been created on the server yet (or
+        /// after <see cref="ISubscriptionManager.RestoreAsync"/> falls
+        /// back to recreate following a failed
+        /// <c>TransferSubscriptions</c>).
+        /// </summary>
+        uint ServerId { get; }
+
+        /// <summary>
         /// The current publishing interval on the server
         /// </summary>
         TimeSpan CurrentPublishingInterval { get; }
@@ -96,6 +105,21 @@ namespace Opc.Ua.Client.Subscriptions
         long RepublishMessageCount { get; }
 
         /// <summary>
+        /// Capture an immutable snapshot of this subscription's
+        /// configuration + identifiers + the per-item state. The
+        /// returned <see cref="SubscriptionStateSnapshot"/> can be
+        /// persisted by the caller and later passed to
+        /// <see cref="ISubscriptionManager.RestoreAsync"/> to recreate
+        /// or take over the server-side subscription.
+        /// </summary>
+        /// <remarks>
+        /// Snapshot is read-only on the V2 manager state — no service
+        /// calls are issued. The returned record is independent of
+        /// future changes to this subscription.
+        /// </remarks>
+        SubscriptionStateSnapshot Snapshot();
+
+        /// <summary>
         /// Tells the server to refresh all conditions being
         /// monitored by the subscription.
         /// </summary>
@@ -134,6 +158,29 @@ namespace Opc.Ua.Client.Subscriptions
             uint triggeringItemClientHandle,
             IReadOnlyList<uint> linksToAdd,
             IReadOnlyList<uint> linksToRemove,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Mark this subscription as durable on the server (OPC UA Part 4
+        /// §5.13.9 <c>SetSubscriptionDurable</c>). A durable subscription
+        /// retains its monitored item state and message queue across
+        /// session disconnects for the duration of the requested
+        /// lifetime, so a later
+        /// <see cref="ISubscriptionManager.RestoreAsync"/> with
+        /// <c>transferSubscriptions: true</c> can take over without
+        /// losing buffered notifications.
+        /// </summary>
+        /// <param name="lifetimeInHours">Requested lifetime, in hours.
+        /// The server may revise downwards.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The server-revised lifetime, in hours.</returns>
+        /// <exception cref="ServiceResultException">Raised when the
+        /// subscription is not yet created on the server, or when the
+        /// server rejects the call (e.g. it has monitored items already
+        /// — per spec <c>SetSubscriptionDurable</c> must be called
+        /// before any items are added).</exception>
+        ValueTask<uint> SetSubscriptionDurableAsync(
+            uint lifetimeInHours,
             CancellationToken ct = default);
     }
 }

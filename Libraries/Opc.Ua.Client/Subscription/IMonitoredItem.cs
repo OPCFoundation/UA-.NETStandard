@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -102,6 +103,35 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// service call results for each link.
         /// </summary>
         System.Collections.Generic.IReadOnlyCollection<uint> TriggeredItemClientHandles { get; }
+
+        /// <summary>
+        /// Capture an immutable snapshot of this item's configuration
+        /// + identifiers + triggering state. The returned
+        /// <see cref="MonitoredItemStateSnapshot"/> can be persisted by
+        /// the caller and later passed to
+        /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.RestoreAsync"/>
+        /// (as part of a
+        /// <see cref="Opc.Ua.Client.Subscriptions.SubscriptionStateSnapshot"/>)
+        /// to recreate or take over the server-side item.
+        /// </summary>
+        MonitoredItemStateSnapshot Snapshot();
+
+        /// <summary>
+        /// Issue an OPC UA Part 9 §5.5.7 ConditionRefresh2 method call
+        /// for this monitored item. The server responds by re-sending
+        /// the current state of every condition this item is monitoring
+        /// (bracketed by RefreshStartEvent and RefreshEndEvent), so the
+        /// client can rebuild a complete view after disconnect or
+        /// subscription transfer without missing currently-active
+        /// alarms.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException">Raised with
+        /// <c>BadMonitoredItemIdInvalid</c> if this item has not been
+        /// created on the server yet, or with the server-returned
+        /// status if the method call fails.</exception>
+        System.Threading.Tasks.ValueTask ConditionRefreshAsync(
+            System.Threading.CancellationToken ct = default);
     }
 }
 

@@ -36,6 +36,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     internal interface IMonitoredItemContext
     {
         /// <summary>
+        /// Server-assigned subscription id that owns this item.
+        /// Forwarded from <see cref="IMonitoredItemManagerContext.Id"/>
+        /// so per-item operations such as
+        /// <see cref="IMonitoredItem.ConditionRefreshAsync"/> can issue
+        /// service calls without going back through the manager.
+        /// </summary>
+        uint SubscriptionId { get; }
+
+        /// <summary>
+        /// Method call services. Forwarded from
+        /// <see cref="IMonitoredItemManagerContext.MethodServiceSet"/>
+        /// for the same reason as <see cref="SubscriptionId"/>.
+        /// </summary>
+        IMethodServiceSetClientMethods MethodServiceSet { get; }
+
+        /// <summary>
         /// Notify item change results. This includes intermittent
         /// errors trying to apply the monitored item options.
         /// </summary>

@@ -298,28 +298,141 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
-        // ===== 3. SequentialPublishing =====
-        // V2 publish pipeline is channel-based and does not currently
-        // expose a sequential-publishing knob. Classic flipped a per-
-        // subscription bool; V2 design relies on the channel ordering.
-        // The test is intentionally Inconclusive here so the gap stays
-        // visible in CI without a green-cover.
+        // ===== 3. SequentialPublishing (always sequential on V2) =====
 
         [Test]
         [Order(300)]
-        [CancelAfter(30_000)]
-        public void SequentialPublishingV2Pending()
+        [CancelAfter(60_000)]
+        public async Task SequentialPublishingV2Async(CancellationToken ct)
         {
-            // TODO(V2): expose SequentialPublishing option on
-            // V2.SubscriptionOptions. Until then, V2 guarantees in-
-            // order dispatch via the publish-controller's prioritized
-            // ack queue (see SubscriptionManager.cs); the classic
-            // assertion (forcing OOO by overloading the cache) is not
-            // applicable.
-            Assert.Inconclusive(
-                "V2 engine has no SequentialPublishing toggle; covered by " +
-                "the prioritized publish-ack channel design — see " +
-                "v2-subscription-parity.md.");
+            // V2 publish channel guarantees per-subscription in-order
+            // notification delivery (the prioritized publish-ack queue
+            // + per-subscription dispatch serialization). This test
+            // mirrors the classic SequentialPublishingSubscriptionAsync
+            // load pattern: many subscriptions, many items per
+            // subscription, a tight publishing interval, and a hard
+            // assertion that the per-subscription sequence number
+            // monotonically increases for every dispatch.
+            ManagedSession session = await ConnectV2Async(
+                nameof(SequentialPublishingV2Async), ct).ConfigureAwait(false);
+            try
+            {
+                const int subscriptionCount = 5;
+                const int itemsPerSubscription = 10;
+                var subs = new ISubscription[subscriptionCount];
+                var handlers = new SequentialOrderingHandler[subscriptionCount];
+
+                System.Collections.Generic.IList<NodeId> simNodes =
+                    GetTestSetSimulation(session.NamespaceUris);
+
+                for (int i = 0; i < subscriptionCount; i++)
+                {
+                    handlers[i] = new SequentialOrderingHandler();
+                    subs[i] = session.AddSubscription(handlers[i],
+                        new V2.SubscriptionOptions
+                        {
+                            PublishingInterval = TimeSpan.FromMilliseconds(100),
+                            KeepAliveCount = 10,
+                            LifetimeCount = 100,
+                            PublishingEnabled = true
+                        });
+                    for (int j = 0; j < itemsPerSubscription && j < simNodes.Count; j++)
+                    {
+                        Assert.That(subs[i].TryAddMonitoredItem(
+                            string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                                "sub-{0}-item-{1}", i, j),
+                            simNodes[j],
+                            o => o with { SamplingInterval = TimeSpan.Zero },
+                            out _), Is.True);
+                    }
+                }
+
+                for (int i = 0; i < subscriptionCount; i++)
+                {
+                    int idx = i;
+                    Assert.That(await WaitForAsync(() => subs[idx].Created,
+                        TimeSpan.FromSeconds(10), ct).ConfigureAwait(false),
+                        Is.True);
+                }
+
+                // Let publishes flow.
+                await Task.Delay(3000, ct).ConfigureAwait(false);
+
+                for (int i = 0; i < subscriptionCount; i++)
+                {
+                    SequentialOrderingHandler h = handlers[i];
+                    Assert.That(h.SawOutOfOrder, Is.False,
+                        $"Subscription {i} observed out-of-order sequence number");
+                    Assert.That(h.NotificationCount, Is.GreaterThan(0),
+                        $"Subscription {i} should have received at least one notification");
+                }
+
+                for (int i = 0; i < subscriptionCount; i++)
+                {
+                    await subs[i].DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private sealed class SequentialOrderingHandler : ISubscriptionNotificationHandler
+        {
+            public int NotificationCount { get; private set; }
+            public bool SawOutOfOrder { get; private set; }
+            private uint m_lastSeq;
+            private readonly Lock m_lock = new();
+
+            public ValueTask OnDataChangeNotificationAsync(ISubscription subscription,
+                uint sequenceNumber, DateTime publishTime,
+                ReadOnlyMemory<DataValueChange> notification,
+                PublishState publishStateMask,
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
+            {
+                Observe(sequenceNumber);
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(ISubscription subscription,
+                uint sequenceNumber, DateTime publishTime,
+                ReadOnlyMemory<EventNotification> notification,
+                PublishState publishStateMask,
+                System.Collections.Generic.IReadOnlyList<string> stringTable)
+            {
+                Observe(sequenceNumber);
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(ISubscription subscription,
+                uint sequenceNumber, DateTime publishTime,
+                PublishState publishStateMask)
+            {
+                Observe(sequenceNumber);
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(ISubscription subscription,
+                V2.SubscriptionState state, PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            private void Observe(uint seq)
+            {
+                lock (m_lock)
+                {
+                    NotificationCount++;
+                    if (m_lastSeq != 0 && seq < m_lastSeq)
+                    {
+                        SawOutOfOrder = true;
+                    }
+                    m_lastSeq = seq;
+                }
+            }
         }
 
         // ===== 4. PublishRequestCount scales =====

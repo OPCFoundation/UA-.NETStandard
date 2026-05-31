@@ -28,6 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Client
 {
@@ -155,6 +161,131 @@ namespace Opc.Ua.Client
                 name,
                 configure(new Subscriptions.MonitoredItems.MonitoredItemOptions { StartNodeId = nodeId }),
                 out monitoredItem);
+        }
+
+        /// <summary>
+        /// Persist every subscription managed by <paramref name="session"/>
+        /// (or a caller-supplied subset) to <paramref name="destination"/>
+        /// in OPC UA binary encoding. The format starts with the
+        /// session's namespace and server URI tables so the snapshot is
+        /// portable across sessions whose tables index URIs in different
+        /// positions.
+        /// </summary>
+        /// <param name="session">Session whose
+        /// <see cref="ManagedSession.SubscriptionManager"/> is being
+        /// snapshotted.</param>
+        /// <param name="destination">Writable destination stream.</param>
+        /// <param name="subscriptions">Optional subset of subscriptions
+        /// to include. When <c>null</c> every subscription currently
+        /// managed by <paramref name="session"/> is included.</param>
+        public static void SaveSubscriptions(this ManagedSession session,
+            Stream destination,
+            IEnumerable<ISubscription>? subscriptions = null)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            session.SubscriptionManager.Save(destination,
+                session.MessageContext, subscriptions);
+        }
+
+        /// <summary>
+        /// Restore subscriptions previously persisted by
+        /// <see cref="SaveSubscriptions"/>. Each restored subscription is
+        /// re-registered with
+        /// <see cref="ManagedSession.SubscriptionManager"/>.
+        /// </summary>
+        /// <param name="session">Session that owns the V2 subscription
+        /// manager and supplies the active message context.</param>
+        /// <param name="source">Readable source stream produced by
+        /// <see cref="SaveSubscriptions"/>.</param>
+        /// <param name="handlerFactory">Factory invoked once per
+        /// restored subscription to construct the application's
+        /// <see cref="ISubscriptionNotificationHandler"/>. The factory
+        /// receives the per-subscription stable name captured in the
+        /// snapshot.</param>
+        /// <param name="transferSubscriptions">When <c>true</c> the
+        /// restored subscriptions take over the original server-side
+        /// state via <c>TransferSubscriptions</c>; if that fails for any
+        /// subscription the V2 manager falls back to recreate.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public static ValueTask<IReadOnlyList<ISubscription>> LoadSubscriptionsAsync(
+            this ManagedSession session, Stream source,
+            Func<string, ISubscriptionNotificationHandler> handlerFactory,
+            bool transferSubscriptions = false, CancellationToken ct = default)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            return session.SubscriptionManager.LoadAsync(source,
+                session.MessageContext, handlerFactory,
+                transferSubscriptions, ct);
+        }
+
+        /// <summary>
+        /// Capture an in-memory snapshot of every subscription managed
+        /// by <paramref name="session"/>. The returned list of
+        /// <see cref="SubscriptionStateSnapshot"/>s can be persisted by
+        /// the caller in any format and later passed to
+        /// <see cref="RestoreSubscriptionsAsync"/>.
+        /// </summary>
+        public static IReadOnlyList<SubscriptionStateSnapshot> SnapshotSubscriptions(
+            this ManagedSession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            return session.SubscriptionManager.Items
+                .Select(s => s.Snapshot())
+                .ToList();
+        }
+
+        /// <summary>
+        /// Restore a list of <see cref="SubscriptionStateSnapshot"/>s
+        /// previously captured by <see cref="SnapshotSubscriptions"/>.
+        /// </summary>
+        /// <param name="session">Session that owns the V2 subscription
+        /// manager.</param>
+        /// <param name="states">Snapshots to restore.</param>
+        /// <param name="handlerFactory">Factory invoked once per
+        /// snapshot to construct the application's notification
+        /// handler. The factory receives the snapshot itself so callers
+        /// can route by options or per-item metadata.</param>
+        /// <param name="transferSubscriptions">When <c>true</c> the
+        /// restored subscriptions take over the original server-side
+        /// state via <c>TransferSubscriptions</c>; if that fails for
+        /// any subscription the V2 manager falls back to recreate.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public static async ValueTask<IReadOnlyList<ISubscription>> RestoreSubscriptionsAsync(
+            this ManagedSession session,
+            IReadOnlyList<SubscriptionStateSnapshot> states,
+            Func<SubscriptionStateSnapshot, ISubscriptionNotificationHandler> handlerFactory,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (states == null)
+            {
+                throw new ArgumentNullException(nameof(states));
+            }
+            if (handlerFactory == null)
+            {
+                throw new ArgumentNullException(nameof(handlerFactory));
+            }
+            var result = new List<ISubscription>(states.Count);
+            foreach (SubscriptionStateSnapshot state in states)
+            {
+                result.Add(await session.SubscriptionManager.RestoreAsync(
+                    handlerFactory(state), state, transferSubscriptions, ct)
+                    .ConfigureAwait(false));
+            }
+            return result;
         }
     }
 }

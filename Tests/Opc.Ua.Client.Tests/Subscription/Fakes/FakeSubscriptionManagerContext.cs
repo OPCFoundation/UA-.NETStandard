@@ -93,10 +93,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public IManagedSubscription CreateSubscription(
             ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options,
-            IMessageAckQueue queue)
+            IMessageAckQueue queue,
+            SubscriptionLoadState? loadState = null)
         {
             CreateSubscriptionCalls.Add(new CreateSubscriptionCall(handler,
-                options, queue));
+                options, queue, loadState));
             return CreateSubscriptionFactory(handler, options, queue);
         }
 
@@ -138,7 +139,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         internal readonly record struct CreateSubscriptionCall(
             ISubscriptionNotificationHandler Handler,
             IOptionsMonitor<SubscriptionOptions> Options,
-            IMessageAckQueue Queue);
+            IMessageAckQueue Queue,
+            SubscriptionLoadState? LoadState);
 
         internal readonly record struct PublishCall(
             RequestHeader? RequestHeader,

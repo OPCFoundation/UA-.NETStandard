@@ -118,6 +118,39 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             return true;
         }
 
+        /// <summary>
+        /// Construct + register a monitored item that was loaded from a
+        /// snapshot (see <see cref="MonitoredItemLoadState"/>). The
+        /// freshly-constructed item is bound to the saved
+        /// <see cref="MonitoredItem.ClientHandle"/> / <see cref="MonitoredItem.ServerId"/>
+        /// via <see cref="MonitoredItem.ApplyLoadState"/> and any pending
+        /// create-request queued during construction is abandoned, so
+        /// the V2 state machine does not issue a redundant
+        /// <c>CreateMonitoredItems</c>. The owning subscription drives
+        /// the take-over via the standard transfer flow
+        /// (<see cref="Subscription.TryCompleteTransferAsync"/>).
+        /// </summary>
+        internal bool AddLoaded(MonitoredItemLoadState state)
+        {
+            lock (m_monitoredItemsLock)
+            {
+                if (m_monitoredItemsByName.ContainsKey(state.Name))
+                {
+                    return false;
+                }
+                MonitoredItem item = m_context.CreateMonitoredItem(
+                    state.Name, state.Options, this);
+                item.ApplyLoadState(state);
+                m_monitoredItems.Add(item.ClientHandle, item);
+                m_monitoredItemsByName.Add(state.Name, item);
+                return true;
+            }
+            // Intentionally NOT calling m_context.Update() — Update()
+            // signals the subscription's state-control auto-reset event
+            // which would prematurely wake StateManagerAsync and have it
+            // try to create what we just loaded.
+        }
+
         /// <inheritdoc/>
         public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
             [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
@@ -217,6 +250,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             return final || retryCount > 5; // TODO: Resiliency policy
         }
+
+        /// <inheritdoc/>
+        public uint SubscriptionId => m_context.Id;
+
+        /// <inheritdoc/>
+        public IMethodServiceSetClientMethods MethodServiceSet
+            => m_context.MethodServiceSet;
 
         /// <summary>
         /// Create notifications for monitored items

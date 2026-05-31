@@ -393,6 +393,19 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 return default;
             }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                SubscriptionState state,
+                PublishState publishStateMask,
+                System.Threading.CancellationToken ct = default)
+            {
+                // Streaming subscription only cares about data/event
+                // notification streams; lifecycle transitions are
+                // observed by the streaming consumer via the channel
+                // completion (DisposeAsync).
+                return default;
+            }
         }
 
         private sealed class Subscriber

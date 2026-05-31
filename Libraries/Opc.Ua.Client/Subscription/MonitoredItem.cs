@@ -113,6 +113,52 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// Install fully-loaded state from a snapshot during V2
+        /// transfer-on-load (<see cref="ISubscriptionManager.RestoreAsync"/>
+        /// with <c>transferSubscriptions: true</c>). Unlike
+        /// <see cref="ApplyTransferState"/>, this also:
+        /// <list type="bullet">
+        /// <item><description>Abandons the create-or-modify
+        /// <see cref="Change"/> the ctor's <see cref="QueuePendingChanges"/>
+        /// just queued, so the V2 state machine does not issue a
+        /// redundant <c>CreateMonitoredItems</c> request whose
+        /// <c>ClientHandle</c> would mismatch the snapshot's
+        /// (the source of the <c>Debug.Assert</c> failure that
+        /// motivated this work).</description></item>
+        /// <item><description>Re-installs the saved triggering links
+        /// so a subsequent <c>SetTriggering</c> replay reflects the
+        /// snapshot.</description></item>
+        /// </list>
+        /// The caller is responsible for binding the (possibly
+        /// freshly-revised) server-side state via the
+        /// <c>TransferSubscriptions</c> / <c>GetMonitoredItems</c> path
+        /// that runs in <see cref="MonitoredItemManager.TrySynchronizeHandlesAsync"/>.
+        /// </summary>
+        internal void ApplyLoadState(MonitoredItemLoadState state)
+        {
+            // Abandon any pending changes queued during the ctor.
+            while (TryGetPendingChange(out Change? change))
+            {
+                change.Abandon();
+            }
+            // Snapshot the current options so the V2 state machine
+            // treats the item as "configured to the loaded values" and
+            // skips the create path until a real change arrives.
+            m_currentOptions = m_options.CurrentValue;
+            ClientHandle = state.ClientHandle;
+            ServerId = state.ServerId;
+            TriggeringItemClientHandle = state.TriggeringItemClientHandle;
+            lock (m_triggeredItemsLock)
+            {
+                m_triggeredItems.Clear();
+                foreach (uint t in state.TriggeredItemClientHandles)
+                {
+                    m_triggeredItems.Add(t);
+                }
+            }
+        }
+
+        /// <summary>
         /// Add a triggered item link locally; called by the owning
         /// subscription after the server reported Good for the link.
         /// </summary>
@@ -185,6 +231,61 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             GC.SuppressFinalize(this);
             return DisposeAsync(disposing: true);
+        }
+
+        /// <inheritdoc/>
+        public MonitoredItemStateSnapshot Snapshot()
+        {
+            uint[] triggered;
+            lock (m_triggeredItemsLock)
+            {
+                triggered = [.. m_triggeredItems];
+            }
+            return new MonitoredItemStateSnapshot
+            {
+                Name = Name,
+                Options = m_options.CurrentValue,
+                ClientHandle = ClientHandle,
+                ServerId = ServerId,
+                TriggeringItemClientHandle = TriggeringItemClientHandle,
+                TriggeredItemClientHandles = triggered.ToArrayOf()
+            };
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ConditionRefreshAsync(CancellationToken ct = default)
+        {
+            if (!Created)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadMonitoredItemIdInvalid,
+                    "Monitored item has not been created on the server.");
+            }
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                    InputArguments =
+                    [
+                        new Variant(Context.SubscriptionId),
+                        new Variant(ServerId)
+                    ]
+                }
+            ];
+            CallResponse response = await Context.MethodServiceSet
+                .CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            ArrayOf<CallMethodResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            ClientBase.ValidateResponse(results, methodsToCall);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, methodsToCall);
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                throw new ServiceResultException(ClientBase.GetResult(
+                    results[0].StatusCode, 0, diagnosticInfos,
+                    response.ResponseHeader));
+            }
         }
 
         /// <inheritdoc/>

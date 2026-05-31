@@ -44,9 +44,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="handler"></param>
         /// <param name="options">The subscription options to pass</param>
         /// <param name="queue">The completion queue</param>
+        /// <param name="loadState">Optional pre-loaded server-side
+        /// state used by <see cref="SubscriptionManager.RestoreAsync"/>
+        /// with <c>transferSubscriptions: true</c>. When non-null the
+        /// subscription is constructed already bound to the saved
+        /// server-side identifiers and pre-populated with the saved
+        /// monitored items; the caller is responsible for issuing the
+        /// take-over via <c>TransferSubscriptions</c>.</param>
         /// <returns></returns>
         IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-            IOptionsMonitor<SubscriptionOptions> options, IMessageAckQueue queue);
+            IOptionsMonitor<SubscriptionOptions> options, IMessageAckQueue queue,
+            SubscriptionLoadState? loadState = null);
 
         /// <summary>
         /// Publish service
