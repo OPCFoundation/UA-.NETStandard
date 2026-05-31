@@ -467,6 +467,28 @@ namespace Opc.Ua.SourceGeneration
                     var stackProxyGenerator = new ObjectTypeProxyGenerator(stackProxyContext);
                     stackProxyGenerator.Emit();
                 }
+
+                // Emit event-record records for every standard UA
+                // event type. Records reference EventRecord (in
+                // Opc.Ua.Core) so they are only emitted in the Stack
+                // path (which runs against Opc.Ua.Core), not in the
+                // Models path (which runs against Opc.Ua.Core.Types).
+                var stackRecordContext = new GeneratorContext
+                {
+                    FileSystem = generatorContext.FileSystem,
+                    OutputFolder = generatorContext.OutputFolder,
+                    ModelDesign = generatorContext.ModelDesign,
+                    Telemetry = generatorContext.Telemetry,
+                    Options = new GeneratorOptions
+                    {
+                        OptimizeForCompileSpeed = options.OptimizeForCompileSpeed,
+                        Exclusions = options.Exclusions,
+                        Cancellation = options.Cancellation,
+                        UseUtf8StringLiterals = options.UseUtf8StringLiterals
+                    }
+                };
+                var stackRecordGenerator = new EventRecordGenerator(stackRecordContext);
+                stackRecordGenerator.Emit();
             }
 
             if ((generatorType & StackGenerationType.Models) != 0)
@@ -539,6 +561,9 @@ namespace Opc.Ua.SourceGeneration
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
             }
+            // Event records are emitted only in the Stack path (alongside
+            // the proxies) because they reference the EventRecord anchor
+            // in Opc.Ua.Core. Models (Core.Types) skips them.
             var modelDependencyGenerator = new ModelDependencyGenerator(context);
             modelDependencyGenerator.Emit();
         }

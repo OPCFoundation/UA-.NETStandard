@@ -450,7 +450,7 @@ publish pipeline.
 ## 5. The `INodeCache` surface
 
 `Session.NodeCache` (and `ManagedSession.NodeCache`) returns
-`INodeCache`, the unified client-side cache contract. As of 1.6 it is
+`INodeCache`, the unified client-side cache contract. As of 2.0 it is
 the single contract — the previous `ILruNodeCache` parallel interface
 has been merged into it and removed.
 
@@ -479,7 +479,7 @@ Pick the entry point that best matches your call site:
 
 - **Already have a `Session` and an existing reconnect helper.** Keep
   `Session` + `SessionReconnectHandler`. They are first-class APIs in
-  1.6 and not deprecated. You may opt into the V2 subscription engine
+  2.0 and not deprecated. You may opt into the V2 subscription engine
   by passing
   `SubscriptionEngineFactory = DefaultSubscriptionEngineFactory.Instance`
   to `DefaultSessionFactory`.

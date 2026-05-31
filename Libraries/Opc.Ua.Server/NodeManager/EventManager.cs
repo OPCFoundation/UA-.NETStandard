@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -81,9 +82,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reports an event.
+        /// Reports an event to the supplied monitored items WITHOUT
+        /// validating <see cref="PermissionType.ReceiveEvents"/>. Use
+        /// <see cref="ReportEventAsync"/> instead so per-item permission
+        /// checks on the event's <c>EventTypeId</c> and <c>SourceNode</c>
+        /// are honored (Part 3 §8.55).
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="e"/> is <c>null</c>.</exception>
+        [Obsolete("Use ReportEventAsync so PermissionType.ReceiveEvents is validated on EventTypeId and SourceNode for each monitored item.")]
         public static void ReportEvent(IFilterTarget e, IList<IEventMonitoredItem> monitoredItems)
         {
             if (e == null)
@@ -93,6 +99,63 @@ namespace Opc.Ua.Server
 
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
+                monitoredItem.QueueEvent(e);
+            }
+        }
+
+        /// <summary>
+        /// Reports an event to the supplied monitored items, validating
+        /// <see cref="PermissionType.ReceiveEvents"/> on both the
+        /// <c>EventTypeId</c> and <c>SourceNode</c> of the event for each
+        /// item before queueing (per Part 3 §8.55).
+        /// </summary>
+        /// <param name="e">The event payload.</param>
+        /// <param name="nodeManager">
+        /// The node manager that owns the source. Used to evaluate role
+        /// permissions for the event's <c>EventTypeId</c> and
+        /// <c>SourceNode</c>.
+        /// </param>
+        /// <param name="monitoredItems">The candidate receivers.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="e"/>, <paramref name="nodeManager"/>, or
+        /// <paramref name="monitoredItems"/> is <c>null</c>.
+        /// </exception>
+        public static async ValueTask ReportEventAsync(
+            IFilterTarget e,
+            IAsyncNodeManager nodeManager,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            if (e == null)
+            {
+                throw new ArgumentNullException(nameof(e));
+            }
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            foreach (IEventMonitoredItem monitoredItem in monitoredItems)
+            {
+                if (monitoredItem == null)
+                {
+                    continue;
+                }
+
+                ServiceResult result = await nodeManager
+                    .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    continue;
+                }
+
                 monitoredItem.QueueEvent(e);
             }
         }

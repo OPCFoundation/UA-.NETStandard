@@ -109,5 +109,29 @@ namespace Opc.Ua.SourceGeneration
         /// </remarks>
         public IDictionary<string, string> ObjectTypeProxyExternalNamespaces { get; }
             = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Optional override for the C# namespace used by classes
+        /// emitted by the <see cref="EventRecordGenerator"/>. When
+        /// unset, the model's target namespace prefix is used.
+        /// </summary>
+        public string EventRecordNamespace { get; set; }
+
+        /// <summary>
+        /// Maps an OPC UA namespace URI (key) to the C# namespace
+        /// (value) in which the corresponding source-generated
+        /// <c>*Record</c> classes live. Used by the
+        /// <see cref="EventRecordGenerator"/> when a record must
+        /// derive from a parent record defined in a different
+        /// (referenced) assembly.
+        /// </summary>
+        /// <remarks>
+        /// The standard mapping
+        /// <c>http://opcfoundation.org/UA/ -&gt; Opc.Ua.Client.Alarms</c>
+        /// is always added by the generator and does not need to be
+        /// configured explicitly.
+        /// </remarks>
+        public IDictionary<string, string> EventRecordExternalNamespaces { get; }
+            = new Dictionary<string, string>();
     }
 }

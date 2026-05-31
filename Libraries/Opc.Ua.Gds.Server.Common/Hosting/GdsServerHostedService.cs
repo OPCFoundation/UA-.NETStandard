@@ -303,9 +303,10 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_autoApprove = autoApprove;
             }
 
-            protected override IMasterNodeManager CreateMasterNodeManager(
+            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
                 IServerInternal server,
-                ApplicationConfiguration configuration)
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
             {
                 var applications = new ApplicationsNodeManager(
                     server,
@@ -325,7 +326,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                     applications.KeyCredentialRequestStore = m_keyCredentialStore;
                 }
 
-                var nodeManagers = new List<INodeManager> { applications };
+                var nodeManagers = new List<IAsyncNodeManager> { applications };
 
                 if (m_configurationStore != null)
                 {
@@ -335,7 +336,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                         m_configurationStore));
                 }
 
-                return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
+                return new ValueTask<IMasterNodeManager>(
+                    new MasterNodeManager(server, configuration, null, nodeManagers, null));
             }
         }
     }

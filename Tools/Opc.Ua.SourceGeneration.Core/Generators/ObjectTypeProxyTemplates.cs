@@ -95,8 +95,55 @@ namespace Opc.Ua.SourceGeneration
                 {
                 }
                 {{Tokens.MethodList}}
+                {{Tokens.ListOfChildren}}
             }
 
+            """);
+
+        /// <summary>
+        /// One lazy + cached typed accessor for an <c>&lt;opc:Object&gt;</c>
+        /// child of a parent <c>ObjectType</c>. The browse round-trip
+        /// is delegated to
+        /// <c>ObjectTypeClient.ResolveChildNodeIdAsync</c> so the
+        /// generated body stays minimal and language-version-portable.
+        /// Returns <c>null</c> for optional children the server does
+        /// not expose.
+        /// </summary>
+        public static readonly TemplateString ChildAccessor = TemplateString.Parse(
+            $$"""
+
+            /// <summary>
+            /// Returns the typed proxy for the <c>{{Tokens.BrowseName}}</c> child Object
+            /// of type <c>{{Tokens.TypeName}}</c>. Lazily resolved on first call (one
+            /// TranslateBrowsePath round-trip) and cached for
+            /// subsequent calls. Returns <c>null</c> when the server
+            /// does not expose the child (Optional children, missing
+            /// namespace, BadNotFound result, ...).
+            /// </summary>
+            /// <param name="telemetry">Telemetry context for the
+            /// returned child proxy.</param>
+            /// <param name="ct">Cancellation token.</param>
+            public {{Tokens.AccessModifier}}async global::System.Threading.Tasks.ValueTask<{{Tokens.ClassName}}?> Get{{Tokens.BrowseName}}Async(
+                global::Opc.Ua.ITelemetryContext telemetry,
+                global::System.Threading.CancellationToken ct = default)
+            {
+                if ({{Tokens.FieldName}} != null)
+                {
+                    return {{Tokens.FieldName}};
+                }
+                global::Opc.Ua.NodeId childId = await ResolveChildNodeIdAsync(
+                    "{{Tokens.BrowseNameNamespaceUri}}", "{{Tokens.BrowseName}}", ct).ConfigureAwait(false);
+                if (childId.IsNull)
+                {
+                    return null;
+                }
+                var proxy = new {{Tokens.ClassName}}(Session, childId, telemetry);
+                return global::System.Threading.Interlocked.CompareExchange(
+                    ref {{Tokens.FieldName}}, proxy, null) ?? proxy;
+            }
+            #pragma warning disable CS0649  // field never assigned — assigned in Get*Async via Interlocked.CompareExchange
+            private {{Tokens.ClassName}}? {{Tokens.FieldName}};
+            #pragma warning restore CS0649
             """);
     }
 }
