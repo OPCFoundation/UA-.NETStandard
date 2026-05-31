@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Globalization;
 using NUnit.Framework;
 using Opc.Ua.Server.NodeManager;
 
@@ -238,7 +239,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             PropertyState<string> v = node.EnableModelChangeTracking(1);
-            v.Value = ulong.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            v.Value = ulong.MaxValue.ToString(CultureInfo.InvariantCulture);
 
             node.BumpNodeVersion(null!);
 
