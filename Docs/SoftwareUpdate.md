@@ -91,6 +91,56 @@ system context, the package store, and the per-device software
 folder so handlers can persist version metadata without having to
 re-resolve any of these.
 
+### Server-side state reporting
+
+The four state machines (`PrepareForUpdate`, `Installation`,
+`PowerCycle`, `Confirmation`) are pre-seeded to their initial state
+(`Idle` / `NotWaitingForConfirm` / `NotWaitingForPowerCycle`) when
+the SU facet attaches. Every successful method invocation walks the
+FSM through the standard Part 16 transitions and publishes
+`CurrentState` / `LastTransition` updates that subscribers observe in
+real time. Failures route to the Error state (Installation) or back
+to Idle (PrepareForUpdate), again with proper `LastTransition`
+metadata. The Installation FSM also exposes a per-operation
+`PercentComplete` byte that walks 0 → 100 on success.
+
+To plug application instrumentation into the same lifecycle without
+having to subscribe through the address space, register the
+state-changed hooks:
+
+```csharp
+device.WithSoftwareUpdate(packageStore, su => su
+    .OnInstall(async (ctx, package, ct) => await myDevice.FlashAsync(package, ct))
+    .OnInstallationStateChanged((ctx, change) =>
+    {
+        _logger.LogInformation(
+            "Install on device {Device}: phase={Phase} progress={Pct}% message={Msg}",
+            ctx.DeviceId, change.Phase, change.ProgressPercent, change.Message);
+        return default;
+    }));
+```
+
+Each hook fires twice per method call — `Started` before the
+application callback runs, then `Completed` on success or `Failed`
+(with the exception message) on failure. The hook is invoked from the
+service call's async context; exceptions thrown by the hook are
+logged and swallowed so instrumentation faults never abort the
+underlying SU operation. Domain-keyed `SoftwareUpdatePhase` (rather
+than raw Part 16 cause / transition ids) keeps application code
+independent of dispatcher internals.
+
+> **Note** — the source-generated DI FSMs ship without Part 16
+> `StateTable` / `TransitionTable` / `CauseMappings` overrides, so
+> `FiniteStateMachineState.SetState(...)` (and by extension
+> `StateMachineBuilder.For(...).WithCause(...)`) is a no-op against
+> them today. The SU wiring works around this by writing
+> `CurrentState` / `LastTransition` directly via the internal
+> `SoftwareUpdateStateMachineDispatcher` helper. Once the generator
+> emits the Part 16 tables (tracked as a separate generator
+> enhancement) the dispatcher can collapse into a thin
+> `StateMachineBuilder.For(...)` adapter without touching the public
+> hook surface.
+
 ## Storage abstractions
 
 Two independent storage abstractions live under
@@ -121,12 +171,51 @@ var client = new SoftwareUpdateClient(
 string version = await client.ReadSoftwareVersionAsync();
 ```
 
-State-machine drivers (Prepare / Install / Confirm / Uninstall) are
-invoked through the standard `Session.CallAsync` service against the
-method NodeIds resolved with
-`Session.TranslateBrowsePathsToNodeIdsAsync`. The sample server
-(`Applications/MinimalSoftwareUpdateServer`) is the canonical
-end-to-end demo of the facet.
+### Typed Part 16 state-machine surface
+
+`SoftwareUpdateClient` exposes typed accessors for the four child
+state machines (`PrepareForUpdate`, `Installation`, `Confirmation`,
+`PowerCycle`), each composed over the source-generated
+`*StateMachineTypeClient` proxies and the generic Part 16 extensions
+(`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`,
+`WaitForStateAsync`). The proxies are resolved lazily on first use
+via `SoftwareUpdateTypeClient.GetXxxAsync(telemetry, ct)` and cached
+for the lifetime of the client so the browse-path-translate
+round-trip happens at most once per state machine.
+
+```csharp
+var client = new SoftwareUpdateClient(session, suNodeId, telemetry);
+
+// Snapshot the current state of any of the four FSMs.
+FiniteStateSnapshot? install = await client.GetInstallationStateAsync(ct);
+FiniteStateSnapshot? prep    = await client.GetPrepareForUpdateStateAsync(ct);
+
+// Drive cause methods (resolved against the typed proxy — no manual
+// TranslateBrowsePath / method-NodeId look-up required).
+await client.PrepareAsync(ct);
+await client.InstallSoftwarePackageAsync(
+    manufacturerUri: "urn:acme",
+    softwareRevision: "2.0.0",
+    patchIdentifiers: ArrayOf.Empty<string>(),
+    hash: default,
+    ct: ct);
+await client.ConfirmAsync(ct);
+
+// Stream transitions via a streaming subscription.
+await foreach (FiniteStateSnapshot snap in client
+    .ObserveInstallationTransitionsAsync(streaming, options: null, ct))
+{
+    _logger.LogInformation("Installation moved to {State}", snap.CurrentState);
+}
+```
+
+When the server does not expose the optional child the `Get*StateAsync`
+overloads return `null`; the cause-method wrappers
+(`PrepareAsync`, `InstallSoftwarePackageAsync`, `ConfirmAsync`, etc.)
+throw `ServiceResultException(BadNotFound)` so calling code never
+needs to redo browse-path resolution. See
+[`StateMachines.md`](StateMachines.md) for the generic state-machine
+API the typed wrappers build on.
 
 ## Walkthrough — `Applications/MinimalSoftwareUpdateServer`
 
@@ -176,14 +265,23 @@ device's `SoftwareVersion` reflects the new version.
 - Fluent surface: `Libraries/Opc.Ua.Di.Server/Builders/ISoftwareUpdateBuilder.cs`
   and `DeviceBuilderSoftwareUpdateExtensions.cs`.
 - Address-space wiring: `SoftwareUpdateFacetWiring.cs` (internal).
+- State-machine dispatcher: `SoftwareUpdateStateMachineDispatcher.cs`
+  (internal — direct `CurrentState` / `LastTransition` writes until
+  the model source generator emits Part 16 tables for `*StateMachineState`).
 - Storage abstractions:
   `Libraries/Opc.Ua.Di.Server/SoftwareUpdate/ISoftwarePackageStore.cs` and
   `ISoftwareFolder.cs`.
-- Client helper: `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.cs`.
+- Client helpers: `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.cs`
+  (read-only discovery) and
+  `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.StateMachine.cs`
+  (typed Part 16 partial: typed snapshot / observe / cause-method
+  wrappers).
 - Tests:
   `Tests/Opc.Ua.Di.Tests/DeviceBuilderSoftwareUpdateTests.cs`,
+  `DeviceBuilderSoftwareUpdateStateChangeTests.cs`,
   `MemorySoftwareFolderTests.cs`, `PackageStoreTests.cs`,
-  `SoftwareUpdateClientTests.cs`.
+  `SoftwareUpdateClientTests.cs`,
+  `SoftwareUpdateClientStateMachineTests.cs`.
 - Sample: `Applications/MinimalSoftwareUpdateServer/Program.cs`.
 
 ## Spec references

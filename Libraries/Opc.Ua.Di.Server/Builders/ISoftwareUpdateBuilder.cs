@@ -63,6 +63,45 @@ namespace Opc.Ua.Di.Server.Builders
     }
 
     /// <summary>
+    /// Phase reported by <see cref="ISoftwareUpdateBuilder"/>'s
+    /// state-changed hooks. Numeric-state-ID-free domain enum so
+    /// applications don't have to depend on Part-16 dispatcher
+    /// internals.
+    /// </summary>
+    public enum SoftwareUpdatePhase
+    {
+        /// <summary>The state-machine method invocation was accepted.</summary>
+        Started = 0,
+
+        /// <summary>The work is in progress.</summary>
+        InProgress = 1,
+
+        /// <summary>The work completed successfully.</summary>
+        Completed = 2,
+
+        /// <summary>The work failed.</summary>
+        Failed = 3,
+    }
+
+    /// <summary>
+    /// Snapshot passed to the SU state-changed hooks each time the
+    /// server-side state machine moves between phases.
+    /// </summary>
+    /// <param name="Phase">The new phase.</param>
+    /// <param name="Message">
+    /// Optional human-readable message (e.g. installation failure
+    /// reason). Empty when no message is supplied.
+    /// </param>
+    /// <param name="ProgressPercent">
+    /// Optional 0..100 progress indicator for <see cref="SoftwareUpdatePhase.InProgress"/>;
+    /// <see langword="null"/> when progress is not tracked.
+    /// </param>
+    public sealed record SoftwareUpdateStateChange(
+        SoftwareUpdatePhase Phase,
+        string Message,
+        byte? ProgressPercent);
+
+    /// <summary>
     /// Context object passed to <see cref="ISoftwareUpdateBuilder"/>
     /// callbacks. Exposes the bits the application needs to react to
     /// state-machine method invocations without dragging in the
@@ -165,5 +204,31 @@ namespace Opc.Ua.Di.Server.Builders
         /// </summary>
         ISoftwareUpdateBuilder OnUninstall(
             Func<ISoftwareUpdateContext, CancellationToken, ValueTask> handler);
+
+        /// <summary>
+        /// Subscribes a callback that fires whenever the server-side
+        /// <c>PrepareForUpdate</c> state machine moves between
+        /// phases (Started → InProgress → Completed | Failed). Useful
+        /// for surfacing progress in application telemetry.
+        /// </summary>
+        ISoftwareUpdateBuilder OnPrepareStateChanged(
+            Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask> handler);
+
+        /// <summary>
+        /// Subscribes a callback that fires whenever the server-side
+        /// <c>Installation</c> state machine moves between phases.
+        /// <see cref="SoftwareUpdateStateChange.ProgressPercent"/>
+        /// reflects the InstallationStateMachine's
+        /// <c>PercentComplete</c> child when the application updates it.
+        /// </summary>
+        ISoftwareUpdateBuilder OnInstallationStateChanged(
+            Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask> handler);
+
+        /// <summary>
+        /// Subscribes a callback that fires whenever the server-side
+        /// <c>Confirmation</c> state machine moves between phases.
+        /// </summary>
+        ISoftwareUpdateBuilder OnConfirmStateChanged(
+            Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask> handler);
     }
 }

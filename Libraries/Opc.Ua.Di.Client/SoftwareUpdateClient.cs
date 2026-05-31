@@ -53,7 +53,7 @@ namespace Opc.Ua.Di.Client
     /// handle directly.
     /// </para>
     /// </remarks>
-    public sealed class SoftwareUpdateClient
+    public partial class SoftwareUpdateClient
     {
         /// <summary>
         /// Creates a new software-update client rooted at the supplied

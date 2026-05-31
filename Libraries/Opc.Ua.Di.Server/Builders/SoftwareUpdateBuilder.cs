@@ -61,6 +61,15 @@ namespace Opc.Ua.Di.Server.Builders
         public Func<ISoftwareUpdateContext, CancellationToken, ValueTask>?
             UninstallHandler { get; private set; }
 
+        public Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask>?
+            PrepareStateChanged { get; private set; }
+
+        public Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask>?
+            InstallationStateChanged { get; private set; }
+
+        public Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask>?
+            ConfirmStateChanged { get; private set; }
+
         public ISoftwareUpdateBuilder UsePackageLoading()
         {
             LoadingMode = SoftwareLoadingMode.Package;
@@ -110,6 +119,27 @@ namespace Opc.Ua.Di.Server.Builders
             Func<ISoftwareUpdateContext, CancellationToken, ValueTask> handler)
         {
             UninstallHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        public ISoftwareUpdateBuilder OnPrepareStateChanged(
+            Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask> handler)
+        {
+            PrepareStateChanged = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        public ISoftwareUpdateBuilder OnInstallationStateChanged(
+            Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask> handler)
+        {
+            InstallationStateChanged = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        public ISoftwareUpdateBuilder OnConfirmStateChanged(
+            Func<ISoftwareUpdateContext, SoftwareUpdateStateChange, ValueTask> handler)
+        {
+            ConfirmStateChanged = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
     }
