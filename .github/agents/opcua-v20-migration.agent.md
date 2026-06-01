@@ -9,13 +9,111 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
 
 ## Strategy
 
-1. **Build first**: Run `dotnet build` to identify all errors.
-2. **Categorize errors**: Group errors by type (struct nullability, collection types, Variant/object, encoder/decoder, etc.).
-3. **Fix in order**: Apply fixes in the priority order defined below — some fixes resolve cascading errors.
-4. **Rebuild and iterate**: After each batch of fixes, rebuild to verify progress and catch new errors.
-5. **Do not suppress warnings**: Fix [Obsolete] warnings properly using the replacement API, do not add `#pragma warning disable`.
+**Start with the CodeFixers NuGet package** — it ships an analyzer + code-fix set (UA0001–UA0022) and a compatibility shim DLL that together handle most mechanical migrations automatically. Only fall back to the manual rules below for patterns the analyzers do not cover or that require structural redesign.
 
-## Priority Order for Fixes
+1. **Install the migration package**: Add the `OPCFoundation.NetStandard.Opc.Ua.CodeFixers` NuGet to every project that references an `OPCFoundation.NetStandard.Opc.Ua.*` package, as a build-only dependency:
+
+   ```xml
+   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.CodeFixers"
+                     Version="2.0.*-*"
+                     PrivateAssets="all" />
+   ```
+
+   The package bundles two payloads:
+   - **Analyzer + code-fix DLLs** (`Opc.Ua.CodeFixers.dll`, `Opc.Ua.CodeFixers.CodeFixes.dll`) loaded into csc.exe and the IDE.
+   - **Compatibility shim** (`Opc.Ua.CodeFixers.Shim.dll`) that re-exposes the 1.5.378 obsolete extension surface so 1.5.378-style call sites compile against 2.0 with warnings instead of errors.
+
+2. **Bump the OPC UA package versions to `2.0.*-*`** in every consumer project. Do NOT remove existing `OPCFoundation.NetStandard.Opc.Ua.*` references — just update their `Version` attribute.
+
+3. **Run `dotnet restore` then `dotnet build`**. The shim usually gets the project to compile; what remains are `[Obsolete]` warnings (CS0618) and `UA0001`–`UA0022` analyzer diagnostics that point at the patterns still using the old surface.
+
+4. **Apply analyzer auto-fixes**: in Visual Studio, hover each `UA00xx` diagnostic and apply the offered Quick Fix. From the command line, run:
+
+   ```bash
+   dotnet format analyzers <solution>.sln \
+       --diagnostics UA0002 UA0003 UA0004 UA0005 UA0006 UA0007 UA0008 \
+                     UA0009 UA0010 UA0012 UA0014 UA0019 UA0020 UA0022 \
+       --severity warn
+   ```
+
+   The 14 listed rules ship batch code-fixes. The remaining `UA0001`/`UA0011`/`UA0015`/`UA0018`/`UA0021` are diagnostic-only — they require manual judgement.
+
+5. **Walk the remaining manual patterns** — anything the analyzers did not flag is covered by the categorical rules below.
+
+6. **Remove the CodeFixers package** once the project is warning-free. You are then on clean 2.0 with no shim dependency.
+
+7. **Do not suppress `[Obsolete]` or `UA00xx` warnings.** Fix them using the documented replacement; obsolete API will be removed in the next minor release.
+
+## What the CodeFixers package covers
+
+| ID     | Default  | Auto-fix | Replaces                                                                                |
+| ------ | -------- | -------- | --------------------------------------------------------------------------------------- |
+| UA0001 | Info     | No       | `Utils.Trace` / `Utils.LogX` — manually inject `ILogger` via `ITelemetryContext`        |
+| UA0002 | Warning  | Yes      | Removed `<Type>Collection` wrappers → `ArrayOf<T>` / `List<T>`                          |
+| UA0003 | Warning  | Yes      | `x == null` on now-struct built-in types → `x.IsNull`                                   |
+| UA0004 | Warning  | Yes      | `?.` on now-struct built-in types → direct access                                       |
+| UA0005 | Warning  | Yes      | `byte[]` where `ByteString` is expected → `.ToByteString()`                             |
+| UA0006 | Warning  | Yes      | `new Variant(object\|DateTime\|Guid\|byte[])` → `Variant.From(...)`                     |
+| UA0007 | Warning  | Yes      | `new NodeId(string)` / `new ExpandedNodeId(string)` → `Parse(...)`                      |
+| UA0008 | Warning  | Yes      | `Session.Call(..., params object[])` → wrap args with `Variant.From`                    |
+| UA0009 | Warning  | Yes      | `[DataContract]`/`[DataMember]` on config extensions → `[DataType]`/`[DataField]`        |
+| UA0010 | Warning  | Yes      | `using`/`Dispose` on `CertificateIdentifier`/`UserIdentity`/`IUserIdentityTokenHandler`  |
+| UA0011 | Info     | No       | Sync `IUserIdentityTokenHandler.Encrypt/Decrypt/Sign/Verify` → await `*Async`           |
+| UA0012 | Warning  | Yes      | `CertificateFactory.*` static helpers → instance methods                                |
+| UA0014 | Warning  | Yes      | `DataValue.IsGood(dv)` static helper → `dv.IsGood`                                      |
+| UA0015 | Info     | No       | Sync / APM members on GDS / LDS clients → await `*Async`                                |
+| UA0018 | Info     | No       | `CertificateIdentifier.Certificate` getter → `LoadCertificate2Async`                    |
+| UA0019 | Warning  | Yes      | `new DataValue(StatusCode[, ts])` → `new DataValue { StatusCode = ..., ... }`           |
+| UA0020 | Warning  | Yes      | `EncodeableFactory.GlobalFactory` / `Create()` → `ServiceMessageContext.Factory` / `Fork()` |
+| UA0021 | Info     | No       | `CertificateValidator` / `CertificateValidationEventArgs` (structural rename — see §X) |
+| UA0022 | Warning  | Yes      | `ApplicationConfiguration.CertificateValidator` / `ServerBase.CertificateValidator` → `.CertificateManager` |
+
+## What the shim covers
+
+`Opc.Ua.CodeFixers.Shim.dll` re-exposes the 1.5.378 surface as C# 14 `extension` members so 1.5.378 call sites continue to compile:
+
+- **Moved obsolete extensions**: `NodeId` / `Variant` / `DataValue` null-check helpers, `Session` sync helpers, `Subscription` sync helpers, `ApplicationInstance` helpers, `ServerBase.Start` / `Stop`, `TransportChannel` APM, `ChannelBase` static factory methods, and similar surface.
+- **New shims for genuinely-removed members**: `EncodeableFactory.GlobalFactory`, `CertificateIdentifier.Certificate` (throws), sync wrappers for `IUserIdentityTokenHandler.{Encrypt,Decrypt,Sign,Verify}`, sync + APM wrappers for GDS / LDS client APIs.
+
+## What the shim does NOT cover
+
+These changes are source-level only; no extension method can paper over them. Use the listed analyzer fix.
+
+- `== null` / `!= null` on now-struct types — use the **UA0003** fixer (auto).
+- `?.` member access on now-struct types — use the **UA0004** fixer (auto).
+- `using var x = new CertificateIdentifier(...)` — use **UA0010** to drop the `using`.
+- `[DataContract]`/`[DataMember]` on configuration extensions — use **UA0009**.
+- Removed `<Type>Collection` wrappers — use **UA0002**.
+- `CertificateValidator` type rename — see §Certificate validation pipeline below (manual).
+- Removed pre-generated source-generator output — see §Source Generation (manual).
+
+## Sync-over-async caveat
+
+The sync shims (e.g. `handler.Encrypt(bytes)`, `gdsClient.RegisterApplication(...)`, the `Session` / `Subscription` sync helpers) wrap their `*Async` counterparts via `Task.Run(() => …Async(...)).GetAwaiter().GetResult()`. This is intended as a **migration aid only**: it keeps legacy call sites compiling while you port them to `async`/`await`. Do not leave these calls on production hot paths — follow the `UA0011` / `UA0015` guidance and switch to the async APIs.
+
+## TreatWarningsAsErrors recipe
+
+If your project sets `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` and you cannot relax it during the migration window, exclude the migration diagnostics from the failure set:
+
+```xml
+<PropertyGroup>
+  <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  <NoWarn>$(NoWarn);CS0618;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022</NoWarn>
+</PropertyGroup>
+```
+
+Remove each entry as you finish fixing the corresponding rule, and drop the whole block once the CodeFixers package is removed.
+
+## Known compatibility gaps
+
+- **Legacy `.NET Framework` projects using the pre-SDK `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"` format** do not honour `PackageReference` injection via `Directory.Build.targets`. To get the analyzer / shim into a legacy WinForms project, add the `<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.CodeFixers" ...>` directly to the project file's existing `<ItemGroup>`.
+- **Projects with `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` and 100+ migration errors** may abort csc.exe before the analyzer reaches some patterns. Apply the `<NoWarn>` recipe above, run the analyzer, then re-enable warnings-as-errors.
+
+## Manual migration rules (anything the analyzers / shim do not cover)
+
+The sections below remain the canonical reference for patterns that require human judgement. Apply them in the priority order shown — some fixes resolve cascading errors.
+
+### Priority order for fixes
 
 Apply changes in this order to minimize cascading errors:
 

@@ -37,7 +37,6 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Opc.Ua.CodeFixers.Analyzers;
 using Opc.Ua.CodeFixers.Diagnostics;
 using Opc.Ua.CodeFixers.Helpers;
 

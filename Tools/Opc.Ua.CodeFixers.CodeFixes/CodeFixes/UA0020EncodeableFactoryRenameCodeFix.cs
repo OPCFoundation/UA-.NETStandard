@@ -36,7 +36,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Opc.Ua.CodeFixers.Analyzers;
 using Opc.Ua.CodeFixers.Diagnostics;
 
 namespace Opc.Ua.CodeFixers.CodeFixes
@@ -64,9 +63,9 @@ namespace Opc.Ua.CodeFixers.CodeFixes
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 if (!diagnostic.Properties.TryGetValue(
-                    UA0020EncodeableFactoryRenameAnalyzer.FormProperty,
+                    WellKnownProperties.Form,
                     out string form) ||
-                    form != UA0020EncodeableFactoryRenameAnalyzer.FormCreate)
+                    form != WellKnownProperties.FormCreate)
                 {
                     continue;
                 }

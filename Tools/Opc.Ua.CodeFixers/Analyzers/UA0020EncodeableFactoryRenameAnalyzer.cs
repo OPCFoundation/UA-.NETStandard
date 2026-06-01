@@ -45,9 +45,11 @@ namespace Opc.Ua.CodeFixers.Analyzers
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UA0020EncodeableFactoryRenameAnalyzer : DiagnosticAnalyzer
     {
-        public const string FormProperty = "Form";
-        public const string FormGlobalFactory = "A";
-        public const string FormCreate = "B";
+        // Public surface preserved for source compatibility; values delegate to the
+        // shared WellKnownProperties (also linked into the CodeFixes assembly).
+        public const string FormProperty = WellKnownProperties.Form;
+        public const string FormGlobalFactory = WellKnownProperties.FormGlobalFactory;
+        public const string FormCreate = WellKnownProperties.FormCreate;
 
         private const string EncodeableFactoryTypeName = "Opc.Ua.EncodeableFactory";
 

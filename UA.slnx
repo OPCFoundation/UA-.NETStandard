@@ -124,6 +124,7 @@
   <Folder Name="/CodeFixers/">
     <Project Path="Tests/Opc.Ua.CodeFixers.Shim.Tests/Opc.Ua.CodeFixers.Shim.Tests.csproj" />
     <Project Path="Tools/Opc.Ua.CodeFixers/Opc.Ua.CodeFixers.csproj" />
+    <Project Path="Tools/Opc.Ua.CodeFixers.CodeFixes/Opc.Ua.CodeFixers.CodeFixes.csproj" />
     <Project Path="Tools/Opc.Ua.CodeFixers.Shim/Opc.Ua.CodeFixers.Shim.csproj" />
   </Folder>
   <Folder Name="/Stack/">

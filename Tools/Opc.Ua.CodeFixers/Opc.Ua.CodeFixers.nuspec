@@ -69,6 +69,7 @@
   </metadata>
   <files>
     <file src="$analyzerDll$" target="analyzers\dotnet\cs\Opc.Ua.CodeFixers.dll" />
+    <file src="$codeFixesDll$" target="analyzers\dotnet\cs\Opc.Ua.CodeFixers.CodeFixes.dll" />
     <file src="$shimBin$\net472\Opc.Ua.CodeFixers.Shim.dll" target="lib\net472\Opc.Ua.CodeFixers.Shim.dll" />
     <file src="$shimBin$\net48\Opc.Ua.CodeFixers.Shim.dll" target="lib\net48\Opc.Ua.CodeFixers.Shim.dll" />
     <file src="$shimBin$\netstandard2.1\Opc.Ua.CodeFixers.Shim.dll" target="lib\netstandard2.1\Opc.Ua.CodeFixers.Shim.dll" />

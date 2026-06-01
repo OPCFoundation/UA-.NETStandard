@@ -11,5 +11,7 @@
   <ItemGroup>
     <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.CodeFixers.dll"
               Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.CodeFixers.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.CodeFixers.CodeFixes.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.CodeFixers.CodeFixes.dll')" />
   </ItemGroup>
 </Project>

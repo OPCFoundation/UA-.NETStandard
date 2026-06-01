@@ -47,7 +47,7 @@ namespace Opc.Ua.CodeFixers.Analyzers
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UA0008SessionCallParamsObjectAnalyzer : DiagnosticAnalyzer
     {
-        public const string MethodNameProperty = "MethodName";
+        public const string MethodNameProperty = WellKnownProperties.MethodName;
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
             ImmutableArray.Create(DiagnosticDescriptors.UA0008_SessionCallParamsObject);

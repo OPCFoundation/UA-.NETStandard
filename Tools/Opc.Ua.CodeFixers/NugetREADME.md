@@ -115,9 +115,24 @@ whole block once the CodeFixers package is removed.
 
 ## Packaging note
 
-The analyzer DLL also hosts the matching `CodeFixProvider` types. This is a
-deliberate single-assembly design; `RS1038` (recommending separation) is
-suppressed at the project level via `<NoWarn>`.
+The package ships **two analyzer DLLs** under `analyzers/dotnet/cs/`:
+
+- `Opc.Ua.CodeFixers.dll` — the analyzer assembly. Targets `Microsoft.CodeAnalysis 4.x`
+  (the stable analyzer API) and references **only** `Microsoft.CodeAnalysis.CSharp` so it
+  loads cleanly in csc.exe's analyzer host (which ships only `Microsoft.CodeAnalysis.dll`
+  + `CSharp.dll`, not `Workspaces`). All `DiagnosticAnalyzer` types live here.
+- `Opc.Ua.CodeFixers.CodeFixes.dll` — the code-fix assembly. References
+  `Microsoft.CodeAnalysis.CSharp.Workspaces` and hosts all `CodeFixProvider` types.
+  Loaded only by Workspaces-aware hosts (Visual Studio / `dotnet format`).
+
+This split is necessary because shipping a single DLL that references `Workspaces`
+silently fails to load in csc.exe at command-line build time — csc loads the assembly
+but JIT-resolution of `Workspaces` types fails (DLL not in bincore), and the analyzer
+host swallows the load failure, producing zero diagnostics. Splitting keeps the
+analyzer host happy while preserving full IDE/`dotnet format` code-fix functionality.
+
+`RS1038` (suggesting separation) is the Roslyn rule that recommends this layout;
+it is satisfied implicitly by the two-DLL design.
 
 ## Suppression recipes
 

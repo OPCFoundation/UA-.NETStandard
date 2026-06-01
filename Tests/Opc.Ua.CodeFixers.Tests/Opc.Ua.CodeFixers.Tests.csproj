@@ -27,5 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Tools\Opc.Ua.CodeFixers\Opc.Ua.CodeFixers.csproj" />
+    <ProjectReference Include="..\..\Tools\Opc.Ua.CodeFixers.CodeFixes\Opc.Ua.CodeFixers.CodeFixes.csproj" />
   </ItemGroup>
 </Project>
