@@ -56,23 +56,32 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The node manager.</param>
         /// <param name="server">The server.</param>
         /// <param name="node">The node.</param>
-        public MonitoredNode2(IAsyncNodeManager nodeManager, IServerInternal server, NodeState node)
+        /// <param name="enableMultipleEventConsumers">
+        /// When <c>true</c>, enables dynamic scaling of consumer tasks based on
+        /// the number of event monitored items. The Server node
+        /// (<see cref="ObjectIds.Server"/>) always opts in automatically.
+        /// </param>
+        public MonitoredNode2(
+            IAsyncNodeManager nodeManager,
+            IServerInternal server,
+            NodeState node,
+            bool enableMultipleEventConsumers = false)
         {
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             Node = node ?? throw new ArgumentNullException(nameof(node));
             m_logger = server.Telemetry?.CreateLogger<MonitoredNode2>();
-            m_isServerNode = node.NodeId == ObjectIds.Server;
+            m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
-                SingleReader = !m_isServerNode,
+                SingleReader = !m_useMultipleConsumers,
                 FullMode = BoundedChannelFullMode.Wait,
                 AllowSynchronousContinuations = false,
             });
             m_consumerCts = new CancellationTokenSource();
             m_consumerTask = Task.Run(() => ProcessChannelAsync(m_consumerCts.Token));
 
-            if (m_isServerNode)
+            if (m_useMultipleConsumers)
             {
                 m_additionalConsumers = new List<ConsumerEntry>();
             }
@@ -173,7 +182,7 @@ namespace Opc.Ua.Server
             Node.OnReportEvent = OnReportEvent;
 
             // Scale up: add a consumer task for each new event MI beyond the first.
-            if (m_isServerNode && m_additionalConsumers != null)
+            if (m_useMultipleConsumers && m_additionalConsumers != null)
             {
                 lock (m_additionalConsumersLock)
                 {
@@ -203,7 +212,7 @@ namespace Opc.Ua.Server
             }
 
             // Scale down: remove a consumer task when MIs decrease (keep at least 1 total = primary).
-            if (m_isServerNode && m_additionalConsumers != null)
+            if (m_useMultipleConsumers && m_additionalConsumers != null)
             {
                 lock (m_additionalConsumersLock)
                 {
@@ -785,7 +794,7 @@ namespace Opc.Ua.Server
         private readonly Channel<INodeNotification> m_channel;
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
-        private readonly bool m_isServerNode;
+        private readonly bool m_useMultipleConsumers;
         private readonly List<ConsumerEntry>? m_additionalConsumers;
         private readonly Lock m_additionalConsumersLock = new();
         private bool m_disposed;

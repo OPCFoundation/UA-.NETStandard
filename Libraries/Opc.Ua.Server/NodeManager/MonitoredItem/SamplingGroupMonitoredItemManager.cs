@@ -324,7 +324,8 @@ namespace Opc.Ua.Server
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
                 MonitoredNodes[source.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source,
+                        IsMultiConsumerNode(source.NodeId));
             }
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
@@ -342,5 +343,11 @@ namespace Opc.Ua.Server
         private readonly IAsyncNodeManager m_nodeManager;
         private readonly IServerInternal m_server;
         private readonly SamplingGroupManager m_samplingGroupManager;
+
+        private bool IsMultiConsumerNode(NodeId nodeId)
+        {
+            return m_nodeManager is AsyncCustomNodeManager acnm &&
+                acnm.MultiConsumerNodeIds.ContainsKey(nodeId);
+        }
     }
 }

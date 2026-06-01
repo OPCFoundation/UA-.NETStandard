@@ -304,6 +304,23 @@ namespace Opc.Ua.Server
         public INodeManager SyncNodeManager => m_syncNodeManager;
 
         /// <summary>
+        /// Marks a node for dynamic scaling of event consumer tasks. When a
+        /// monitored node is created for a node in this set, the
+        /// <see cref="MonitoredNode2"/> will scale its consumer tasks with
+        /// the number of event monitored items. The Server node
+        /// (<see cref="ObjectIds.Server"/>) is always auto-opted-in.
+        /// </summary>
+        /// <param name="nodeId">The <see cref="NodeId"/> of the node to opt in.</param>
+        protected void EnableMultipleEventConsumers(NodeId nodeId)
+        {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            MultiConsumerNodeIds[nodeId] = true;
+        }
+
+        /// <summary>
         /// Sets the namespaces supported by the NodeManager.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
@@ -6007,6 +6024,13 @@ namespace Opc.Ua.Server
         /// The synchronaization primitive used to protect access to operations affecting the MonitoredItems owned by the NodeManager.
         /// </summary>
         protected SemaphoreSlim m_monitoredItemSemaphore = new(1, 1);
+
+        /// <summary>
+        /// Set of <see cref="NodeId"/>s that opt into multiple event consumer
+        /// task handling. Nodes in this set will use dynamic scaling of
+        /// consumer tasks based on the number of event monitored items.
+        /// </summary>
+        internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = new();
 
         /// <summary>
         /// Counter for the NodeIdFactory.New Method

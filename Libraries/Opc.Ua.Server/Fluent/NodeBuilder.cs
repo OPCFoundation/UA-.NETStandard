@@ -241,6 +241,13 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
+        public INodeBuilder EnableMultipleEventConsumers()
+        {
+            m_parent.RegisterMultiConsumerNode(Node);
+            return this;
+        }
+
+        /// <inheritdoc/>
         public INodeBuilder Child(QualifiedName browseName)
         {
             NodeState child = ResolveChild(browseName);

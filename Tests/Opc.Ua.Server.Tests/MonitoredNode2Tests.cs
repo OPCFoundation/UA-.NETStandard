@@ -1520,5 +1520,129 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item2Queued, Is.EqualTo(eventCount));
             Assert.That(item3Queued, Is.EqualTo(eventCount));
         }
+
+        /// <summary>
+        /// Verifies that a non-Server node can opt into multi-consumer handling
+        /// via the <c>enableMultipleEventConsumers</c> constructor parameter.
+        /// </summary>
+        [Test]
+        public void NonServerNode_OptInMultiConsumer_AllEventsDelivered()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("CustomNotifier", 2),
+                BrowseName = new QualifiedName("CustomNotifier", 2)
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IEventMonitoredItem> item1Mock = CreateEventMonitoredItemMock(1u);
+            Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
+
+            // Opt in via constructor parameter
+            var monitoredNode = new MonitoredNode2(
+                nodeManagerMock.Object, serverMock.Object, node,
+                enableMultipleEventConsumers: true);
+            monitoredNode.Add(item1Mock.Object);
+            monitoredNode.Add(item2Mock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = node.NodeId };
+                return ev;
+            }
+
+            const int eventCount = 10;
+            for (int i = 0; i < eventCount; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            monitoredNode.Dispose();
+
+            int item1Queued = item1Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item2Queued = item2Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.That(item1Queued + item2Queued, Is.EqualTo(eventCount * 2),
+                "Every event must be delivered to every monitored item.");
+            Assert.That(item1Queued, Is.EqualTo(eventCount));
+            Assert.That(item2Queued, Is.EqualTo(eventCount));
+        }
+
+        /// <summary>
+        /// Verifies that a non-Server node without opt-in does NOT create
+        /// additional consumer tasks (single-reader channel).
+        /// </summary>
+        [Test]
+        public void NonServerNode_NoOptIn_SingleConsumer()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("RegularNode", 2),
+                BrowseName = new QualifiedName("RegularNode", 2)
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IEventMonitoredItem> item1Mock = CreateEventMonitoredItemMock(1u);
+            Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
+
+            // Default: no multi-consumer
+            var monitoredNode = new MonitoredNode2(
+                nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(item1Mock.Object);
+            monitoredNode.Add(item2Mock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = node.NodeId };
+                return ev;
+            }
+
+            const int eventCount = 10;
+            for (int i = 0; i < eventCount; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            monitoredNode.Dispose();
+
+            // Events still delivered to all items (single consumer handles all)
+            int item1Queued = item1Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item2Queued = item2Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.That(item1Queued + item2Queued, Is.EqualTo(eventCount * 2),
+                "Every event must be delivered to every monitored item.");
+        }
     }
 }
