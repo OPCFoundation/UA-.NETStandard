@@ -1383,8 +1383,8 @@ namespace Opc.Ua.PubSub.Encoding
                     dv = dv.WithWrappedValue(ReadVariant("Value"));
                 }
 
-                dv = dv.WithStatus(ReadStatusCode("StatusCode"));
-                dv = dv.WithSourceTimestamp(ReadDateTime("SourceTimestamp"));
+                dv = dv.WithStatus(ReadStatusCode("StatusCode"))
+                    .WithSourceTimestamp(ReadDateTime("SourceTimestamp"));
                 dv = dv.WithSourcePicoseconds(
                     dv.SourceTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("SourcePicoseconds")

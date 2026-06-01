@@ -30,7 +30,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.History.Tests
@@ -51,103 +50,153 @@ namespace Opc.Ua.History.Tests
     {
         [Test]
         public Task AlarmMetricsPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(17279), "AlarmMetricsType");
+        {
+            return AssertTypeExistsAsync(new NodeId(17279), "AlarmMetricsType");
+        }
 
         [Test]
         public Task AudibleSoundPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(16390), "AudibleSound");
+        {
+            return AssertTypeExistsAsync(new NodeId(16390), "AudibleSound");
+        }
 
         [Test]
         public Task ConditionSubClassesPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(11163), "BaseConditionClassType");
+        {
+            return AssertTypeExistsAsync(new NodeId(11163), "BaseConditionClassType");
+        }
 
         [Test]
         public Task ConditionClassesPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(11163), "BaseConditionClassType");
+        {
+            return AssertTypeExistsAsync(new NodeId(11163), "BaseConditionClassType");
+        }
 
         [Test]
         public Task DialogPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.DialogConditionType, "DialogConditionType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.DialogConditionType, "DialogConditionType");
+        }
 
         [Test]
         public Task DiscrepancyPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(17080), "DiscrepancyAlarmType");
+        {
+            return AssertTypeExistsAsync(new NodeId(17080), "DiscrepancyAlarmType");
+        }
 
         [Test]
         public Task DiscretePlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.DiscreteAlarmType, "DiscreteAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.DiscreteAlarmType, "DiscreteAlarmType");
+        }
 
         [Test]
         public Task ExclusiveDeviationPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveDeviationAlarmType, "ExclusiveDeviationAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.ExclusiveDeviationAlarmType, "ExclusiveDeviationAlarmType");
+        }
 
         [Test]
         public Task ExclusiveLevelPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveLevelAlarmType, "ExclusiveLevelAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.ExclusiveLevelAlarmType, "ExclusiveLevelAlarmType");
+        }
 
         [Test]
         public Task ExclusiveLimitPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveLimitAlarmType, "ExclusiveLimitAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.ExclusiveLimitAlarmType, "ExclusiveLimitAlarmType");
+        }
 
         [Test]
         public Task ExclusiveRateOfChangePlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.ExclusiveRateOfChangeAlarmType, "ExclusiveRateOfChangeAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.ExclusiveRateOfChangeAlarmType, "ExclusiveRateOfChangeAlarmType");
+        }
 
         [Test]
         public Task FirstInGroupAlarmPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.AlarmGroupType, "AlarmGroupType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.AlarmGroupType, "AlarmGroupType");
+        }
 
         [Test]
         public Task NonExclusiveDeviationPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveDeviationAlarmType, "NonExclusiveDeviationAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveDeviationAlarmType, "NonExclusiveDeviationAlarmType");
+        }
 
         [Test]
         public Task NonExclusiveLevelPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveLevelAlarmType, "NonExclusiveLevelAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveLevelAlarmType, "NonExclusiveLevelAlarmType");
+        }
 
         [Test]
         public Task NonExclusiveLimitPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveLimitAlarmType, "NonExclusiveLimitAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveLimitAlarmType, "NonExclusiveLimitAlarmType");
+        }
 
         [Test]
         public Task NonExclusiveRateOfChangePlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveRateOfChangeAlarmType, "NonExclusiveRateOfChangeAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.NonExclusiveRateOfChangeAlarmType, "NonExclusiveRateOfChangeAlarmType");
+        }
 
         [Test]
         public Task OffNormalPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.OffNormalAlarmType, "OffNormalAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.OffNormalAlarmType, "OffNormalAlarmType");
+        }
 
         [Test]
         public Task OnOffDelayPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(16395), "OnDelay");
+        {
+            return AssertTypeExistsAsync(new NodeId(16395), "OnDelay");
+        }
 
         [Test]
         public Task OutOfServicePlaceholder()
-            => AssertTypeExistsAsync(new NodeId(16371), "OutOfServiceState");
+        {
+            return AssertTypeExistsAsync(new NodeId(16371), "OutOfServiceState");
+        }
 
         [Test]
         public Task ReAlarmingPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(16400), "ReAlarmTime");
+        {
+            return AssertTypeExistsAsync(new NodeId(16400), "ReAlarmTime");
+        }
 
         [Test]
         public Task SilencingPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(16380), "SilenceState");
+        {
+            return AssertTypeExistsAsync(new NodeId(16380), "SilenceState");
+        }
 
         [Test]
         public Task SuppressionByOperatorPlaceholder()
-            => AssertTypeExistsAsync(new NodeId(9215), "SuppressedOrShelved");
+        {
+            return AssertTypeExistsAsync(new NodeId(9215), "SuppressedOrShelved");
+        }
 
         [Test]
         public Task SystemOffNormalPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.SystemOffNormalAlarmType, "SystemOffNormalAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.SystemOffNormalAlarmType, "SystemOffNormalAlarmType");
+        }
 
         [Test]
         public Task TripPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.TripAlarmType, "TripAlarmType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.TripAlarmType, "TripAlarmType");
+        }
 
         [Test]
         public Task WrapperMappingPlaceholder()
-            => AssertTypeExistsAsync(ObjectTypeIds.RefreshStartEventType, "RefreshStartEventType");
+        {
+            return AssertTypeExistsAsync(ObjectTypeIds.RefreshStartEventType, "RefreshStartEventType");
+        }
 
         private async Task AssertTypeExistsAsync(NodeId nodeId, string expectedName)
         {

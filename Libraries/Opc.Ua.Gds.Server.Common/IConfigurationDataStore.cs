@@ -204,7 +204,7 @@ namespace Opc.Ua.Gds.Server
                 return new ValueTask<byte[]>(entry.Data);
             }
 
-            return new ValueTask<byte[]>(Array.Empty<byte>());
+            return new ValueTask<byte[]>([]);
         }
 
         /// <inheritdoc/>
@@ -214,7 +214,7 @@ namespace Opc.Ua.Gds.Server
             uint currentVersion,
             CancellationToken ct)
         {
-            var entry = m_configs.GetOrAdd(applicationUri, _ => new ConfigEntry());
+            ConfigEntry entry = m_configs.GetOrAdd(applicationUri, _ => new ConfigEntry());
 
             lock (entry)
             {
@@ -266,7 +266,7 @@ namespace Opc.Ua.Gds.Server
 
         private sealed class ConfigEntry
         {
-            public byte[] Data { get; set; } = Array.Empty<byte>();
+            public byte[] Data { get; set; } = [];
             public uint Version { get; set; }
             public bool Confirmed { get; set; } = true;
         }

@@ -33,10 +33,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Gds;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 // Conformance tests use inline literal arrays as expected-value
 // assertions; the per-call allocation cost is irrelevant for tests
@@ -58,7 +56,7 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         public async Task GdsDepthTestsSetUp()
         {
-            m_directoryNodeId = ToNodeId(Gds.ObjectIds.Directory);
+            m_directoryNodeId = ToNodeId(ObjectIds.Directory);
             Assert.That(m_directoryNodeId, Is.Not.Null,
                 "GDS Directory NodeId could not be resolved.");
 
@@ -474,7 +472,7 @@ namespace Opc.Ua.Gds.Tests
             // address space and that registration succeeds (a real
             // event-subscription verification would require Part 4 §5.12
             // event monitoring infrastructure beyond a smoke-test).
-            await AssertAuditEventTypeExistsAsync(Opc.Ua.ObjectTypeIds.AuditUpdateMethodEventType)
+            await AssertAuditEventTypeExistsAsync(Ua.ObjectTypeIds.AuditUpdateMethodEventType)
                 .ConfigureAwait(false);
 
             ApplicationRecordDataType rec = CreateAppRecord("Dir011Audit");
@@ -504,7 +502,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterWithoutAdminRoleAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterWithoutAdminRole");
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             await AssertGdsCallDeniedAsRegularUserAsync(
                 methodId,
                 new Variant(new ExtensionObject(rec)))
@@ -515,7 +513,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterWithInsufficientPrivilegesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterWithInsufficient");
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             await AssertGdsCallDeniedAsRegularUserAsync(
                 methodId,
                 new Variant(new ExtensionObject(rec)))
@@ -526,7 +524,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterAnonymousUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterAnonymousUserDen");
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             await AssertGdsCallDeniedAsAnonymousAsync(
                 methodId,
                 new Variant(new ExtensionObject(rec)))
@@ -537,7 +535,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterReadOnlyUserDeniedAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("AppDirRegisterReadOnlyUserDeni");
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             await AssertGdsCallDeniedAsRegularUserAsync(
                 methodId,
                 new Variant(new ExtensionObject(rec)))
@@ -560,7 +558,7 @@ namespace Opc.Ua.Gds.Tests
         {
             // Part 12 §6.3.4 UnregisterApplication is audited via
             // AuditUpdateMethodEventType. Smoke-test as 011.
-            await AssertAuditEventTypeExistsAsync(Opc.Ua.ObjectTypeIds.AuditUpdateMethodEventType)
+            await AssertAuditEventTypeExistsAsync(Ua.ObjectTypeIds.AuditUpdateMethodEventType)
                 .ConfigureAwait(false);
 
             ApplicationRecordDataType rec = CreateAppRecord("Dir018Audit");
@@ -605,7 +603,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+                NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
                     new Variant(appId))
@@ -613,7 +611,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -625,7 +629,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+                NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
                     new Variant(appId))
@@ -633,7 +637,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -645,7 +655,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+                NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
                 await AssertGdsCallDeniedAsAnonymousAsync(
                     methodId,
                     new Variant(appId))
@@ -653,7 +663,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -665,7 +681,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+                NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
                     new Variant(appId))
@@ -673,7 +689,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -747,11 +769,11 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                Opc.Ua.Client.ISession otherSession = await ConnectAsAsync(
+                ISession otherSession = await ConnectAsAsync(
                     new UserIdentity("user1", "password"u8)).ConfigureAwait(false);
                 try
                 {
-                    NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetApplication);
+                    NodeId methodId = ToNodeId(MethodIds.Directory_GetApplication);
                     CallResponse response = await otherSession.CallAsync(
                         null,
                         new CallMethodRequest[]
@@ -770,13 +792,25 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    try { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -790,11 +824,11 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                Opc.Ua.Client.ISession otherSession = await ConnectAsAsync(
+                ISession otherSession = await ConnectAsAsync(
                     new UserIdentity("user1", "password"u8)).ConfigureAwait(false);
                 try
                 {
-                    NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetApplication);
+                    NodeId methodId = ToNodeId(MethodIds.Directory_GetApplication);
                     CallResponse response = await otherSession.CallAsync(
                         null,
                         new CallMethodRequest[]
@@ -813,13 +847,25 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    try { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -830,7 +876,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetApplication);
+                NodeId methodId = ToNodeId(MethodIds.Directory_GetApplication);
                 await AssertGdsCallDeniedAsAnonymousAsync(
                     methodId,
                     new Variant(appId))
@@ -838,7 +884,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -851,11 +903,11 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             try
             {
-                Opc.Ua.Client.ISession otherSession = await ConnectAsAsync(
+                ISession otherSession = await ConnectAsAsync(
                     new UserIdentity("user1", "password"u8)).ConfigureAwait(false);
                 try
                 {
-                    NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetApplication);
+                    NodeId methodId = ToNodeId(MethodIds.Directory_GetApplication);
                     CallResponse response = await otherSession.CallAsync(
                         null,
                         new CallMethodRequest[]
@@ -874,13 +926,25 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    try { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -980,7 +1044,7 @@ namespace Opc.Ua.Gds.Tests
         {
             // Part 12 §6.3.5 UpdateApplication is audited via
             // AuditUpdateMethodEventType. Smoke-test as 011.
-            await AssertAuditEventTypeExistsAsync(Opc.Ua.ObjectTypeIds.AuditUpdateMethodEventType)
+            await AssertAuditEventTypeExistsAsync(Ua.ObjectTypeIds.AuditUpdateMethodEventType)
                 .ConfigureAwait(false);
 
             ApplicationRecordDataType rec = CreateAppRecord("Dir040Audit");
@@ -1038,8 +1102,8 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UpdateApplication);
+                rec.ProductUri += "_modified";
+                NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
                     new Variant(new ExtensionObject(rec)))
@@ -1047,7 +1111,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1059,8 +1129,8 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UpdateApplication);
+                rec.ProductUri += "_modified";
+                NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
                     new Variant(new ExtensionObject(rec)))
@@ -1068,7 +1138,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1080,8 +1156,8 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UpdateApplication);
+                rec.ProductUri += "_modified";
+                NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsAnonymousAsync(
                     methodId,
                     new Variant(new ExtensionObject(rec)))
@@ -1089,7 +1165,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1101,8 +1183,8 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 rec.ApplicationId = appId;
-                rec.ProductUri = rec.ProductUri + "_modified";
-                NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UpdateApplication);
+                rec.ProductUri += "_modified";
+                NodeId methodId = ToNodeId(MethodIds.Directory_UpdateApplication);
                 await AssertGdsCallDeniedAsRegularUserAsync(
                     methodId,
                     new Variant(new ExtensionObject(rec)))
@@ -1110,7 +1192,13 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                try { await UnregisterAppAsync(appId).ConfigureAwait(false); } catch { }
+                try
+                {
+                    await UnregisterAppAsync(appId).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -1588,7 +1676,6 @@ namespace Opc.Ua.Gds.Tests
 
             Assert.ThrowsAsync<ServiceResultException>(async () => await GetAppAsync(appId).ConfigureAwait(false));
         }
-
 
         [Test]
         public async Task QueryAppsBasicCallAsync()
@@ -2223,7 +2310,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType appRecord,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -2253,7 +2340,7 @@ namespace Opc.Ua.Gds.Tests
             CancellationToken ct = default)
         {
             NodeId methodId = ToNodeId(
-                Gds.MethodIds.Directory_UnregisterApplication);
+                MethodIds.Directory_UnregisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -2281,7 +2368,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_GetApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -2345,7 +2432,7 @@ namespace Opc.Ua.Gds.Tests
             CancellationToken ct = default)
         {
             NodeId methodId = ToNodeId(
-                Gds.MethodIds.Directory_FindApplications);
+                MethodIds.Directory_FindApplications);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -2392,7 +2479,7 @@ namespace Opc.Ua.Gds.Tests
             CancellationToken ct = default)
         {
             NodeId methodId = ToNodeId(
-                Gds.MethodIds.Directory_UpdateApplication);
+                MethodIds.Directory_UpdateApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -2426,7 +2513,7 @@ namespace Opc.Ua.Gds.Tests
             CancellationToken ct = default)
         {
             NodeId methodId = ToNodeId(
-                Gds.MethodIds.Directory_QueryApplications);
+                MethodIds.Directory_QueryApplications);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -2482,7 +2569,7 @@ namespace Opc.Ua.Gds.Tests
         //  Role-based access helpers
         // -------------------------------------------------------------
 
-        private async Task<Opc.Ua.Client.ISession> ConnectAsAsync(IUserIdentity identity)
+        private async Task<ISession> ConnectAsAsync(IUserIdentity identity)
         {
             return await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, default, identity)
@@ -2495,7 +2582,7 @@ namespace Opc.Ua.Gds.Tests
         /// operation Bad status in the call response.
         /// </summary>
         private async Task AssertGdsCallDeniedAsync(
-            Opc.Ua.Client.ISession session,
+            ISession session,
             NodeId methodId,
             params Variant[] arguments)
         {
@@ -2529,7 +2616,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId methodId,
             params Variant[] arguments)
         {
-            Opc.Ua.Client.ISession session = null;
+            ISession session = null;
             try
             {
                 session = await ConnectAsAsync(new UserIdentity()).ConfigureAwait(false);
@@ -2539,7 +2626,13 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (session != null)
                 {
-                    try { await session.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        await session.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     session.Dispose();
                 }
             }
@@ -2549,7 +2642,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId methodId,
             params Variant[] arguments)
         {
-            Opc.Ua.Client.ISession session = null;
+            ISession session = null;
             try
             {
                 session = await ConnectAsAsync(
@@ -2560,7 +2653,13 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (session != null)
                 {
-                    try { await session.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        await session.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     session.Dispose();
                 }
             }

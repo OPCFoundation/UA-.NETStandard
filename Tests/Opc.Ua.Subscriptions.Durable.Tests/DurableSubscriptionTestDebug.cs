@@ -29,7 +29,6 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Subscriptions.Durable.Tests
 {

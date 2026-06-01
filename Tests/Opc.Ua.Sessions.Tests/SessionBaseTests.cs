@@ -32,7 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
@@ -627,6 +626,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(readResponse.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(readResponse.Results[0].StatusCode), Is.True);
         }
+
         [Description("CreateSession – injects service result Bad_SecureChannelIdInvalid in the response.")]
         [Test]
         public Task CreateSessionWithInjectedBadSecureChannelIdInvalidAsync()
@@ -634,7 +634,7 @@ namespace Opc.Ua.Sessions.Tests
             return AssertCreateSessionInjectsServiceResultAsync(StatusCodes.BadSecureChannelIdInvalid);
         }
 
-        private async Task AssertCreateSessionInjectsServiceResultAsync(StatusCode injected)
+        private Task AssertCreateSessionInjectsServiceResultAsync(StatusCode injected)
         {
             // Session.OpenAsync retries CreateSession without the client
             // certificate when the first attempt fails, so a one-shot
@@ -647,6 +647,7 @@ namespace Opc.Ua.Sessions.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
+            return Task.CompletedTask;
         }
 
         [Description("CreateSession – injects service result Bad_NonceInvalid in the response.")]
@@ -686,7 +687,7 @@ namespace Opc.Ua.Sessions.Tests
 
         [Description("CreateSession – the SessionId returned by the server is null for the second session.")]
         [Test]
-        public async Task CreateSessionWithInjectedNullSessionIdAsync()
+        public Task CreateSessionWithInjectedNullSessionIdAsync()
         {
             // A null SessionId in the response makes ActivateSession fail
             // because the client uses SessionId to identify the session.
@@ -695,6 +696,7 @@ namespace Opc.Ua.Sessions.Tests
 
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Description("CreateSession – the server returns the same AuthenticationToken for two distinct sessions.")]
@@ -776,7 +778,7 @@ namespace Opc.Ua.Sessions.Tests
         private async Task AssertCreateSessionAcceptsTimeoutMutationAsync(
             Action<CreateSessionRequest, CreateSessionResponse> mutate)
         {
-            using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(mutate);
+            using IDisposable expectation = MockController.WhenRequest(mutate);
 
             // The client must accept whatever RevisedSessionTimeout the
             // server returns — assert the connection completes without
@@ -850,10 +852,7 @@ namespace Opc.Ua.Sessions.Tests
                         // no longer matches the one returned by Discovery.
                         foreach (EndpointDescription ep in resp.ServerEndpoints)
                         {
-                            if (ep.Server != null)
-                            {
-                                ep.Server.ApplicationUri = "urn:mock:tampered";
-                            }
+                            ep.Server?.ApplicationUri = "urn:mock:tampered";
                         }
                     }
                 });
@@ -864,13 +863,13 @@ namespace Opc.Ua.Sessions.Tests
         public Task CreateSessionWithInjectedEmptyServerEndpointsAsync()
         {
             return AssertCreateSessionToleratesServerEndpointsMutationAsync(
-                mutate: (req, resp) => resp.ServerEndpoints = System.Array.Empty<EndpointDescription>().ToArrayOf());
+                mutate: (req, resp) => resp.ServerEndpoints = Array.Empty<EndpointDescription>().ToArrayOf());
         }
 
         private async Task AssertCreateSessionToleratesServerEndpointsMutationAsync(
             Action<CreateSessionRequest, CreateSessionResponse> mutate)
         {
-            using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(mutate);
+            using IDisposable expectation = MockController.WhenRequest(mutate);
 
             ISession session = null;
             try
@@ -904,7 +903,7 @@ namespace Opc.Ua.Sessions.Tests
         public async Task CreateSessionWithInjectedEmptyServerSoftwareCertificatesAsync()
         {
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
-                (req, resp) => resp.ServerSoftwareCertificates = System.Array.Empty<SignedSoftwareCertificate>().ToArrayOf());
+                (req, resp) => resp.ServerSoftwareCertificates = Array.Empty<SignedSoftwareCertificate>().ToArrayOf());
 
             ISession session = await OpenAuxSessionAsync().ConfigureAwait(false);
             try
@@ -980,7 +979,7 @@ namespace Opc.Ua.Sessions.Tests
         private async Task AssertCreateSessionAcceptsMessageSizeMutationAsync(
             Action<CreateSessionRequest, CreateSessionResponse> mutate)
         {
-            using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(mutate);
+            using IDisposable expectation = MockController.WhenRequest(mutate);
 
             ISession session = await OpenAuxSessionAsync().ConfigureAwait(false);
             try
@@ -1134,7 +1133,7 @@ namespace Opc.Ua.Sessions.Tests
             return AssertActivateSessionInjectsServiceResultAsync(StatusCodes.BadSecurityChecksFailed);
         }
 
-        private async Task AssertActivateSessionInjectsServiceResultAsync(StatusCode injected)
+        private Task AssertActivateSessionInjectsServiceResultAsync(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<ActivateSessionResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
@@ -1142,6 +1141,7 @@ namespace Opc.Ua.Sessions.Tests
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenAuxSessionAsync().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
+            return Task.CompletedTask;
         }
 
         [Description("CloseSession – the server returns Bad_SessionIdInvalid as the service result.")]
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Sessions.Tests
                 // returns the status code so callers can log it without
                 // a try/catch — assert against the returned code.
                 StatusCode result = await aux.CloseAsync(5000, true, CancellationToken.None).ConfigureAwait(false);
-                Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadSessionIdInvalid));
+                Assert.That(result, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             }
             finally
             {
@@ -1210,10 +1210,10 @@ namespace Opc.Ua.Sessions.Tests
                 (req, resp) =>
                 {
                     int n = resp.Results == null ? 0 : resp.Results.Count;
-                    var mutated = new StatusCode[System.Math.Max(n, 1)];
+                    var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
-                        mutated[i] = (i < n && i > 0) ? resp.Results[i] : StatusCodes.Good;
+                        mutated[i] = i < n && i > 0 ? resp.Results[i] : StatusCodes.Good;
                     }
                     mutated[0] = StatusCodes.BadCertificateUriInvalid;
                     resp.Results = mutated.ToArrayOf();
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Sessions.Tests
                 (req, resp) =>
                 {
                     int n = resp.Results == null ? 0 : resp.Results.Count;
-                    var mutated = new StatusCode[System.Math.Max(n, 1)];
+                    var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
                         mutated[i] = StatusCodes.BadCertificateUriInvalid;

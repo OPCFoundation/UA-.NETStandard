@@ -37,7 +37,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
@@ -61,16 +60,17 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort kNs = 2;
         private static readonly TimeSpan kFlushWait = TimeSpan.FromSeconds(2);
+
         private static readonly HistorianCaptureOptions kFastFlush = new()
         {
             BatchTarget = 1,
-            BatchWindow = TimeSpan.FromMilliseconds(5),
+            BatchWindow = TimeSpan.FromMilliseconds(5)
         };
 
         [Test]
         public async Task StateChangedWithValueMaskEnqueuesSampleAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("v1");
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: kFastFlush);
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task StateChangedWithoutValueMaskIsIgnoredAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vIgnore");
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: kFastFlush);
@@ -99,13 +99,13 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task MultipleQuickUpdatesAreBatchedAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vBatch");
             // Larger BatchTarget so all updates land in one flush.
             var opts = new HistorianCaptureOptions
             {
                 BatchTarget = 16,
-                BatchWindow = TimeSpan.FromMilliseconds(30),
+                BatchWindow = TimeSpan.FromMilliseconds(30)
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -121,14 +121,14 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task BulkProviderReceivesSingleCallPerFlushAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             var counting = new CountingBulkProvider(fixture.Provider);
             fixture.Builder.UseProvider(counting);
             BaseDataVariableState v = fixture.MakeVariable("vCount");
             var opts = new HistorianCaptureOptions
             {
                 BatchTarget = 8,
-                BatchWindow = TimeSpan.FromMilliseconds(40),
+                BatchWindow = TimeSpan.FromMilliseconds(40)
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task NonBulkProviderFallsBackToPerNodeInsertAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             var nonBulk = new NonBulkProvider(fixture.Provider);
             fixture.Builder.UseProvider(nonBulk);
             BaseDataVariableState v = fixture.MakeVariable("vNonBulk");
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AutoCaptureOptOutDoesNotInstallHandlerAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vOptOut");
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, autoCapture: false);
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task BoundedQueueDropsOldestUnderOverloadAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             // Slow the consumer down by using a provider that pauses each flush.
             var slow = new SlowProvider(fixture.Provider, TimeSpan.FromMilliseconds(50));
             fixture.Builder.UseProvider(slow);
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 MaxQueuedSamples = 8,
                 BatchTarget = 2,
                 BatchWindow = TimeSpan.FromMilliseconds(5),
-                FullMode = CaptureFullMode.DropOldest,
+                FullMode = CaptureFullMode.DropOldest
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -213,13 +213,13 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DisposeAsyncFlushesPendingSamplesAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vFlush");
             // Wide window so samples remain in the channel until dispose.
             var opts = new HistorianCaptureOptions
             {
                 BatchTarget = 1000,
-                BatchWindow = TimeSpan.FromSeconds(1),
+                BatchWindow = TimeSpan.FromSeconds(1)
             };
             fixture.Builder.Historize(
                 v, systemContext: fixture.SystemContext, captureOptions: opts);
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ProviderExceptionDoesNotCrashConsumerAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             var flaky = new FlakyProvider(fixture.Provider, failures: 2);
             fixture.Builder.UseProvider(flaky);
             BaseDataVariableState v = fixture.MakeVariable("vFlaky");
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task MultipleVariablesShareSinkAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v1 = fixture.MakeVariable("vA");
             BaseDataVariableState v2 = fixture.MakeVariable("vB");
             fixture.Builder.Historize(v1, systemContext: fixture.SystemContext, captureOptions: kFastFlush);
@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DefaultIsOptInAsync()
         {
-            using HistorianTestFixture fixture = HistorianTestFixture.Create();
+            using var fixture = HistorianTestFixture.Create();
             BaseDataVariableState v = fixture.MakeVariable("vDefault");
             // No autoCapture argument — verify default is true.
             fixture.Builder.Historize(
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 StartTime = (DateTimeUtc)new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 EndTime = (DateTimeUtc)new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 MaxValues = 0,
-                IsForward = true,
+                IsForward = true
             };
             int count = 0;
             HistorianResumeToken token = default;
@@ -375,7 +375,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     BrowseName = new QualifiedName(name, kNs),
                     DisplayName = new LocalizedText(name),
                     DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar,
+                    ValueRank = ValueRanks.Scalar
                 };
             }
 
@@ -417,12 +417,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     Provider = provider,
                     SystemContext = systemContext,
-                    Builder = builder,
+                    Builder = builder
                 };
             }
         }
 
-        // Wraps an inner provider and counts bulk vs per-node calls.
+        /// <summary>Wraps an inner provider and counts bulk vs per-node calls.</summary>
         private sealed class CountingBulkProvider :
             HistorianProviderBase,
             IHistorianDataProvider,
@@ -432,11 +432,16 @@ namespace Opc.Ua.Server.Tests.Historian
             public int BulkCalls;
             public int PerNodeCalls;
 
-            public CountingBulkProvider(InMemoryHistorianProvider inner) => m_inner = inner;
+            public CountingBulkProvider(InMemoryHistorianProvider inner)
+            {
+                m_inner = inner;
+            }
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -447,19 +452,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
 
             public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext c, IReadOnlyDictionary<NodeId, IList<DataValue>> b, CancellationToken ct)
@@ -469,7 +482,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        // Provider that does NOT implement IHistorianBulkInsertProvider — verifies fallback.
+        /// <summary>Provider that does NOT implement IHistorianBulkInsertProvider — verifies fallback.</summary>
         private sealed class NonBulkProvider :
             HistorianProviderBase,
             IHistorianDataProvider
@@ -477,11 +490,16 @@ namespace Opc.Ua.Server.Tests.Historian
             private readonly InMemoryHistorianProvider m_inner;
             public int PerNodeCalls;
 
-            public NonBulkProvider(InMemoryHistorianProvider inner) => m_inner = inner;
+            public NonBulkProvider(InMemoryHistorianProvider inner)
+            {
+                m_inner = inner;
+            }
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -492,22 +510,30 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
         }
 
-        // Slows down each insert; used to provoke backpressure-induced drops.
+        /// <summary>Slows down each insert; used to provoke backpressure-induced drops.</summary>
         private sealed class SlowProvider :
             HistorianProviderBase,
             IHistorianDataProvider,
@@ -524,7 +550,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public async ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -535,19 +563,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
 
             public async ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext c, IReadOnlyDictionary<NodeId, IList<DataValue>> b, CancellationToken ct)
@@ -557,7 +593,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        // Throws the first N flush attempts then forwards to the inner provider.
+        /// <summary>Throws the first N flush attempts then forwards to the inner provider.</summary>
         private sealed class FlakyProvider :
             HistorianProviderBase,
             IHistorianDataProvider,
@@ -574,7 +610,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
-                => m_inner.ReadRawAsync(c, r, t, ct);
+            {
+                return m_inner.ReadRawAsync(c, r, t, ct);
+            }
 
             public ValueTask<IList<StatusCode>> InsertAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
@@ -588,19 +626,27 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public ValueTask<IList<StatusCode>> ReplaceAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.ReplaceAsync(c, n, v, ct);
+            {
+                return m_inner.ReplaceAsync(c, n, v, ct);
+            }
 
             public ValueTask<IList<StatusCode>> UpdateAsync(
                 HistorianOperationContext c, NodeId n, IList<DataValue> v, CancellationToken ct)
-                => m_inner.UpdateAsync(c, n, v, ct);
+            {
+                return m_inner.UpdateAsync(c, n, v, ct);
+            }
 
             public ValueTask<StatusCode> DeleteRawAsync(
                 HistorianOperationContext c, NodeId n, DateTimeUtc s, DateTimeUtc e, bool m, CancellationToken ct)
-                => m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            {
+                return m_inner.DeleteRawAsync(c, n, s, e, m, ct);
+            }
 
             public ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
                 HistorianOperationContext c, NodeId n, IList<DateTimeUtc> t, CancellationToken ct)
-                => m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            {
+                return m_inner.DeleteAtTimeAsync(c, n, t, ct);
+            }
 
             public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
                 HistorianOperationContext c, IReadOnlyDictionary<NodeId, IList<DataValue>> b, CancellationToken ct)

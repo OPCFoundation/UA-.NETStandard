@@ -297,8 +297,8 @@ namespace Opc.Ua.Lds.Server
                             // OPC 10000-12 §6.5.5: any non-empty value
                             // indicates the announced DiscoveryUrl is a
                             // reverse-connect (rcp+) URL.
-                            string value = str.Substring(
-                                ReverseConnectTxtKey.Length + 1);
+                            string value = str[
+                                (ReverseConnectTxtKey.Length + 1)..];
                             reverseConnect = !string.IsNullOrEmpty(value) &&
                                 value != "0";
                         }

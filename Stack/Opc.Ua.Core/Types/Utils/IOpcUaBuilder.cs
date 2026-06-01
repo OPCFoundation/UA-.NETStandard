@@ -43,7 +43,5 @@ namespace Opc.Ua
     /// fluent overloads accept and return <see cref="IOpcUaBuilder"/> so
     /// chaining into feature methods works.
     /// </remarks>
-    public interface IOpcUaBuilder : IDependencyInjectionBuilder
-    {
-    }
+    public interface IOpcUaBuilder : IDependencyInjectionBuilder;
 }

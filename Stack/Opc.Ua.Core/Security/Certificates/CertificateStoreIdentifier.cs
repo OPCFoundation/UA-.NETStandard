@@ -207,7 +207,6 @@ namespace Opc.Ua
             // Fallback to existing logic
             return CreateStore(storeTypeName, telemetry);
         }
-#nullable restore
 
         /// <summary>
         /// Returns an object that can be used to access the store.

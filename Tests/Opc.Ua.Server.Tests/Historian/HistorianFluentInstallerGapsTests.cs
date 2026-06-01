@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Historian
         public void HistorianBuilderRegisterForNamespaceBindsToNamespaceUri()
         {
             var nsTable = new NamespaceTable();
-            string nsUri = "urn:test:ns-bind";
+            const string nsUri = "urn:test:ns-bind";
             ushort nsIndex = (ushort)nsTable.Append(nsUri);
 
             IServerInternal server = CreateServerWithRegistry(nsTable);
@@ -112,11 +112,11 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("disp.var");
+            BaseDataVariableState variable = CreateVariable("disp.var");
             builder.Historize(
                 variable,
-                autoCapture: true,
-                systemContext: ctx);
+                systemContext: ctx,
+                autoCapture: true);
 
             // DisposeAsync should flush the sink, detach handlers,
             // and complete without throwing.
@@ -133,14 +133,14 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("nocap.var");
+            BaseDataVariableState variable = CreateVariable("nocap.var");
 
             // autoCapture: false skips AttachAutoCapture, so no
             // systemContext is needed — passing null is valid.
             builder.Historize(
                 variable,
-                autoCapture: false,
-                systemContext: null);
+                systemContext: null,
+                autoCapture: false);
 
             Assert.That(variable.Historizing, Is.True);
             Assert.That(
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("browse.var");
+            BaseDataVariableState variable = CreateVariable("browse.var");
             builder.Historize(
                 variable,
                 installConfigurationOnBrowse: true,
@@ -183,16 +183,16 @@ namespace Opc.Ua.Server.Tests.Historian
             var builder = new HistorianBuilder(server);
             builder.UseInMemory();
 
-            var variable = CreateVariable("annot.var");
+            BaseDataVariableState variable = CreateVariable("annot.var");
             var capabilities = new HistorianNodeCapabilities
             {
-                InsertAnnotation = true,
+                InsertAnnotation = true
             };
 
             builder.Historize(
                 variable,
-                capabilities: capabilities,
                 systemContext: ctx,
+                capabilities: capabilities,
                 autoCapture: false);
 
             var browseName = new QualifiedName(BrowseNames.Annotations);
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 BrowseName = new QualifiedName(name, Ns),
                 DisplayName = new LocalizedText(name),
                 DataType = DataTypeIds.Double,
-                ValueRank = ValueRanks.Scalar,
+                ValueRank = ValueRanks.Scalar
             };
         }
 

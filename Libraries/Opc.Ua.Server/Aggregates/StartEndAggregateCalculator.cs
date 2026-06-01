@@ -203,10 +203,8 @@ namespace Opc.Ua.Server
                 originalType = TypeInfo.Scalars.Double;
             }
 
-            value = value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
-
             // return result.
-            return value;
+            return value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
         }
 
         /// <summary>
@@ -332,10 +330,8 @@ namespace Opc.Ua.Server
                 originalType = TypeInfo.Scalars.Double;
             }
 
-            value = value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
-
             // return result.
-            return value;
+            return value.WithWrappedValue(new Variant(delta).ConvertTo(originalType.BuiltInType));
         }
     }
 }

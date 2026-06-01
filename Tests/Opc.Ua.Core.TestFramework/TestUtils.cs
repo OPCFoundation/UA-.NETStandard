@@ -54,20 +54,20 @@ namespace Opc.Ua.Core.TestFramework
         {
             if (store != null)
             {
-                using Ua.Security.Certificates.CertificateCollection certs
+                using Security.Certificates.CertificateCollection certs
                     = await store
                     .EnumerateAsync()
                     .ConfigureAwait(false);
-                foreach (Ua.Security.Certificates.Certificate cert in certs)
+                foreach (Security.Certificates.Certificate cert in certs)
                 {
                     await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
                 }
                 if (store.SupportsCRLs)
                 {
-                    Ua.Security.Certificates.X509CRLCollection crls = await store
+                    Security.Certificates.X509CRLCollection crls = await store
                         .EnumerateCRLsAsync()
                         .ConfigureAwait(false);
-                    foreach (Ua.Security.Certificates.X509CRL crl in crls)
+                    foreach (Security.Certificates.X509CRL crl in crls)
                     {
                         await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                     }

@@ -383,25 +383,25 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         private static bool IsPermanentConnectFailure(uint statusCode)
         {
-            return statusCode == StatusCodes.BadIdentityTokenInvalid
-                || statusCode == StatusCodes.BadIdentityTokenRejected
-                || statusCode == StatusCodes.BadUserAccessDenied
-                || statusCode == StatusCodes.BadCertificateInvalid
-                || statusCode == StatusCodes.BadCertificateUntrusted
-                || statusCode == StatusCodes.BadCertificateTimeInvalid
-                || statusCode == StatusCodes.BadCertificateIssuerTimeInvalid
-                || statusCode == StatusCodes.BadCertificateHostNameInvalid
-                || statusCode == StatusCodes.BadCertificateUriInvalid
-                || statusCode == StatusCodes.BadCertificateUseNotAllowed
-                || statusCode == StatusCodes.BadCertificateIssuerUseNotAllowed
-                || statusCode == StatusCodes.BadCertificateRevoked
-                || statusCode == StatusCodes.BadCertificateIssuerRevoked
-                || statusCode == StatusCodes.BadCertificateRevocationUnknown
-                || statusCode == StatusCodes.BadCertificateIssuerRevocationUnknown
-                || statusCode == StatusCodes.BadCertificatePolicyCheckFailed
-                || statusCode == StatusCodes.BadSecurityChecksFailed
-                || statusCode == StatusCodes.BadSecurityPolicyRejected
-                || statusCode == StatusCodes.BadSecurityModeRejected;
+            return statusCode == StatusCodes.BadIdentityTokenInvalid ||
+                statusCode == StatusCodes.BadIdentityTokenRejected ||
+                statusCode == StatusCodes.BadUserAccessDenied ||
+                statusCode == StatusCodes.BadCertificateInvalid ||
+                statusCode == StatusCodes.BadCertificateUntrusted ||
+                statusCode == StatusCodes.BadCertificateTimeInvalid ||
+                statusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
+                statusCode == StatusCodes.BadCertificateHostNameInvalid ||
+                statusCode == StatusCodes.BadCertificateUriInvalid ||
+                statusCode == StatusCodes.BadCertificateUseNotAllowed ||
+                statusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
+                statusCode == StatusCodes.BadCertificateRevoked ||
+                statusCode == StatusCodes.BadCertificateIssuerRevoked ||
+                statusCode == StatusCodes.BadCertificateRevocationUnknown ||
+                statusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
+                statusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
+                statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadSecurityPolicyRejected ||
+                statusCode == StatusCodes.BadSecurityModeRejected;
         }
 
         /// <summary>

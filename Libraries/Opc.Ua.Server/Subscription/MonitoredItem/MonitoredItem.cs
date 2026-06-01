@@ -43,7 +43,6 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem
     {
-
         /// <summary>
         /// Initializes the object with its node type.
         /// </summary>

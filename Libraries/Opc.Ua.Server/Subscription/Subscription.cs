@@ -419,7 +419,7 @@ namespace Opc.Ua.Server
                     {
                         ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                     };
-                    context = new OperationContext(requestHeader, null!, RequestType.Unknown, null!);
+                    context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
                 }
 
                 await DeleteMonitoredItemsAsync(
@@ -1597,7 +1597,7 @@ namespace Opc.Ua.Server
             // allocate results.
             bool diagnosticsExist = false;
             var results = new List<MonitoredItemCreateResult>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null!;
+            List<DiagnosticInfo>? diagnosticInfos = null;
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfos = new List<DiagnosticInfo>(count);
@@ -1660,7 +1660,7 @@ namespace Opc.Ua.Server
                             diagnosticsExist = true;
                         }
 
-                        diagnosticInfos.Add(diagnosticInfo!);
+                        diagnosticInfos!.Add(diagnosticInfo!);
                     }
                 }
 
@@ -1772,7 +1772,7 @@ namespace Opc.Ua.Server
             // allocate results.
             bool diagnosticsExist = false;
             var results = new List<MonitoredItemModifyResult>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null!;
+            List<DiagnosticInfo>? diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -2127,7 +2127,7 @@ namespace Opc.Ua.Server
 
             bool diagnosticsExist = false;
             var results = new List<StatusCode>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null!;
+            List<DiagnosticInfo>? diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {

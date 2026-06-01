@@ -53,13 +53,17 @@ namespace Opc.Ua.Server.Historian
     {
         /// <inheritdoc/>
         public virtual ValueTask<bool> IsHistorizingAsync(NodeId nodeId, CancellationToken ct)
-            => new(true);
+        {
+            return new(true);
+        }
 
         /// <inheritdoc/>
         public virtual ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(
             NodeId nodeId,
             CancellationToken ct)
-            => new(HistorianNodeCapabilities.ReadOnly);
+        {
+            return new(HistorianNodeCapabilities.ReadOnly);
+        }
 
         /// <summary>
         /// Helper that returns a status list pre-filled with the same value.

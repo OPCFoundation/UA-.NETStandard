@@ -450,6 +450,8 @@ namespace Opc.Ua.Gds.Server
             m_database.NamespaceIndex = NamespaceIndexes[0];
             m_request.NamespaceIndex = NamespaceIndexes[0];
 
+            await EnsureDefaultAuthorizationServiceAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+
             foreach (
                 CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration
                     .CertificateGroups.ToList())
@@ -482,25 +484,90 @@ namespace Opc.Ua.Gds.Server
             return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaGds(context));
         }
 
+        private async ValueTask EnsureDefaultAuthorizationServiceAsync(
+            BaseObjectState? folder = null,
+            CancellationToken cancellationToken = default)
+        {
+            ushort namespaceIndex = NamespaceIndexes[1];
+            if (folder == null)
+            {
+                var folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
+                folder = FindPredefinedNode<BaseObjectState>(folderId);
+            }
+
+            var browseName = new QualifiedName("Default", namespaceIndex);
+            if (folder?.FindChild(SystemContext, browseName) != null)
+            {
+                return;
+            }
+
+            AuthorizationServiceState service = CreateDefaultAuthorizationService(
+                folder,
+                SystemContext,
+                namespaceIndex,
+                browseName);
+            folder?.AddChild(service);
+            await AddPredefinedNodeAsync(SystemContext, service, cancellationToken).ConfigureAwait(false);
+        }
+
+        private AuthorizationServiceState CreateDefaultAuthorizationService(
+            NodeState? folder,
+            ISystemContext context,
+            ushort namespaceIndex,
+            QualifiedName browseName)
+        {
+            var service = new AuthorizationServiceState(folder);
+
+            service.Create(
+                context,
+                new NodeId("AuthorizationServices/Default", namespaceIndex),
+                browseName,
+                new LocalizedText("Default"),
+                false);
+
+            // ServiceUri, ServiceCertificate and the mandatory GetServiceDescription method
+            // are created automatically by the source-generated AuthorizationServiceState.
+            // The Optional method children must be added explicitly using the generated
+            // Add* helpers before ConfigureAuthorizationServiceNode wires the OnCall handlers.
+            service.AddRequestAccessToken(context);
+            service.AddStartRequestToken(context);
+            service.AddFinishRequestToken(context);
+            service.AddRefreshToken(context);
+
+            service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
+            service.ServiceCertificate!.Value = ByteString.Empty;
+            service.UserTokenPolicies?.Value = m_configuration.ServerConfiguration?.UserTokenPolicies ?? default;
+            ConfigureAuthorizationServiceNode(service);
+
+            return service;
+        }
+
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected override ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
+        protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
             ISystemContext context,
             NodeState predefinedNode,
             CancellationToken cancellationToken = default)
         {
             if (predefinedNode is not BaseObjectState passiveNode)
             {
-                return new ValueTask<NodeState>(predefinedNode);
+                return predefinedNode;
+            }
+
+            if (IsNodeIdInNamespace(passiveNode.NodeId) &&
+                passiveNode.NodeId.TryGetValue(out uint nodeNumericId) &&
+                nodeNumericId == Objects.AuthorizationServices)
+            {
+                await EnsureDefaultAuthorizationServiceAsync(passiveNode, cancellationToken).ConfigureAwait(false);
             }
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
             if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
             {
-                return new ValueTask<NodeState>(predefinedNode);
+                return predefinedNode;
             }
 
             switch (numericId)
@@ -641,8 +708,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable!.Value =
                         true;
 
-                    return new ValueTask<NodeState>(activeNode);
-
+                    return activeNode;
                 case ObjectTypes.KeyCredentialServiceType:
                     if (passiveNode is not KeyCredentialServiceState keyCredNode)
                     {
@@ -653,13 +719,9 @@ namespace Opc.Ua.Gds.Server
 
                     keyCredNode.StartRequest!.OnCallAsync = OnKeyCredentialStartRequestAsync;
                     keyCredNode.FinishRequest!.OnCallAsync = OnKeyCredentialFinishRequestAsync;
-                    if (keyCredNode.Revoke != null)
-                    {
-                        keyCredNode.Revoke.OnCallAsync = OnKeyCredentialRevokeAsync;
-                    }
+                    keyCredNode.Revoke?.OnCallAsync = OnKeyCredentialRevokeAsync;
 
-                    return new ValueTask<NodeState>(keyCredNode);
-
+                    return keyCredNode;
                 case ObjectTypes.AuthorizationServiceType:
                     if (passiveNode is not AuthorizationServiceState authServiceNode)
                     {
@@ -668,18 +730,21 @@ namespace Opc.Ua.Gds.Server
                         passiveNode.Parent?.ReplaceChild(context, authServiceNode);
                     }
 
-                    authServiceNode.GetServiceDescription!.OnCall =
-                        OnGetServiceDescription;
-                    if (authServiceNode.RequestAccessToken != null)
-                    {
-                        authServiceNode.RequestAccessToken.OnCallAsync =
-                            OnRequestAccessTokenAsync;
-                    }
+                    ConfigureAuthorizationServiceNode(authServiceNode);
 
-                    return new ValueTask<NodeState>(authServiceNode);
+                    return authServiceNode;
             }
 
-            return new ValueTask<NodeState>(predefinedNode);
+            return predefinedNode;
+        }
+
+        private void ConfigureAuthorizationServiceNode(AuthorizationServiceState authServiceNode)
+        {
+            authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
+            authServiceNode.RequestAccessToken?.OnCallAsync = OnRequestAccessTokenAsync;
+            authServiceNode.StartRequestToken?.OnCallAsync = OnStartRequestTokenAsync;
+            authServiceNode.FinishRequestToken?.OnCallAsync = OnFinishRequestTokenAsync;
+            authServiceNode.RefreshToken?.OnCallAsync = OnRefreshTokenAsync;
         }
 
         private ServiceResult OnAddSelfAdminRolePermissions(
@@ -2273,6 +2338,11 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Handles the legacy Part 12 <c>RequestAccessToken</c> method.
+        /// Prefer <see cref="OnStartRequestTokenAsync"/> and
+        /// <see cref="OnFinishRequestTokenAsync"/> for v1.05 clients.
+        /// </summary>
         private async ValueTask<RequestAccessTokenMethodStateResult> OnRequestAccessTokenAsync(
             ISystemContext context,
             MethodState method,
@@ -2285,28 +2355,204 @@ namespace Opc.Ua.Gds.Server
 
             var result = new RequestAccessTokenMethodStateResult();
 
-            if (AccessTokenProvider == null)
-            {
-                var ex = new ServiceResultException(
-                    StatusCodes.BadNotSupported,
-                    "RequestAccessToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "RequestAccessToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
 
-                ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            try
+            {
+#pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
+                result.AccessToken = await provider.RequestAccessTokenAsync(
+                    identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+#pragma warning restore CS0618
+            }
+            catch (Exception ex)
+            {
                 Server.ReportAccessTokenIssuedAuditEvent(
                     context, objectId, method, auditInputs, m_logger, ex);
-
-                throw ex;
+                throw;
             }
 
-            result.AccessToken = await AccessTokenProvider.RequestAccessTokenAsync(
-                identityToken, resourceId, cancellationToken).ConfigureAwait(false);
-
-            ArrayOf<Variant> successAuditInputs = [Variant.FromStructure(identityToken), resourceId];
             Server.ReportAccessTokenIssuedAuditEvent(
-                context, objectId, method, successAuditInputs, m_logger);
+                context, objectId, method, auditInputs, m_logger);
 
             result.ServiceResult = ServiceResult.Good;
             return result;
+        }
+
+        private async ValueTask<StartRequestTokenMethodStateResult> OnStartRequestTokenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string resourceId,
+            string policyId,
+            ByteString requestorData,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new StartRequestTokenMethodStateResult();
+            ArrayOf<Variant> auditInputs = [resourceId, policyId, requestorData];
+
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "StartRequestToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+
+            try
+            {
+                IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
+
+                (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
+                    ? await manager.StartRequestTokenAsync(
+                        resourceId,
+                        policyId,
+                        requestorData,
+                        callerIdentity,
+                        cancellationToken).ConfigureAwait(false)
+                    : await provider.StartRequestTokenAsync(
+                        resourceId,
+                        policyId,
+                        requestorData,
+                        cancellationToken).ConfigureAwait(false);
+
+                result.ServiceData = serviceData;
+                result.RequestId = requestId;
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
+
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        private async ValueTask<FinishRequestTokenMethodStateResult> OnFinishRequestTokenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            Uuid requestId,
+            ArrayOf<string> requestedRoles,
+            UserIdentityToken userIdentityToken,
+            SignatureData userTokenSignature,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new FinishRequestTokenMethodStateResult();
+            ArrayOf<Variant> auditInputs =
+            [
+                requestId,
+                requestedRoles,
+                Variant.FromStructure(userIdentityToken),
+                Variant.FromStructure(userTokenSignature)
+            ];
+
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "FinishRequestToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+
+            try
+            {
+                AccessTokenResult atr = await provider.FinishRequestTokenAsync(
+                    requestId, requestedRoles, userIdentityToken, userTokenSignature, cancellationToken)
+                    .ConfigureAwait(false);
+
+                result.AccessToken = atr.AccessToken;
+                result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
+                result.RefreshToken = atr.RefreshToken ?? string.Empty;
+                result.RefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
+
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        private async ValueTask<RefreshTokenMethodStateResult> OnRefreshTokenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string resourceId,
+            string currentRefreshToken,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+
+            var result = new RefreshTokenMethodStateResult();
+            ArrayOf<Variant> auditInputs = [resourceId];
+
+            IAccessTokenProvider provider = GetAccessTokenProvider(
+                context,
+                objectId,
+                method,
+                auditInputs,
+                "RefreshToken is not implemented by this GDS. Set AccessTokenProvider to enable.");
+
+            try
+            {
+                AccessTokenResult atr = await provider
+                    .RefreshTokenAsync(resourceId, currentRefreshToken, cancellationToken)
+                    .ConfigureAwait(false);
+
+                result.AccessToken = atr.AccessToken;
+                result.AccessTokenExpiryTime = atr.AccessTokenExpiryTime;
+                result.NewRefreshToken = atr.RefreshToken ?? string.Empty;
+                result.NewRefreshTokenExpiryTime = atr.RefreshTokenExpiryTime;
+            }
+            catch (Exception ex)
+            {
+                Server.ReportAccessTokenIssuedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
+
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger);
+
+            result.ServiceResult = ServiceResult.Good;
+            return result;
+        }
+
+        private IAccessTokenProvider GetAccessTokenProvider(
+            ISystemContext context,
+            NodeId objectId,
+            MethodState method,
+            ArrayOf<Variant> auditInputs,
+            string message)
+        {
+            if (AccessTokenProvider != null)
+            {
+                return AccessTokenProvider;
+            }
+
+            var ex = new ServiceResultException(StatusCodes.BadNotSupported, message);
+            Server.ReportAccessTokenIssuedAuditEvent(
+                context, objectId, method, auditInputs, m_logger, ex);
+            throw ex;
         }
 
         private async ValueTask<KeyCredentialStartRequestMethodStateResult> OnKeyCredentialStartRequestAsync(

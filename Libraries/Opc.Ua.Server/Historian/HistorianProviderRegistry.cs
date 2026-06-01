@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Historian
             HashSet<IHistorianProvider> providers;
             lock (m_lock)
             {
-                providers = new HashSet<IHistorianProvider>(m_providers);
+                providers = [.. m_providers];
                 m_nodes.Clear();
                 m_namespaces.Clear();
                 m_default = null;

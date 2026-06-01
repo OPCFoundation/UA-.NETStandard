@@ -39,8 +39,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.ModelChange;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 // Tests run on the default TaskScheduler so CA2007's sync-context

@@ -32,9 +32,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Stress.Tests
 {
@@ -126,7 +125,7 @@ namespace Opc.Ua.Stress.Tests
         [Test]
         public async Task PublishWithZeroSubscriptionsReturnsErrorAsync()
         {
-            Client.ISession freshSession = await ClientFixture
+            ISession freshSession = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None)
                 .ConfigureAwait(false);
             try
@@ -164,7 +163,7 @@ namespace Opc.Ua.Stress.Tests
         [Test]
         public async Task PublishAfterSessionRecreatedNoSubscriptionsAsync()
         {
-            Client.ISession freshSession = await ClientFixture
+            ISession freshSession = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None)
                 .ConfigureAwait(false);
             try

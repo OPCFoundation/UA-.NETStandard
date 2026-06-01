@@ -42,7 +42,7 @@ namespace Microsoft.Extensions.DependencyInjection
     /// All OPC UA feature libraries expose extension methods on
     /// <see cref="IOpcUaBuilder"/> (e.g. <c>.AddServer(...)</c>,
     /// <c>.AddClient(...)</c>, <c>.AddGdsServer(...)</c>) and any
-    /// <see cref="Microsoft.Extensions.DependencyInjection.IServiceCollection"/>
+    /// <see cref="IServiceCollection"/>
     /// consumer starts from <see cref="AddOpcUa(IServiceCollection)"/>.
     /// </remarks>
     public static class OpcUaServiceCollectionExtensions

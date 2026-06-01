@@ -43,19 +43,17 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
-using TraceableRequestHeaderClientSession = Opc.Ua.Client.TraceableRequestHeaderClientSession;
-using Subscription = Opc.Ua.Client.Subscription;
-using ISession = Opc.Ua.Client.ISession;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
-using Opc.Ua.Server.Tests;
-using Opc.Ua.Tests;
-
-using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
+using ISession = Opc.Ua.Client.ISession;
+using Subscription = Opc.Ua.Client.Subscription;
+using TraceableRequestHeaderClientSession = Opc.Ua.Client.TraceableRequestHeaderClientSession;
 
 namespace Opc.Ua.Sessions.Tests
 {

@@ -32,7 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Core.Security.Tests
@@ -62,6 +61,7 @@ namespace Opc.Ua.Core.Security.Tests
                 admin.Dispose();
             }
         }
+
         [Test]
         public async Task CreateSigningRequestMethodExistsAsync()
         {
@@ -81,6 +81,7 @@ namespace Opc.Ua.Core.Security.Tests
                 admin.Dispose();
             }
         }
+
         [Test]
         public async Task TrustListOpenWithReadModeAsync()
         {
@@ -104,6 +105,7 @@ namespace Opc.Ua.Core.Security.Tests
                 admin.Dispose();
             }
         }
+
         [Test]
         public async Task TrustListNodeExistsAsync()
         {

@@ -36,7 +36,7 @@ namespace Opc.Ua
 {
     /// <summary>
     /// Canonical <see cref="ITelemetryContext"/> adapter used by
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServiceCollectionExtensions.AddOpcUa(IServiceCollection)"/>.
+    /// <see cref="OpcUaServiceCollectionExtensions.AddOpcUa(IServiceCollection)"/>.
     /// Resolves the host's <see cref="ILoggerFactory"/> from DI at first
     /// access; falls back to <see cref="NullLoggerFactory"/> when no logger
     /// factory is registered. Activity sources and meters are derived from
@@ -53,7 +53,7 @@ namespace Opc.Ua
             : base(serviceProvider is null
                 ? throw new ArgumentNullException(nameof(serviceProvider))
                 : serviceProvider.GetService<ILoggerFactory>()
-                  ?? NullLoggerFactory.Instance)
+                    ?? NullLoggerFactory.Instance)
         {
         }
     }
