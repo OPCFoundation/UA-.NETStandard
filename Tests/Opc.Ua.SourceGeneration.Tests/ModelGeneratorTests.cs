@@ -117,7 +117,13 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options)
                 ;
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(18));
+            // 19 generated files: 9 per model (Constants, DataTypes,
+            // Identifiers, ModelDependencies, NodeStates, NodeStates.ex,
+            // NodeStates.i, TypeProxies, XmlSchemas) for DemoModel + 9
+            // for DI, plus 1 DI.StateMachineIds.g.cs (DI declares Part
+            // 16 FSM subtypes for the software-update facet; DemoModel
+            // declares none, so it gets no StateMachineIds output).
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(19));
         }
 
         [Theory]
