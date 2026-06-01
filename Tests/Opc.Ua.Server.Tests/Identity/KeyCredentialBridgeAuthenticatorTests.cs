@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 #pragma warning disable OPCUA_EXPERIMENTAL_KC_BRIDGE
 
 using System;

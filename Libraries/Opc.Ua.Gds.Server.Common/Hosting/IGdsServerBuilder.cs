@@ -33,8 +33,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server.UserDatabase;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Hosting
 {
     /// <summary>

@@ -41,8 +41,6 @@ using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Identity
 {
     /// <summary>

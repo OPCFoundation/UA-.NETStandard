@@ -38,8 +38,6 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Hosting
 {
     /// <summary>

@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Hosting
 {
     /// <summary>

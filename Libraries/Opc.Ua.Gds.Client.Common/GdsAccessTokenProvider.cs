@@ -33,8 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>

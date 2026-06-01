@@ -44,8 +44,6 @@ using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 using ServerAccessTokenProvider = Opc.Ua.Gds.Server.IAccessTokenProvider;
 
-#nullable enable
-
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>

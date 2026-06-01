@@ -43,8 +43,6 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Hosting
 {
     /// <summary>

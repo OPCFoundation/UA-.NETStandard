@@ -453,10 +453,6 @@ dotnet_diagnostic.IDE1006.severity                                            = 
 # IDE0370: 'Suppression is unnecessary' — auto-fixer cannot safely apply (some analyzer
 # configurations make these suppressions necessary on TFMs the fixer cannot evaluate).
 dotnet_diagnostic.IDE0370.severity                                            = silent
-# IDE0240: Remove redundant nullable directive — `dotnet format` fixer is BROKEN: it inserts
-# merge-conflict markers into files with TFM-conditional usings. Silence so the bulk
-# info-level sweep can run safely. Manual cleanup of #nullable enable directives is fine.
-dotnet_diagnostic.IDE0240.severity                                            = silent
 
 #
 # Introduced in .net 10 as part of all analysis configuration

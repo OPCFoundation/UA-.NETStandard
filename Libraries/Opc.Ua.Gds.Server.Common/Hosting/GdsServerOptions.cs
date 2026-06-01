@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Hosting
 {
     /// <summary>
