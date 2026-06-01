@@ -823,31 +823,37 @@ namespace Opc.Ua.Server
                         m_additionalConsumers.Clear();
                     }
 
-                    foreach (ConsumerEntry entry in entries)
+                    Task[] tasks = Array.ConvertAll(entries, e => e.Task);
+
+                    try
                     {
-                        try
-                        {
-                            bool completed = entry.Task
-                                .Wait(TimeSpan.FromSeconds(5));
+                        // Bound the wait — do not block indefinitely if consumers are stuck.
+                        bool completed = Task.WaitAll(tasks, TimeSpan.FromSeconds(5));
 
-                            if (!completed)
+                        if (!completed)
+                        {
+                            m_logger?.LogWarning(
+                                "MonitoredNode2 additional consumers did not drain within 5 s; cancelling forcibly.");
+
+                            foreach (ConsumerEntry entry in entries)
                             {
-                                m_logger?.LogWarning(
-                                    "MonitoredNode2 additional consumer did not drain within 5 s; cancelling forcibly.");
                                 entry.Cts.Cancel();
-
-                                try
-                                {
-                                    entry.Task.GetAwaiter().GetResult();
-                                }
-                                catch { }
                             }
+
+                            try
+                            {
+                                Task.WaitAll(tasks);
+                            }
+                            catch { }
                         }
-                        catch (Exception ex)
-                        {
-                            m_logger?.LogWarning(ex, "MonitoredNode2 additional consumer faulted during shutdown.");
-                        }
-                        finally
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger?.LogWarning(ex, "MonitoredNode2 additional consumers faulted during shutdown.");
+                    }
+                    finally
+                    {
+                        foreach (ConsumerEntry entry in entries)
                         {
                             entry.Cts.Dispose();
                         }
