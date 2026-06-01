@@ -34,14 +34,22 @@
        (internal to this assembly). Cross-namespace type references
        to DI types resolve via the [assembly: ModelDependencyAttribute]
        carried in the Opc.Ua.Di assembly — no DI NodeSet2 XML
-       needed here. -->
+       needed here.
+
+       The matching *.NodeSet2.csv files (alongside the XML) are
+       picked up by the source generator as the stable NodeId tables.
+       Without them the generator would assign synthetic NodeIds at
+       compile time, breaking byte-stable wire formats for clients
+       that cache NodeIds across builds. -->
   <ItemGroup>
     <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.csv" />
     <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.Pumps</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.csv" />
   </ItemGroup>
   <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
