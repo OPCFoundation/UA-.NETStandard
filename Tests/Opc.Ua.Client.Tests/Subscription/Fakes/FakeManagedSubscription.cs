@@ -137,17 +137,17 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             };
         }
 
-        public List<SetSubscriptionDurableCall> SetSubscriptionDurableCalls { get; } = [];
-        public Func<uint, CancellationToken, ValueTask<uint>>? OnSetSubscriptionDurableAsync
+        public List<SetAsDurableCall> SetAsDurableCalls { get; } = [];
+        public Func<TimeSpan, CancellationToken, ValueTask<TimeSpan>>? OnSetAsDurableAsync
         { get; set; }
 
-        public ValueTask<uint> SetSubscriptionDurableAsync(
-            uint lifetimeInHours, CancellationToken ct = default)
+        public ValueTask<TimeSpan> SetAsDurableAsync(
+            TimeSpan lifetime,
+            CancellationToken ct = default)
         {
-            SetSubscriptionDurableCalls.Add(
-                new SetSubscriptionDurableCall(lifetimeInHours));
-            return OnSetSubscriptionDurableAsync?.Invoke(lifetimeInHours, ct)
-                ?? new ValueTask<uint>(lifetimeInHours);
+            SetAsDurableCalls.Add(new SetAsDurableCall(lifetime));
+            return OnSetAsDurableAsync?.Invoke(lifetime, ct)
+                ?? new ValueTask<TimeSpan>(lifetime);
         }
 
         public List<SetTriggeringCall> SetTriggeringCalls { get; } = [];
@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyList<uint> LinksToAdd,
             IReadOnlyList<uint> LinksToRemove);
 
-        internal readonly record struct SetSubscriptionDurableCall(
-            uint LifetimeInHours);
+        internal readonly record struct SetAsDurableCall(
+            TimeSpan Lifetime);
     }
 }

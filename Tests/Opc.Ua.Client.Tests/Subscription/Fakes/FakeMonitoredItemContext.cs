@@ -66,12 +66,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public string? ToStringValue { get; set; }
 
-        /// <inheritdoc/>
-        public uint SubscriptionId { get; set; }
-
-        /// <inheritdoc/>
-        public IMethodServiceSetClientMethods MethodServiceSet { get; set; } = null!;
-
         /// <summary>
         /// Optional override for ConditionRefreshAsync. When unset, the
         /// fake records the call and completes synchronously.
@@ -80,7 +74,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public List<ConditionRefreshCall> ConditionRefreshCalls { get; } = [];
 
-        public ValueTask ConditionRefreshAsync(uint monitoredItemServerId,
+        public ValueTask ConditionRefreshAsync(
+            uint monitoredItemServerId,
             CancellationToken ct = default)
         {
             ConditionRefreshCalls.Add(new ConditionRefreshCall(monitoredItemServerId, ct));
@@ -94,9 +89,12 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         internal readonly record struct ConditionRefreshCall(
             uint MonitoredItemServerId, CancellationToken Ct);
 
-        public bool NotifyItemChangeResult(V2MonitoredItem monitoredItem,
-            int retryCount, V2MonitoredItemOptions source,
-            ServiceResult serviceResult, bool final,
+        public bool NotifyItemChangeResult(
+            V2MonitoredItem monitoredItem,
+            int retryCount,
+            V2MonitoredItemOptions source,
+            ServiceResult serviceResult,
+            bool final,
             MonitoringFilterResult? filterResult)
         {
             NotifyItemChangeResultCalls.Add(new NotifyItemChangeResultCall(
@@ -105,7 +103,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return NotifyItemChangeResultReturnValue;
         }
 
-        public void NotifyItemChange(V2MonitoredItem monitoredItem,
+        public void NotifyItemChange(
+            V2MonitoredItem monitoredItem,
             bool itemDisposed = false)
         {
             NotifyItemChangeCalls.Add(new NotifyItemChangeCall(monitoredItem,

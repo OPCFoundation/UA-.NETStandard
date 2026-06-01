@@ -50,7 +50,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
     /// <summary>
     /// V2 ports of the classic <c>DurableSubscriptionTest.cs</c> 5 tests.
     /// Exercises the new
-    /// <see cref="ISubscription.SetSubscriptionDurableAsync"/> surface and
+    /// <see cref="ISubscription.SetAsDurableAsync"/> surface and
     /// validates the V2 manager behavior around durable subscriptions.
     /// </summary>
     [TestFixture]
@@ -151,12 +151,12 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(created, Is.True);
 
-                uint revised = await sub.SetSubscriptionDurableAsync(1, ct)
-                    .ConfigureAwait(false);
-                Assert.That(revised, Is.GreaterThanOrEqualTo(1u),
+                TimeSpan revised = await sub.SetAsDurableAsync(
+                    TimeSpan.FromHours(1), ct).ConfigureAwait(false);
+                Assert.That(revised, Is.GreaterThanOrEqualTo(TimeSpan.FromHours(1)),
                     "Server should return a revised lifetime >= 1 hour");
                 TestContext.Out.WriteLine(
-                    "SetSubscriptionDurable revised lifetime hours: {0}", revised);
+                    "SetAsDurable revised lifetime: {0}", revised);
 
                 await sub.DisposeAsync().ConfigureAwait(false);
             }
@@ -204,7 +204,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 // Per OPC UA Part 4 §5.13.9 the server rejects
                 // SetSubscriptionDurable once items have been created.
                 Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sub.SetSubscriptionDurableAsync(1, ct)
+                    await sub.SetAsDurableAsync(TimeSpan.FromHours(1), ct)
                         .ConfigureAwait(false));
 
                 await sub.DisposeAsync().ConfigureAwait(false);
@@ -237,7 +237,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                         PublishingEnabled = true
                     });
 
-                // Try SetSubscriptionDurableAsync IMMEDIATELY without
+                // Try SetAsDurableAsync IMMEDIATELY without
                 // waiting for Created. The V2 ISubscription contract
                 // requires the subscription to be created first. There
                 // is a benign race: by the time the async lambda runs,
@@ -249,7 +249,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 ServiceResultException? caught = null;
                 try
                 {
-                    await sub.SetSubscriptionDurableAsync(1, ct)
+                    await sub.SetAsDurableAsync(TimeSpan.FromHours(1), ct)
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException ex)
@@ -265,7 +265,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 {
                     TestContext.Out.WriteLine(
                         "Subscription was already Created when " +
-                        "SetSubscriptionDurableAsync ran — server " +
+                        "SetAsDurableAsync ran — server " +
                         "accepted the call (no race window left).");
                 }
 
@@ -306,12 +306,15 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(created, Is.True);
 
-                uint revisedLarge = await sub.SetSubscriptionDurableAsync(
-                    uint.MaxValue, ct).ConfigureAwait(false);
+                // Use TimeSpan.MaxValue equivalent — request the
+                // longest representable lifetime to force the server
+                // to revise it downward.
+                TimeSpan revisedLarge = await sub.SetAsDurableAsync(
+                    TimeSpan.FromDays(365 * 100), ct).ConfigureAwait(false);
                 TestContext.Out.WriteLine(
-                    "Server-revised lifetime for uint.MaxValue request: {0} hours",
+                    "Server-revised lifetime for 100-year request: {0}",
                     revisedLarge);
-                Assert.That(revisedLarge, Is.GreaterThan(0u),
+                Assert.That(revisedLarge, Is.GreaterThan(TimeSpan.Zero),
                     "Server should revise to a positive lifetime");
 
                 await sub.DisposeAsync().ConfigureAwait(false);
@@ -357,9 +360,9 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(created, Is.True);
 
-                uint revised = await sub.SetSubscriptionDurableAsync(1, ct)
-                    .ConfigureAwait(false);
-                Assert.That(revised, Is.GreaterThanOrEqualTo(1u));
+                TimeSpan revised = await sub.SetAsDurableAsync(
+                    TimeSpan.FromHours(1), ct).ConfigureAwait(false);
+                Assert.That(revised, Is.GreaterThanOrEqualTo(TimeSpan.FromHours(1)));
 
                 // Add an item AFTER setting durable.
                 Assert.That(sub.TryAddMonitoredItem(

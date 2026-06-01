@@ -39,7 +39,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// <remarks>
     /// <para>
     /// Produced by <see cref="Subscription.Snapshot"/> and consumed by
-    /// <see cref="ISubscriptionManager.RestoreAsync"/>.
+    /// <see cref="ISubscriptionManager.LoadAsync"/>.
     /// </para>
     /// <para>
     /// Field semantics:
@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// server-assigned subscription id. <c>0</c> indicates the
     /// subscription had not been created on the server yet
     /// (snapshot-before-create). Used by the transfer leg of
-    /// <see cref="ISubscriptionManager.RestoreAsync"/> to drive
+    /// <see cref="ISubscriptionManager.LoadAsync"/> to drive
     /// <c>TransferSubscriptions</c>.</description></item>
     /// <item><description><see cref="AvailableSequenceNumbers"/> — the
     /// server's published list of sequence numbers in its

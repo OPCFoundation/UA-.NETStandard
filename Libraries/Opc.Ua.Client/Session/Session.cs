@@ -109,10 +109,10 @@ namespace Opc.Ua.Client
         /// <param name="discoveryProfileUris">The value of profileUris used in
         /// GetEndpoints() request.</param>
         /// <param name="engineFactory">Optional subscription engine factory. When
-        /// <c>null</c> the session uses <see cref="DefaultSubscriptionEngineFactory"/>
-        /// (the V2 engine) by default. Pass
-        /// <see cref="ClassicSubscriptionEngineFactory.Instance"/> explicitly
-        /// to opt into the classic engine.</param>
+        /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
+        /// (the classic engine) by default. Pass
+        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> explicitly
+        /// to opt into the V2 engine.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will

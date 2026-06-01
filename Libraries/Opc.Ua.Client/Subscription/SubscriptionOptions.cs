@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// When the V2 manager restores this subscription via
-        /// <see cref="ISubscriptionManager.RestoreAsync"/> with
+        /// <see cref="ISubscriptionManager.LoadAsync"/> with
         /// <c>transferSubscriptions: true</c>, request the server to
         /// send the latest cached value of every monitored item as
         /// part of the take-over (OPC UA Part 4 §5.13.7

@@ -326,8 +326,36 @@ namespace Opc.Ua.Client.Subscriptions
             return subscription;
         }
 
-        /// <inheritdoc/>
-        public ValueTask<ISubscription> RestoreAsync(
+        /// <summary>
+        /// Restore a single subscription from a snapshot previously
+        /// produced by <see cref="Subscription.Snapshot"/>. The
+        /// returned subscription is registered with the manager via the
+        /// same path as <see cref="Add"/>.
+        /// </summary>
+        /// <param name="handler">Notification handler for the restored
+        /// subscription.</param>
+        /// <param name="state">Snapshot captured earlier on the source
+        /// session.</param>
+        /// <param name="transferSubscriptions">
+        /// When <c>true</c> the saved server-side subscription id and
+        /// per-item server ids are preserved and an OPC UA
+        /// TransferSubscriptions service call is issued so the new
+        /// session takes over the existing server-side state. If
+        /// transfer is unavailable (e.g. the server returns
+        /// <c>BadSubscriptionIdInvalid</c>), the restore falls back to
+        /// recreate.
+        /// When <c>false</c> the V2 state machine mints fresh
+        /// server-side ids — equivalent to a fresh
+        /// <see cref="Add"/> with the saved configuration.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <remarks>
+        /// Not on <see cref="ISubscriptionManager"/>: callers that want
+        /// stream-based restore should use <see cref="LoadAsync"/>;
+        /// fluent helpers and the serializer cast to the concrete
+        /// <see cref="SubscriptionManager"/> to reach this method.
+        /// </remarks>
+        internal ValueTask<ISubscription> RestoreAsync(
             ISubscriptionNotificationHandler handler,
             SubscriptionStateSnapshot state,
             bool transferSubscriptions = false,
@@ -359,15 +387,17 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionStateSnapshot state,
             CancellationToken ct)
         {
-            ISubscription subscription = Add(handler,
+            ct.ThrowIfCancellationRequested();
+            ISubscription subscription = Add(
+                handler,
                 new OptionsMonitor<SubscriptionOptions>(state.Options));
             foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
             {
-                subscription.MonitoredItems.TryAdd(item.Name,
+                subscription.MonitoredItems.TryAdd(
+                    item.Name,
                     new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.Options),
                     out _);
             }
-            _ = ct;
             return new ValueTask<ISubscription>(subscription);
         }
 
@@ -410,7 +440,8 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 m_logger.LogInformation(
                     "{Subscription} ADDED (transfer-pending, ServerId={ServerId}).",
-                    subscription, state.ServerId);
+                    subscription,
+                    state.ServerId);
             }
 
             // Issue TransferSubscriptions for the saved server id.
@@ -421,9 +452,12 @@ namespace Opc.Ua.Client.Subscriptions
             // to a fresh notification handler.
             var ids = new uint[] { state.ServerId };
             TransferSubscriptionsResponse response = await m_session
-                .TransferSubscriptionsAsync(null, ids.ToArrayOf(),
+                .TransferSubscriptionsAsync(
+                    null,
+                    ids.ToArrayOf(),
                     sendInitialValues: state.Options.SendInitialValuesOnTransfer,
-                    ct).ConfigureAwait(false);
+                    ct)
+                .ConfigureAwait(false);
 
             bool transferred = false;
             ResponseHeader responseHeader = response.ResponseHeader;
@@ -444,7 +478,8 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logger.LogWarning(
                         "{Subscription}: TransferSubscriptions per-item " +
                         "result Bad ({Status}); falling back to recreate.",
-                        subscription, results[0].StatusCode);
+                        subscription,
+                        results[0].StatusCode);
                 }
             }
             else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
@@ -459,7 +494,8 @@ namespace Opc.Ua.Client.Subscriptions
                 m_logger.LogWarning(
                     "{Subscription}: TransferSubscriptions service-level " +
                     "result Bad ({Status}); falling back to recreate.",
-                    subscription, responseHeader.ServiceResult);
+                    subscription,
+                    responseHeader.ServiceResult);
             }
 
             if (!transferred && subscription is Subscription loaded)
@@ -479,7 +515,11 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default)
         {
             return SubscriptionManagerSerializer.SaveAsync(
-                this, stream, messageContext, subscriptions, ct);
+                this,
+                stream,
+                messageContext,
+                subscriptions,
+                ct);
         }
 
         /// <inheritdoc/>
@@ -490,8 +530,13 @@ namespace Opc.Ua.Client.Subscriptions
             bool transferSubscriptions = false,
             CancellationToken ct = default)
         {
-            return SubscriptionManagerSerializer.LoadAsync(this, stream,
-                messageContext, handlerFactory, transferSubscriptions, ct);
+            return SubscriptionManagerSerializer.LoadAsync(
+                this,
+                stream,
+                messageContext,
+                handlerFactory,
+                transferSubscriptions,
+                ct);
         }
 
         /// <summary>

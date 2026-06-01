@@ -338,8 +338,9 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public async ValueTask<uint> SetSubscriptionDurableAsync(
-            uint lifetimeInHours, CancellationToken ct = default)
+        public async ValueTask<TimeSpan> SetAsDurableAsync(
+            TimeSpan lifetime,
+            CancellationToken ct = default)
         {
             if (!Created)
             {
@@ -347,6 +348,11 @@ namespace Opc.Ua.Client.Subscriptions
                     StatusCodes.BadSubscriptionIdInvalid,
                     "Subscription has not been created on the server.");
             }
+            // SetSubscriptionDurable uses whole-hour granularity (UInt32);
+            // round up so requesting 90 minutes asks the server for 2 hours.
+            uint lifetimeInHours = (uint)Math.Max(
+                1,
+                Math.Ceiling(lifetime.TotalHours));
             ArrayOf<CallMethodRequest> methodsToCall =
             [
                 new CallMethodRequest
@@ -379,7 +385,7 @@ namespace Opc.Ua.Client.Subscriptions
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                     "Server.SetSubscriptionDurable returned no revised lifetime.");
             }
-            return revised;
+            return TimeSpan.FromHours(revised);
         }
 
         /// <inheritdoc/>

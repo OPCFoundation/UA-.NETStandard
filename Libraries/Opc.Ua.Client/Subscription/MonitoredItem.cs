@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <summary>
         /// Install fully-loaded state from a snapshot during V2
-        /// transfer-on-load (<see cref="ISubscriptionManager.RestoreAsync"/>
+        /// transfer-on-load (<see cref="ISubscriptionManager.LoadAsync"/>
         /// with <c>transferSubscriptions: true</c>). Unlike
         /// <see cref="ApplyTransferState"/>, this also:
         /// <list type="bullet">

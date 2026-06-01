@@ -36,21 +36,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     internal interface IMonitoredItemContext
     {
         /// <summary>
-        /// Server-assigned subscription id that owns this item.
-        /// Forwarded from <see cref="IMonitoredItemManagerContext.Id"/>
-        /// so per-item operations can issue service calls without
-        /// going back through the manager.
-        /// </summary>
-        uint SubscriptionId { get; }
-
-        /// <summary>
-        /// Method call services. Forwarded from
-        /// <see cref="IMonitoredItemManagerContext.MethodServiceSet"/>
-        /// for the same reason as <see cref="SubscriptionId"/>.
-        /// </summary>
-        IMethodServiceSetClientMethods MethodServiceSet { get; }
-
-        /// <summary>
         /// Issue an OPC UA Part 9 §5.5.7 <c>ConditionRefresh2</c>
         /// service call for the monitored item with the supplied
         /// server-side <paramref name="monitoredItemServerId"/>. The
@@ -75,9 +60,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="serviceResult"></param>
         /// <param name="final"></param>
         /// <param name="filterResult"></param>
-        bool NotifyItemChangeResult(MonitoredItem monitoredItem,
-            int retryCount, MonitoredItemOptions source,
-            ServiceResult serviceResult, bool final,
+        bool NotifyItemChangeResult(
+            MonitoredItem monitoredItem,
+            int retryCount,
+            MonitoredItemOptions source,
+            ServiceResult serviceResult,
+            bool final,
             MonitoringFilterResult? filterResult);
 
         /// <summary>
@@ -85,7 +73,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="monitoredItem"></param>
         /// <param name="itemDisposed"></param>
-        void NotifyItemChange(MonitoredItem monitoredItem,
+        void NotifyItemChange(
+            MonitoredItem monitoredItem,
             bool itemDisposed = false);
     }
 }

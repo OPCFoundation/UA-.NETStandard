@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.Subscriptions
 {
     /// <summary>
     /// Internal contract between
-    /// <see cref="ISubscriptionManager.RestoreAsync"/> and the V2
+    /// <see cref="ISubscriptionManager.LoadAsync"/> and the V2
     /// <see cref="Subscription"/> constructor that pre-installs
     /// server-assigned identifiers + per-item state so the V2 state
     /// machine can take over an existing server-side subscription via

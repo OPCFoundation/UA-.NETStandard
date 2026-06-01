@@ -244,19 +244,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <inheritdoc/>
-        public bool NotifyItemChangeResult(MonitoredItem monitoredItem,
-            int retryCount, MonitoredItemOptions source, ServiceResult serviceResult,
-            bool final, MonitoringFilterResult? filterResult)
+        public bool NotifyItemChangeResult(
+            MonitoredItem monitoredItem,
+            int retryCount,
+            MonitoredItemOptions source,
+            ServiceResult serviceResult,
+            bool final,
+            MonitoringFilterResult? filterResult)
         {
             return final || retryCount > 5; // TODO: Resiliency policy
         }
-
-        /// <inheritdoc/>
-        public uint SubscriptionId => m_context.Id;
-
-        /// <inheritdoc/>
-        public IMethodServiceSetClientMethods MethodServiceSet
-            => m_context.MethodServiceSet;
 
         /// <inheritdoc/>
         public async ValueTask ConditionRefreshAsync(
@@ -734,19 +731,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 if (outputArguments.Count != 2 ||
                     !outputArguments[0].TryGetValue(out ArrayOf<uint> serverHandles) ||
                     !outputArguments[1].TryGetValue(out ArrayOf<uint> clientHandles) ||
-                    clientHandles.Count != serverHandles.Count)
+                    serverHandles.IsNull ||
+                    clientHandles.IsNull ||
+                    serverHandles.Count != clientHandles.Count)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                         "Output arguments incorrect");
                 }
-                uint[]? serverHandleArray = serverHandles.ToArray();
-                uint[]? clientHandleArray = clientHandles.ToArray();
-                if (serverHandleArray is null || clientHandleArray is null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
-                        "Output arguments missing handle arrays");
-                }
-                return new MonitoredItemsHandles(true, serverHandleArray.Zip(clientHandleArray).ToList());
+                return new MonitoredItemsHandles(true,
+                    serverHandles.ToList().Zip(clientHandles.ToList()).ToList());
             }
             catch (ServiceResultException sre)
             {
