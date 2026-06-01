@@ -2,9 +2,9 @@
   <PropertyGroup>
     <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <AssemblyName>MinimalPumpServer</AssemblyName>
-    <PackageId>MinimalPumpServer</PackageId>
-    <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40223 Pumps companion specification with full simulation using the fluent wiring API.</Description>
+    <AssemblyName>PumpDeviceIntegrationServer</AssemblyName>
+    <PackageId>PumpDeviceIntegrationServer</PackageId>
+    <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40223 Pumps companion specification end-to-end (full simulation via the fluent INodeManagerBuilder API) plus the OPC 10000-100 (Device Integration) software-update facet wired into a second declarative pump device.</Description>
     <RootNamespace>Pumps</RootNamespace>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>

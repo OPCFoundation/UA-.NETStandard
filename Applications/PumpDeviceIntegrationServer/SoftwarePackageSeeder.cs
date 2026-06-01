@@ -31,7 +31,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
-namespace SoftwareUpdate
+namespace Pumps
 {
     /// <summary>
     /// Seeds an <see cref="ISoftwarePackageStore"/> with a couple of

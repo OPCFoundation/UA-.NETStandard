@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.Fluent
     /// <see cref="NodeState.AddChild"/>; their NodeIds are generated from
     /// the parent's NodeId by appending the child browse name (matching
     /// the pattern used by the generated state classes and the
-    /// MinimalPumpServer NodeIdFactory). Direct NodeId lookup on a newly
+    /// PumpDeviceIntegrationServer NodeIdFactory). Direct NodeId lookup on a newly
     /// created child requires the owning node manager to index the new
     /// node via <c>AddPredefinedNodeAsync</c>; until then the child is
     /// reachable through navigation from the parent.
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Fluent
             };
 
             // Generate a NodeId that mirrors the parent's identifier scope.
-            // Pattern matches MinimalPumpServer's NodeIdFactory:
+            // Pattern matches PumpDeviceIntegrationServer's NodeIdFactory:
             // "{parentIdentifier}_{childBrowseName}" in the parent's namespace.
             string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
             child.NodeId = new NodeId(

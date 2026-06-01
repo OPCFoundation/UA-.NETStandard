@@ -35,7 +35,7 @@ namespace Opc.Ua.Di.Tests
 {
     /// <summary>
     /// Tests for the source-generated Machinery and Pumps models inside
-    /// MinimalPumpServer. Verifies that the generator emitted the expected
+    /// PumpDeviceIntegrationServer. Verifies that the generator emitted the expected
     /// namespace constants, extension methods, and that the loader produces
     /// a non-empty predefined-node tree.
     /// </summary>

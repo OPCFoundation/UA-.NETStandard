@@ -24,9 +24,10 @@ plugs it together.
 | `Opc.Ua.Di.Server` | Server: `DiNodeManager`, fluent `IDeviceBuilder`, locking service, software-update package store, hosting integration. |
 | `Opc.Ua.Di.Client` | Client: `DiDeviceClient`, `DiDiscoveryClient`, `DiTopologyClient`, `DiLockClient`, `SoftwareUpdateClient`, hosting integration. |
 
-The running examples are `Applications/MinimalPumpServer` (companion
-spec with full simulation) and
-`Applications/MinimalSoftwareUpdateServer` (DI software-update facet).
+The running example is `Applications/PumpDeviceIntegrationServer`
+(companion-spec server with full simulation **and** the Device
+Integration software-update facet attached to a second declarative
+device).
 
 ## Quick start
 
@@ -683,7 +684,7 @@ builder.Services
     });
 ```
 
-The dedicated sample (`Applications/MinimalSoftwareUpdateServer`)
+The companion sample `Applications/PumpDeviceIntegrationServer`
 demonstrates the end-to-end pattern with `SoftwarePackageSeeder`.
 
 ### Client-side software update

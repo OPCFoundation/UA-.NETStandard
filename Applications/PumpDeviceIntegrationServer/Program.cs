@@ -33,16 +33,17 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
-using SoftwareUpdate;
+using Pumps;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62543;
+int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
 
-// In-memory store; production deployments switch to
+// In-memory store backing the OPC 10000-100 software-update facet
+// attached to Pump #2 below. Production deployments swap this for
 // FileSystemPackageStore over an IFileSystemProvider.
 builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
 
@@ -50,28 +51,30 @@ builder.Services
     .AddOpcUa()
     .AddServer(o =>
     {
-        o.ApplicationName = "MinimalSoftwareUpdateServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalSoftwareUpdateServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalSoftwareUpdateServer";
+        o.ApplicationName = "PumpDeviceIntegrationServer";
+        o.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
+        o.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
         o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalSoftwareUpdateServer");
+        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/PumpDeviceIntegrationServer");
     })
-    .AddOpcUaDi()
-    .ConfigureDevicesFor<Opc.Ua.Di.Server.DiNodeManager>(async ctx =>
+    .AddNodeManager<Pumps.PumpNodeManagerFactory>()
+    // Materialise a second pump declaratively at server startup. The
+    // runner runs the delegate after the pump address space and
+    // fluent wiring are complete.
+    .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
     {
-        // Create a single demo device under the DI DeviceSet.
-        var device = await ctx.CreateDeviceAsync(
-            new QualifiedName("UpdateableDevice #1", ctx.Manager.DiNamespaceIndex))
+        var pump = await ctx.CreateDeviceAsync(
+            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex))
             .ConfigureAwait(false);
 
-        device.WithIdentification(id =>
+        pump.WithIdentification(id =>
         {
-            id.Manufacturer = new LocalizedText("Acme Corp");
-            id.Model = new LocalizedText("UpdateableDevice X1");
-            id.SerialNumber = "SN-SW-1";
-            id.DeviceClass = "Controller";
+            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
+            id.Model = new LocalizedText("PumpX-2000 (declarative)");
+            id.SerialNumber = "SN-DI-2";
+            id.DeviceClass = "Pump";
             id.HardwareRevision = "1.0";
-            id.SoftwareRevision = "1.0.0";
+            id.SoftwareRevision = "2.5.3";
         });
 
         // Seed the shared package store with sample firmware payloads
@@ -81,11 +84,11 @@ builder.Services
         await SoftwarePackageSeeder.SeedAsync(packageStore).ConfigureAwait(false);
 
         // Materialise the OPC 10000-100 §10.3 SoftwareUpdateType facet
-        // under the device. The default PackageLoading + library-supplied
+        // under Pump #2. The default PackageLoading + library-supplied
         // "succeed immediately" callbacks give clients a fully browsable
         // SU subtree (Loading / PrepareForUpdate / Installation /
         // PowerCycle / Confirmation) with no per-application code.
-        device.WithSoftwareUpdate(packageStore, su => su.UsePackageLoading());
+        pump.WithSoftwareUpdate(packageStore, su => su.UsePackageLoading());
     });
 
 await builder.Build().RunAsync().ConfigureAwait(false);

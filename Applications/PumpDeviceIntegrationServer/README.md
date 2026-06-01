@@ -1,9 +1,11 @@
-# MinimalPumpServer
+# PumpDeviceIntegrationServer
 
 A self-contained, NativeAOT-friendly OPC UA server that demonstrates
 the [OPC 40223 Pumps companion specification](https://reference.opcfoundation.org/specs/OPC-40223)
-with a full live simulation, wired entirely through the fluent
-`INodeManagerBuilder` API.
+with a full live simulation **and** the
+[OPC 10000-100 (Device Integration) software-update facet](https://reference.opcfoundation.org/specs/OPC-10000-100),
+wired entirely through the fluent `INodeManagerBuilder` API and the
+DI hosting integration.
 
 The pump sample is the integration test for every fluent API extension
 shipped under `Libraries/Opc.Ua.Server/Fluent/`. Each extension is
@@ -13,12 +15,12 @@ documented in
 ## Running the sample
 
 ```pwsh
-cd Applications/MinimalPumpServer
+cd Applications/PumpDeviceIntegrationServer
 dotnet run -c Release
 ```
 
-The server listens on `opc.tcp://localhost:62542/MinimalPumpServer` by
-default. Override with `--port 62550`.
+The server listens on `opc.tcp://localhost:62542/PumpDeviceIntegrationServer`
+by default. Override with `--port 62550`.
 
 Sample console output:
 
@@ -30,14 +32,17 @@ info: Pumps.PumpNodeManager
 info: Pumps.PumpNodeManager
       PumpNodeManager: address space ready (10330 predefined nodes).
 info: Opc.Ua.Server.StandardServer
-      OPC UA server listening at opc.tcp://localhost:62542/MinimalPumpServer.
+      OPC UA server listening at opc.tcp://localhost:62542/PumpDeviceIntegrationServer.
 ```
 
 Browse to `Objects > DeviceSet > Pump #1` in any OPC UA client (e.g.
 UaExpert) to explore the simulated pump. A second declarative pump,
 `Pump #2`, sits alongside under the same `DeviceSet` parent — it
 demonstrates the DI hosting `ConfigureDevicesFor` flow without the
-hand-wired fluent simulation.
+hand-wired fluent simulation, and additionally exposes the OPC
+10000-100 software-update facet (`Pump #2 > SoftwareUpdate`) backed
+by an in-memory `ISoftwarePackageStore` seeded with two demo
+firmware payloads.
 
 ## What the sample demonstrates
 
@@ -53,22 +58,26 @@ hand-wired fluent simulation.
 | Boolean supervision → alarm activation via `.ActivatesAlarm(...)` | `WithSupervision` |
 | Per-read simulated boolean / discrete signals | `WithSignals`, `WithSupervision` |
 | Maintenance counters (operating time, number of starts) | `WithMaintenance`, `AdvanceSimulation` |
+| DI declarative device + `WithIdentification` | `Program.cs` (`Pump #2`) |
+| Software-update facet (`ISoftwarePackageStore` + `WithSoftwareUpdate`) | `Program.cs` (`Pump #2`), `SoftwarePackageSeeder.cs` |
 
 ## Architecture
 
 ```
-MinimalPumpServer/
-├── Program.cs                       # AddOpcUa().AddServer(...).AddNodeManager<T>()
-├── PumpNodeManager.cs               # Hand-written FluentNodeManagerBase
-│                                    # + LoadPredefinedNodesAsync (multi-model)
-│                                    # + CreateAddressSpaceAsync (builder setup)
-├── PumpNodeManager.Configure.cs     # partial — fluent wiring + simulation tick
-├── MinimalPumpServer.csproj         # ProjectReference to Opc.Ua.Di model lib
-│                                    # AdditionalFiles for Machinery + Pumps
-│                                    # NodeSet2 (consumed by source generator)
+PumpDeviceIntegrationServer/
+├── Program.cs                          # AddOpcUa().AddServer(...).AddNodeManager<T>()
+│                                       # + ConfigureDevicesFor declarative Pump #2 + SU
+├── PumpNodeManager.cs                  # Hand-written FluentNodeManagerBase
+│                                       # + LoadPredefinedNodesAsync (multi-model)
+│                                       # + CreateAddressSpaceAsync (builder setup)
+├── PumpNodeManager.Configure.cs        # partial — fluent wiring + simulation tick
+├── SoftwarePackageSeeder.cs            # seeds demo firmware payloads
+├── PumpDeviceIntegrationServer.csproj  # ProjectReference to Opc.Ua.Di model lib
+│                                       # AdditionalFiles for Machinery + Pumps
+│                                       # NodeSet2 (consumed by source generator)
 ├── Model/
-│   ├── Opc.Ua.Machinery.NodeSet2.xml  # AdditionalFiles — build-time only
-│   └── Opc.Ua.Pumps.NodeSet2.xml      # AdditionalFiles — build-time only
+│   ├── Opc.Ua.Machinery.NodeSet2.xml   # AdditionalFiles — build-time only
+│   └── Opc.Ua.Pumps.NodeSet2.xml       # AdditionalFiles — build-time only
 └── Properties/AssemblyInfo.cs
 ```
 
@@ -105,14 +114,40 @@ own assembly using the same `<AdditionalFiles>` pattern.
 - **Add a second pump**: two patterns are demonstrated in the sample.
   - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpInstanceAsync`, call `context.CreateInstanceOfPumpType(deviceSet, browseName)`, attach it to the DI `DeviceSet`, and `AddPredefinedNodeAsync(pump)`. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
   - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `ctx.CreateDeviceAsync(new QualifiedName("Pump #N", ctx.Manager.DiNamespaceIndex))` from a `ConfigureDevicesFor<PumpNodeManager>` block, then call `pump.WithIdentification(...)` for the nameplate. This route exercises the `Opc.Ua.Di.Server` builder surface.
+- **Swap the software-update store**: replace the singleton
+  `ISoftwarePackageStore` registration in `Program.cs` with a
+  `FileSystemPackageStore` over an `IFileSystemProvider` for
+  on-disk persistence:
+
+  ```csharp
+  builder.Services.AddSingleton<ISoftwarePackageStore>(_ =>
+  {
+      var provider = new PhysicalFileSystemProvider(
+          rootDirectory: "/var/lib/sw-update",
+          mountName: "Packages",
+          isWritable: true);
+      return new FileSystemPackageStore(provider, rootPath: "/SoftwarePackages");
+  });
+  ```
 
 ## NativeAOT publishing
 
 ```pwsh
-cd Applications/MinimalPumpServer
+cd Applications/PumpDeviceIntegrationServer
 dotnet publish -c Release -r win-x64
 ```
 
 The pump server publishes cleanly under NativeAOT — no trim or AOT
 warnings — because every fluent extension is reflection-free and the
 generated model factories are statically rooted.
+
+## See also
+
+- [`Docs/DeviceIntegration.md`](../../Docs/DeviceIntegration.md) —
+  full developer guide for the DI library trio (device builder,
+  hosting integration, lock service, software-update package store,
+  client helpers).
+- [`Docs/SoftwareUpdate.md`](../../Docs/SoftwareUpdate.md) —
+  in-depth coverage of the software-update facet wiring, file-transfer
+  pipeline, and client `UploadPackageAsync`.
+

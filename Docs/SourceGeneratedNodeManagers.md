@@ -826,10 +826,12 @@ additions can layer on top of earlier ones.
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   end-to-end (sync `int+int → int`, async `double+double → double`,
   sync `string+string → string`).
-- `Applications/MinimalPumpServer/` — the full OPC 40223 Pumps
-  companion server. Exercises every fluent extension above
+- `Applications/PumpDeviceIntegrationServer/` — the full OPC 40223
+  Pumps companion server. Exercises every fluent extension above
   (engineering units, identification properties, FunctionalGroup
   wiring, instance creation, limit alarm with NAMUR-style boolean
   supervision, periodic simulation tick, and multi-model loader for
-  DI + Machinery + Pumps).
+  DI + Machinery + Pumps), and additionally attaches the OPC
+  10000-100 software-update facet to a second declarative pump
+  device.
 
