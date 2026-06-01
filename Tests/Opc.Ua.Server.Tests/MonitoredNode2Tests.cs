@@ -301,18 +301,13 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            using var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
             nodeManagerMock
                 .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(() =>
-                {
-                    firstValidationSignal.Set();
-                    return new ValueTask<ServiceResult>(ServiceResult.Good);
-                });
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
 
             // Set up a ConfigurationNodeManager mock that exposes the DefaultPermissionsChanged event
             var configNodeManagerMock = new Mock<IConfigurationNodeManager>();
@@ -325,7 +320,14 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Auditing).Returns(false);
             serverMock.Setup(s => s.ConfigurationNodeManager).Returns(configNodeManagerMock.Object);
 
+            // Signal when QueueValue is called — this guarantees the cache has been populated
+            // (QueueValue happens after the permission result is cached).
+            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            monitoredItemMock
+                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Callback(() => firstItemProcessed.Set());
+
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
 
@@ -334,8 +336,8 @@ namespace Opc.Ua.Server.Tests
             // First value change populates the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
-            // Wait until the consumer has processed the first notification and populated the cache.
-            firstValidationSignal.Wait(TimeSpan.FromSeconds(30));
+            // Wait until the consumer has fully processed the first notification (cache populated).
+            firstItemProcessed.Wait(TimeSpan.FromSeconds(30));
 
             // Simulate namespace DefaultPermissionsChanged event firing
             Assert.That(capturedHandler, Is.Not.Null, "DefaultPermissionsChanged handler should have been subscribed");
@@ -1196,24 +1198,24 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            using var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
             nodeManagerMock
                 .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(() =>
-                {
-                    firstValidationSignal.Set();
-                    return new ValueTask<ServiceResult>(ServiceResult.Good);
-                });
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
+            // Signal when QueueValue is called — this guarantees the cache has been populated.
+            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
+            monitoredItemMock
+                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Callback(() => firstItemProcessed.Set());
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1223,8 +1225,8 @@ namespace Opc.Ua.Server.Tests
             // Populate the permission cache with the first value change
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
-            // Wait until the consumer has processed the first notification and populated the cache.
-            firstValidationSignal.Wait(TimeSpan.FromSeconds(30));
+            // Wait until the consumer has fully processed the first notification (cache populated).
+            firstItemProcessed.Wait(TimeSpan.FromSeconds(30));
 
             // Act – invalidate permission cache for the session (simulates identity change)
             monitoredNode.InvalidatePermissionCacheForSession(sessionId);
@@ -1271,9 +1273,15 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
+            // Signal when QueueValue is called — this guarantees the cache has been populated.
+            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
+
             // Monitored item belongs to sessionId, not otherSessionId
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
+            monitoredItemMock
+                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Callback(() => firstItemProcessed.Set());
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1282,6 +1290,9 @@ namespace Opc.Ua.Server.Tests
 
             // Populate the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            // Wait until the consumer has fully processed the first notification (cache populated).
+            firstItemProcessed.Wait(TimeSpan.FromSeconds(30));
 
             // Act – invalidate for a DIFFERENT session
             monitoredNode.InvalidatePermissionCacheForSession(otherSessionId);
