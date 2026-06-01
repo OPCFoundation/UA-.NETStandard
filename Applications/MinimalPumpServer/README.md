@@ -33,8 +33,11 @@ info: Opc.Ua.Server.StandardServer
       OPC UA server listening at opc.tcp://localhost:62542/MinimalPumpServer.
 ```
 
-Browse to `Objects > Pumps > Pump #1` in any OPC UA client (e.g.
-UaExpert) to explore the simulated pump.
+Browse to `Objects > DeviceSet > Pump #1` in any OPC UA client (e.g.
+UaExpert) to explore the simulated pump. A second declarative pump,
+`Pump #2`, sits alongside under the same `DeviceSet` parent — it
+demonstrates the DI hosting `ConfigureDevicesFor` flow without the
+hand-wired fluent simulation.
 
 ## What the sample demonstrates
 
@@ -99,12 +102,9 @@ own assembly using the same `<AdditionalFiles>` pattern.
 - **Add an alarm**: inside `WithSupervision`, chain another
   `events.CreateLimitAlarm(...).WithLimits(...)` and wire the
   triggering boolean variable via `.ActivatesAlarm(...)`.
-- **Add a second pump**: use the instance-creation extension —
-  `builder.Node("Pumps").CreateInstance(name, typeDefId, factory)`.
-  The MinimalPumpServer doesn't currently exercise instance creation
-  beyond what the Pumps NodeSet2 already declares, but the underlying
-  fluent API supports it; see
-  [Creating instances of model types](../../Docs/SourceGeneratedNodeManagers.md#creating-instances-of-model-types).
+- **Add a second pump**: two patterns are demonstrated in the sample.
+  - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpInstanceAsync`, call `context.CreateInstanceOfPumpType(deviceSet, browseName)`, attach it to the DI `DeviceSet`, and `AddPredefinedNodeAsync(pump)`. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
+  - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `ctx.CreateDeviceAsync(new QualifiedName("Pump #N", ctx.Manager.DiNamespaceIndex))` from a `ConfigureDevicesFor<PumpNodeManager>` block, then call `pump.WithIdentification(...)` for the nameplate. This route exercises the `Opc.Ua.Di.Server` builder surface.
 
 ## NativeAOT publishing
 

@@ -92,7 +92,7 @@ namespace Pumps
         {
             try
             {
-                INodeBuilder id = builder.Node("Pumps/Pump #1/Identification");
+                INodeBuilder id = builder.Node("Pump #1/Identification");
                 id.WithProperty("Manufacturer", "SimPump Corp")
                   .WithProperty("Model", "PumpX-2000")
                   .WithProperty("SerialNumber", "SN-001")
@@ -114,37 +114,37 @@ namespace Pumps
         private void WithMeasurements(INodeManagerBuilder builder)
         {
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/DifferentialPressure",
+                "Pump #1/Operational/Measurements/DifferentialPressure",
                 () => m_currentPressure,
                 EngineeringUnits.Pascal, min: 0, max: 1_000_000);
 
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/FluidTemperature",
+                "Pump #1/Operational/Measurements/FluidTemperature",
                 () => m_currentTemperature,
                 EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
 
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/BearingTemperature",
+                "Pump #1/Operational/Measurements/BearingTemperature",
                 () => m_currentBearingTemp,
                 EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
 
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/PumpPowerInput",
+                "Pump #1/Operational/Measurements/PumpPowerInput",
                 () => m_currentPower,
                 EngineeringUnits.Watt, min: 0, max: 50_000);
 
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/MassFlow",
+                "Pump #1/Operational/Measurements/MassFlow",
                 () => m_currentFlow,
                 EngineeringUnits.KilogramsPerSecond, min: 0, max: 1.0);
 
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/PumpEfficiency",
+                "Pump #1/Operational/Measurements/PumpEfficiency",
                 () => m_currentEfficiency,
                 EngineeringUnits.Percent, min: 0, max: 100);
 
             TryAddMeasurement(builder,
-                "Pumps/Pump #1/Operational/Measurements/Level",
+                "Pump #1/Operational/Measurements/Level",
                 () => m_currentLevel,
                 EngineeringUnits.Metre, min: 0, max: 10);
         }
@@ -169,12 +169,12 @@ namespace Pumps
         private void WithActuation(INodeManagerBuilder builder)
         {
             TryAddVariableReadWrite<double>(builder,
-                "Pumps/Pump #1/Operational/Actuation/SetPointValue",
+                "Pump #1/Operational/Actuation/SetPointValue",
                 () => m_setPointValue,
                 v => m_setPointValue = v);
 
             TryAddVariableReadWrite<double>(builder,
-                "Pumps/Pump #1/Operational/Actuation/SpeedSetPoint",
+                "Pump #1/Operational/Actuation/SpeedSetPoint",
                 () => m_speedSetPoint,
                 v => m_speedSetPoint = v);
         }
@@ -183,11 +183,11 @@ namespace Pumps
         private void WithSignals(INodeManagerBuilder builder)
         {
             TryAddVariable<bool>(builder,
-                "Pumps/Pump #1/Operational/Signals/PumpOperation",
+                "Pump #1/Operational/Signals/PumpOperation",
                 () => true);
 
             TryAddVariable<bool>(builder,
-                "Pumps/Pump #1/Operational/Signals/RatedSpeed",
+                "Pump #1/Operational/Signals/RatedSpeed",
                 () => m_speedSetPoint > 45.0);
         }
 
@@ -198,7 +198,7 @@ namespace Pumps
             // wire the Cavitation supervision flag to drive it.
             try
             {
-                INodeBuilder events = builder.Node("Pumps/Pump #1/Events");
+                INodeBuilder events = builder.Node("Pump #1/Events");
 
                 // Limit alarm with thresholds in Kelvin.
                 IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = events
@@ -208,7 +208,7 @@ namespace Pumps
 
                 // bool supervision → alarm Active state.
                 TryAddSupervisionEdge(builder,
-                    "Pumps/Pump #1/Events/Supervision/ProcessFluid/Cavitation",
+                    "Pump #1/Events/Supervision/ProcessFluid/Cavitation",
                     tempAlarm);
             }
             catch (ServiceResultException)
@@ -218,11 +218,11 @@ namespace Pumps
 
             // Per-read simulated supervision flags (kept lightweight).
             TryAddVariable<bool>(builder,
-                "Pumps/Pump #1/Events/Supervision/ProcessFluid/Cavitation",
+                "Pump #1/Events/Supervision/ProcessFluid/Cavitation",
                 () => m_cavitation);
 
             TryAddVariable<bool>(builder,
-                "Pumps/Pump #1/Events/Supervision/PumpOperation/MotorOverheat",
+                "Pump #1/Events/Supervision/PumpOperation/MotorOverheat",
                 () => m_motorOverheat);
         }
 
@@ -230,11 +230,11 @@ namespace Pumps
         private void WithMaintenance(INodeManagerBuilder builder)
         {
             TryAddVariable<double>(builder,
-                "Pumps/Pump #1/Maintenance/GeneralMaintenance/OperatingTime",
+                "Pump #1/Maintenance/GeneralMaintenance/OperatingTime",
                 () => SimulateOperatingTime());
 
             TryAddVariable<uint>(builder,
-                "Pumps/Pump #1/Operational/Measurements/NumberOfStarts",
+                "Pump #1/Operational/Measurements/NumberOfStarts",
                 () => (uint)Interlocked.Read(ref m_numberOfStarts));
         }
 

@@ -128,6 +128,16 @@ namespace Pumps
             await base.CreateAddressSpaceAsync(
                 externalReferences, cancellationToken).ConfigureAwait(false);
 
+            // Materialise the single `Pump #1` instance the fluent
+            // wiring in PumpNodeManager.Configure.cs expects to find.
+            // The instance is a typed `PumpState` (OPC 40223 PumpType)
+            // attached as a child of the DI `DeviceSet` root so it is
+            // browseable at `Objects > DeviceSet > Pump #1` — alongside
+            // any additional pumps declared declaratively via
+            // ConfigureDevicesFor in Program.cs.
+            await CreatePumpInstanceAsync("Pump #1", cancellationToken)
+                .ConfigureAwait(false);
+
             // Build the fluent wiring surface and invoke Configure.
             ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(PumpsNamespaceUri);
             NodeManagerBuilder builder = new NodeManagerBuilder(
@@ -158,6 +168,62 @@ namespace Pumps
                 await PostSetupRunner.RunAsync(this, cancellationToken)
                     .ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Creates a <see cref="PumpState"/> instance with the supplied
+        /// browse name as a child of the DI <c>DeviceSet</c> object and
+        /// registers it as a predefined node. The instance carries
+        /// <c>PumpType</c> as its TypeDefinitionId so clients see the
+        /// full OPC 40223 pump surface; the source-generated factory
+        /// materialises mandatory children (Identification) automatically
+        /// and optional children (Operational, Maintenance, Events, …)
+        /// are populated lazily via the standard <c>NodeState.Initialize</c>
+        /// pipeline as soon as the fluent builder queries them.
+        /// </summary>
+        private async ValueTask CreatePumpInstanceAsync(
+            string browseNameText,
+            CancellationToken cancellationToken)
+        {
+            ushort pumpsNs = (ushort)Server.NamespaceUris
+                .GetIndex(PumpsNamespaceUri);
+            var pumpBrowseName = new QualifiedName(browseNameText, pumpsNs);
+
+            NodeState? deviceSet = FindNodeById(NodeId.Create(
+                global::Opc.Ua.Di.Objects.DeviceSet,
+                DiNamespaceUri,
+                Server.NamespaceUris));
+            if (deviceSet == null)
+            {
+                m_logger.LogWarning(
+                    "DI DeviceSet not found — '{Name}' will not be created.",
+                    browseNameText);
+                return;
+            }
+
+            // Fail-fast on duplicate.
+            if (deviceSet.FindChild(SystemContext, pumpBrowseName) != null)
+            {
+                m_logger.LogDebug(
+                    "DeviceSet already contains '{Name}' — skipping recreation.",
+                    browseNameText);
+                return;
+            }
+
+            global::Opc.Ua.Pumps.PumpState pump = SystemContext
+                .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
+
+            pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
+            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            pump.ModellingRuleId = NodeId.Null;
+            deviceSet.AddChild(pump);
+
+            await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
+                .ConfigureAwait(false);
+
+            m_logger.LogInformation(
+                "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.",
+                browseNameText, pump.NodeId);
         }
 
         private NodeState? FindRootByBrowseName(QualifiedName browseName)
