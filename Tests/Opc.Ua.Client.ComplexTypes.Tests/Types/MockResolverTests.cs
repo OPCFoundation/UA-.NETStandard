@@ -41,6 +41,9 @@ using Opc.Ua.Tests;
 
 using Opc.Ua.Core.TestFramework;
 
+using Opc.Ua.ComplexTypes;
+using Opc.Ua.ComplexTypes.Emit;
+
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>
@@ -274,7 +277,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add type
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = ComplexTypeSystem.Create(mockResolver, telemetry);
+            var cts = ComplexTypeSystem.CreateWithReflectionEmit(mockResolver, telemetry);
             IType carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(carType, Is.Not.Null);
@@ -473,7 +476,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = ComplexTypeSystem.Create(mockResolver, telemetry);
+            var cts = ComplexTypeSystem.CreateWithReflectionEmit(mockResolver, telemetry);
             IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(arraysTypes, Is.Not.Null);
@@ -664,7 +667,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // add types needed
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
-            var cts = ComplexTypeSystem.Create(mockResolver, telemetry);
+            var cts = ComplexTypeSystem.CreateWithReflectionEmit(mockResolver, telemetry);
             IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
                 .ConfigureAwait(false);
             Assert.That(arraysTypes, Is.Not.Null);

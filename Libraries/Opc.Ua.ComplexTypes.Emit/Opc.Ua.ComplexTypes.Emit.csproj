@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).ComplexTypes.Emit</AssemblyName>
+    <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.ComplexTypes.Emit</PackageId>
+    <RootNamespace>Opc.Ua.ComplexTypes.Emit</RootNamespace>
+    <Description>OPC UA Complex Types Reflection.Emit Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes" />
+    <InternalsVisibleTo Include="Opc.Ua.Server.ComplexTypes" />
+    <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.ComplexTypes\Opc.Ua.ComplexTypes.csproj" />
+    <!--
+      The Hosting/ extensions extend Opc.Ua.Client.ComplexTypes' DI surface
+      (ComplexTypeSystemFactory, AddComplexTypes) and ComplexTypesEmitExtensions
+      attaches static extension members to ComplexTypeSystem / ISession.
+      Pulling Opc.Ua.Client.ComplexTypes in here makes Opc.Ua.ComplexTypes.Emit
+      the "client + Emit" opt-in package. Server hosts that want Emit-backed
+      type loading instantiate ComplexTypeBuilderFactory and pass it to
+      ServerComplexTypeSystemFactory's delegate constructor directly.
+    -->
+    <ProjectReference Include="..\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

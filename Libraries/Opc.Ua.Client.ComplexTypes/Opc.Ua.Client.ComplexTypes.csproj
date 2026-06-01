@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
@@ -19,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.ComplexTypes\Opc.Ua.ComplexTypes.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

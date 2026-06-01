@@ -32,6 +32,7 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.ComplexTypes;
 using Opc.Ua.Client.ComplexTypes;
 
 using Opc.Ua.Client.TestFramework;

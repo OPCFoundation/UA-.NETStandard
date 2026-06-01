@@ -29,6 +29,7 @@
 
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.ComplexTypes;
 using Opc.Ua.Client.ComplexTypes;
 
 using ComplexStructure = Opc.Ua.Encoders.Structure;

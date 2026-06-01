@@ -32,6 +32,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Opc.Ua.ComplexTypes;
+using Opc.Ua.ComplexTypes.Emit;
+
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>

@@ -32,6 +32,8 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
+using Opc.Ua.ComplexTypes;
+
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
     /// <summary>

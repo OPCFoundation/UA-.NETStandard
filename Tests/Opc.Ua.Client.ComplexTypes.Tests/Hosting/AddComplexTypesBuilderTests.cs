@@ -30,6 +30,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 
+using Opc.Ua.ComplexTypes;
+
 namespace Opc.Ua.Client.ComplexTypes.Tests.Hosting
 {
     /// <summary>

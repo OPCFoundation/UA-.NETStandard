@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.ComplexTypes;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -39,21 +40,48 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     /// <remarks>
     /// Registered as a singleton by
-    /// <c>IOpcUaBuilder.AddComplexTypes()</c>. Consumers (typically
-    /// <c>ManagedSession</c> hosts) resolve this factory and call
-    /// <see cref="Create(ISession)"/> per session to obtain a
-    /// type-loader scoped to that session.
+    /// <c>IOpcUaBuilder.AddComplexTypes()</c>. By default the factory
+    /// produces type loaders backed by the AOT-friendly
+    /// <see cref="DefaultComplexTypeFactory"/>. Hosts that need
+    /// runtime concrete .NET classes for custom DataTypes register the
+    /// Reflection.Emit-based <c>ComplexTypeBuilderFactory</c> from
+    /// <c>Opc.Ua.ComplexTypes.Emit</c> via the
+    /// <c>AddComplexTypesWithReflectionEmit()</c> builder extension —
+    /// it swaps the registered factory descriptor for this one.
     /// </remarks>
     public sealed class ComplexTypeSystemFactory
     {
         /// <summary>
-        /// Initializes a new instance.
+        /// Initializes a new instance backed by
+        /// <see cref="DefaultComplexTypeFactory"/>.
         /// </summary>
         /// <param name="telemetry">The shared telemetry context.</param>
         /// <exception cref="ArgumentNullException"><paramref name="telemetry"/> is <c>null</c>.</exception>
         public ComplexTypeSystemFactory(ITelemetryContext telemetry)
+            : this(telemetry, static () => new DefaultComplexTypeFactory())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance backed by a caller-supplied
+        /// <see cref="IComplexTypeFactory"/> source. The
+        /// <paramref name="complexTypeFactoryFactory"/> delegate is
+        /// invoked once per <see cref="Create(ISession)"/> call so each
+        /// <see cref="ComplexTypeSystem"/> gets its own builder
+        /// factory.
+        /// </summary>
+        /// <param name="telemetry">The shared telemetry context.</param>
+        /// <param name="complexTypeFactoryFactory">Delegate that
+        /// produces a fresh <see cref="IComplexTypeFactory"/> per
+        /// session.</param>
+        /// <exception cref="ArgumentNullException">Any argument is <c>null</c>.</exception>
+        public ComplexTypeSystemFactory(
+            ITelemetryContext telemetry,
+            Func<IComplexTypeFactory> complexTypeFactoryFactory)
         {
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_complexTypeFactoryFactory = complexTypeFactoryFactory ??
+                throw new ArgumentNullException(nameof(complexTypeFactoryFactory));
         }
 
         /// <summary>
@@ -73,10 +101,11 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return new ComplexTypeSystem(
                 session,
-                new ComplexTypeBuilderFactory(),
+                m_complexTypeFactoryFactory(),
                 m_telemetry);
         }
 
         private readonly ITelemetryContext m_telemetry;
+        private readonly Func<IComplexTypeFactory> m_complexTypeFactoryFactory;
     }
 }

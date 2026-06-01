@@ -39,6 +39,8 @@
     <File Path="Fuzzing/scripts/readme.txt" />
   </Folder>
   <Folder Name="/Libraries/">
+    <Project Path="Libraries/Opc.Ua.ComplexTypes/Opc.Ua.ComplexTypes.csproj" />
+    <Project Path="Libraries/Opc.Ua.ComplexTypes.Emit/Opc.Ua.ComplexTypes.Emit.csproj" />
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
@@ -48,6 +50,7 @@
     <Project Path="Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+    <Project Path="Libraries/Opc.Ua.Server.ComplexTypes/Opc.Ua.Server.ComplexTypes.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
