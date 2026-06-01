@@ -213,9 +213,33 @@ namespace Pumps
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
 
+            m_pump1 = pump;
+
             m_logger.LogInformation(
                 "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.",
                 browseNameText, pump.NodeId);
+        }
+
+        /// <summary>
+        /// Registers a DI <c>DeviceHealth</c> variable that the
+        /// supervision simulation loop should toggle in response to
+        /// the simulated cavitation / motor-overheat flags. The
+        /// companion-spec PumpType does not itself expose
+        /// <c>DeviceHealth</c> (it inherits from
+        /// <see cref="global::Opc.Ua.Di.TopologyElementState"/>, not
+        /// <see cref="global::Opc.Ua.Di.DeviceState"/>); callers can
+        /// attach <c>DeviceHealth</c> to a sibling
+        /// <see cref="global::Opc.Ua.Di.DeviceState"/> (e.g. the
+        /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
+        /// and register it here to participate in the simulation loop.
+        /// </summary>
+        /// <param name="health">
+        /// The variable to drive; pass <see langword="null"/> to detach.
+        /// </param>
+        public void RegisterSupervisedDeviceHealth(
+            BaseDataVariableState<global::Opc.Ua.Di.DeviceHealthEnumeration>? health)
+        {
+            m_supervisedDeviceHealth = health;
         }
 
         /// <summary>Partial wired by the Configure.cs sibling.</summary>

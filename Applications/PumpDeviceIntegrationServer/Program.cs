@@ -31,6 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 using Pumps;
@@ -76,6 +77,18 @@ builder.Services
             id.HardwareRevision = "1.0";
             id.SoftwareRevision = "2.5.3";
         });
+
+        // Materialise the optional DI DeviceHealth child on Pump #2
+        // (PumpType itself does not carry DeviceHealth — it inherits
+        // from TopologyElementType, not DeviceType — so we attach the
+        // health variable to the declarative DeviceState device
+        // instead, then register it with the manager so the
+        // simulation tick can toggle NAMUR NE 107 states based on
+        // the simulated supervision flags shared across both pumps).
+        pump.Device.AddDeviceHealth(ctx.Manager.SystemContext);
+        pump.WithDeviceHealth(DeviceHealthEnumeration.NORMAL);
+        ((PumpNodeManager)ctx.Manager)
+            .RegisterSupervisedDeviceHealth(pump.Device.DeviceHealth);
 
         // Seed the shared package store with sample firmware payloads
         // exposed through the DI software-update facet.

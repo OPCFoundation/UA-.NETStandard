@@ -55,6 +55,19 @@ namespace Pumps
         private long m_numberOfStarts;
         private long m_operatingTimeTicks;
 
+        // Reference to the hand-rolled Pump #1 instance so the
+        // simulation tick can mutate its DI properties in response to
+        // supervision flags. Set by CreatePumpInstanceAsync.
+        private global::Opc.Ua.Pumps.PumpState? m_pump1;
+
+        // Optional DI DeviceHealth variable supplied by a declarative
+        // DeviceState device (e.g. Pump #2). Set via
+        // RegisterSupervisedDeviceHealth and toggled by AdvanceSimulation
+        // to reflect cavitation / motor-overheat states using the NAMUR
+        // NE 107 enumeration.
+        private BaseDataVariableState<global::Opc.Ua.Di.DeviceHealthEnumeration>?
+            m_supervisedDeviceHealth;
+
         // ── Latest simulated values, updated by the simulation tick. ──
         private double m_currentPressure;
         private double m_currentTemperature = 313.15;
@@ -335,12 +348,58 @@ namespace Pumps
             m_cavitation = (t % 120) > 100;
             m_motorOverheat = (t % 200) > 190;
 
+            // Map the simulated supervision flags onto the DI DeviceHealth
+            // NAMUR NE 107 enumeration. Motor overheat is the more severe
+            // condition so it wins when both are active. The variable is
+            // ClearChangeMasks-ed so subscriptions see each transition.
+            UpdateDeviceHealth();
+
             // Periodic restart simulation — every 3600 ticks (~15 min at 250ms).
             if (t % 3600 == 0)
             {
                 Interlocked.Increment(ref m_numberOfStarts);
             }
             Interlocked.Increment(ref m_operatingTimeTicks);
+        }
+
+        /// <summary>
+        /// Maps the simulated supervision flags onto the DI
+        /// <see cref="global::Opc.Ua.Di.DeviceHealthEnumeration"/>
+        /// using the NAMUR NE 107 severity order: a motor overheat
+        /// always wins over a cavitation event (FAILURE &gt;
+        /// MAINTENANCE_REQUIRED); when neither flag is set the device
+        /// reports NORMAL. Exposed as a pure function so tests can
+        /// exercise the mapping without instantiating the manager.
+        /// </summary>
+        public static global::Opc.Ua.Di.DeviceHealthEnumeration
+            MapSupervisionToDeviceHealth(bool cavitation, bool motorOverheat)
+        {
+            if (motorOverheat)
+            {
+                return global::Opc.Ua.Di.DeviceHealthEnumeration.FAILURE;
+            }
+            if (cavitation)
+            {
+                return global::Opc.Ua.Di.DeviceHealthEnumeration.MAINTENANCE_REQUIRED;
+            }
+            return global::Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
+        }
+
+        private void UpdateDeviceHealth()
+        {
+            BaseDataVariableState<global::Opc.Ua.Di.DeviceHealthEnumeration>?
+                health = m_supervisedDeviceHealth;
+            if (health == null) { return; }
+
+            global::Opc.Ua.Di.DeviceHealthEnumeration desired =
+                MapSupervisionToDeviceHealth(m_cavitation, m_motorOverheat);
+
+            if (health.Value != desired)
+            {
+                health.Value = desired;
+                health.Timestamp = DateTime.UtcNow;
+                health.ClearChangeMasks(SystemContext, includeChildren: false);
+            }
         }
 
         private double SimulateOperatingTime()
