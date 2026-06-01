@@ -75,6 +75,27 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Back-compat ctor matching the 1.5.378 signature (no <see cref="ITelemetryContext"/>).
+        /// Forwards to the modern ctor with a null telemetry context.
+        /// </summary>
+        /// <remarks>
+        /// Preserved so 1.5.378-style sample code (`new GlobalDiscoverySampleServer(database,
+        /// request, certificateGroup, userDatabase, autoApprove)`) continues to compile against
+        /// 2.0 without re-ordering the call site. Consumers should pass an explicit
+        /// <see cref="ITelemetryContext"/> via the non-obsolete ctor.
+        /// </remarks>
+        [Obsolete("Use the constructor that takes an ITelemetryContext parameter instead.")]
+        public GlobalDiscoverySampleServer(
+            IApplicationsDatabase database,
+            ICertificateRequest request,
+            ICertificateGroup certificateGroup,
+            IUserDatabase userDatabase,
+            bool autoApprove = true)
+            : this(database, request, certificateGroup, userDatabase, telemetry: null!, autoApprove)
+        {
+        }
+
+        /// <summary>
         /// Called before the server starts. Registers GDS-specific
         /// encodeable types in the server's message context factory,
         /// which is required for NativeAOT where reflection-based
