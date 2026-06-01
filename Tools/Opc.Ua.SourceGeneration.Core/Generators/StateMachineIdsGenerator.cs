@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Text;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -103,23 +102,148 @@ namespace Opc.Ua.SourceGeneration
                 CoreUtils.Format("{0}.StateMachineIds.g.cs", namespacePrefix));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
-            writer.WriteLine(CodeTemplates.CodeHeader);
-            writer.WriteLine();
-            writer.WriteLine("namespace {0}", namespacePrefix);
-            writer.WriteLine("{");
+            using var templateWriter = new TemplateWriter(writer);
+            var template = new Template(templateWriter, StateMachineIdsTemplates.File);
 
-            for (int ii = 0; ii < machines.Count; ii++)
-            {
-                if (ii > 0)
-                {
-                    writer.WriteLine();
-                }
-                WriteMachine(writer, machines[ii]);
-            }
+            template.AddReplacement(Tokens.Namespace, namespacePrefix);
+            template.AddReplacement(
+                Tokens.ListOfTypes,
+                StateMachineIdsTemplates.IdsClass,
+                machines,
+                WriteTemplate_Machine);
 
-            writer.WriteLine("}");
+            template.Render();
 
             return [fileName.AsTextFileResource()];
+        }
+
+        private bool WriteTemplate_Machine(IWriteContext context)
+        {
+            if (context.Target is not FsmTypeInfo machine)
+            {
+                return false;
+            }
+
+            string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
+
+            context.Template.AddReplacement(Tokens.TypeName, machine.TypeName);
+            context.Template.AddReplacement(
+                Tokens.ClassName, CoreUtils.Format("{0}Ids", machine.TypeName));
+
+            AddEntrySection(
+                context.Template,
+                Tokens.ListOfIdentifiers,
+                machine.States,
+                isId: true,
+                namespacePrefix);
+            AddEntrySection(
+                context.Template,
+                Tokens.ListOfValues,
+                machine.States,
+                isId: false,
+                namespacePrefix);
+            AddEntrySection(
+                context.Template,
+                Tokens.ListOfChildren,
+                machine.Transitions,
+                isId: true,
+                namespacePrefix);
+            AddEntrySection(
+                context.Template,
+                Tokens.ListOfFields,
+                machine.Transitions,
+                isId: false,
+                namespacePrefix);
+
+            return context.Template.Render();
+        }
+
+        private static void AddEntrySection(
+            Template parent,
+            string token,
+            List<FsmEntry> entries,
+            bool isId,
+            string namespacePrefix)
+        {
+            if (entries.Count == 0)
+            {
+                // Render a single placeholder comment in the section.
+                parent.AddReplacement(
+                    token,
+                    StateMachineIdsTemplates.EmptySectionComment,
+                    new object[] { EmptyMarker.Instance },
+                    null,
+                    static ctx => ctx.Template.Render());
+                return;
+            }
+
+            if (isId)
+            {
+                parent.AddReplacement(
+                    token,
+                    StateMachineIdsTemplates.IdEntry,
+                    entries,
+                    null,
+                    ctx => RenderIdEntry(ctx, namespacePrefix));
+            }
+            else
+            {
+                parent.AddReplacement(
+                    token,
+                    StateMachineIdsTemplates.NumberEntry,
+                    entries,
+                    LoadNumberTemplate,
+                    RenderNumberEntry);
+            }
+        }
+
+        private static bool RenderIdEntry(IWriteContext context, string namespacePrefix)
+        {
+            if (context.Target is not FsmEntry entry)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(Tokens.Name, entry.Name);
+            context.Template.AddReplacement(Tokens.NamespacePrefix, namespacePrefix);
+            context.Template.AddReplacement(Tokens.Identifier, entry.ObjectsConstantName);
+            return context.Template.Render();
+        }
+
+        private static bool RenderNumberEntry(IWriteContext context)
+        {
+            if (context.Target is not FsmEntry entry)
+            {
+                return false;
+            }
+
+            context.Template.AddReplacement(Tokens.Name, entry.Name);
+            if (entry.Number.HasValue)
+            {
+                context.Template.AddReplacement(
+                    Tokens.NumericIdValue,
+                    entry.Number.Value.ToString(CultureInfo.InvariantCulture));
+            }
+            return context.Template.Render();
+        }
+
+        // onLoad callback that picks NumberEntry or NumberMissingComment
+        // template per-item based on whether the entry has a value.
+        private static TemplateString LoadNumberTemplate(ILoadContext context)
+        {
+            if (context.Target is FsmEntry entry && !entry.Number.HasValue)
+            {
+                return StateMachineIdsTemplates.NumberMissingComment;
+            }
+            return context.TemplateString;
+        }
+
+        // Sentinel marker used as the single 'target' in empty
+        // sections so the EmptySectionComment template gets rendered
+        // exactly once.
+        private sealed class EmptyMarker
+        {
+            public static readonly EmptyMarker Instance = new();
+            private EmptyMarker() { }
         }
 
         private List<FsmTypeInfo> CollectFiniteStateMachineTypes()
@@ -254,79 +378,6 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private void WriteMachine(TextWriter writer, FsmTypeInfo machine)
-        {
-            string idsClassName = CoreUtils.Format("{0}Ids", machine.TypeName);
-            string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
-
-            writer.WriteLine("    /// <summary>");
-            writer.WriteLine("    /// Strongly-typed state and transition identifiers for the");
-            writer.WriteLine("    /// <c>{0}</c> ObjectType.", machine.TypeName);
-            writer.WriteLine("    /// </summary>");
-            writer.WriteLine("    [global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"Opc.Ua.SourceGeneration.Core\", \"\")]");
-            writer.WriteLine("    [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]");
-            writer.WriteLine("    public static partial class {0}", idsClassName);
-            writer.WriteLine("    {");
-            WriteNested(writer, "StateIds",
-                "Numeric NodeId portion of each state in the model's namespace.",
-                machine.States, namespacePrefix, asReference: true);
-            writer.WriteLine();
-            WriteNested(writer, "StateNumbers",
-                "OPC UA <c>StateNumber</c> property value per state.",
-                machine.States, namespacePrefix, asReference: false);
-            writer.WriteLine();
-            WriteNested(writer, "TransitionIds",
-                "Numeric NodeId portion of each transition in the model's namespace.",
-                machine.Transitions, namespacePrefix, asReference: true);
-            writer.WriteLine();
-            WriteNested(writer, "TransitionNumbers",
-                "OPC UA <c>TransitionNumber</c> property value per transition.",
-                machine.Transitions, namespacePrefix, asReference: false);
-            writer.WriteLine("    }");
-        }
-
-        private static void WriteNested(
-            TextWriter writer, string className, string summary,
-            List<FsmEntry> entries, string namespacePrefix, bool asReference)
-        {
-            writer.WriteLine("        /// <summary>");
-            writer.WriteLine("        /// {0}", summary);
-            writer.WriteLine("        /// </summary>");
-            writer.WriteLine("        public static partial class {0}", className);
-            writer.WriteLine("        {");
-            if (entries.Count == 0)
-            {
-                writer.WriteLine("            // (none defined in the model)");
-            }
-            else
-            {
-                foreach (FsmEntry entry in entries)
-                {
-                    if (asReference)
-                    {
-                        writer.WriteLine(
-                            "            public const uint {0} = global::{1}.Objects.{2};",
-                            entry.Name,
-                            namespacePrefix,
-                            entry.ObjectsConstantName);
-                    }
-                    else if (entry.Number.HasValue)
-                    {
-                        writer.WriteLine(
-                            "            public const uint {0} = {1}u;",
-                            entry.Name, entry.Number.Value);
-                    }
-                    else
-                    {
-                        writer.WriteLine(
-                            "            // {0}: StateNumber/TransitionNumber not declared in the model.",
-                            entry.Name);
-                    }
-                }
-            }
-            writer.WriteLine("        }");
-        }
-
         private sealed class FsmTypeInfo
         {
             public FsmTypeInfo(string typeName)
@@ -354,3 +405,4 @@ namespace Opc.Ua.SourceGeneration
         }
     }
 }
+
