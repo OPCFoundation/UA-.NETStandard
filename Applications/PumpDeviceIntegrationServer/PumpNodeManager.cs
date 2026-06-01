@@ -40,6 +40,7 @@ using Opc.Ua.Machinery;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.NodeManager;
 
 namespace Pumps
 {
@@ -142,9 +143,9 @@ namespace Pumps
                 SystemContext,
                 this,
                 nsIndex,
-                browseName => FindRootByBrowseName(browseName)!,
-                nodeId => FindNodeById(nodeId)!,
-                typeDefId => FindNodesByTypeId(typeDefId));
+                browseName => PredefinedNodes.Values.FindByBrowseName(browseName)!,
+                nodeId => PredefinedNodes.FindById(nodeId)!,
+                typeDefId => PredefinedNodes.Values.FindByTypeDefinition(typeDefId));
 
             // Attach FluentNodeManagerBase registries (event sources +
             // simulation loops) so the fluent .Publish() and .Simulation()
@@ -187,7 +188,7 @@ namespace Pumps
                 .GetIndex(global::Opc.Ua.Pumps.Namespaces.Pumps);
             var pumpBrowseName = new QualifiedName(browseNameText, pumpsNs);
 
-            NodeState? deviceSet = FindNodeById(NodeId.Create(
+            NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 global::Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
                 Server.NamespaceUris));
@@ -223,37 +224,6 @@ namespace Pumps
             m_logger.LogInformation(
                 "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.",
                 browseNameText, pump.NodeId);
-        }
-
-        private NodeState? FindRootByBrowseName(QualifiedName browseName)
-        {
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                if (node.BrowseName == browseName)
-                {
-                    return node;
-                }
-            }
-            return null;
-        }
-
-        private NodeState? FindNodeById(NodeId nodeId)
-        {
-            return PredefinedNodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
-        }
-
-        private List<NodeState> FindNodesByTypeId(NodeId typeDefinitionId)
-        {
-            List<NodeState> results = new List<NodeState>();
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                if (node is BaseInstanceState instance &&
-                    instance.TypeDefinitionId == typeDefinitionId)
-                {
-                    results.Add(node);
-                }
-            }
-            return results;
         }
 
         /// <summary>Partial wired by the Configure.cs sibling.</summary>
