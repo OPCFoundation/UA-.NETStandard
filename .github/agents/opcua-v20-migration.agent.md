@@ -9,19 +9,19 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
 
 ## Strategy
 
-**Start with the CodeFixers NuGet package** — it ships an analyzer + code-fix set (UA0001–UA0022) and a compatibility shim DLL that together handle most mechanical migrations automatically. Only fall back to the manual rules below for patterns the analyzers do not cover or that require structural redesign.
+**Start with the MigrationAnalyzer NuGet package** — it ships an analyzer + code-fix set (UA0001–UA0022) and a compatibility shim DLL that together handle most mechanical migrations automatically. Only fall back to the manual rules below for patterns the analyzers do not cover or that require structural redesign.
 
-1. **Install the migration package**: Add the `OPCFoundation.NetStandard.Opc.Ua.CodeFixers` NuGet to every project that references an `OPCFoundation.NetStandard.Opc.Ua.*` package, as a build-only dependency:
+1. **Install the migration package**: Add the `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet to every project that references an `OPCFoundation.NetStandard.Opc.Ua.*` package, as a build-only dependency:
 
    ```xml
-   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.CodeFixers"
+   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
                      Version="2.0.*-*"
                      PrivateAssets="all" />
    ```
 
    The package bundles two payloads:
-   - **Analyzer + code-fix DLLs** (`Opc.Ua.CodeFixers.dll`, `Opc.Ua.CodeFixers.CodeFixes.dll`) loaded into csc.exe and the IDE.
-   - **Compatibility shim** (`Opc.Ua.CodeFixers.Shim.dll`) that re-exposes the 1.5.378 obsolete extension surface so 1.5.378-style call sites compile against 2.0 with warnings instead of errors.
+   - **Analyzer + code-fix DLLs** (`Opc.Ua.MigrationAnalyzer.dll`, `Opc.Ua.MigrationAnalyzer.CodeFixes.dll`) loaded into csc.exe and the IDE.
+   - **Compatibility shim** (`Opc.Ua.MigrationHelpers.dll`) that re-exposes the 1.5.378 obsolete extension surface so 1.5.378-style call sites compile against 2.0 with warnings instead of errors.
 
 2. **Bump the OPC UA package versions to `2.0.*-*`** in every consumer project. Do NOT remove existing `OPCFoundation.NetStandard.Opc.Ua.*` references — just update their `Version` attribute.
 
@@ -40,11 +40,11 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
 
 5. **Walk the remaining manual patterns** — anything the analyzers did not flag is covered by the categorical rules below.
 
-6. **Remove the CodeFixers package** once the project is warning-free. You are then on clean 2.0 with no shim dependency.
+6. **Remove the MigrationAnalyzer package** once the project is warning-free. You are then on clean 2.0 with no shim dependency.
 
 7. **Do not suppress `[Obsolete]` or `UA00xx` warnings.** Fix them using the documented replacement; obsolete API will be removed in the next minor release.
 
-## What the CodeFixers package covers
+## What the MigrationAnalyzer package covers
 
 | ID     | Default  | Auto-fix | Replaces                                                                                |
 | ------ | -------- | -------- | --------------------------------------------------------------------------------------- |
@@ -70,7 +70,7 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
 
 ## What the shim covers
 
-`Opc.Ua.CodeFixers.Shim.dll` re-exposes the 1.5.378 surface as C# 14 `extension` members so 1.5.378 call sites continue to compile:
+`Opc.Ua.MigrationHelpers.dll` re-exposes the 1.5.378 surface as C# 14 `extension` members so 1.5.378 call sites continue to compile:
 
 - **Moved obsolete extensions**: `NodeId` / `Variant` / `DataValue` null-check helpers, `Session` sync helpers, `Subscription` sync helpers, `ApplicationInstance` helpers, `ServerBase.Start` / `Stop`, `TransportChannel` APM, `ChannelBase` static factory methods, and similar surface.
 - **New shims for genuinely-removed members**: `EncodeableFactory.GlobalFactory`, `CertificateIdentifier.Certificate` (throws), sync wrappers for `IUserIdentityTokenHandler.{Encrypt,Decrypt,Sign,Verify}`, sync + APM wrappers for GDS / LDS client APIs.
@@ -102,11 +102,11 @@ If your project sets `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` and y
 </PropertyGroup>
 ```
 
-Remove each entry as you finish fixing the corresponding rule, and drop the whole block once the CodeFixers package is removed.
+Remove each entry as you finish fixing the corresponding rule, and drop the whole block once the MigrationAnalyzer package is removed.
 
 ## Known compatibility gaps
 
-- **Legacy `.NET Framework` projects using the pre-SDK `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"` format** do not honour `PackageReference` injection via `Directory.Build.targets`. To get the analyzer / shim into a legacy WinForms project, add the `<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.CodeFixers" ...>` directly to the project file's existing `<ItemGroup>`.
+- **Legacy `.NET Framework` projects using the pre-SDK `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"` format** do not honour `PackageReference` injection via `Directory.Build.targets`. To get the analyzer / shim into a legacy WinForms project, add the `<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" ...>` directly to the project file's existing `<ItemGroup>`.
 - **Projects with `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` and 100+ migration errors** may abort csc.exe before the analyzer reaches some patterns. Apply the `<NoWarn>` recipe above, run the analyzer, then re-enable warnings-as-errors.
 
 ## Manual migration rules (anything the analyzers / shim do not cover)

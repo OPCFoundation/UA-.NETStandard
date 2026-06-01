@@ -1,0 +1,89 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer</RootNamespace>
+    <Description>OPC UA .NET Standard migration analyzers and code fixers (1.5.378 to 2.0).</Description>
+    <!-- RS1007: localizable resources not required for internal analyzer messages.
+         RS1038: shipping analyzers + code fixes in one assembly is supported - the
+                 NuGet host provides Workspaces in IDE scenarios, and the analyzer
+                 itself doesn't reference Workspaces types. -->
+    <NoWarn>$(NoWarn);RS1007;RS1038</NoWarn>
+  </PropertyGroup>
+  <!-- Package as analyzer + code-fix provider + multi-TFM shim DLLs.
+       Layout is driven by Opc.Ua.MigrationAnalyzer.nuspec so we can declare the six
+       OPC UA NuGet dependencies without polluting Directory.Packages.props
+       (those packages are outputs of this repo, not inputs at restore time). -->
+  <PropertyGroup>
+    <PackageId>$(PackagePrefix).Opc.Ua.MigrationAnalyzer</PackageId>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- Nuspec-based pack can't auto-author a snupkg from project sources;
+         the analyzer is shipped as a single DLL and consumers don't need symbols. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <NuspecFile>$(MSBuildThisFileDirectory)Opc.Ua.MigrationAnalyzer.nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildThisFileDirectory)</NuspecBasePath>
+    <!-- NuspecProperties is materialized in _SetMigrationAnalyzerNuspecProperties below,
+         after Nerdbank.GitVersioning has populated $(PackageVersion). Setting it
+         here in a static PropertyGroup would capture empty version. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Analyzers must target the stable Microsoft.CodeAnalysis 4.x API surface so
+         they load in csc.exe (SDK 10 ships Roslyn 5.6 compiler, but its analyzer
+         host expects analyzers built against 4.x for forward compatibility). The
+         5.x packages in Directory.Packages.props are the *csc-host* version and
+         are NOT a stable analyzer API. Use VersionOverride to pin per-project. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The build props is referenced in the nuspec; surface it in the IDE too. -->
+    <None Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" Visible="false" Pack="false" />
+    <!-- Roslyn release tracking files. -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+  <!-- A ProjectReference is the simplest way to make NuGet restore the shim's
+       assets file. We mark it as a build-only dependency (no compile reference,
+       no transitive flow). The actual multi-TFM build happens in the target below. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.MigrationHelpers\Opc.Ua.MigrationHelpers.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- Ensure the multi-TFM shim AND the CodeFixes DLL are built before pack consumes them.
+       The shim ProjectReference above only triggers a build of its single closest TFM;
+       invoking the shim's outer build here materializes every TFM under
+       bin\$(Configuration)\<tfm>\ that the nuspec <files> entries reference.
+       CodeFixes cannot be a ProjectReference here (it back-references this analyzer
+       for shared DiagnosticIds, which creates a NuGet restore cycle); we invoke its
+       build via an MSBuild task instead. -->
+  <Target Name="_BuildShimAllTfmsBeforePack" BeforeTargets="GenerateNuspec">
+    <MSBuild Projects="..\Opc.Ua.MigrationHelpers\Opc.Ua.MigrationHelpers.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
+    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.CodeFixes\Opc.Ua.MigrationAnalyzer.CodeFixes.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
+  </Target>
+  <!-- Populate NuspecProperties after $(PackageVersion) is materialized (NBGV runs
+       inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
+  <Target Name="_SetMigrationAnalyzerNuspecProperties" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.dll;codeFixesDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.CodeFixes\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.CodeFixes.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationHelpers\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props</NuspecProperties>
+    </PropertyGroup>
+  </Target>
+</Project>

@@ -89,7 +89,7 @@ This document outlines the breaking changes introduced from version to version. 
 
 ## Migrating from 1.5.378 to 2.0.x
 
-> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.CodeFixers` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
+> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
 
 Version 2.0 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
 

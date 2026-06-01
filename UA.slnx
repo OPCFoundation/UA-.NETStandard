@@ -121,11 +121,11 @@
     <Project Path="Tools/Opc.Ua.SourceGeneration.Tester/Opc.Ua.SourceGeneration.Tester.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
   </Folder>
-  <Folder Name="/CodeFixers/">
-    <Project Path="Tests/Opc.Ua.CodeFixers.Shim.Tests/Opc.Ua.CodeFixers.Shim.Tests.csproj" />
-    <Project Path="Tools/Opc.Ua.CodeFixers/Opc.Ua.CodeFixers.csproj" />
-    <Project Path="Tools/Opc.Ua.CodeFixers.CodeFixes/Opc.Ua.CodeFixers.CodeFixes.csproj" />
-    <Project Path="Tools/Opc.Ua.CodeFixers.Shim/Opc.Ua.CodeFixers.Shim.csproj" />
+  <Folder Name="/MigrationAnalyzer/">
+    <Project Path="Tests/Opc.Ua.MigrationHelpers.Tests/Opc.Ua.MigrationHelpers.Tests.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer.CodeFixes/Opc.Ua.MigrationAnalyzer.CodeFixes.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationHelpers/Opc.Ua.MigrationHelpers.csproj" />
   </Folder>
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
@@ -157,7 +157,7 @@
     <Project Path="Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.CodeFixers.Tests/Opc.Ua.CodeFixers.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.MigrationAnalyzer.Tests/Opc.Ua.MigrationAnalyzer.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
   </Folder>

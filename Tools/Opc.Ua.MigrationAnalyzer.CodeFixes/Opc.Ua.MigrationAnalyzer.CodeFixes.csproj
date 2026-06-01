@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.CodeFixes</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer.CodeFixes</RootNamespace>
+    <Description>OPC UA .NET Standard migration code-fix providers (1.5.378 to 2.0). Companion to Opc.Ua.MigrationAnalyzer analyzers.</Description>
+    <!-- This assembly hosts the CodeFixProvider implementations only; they reference
+         Microsoft.CodeAnalysis.CSharp.Workspaces which is NOT available in csc.exe's
+         analyzer host. The analyzer assembly stays Workspaces-free so csc.exe can
+         load and execute the diagnostics; this DLL is loaded only by Workspaces-aware
+         hosts (Visual Studio / dotnet format / dotnet test analyzers). -->
+    <NoWarn>$(NoWarn);RS1007;RS1038;RS2008</NoWarn>
+    <!-- This is a non-packable project: its DLL is consumed by the parent
+         Opc.Ua.MigrationAnalyzer package via a path reference in the nuspec. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Match the analyzer assembly: target Roslyn 4.x analyzer API for csc compatibility. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.14.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" VersionOverride="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- Share source files with the analyzer assembly (via Link) instead of a
+       ProjectReference, which would create a NuGet restore cycle (the analyzer
+       csproj transitively builds this one as part of its pack pipeline). The
+       linked types are compiled into both DLLs but only one copy is loaded per
+       analyzer host, so no runtime collision. -->
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.MigrationAnalyzer\Diagnostics\DiagnosticIds.cs"
+             Link="Diagnostics\DiagnosticIds.cs" />
+    <Compile Include="..\Opc.Ua.MigrationAnalyzer\Diagnostics\DiagnosticDescriptors.cs"
+             Link="Diagnostics\DiagnosticDescriptors.cs" />
+    <Compile Include="..\Opc.Ua.MigrationAnalyzer\Diagnostics\WellKnownProperties.cs"
+             Link="Diagnostics\WellKnownProperties.cs" />
+    <Compile Include="..\Opc.Ua.MigrationAnalyzer\Helpers\SymbolExtensions.cs"
+             Link="Helpers\SymbolExtensions.cs" />
+    <Compile Include="..\Opc.Ua.MigrationAnalyzer\Helpers\UaSymbols.cs"
+             Link="Helpers\UaSymbols.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+</Project>
+
