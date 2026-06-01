@@ -35,7 +35,6 @@ using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using NUnit.Framework;
-using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.Subscriptions
 {

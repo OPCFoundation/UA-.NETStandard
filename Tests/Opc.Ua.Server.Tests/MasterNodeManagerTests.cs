@@ -34,9 +34,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
-
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {

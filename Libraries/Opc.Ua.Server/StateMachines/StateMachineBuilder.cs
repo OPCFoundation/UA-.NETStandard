@@ -668,7 +668,7 @@ namespace Opc.Ua.Server.StateMachines
                 m_context,
                 childNodeId,
                 browseName,
-                new LocalizedText(browseName.Name!),
+                new LocalizedText(browseName.Name ?? string.Empty),
                 true);
             var childBuilder = new StateMachineBuilder<FluentFiniteStateMachineState>(
                 child, m_context, subHolder);

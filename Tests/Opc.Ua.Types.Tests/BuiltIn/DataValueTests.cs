@@ -209,8 +209,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentServerTimestamps()
         {
-            var dv1 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2024, 1, 1));
-            var dv2 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2025, 1, 1));
+            DataValue dv1 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2024, 1, 1));
+            DataValue dv2 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2025, 1, 1));
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -218,8 +218,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentSourceTimestamps()
         {
-            var dv1 = new DataValue(new Variant(42)).WithSourceTimestamp(new DateTimeUtc(2024, 1, 1));
-            var dv2 = new DataValue(new Variant(42)).WithSourceTimestamp(new DateTimeUtc(2025, 1, 1));
+            DataValue dv1 = new DataValue(new Variant(42)).WithSourceTimestamp(new DateTimeUtc(2024, 1, 1));
+            DataValue dv2 = new DataValue(new Variant(42)).WithSourceTimestamp(new DateTimeUtc(2025, 1, 1));
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -227,8 +227,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentServerPicoseconds()
         {
-            var dv1 = new DataValue(new Variant(42)).WithServerPicoseconds(100);
-            var dv2 = new DataValue(new Variant(42)).WithServerPicoseconds(200);
+            DataValue dv1 = new DataValue(new Variant(42)).WithServerPicoseconds(100);
+            DataValue dv2 = new DataValue(new Variant(42)).WithServerPicoseconds(200);
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -236,8 +236,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentSourcePicoseconds()
         {
-            var dv1 = new DataValue(new Variant(42)).WithSourcePicoseconds(100);
-            var dv2 = new DataValue(new Variant(42)).WithSourcePicoseconds(200);
+            DataValue dv1 = new DataValue(new Variant(42)).WithSourcePicoseconds(100);
+            DataValue dv2 = new DataValue(new Variant(42)).WithSourcePicoseconds(200);
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -354,7 +354,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(original.Equals(updated), Is.False);
             Assert.That(original.WrappedValue, Is.EqualTo(new Variant(1)));
             Assert.That(updated.WrappedValue, Is.EqualTo(new Variant(99)));
-            Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(updated.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -365,7 +365,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             DataValue updated = original.WithStatus(StatusCodes.Bad);
 
-            Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Bad));
+            Assert.That(updated.StatusCode, Is.EqualTo(StatusCodes.Bad));
             Assert.That(updated.WrappedValue, Is.EqualTo(new Variant("hi")));
             Assert.That(updated.SourceTimestamp, Is.EqualTo(ts));
             Assert.That(updated.ServerTimestamp, Is.EqualTo(ts));
@@ -437,7 +437,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 .WithServerPicoseconds(11);
 
             Assert.That(result.WrappedValue.AsBoxedObject(), Is.EqualTo(123.45));
-            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.SourceTimestamp, Is.EqualTo(src));
             Assert.That(result.ServerTimestamp, Is.EqualTo(srv));
             Assert.That(result.SourcePicoseconds, Is.EqualTo(7));
@@ -454,7 +454,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var original = new DataValue(new Variant(123.45), StatusCodes.Good, src, srv, 7, 11);
 
             var surrogate = new SerializableDataValue(original);
-            DataValue roundTripped = surrogate.ToDataValue();
+            var roundTripped = surrogate.ToDataValue();
 
             Assert.That(roundTripped.WrappedValue, Is.EqualTo(original.WrappedValue));
             Assert.That(roundTripped.StatusCode, Is.EqualTo(original.StatusCode));
@@ -467,7 +467,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void DataValueSurrogateProviderConvertsBothDirections()
         {
-            var provider = DataValueSurrogateProvider.Instance;
+            DataValueSurrogateProvider provider = DataValueSurrogateProvider.Instance;
             var original = new DataValue(new Variant(42), StatusCodes.Good);
 
             object surrogate = provider.GetObjectToSerialize(original, typeof(DataValue));

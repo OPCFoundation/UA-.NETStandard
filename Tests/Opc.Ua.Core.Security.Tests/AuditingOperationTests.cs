@@ -32,9 +32,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -209,8 +208,8 @@ namespace Opc.Ua.Core.Security.Tests
                             null, subscriptionId, TimestampsToReturn.Neither,
                             new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                             CancellationToken.None).ConfigureAwait(false);
-                    if (miResp.Results.Count == 0
-                        || !StatusCode.IsGood(miResp.Results[0].StatusCode))
+                    if (miResp.Results.Count == 0 ||
+                        !StatusCode.IsGood(miResp.Results[0].StatusCode))
                     {
                         Assert.Ignore(
                             "Could not subscribe to events on Server " +
@@ -230,7 +229,7 @@ namespace Opc.Ua.Core.Security.Tests
                         {
                             pubResp = await session.PublishAsync(
                                 null,
-                                System.Array.Empty<SubscriptionAcknowledgement>().ToArrayOf(),
+                                Array.Empty<SubscriptionAcknowledgement>().ToArrayOf(),
                                 CancellationToken.None).ConfigureAwait(false);
                         }
                         catch (ServiceResultException)
@@ -246,8 +245,8 @@ namespace Opc.Ua.Core.Security.Tests
                             {
                                 foreach (EventFieldList ef in eventList.Events)
                                 {
-                                    if (ef.EventFields.Count > 0
-                                        && ef.EventFields[0].TryGetValue(out NodeId eventType))
+                                    if (ef.EventFields.Count > 0 &&
+                                        ef.EventFields[0].TryGetValue(out NodeId eventType))
                                     {
                                         candidateEventTypes.Add(eventType);
                                     }
@@ -330,7 +329,7 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     return false;
                 }
-                NodeId parent = ExpandedNodeId.ToNodeId(
+                var parent = ExpandedNodeId.ToNodeId(
                     resp.Results[0].References[0].NodeId, session.NamespaceUris);
                 if (parent == expected)
                 {
@@ -343,6 +342,7 @@ namespace Opc.Ua.Core.Security.Tests
                 return false;
             }
         }
+
         [Test]
         public async Task ServerAuditingPropertyIsBoolAsync()
         {
@@ -373,7 +373,7 @@ namespace Opc.Ua.Core.Security.Tests
                     $"{result.StatusCode}");
             }
 
-            var dataType =
+            NodeId dataType =
                 result.WrappedValue.GetNodeId();
             Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean),
                 "Server_Auditing DataType should be Boolean.");
@@ -608,6 +608,7 @@ namespace Opc.Ua.Core.Security.Tests
                     "AuditConditionShelvingEventType not supported.");
             }
         }
+
         private async Task<DataValue> ReadAttributeAsync(
             NodeId nodeId, uint attributeId)
         {

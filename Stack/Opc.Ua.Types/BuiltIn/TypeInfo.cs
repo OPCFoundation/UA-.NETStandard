@@ -1794,7 +1794,7 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return (double)0;
                 case BuiltInType.String:
-                    return (string)null!;
+                    return null!;
                 case BuiltInType.DateTime:
                     return DateTimeUtc.MinValue;
                 case BuiltInType.Guid:

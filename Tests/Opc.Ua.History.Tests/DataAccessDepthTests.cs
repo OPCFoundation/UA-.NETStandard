@@ -27,12 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 // Conformance tests use inline literal arrays as expected-value
@@ -180,7 +178,7 @@ namespace Opc.Ua.History.Tests
             DataValue result = await ReadAttributeAsync(nodeId, Attributes.NodeClass)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            int nodeClass = (int)result.WrappedValue.GetInt32();
+            int nodeClass = result.WrappedValue.GetInt32();
             Assert.That(nodeClass, Is.EqualTo((int)NodeClass.Variable));
         }
 
@@ -1323,7 +1321,7 @@ namespace Opc.Ua.History.Tests
             DataValue result = await ReadAttributeAsync(
                 nodeId, Attributes.NodeClass).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            int nodeClass = (int)result.WrappedValue.GetInt32();
+            int nodeClass = result.WrappedValue.GetInt32();
             Assert.That(nodeClass, Is.EqualTo((int)NodeClass.Variable));
         }
 
@@ -1334,7 +1332,7 @@ namespace Opc.Ua.History.Tests
             DataValue result = await ReadAttributeAsync(
                 nodeId, Attributes.DataType).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            var dataType = result.WrappedValue.GetNodeId();
+            NodeId dataType = result.WrappedValue.GetNodeId();
             Assert.That(dataType, Is.EqualTo(DataTypeIds.Boolean));
         }
 

@@ -33,7 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Core.Security.Tests
@@ -448,10 +447,10 @@ namespace Opc.Ua.Core.Security.Tests
                         // FileType subtype — accept BadNotImplemented /
                         // BadServiceUnsupported as a "feature-not-supported"
                         // outcome rather than failing the test.
-                        if (StatusCode.IsBad(posResult.StatusCode)
-                            && posResult.StatusCode != StatusCodes.BadNotImplemented
-                            && posResult.StatusCode != StatusCodes.BadServiceUnsupported
-                            && posResult.StatusCode != StatusCodes.BadNotSupported)
+                        if (StatusCode.IsBad(posResult.StatusCode) &&
+                            posResult.StatusCode != StatusCodes.BadNotImplemented &&
+                            posResult.StatusCode != StatusCodes.BadServiceUnsupported &&
+                            posResult.StatusCode != StatusCodes.BadNotSupported)
                         {
                             Assert.That(
                                 StatusCode.IsGood(posResult.StatusCode), Is.True);
@@ -466,10 +465,10 @@ namespace Opc.Ua.Core.Security.Tests
                             session, trustListId, setPosId,
                             new Variant(fileHandle),
                             new Variant((ulong)0)).ConfigureAwait(false);
-                        if (StatusCode.IsBad(setResult.StatusCode)
-                            && setResult.StatusCode != StatusCodes.BadNotImplemented
-                            && setResult.StatusCode != StatusCodes.BadServiceUnsupported
-                            && setResult.StatusCode != StatusCodes.BadNotSupported)
+                        if (StatusCode.IsBad(setResult.StatusCode) &&
+                            setResult.StatusCode != StatusCodes.BadNotImplemented &&
+                            setResult.StatusCode != StatusCodes.BadServiceUnsupported &&
+                            setResult.StatusCode != StatusCodes.BadNotSupported)
                         {
                             Assert.That(
                                 StatusCode.IsGood(setResult.StatusCode), Is.True);
@@ -847,7 +846,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             var rsaCertType = new NodeId(12560u);
-            byte[] invalidCert = new byte[] { 0x30, 0x82, 0x00, 0x01 };
+            byte[] invalidCert = [0x30, 0x82, 0x00, 0x01];
             try
             {
                 CallMethodResult result = await CallMethodAsync(
@@ -1080,8 +1079,8 @@ namespace Opc.Ua.Core.Security.Tests
                 string preferred = null;
                 foreach (EndpointDescription ep in endpoints)
                 {
-                    if (ep.SecurityMode != MessageSecurityMode.SignAndEncrypt
-                        || ep.UserIdentityTokens == default)
+                    if (ep.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                        ep.UserIdentityTokens == default)
                     {
                         continue;
                     }

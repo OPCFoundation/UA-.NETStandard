@@ -33,8 +33,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.ModelChange

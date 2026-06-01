@@ -32,8 +32,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -305,7 +305,7 @@ namespace Opc.Ua.Core.Security.Tests
 
                 DataValue dv = await ReadPropertyValueAsync(excludeId, adminSession)
                     .ConfigureAwait(false);
-                Assert.That(dv.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(dv.WrappedValue.TryGetValue(out bool excludeVal), Is.True);
                 Assert.That(excludeVal, Is.False);
             }
@@ -490,7 +490,7 @@ namespace Opc.Ua.Core.Security.Tests
                     ?? result?.StatusCode
                     ?? StatusCodes.Good;
                 Assert.That(statusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             finally
             {
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Core.Security.Tests
                 StatusCode statusCode = ex?.StatusCode
                     ?? result?.StatusCode
                     ?? StatusCodes.Good;
-                if (statusCode == (StatusCode)StatusCodes.Good)
+                if (statusCode == StatusCodes.Good)
                 {
                     Assert.Ignore(
                         "Server does not enforce admin requirement " +
@@ -1562,8 +1562,8 @@ namespace Opc.Ua.Core.Security.Tests
 
                 Assert.That(statusCode,
                     Is.AnyOf(
-                        (StatusCode)StatusCodes.BadUserAccessDenied,
-                        (StatusCode)StatusCodes.BadMethodInvalid));
+                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadMethodInvalid));
             }
             finally
             {
@@ -1615,7 +1615,7 @@ namespace Opc.Ua.Core.Security.Tests
                 StatusCode statusCode = ex?.StatusCode
                     ?? result?.StatusCode
                     ?? StatusCodes.Good;
-                if (statusCode == (StatusCode)StatusCodes.Good)
+                if (statusCode == StatusCodes.Good)
                 {
                     Assert.Ignore(
                         "Server does not enforce admin requirement " +
@@ -1627,8 +1627,8 @@ namespace Opc.Ua.Core.Security.Tests
                 // is a valid denial outcome.
                 Assert.That(statusCode,
                     Is.AnyOf(
-                        (StatusCode)StatusCodes.BadUserAccessDenied,
-                        (StatusCode)StatusCodes.BadMethodInvalid));
+                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadMethodInvalid));
             }
             finally
             {
@@ -1824,7 +1824,7 @@ namespace Opc.Ua.Core.Security.Tests
                     StatusCode statusCode = ex?.StatusCode
                         ?? result?.StatusCode
                         ?? StatusCodes.Good;
-                    if (statusCode == (StatusCode)StatusCodes.Good)
+                    if (statusCode == StatusCodes.Good)
                     {
                         Assert.Ignore(
                             "Server does not enforce admin requirement " +
@@ -1832,8 +1832,8 @@ namespace Opc.Ua.Core.Security.Tests
                     }
                     Assert.That(statusCode,
                         Is.AnyOf(
-                            (StatusCode)StatusCodes.BadUserAccessDenied,
-                            (StatusCode)StatusCodes.BadMethodInvalid),
+                            StatusCodes.BadUserAccessDenied,
+                            StatusCodes.BadMethodInvalid),
                         $"{methodName} should return BadUserAccessDenied or BadMethodInvalid.");
                 }
 

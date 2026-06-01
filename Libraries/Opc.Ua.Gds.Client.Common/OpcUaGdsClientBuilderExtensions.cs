@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -169,7 +168,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     sessionFactory: sessionFactory);
             });
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            services.AddOpcUa();
         }
 
         private sealed class GdsClientBuilder : IGdsClientBuilder

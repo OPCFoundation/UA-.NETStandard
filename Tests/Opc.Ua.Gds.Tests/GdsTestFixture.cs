@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Gds;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
@@ -72,6 +71,16 @@ namespace Opc.Ua.Gds.Tests
                 t =>
                 {
                     var server = new ReferenceServer(t);
+                    server.UserDatabase.CreateUser(
+                        "sysadmin",
+                        "demo"u8,
+                        [
+                            GdsRole.DiscoveryAdmin,
+                            GdsRole.CertificateAuthorityAdmin,
+                            GdsRole.RegistrationAuthorityAdmin,
+                            Role.SecurityAdmin,
+                            Role.AuthenticatedUser
+                        ]);
                     server.AddNodeManager(new GdsNodeManagerFactory(gdsConfig));
                     return server;
                 })
@@ -95,11 +104,6 @@ namespace Opc.Ua.Gds.Tests
 
             ReferenceServer = await ServerFixture.StartAsync().ConfigureAwait(false);
 
-            // Hook the ImpersonateUser event to assign GDS admin roles to
-            // the sysadmin user so RegisterApplication etc. are authorized.
-            ReferenceServer.CurrentInstance.SessionManager.ImpersonateUser
-                += GdsImpersonateUser;
-
             ServerUrl = new Uri(
                 Utils.UriSchemeOpcTcp +
                 "://localhost:" +
@@ -122,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
 
             // Ensure the session factory knows about GDS types
             if (!Session.Factory.ContainsEncodeableType(
-                Gds.DataTypeIds.ApplicationRecordDataType))
+                DataTypeIds.ApplicationRecordDataType))
             {
                 Session.Factory.Builder.AddOpcUaGds().Commit();
             }
@@ -130,7 +134,7 @@ namespace Opc.Ua.Gds.Tests
             // Also ensure the session's message context factory knows
             // about GDS types so the binary decoder can decode them.
             if (!Session.MessageContext.Factory.ContainsEncodeableType(
-                Gds.DataTypeIds.ApplicationRecordDataType))
+                DataTypeIds.ApplicationRecordDataType))
             {
                 Session.MessageContext.Factory.Builder.AddOpcUaGds().Commit();
             }
@@ -197,29 +201,6 @@ namespace Opc.Ua.Gds.Tests
         {
             Telemetry = NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<GdsTestFixture>();
-        }
-
-        /// <summary>
-        /// ImpersonateUser handler that wraps the sysadmin identity with
-        /// GDS admin roles (DiscoveryAdmin, CertificateAuthorityAdmin)
-        /// for testing.
-        /// </summary>
-        private void GdsImpersonateUser(Opc.Ua.Server.ISession session, ImpersonateEventArgs args)
-        {
-            // The ReferenceServer sets SystemConfigurationIdentity for sysadmin.
-            // Wrap it with GDS admin roles so GDS methods are authorized.
-            if (args.Identity is SystemConfigurationIdentity sysConfigIdentity)
-            {
-                args.Identity = new GdsRoleBasedIdentity(
-                    sysConfigIdentity,
-                    [
-                        GdsRole.DiscoveryAdmin,
-                        GdsRole.CertificateAuthorityAdmin,
-                        GdsRole.RegistrationAuthorityAdmin,
-                        Role.SecurityAdmin
-                    ],
-                    ReferenceServer.CurrentInstance.MessageContext.NamespaceUris);
-            }
         }
 
         /// <summary>

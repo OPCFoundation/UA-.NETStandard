@@ -729,9 +729,7 @@ namespace Opc.Ua.Server.Tests
                 Times.Exactly(2));
         }
 
-        // =====================================================================
         // Event handling tests
-        // =====================================================================
 
         /// <summary>
         /// Verifies that a single event fired on a node is delivered to the registered

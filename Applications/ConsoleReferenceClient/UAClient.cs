@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts
@@ -140,9 +141,9 @@ namespace Quickstarts
         public uint SessionLifeTime { get; set; } = 60 * 1000;
 
         /// <summary>
-        /// The user identity to use to connect to the server.
+        /// The user identity provider to use to connect to the server.
         /// </summary>
-        public IUserIdentity UserIdentity { get; set; } = new UserIdentity();
+        public IClientIdentityProvider IdentityProvider { get; set; } = new AnonymousIdentityProvider();
 
         /// <summary>
         /// Auto accept untrusted certificates.
@@ -263,6 +264,10 @@ namespace Quickstarts
                         endpointDescription!,
                         endpointConfiguration);
 
+                    IUserIdentity userIdentity = await CreateUserIdentityAsync(
+                        endpointDescription!,
+                        ct).ConfigureAwait(false);
+
                     // Create the session factory. - we could take it as parameter or as member
                     var sessionFactory = new DefaultSessionFactory(m_telemetry);
 
@@ -276,7 +281,7 @@ namespace Quickstarts
                             false,
                             m_configuration.ApplicationName!,
                             SessionLifeTime,
-                            UserIdentity,
+                            userIdentity,
                             default,
                             ct)
                         .ConfigureAwait(false);
@@ -315,6 +320,16 @@ namespace Quickstarts
                 Console.WriteLine($"Create Session Error : {ex.Message}");
                 return false;
             }
+        }
+
+        private ValueTask<IUserIdentity> CreateUserIdentityAsync(
+            EndpointDescription endpointDescription,
+            CancellationToken ct)
+        {
+            return IdentityProvider.AcquireIdentityAsync(
+                endpointDescription,
+                m_configuration.CreateMessageContext(),
+                ct);
         }
 
         /// <summary>

@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Server
 {
@@ -76,7 +75,7 @@ namespace Opc.Ua.Server
             {
                 SingleReader = !m_useMultipleConsumers,
                 FullMode = BoundedChannelFullMode.Wait,
-                AllowSynchronousContinuations = false,
+                AllowSynchronousContinuations = false
             });
             m_consumerCts = new CancellationTokenSource();
             m_consumerTask = Task.Run(() => ProcessChannelAsync(m_consumerCts.Token));
@@ -611,7 +610,6 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             in DataValue snapshotValue)
         {
-
             // Clone the Variant so we do not mutate the shared snapshot value.
             Variant value = snapshotValue.WrappedValue.Copy();
 
@@ -887,7 +885,9 @@ namespace Opc.Ua.Server
                             {
                                 m_consumerTask.GetAwaiter().GetResult();
                             }
-                            catch { }
+                            catch
+                            {
+                            }
                         }
                     }
                     catch (Exception ex)

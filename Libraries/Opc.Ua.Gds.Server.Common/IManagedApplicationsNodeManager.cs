@@ -156,10 +156,8 @@ namespace Opc.Ua.Gds.Server
         // Well-known NodeIds from the base UA namespace (ns=0).
         // Using numeric literals avoids ambiguity between the GDS and
         // base-UA generated ObjectTypes/Objects classes.
-        private static readonly NodeId ManagedApplicationsFolderId = new NodeId(16706u);
-        private static readonly NodeId ApplicationConfigurationTypeId = new NodeId(25731u);
-
-        private readonly IConfigurationDataStore m_dataStore;
+        private static readonly NodeId ManagedApplicationsFolderId = new(16706u);
+        private static readonly NodeId ApplicationConfigurationTypeId = new(25731u);
         private readonly Dictionary<string, ApplicationConfigurationState> m_appNodes = new(System.StringComparer.Ordinal);
 
         /// <summary>
@@ -180,12 +178,12 @@ namespace Opc.Ua.Gds.Server
                   configuration,
                   server.Telemetry.CreateLogger<DefaultManagedApplicationsNodeManager>())
         {
-            m_dataStore = dataStore ?? throw new System.ArgumentNullException(nameof(dataStore));
+            ConfigurationDataStore = dataStore ?? throw new System.ArgumentNullException(nameof(dataStore));
             NamespaceUris = [Namespaces.OpcUa];
         }
 
         /// <inheritdoc/>
-        public IConfigurationDataStore ConfigurationDataStore => m_dataStore;
+        public IConfigurationDataStore ConfigurationDataStore { get; }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -208,7 +206,7 @@ namespace Opc.Ua.Gds.Server
             // Query the data store for managed applications and
             // create ApplicationConfigurationState instances under the
             // ManagedApplications folder.
-            IReadOnlyList<ManagedApplicationInfo> apps = await m_dataStore
+            IReadOnlyList<ManagedApplicationInfo> apps = await ConfigurationDataStore
                 .GetManagedApplicationsAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -230,7 +228,7 @@ namespace Opc.Ua.Gds.Server
             // Build a deterministic NodeId from the ApplicationUri.
             string safeId = info.ApplicationUri.Replace(':', '_').Replace('/', '_');
 
-            NodeId nodeId = new NodeId(safeId, NamespaceIndexes[0]);
+            var nodeId = new NodeId(safeId, NamespaceIndexes[0]);
 
             var appNode = new ApplicationConfigurationState(null)
             {
@@ -243,30 +241,15 @@ namespace Opc.Ua.Gds.Server
             };
 
             // Populate properties from the ManagedApplicationInfo.
-            if (appNode.ApplicationUri != null)
-            {
-                appNode.ApplicationUri.Value = info.ApplicationUri;
-            }
+            appNode.ApplicationUri?.Value = info.ApplicationUri;
 
-            if (appNode.ProductUri != null)
-            {
-                appNode.ProductUri.Value = info.ProductUri ?? string.Empty;
-            }
+            appNode.ProductUri?.Value = info.ProductUri ?? string.Empty;
 
-            if (appNode.ApplicationType != null)
-            {
-                appNode.ApplicationType.Value = info.ApplicationType;
-            }
+            appNode.ApplicationType?.Value = info.ApplicationType;
 
-            if (appNode.Enabled != null)
-            {
-                appNode.Enabled.Value = info.Enabled;
-            }
+            appNode.Enabled?.Value = info.Enabled;
 
-            if (appNode.IsNonUaApplication != null)
-            {
-                appNode.IsNonUaApplication.Value = info.IsNonUaApplication;
-            }
+            appNode.IsNonUaApplication?.Value = info.IsNonUaApplication;
 
             await AddPredefinedNodeAsync(SystemContext, appNode).ConfigureAwait(false);
 
@@ -275,7 +258,7 @@ namespace Opc.Ua.Gds.Server
             // (the folder is owned by the core node manager).
             if (!externalReferences.TryGetValue(ManagedApplicationsFolderId, out IList<IReference>? refs))
             {
-                refs = new List<IReference>();
+                refs = [];
                 externalReferences[ManagedApplicationsFolderId] = refs;
             }
 

@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("resolve-override", 1),
-                BrowseName = new QualifiedName("Var"),
+                BrowseName = new QualifiedName("Var")
             };
 
             var sentinel = new InMemoryHistorianProvider();
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var node = new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
-                BrowseName = new QualifiedName("Var"),
+                BrowseName = new QualifiedName("Var")
             };
 
             IHistorianProvider? resolved = HistorianDispatcher.ResolveProvider(
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("resolve-null", 1),
-                BrowseName = new QualifiedName("Var"),
+                BrowseName = new QualifiedName("Var")
             };
 
             IHistorianProvider? resolved = HistorianDispatcher.ResolveProvider(
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("del-raw-nondp", 1);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var mockProvider = new Mock<IHistorianProvider>();
 
             var details = new DeleteRawModifiedDetails
@@ -124,14 +124,14 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(1),
-                IsDeleteModified = false,
+                IsDeleteModified = false
             };
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
-                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
+                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -139,19 +139,19 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             NodeId nodeId = h.SeedSamples(5);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
 
             var details = new DeleteRawModifiedDetails
             {
                 NodeId = nodeId,
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddSeconds(10),
-                IsDeleteModified = false,
+                IsDeleteModified = false
             };
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
@@ -161,20 +161,20 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddSeconds(10),
-                IsReadModified = false,
+                IsReadModified = false
             };
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
             var readResult = new HistoryReadResult();
             ServiceResult readError = await HistorianDispatcher.DispatchRawReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, readDetails,
-                TimestampsToReturn.Source, readResult, CancellationToken.None);
+                TimestampsToReturn.Source, readResult, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(readError), Is.True);
-            if (readResult.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+            if (readResult.HistoryData.TryGetValue(out HistoryData? hd))
             {
                 Assert.That(hd.DataValues, Is.Empty);
             }
@@ -185,20 +185,20 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("del-at-nondp", 1);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var mockProvider = new Mock<IHistorianProvider>();
 
             var details = new DeleteAtTimeDetails
             {
                 NodeId = nodeId,
-                ReqTimes = new DateTimeUtc[] { HarnessFixture.BaseTime },
+                ReqTimes = new DateTimeUtc[] { HarnessFixture.BaseTime }
             };
 
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None);
+                h.SystemContext, mockProvider.Object, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -214,12 +214,12 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var seedValues = new List<DataValue>
             {
-                new DataValue(new Variant(10), StatusCodes.Good, sourceTimestamp: t0, serverTimestamp: t0),
-                new DataValue(new Variant(20), StatusCodes.Good, sourceTimestamp: t1, serverTimestamp: t1),
-                new DataValue(new Variant(30), StatusCodes.Good, sourceTimestamp: t2, serverTimestamp: t2),
+                new(new Variant(10), StatusCodes.Good, sourceTimestamp: t0, serverTimestamp: t0),
+                new(new Variant(20), StatusCodes.Good, sourceTimestamp: t1, serverTimestamp: t1),
+                new(new Variant(30), StatusCodes.Good, sourceTimestamp: t2, serverTimestamp: t2)
             };
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
-            await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);
+            await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None).ConfigureAwait(false);
 
             DateTime unknown1 = HarnessFixture.BaseTime.AddSeconds(100);
             DateTime unknown2 = HarnessFixture.BaseTime.AddSeconds(200);
@@ -227,20 +227,20 @@ namespace Opc.Ua.Server.Tests.Historian
             var details = new DeleteAtTimeDetails
             {
                 NodeId = nodeId,
-                ReqTimes = new DateTimeUtc[] { t0, unknown1, t1, unknown2 },
+                ReqTimes = new DateTimeUtc[] { t0, unknown1, t1, unknown2 }
             };
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var result = new HistoryUpdateResult();
             ServiceResult error = await HistorianDispatcher.DispatchDeleteAtTimeAsync(
-                h.SystemContext, h.Provider, node, details, result, CancellationToken.None);
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.OperationResults, Has.Count.EqualTo(4));
             Assert.That(StatusCode.IsGood(result.OperationResults[0]), Is.True);
-            Assert.That(result.OperationResults[1], Is.EqualTo((StatusCode)StatusCodes.BadNoEntryExists));
+            Assert.That(result.OperationResults[1], Is.EqualTo(StatusCodes.BadNoEntryExists));
             Assert.That(StatusCode.IsGood(result.OperationResults[2]), Is.True);
-            Assert.That(result.OperationResults[3], Is.EqualTo((StatusCode)StatusCodes.BadNoEntryExists));
+            Assert.That(result.OperationResults[3], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
         [Test]
@@ -248,19 +248,19 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarnessWithAggregateManager();
             NodeId nodeId = h.SeedSamples(5);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
 
             var details = new ReadProcessedDetails
             {
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(1),
-                ProcessingInterval = 10000,
+                ProcessingInterval = 10000
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
@@ -268,9 +268,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                bogusAggregateId, TimestampsToReturn.Source, result, CancellationToken.None);
+                bogusAggregateId, TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadAggregateNotSupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
         }
 
         [Test]
@@ -285,38 +285,38 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var seedValues = new List<DataValue>
             {
-                new DataValue(new Variant(100.0), StatusCodes.Good, sourceTimestamp: t10, serverTimestamp: t10),
-                new DataValue(new Variant(200.0), StatusCodes.Good, sourceTimestamp: t20, serverTimestamp: t20),
+                new(new Variant(100.0), StatusCodes.Good, sourceTimestamp: t10, serverTimestamp: t10),
+                new(new Variant(200.0), StatusCodes.Good, sourceTimestamp: t20, serverTimestamp: t20)
             };
             HistorianOperationContext ctx = HarnessFixture.CreateContext(h.SystemContext);
-            await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None);
+            await h.Provider.InsertAsync(ctx, nodeId, seedValues, CancellationToken.None).ConfigureAwait(false);
 
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             DateTime t15 = HarnessFixture.BaseTime.AddSeconds(15);
 
             var details = new ReadAtTimeDetails
             {
                 ReqTimes = new DateTimeUtc[] { t15 },
-                UseSimpleBounds = false,
+                UseSimpleBounds = false
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
             ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, h.Provider, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
-            Assert.That(result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
             Assert.That(values![0].SourceTimestamp.ToDateTime(), Is.EqualTo(t15));
-            Assert.That(values[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainDataSubNormal));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
             double interpolated = Convert.ToDouble(values[0].WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
             Assert.That(interpolated, Is.EqualTo(150.0).Within(0.01));
         }
@@ -326,27 +326,27 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("at-time-nondp", 1);
-            var node = CreateVariable(nodeId);
+            BaseDataVariableState node = CreateVariable(nodeId);
             var mockProvider = new Mock<IHistorianProvider>();
 
             var details = new ReadAtTimeDetails
             {
                 ReqTimes = new DateTimeUtc[] { HarnessFixture.BaseTime },
-                UseSimpleBounds = false,
+                UseSimpleBounds = false
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = nodeId,
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
             ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
                 h.SystemContext, mockProvider.Object, node, nodeToRead, details,
-                TimestampsToReturn.Source, result, CancellationToken.None);
+                TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadHistoryOperationUnsupported));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
         [Test]
@@ -355,13 +355,13 @@ namespace Opc.Ua.Server.Tests.Historian
             HarnessFixture h = CreateHarness();
             var nodeToRead = new HistoryReadValueId
             {
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             ServiceResult error = HistorianDispatcher.ReleaseContinuationPoint(
                 h.SystemContext, nodeToRead);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         [Test]
@@ -371,13 +371,13 @@ namespace Opc.Ua.Server.Tests.Historian
             var randomCp = new ByteString(Guid.NewGuid().ToByteArray());
             var nodeToRead = new HistoryReadValueId
             {
-                ContinuationPoint = randomCp,
+                ContinuationPoint = randomCp
             };
 
             ServiceResult error = HistorianDispatcher.ReleaseContinuationPoint(
                 h.SystemContext, nodeToRead);
 
-            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadContinuationPointInvalid));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         private static BaseDataVariableState CreateVariable(NodeId nodeId)
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("TestVar"),
                 AccessLevel = AccessLevels.HistoryReadOrWrite,
-                Historizing = true,
+                Historizing = true
             };
         }
 
@@ -410,7 +410,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Provider = new InMemoryHistorianProvider();
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
-                m_continuationStore = new Dictionary<Guid, object>();
+                m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
                 mockSession

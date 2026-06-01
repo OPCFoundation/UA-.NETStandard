@@ -31,7 +31,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
@@ -77,14 +76,14 @@ namespace Opc.Ua.Sessions.Tests
         public async Task RequestedSessionTimeoutIsRevisedByServerAsync()
         {
             uint originalTimeout = ClientFixture.SessionTimeout;
-            uint[] requestedTimeouts = new uint[]
-            {
+            uint[] requestedTimeouts =
+            [
                 0u,
                 1u,
                 1_000u,
                 60_000u,
                 3_600_000u
-            };
+            ];
 
             try
             {

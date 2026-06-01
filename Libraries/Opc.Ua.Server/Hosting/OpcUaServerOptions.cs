@@ -31,13 +31,11 @@ using System;
 using System.Collections.Generic;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Hosting
 {
     /// <summary>
     /// Options for an OPC UA server hosted by the .NET Generic Host via
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServerBuilderExtensions.AddServer(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Server.Hosting.OpcUaServerOptions})"/>.
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaServerBuilderExtensions.AddServer(IOpcUaBuilder,Action{OpcUaServerOptions})"/>.
     /// </summary>
     /// <remarks>
     /// Only the most common knobs are exposed directly. Use
@@ -130,7 +128,12 @@ namespace Opc.Ua.Server.Hosting
         /// <see cref="UserTokenType.Anonymous"/>.
         /// </summary>
         public IList<OpcUaUserTokenPolicy> UserTokenPolicies { get; }
-            = new List<OpcUaUserTokenPolicy>();
+            = [];
+
+        /// <summary>
+        /// Server-side identity authenticators and trusted JWT issuers.
+        /// </summary>
+        public OpcUaServerIdentityOptions Identity { get; set; } = new();
 
         /// <summary>
         /// Maximum message size advertised on the transport, in bytes.

@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Lds.Tests
@@ -472,8 +471,8 @@ namespace Opc.Ua.Lds.Tests
 
             Assert.That(StatusCode.IsGood(second.Results[0].StatusCode), Is.True);
 
-            var time1 = first.Results[0].WrappedValue.GetDateTime();
-            var time2 = second.Results[0].WrappedValue.GetDateTime();
+            DateTimeUtc time1 = first.Results[0].WrappedValue.GetDateTime();
+            DateTimeUtc time2 = second.Results[0].WrappedValue.GetDateTime();
             Assert.That(time2, Is.GreaterThan(time1));
         }
 

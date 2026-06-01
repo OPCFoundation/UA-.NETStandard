@@ -31,7 +31,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -54,8 +53,13 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             if (Session != null)
             {
-                try { await Session.CloseAsync(5000, true).ConfigureAwait(false); }
-                catch { }
+                try
+                {
+                    await Session.CloseAsync(5000, true).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
                 Session.Dispose();
             }
             Session = await ClientFixture
@@ -63,6 +67,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
             Assert.That(Session, Is.Not.Null, "Failed to create signed transfer session");
         }
+
         [Test]
         public async Task TransferAfterSessionCloseWithDeleteSubscriptionsTrueAsync()
         {
@@ -410,16 +415,13 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             try
             {
-                TransferSubscriptionsResponse resp =
-                    await target.TransferSubscriptionsAsync(
-                        null,
-                        subIds.ToArrayOf(),
-                        sendInitial,
-                        CancellationToken.None).ConfigureAwait(false);
-
                 // Per-result Bad statuses are expected outcomes for negative
                 // tests; do not treat them as "service not supported".
-                return resp;
+                return await target.TransferSubscriptionsAsync(
+                    null,
+                    subIds.ToArrayOf(),
+                    sendInitial,
+                    CancellationToken.None).ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadServiceUnsupported ||

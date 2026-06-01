@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
 
 // Conformance tests use inline literal arrays as expected-value
 // assertions; the per-call allocation cost is irrelevant for tests
@@ -145,7 +144,7 @@ namespace Opc.Ua.Lds.Tests
                 await FindServersOnNetworkAsync(startingRecordId: 0, maxRecords: 2).ConfigureAwait(false);
             Assert.That(page1.Count, Is.EqualTo(2));
 
-            uint nextStart = page1[page1.Count - 1].RecordId + 1;
+            uint nextStart = page1[^1].RecordId + 1;
             (ArrayOf<ServerOnNetwork> page2, _) =
                 await FindServersOnNetworkAsync(startingRecordId: nextStart, maxRecords: 2).ConfigureAwait(false);
             Assert.That(page2.Count, Is.GreaterThanOrEqualTo(2));
@@ -327,7 +326,7 @@ namespace Opc.Ua.Lds.Tests
 
         private void SeedRecord(string serverUri, string serverName, IList<string> caps, string discoveryUrl)
         {
-            Lds.Store.SeedRegistration(new Opc.Ua.Lds.Server.RegistrationEntry
+            Lds.Store.SeedRegistration(new Server.RegistrationEntry
             {
                 ServerUri = serverUri,
                 ProductUri = "uri:test",
@@ -337,7 +336,7 @@ namespace Opc.Ua.Lds.Tests
                 IsOnline = true,
                 LastSeenUtc = DateTime.UtcNow,
                 MdnsServerName = serverName,
-                ServerCapabilities = new List<string>(caps)
+                ServerCapabilities = [.. caps]
             });
         }
 

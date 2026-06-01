@@ -154,8 +154,8 @@ namespace Opc.Ua.Server
             ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
                 ObjectIds.Server_ServerDiagnostics);
 
-            if (serverDiagnosticsNode != null
-                && serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
+            if (serverDiagnosticsNode != null &&
+                serverDiagnosticsNode.SamplingIntervalDiagnosticsArray != null)
             {
                 NodeState? samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
                     SystemContext,
@@ -2212,7 +2212,7 @@ namespace Opc.Ua.Server
                 ReadRawData = true,
                 ReadModifiedData = false,
                 ReadAtTime = false,
-                ReadProcessedData = false,
+                ReadProcessedData = false
             };
             bool insertData = false;
             bool replaceData = false;

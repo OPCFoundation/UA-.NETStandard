@@ -1771,7 +1771,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructForGenericEncodeableTypeReturnsExtensionObject()
         {
-            TypeInfo result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
+            var result = TypeInfo.Construct(typeof(GenericEncodeable<int>));
             Assert.That(result.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
             Assert.That(result.ValueRank, Is.EqualTo(ValueRanks.Scalar));
         }

@@ -34,14 +34,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-using Opc.Ua.Client;
-using ContinuationPointPolicy = Opc.Ua.Client.ContinuationPointPolicy;
-using ISession = Opc.Ua.Client.ISession;
 using NUnit.Framework.Internal;
-using Opc.Ua.Server.Tests;
-
+using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using ContinuationPointPolicy = Opc.Ua.Client.ContinuationPointPolicy;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Sessions.Tests
 {

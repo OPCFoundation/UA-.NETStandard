@@ -32,8 +32,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Lds.Tests
@@ -48,9 +46,11 @@ namespace Opc.Ua.Lds.Tests
     [Category("DiscoveryServices")]
     public class DiscoveryRegisterTests : LdsTestFixture
     {
-        // The cert used by ClientFixture has ApplicationUri matching this value.
-        // Per Part 12 §6.4.2 the LDS verifies cert.ApplicationUri == server.ServerUri
-        // so positive tests use it as the registered ServerUri.
+        /// <summary>
+        /// The cert used by ClientFixture has ApplicationUri matching this value.
+        /// Per Part 12 §6.4.2 the LDS verifies cert.ApplicationUri == server.ServerUri
+        /// so positive tests use it as the registered ServerUri.
+        /// </summary>
         private const string ClientApplicationUri =
             "urn:localhost:opcfoundation.org:TestClient";
 
@@ -430,7 +430,7 @@ namespace Opc.Ua.Lds.Tests
                 .ConfigureAwait(false);
 
             const string secondUri = "urn:localhost:opcfoundation.org:OtherTestServer";
-            Lds.Store.SeedRegistration(new Opc.Ua.Lds.Server.RegistrationEntry
+            Lds.Store.SeedRegistration(new Server.RegistrationEntry
             {
                 ServerUri = secondUri,
                 ProductUri = "uri:test",
@@ -447,13 +447,13 @@ namespace Opc.Ua.Lds.Tests
 
             // Filter by first uri -> only that one (LDS self filtered out).
             ArrayOf<ApplicationDescription> filtered =
-                await FindServersAsync(new[] { ClientApplicationUri }).ConfigureAwait(false);
+                await FindServersAsync([ClientApplicationUri]).ConfigureAwait(false);
             Assert.That(filtered.Count, Is.EqualTo(1));
             Assert.That(filtered[0].ApplicationUri, Is.EqualTo(ClientApplicationUri));
 
             // Filter by second uri -> only that one.
             ArrayOf<ApplicationDescription> filtered2 =
-                await FindServersAsync(new[] { secondUri }).ConfigureAwait(false);
+                await FindServersAsync([secondUri]).ConfigureAwait(false);
             Assert.That(filtered2.Count, Is.EqualTo(1));
             Assert.That(filtered2[0].ApplicationUri, Is.EqualTo(secondUri));
         }
@@ -472,7 +472,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, NewServer(isOnline: true), CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
         [Description("RegisterServer() default values; ServerUri=empty; expect Bad_ServerUriInvalid.")]
@@ -490,7 +490,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerUriInvalid));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerUriInvalid));
         }
 
         [Description("RegisterServer() default values; ServerNames=empty; expect Bad_ServerNameMissing.")]
@@ -508,7 +508,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerNameMissing));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerNameMissing));
         }
 
         [Description("RegisterServer() default values; DiscoveryUrls=empty; expect Bad_DiscoveryUrlMissing.")]
@@ -526,7 +526,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDiscoveryUrlMissing));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDiscoveryUrlMissing));
         }
 
         [Description("RegisterServer() default values; ServerUri != ServerCertificate.ApplicationUri; expect Bad_ServerUriInvalid.")]
@@ -544,7 +544,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadServerUriInvalid));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerUriInvalid));
         }
 
         [Description("RegisterServer() default values; ServerType=CLIENT_1; expect Bad_InvalidArgument.")]
@@ -562,7 +562,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Description("RegisterServer() default values; ServerType=invalid; expect Bad_InvalidArgument.")]
@@ -580,7 +580,7 @@ namespace Opc.Ua.Lds.Tests
                     .RegisterServerAsync(null, server, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // Helpers --------------------------------------------------------
