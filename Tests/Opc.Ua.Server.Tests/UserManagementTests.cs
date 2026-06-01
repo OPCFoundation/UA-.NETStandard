@@ -30,6 +30,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserDatabase;
 using UserManagementImpl = Opc.Ua.Server.UserManagement.UserManagement;
@@ -47,6 +48,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class UserManagementTests
     {
+        private static readonly string[] s_defaultUserNames = ["alice", "bob"];
+
         private static UserManagementImpl CreateManager()
         {
             return new UserManagementImpl(
@@ -65,6 +68,51 @@ namespace Opc.Ua.Server.Tests
             Assert.That(users, Has.Count.EqualTo(1));
             Assert.That(users[0].UserName, Is.EqualTo("alice"));
             Assert.That(users[0].Description, Is.EqualTo("Tester"));
+        }
+
+        [Test]
+        public void SnapshotUsers_StartsWithAllDatabaseUsers()
+        {
+            var database = new LinqUserDatabase();
+            Assert.That(database.CreateUser("alice", "secret"u8, [Role.AuthenticatedUser]), Is.True);
+            Assert.That(database.CreateUser("bob", "secret2"u8, [Role.AuthenticatedUser]), Is.True);
+
+            using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
+
+            IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
+            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(s_defaultUserNames));
+            Assert.That(users.All(u => u.UserConfiguration == (uint)UserConfigurationMask.None), Is.True);
+        }
+
+        [Test]
+        public void SnapshotUsers_StartsWithAllCustomDatabaseUsers()
+        {
+            var database = new TestUserDatabase(
+                [
+                    new UserManagementDataType
+                    {
+                        UserName = "alice",
+                        UserConfiguration = (uint)UserConfigurationMask.MustChangePassword,
+                        Description = "Alice Description"
+                    },
+                    new UserManagementDataType
+                    {
+                        UserName = "bob",
+                        UserConfiguration = (uint)UserConfigurationMask.Disabled,
+                        Description = "Bob Description"
+                    }
+                ]);
+
+            using var um = new UserManagementImpl(database, passwordLength: new Range { Low = 4, High = 64 });
+
+            IReadOnlyList<UserManagementDataType> users = um.SnapshotUsers();
+            UserManagementDataType alice = users.Single(u => u.UserName == "alice");
+            UserManagementDataType bob = users.Single(u => u.UserName == "bob");
+            Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(s_defaultUserNames));
+            Assert.That(alice.UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.MustChangePassword));
+            Assert.That(alice.Description, Is.EqualTo("Alice Description"));
+            Assert.That(bob.UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.Disabled));
+            Assert.That(bob.Description, Is.EqualTo("Bob Description"));
         }
 
         [Test]
@@ -442,6 +490,49 @@ namespace Opc.Ua.Server.Tests
             ServiceResult result = um.AddUser("alice", "Has!Special",
                 UserConfigurationMask.None, string.Empty);
             Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        private sealed class TestUserDatabase : IUserDatabase
+        {
+            private readonly IReadOnlyList<UserManagementDataType> m_users;
+
+            public TestUserDatabase(IReadOnlyList<UserManagementDataType> users)
+            {
+                m_users = users;
+            }
+
+            public bool CreateUser(string userName, System.ReadOnlySpan<byte> password, ICollection<Role> roles)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public bool DeleteUser(string userName)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public bool CheckCredentials(string userName, System.ReadOnlySpan<byte> password)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public ICollection<Role> GetUserRoles(string userName)
+            {
+                throw new System.NotSupportedException();
+            }
+
+            public IReadOnlyList<UserManagementDataType> GetUsers()
+            {
+                return m_users;
+            }
+
+            public bool ChangePassword(
+                string userName,
+                System.ReadOnlySpan<byte> oldPassword,
+                System.ReadOnlySpan<byte> newPassword)
+            {
+                throw new System.NotSupportedException();
+            }
         }
     }
 }

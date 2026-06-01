@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
@@ -39,12 +41,16 @@ namespace TestData
     /// <summary>
     /// The node manager factory for test data.
     /// </summary>
-    public class TestDataNodeManagerFactory : INodeManagerFactory
+    public class TestDataNodeManagerFactory : IAsyncNodeManagerFactory
     {
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-            return new TestDataNodeManager(server, configuration, [.. NamespacesUris]);
+            return new ValueTask<IAsyncNodeManager>(
+                new TestDataNodeManager(server, configuration, [.. NamespacesUris]));
         }
 
         /// <inheritdoc/>
@@ -55,7 +61,7 @@ namespace TestData
     /// <summary>
     /// A node manager for a variety of test data.
     /// </summary>
-    public class TestDataNodeManager : CustomNodeManager2, ITestDataSystemCallback
+    public class TestDataNodeManager : AsyncCustomNodeManager, ITestDataSystemCallback
     {
         /// <summary>
         /// Initializes the node manager.
@@ -127,7 +133,7 @@ namespace TestData
             StatusCode statusCode,
             DateTime timestamp)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 variable.Value = value;
                 variable.StatusCode = statusCode;
@@ -143,7 +149,7 @@ namespace TestData
         /// </summary>
         public void OnGenerateValues(BaseVariableState variable)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (variable is ITestDataSystemValuesGenerator generator)
                 {
@@ -172,115 +178,114 @@ namespace TestData
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
-            {
-                // ensure the namespace used by the node manager is in the server's namespace table.
-                m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData);
-                m_namespaceIndex = Server.NamespaceUris
-                    .GetIndexOrAppend(Namespaces.TestData + "Instance");
+            // ensure the namespace used by the node manager is in the server's namespace table.
+            m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData);
+            m_namespaceIndex = Server.NamespaceUris
+                .GetIndexOrAppend(Namespaces.TestData + "Instance");
 
-                base.CreateAddressSpace(externalReferences);
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
 #if CONDITION_SAMPLES
-                // start monitoring the system status.
-                m_systemStatusCondition = FindPredefinedNode<TestSystemConditionState>(
-                    new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex));
+            // start monitoring the system status.
+            m_systemStatusCondition = FindPredefinedNode<TestSystemConditionState>(
+                new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex));
 
-                if (m_systemStatusCondition != null)
-                {
-                    m_systemStatusTimer?.Dispose();
-                    m_systemStatusTimer = new Timer(OnCheckSystemStatus, null, 5000, 5000);
-                    m_systemStatusCondition.Retain.Value = true;
-                }
+            if (m_systemStatusCondition != null)
+            {
+                m_systemStatusTimer?.Dispose();
+                m_systemStatusTimer = new Timer(OnCheckSystemStatus, null, 5000, 5000);
+                m_systemStatusCondition.Retain.Value = true;
+            }
 #endif
-                // link all conditions to the conditions folder.
-                NodeState? conditionsFolder = FindPredefinedNode<NodeState>(
-                    new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex));
+            // link all conditions to the conditions folder.
+            NodeState? conditionsFolder = FindPredefinedNode<NodeState>(
+                new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex));
 
-                foreach (NodeState node in PredefinedNodes.Values)
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is ConditionState condition &&
+                    !ReferenceEquals(condition.Parent, conditionsFolder))
                 {
-                    if (node is ConditionState condition &&
-                        !ReferenceEquals(condition.Parent, conditionsFolder))
-                    {
-                        condition.AddNotifier(SystemContext, default, true, conditionsFolder);
-                        conditionsFolder!.AddNotifier(SystemContext, default, false, condition);
-                    }
+                    condition.AddNotifier(SystemContext, default, true, conditionsFolder);
+                    conditionsFolder!.AddNotifier(SystemContext, default, false, condition);
                 }
+            }
 
-                // enable history for all numeric scalar values.
-                ScalarValueObjectState? scalarValues = FindPredefinedNode<ScalarValueObjectState>(
-                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex));
+            // enable history for all numeric scalar values.
+            ScalarValueObjectState? scalarValues = FindPredefinedNode<ScalarValueObjectState>(
+                new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex));
 
-                BaseDataVariableState<int> int32Value = scalarValues!.Int32Value!;
-                int32Value.Historizing = true;
-                int32Value.AccessLevel = (byte)(
-                    int32Value.AccessLevel | AccessLevels.HistoryRead);
+            BaseDataVariableState<int> int32Value = scalarValues!.Int32Value!;
+            int32Value.Historizing = true;
+            int32Value.AccessLevel = (byte)(
+                int32Value.AccessLevel | AccessLevels.HistoryRead);
 
-                m_system.EnableHistoryArchiving(SystemContext, int32Value);
+            m_system.EnableHistoryArchiving(SystemContext, int32Value);
 
-                // Initialize Root Variable for structures with variables
-                {
-                    ScalarStructureVariableState variable
-                        = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Static_Structure_ScalarStructure)!;
-                    m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(
-                        variable,
-                        m_system.GetRandomScalarStructureDataType(),
-                        null!);
-                }
-                {
-                    ScalarStructureVariableState variable
-                        = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Dynamic_Structure_ScalarStructure)!;
-                    m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(
-                        variable,
-                        m_system.GetRandomScalarStructureDataType(),
-                        null!);
-                }
-                {
-                    VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Structure_VectorStructure)!;
-                    m_dataStaticStructureVectorStructure = new VectorVariableValue(
-                        variable,
-                        m_system.GetRandomVector(),
-                        null!);
-                }
-                {
-                    VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Structure_VectorStructure)!;
-                    m_dataDynamicStructureVectorStructure = new VectorVariableValue(
-                        variable,
-                        m_system.GetRandomVector(),
-                        null!);
-                }
-                {
-                    VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Scalar_VectorValue)!;
-                    m_dataStaticVectorScalarValue = new VectorVariableValue(
-                        variable,
-                        m_system.GetRandomVector(),
-                        null!);
-                }
-                {
-                    VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Scalar_VectorValue)!;
-                    m_dataDynamicVectorScalarValue = new VectorVariableValue(
-                        variable,
-                        m_system.GetRandomVector(),
-                        null!);
-                }
+            // Initialize Root Variable for structures with variables
+            {
+                ScalarStructureVariableState variable
+                    = FindTypeState<ScalarStructureVariableState>(
+                    Variables.Data_Static_Structure_ScalarStructure)!;
+                m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(
+                    variable,
+                    m_system.GetRandomScalarStructureDataType(),
+                    null!);
+            }
+            {
+                ScalarStructureVariableState variable
+                    = FindTypeState<ScalarStructureVariableState>(
+                    Variables.Data_Dynamic_Structure_ScalarStructure)!;
+                m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(
+                    variable,
+                    m_system.GetRandomScalarStructureDataType(),
+                    null!);
+            }
+            {
+                VectorVariableState variable = FindTypeState<VectorVariableState>(
+                    Variables.Data_Static_Structure_VectorStructure)!;
+                m_dataStaticStructureVectorStructure = new VectorVariableValue(
+                    variable,
+                    m_system.GetRandomVector(),
+                    null!);
+            }
+            {
+                VectorVariableState variable = FindTypeState<VectorVariableState>(
+                    Variables.Data_Dynamic_Structure_VectorStructure)!;
+                m_dataDynamicStructureVectorStructure = new VectorVariableValue(
+                    variable,
+                    m_system.GetRandomVector(),
+                    null!);
+            }
+            {
+                VectorVariableState variable = FindTypeState<VectorVariableState>(
+                    Variables.Data_Static_Scalar_VectorValue)!;
+                m_dataStaticVectorScalarValue = new VectorVariableValue(
+                    variable,
+                    m_system.GetRandomVector(),
+                    null!);
+            }
+            {
+                VectorVariableState variable = FindTypeState<VectorVariableState>(
+                    Variables.Data_Dynamic_Scalar_VectorValue)!;
+                m_dataDynamicVectorScalarValue = new VectorVariableValue(
+                    variable,
+                    m_system.GetRandomVector(),
+                    null!);
             }
         }
 
         /// <summary>
         /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
-        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
-            return new NodeStateCollection().AddTestData(context);
+            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddTestData(context));
         }
 
         /// <summary>
@@ -300,9 +305,10 @@ namespace TestData
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected override NodeState AddBehaviourToPredefinedNode(
+        protected override ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
             ISystemContext context,
-            NodeState predefinedNode)
+            NodeState predefinedNode,
+            CancellationToken cancellationToken = default)
         {
             if (predefinedNode is BaseObjectState passiveNode)
             {
@@ -310,7 +316,7 @@ namespace TestData
 
                 if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
                 {
-                    return predefinedNode;
+                    return new ValueTask<NodeState>(predefinedNode);
                 }
 
                 switch (typeIdNumeric)
@@ -324,7 +330,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.ScalarValueObjectType:
                     {
@@ -335,7 +341,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.StructureValueObjectType:
                     {
@@ -346,7 +352,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.AnalogScalarValueObjectType:
                     {
@@ -357,7 +363,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.ArrayValueObjectType:
                     {
@@ -368,7 +374,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.AnalogArrayValueObjectType:
                     {
@@ -379,7 +385,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.UserScalarValueObjectType:
                     {
@@ -390,7 +396,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.UserArrayValueObjectType:
                     {
@@ -401,7 +407,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case ObjectTypes.MethodTestType:
                     {
@@ -412,7 +418,7 @@ namespace TestData
 
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                 }
             }
@@ -422,7 +428,7 @@ namespace TestData
 
                 if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
                 {
-                    return predefinedNode;
+                    return new ValueTask<NodeState>(predefinedNode);
                 }
 
                 switch (typeIdNumeric)
@@ -436,7 +442,7 @@ namespace TestData
 
                             variableNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                     case VariableTypes.VectorVariableType:
                     {
@@ -447,11 +453,11 @@ namespace TestData
 
                             variableNode.Parent?.ReplaceChild(context, activeNode);
                         }
-                        return activeNode;
+                        return new ValueTask<NodeState>(activeNode);
                     }
                 }
             }
-            return predefinedNode;
+            return new ValueTask<NodeState>(predefinedNode);
         }
 
 
@@ -522,10 +528,11 @@ namespace TestData
         /// <param name="context">The context.</param>
         /// <param name="handle">The handle for the node.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        protected override void OnMonitoredItemModified(
+        protected override ValueTask OnMonitoredItemModifiedAsync(
             ServerSystemContext context,
             NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
         {
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
                 monitoredItem.MonitoringMode != MonitoringMode.Disabled)
@@ -537,6 +544,8 @@ namespace TestData
                     monitoredItem.SamplingInterval,
                     source!);
             }
+
+            return default;
         }
 
         /// <summary>
@@ -545,16 +554,19 @@ namespace TestData
         /// <param name="context">The context.</param>
         /// <param name="handle">The handle for the node.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        protected override void OnMonitoredItemDeleted(
+        protected override ValueTask OnMonitoredItemDeletedAsync(
             ServerSystemContext context,
             NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
         {
             // check for variables that need to be scanned.
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
             {
                 m_system.StopMonitoringValue(monitoredItem.Id);
             }
+
+            return default;
         }
 
         /// <summary>
@@ -565,12 +577,13 @@ namespace TestData
         /// <param name="monitoredItem">The monitored item.</param>
         /// <param name="previousMode">The previous monitoring mode.</param>
         /// <param name="monitoringMode">The current monitoring mode.</param>
-        protected override void OnMonitoringModeChanged(
+        protected override ValueTask OnMonitoringModeChangedAsync(
             ServerSystemContext context,
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
-            MonitoringMode monitoringMode)
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken = default)
         {
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
             {
@@ -591,6 +604,8 @@ namespace TestData
                         source!);
                 }
             }
+
+            return default;
         }
 
         private TS? FindTypeState<TS>(uint nodeId)
@@ -607,7 +622,7 @@ namespace TestData
         /// </summary>
         private void OnCheckSystemStatus(object state)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 try
                 {
@@ -690,6 +705,7 @@ namespace TestData
         }
 #endif
         private readonly TestDataNodeManagerConfiguration m_configuration;
+        private readonly Lock m_lock = new();
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;
         private readonly TestDataSystem m_system;

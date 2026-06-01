@@ -475,6 +475,18 @@ namespace Opc.Ua.Client
             m_refs.Clear();
         }
 
+        /// <inheritdoc/>
+        public void InvalidateNode(NodeId nodeId)
+        {
+            if (nodeId.IsNull)
+            {
+                return;
+            }
+            m_nodes.TryRemove(nodeId);
+            m_values.TryRemove(nodeId);
+            m_refs.TryRemove(nodeId);
+        }
+
         // IAsyncNodeTable / IAsyncTypeTable / INodeCache implementation
 
         /// <inheritdoc/>
