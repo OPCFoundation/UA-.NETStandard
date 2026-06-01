@@ -258,6 +258,38 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public IMethodServiceSetClientMethods MethodServiceSet
             => m_context.MethodServiceSet;
 
+        /// <inheritdoc/>
+        public async ValueTask ConditionRefreshAsync(
+            uint monitoredItemServerId,
+            CancellationToken ct = default)
+        {
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                    InputArguments =
+                    [
+                        new Variant(m_context.Id),
+                        new Variant(monitoredItemServerId)
+                    ]
+                }
+            ];
+            CallResponse response = await m_context.MethodServiceSet
+                .CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            ArrayOf<CallMethodResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            ClientBase.ValidateResponse(results, methodsToCall);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, methodsToCall);
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                throw new ServiceResultException(ClientBase.GetResult(
+                    results[0].StatusCode, 0, diagnosticInfos,
+                    response.ResponseHeader));
+            }
+        }
+
         /// <summary>
         /// Create notifications for monitored items
         /// </summary>

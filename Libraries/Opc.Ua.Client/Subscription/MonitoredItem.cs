@@ -80,13 +80,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public uint TriggeringItemClientHandle { get; internal set; }
 
         /// <inheritdoc/>
-        public IReadOnlyCollection<uint> TriggeredItemClientHandles
+        public ArrayOf<uint> TriggeredItemClientHandles
         {
             get
             {
                 lock (m_triggeredItemsLock)
                 {
-                    return [.. m_triggeredItems];
+                    uint[] arr = new uint[m_triggeredItems.Count];
+                    m_triggeredItems.CopyTo(arr);
+                    return new ArrayOf<uint>(arr);
                 }
             }
         }
@@ -233,7 +235,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             return DisposeAsync(disposing: true);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Capture an immutable snapshot of this item's configuration
+        /// + identifiers + triggering state.
+        /// </summary>
         public MonitoredItemStateSnapshot Snapshot()
         {
             uint[] triggered;
@@ -253,7 +258,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <inheritdoc/>
-        public async ValueTask ConditionRefreshAsync(CancellationToken ct = default)
+        public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
         {
             if (!Created)
             {
@@ -261,31 +266,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     StatusCodes.BadMonitoredItemIdInvalid,
                     "Monitored item has not been created on the server.");
             }
-            ArrayOf<CallMethodRequest> methodsToCall =
-            [
-                new CallMethodRequest
-                {
-                    ObjectId = ObjectTypeIds.ConditionType,
-                    MethodId = MethodIds.ConditionType_ConditionRefresh2,
-                    InputArguments =
-                    [
-                        new Variant(Context.SubscriptionId),
-                        new Variant(ServerId)
-                    ]
-                }
-            ];
-            CallResponse response = await Context.MethodServiceSet
-                .CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
-            ArrayOf<CallMethodResult> results = response.Results;
-            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
-            ClientBase.ValidateResponse(results, methodsToCall);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, methodsToCall);
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw new ServiceResultException(ClientBase.GetResult(
-                    results[0].StatusCode, 0, diagnosticInfos,
-                    response.ResponseHeader));
-            }
+            return Context.ConditionRefreshAsync(ServerId, ct);
         }
 
         /// <inheritdoc/>

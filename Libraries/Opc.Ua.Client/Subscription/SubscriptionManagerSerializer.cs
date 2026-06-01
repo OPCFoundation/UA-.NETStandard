@@ -36,8 +36,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
-using V2MonitoredItem = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItem;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -78,10 +76,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private static readonly byte[] s_magic = "UA2S"u8.ToArray();
 
-        public static void Save(SubscriptionManager manager, Stream stream,
+#pragma warning disable RCS1229 // Use async/await when necessary - this path is synchronous; ValueTask wraps work for future async I/O
+        public static ValueTask SaveAsync(
+            SubscriptionManager manager,
+            Stream stream,
             IServiceMessageContext messageContext,
-            IEnumerable<ISubscription>? subscriptions)
+            IEnumerable<ISubscription>? subscriptions,
+            CancellationToken ct = default)
+#pragma warning restore RCS1229
         {
+            ct.ThrowIfCancellationRequested();
             if (manager == null)
             {
                 throw new ArgumentNullException(nameof(manager));
@@ -96,12 +100,19 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             // Capture a snapshot per selected subscription. Default =
-            // all subscriptions managed by this instance.
+            // all subscriptions managed by this instance. Snapshot is
+            // taken from the concrete subscription type (not on the
+            // ISubscription interface).
             IEnumerable<ISubscription> selected =
                 subscriptions ?? manager.Items;
-            var snapshots = selected
-                .Select(s => (Subscription: s, Snapshot: s.Snapshot()))
-                .ToList();
+            var snapshots = new List<SubscriptionStateSnapshot>();
+            foreach (ISubscription s in selected)
+            {
+                if (s is Subscription concrete)
+                {
+                    snapshots.Add(concrete.Snapshot());
+                }
+            }
 
             using var encoder = new BinaryEncoder(stream, messageContext, true);
             encoder.WriteByteString(null, s_magic);
@@ -111,18 +122,20 @@ namespace Opc.Ua.Client.Subscriptions
             encoder.WriteInt32(null, snapshots.Count);
 
             int index = 0;
-            foreach ((ISubscription subscription, SubscriptionStateSnapshot snapshot) in snapshots)
+            foreach (SubscriptionStateSnapshot snapshot in snapshots)
             {
-                _ = subscription;
                 WriteSnapshot(encoder, snapshot, index++);
             }
+            return default;
         }
 
         public static async ValueTask<IReadOnlyList<ISubscription>> LoadAsync(
-            SubscriptionManager manager, Stream stream,
+            SubscriptionManager manager,
+            Stream stream,
             IServiceMessageContext messageContext,
             Func<string, ISubscriptionNotificationHandler> handlerFactory,
-            bool transferSubscriptions, CancellationToken ct)
+            bool transferSubscriptions,
+            CancellationToken ct)
         {
             if (manager == null)
             {
@@ -274,7 +287,7 @@ namespace Opc.Ua.Client.Subscriptions
             uint serverId = decoder.ReadUInt32(null);
             uint triggeringHandle = decoder.ReadUInt32(null);
             ArrayOf<uint> triggered = decoder.ReadUInt32Array(null);
-            V2MonitoredItemOptions options = ReadMonitoredItemOptions(decoder);
+            MonitoredItems.MonitoredItemOptions options = ReadMonitoredItemOptions(decoder);
             return new MonitoredItemStateSnapshot
             {
                 Name = name ?? string.Empty,
@@ -310,7 +323,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private static void WriteMonitoredItemOptions(BinaryEncoder encoder,
-            V2MonitoredItemOptions options)
+            MonitoredItems.MonitoredItemOptions options)
         {
             encoder.WriteUInt32(null, options.Order);
             encoder.WriteNodeId(null, options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId);
@@ -332,7 +345,7 @@ namespace Opc.Ua.Client.Subscriptions
             encoder.WriteBoolean(null, options.AutoSetQueueSize);
         }
 
-        private static V2MonitoredItemOptions ReadMonitoredItemOptions(BinaryDecoder decoder)
+        private static MonitoredItems.MonitoredItemOptions ReadMonitoredItemOptions(BinaryDecoder decoder)
         {
             uint order = decoder.ReadUInt32(null);
             NodeId startNodeId = decoder.ReadNodeId(null);
@@ -353,7 +366,7 @@ namespace Opc.Ua.Client.Subscriptions
                 filter = mf;
             }
 
-            return new V2MonitoredItemOptions
+            return new MonitoredItems.MonitoredItemOptions
             {
                 Order = order,
                 StartNodeId = startNodeId,

@@ -38,16 +38,7 @@ namespace Opc.Ua.Client.Subscriptions.Engine
     /// bridge can feed translated notifications without a direct
     /// assembly reference to Opc.Ua.Client.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The classic <c>Opc.Ua.Client.Subscription</c> already exposes a
-    /// public <c>SaveMessageInCache(ArrayOf&lt;uint&gt;, NotificationMessage)</c>
-    /// with this exact signature; a thin <c>: ISubscriptionMessageSink</c>
-    /// declaration on the classic type is sufficient to plug it into the
-    /// bridge.
-    /// </para>
-    /// </remarks>
-    public interface ISubscriptionMessageSink
+    internal interface ISubscriptionMessageSink
     {
         /// <summary>
         /// Stores a <see cref="NotificationMessage"/> in the V1
@@ -70,42 +61,13 @@ namespace Opc.Ua.Client.Subscriptions.Engine
     /// notifications when the V2 engine is active.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// The bridge converts V2 record-based notifications
     /// (<see cref="DataValueChange"/>, <see cref="EventNotification"/>)
     /// into V1 <see cref="NotificationMessage"/> instances and forwards
     /// them to an <see cref="ISubscriptionMessageSink"/>, which is
     /// typically implemented by the V1 <c>Subscription</c> class.
-    /// </para>
-    /// <para>
-    /// <b>Caller responsibility (production wiring not yet integrated):</b>
-    /// constructing a <see cref="SubscriptionBridge"/> is not enough on
-    /// its own. The bridge must be registered with the V2
-    /// <see cref="ISubscriptionManager"/> so the publish loop routes
-    /// notifications for the corresponding server-side subscription id
-    /// through it. As of this revision the
-    /// <see cref="ISubscriptionManager"/> does not expose a registration
-    /// API, so the classic <c>Session.AddSubscription(Subscription)</c>
-    /// path is supported only when the session's engine is
-    /// <see cref="Opc.Ua.Client.ClassicSubscriptionEngine"/>. A V2-engine
-    /// session that adds a classic <c>Subscription</c> today will silently
-    /// drop publish responses (and the V2 publish loop will delete the
-    /// "unknown" subscription on the server). See
-    /// <c>plans/26-v2-subscription-parity.md</c> §6 "Bridge wiring TODO"
-    /// for the design of the routing hook.
-    /// </para>
-    /// <para>
-    /// The <c>availableSequenceNumbers</c> argument is forwarded as an
-    /// empty array today because the V2 handler API does not surface the
-    /// server's retransmission-queue list to the handler. Once the bridge
-    /// wiring is in place the same change must extend
-    /// <see cref="ISubscriptionNotificationHandler"/> (or expose the
-    /// list on <see cref="ISubscription"/>) so classic republish /
-    /// gap-detection logic continues to operate correctly. Without that,
-    /// classic consumers will not republish across packet loss.
-    /// </para>
     /// </remarks>
-    public sealed class SubscriptionBridge : ISubscriptionNotificationHandler
+    internal sealed class SubscriptionBridge : ISubscriptionNotificationHandler
     {
         private readonly ISubscriptionMessageSink m_messageSink;
 

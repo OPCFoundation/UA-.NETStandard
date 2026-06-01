@@ -46,15 +46,6 @@ namespace Opc.Ua.Client.Subscriptions
         bool Created { get; }
 
         /// <summary>
-        /// Server-assigned subscription id. <c>0</c> when the
-        /// subscription has not been created on the server yet (or
-        /// after <see cref="ISubscriptionManager.RestoreAsync"/> falls
-        /// back to recreate following a failed
-        /// <c>TransferSubscriptions</c>).
-        /// </summary>
-        uint ServerId { get; }
-
-        /// <summary>
         /// The current publishing interval on the server
         /// </summary>
         TimeSpan CurrentPublishingInterval { get; }
@@ -103,21 +94,6 @@ namespace Opc.Ua.Client.Subscriptions
         /// holds the message in its retransmission queue).
         /// </summary>
         long RepublishMessageCount { get; }
-
-        /// <summary>
-        /// Capture an immutable snapshot of this subscription's
-        /// configuration + identifiers + the per-item state. The
-        /// returned <see cref="SubscriptionStateSnapshot"/> can be
-        /// persisted by the caller and later passed to
-        /// <see cref="ISubscriptionManager.RestoreAsync"/> to recreate
-        /// or take over the server-side subscription.
-        /// </summary>
-        /// <remarks>
-        /// Snapshot is read-only on the V2 manager state — no service
-        /// calls are issued. The returned record is independent of
-        /// future changes to this subscription.
-        /// </remarks>
-        SubscriptionStateSnapshot Snapshot();
 
         /// <summary>
         /// Tells the server to refresh all conditions being

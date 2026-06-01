@@ -72,10 +72,8 @@ namespace Opc.Ua.Client.TestFramework
         /// <see cref="ClassicSubscriptionEngineFactory.Instance"/> so
         /// existing classic-engine tests (which use
         /// <c>TestableSubscription</c> / <c>Session.AddSubscription</c>)
-        /// continue to work after the Session default was flipped to
-        /// the V2 engine. V2-only fixtures should set this to
-        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> or
-        /// <c>null</c> (to use the Session default) during
+        /// continue to work. V2-only fixtures should set this to
+        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> during
         /// <c>OneTimeSetUpAsync</c>.
         /// </summary>
         public ISubscriptionEngineFactory ClientFixtureSubscriptionEngineFactory { get; set; }

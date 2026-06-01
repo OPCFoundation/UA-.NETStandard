@@ -182,7 +182,8 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
 
                 using var ms = new MemoryStream();
-                originSession.SaveSubscriptions(ms);
+                await originSession.SaveSubscriptionsAsync(ms, ct: ct)
+                    .ConfigureAwait(false);
                 byte[] saved = ms.ToArray();
                 Assert.That(saved, Has.Length.GreaterThan(0));
 
@@ -265,13 +266,14 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Snapshot includes the SendInitialValuesOnTransfer
                 // option through SubscriptionStateSnapshot.Options.
-                SubscriptionStateSnapshot snap = origin.Snapshot();
+                SubscriptionStateSnapshot snap = ((V2.Subscription)origin).Snapshot();
                 Assert.That(snap.Options.SendInitialValuesOnTransfer, Is.True,
                     "SendInitialValuesOnTransfer option must round-trip through Snapshot");
 
                 using (var output = File.Create(saveFile))
                 {
-                    originSession.SaveSubscriptions(output);
+                    await originSession.SaveSubscriptionsAsync(output, ct: ct)
+                        .ConfigureAwait(false);
                 }
                 Assert.That(await originSession.CloseAsync().ConfigureAwait(false),
                     Is.EqualTo(StatusCodes.Good));
@@ -335,7 +337,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
                 Assert.That(sub.MonitoredItems.Count, Is.Zero);
 
-                SubscriptionStateSnapshot snap = sub.Snapshot();
+                SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.Zero);
 
                 target = await ConnectV2Async(
@@ -409,7 +411,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
 
-                SubscriptionStateSnapshot snap = sub.Snapshot();
+                SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.EqualTo(1));
                 MonitoredItemStateSnapshot itemSnap = snap.MonitoredItems[0];
                 Assert.That(itemSnap.Options.Filter, Is.Not.Null);
@@ -490,10 +492,11 @@ namespace Opc.Ua.Subscriptions.Tests
                         o => o with { SamplingInterval = TimeSpan.Zero },
                         out _), ct);
                 }
+                var subConcrete = (V2.Subscription)sub;
                 var snapTasks = new Task<SubscriptionStateSnapshot>[5];
                 for (int i = 0; i < snapTasks.Length; i++)
                 {
-                    snapTasks[i] = Task.Run(() => sub.Snapshot(), ct);
+                    snapTasks[i] = Task.Run(() => subConcrete.Snapshot(), ct);
                 }
                 await Task.WhenAll(addTasks).ConfigureAwait(false);
                 SubscriptionStateSnapshot[] snaps = await Task

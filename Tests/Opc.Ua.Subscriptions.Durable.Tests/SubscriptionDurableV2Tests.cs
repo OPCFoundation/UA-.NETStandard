@@ -378,7 +378,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 // Save + close origin.
                 using (var ms = new System.IO.MemoryStream())
                 {
-                    originSession.SaveSubscriptions(ms);
+                    await originSession.SaveSubscriptionsAsync(ms, ct: ct)
+                        .ConfigureAwait(false);
                     byte[] saved = ms.ToArray();
                     Assert.That(saved, Has.Length.GreaterThan(0));
 

@@ -234,8 +234,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
                 using (var output = File.Create(s_saveFile))
                 {
-                    session.SubscriptionManager.Save(output,
-                        session.MessageContext);
+                    await session.SubscriptionManager.SaveAsync(
+                        output, session.MessageContext, null, ct)
+                        .ConfigureAwait(false);
                 }
                 Assert.That(File.Exists(s_saveFile), Is.True);
                 Assert.That(new FileInfo(s_saveFile).Length, Is.GreaterThan(0));
@@ -636,10 +637,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(StatusCode.IsGood(response.AddResults[1]), Is.True);
 
                 // Verify local tracking was updated
-                Assert.That(triggering.TriggeredItemClientHandles, Has.Count.EqualTo(2));
-                Assert.That(triggering.TriggeredItemClientHandles,
+                Assert.That(triggering.TriggeredItemClientHandles.ToArray(), Has.Length.EqualTo(2));
+                Assert.That(triggering.TriggeredItemClientHandles.ToArray(),
                     Has.Member(triggered1.ClientHandle));
-                Assert.That(triggering.TriggeredItemClientHandles,
+                Assert.That(triggering.TriggeredItemClientHandles.ToArray(),
                     Has.Member(triggered2.ClientHandle));
                 Assert.That(triggered1.TriggeringItemClientHandle,
                     Is.EqualTo(triggering.ClientHandle));
@@ -653,8 +654,8 @@ namespace Opc.Ua.Subscriptions.Tests
                         [triggered1.ClientHandle], ct).ConfigureAwait(false);
                 Assert.That(removeResponse.RemoveResults, Has.Count.EqualTo(1));
                 Assert.That(StatusCode.IsGood(removeResponse.RemoveResults[0]), Is.True);
-                Assert.That(triggering.TriggeredItemClientHandles, Has.Count.EqualTo(1));
-                Assert.That(triggering.TriggeredItemClientHandles,
+                Assert.That(triggering.TriggeredItemClientHandles.ToArray(), Has.Length.EqualTo(1));
+                Assert.That(triggering.TriggeredItemClientHandles.ToArray(),
                     Has.Member(triggered2.ClientHandle));
                 Assert.That(triggered1.TriggeringItemClientHandle, Is.Zero);
 

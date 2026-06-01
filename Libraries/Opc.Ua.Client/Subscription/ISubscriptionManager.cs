@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Restore a single subscription from a snapshot previously
-        /// produced by <see cref="ISubscription.Snapshot"/>. The
+        /// produced by <see cref="Subscription.Snapshot"/>. The
         /// returned subscription is registered with the manager via the
         /// same path as <see cref="Add"/>.
         /// </summary>
@@ -175,12 +175,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// Pass <c>session.MessageContext</c>.</param>
         /// <param name="subscriptions">Optional subset of subscriptions to
         /// snapshot. When <c>null</c> all managed subscriptions are saved.</param>
-        void Save(Stream stream, IServiceMessageContext messageContext,
-            IEnumerable<ISubscription>? subscriptions = null);
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask SaveAsync(
+            Stream stream,
+            IServiceMessageContext messageContext,
+            IEnumerable<ISubscription>? subscriptions = null,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Restore subscriptions from a stream previously produced by
-        /// <see cref="Save"/>. Each restored subscription is added to the
+        /// <see cref="SaveAsync"/>. Each restored subscription is added to the
         /// manager via the same path used by <see cref="Add"/>.
         /// </summary>
         /// <param name="stream">The source stream. Must be readable.</param>

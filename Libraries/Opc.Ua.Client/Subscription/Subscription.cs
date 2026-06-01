@@ -52,7 +52,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public byte CurrentPriority { get; private set; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Server-assigned subscription id. <c>0</c> when the
+        /// subscription has not been created on the server yet.
+        /// </summary>
         public uint ServerId => Id;
 
         /// <inheritdoc/>
@@ -167,13 +170,19 @@ namespace Opc.Ua.Client.Subscriptions
             return $"{m_context}:{Id}";
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Capture an immutable snapshot of this subscription's
+        /// configuration + identifiers + the per-item state.
+        /// </summary>
         public SubscriptionStateSnapshot Snapshot()
         {
             var items = new List<MonitoredItemStateSnapshot>();
             foreach (IMonitoredItem item in m_monitoredItems.Items)
             {
-                items.Add(item.Snapshot());
+                if (item is MonitoredItems.MonitoredItem concrete)
+                {
+                    items.Add(concrete.Snapshot());
+                }
             }
             uint[] available = AvailableInRetransmissionQueue == null
                 ? []

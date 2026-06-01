@@ -29,7 +29,10 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using V2MonitoredItem = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItem;
 using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
@@ -68,6 +71,28 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         /// <inheritdoc/>
         public IMethodServiceSetClientMethods MethodServiceSet { get; set; } = null!;
+
+        /// <summary>
+        /// Optional override for ConditionRefreshAsync. When unset, the
+        /// fake records the call and completes synchronously.
+        /// </summary>
+        public Func<uint, CancellationToken, ValueTask>? OnConditionRefreshAsync { get; set; }
+
+        public List<ConditionRefreshCall> ConditionRefreshCalls { get; } = [];
+
+        public ValueTask ConditionRefreshAsync(uint monitoredItemServerId,
+            CancellationToken ct = default)
+        {
+            ConditionRefreshCalls.Add(new ConditionRefreshCall(monitoredItemServerId, ct));
+            if (OnConditionRefreshAsync != null)
+            {
+                return OnConditionRefreshAsync(monitoredItemServerId, ct);
+            }
+            return default;
+        }
+
+        internal readonly record struct ConditionRefreshCall(
+            uint MonitoredItemServerId, CancellationToken Ct);
 
         public bool NotifyItemChangeResult(V2MonitoredItem monitoredItem,
             int retryCount, V2MonitoredItemOptions source,

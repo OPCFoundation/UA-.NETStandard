@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// over the item on a transferred subscription.
     /// </summary>
     /// <remarks>
-    /// Produced by <see cref="IMonitoredItem.Snapshot"/> and consumed by
+    /// Produced by <see cref="MonitoredItem.Snapshot"/> and consumed by
     /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.RestoreAsync"/>.
     /// Per-item runtime values (filter result, last sample,
     /// current sampling interval) are intentionally not captured — the

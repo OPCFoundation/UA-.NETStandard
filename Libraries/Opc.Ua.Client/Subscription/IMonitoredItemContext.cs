@@ -38,9 +38,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <summary>
         /// Server-assigned subscription id that owns this item.
         /// Forwarded from <see cref="IMonitoredItemManagerContext.Id"/>
-        /// so per-item operations such as
-        /// <see cref="IMonitoredItem.ConditionRefreshAsync"/> can issue
-        /// service calls without going back through the manager.
+        /// so per-item operations can issue service calls without
+        /// going back through the manager.
         /// </summary>
         uint SubscriptionId { get; }
 
@@ -50,6 +49,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// for the same reason as <see cref="SubscriptionId"/>.
         /// </summary>
         IMethodServiceSetClientMethods MethodServiceSet { get; }
+
+        /// <summary>
+        /// Issue an OPC UA Part 9 §5.5.7 <c>ConditionRefresh2</c>
+        /// service call for the monitored item with the supplied
+        /// server-side <paramref name="monitoredItemServerId"/>. The
+        /// context already knows the subscription id and method service
+        /// set, so callers only forward their own server-side handle.
+        /// </summary>
+        /// <param name="monitoredItemServerId">Server-assigned monitored
+        /// item id (<see cref="IMonitoredItem.ServerId"/>). The item
+        /// must have been created on the server.</param>
+        /// <param name="ct">Cancellation token.</param>
+        System.Threading.Tasks.ValueTask ConditionRefreshAsync(
+            uint monitoredItemServerId,
+            System.Threading.CancellationToken ct = default);
 
         /// <summary>
         /// Notify item change results. This includes intermittent

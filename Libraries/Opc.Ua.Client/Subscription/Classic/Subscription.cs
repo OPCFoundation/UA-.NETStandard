@@ -42,14 +42,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// A subscription.
     /// </summary>
-    /// <remarks>
-    /// Implements <see cref="Opc.Ua.Client.Subscriptions.Engine.ISubscriptionMessageSink"/>
-    /// so the V2 <see cref="Opc.Ua.Client.Subscriptions.Engine.SubscriptionBridge"/>
-    /// can deliver translated V2 notifications into this classic instance's
-    /// message cache.
-    /// </remarks>
-    public class Subscription : ISnapshotRestore<SubscriptionState>, IDisposable, ICloneable,
-        Opc.Ua.Client.Subscriptions.Engine.ISubscriptionMessageSink
+    public class Subscription : ISnapshotRestore<SubscriptionState>, IDisposable, ICloneable
     {
         private const int kKeepAliveTimerMargin = 1000;
         private const int kRepublishMessageExpiredTimeout = 10000;

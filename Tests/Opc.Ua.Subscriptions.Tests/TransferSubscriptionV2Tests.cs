@@ -146,7 +146,8 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 using (var saveStream = File.Create(saveFile))
                 {
-                    originSession.SaveSubscriptions(saveStream);
+                    await originSession.SaveSubscriptionsAsync(saveStream, ct: ct)
+                        .ConfigureAwait(false);
                 }
                 Assert.That(new FileInfo(saveFile).Length, Is.GreaterThan(0));
 
@@ -266,8 +267,9 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 using (var output = File.Create(saveFile))
                 {
-                    originSession.SubscriptionManager.Save(output,
-                        originSession.MessageContext);
+                    await originSession.SubscriptionManager.SaveAsync(
+                        output, originSession.MessageContext, null, ct)
+                        .ConfigureAwait(false);
                 }
 
                 targetSession = await ConnectV2Async(
@@ -430,7 +432,9 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 using (var output = File.Create(saveFile))
                 {
-                    session.SubscriptionManager.Save(output, session.MessageContext);
+                    await session.SubscriptionManager.SaveAsync(
+                        output, session.MessageContext, null, ct)
+                        .ConfigureAwait(false);
                 }
 
                 target = await ConnectV2Async(

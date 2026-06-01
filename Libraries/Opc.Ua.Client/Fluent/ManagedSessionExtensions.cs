@@ -178,28 +178,31 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">Optional subset of subscriptions
         /// to include. When <c>null</c> every subscription currently
         /// managed by <paramref name="session"/> is included.</param>
-        public static void SaveSubscriptions(this ManagedSession session,
+        /// <param name="ct">Cancellation token.</param>
+        public static ValueTask SaveSubscriptionsAsync(
+            this ManagedSession session,
             Stream destination,
-            IEnumerable<ISubscription>? subscriptions = null)
+            IEnumerable<ISubscription>? subscriptions = null,
+            CancellationToken ct = default)
         {
             if (session == null)
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            session.SubscriptionManager.Save(destination,
-                session.MessageContext, subscriptions);
+            return session.SubscriptionManager.SaveAsync(
+                destination, session.MessageContext, subscriptions, ct);
         }
 
         /// <summary>
         /// Restore subscriptions previously persisted by
-        /// <see cref="SaveSubscriptions"/>. Each restored subscription is
+        /// <see cref="SaveSubscriptionsAsync"/>. Each restored subscription is
         /// re-registered with
         /// <see cref="ManagedSession.SubscriptionManager"/>.
         /// </summary>
         /// <param name="session">Session that owns the V2 subscription
         /// manager and supplies the active message context.</param>
         /// <param name="source">Readable source stream produced by
-        /// <see cref="SaveSubscriptions"/>.</param>
+        /// <see cref="SaveSubscriptionsAsync"/>.</param>
         /// <param name="handlerFactory">Factory invoked once per
         /// restored subscription to construct the application's
         /// <see cref="ISubscriptionNotificationHandler"/>. The factory
@@ -238,9 +241,15 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(session));
             }
-            return session.SubscriptionManager.Items
-                .Select(s => s.Snapshot())
-                .ToList();
+            var result = new List<SubscriptionStateSnapshot>();
+            foreach (ISubscription s in session.SubscriptionManager.Items)
+            {
+                if (s is Subscriptions.Subscription concrete)
+                {
+                    result.Add(concrete.Snapshot());
+                }
+            }
+            return result;
         }
 
         /// <summary>

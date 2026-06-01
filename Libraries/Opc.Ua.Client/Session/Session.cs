@@ -284,9 +284,12 @@ namespace Opc.Ua.Client
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
-            // Create the subscription engine.
+            // Create the subscription engine. Session defaults to the
+            // classic engine (legacy applications + classic Subscription
+            // API). ManagedSession explicitly opts in to the V2 engine
+            // via its builder.
             SubscriptionEngineFactory = engineFactory
-                ?? DefaultSubscriptionEngineFactory.Instance;
+                ?? ClassicSubscriptionEngineFactory.Instance;
             m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));
 
             // set the default preferred locales.
@@ -3123,23 +3126,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        /// <remarks>
-        /// <para>
-        /// <b>Engine compatibility:</b> classic <see cref="Subscription"/>
-        /// instances added through this method are fully functional only
-        /// when the session's engine is
-        /// <see cref="ClassicSubscriptionEngine"/>. When the engine is
-        /// <see cref="DefaultSubscriptionEngine"/> (V2), the V2 publish
-        /// loop owns the publish dispatch and does not currently route
-        /// publish responses for classic subscriptions through the
-        /// <see cref="Subscriptions.Engine.SubscriptionBridge"/> — see
-        /// <c>plans/26-v2-subscription-parity.md</c> for the open bridge-
-        /// wiring TODO and the consumer migration guidance in
-        /// <c>Docs/MigrationGuide.md</c>. New code should use the V2
-        /// <see cref="Subscriptions.ISubscriptionManager"/> API surface
-        /// directly via <see cref="ManagedSession"/>.
-        /// </para>
-        /// </remarks>
         public bool AddSubscription(Subscription subscription)
         {
             ThrowIfDisposed();

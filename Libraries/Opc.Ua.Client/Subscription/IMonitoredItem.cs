@@ -102,19 +102,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// trigger any other items. Updated only after successful
         /// service call results for each link.
         /// </summary>
-        System.Collections.Generic.IReadOnlyCollection<uint> TriggeredItemClientHandles { get; }
-
-        /// <summary>
-        /// Capture an immutable snapshot of this item's configuration
-        /// + identifiers + triggering state. The returned
-        /// <see cref="MonitoredItemStateSnapshot"/> can be persisted by
-        /// the caller and later passed to
-        /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.RestoreAsync"/>
-        /// (as part of a
-        /// <see cref="Opc.Ua.Client.Subscriptions.SubscriptionStateSnapshot"/>)
-        /// to recreate or take over the server-side item.
-        /// </summary>
-        MonitoredItemStateSnapshot Snapshot();
+        ArrayOf<uint> TriggeredItemClientHandles { get; }
 
         /// <summary>
         /// Issue an OPC UA Part 9 §5.5.7 ConditionRefresh2 method call

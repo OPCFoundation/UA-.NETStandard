@@ -249,7 +249,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 await sub.SetTriggeringAsync(triggering!.ClientHandle,
                     [triggered!.ClientHandle], [], ct).ConfigureAwait(false);
 
-                SubscriptionStateSnapshot snap = sub.Snapshot();
+                SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
                 MonitoredItemStateSnapshot? triggerSnap = null;
                 MonitoredItemStateSnapshot? triggeredSnap = null;
                 foreach (MonitoredItemStateSnapshot it in snap.MonitoredItems)

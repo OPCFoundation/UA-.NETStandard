@@ -472,12 +472,14 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public void Save(System.IO.Stream stream,
+        public ValueTask SaveAsync(
+            System.IO.Stream stream,
             IServiceMessageContext messageContext,
-            IEnumerable<ISubscription>? subscriptions = null)
+            IEnumerable<ISubscription>? subscriptions = null,
+            CancellationToken ct = default)
         {
-            SubscriptionManagerSerializer.Save(this, stream, messageContext,
-                subscriptions);
+            return SubscriptionManagerSerializer.SaveAsync(
+                this, stream, messageContext, subscriptions, ct);
         }
 
         /// <inheritdoc/>

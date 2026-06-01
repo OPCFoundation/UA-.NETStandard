@@ -38,7 +38,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Produced by <see cref="ISubscription.Snapshot"/> and consumed by
+    /// Produced by <see cref="Subscription.Snapshot"/> and consumed by
     /// <see cref="ISubscriptionManager.RestoreAsync"/>.
     /// </para>
     /// <para>
