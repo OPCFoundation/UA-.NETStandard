@@ -128,13 +128,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public SubscriptionStateSnapshot Snapshot()
         {
-            return OnSnapshot?.Invoke() ?? new SubscriptionStateSnapshot
-            {
-                Options = new SubscriptionOptions(),
-                ServerId = Id,
-                AvailableSequenceNumbers = Array.Empty<uint>().ToArrayOf(),
-                MonitoredItems = Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf()
-            };
+            return OnSnapshot?.Invoke() ?? SubscriptionStateSnapshot.FromOptions(
+                new SubscriptionOptions(),
+                Id,
+                Array.Empty<uint>().ToArrayOf(),
+                Array.Empty<MonitoredItemStateSnapshot>().ToArrayOf());
         }
 
         public List<SetAsDurableCall> SetAsDurableCalls { get; } = [];
