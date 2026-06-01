@@ -88,6 +88,28 @@ namespace Opc.Ua.CodeFixers.Tests
         }
 
         /// <summary>
+        /// Compile <paramref name="userSource"/> WITHOUT the OPC UA stub surface, so
+        /// analyzers that branch on "is the legacy symbol present in the compilation?"
+        /// take their symbol-absent fallback. Used by tests that exercise UA0021's
+        /// syntactic-fallback path (when the consumer is on bare 1.6 and the legacy
+        /// <c>CertificateValidator</c>/<c>CertificateValidationEventArgs</c> types are
+        /// no longer defined anywhere).
+        /// </summary>
+        public static CSharpCompilation CompileWithoutStubs(string userSource, string assemblyName = "TestAssembly")
+        {
+            CSharpParseOptions parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
+            SyntaxTree[] trees =
+            [
+                CSharpSyntaxTree.ParseText(userSource, parseOptions, "Test.cs"),
+            ];
+            CSharpCompilationOptions options = new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                allowUnsafe: false,
+                nullableContextOptions: NullableContextOptions.Enable);
+            return CSharpCompilation.Create(assemblyName, trees, s_baseReferences, options);
+        }
+
+        /// <summary>
         /// Run <paramref name="analyzer"/> against <paramref name="userSource"/> and
         /// return only the analyzer's diagnostics (compiler diagnostics are filtered out).
         /// </summary>
@@ -96,6 +118,25 @@ namespace Opc.Ua.CodeFixers.Tests
             string userSource)
         {
             CSharpCompilation compilation = Compile(userSource);
+            return await RunAsync(analyzer, compilation).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Run <paramref name="analyzer"/> against <paramref name="userSource"/> compiled
+        /// WITHOUT the OPC UA stub surface. See <see cref="CompileWithoutStubs"/>.
+        /// </summary>
+        public static async Task<ImmutableArray<Diagnostic>> GetAnalyzerDiagnosticsWithoutStubsAsync(
+            DiagnosticAnalyzer analyzer,
+            string userSource)
+        {
+            CSharpCompilation compilation = CompileWithoutStubs(userSource);
+            return await RunAsync(analyzer, compilation).ConfigureAwait(false);
+        }
+
+        private static async Task<ImmutableArray<Diagnostic>> RunAsync(
+            DiagnosticAnalyzer analyzer,
+            CSharpCompilation compilation)
+        {
             CompilationWithAnalyzers withAnalyzers = compilation.WithAnalyzers(
                 ImmutableArray.Create(analyzer),
                 new CompilationWithAnalyzersOptions(

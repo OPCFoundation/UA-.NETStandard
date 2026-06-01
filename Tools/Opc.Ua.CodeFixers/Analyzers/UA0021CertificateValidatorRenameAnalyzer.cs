@@ -59,7 +59,9 @@ namespace Opc.Ua.CodeFixers.Analyzers
     /// referenced.</item>
     /// <item>If the legacy type has been genuinely removed (consumer is on the bare 1.6 stack
     /// and the call site no longer compiles), fall back to a syntactic match on the bare
-    /// identifier name, scoped to source files that import <c>Opc.Ua</c>.</item>
+    /// identifier name, scoped to source files that import any <c>Opc.Ua</c> namespace (bare
+    /// <c>using Opc.Ua;</c> or any sub-namespace such as <c>using Opc.Ua.Server;</c>) or that
+    /// declare a namespace under the <c>Opc.Ua</c> tree.</item>
     /// </list>
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -160,7 +162,7 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 return;
             }
 
-            if (!HasOpcUaUsing(identifier))
+            if (!HasOpcUaContext(identifier))
             {
                 return;
             }
@@ -171,14 +173,16 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 text));
         }
 
-        private static bool HasOpcUaUsing(SyntaxNode node)
+        private static bool HasOpcUaContext(SyntaxNode node)
         {
             for (SyntaxNode? current = node; current is not null; current = current.Parent)
             {
-                if (current is BaseNamespaceDeclarationSyntax ns &&
-                    ContainsOpcUaUsing(ns.Usings))
+                if (current is BaseNamespaceDeclarationSyntax ns)
                 {
-                    return true;
+                    if (IsOpcUaNamespaceName(ns.Name) || ContainsOpcUaUsing(ns.Usings))
+                    {
+                        return true;
+                    }
                 }
 
                 if (current is CompilationUnitSyntax compilationUnit)
@@ -202,12 +206,27 @@ namespace Opc.Ua.CodeFixers.Analyzers
                 {
                     continue;
                 }
-                if (string.Equals(@using.Name.ToString(), OpcUaNamespace, StringComparison.Ordinal))
+                if (IsOpcUaNamespaceName(@using.Name))
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        private static bool IsOpcUaNamespaceName(NameSyntax? name)
+        {
+            if (name is null)
+            {
+                return false;
+            }
+            string text = name.ToString();
+            // Match bare "Opc.Ua" or any sub-namespace such as "Opc.Ua.Server",
+            // "Opc.Ua.Configuration", "Opc.Ua.Client.ComplexTypes" etc. We require a '.'
+            // separator after "Opc.Ua" so that a hypothetical sibling namespace like
+            // "Opc.UaFoo" does not match.
+            return string.Equals(text, OpcUaNamespace, StringComparison.Ordinal)
+                || text.StartsWith(OpcUaNamespace + ".", StringComparison.Ordinal);
         }
     }
 }

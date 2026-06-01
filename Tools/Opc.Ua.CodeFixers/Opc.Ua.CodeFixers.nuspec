@@ -75,7 +75,7 @@
     <file src="$shimBin$\net8.0\Opc.Ua.CodeFixers.Shim.dll" target="lib\net8.0\Opc.Ua.CodeFixers.Shim.dll" />
     <file src="$shimBin$\net9.0\Opc.Ua.CodeFixers.Shim.dll" target="lib\net9.0\Opc.Ua.CodeFixers.Shim.dll" />
     <file src="$shimBin$\net10.0\Opc.Ua.CodeFixers.Shim.dll" target="lib\net10.0\Opc.Ua.CodeFixers.Shim.dll" />
-    <file src="$propsFile$" target="build\OPCFoundation.Opc.Ua.CodeFixers.props" />
+    <file src="$propsFile$" target="build\OPCFoundation.NetStandard.Opc.Ua.CodeFixers.props" />
     <file src="$repoRoot$\LICENSE.txt" target="LICENSE.txt" />
     <file src="$repoRoot$\nuget\logo.jpg" target="images\logo.jpg" />
     <file src="$readme$" target="NugetREADME.md" />

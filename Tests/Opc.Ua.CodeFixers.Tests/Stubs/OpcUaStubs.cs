@@ -335,6 +335,18 @@ namespace Opc.Ua
     {
         public static T ParseExtension<T>() where T : new() => new();
         public static void UpdateExtension<T>(T value) { }
+
+        // ─── Stubs for UA0022 (CertificateValidator → CertificateManager property rename) ───
+        [Obsolete("Use CertificateManager instead.")]
+        public object? CertificateValidator { get; set; }
+        public object? CertificateManager { get; set; }
+    }
+
+    public class ServerBase
+    {
+        [Obsolete("Use CertificateManager instead.")]
+        public object? CertificateValidator { get; set; }
+        public object? CertificateManager { get; set; }
     }
 
     // ─── Stubs for UA0010 (Remove IDisposable on cert/identity types) ───

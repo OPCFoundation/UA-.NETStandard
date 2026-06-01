@@ -44,7 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The build props is referenced in the nuspec; surface it in the IDE too. -->
-    <None Include="OPCFoundation.Opc.Ua.CodeFixers.props" Visible="false" Pack="false" />
+    <None Include="OPCFoundation.NetStandard.Opc.Ua.CodeFixers.props" Visible="false" Pack="false" />
     <!-- Roslyn release tracking files. -->
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
@@ -72,7 +72,7 @@
        inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
   <Target Name="_SetCodeFixersNuspecProperties" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
-      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.CodeFixers.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.CodeFixers.Shim\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.Opc.Ua.CodeFixers.props</NuspecProperties>
+      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.CodeFixers.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.CodeFixers.Shim\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.CodeFixers.props</NuspecProperties>
     </PropertyGroup>
   </Target>
 </Project>

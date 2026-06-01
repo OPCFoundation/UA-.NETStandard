@@ -144,5 +144,85 @@ namespace Opc.Ua.CodeFixers.Tests.Analyzers
 
             Assert.That(diags.Count(d => d.Id == "UA0021"), Is.EqualTo(2));
         }
+
+        /// <summary>
+        /// Regression test for the Phase 11.A relaxation of the syntactic-fallback
+        /// using-directive gate. Real-world OPC UA consumer code typically imports
+        /// sub-namespaces like <c>using Opc.Ua.Server;</c> rather than the bare
+        /// <c>using Opc.Ua;</c>. Before the fix, the syntactic fallback only fired
+        /// when the bare directive was present, so UA0021 silently missed every
+        /// reference in files that imported only sub-namespaces. The fix accepts
+        /// any using directive whose name starts with <c>Opc.Ua</c>.
+        /// </summary>
+        [Test]
+        public async Task ReportsDiagnosticInFileWithOnlyOpcUaServerUsingAsync()
+        {
+            const string source = """
+                using Opc.Ua.Server;   // sub-namespace, no bare Opc.Ua
+                class C
+                {
+                    static void M() => System.Console.WriteLine(typeof(CertificateValidator).FullName);
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0021"), Is.True,
+                "UA0021 must fire when the file imports any Opc.Ua sub-namespace (not just bare Opc.Ua).");
+        }
+
+        /// <summary>
+        /// Defensive check: code declared inside the <c>Opc.Ua.*</c> namespace tree
+        /// (e.g. a consumer extending the stack) must also trigger the syntactic
+        /// fallback even when there is no <c>using</c> directive at all.
+        /// </summary>
+        [Test]
+        public async Task ReportsDiagnosticInNamespaceUnderOpcUaTreeAsync()
+        {
+            const string source = """
+                namespace Opc.Ua.Extensions
+                {
+                    class C
+                    {
+                        static void M() => System.Console.WriteLine(typeof(CertificateValidator).FullName);
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0021"), Is.True);
+        }
+
+        /// <summary>
+        /// Negative companion to the relaxation: a file that imports neither
+        /// <c>Opc.Ua</c> nor any sub-namespace, and is not declared under the
+        /// <c>Opc.Ua</c> tree, must NOT trigger the syntactic fallback even if
+        /// it happens to mention an identifier named <c>CertificateValidator</c>.
+        /// </summary>
+        [Test]
+        public async Task DoesNotReportInFileWithNoOpcUaUsingOrNamespaceAsync()
+        {
+            const string source = """
+                namespace Other.Pki
+                {
+                    class CertificateValidator { }
+                    class C
+                    {
+                        static void M() => System.Console.WriteLine(typeof(CertificateValidator).FullName);
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source);
+
+            Assert.That(diags.Any(d => d.Id == "UA0021"), Is.False);
+        }
     }
 }

@@ -5,7 +5,7 @@
 A single NuGet install (`OPCFoundation.NetStandard.Opc.Ua.CodeFixers`) that
 ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
 
-- a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0020`) that flags every
+- a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0022`) that flags every
   pattern covered by [`Docs/MigrationGuide.md`](../../Docs/MigrationGuide.md)
   and, where safe, applies the fix automatically; and
 - a **compatibility shim** assembly (`Opc.Ua.CodeFixers.Shim.dll`) that
@@ -53,6 +53,7 @@ ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
 | UA0019 | Warning  | `new DataValue(StatusCode[, ts])`                                                       |
 | UA0020 | Warning  | `EncodeableFactory.GlobalFactory` / `Create()`                                          |
 | UA0021 | Info     | `CertificateValidator` / `CertificateValidationEventArgs` (structural rename in 1.6)    |
+| UA0022 | Warning  | `ApplicationConfiguration.CertificateValidator` / `ServerBase.CertificateValidator` (renamed in 2.0 to `.CertificateManager`) |
 
 ## What the shim provides
 

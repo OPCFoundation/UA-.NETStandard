@@ -182,5 +182,12 @@ namespace Opc.Ua.CodeFixers.Diagnostics
             "'{0}' was replaced in 1.6 by the new CertificateManager pipeline (ICertificateManager / ICertificateValidatorEx / CertificateValidationResult). The migration is structural (event-based -> async result + AcceptError callback) — see MigrationGuide.md#ua0021.",
             DiagnosticSeverity.Info,
             "The CertificateValidator class and CertificateValidationEventArgs were removed in 1.6. The new ICertificateManager (composed of ICertificateValidatorEx, ICertificateRegistry, ICertificateTrustListManager, ICertificateLifecycle) replaces them; per-error accept logic moves from the CertificateValidation event to CertificateValidationOptions.AcceptError. This rule is diagnostic-only because the migration changes the API shape (no mechanical rename).");
+
+        public static readonly DiagnosticDescriptor UA0022_CertificateValidatorPropertyRename = Create(
+            DiagnosticIds.UA0022,
+            "ApplicationConfiguration.CertificateValidator / ServerBase.CertificateValidator renamed in 2.0",
+            "'{0}.CertificateValidator' was removed in 2.0 — use '{0}.CertificateManager' (type ICertificateManager)",
+            DiagnosticSeverity.Warning,
+            "Configure via CertificateManagerFactory.Create(securityConfiguration, telemetry, ...). See MigrationGuide.md.");
     }
 }
