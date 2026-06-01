@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
             // Scale up: add a consumer task for each new MI beyond the first.
             if (m_isServerNode && m_eventConsumers != null)
             {
-                lock (m_eventConsumers)
+                lock (m_eventConsumersLock)
                 {
                     if (EventMonitoredItems.Count > m_eventConsumers.Count)
                     {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server
             // Scale down: remove a consumer task when MIs decrease (keep at least 1).
             if (m_isServerNode && m_eventConsumers != null)
             {
-                lock (m_eventConsumers)
+                lock (m_eventConsumersLock)
                 {
                     int desired = Math.Max(1, EventMonitoredItems.Count);
                     while (m_eventConsumers.Count > desired)
@@ -843,6 +843,7 @@ namespace Opc.Ua.Server
         private readonly bool m_isServerNode;
         private readonly Channel<EventSnapshot>? m_eventChannel;
         private readonly List<EventConsumerEntry>? m_eventConsumers;
+        private readonly Lock m_eventConsumersLock = new();
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -875,7 +876,7 @@ namespace Opc.Ua.Server
                 if (m_eventConsumers != null)
                 {
                     Task[] tasks;
-                    lock (m_eventConsumers)
+                    lock (m_eventConsumersLock)
                     {
                         tasks = m_eventConsumers.ConvertAll(e => e.Task).ToArray();
                     }
@@ -889,7 +890,7 @@ namespace Opc.Ua.Server
                         // Ignore exceptions during shutdown
                     }
 
-                    lock (m_eventConsumers)
+                    lock (m_eventConsumersLock)
                     {
                         foreach (EventConsumerEntry entry in m_eventConsumers)
                         {
