@@ -31,14 +31,12 @@ using System;
 using System.Collections.Generic;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Hosting
 {
     /// <summary>
     /// Options for an OPC UA Global Discovery Server (GDS) hosted by
     /// the .NET Generic Host via
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaGdsServerBuilderExtensions.AddGdsServer(Opc.Ua.IOpcUaBuilder, System.Action{Opc.Ua.Gds.Server.Hosting.GdsServerOptions})"/>.
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaGdsServerBuilderExtensions.AddGdsServer(IOpcUaBuilder, Action{GdsServerOptions})"/>.
     /// </summary>
     /// <remarks>
     /// <para>

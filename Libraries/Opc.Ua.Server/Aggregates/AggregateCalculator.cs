@@ -905,9 +905,8 @@ namespace Opc.Ua.Server
                 dataValue = dataValue.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            dataValue = dataValue.WithStatus(dataValue.StatusCode
+            return dataValue.WithStatus(dataValue.StatusCode
                 .WithAggregateBits(AggregateBits.Interpolated));
-            return dataValue;
         }
 
         /// <summary>
@@ -965,10 +964,8 @@ namespace Opc.Ua.Server
                     dataValue = dataValue.WithStatus(StatusCodes.UncertainDataSubNormal);
                 }
 
-                dataValue = dataValue.WithStatus(dataValue.StatusCode
+                return dataValue.WithStatus(dataValue.StatusCode
                     .WithAggregateBits(AggregateBits.Interpolated));
-
-                return dataValue;
             }
             // exception occurs on data conversion errors.
             catch (Exception)

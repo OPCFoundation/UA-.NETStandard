@@ -146,8 +146,7 @@ namespace Opc.Ua.WotCon.Client
             uint handle = await file.OpenAsync(WriteEraseMode, ct).ConfigureAwait(false);
             try
             {
-                await FileTypeClientExtensions.CopyStreamInChunksAsync(
-                    thingDescriptionJson,
+                await thingDescriptionJson.CopyStreamInChunksAsync(
                     chunkSize,
                     (chunk, token) => file.WriteAsync(handle, ByteString.From(chunk), token),
                     ct).ConfigureAwait(false);

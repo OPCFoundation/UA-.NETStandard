@@ -32,7 +32,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Gds;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -48,7 +47,7 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         public async Task CertificateManagementSetUp()
         {
-            m_directoryNodeId = ToNodeId(Gds.ObjectIds.Directory);
+            m_directoryNodeId = ToNodeId(ObjectIds.Directory);
 
             // Register a test application for certificate management tests
             ApplicationRecordDataType appRecord = CreateTestApplicationRecord("CertMgmt");
@@ -271,7 +270,7 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task GetCertificateGroupsForRegisteredApplicationAsync()
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_GetCertificateGroups);
+            NodeId methodId = ToNodeId(MethodIds.Directory_GetCertificateGroups);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -304,7 +303,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task GetTrustListForCertificateGroupAsync()
         {
             // First get the certificate groups
-            NodeId getCertGroupsMethodId = ToNodeId(Gds.MethodIds.Directory_GetCertificateGroups);
+            NodeId getCertGroupsMethodId = ToNodeId(MethodIds.Directory_GetCertificateGroups);
             CallResponse groupsResponse = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -324,7 +323,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.Ignore("No certificate groups configured on the GDS server.");
             }
-            NodeId getTrustListMethodId = ToNodeId(Gds.MethodIds.Directory_GetTrustList);
+            NodeId getTrustListMethodId = ToNodeId(MethodIds.Directory_GetTrustList);
             CallResponse trustListResponse = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -353,7 +352,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task GetCertificateStatusReturnsBooleanAsync()
         {
             // Get certificate groups first
-            NodeId getCertGroupsMethodId = ToNodeId(Gds.MethodIds.Directory_GetCertificateGroups);
+            NodeId getCertGroupsMethodId = ToNodeId(MethodIds.Directory_GetCertificateGroups);
             CallResponse groupsResponse = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -375,7 +374,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             // Call GetCertificateStatus
-            NodeId getCertStatusMethodId = ToNodeId(Gds.MethodIds.Directory_GetCertificateStatus);
+            NodeId getCertStatusMethodId = ToNodeId(MethodIds.Directory_GetCertificateStatus);
             CallResponse statusResponse = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -404,7 +403,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartSigningRequestAndFinishRequestAsync()
         {
             // Get certificate groups first
-            NodeId getCertGroupsMethodId = ToNodeId(Gds.MethodIds.Directory_GetCertificateGroups);
+            NodeId getCertGroupsMethodId = ToNodeId(MethodIds.Directory_GetCertificateGroups);
             CallResponse groupsResponse = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -426,7 +425,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             // Try StartSigningRequest- this may not be supported by all implementations
-            NodeId startSigningMethodId = ToNodeId(Gds.MethodIds.Directory_StartSigningRequest);
+            NodeId startSigningMethodId = ToNodeId(MethodIds.Directory_StartSigningRequest);
             try
             {
                 CallResponse signingResponse = await Session.CallAsync(
@@ -456,7 +455,7 @@ namespace Opc.Ua.Gds.Tests
                     "StartSigningRequest should return a valid RequestId.");
 
                 // Call FinishRequest to check status
-                NodeId finishRequestMethodId = ToNodeId(Gds.MethodIds.Directory_FinishRequest);
+                NodeId finishRequestMethodId = ToNodeId(MethodIds.Directory_FinishRequest);
                 CallResponse finishResponse = await Session.CallAsync(
                     null,
                     new CallMethodRequest[] {
@@ -492,7 +491,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType appRecord,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -515,7 +514,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {

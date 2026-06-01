@@ -33,11 +33,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
-using Opc.Ua.WotCon.Server.Hosting;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {
@@ -79,11 +77,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 o.ProductUri = "urn:test:product";
             });
 
-            builder.AddWotConServer(o =>
-            {
-                o.AssetNamespaceUri =
-                    WotConnectivityServerOptions.DefaultAssetNamespaceUri;
-            });
+            builder.AddWotConServer(o => o.AssetNamespaceUri =
+                    WotConnectivityServerOptions.DefaultAssetNamespaceUri);
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
@@ -91,9 +86,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
             Assert.That(factory, Is.Not.Null);
 
-            OpcUaServerNodeManagerRegistration[] regs = sp
-                .GetServices<OpcUaServerNodeManagerRegistration>()
-                .ToArray();
+            OpcUaServerNodeManagerRegistration[] regs = [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
             Assert.That(regs, Has.Length.GreaterThanOrEqualTo(1));
             Assert.That(
                 regs.Any(r => ReferenceEquals(r.SyncFactory, factory)),
@@ -160,10 +153,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             IServiceCollection services = new ServiceCollection();
             IOpcUaBuilder builder = services.AddOpcUa();
 
-            IOpcUaBuilder returned = builder.AddWotConClient(o =>
-            {
-                o.LazyConnect = false;
-            });
+            IOpcUaBuilder returned = builder.AddWotConClient(o => o.LazyConnect = false);
 
             Assert.That(returned, Is.SameAs(builder));
         }

@@ -33,6 +33,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Server
 {
@@ -166,6 +167,9 @@ namespace Opc.Ua.Server
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
 
         /// <inheritdoc/>
+        public IServerIdentityRegistry IdentityRegistry { get; private set; } = new ServerIdentityRegistry();
+
+        /// <inheritdoc/>
         public UserManagement.IUserManagement? UserManagement { get; private set; }
 
         /// <summary>
@@ -268,6 +272,12 @@ namespace Opc.Ua.Server
         public void SetRoleManager(IRoleManager roleManager)
         {
             RoleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
+        }
+
+        /// <inheritdoc/>
+        public void SetIdentityRegistry(IServerIdentityRegistry registry)
+        {
+            IdentityRegistry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
         /// <inheritdoc/>

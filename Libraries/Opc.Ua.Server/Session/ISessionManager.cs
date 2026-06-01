@@ -71,6 +71,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Raised before the user identity for a session is changed.
         /// </summary>
+        [Obsolete(
+            "Replaced by IUserTokenAuthenticator + IServerIdentityRegistry. " +
+            "Register authenticators via services.AddIdentityAuthenticator<T>() or " +
+            "server.CurrentInstance.IdentityRegistry.Register(...). See Docs/IdentityProviders.md.")]
         event ImpersonateEventHandler ImpersonateUser;
 
         /// <summary>

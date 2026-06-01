@@ -44,8 +44,8 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// The dispatcher is stateless apart from continuation-point storage,
     /// which lives in the session via
-    /// <see cref="Opc.Ua.Server.Session.SaveHistoryContinuationPoint"/> /
-    /// <see cref="Opc.Ua.Server.Session.RestoreHistoryContinuationPoint"/>.
+    /// <see cref="Session.SaveHistoryContinuationPoint"/> /
+    /// <see cref="Session.RestoreHistoryContinuationPoint"/>.
     /// </para>
     /// </remarks>
     public static class HistorianDispatcher
@@ -60,10 +60,10 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public static bool IsAnnotationsProperty(NodeState? node)
         {
-            return node is PropertyState property
-                && string.Equals(property.BrowseName.Name, BrowseNames.Annotations, StringComparison.Ordinal)
-                && property.BrowseName.NamespaceIndex == 0
-                && property.Parent is BaseVariableState;
+            return node is PropertyState property &&
+                string.Equals(property.BrowseName.Name, BrowseNames.Annotations, StringComparison.Ordinal) &&
+                property.BrowseName.NamespaceIndex == 0 &&
+                property.Parent is BaseVariableState;
         }
 
         /// <summary>
@@ -74,6 +74,7 @@ namespace Opc.Ua.Server.Historian
         {
             return (node as BaseInstanceState)?.Parent as BaseVariableState;
         }
+
         /// <summary>
         /// Resolves the provider for a given node using the node-manager
         /// override first, then the server-wide registry.
@@ -206,7 +207,7 @@ namespace Opc.Ua.Server.Historian
                 PerformUpdateType.Insert => await data.InsertAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Replace => await data.ReplaceAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Update => await data.UpdateAsync(opContext, node.NodeId, ToList(values), cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count),
+                _ => RepeatStatus(StatusCodes.BadInvalidArgument, values.Count)
             };
 
             result.OperationResults = ToStatusArray(statuses);
@@ -399,7 +400,7 @@ namespace Opc.Ua.Server.Historian
                         PercentDataGood = 100,
                         TreatUncertainAsBad = false,
                         UseSlopedExtrapolation = false,
-                        UseServerCapabilitiesDefaults = false,
+                        UseServerCapabilitiesDefaults = false
                     };
             }
 
@@ -410,7 +411,7 @@ namespace Opc.Ua.Server.Historian
                 StartTime = details.StartTime,
                 EndTime = details.EndTime,
                 ProcessingInterval = details.ProcessingInterval,
-                Configuration = config,
+                Configuration = config
             };
 
             // Native push-down path
@@ -458,7 +459,7 @@ namespace Opc.Ua.Server.Historian
                 EndTime = details.StartTime <= details.EndTime ? details.EndTime : details.StartTime,
                 MaxValues = 0,
                 IsForward = true,
-                ReturnBounds = true,
+                ReturnBounds = true
             };
 
             HistorianResumeToken token2 = default;
@@ -505,7 +506,7 @@ namespace Opc.Ua.Server.Historian
                 IndexRange = nodeToRead.ParsedIndexRange,
                 DataEncoding = nodeToRead.DataEncoding,
                 BufferedProcessedOutputs = values,
-                BufferedProcessedOffset = 0,
+                BufferedProcessedOffset = 0
             };
             EmitProcessedPage(state, result, nodeToRead, timestampsToReturn, systemContext);
             return ServiceResult.Good;
@@ -617,7 +618,7 @@ namespace Opc.Ua.Server.Historian
                 {
                     NodeId = node.NodeId,
                     RequestedTimes = typedTimes,
-                    UseSimpleBounds = details.UseSimpleBounds,
+                    UseSimpleBounds = details.UseSimpleBounds
                 };
                 IList<DataValue> values = await atTime.ReadAtTimeAsync(
                     opContext, atTimeRequest, cancellationToken).ConfigureAwait(false);
@@ -633,7 +634,7 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
-            var samples = await CollectAllRawAsync(opContext, raw, node.NodeId, typedTimes, cancellationToken)
+            List<DataValue> samples = await CollectAllRawAsync(opContext, raw, node.NodeId, typedTimes, cancellationToken)
                 .ConfigureAwait(false);
 
             var produced = new List<DataValue>(typedTimes.Count);
@@ -718,7 +719,7 @@ namespace Opc.Ua.Server.Historian
                     StartTime = start,
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
-                    IsForward = isForward,
+                    IsForward = isForward
                 };
                 resumeToken = default;
             }
@@ -825,7 +826,7 @@ namespace Opc.Ua.Server.Historian
                     opContext, parentVariable.NodeId, annotationList, cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Remove => await annotations.DeleteAnnotationsAsync(
                     opContext, parentVariable.NodeId, times, cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count),
+                _ => RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count)
             };
 
             result.OperationResults = ToStatusArray(statuses);
@@ -835,9 +836,9 @@ namespace Opc.Ua.Server.Historian
 
         private static Annotation? DecodeAnnotation(DataValue dv)
         {
-            if (dv.WrappedValue.TryGetValue(out ExtensionObject extension)
-                && !extension.IsNull
-                && extension.TryGetValue<Annotation>(out Annotation? annotation))
+            if (dv.WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                !extension.IsNull &&
+                extension.TryGetValue(out Annotation? annotation))
             {
                 return annotation;
             }
@@ -885,7 +886,7 @@ namespace Opc.Ua.Server.Historian
                     AnnotationRequest = request,
                     TimestampsToReturn = timestampsToReturn,
                     IndexRange = indexRange,
-                    DataEncoding = dataEncoding,
+                    DataEncoding = dataEncoding
                 };
             }
 
@@ -968,7 +969,7 @@ namespace Opc.Ua.Server.Historian
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
                     IsForward = isForward,
-                    Filter = details.Filter,
+                    Filter = details.Filter
                 };
                 token = default;
             }
@@ -984,8 +985,8 @@ namespace Opc.Ua.Server.Historian
 
             // Evaluate the WhereClause if any elements are present.
             IReadOnlyList<HistorianEventRecord> filtered = page.Values;
-            if (details.Filter.WhereClause.Elements.Count > 0
-                && systemContext.Server is IServerInternal serverInternal)
+            if (details.Filter.WhereClause.Elements.Count > 0 &&
+                systemContext.Server is IServerInternal serverInternal)
             {
                 var context = new FilterContext(
                     serverInternal.NamespaceUris,
@@ -1013,7 +1014,7 @@ namespace Opc.Ua.Server.Historian
 
             result.HistoryData = new ExtensionObject(new HistoryEvent
             {
-                Events = fields,
+                Events = fields
             });
 
             SaveOrReleaseEventContinuation(
@@ -1080,7 +1081,7 @@ namespace Opc.Ua.Server.Historian
                     opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
                 PerformUpdateType.Update => await events.UpdateEventsAsync(
                     opContext, node.NodeId, decoded, cancellationToken).ConfigureAwait(false),
-                _ => RepeatStatus(StatusCodes.BadInvalidArgument, decoded.Count),
+                _ => RepeatStatus(StatusCodes.BadInvalidArgument, decoded.Count)
             };
 
             result.OperationResults = ToStatusArray(statuses);
@@ -1218,9 +1219,9 @@ namespace Opc.Ua.Server.Historian
             ByteString eventId = ByteString.Empty;
             NodeId eventType = notifierNodeId;
             DateTimeUtc sourceTs = DateTimeUtc.MinValue;
-            var fields = new Dictionary<string, Variant>(System.StringComparer.Ordinal);
+            var fields = new Dictionary<string, Variant>(StringComparer.Ordinal);
 
-            int count = System.Math.Min(filter.SelectClauses.Count, incoming.EventFields.Count);
+            int count = Math.Min(filter.SelectClauses.Count, incoming.EventFields.Count);
             for (int i = 0; i < count; i++)
             {
                 SimpleAttributeOperand op = filter.SelectClauses[i];
@@ -1229,18 +1230,18 @@ namespace Opc.Ua.Server.Historian
 
                 fields[key] = value;
 
-                if (string.Equals(key, BrowseNames.EventId, System.StringComparison.Ordinal)
-                    && value.TryGetValue(out ByteString idValue))
+                if (string.Equals(key, BrowseNames.EventId, StringComparison.Ordinal) &&
+                    value.TryGetValue(out ByteString idValue))
                 {
                     eventId = idValue;
                 }
-                else if (string.Equals(key, BrowseNames.EventType, System.StringComparison.Ordinal)
-                    && value.TryGetValue(out NodeId typeValue))
+                else if (string.Equals(key, BrowseNames.EventType, StringComparison.Ordinal) &&
+                    value.TryGetValue(out NodeId typeValue))
                 {
                     eventType = typeValue;
                 }
-                else if (string.Equals(key, BrowseNames.Time, System.StringComparison.Ordinal)
-                    && value.TryGetValue(out DateTimeUtc tsValue))
+                else if (string.Equals(key, BrowseNames.Time, StringComparison.Ordinal) &&
+                    value.TryGetValue(out DateTimeUtc tsValue))
                 {
                     sourceTs = tsValue;
                 }
@@ -1285,7 +1286,7 @@ namespace Opc.Ua.Server.Historian
                     Kind = HistorianReadKind.Events,
                     ResumeToken = nextToken,
                     EventRequest = request,
-                    TimestampsToReturn = TimestampsToReturn.Source,
+                    TimestampsToReturn = TimestampsToReturn.Source
                 };
             }
 
@@ -1368,7 +1369,7 @@ namespace Opc.Ua.Server.Historian
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
                     IsForward = isForward,
-                    ReturnBounds = details.ReturnBounds,
+                    ReturnBounds = details.ReturnBounds
                 };
                 token = default;
             }
@@ -1433,7 +1434,7 @@ namespace Opc.Ua.Server.Historian
                     StartTime = start,
                     EndTime = end,
                     MaxValues = details.NumValuesPerNode,
-                    IsForward = isForward,
+                    IsForward = isForward
                 };
                 token = default;
             }
@@ -1547,7 +1548,7 @@ namespace Opc.Ua.Server.Historian
                     ModifiedRequest = modifiedRequest,
                     TimestampsToReturn = timestampsToReturn,
                     IndexRange = indexRange,
-                    DataEncoding = dataEncoding ?? QualifiedName.Null,
+                    DataEncoding = dataEncoding ?? QualifiedName.Null
                 };
             }
 
@@ -1597,7 +1598,7 @@ namespace Opc.Ua.Server.Historian
             var data = new HistoryModifiedData
             {
                 DataValues = filtered,
-                ModificationInfos = modInfos,
+                ModificationInfos = modInfos
             };
             result.HistoryData = new ExtensionObject(data);
         }
@@ -1722,7 +1723,7 @@ namespace Opc.Ua.Server.Historian
                 EndTime = max,
                 MaxValues = 0,
                 IsForward = true,
-                ReturnBounds = true,
+                ReturnBounds = true
             };
 
             var collected = new List<DataValue>();
@@ -1798,7 +1799,7 @@ namespace Opc.Ua.Server.Historian
                 double t1 = after.SourceTimestamp.ToDateTime().Ticks;
                 double t = requestedTime.ToDateTime().Ticks;
                 double ratio = (t - t0) / (t1 - t0);
-                double y = y0 + (y1 - y0) * ratio;
+                double y = y0 + ((y1 - y0) * ratio);
                 return new DataValue(
                     new Variant(y),
                     StatusCodes.UncertainDataSubNormal,
@@ -1830,7 +1831,7 @@ namespace Opc.Ua.Server.Historian
                 PerformUpdateType.Insert => HistoryUpdateType.Insert,
                 PerformUpdateType.Replace => HistoryUpdateType.Replace,
                 PerformUpdateType.Update => HistoryUpdateType.Update,
-                _ => HistoryUpdateType.Insert,
+                _ => HistoryUpdateType.Insert
             };
         }
 
@@ -1884,7 +1885,7 @@ namespace Opc.Ua.Server.Historian
 
         private static IAuditEventServer? GetAuditServer(ServerSystemContext systemContext)
         {
-            return systemContext.Server as IAuditEventServer;
+            return systemContext.Server;
         }
 
         /// <summary>

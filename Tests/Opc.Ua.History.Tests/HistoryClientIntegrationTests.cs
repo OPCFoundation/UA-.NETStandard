@@ -35,7 +35,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Historian;
@@ -60,11 +59,13 @@ namespace Opc.Ua.History.Tests
     [NonParallelizable]
     public class HistoryClientIntegrationTests : TestFixture
     {
-        // Use Scalar_Static_Double for history. Scalar_Static_Int32 has explicit
-        // RolePermissions that grant anonymous Browse|Read|Write but NOT
-        // ReadHistory/InsertHistory, so anonymous sessions get
-        // BadUserAccessDenied on its history endpoints. Double has no
-        // RolePermissions set, so the role-permission gate doesn't run.
+        /// <summary>
+        /// Use Scalar_Static_Double for history. Scalar_Static_Int32 has explicit
+        /// RolePermissions that grant anonymous Browse|Read|Write but NOT
+        /// ReadHistory/InsertHistory, so anonymous sessions get
+        /// BadUserAccessDenied on its history endpoints. Double has no
+        /// RolePermissions set, so the role-permission gate doesn't run.
+        /// </summary>
         private NodeId m_doubleNodeId;
 
         [OneTimeSetUp]
@@ -124,10 +125,10 @@ namespace Opc.Ua.History.Tests
                 serverTimestamp: ts);
 
             IList<StatusCode> insertStatuses = await client.InsertAsync(
-                m_doubleNodeId, new[] { insertValue });
+                m_doubleNodeId, new[] { insertValue }).ConfigureAwait(false);
             Assert.That(insertStatuses, Has.Count.EqualTo(1));
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True,
-                $"Insert failed with status 0x{(uint)insertStatuses[0].Code:X8}");
+                $"Insert failed with status 0x{insertStatuses[0].Code:X8}");
 
             // Read back from a tight window around the inserted timestamp.
             var roundTrip = new List<DataValue>();
@@ -148,7 +149,7 @@ namespace Opc.Ua.History.Tests
                 sourceTimestamp: ts,
                 serverTimestamp: ts);
             IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
-                m_doubleNodeId, new[] { replaceValue });
+                m_doubleNodeId, new[] { replaceValue }).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
 
             roundTrip.Clear();
@@ -166,7 +167,7 @@ namespace Opc.Ua.History.Tests
         public async Task GetServerCapabilitiesReportsHistoricalAccessAsync()
         {
             var client = new HistoryClient(Session);
-            HistoryServerCapabilitiesInfo caps = await client.GetServerCapabilitiesAsync();
+            HistoryServerCapabilitiesInfo caps = await client.GetServerCapabilitiesAsync().ConfigureAwait(false);
 
             Assert.That(caps.AccessHistoryData, Is.True,
                 "InMemoryHistorianProvider exposes AccessHistoryData; capability rollup must reflect it.");
@@ -215,7 +216,7 @@ namespace Opc.Ua.History.Tests
             {
                 now.AddMinutes(-30),
                 now.AddMinutes(-20),
-                now.AddMinutes(-10),
+                now.AddMinutes(-10)
             };
 
             var values = new List<DataValue>();
@@ -241,11 +242,11 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime ts = DateTime.UtcNow.AddYears(-10).AddSeconds(101);
-            string message = "IntegrationTest annotation";
-            string userName = "TestUser";
+            const string message = "IntegrationTest annotation";
+            const string userName = "TestUser";
 
             StatusCode writeStatus = await client.WriteAnnotationAsync(
-                m_doubleNodeId, ts, message, userName);
+                m_doubleNodeId, ts, message, userName).ConfigureAwait(false);
 
             if (StatusCode.IsBad(writeStatus))
             {
@@ -257,7 +258,7 @@ namespace Opc.Ua.History.Tests
                     writeStatus.Code,
                     Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
                         .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
-                    $"Unexpected WriteAnnotation failure 0x{(uint)writeStatus.Code:X8}");
+                    $"Unexpected WriteAnnotation failure 0x{writeStatus.Code:X8}");
                 return;
             }
 
@@ -278,10 +279,10 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime ts = DateTime.UtcNow.AddYears(-10).AddSeconds(201);
-            string message = "ToDelete";
+            const string message = "ToDelete";
 
             StatusCode writeStatus = await client.WriteAnnotationAsync(
-                m_doubleNodeId, ts, message, "TestUser");
+                m_doubleNodeId, ts, message, "TestUser").ConfigureAwait(false);
             if (StatusCode.IsBad(writeStatus))
             {
                 // Annotations property is not exposed on this server's
@@ -291,14 +292,14 @@ namespace Opc.Ua.History.Tests
                     writeStatus.Code,
                     Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported)
                         .Or.EqualTo(StatusCodes.BadNodeIdUnknown),
-                    $"Unexpected WriteAnnotation failure 0x{(uint)writeStatus.Code:X8}");
+                    $"Unexpected WriteAnnotation failure 0x{writeStatus.Code:X8}");
                 return;
             }
 
             StatusCode deleteStatus = await client.DeleteAnnotationAsync(
-                m_doubleNodeId, ts);
+                m_doubleNodeId, ts).ConfigureAwait(false);
             Assert.That(StatusCode.IsNotBad(deleteStatus), Is.True,
-                $"DeleteAnnotation failed with 0x{(uint)deleteStatus.Code:X8}");
+                $"DeleteAnnotation failed with 0x{deleteStatus.Code:X8}");
 
             var remaining = new List<Annotation>();
             await foreach (Annotation a in client.ReadAnnotationsAsync(
@@ -316,11 +317,11 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(301);
-            var timestamps = new[]
+            DateTime[] timestamps = new[]
             {
                 baseTs,
                 baseTs.AddSeconds(1),
-                baseTs.AddSeconds(2),
+                baseTs.AddSeconds(2)
             };
 
             var insertValues = new DataValue[3];
@@ -334,13 +335,13 @@ namespace Opc.Ua.History.Tests
             }
 
             IList<StatusCode> insertStatuses = await client.InsertAsync(
-                m_doubleNodeId, insertValues);
+                m_doubleNodeId, insertValues).ConfigureAwait(false);
             Assert.That(insertStatuses, Has.Count.EqualTo(3));
 
             StatusCode deleteStatus = await client.DeleteRawAsync(
-                m_doubleNodeId, timestamps[0], timestamps[2].AddMilliseconds(1));
+                m_doubleNodeId, timestamps[0], timestamps[2].AddMilliseconds(1)).ConfigureAwait(false);
             Assert.That(StatusCode.IsNotBad(deleteStatus), Is.True,
-                $"DeleteRaw failed with 0x{(uint)deleteStatus.Code:X8}");
+                $"DeleteRaw failed with 0x{deleteStatus.Code:X8}");
 
             var remaining = new List<DataValue>();
             await foreach (DataValue dv in client.ReadRawAsync(
@@ -369,13 +370,13 @@ namespace Opc.Ua.History.Tests
                 new(new Variant(20.0), StatusCodes.Good,
                     sourceTimestamp: ts1, serverTimestamp: ts1),
                 new(new Variant(30.0), StatusCodes.Good,
-                    sourceTimestamp: ts2, serverTimestamp: ts2),
+                    sourceTimestamp: ts2, serverTimestamp: ts2)
             };
 
-            await client.InsertAsync(m_doubleNodeId, insertValues);
+            await client.InsertAsync(m_doubleNodeId, insertValues).ConfigureAwait(false);
 
             IList<StatusCode> deleteStatuses = await client.DeleteAtTimeAsync(
-                m_doubleNodeId, new[] { ts0, ts2 });
+                m_doubleNodeId, new[] { ts0, ts2 }).ConfigureAwait(false);
             Assert.That(deleteStatuses, Has.Count.EqualTo(2));
 
             var remaining = new List<DataValue>();
@@ -396,7 +397,7 @@ namespace Opc.Ua.History.Tests
             var client = new HistoryClient(Session);
 
             HistoricalDataConfigurationInfo config =
-                await client.GetConfigurationAsync(m_doubleNodeId);
+                await client.GetConfigurationAsync(m_doubleNodeId).ConfigureAwait(false);
 
             Assert.That(config, Is.Not.Null);
 

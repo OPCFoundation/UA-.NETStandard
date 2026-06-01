@@ -34,9 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Security.Certificates;
-
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -373,8 +372,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private static bool IsEccPolicy(string policyUri)
         {
-            return !string.IsNullOrEmpty(policyUri)
-                && policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
+            return !string.IsNullOrEmpty(policyUri) &&
+                policyUri.Contains("#ECC_", StringComparison.Ordinal);
         }
     }
 }

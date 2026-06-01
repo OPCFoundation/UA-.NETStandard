@@ -68,15 +68,15 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         public static DataValue[] BuildScalarDoubles(int count, int seed = 42)
         {
-            UnsecureRandom rand = new UnsecureRandom(seed);
+            var rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
                 result[i] = new DataValue(
                     new Variant((rand.NextDouble() - 0.5) * 1000.0),
                     rand.NextDouble() > 0.1
-                        ? (StatusCode)StatusCodes.Good
-                        : (StatusCode)StatusCodes.BadDataLost,
+                        ? StatusCodes.Good
+                        : StatusCodes.BadDataLost,
                     ReferenceTimestamp,
                     ReferenceTimestamp);
             }
@@ -89,14 +89,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         public static DataValue[] BuildScalarStrings(int count, int seed = 42)
         {
-            UnsecureRandom rand = new UnsecureRandom(seed);
+            var rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
                 string s = "value-" + rand.Next(0, 1_000_000).ToString(CultureInfo.InvariantCulture);
                 result[i] = new DataValue(
                     new Variant(s),
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     ReferenceTimestamp,
                     ReferenceTimestamp);
             }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             int length = 1024,
             int seed = 42)
         {
-            UnsecureRandom rand = new UnsecureRandom(seed);
+            var rand = new UnsecureRandom(seed);
             var result = new DataValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 }
                 result[i] = new DataValue(
                     new Variant(payload.ToArrayOf()),
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     ReferenceTimestamp,
                     ReferenceTimestamp);
             }

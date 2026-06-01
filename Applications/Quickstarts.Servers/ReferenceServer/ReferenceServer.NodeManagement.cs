@@ -86,7 +86,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     nodesToAdd,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new AddNodesResult[nodesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
@@ -169,7 +169,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     nodesToDelete,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new StatusCode[nodesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
@@ -245,7 +245,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     referencesToAdd,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new StatusCode[referencesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
@@ -320,7 +320,7 @@ namespace Quickstarts.ReferenceServer
                 ValidateOperationLimits(
                     referencesToDelete,
                     ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
-                        .MaxNodesPerNodeManagement!);
+                        .MaxNodesPerNodeManagement);
 
                 var results = new StatusCode[referencesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
@@ -399,7 +399,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // Validate the parent node id and resolve it to the local server.
-            NodeId parentNodeId = ExpandedNodeId.ToNodeId(
+            var parentNodeId = ExpandedNodeId.ToNodeId(
                 item.ParentNodeId,
                 ServerInternal.NamespaceUris);
 
@@ -437,7 +437,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // Validate the type definition.
-            NodeId typeDefinitionId = ExpandedNodeId.ToNodeId(
+            var typeDefinitionId = ExpandedNodeId.ToNodeId(
                 item.TypeDefinition,
                 ServerInternal.NamespaceUris);
 
@@ -514,7 +514,7 @@ namespace Quickstarts.ReferenceServer
                 item.NodeId,
                 cancellationToken).ConfigureAwait(false);
 
-            return removed ? (StatusCode)StatusCodes.Good : StatusCodes.BadNodeIdUnknown;
+            return removed ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown;
         }
 
         /// <summary>
@@ -544,7 +544,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadSourceNodeIdInvalid;
             }
 
-            NodeId targetNodeId = ExpandedNodeId.ToNodeId(
+            var targetNodeId = ExpandedNodeId.ToNodeId(
                 item.TargetNodeId,
                 ServerInternal.NamespaceUris);
             if (targetNodeId.IsNull)
@@ -647,14 +647,13 @@ namespace Quickstarts.ReferenceServer
             switch (item.NodeClass)
             {
                 case NodeClass.Variable:
-                {
                     var variable = new BaseDataVariableState(null)
                     {
                         BrowseName = item.BrowseName,
                         DisplayName = new LocalizedText(item.BrowseName.Name),
                         TypeDefinitionId = typeDefinitionId.IsNull
-                            ? VariableTypeIds.BaseDataVariableType
-                            : typeDefinitionId,
+                                ? VariableTypeIds.BaseDataVariableType
+                                : typeDefinitionId,
                         AccessLevel = AccessLevels.CurrentReadOrWrite,
                         UserAccessLevel = AccessLevels.CurrentReadOrWrite,
                         DataType = DataTypeIds.BaseDataType,
@@ -672,16 +671,15 @@ namespace Quickstarts.ReferenceServer
                     }
 
                     return variable;
-                }
+
                 case NodeClass.Object:
-                {
                     var instance = new BaseObjectState(null)
                     {
                         BrowseName = item.BrowseName,
                         DisplayName = new LocalizedText(item.BrowseName.Name),
                         TypeDefinitionId = typeDefinitionId.IsNull
-                            ? ObjectTypeIds.BaseObjectType
-                            : typeDefinitionId
+                                ? ObjectTypeIds.BaseObjectType
+                                : typeDefinitionId
                     };
 
                     if (!item.NodeAttributes.IsNull)
@@ -695,7 +693,7 @@ namespace Quickstarts.ReferenceServer
                     }
 
                     return instance;
-                }
+
                 default:
                     throw new ServiceResultException(
                         StatusCodes.BadNodeClassInvalid);
@@ -825,4 +823,3 @@ namespace Quickstarts.ReferenceServer
         }
     }
 }
-

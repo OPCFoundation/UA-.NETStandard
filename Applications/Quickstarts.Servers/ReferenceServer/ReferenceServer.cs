@@ -433,9 +433,7 @@ namespace Quickstarts.ReferenceServer
         {
             base.OnServerStarted(server);
 
-            // request notifications when the user identity is changed. all valid users are accepted by default.
-            server.SessionManager.ImpersonateUser
-                += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
+            RegisterIdentityAuthenticators(server);
 
             try
             {
@@ -517,73 +515,6 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Called when a client tries to change its user identity.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
-        {
-            // check for a user name token.
-
-            if (args.UserIdentityTokenHandler is UserNameIdentityTokenHandler userNameToken)
-            {
-                args.Identity = VerifyPassword(userNameToken);
-
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "Username Token Accepted: {Identity}",
-                    args.Identity?.DisplayName);
-
-                return;
-            }
-
-            // check for x509 user token.
-
-            if (args.UserIdentityTokenHandler is X509IdentityTokenHandler x509Token)
-            {
-                VerifyX509IdentityToken(x509Token);
-                // set AuthenticatedUser role for accepted certificate authentication
-                args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser],
-                    ServerInternal.MessageContext.NamespaceUris);
-                m_logger.LogInformation(
-                    Utils.TraceMasks.Security,
-                    "X509 Token Accepted: {Identity}",
-                    args.Identity.DisplayName);
-
-                return;
-            }
-
-            // check for issued identity token.
-            if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
-            {
-                // set AuthenticatedUser role for accepted identity token
-                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken)!,
-                    [Role.AuthenticatedUser],
-                    ServerInternal.MessageContext.NamespaceUris);
-                return;
-            }
-
-            // check for anonymous token.
-            if (args.UserIdentityTokenHandler is AnonymousIdentityTokenHandler or null)
-            {
-                // allow anonymous authentication and set Anonymous role for this authentication
-                var identity = new UserIdentity();
-                args.Identity = new RoleBasedIdentity(
-                    identity,
-                    [Role.Anonymous],
-                    ServerInternal.MessageContext.NamespaceUris);
-                return;
-            }
-
-            // unsupported identity token type.
-            throw ServiceResultException.Create(
-                StatusCodes.BadIdentityTokenInvalid,
-                "Not supported user token type: {0}.",
-                args.UserIdentityTokenHandler.TokenType);
-        }
-
-        /// <summary>
         /// Validates the password for a username token.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -626,23 +557,16 @@ namespace Quickstarts.ReferenceServer
 
             ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
             var identity = new UserIdentity(userTokenHandler);
-            try
+            List<Role> effectiveRoles = roles is { Count: > 0 } ? [.. roles] : [Role.AuthenticatedUser];
+            if (effectiveRoles.Contains(Role.SecurityAdmin) && !effectiveRoles.Contains(Role.ConfigureAdmin))
             {
-                if (roles != null && roles.Contains(Role.SecurityAdmin))
-                {
-                    return new SystemConfigurationIdentity(identity);
-                }
+                effectiveRoles.Add(Role.ConfigureAdmin);
+            }
 
-                return new RoleBasedIdentity(
-                    identity,
-                    roles ?? [Role.AuthenticatedUser],
-                    ServerInternal.MessageContext.NamespaceUris);
-            }
-            catch
-            {
-                // UserIdentity is no longer IDisposable; nothing to release.
-                throw;
-            }
+            return new RoleBasedIdentity(
+                identity,
+                effectiveRoles,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         /// <summary>
@@ -777,6 +701,58 @@ namespace Quickstarts.ReferenceServer
                         new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
             }
+        }
+
+        private void RegisterIdentityAuthenticators(IServerInternal server)
+        {
+            server.IdentityRegistry.RegisterDefaultAuthenticators(
+                VerifyUserNameIdentityAsync,
+                VerifyX509IdentityAsync,
+                VerifyJwtIdentityAsync);
+        }
+
+        private ValueTask<IUserIdentity> VerifyUserNameIdentityAsync(
+            UserNameIdentityTokenHandler userNameToken,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            RoleBasedIdentity identity = VerifyPassword(userNameToken);
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Username Token Accepted: {Identity}",
+                identity.DisplayName);
+            return new ValueTask<IUserIdentity>(identity);
+        }
+
+        private ValueTask<IUserIdentity> VerifyX509IdentityAsync(
+            X509IdentityTokenHandler x509Token,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            VerifyX509IdentityToken(x509Token);
+            var identity = new RoleBasedIdentity(
+                new UserIdentity(x509Token),
+                [Role.AuthenticatedUser],
+                ServerInternal.MessageContext.NamespaceUris);
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "X509 Token Accepted: {Identity}",
+                identity.DisplayName);
+            return new ValueTask<IUserIdentity>(identity);
+        }
+
+        private ValueTask<IUserIdentity?> VerifyJwtIdentityAsync(
+            IssuedIdentityTokenHandler issuedToken,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            IUserIdentity? identity = VerifyIssuedToken(issuedToken);
+            return new ValueTask<IUserIdentity?>(identity == null
+                ? null
+                : new RoleBasedIdentity(
+                    identity,
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris));
         }
 
         protected override void Dispose(bool disposing)

@@ -31,7 +31,7 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Top-level options for
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder,System.Action{Opc.Ua.Client.OpcUaClientOptions})"/>.
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(IOpcUaBuilder,System.Action{OpcUaClientOptions})"/>.
     /// </summary>
     public sealed class OpcUaClientOptions
     {
@@ -45,6 +45,12 @@ namespace Opc.Ua.Client
         /// session factory delegate registered with DI.
         /// </summary>
         public ManagedSessionOptions Session { get; set; } = new();
+
+        /// <summary>
+        /// Client identity-provider configuration bound from
+        /// <c>OpcUa:Client:Identity</c>.
+        /// </summary>
+        public OpcUaClientIdentityOptions Identity { get; set; } = new();
 
         /// <summary>
         /// Client-side reverse-connect configuration. When non-null the

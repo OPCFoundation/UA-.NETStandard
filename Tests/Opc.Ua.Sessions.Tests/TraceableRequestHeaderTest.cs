@@ -4,9 +4,8 @@ using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Tests;
-
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Sessions.Tests
 {

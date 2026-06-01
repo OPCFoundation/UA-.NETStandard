@@ -31,7 +31,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Core.Security.Tests
@@ -304,6 +303,7 @@ namespace Opc.Ua.Core.Security.Tests
                 session.Dispose();
             }
         }
+
         [Test]
         public async Task SessionSecurityDetailsRecordedAsync()
         {
@@ -322,6 +322,7 @@ namespace Opc.Ua.Core.Security.Tests
                 session.Dispose();
             }
         }
+
         private async Task<ArrayOf<EndpointDescription>> GetEndpointsAsync()
         {
             var endpointConfiguration =

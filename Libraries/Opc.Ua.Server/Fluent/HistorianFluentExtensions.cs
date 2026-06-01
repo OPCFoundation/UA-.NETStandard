@@ -215,6 +215,7 @@ namespace Opc.Ua.Server.Fluent
         /// variables that each live in a different time-series store
         /// (e.g., one provider per signal vendor).
         /// </remarks>
+        /// <typeparam name="TValue">The CLR value type of the historized variable.</typeparam>
         public static IVariableBuilder<TValue> WithHistorian<TValue>(
             this IVariableBuilder<TValue> variable,
             IHistorianProvider provider)

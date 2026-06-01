@@ -31,8 +31,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -50,6 +50,7 @@ namespace Opc.Ua.Core.Security.Tests
             Is.False,
             "Anonymous role should exist.");
         }
+
         [Test]
         public async Task AddIdentityWithThumbprintCriteriaAsync()
         {
@@ -57,6 +58,7 @@ namespace Opc.Ua.Core.Security.Tests
             Assert
             .That(r.IsNull, Is.False);
         }
+
         [Test]
         public async Task AddIdentityWithGroupCriteriaAsync()
         {
@@ -65,6 +67,7 @@ namespace Opc.Ua.Core.Security.Tests
             r.IsNull,
             Is.False);
         }
+
         [Test]
         public async Task AddIdentityWithAnonymousCriteriaAsync()
         {
@@ -151,6 +154,7 @@ namespace Opc.Ua.Core.Security.Tests
             r.IsNull,
             Is.False);
         }
+
         [Test]
         public async Task AllWellKnownRolesExistAsync()
         {
@@ -187,11 +191,13 @@ namespace Opc.Ua.Core.Security.Tests
         {
             Assert.That(CriteriaTypeUserName, Is.EqualTo(1));
         }
+
         [Test]
         public void ZeroCriteriaTypeHandled()
         {
             Assert.That(CriteriaTypeAnonymous, Is.EqualTo(4));
         }
+
         [Test]
         public async Task AddValidApplicationUriAsync()
         {
@@ -273,6 +279,7 @@ namespace Opc.Ua.Core.Security.Tests
             BrowseResponse resp = await BrowseForwardAsync(r, Session).ConfigureAwait(false);
             Assert.That(resp.Results.Count, Is.GreaterThan(0));
         }
+
         [Test]
         public async Task DuplicateApplicationUriAsync()
         {
@@ -281,6 +288,7 @@ namespace Opc.Ua.Core.Security.Tests
             r.IsNull,
             Is.False);
         }
+
         [Test]
         public async Task EmptyApplicationUriAsync()
         {
@@ -399,6 +407,7 @@ namespace Opc.Ua.Core.Security.Tests
             BrowseResponse resp = await BrowseForwardAsync(r, Session).ConfigureAwait(false);
             Assert.That(resp.Results.Count, Is.GreaterThan(0));
         }
+
         [Test]
         public async Task DuplicateEndpointUrlAsync()
         {
@@ -407,6 +416,7 @@ namespace Opc.Ua.Core.Security.Tests
             BrowseResponse resp = await BrowseForwardAsync(r, Session).ConfigureAwait(false);
             Assert.That(resp.Results.Count, Is.GreaterThan(0));
         }
+
         [Test]
         public async Task SameIdentityToMultipleRolesAsync()
         {
@@ -460,6 +470,7 @@ namespace Opc.Ua.Core.Security.Tests
             BrowseResponse resp = await BrowseForwardAsync(roleSetId, Session).ConfigureAwait(false);
             Assert.That(resp.Results[0].References.Count, Is.GreaterThan(0));
         }
+
         [Test]
         public async Task CannotRemoveWellKnownRoleAsync()
         {

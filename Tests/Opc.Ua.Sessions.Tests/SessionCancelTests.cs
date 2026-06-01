@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
@@ -143,7 +142,7 @@ namespace Opc.Ua.Sessions.Tests
                     requestHeader: null,
                     requestHandle: 0,
                     ct: CancellationToken.None).ConfigureAwait(false));
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Description("Cancel - server returns Good but overrides CancelCount to 0. ")]
@@ -171,7 +170,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     if (r.CancelCount > 0u)
                     {
-                        r.CancelCount = r.CancelCount - 1u;
+                        r.CancelCount--;
                     }
                     r.ResponseHeader.ServiceResult = StatusCodes.BadNothingToDo;
                 });
@@ -181,7 +180,7 @@ namespace Opc.Ua.Sessions.Tests
                     requestHeader: null,
                     requestHandle: 0,
                     ct: CancellationToken.None).ConfigureAwait(false));
-            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
 
         [Description("Cancel - server returns Good and increments the actual CancelCount by 1. ")]
@@ -189,7 +188,7 @@ namespace Opc.Ua.Sessions.Tests
         public async Task CancelWithInjectedIncrementedCancelCountAsync()
         {
             using IDisposable expectation = MockController.ExpectNextResponse<CancelResponse>(
-                r => r.CancelCount = r.CancelCount + 1u);
+                r => ++r.CancelCount);
 
             CancelResponse response = await Session.CancelAsync(
                 requestHeader: null,

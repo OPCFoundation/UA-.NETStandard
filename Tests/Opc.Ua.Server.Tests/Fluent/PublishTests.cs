@@ -111,7 +111,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             m_queueFactory?.Dispose();
         }
 
-
         [Test]
         public async Task Publish_LazyDefault_DoesNotInvokeFactoryUntilEventsAreMonitoredAsync()
         {
@@ -186,8 +185,6 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
-
-
 
         [Test]
         public async Task Publish_ActivatedSource_DeliversEventsThroughOnReportEventAsync()
@@ -348,8 +345,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
-
-
         [Test]
         public async Task Publish_FactoryThrows_InvokesOnErrorAndStopsSourceAsync()
         {
@@ -467,8 +462,6 @@ namespace Opc.Ua.Server.Tests.Fluent
                     options: null));
         }
 
-
-
         [Test]
         public void Publish_AutoPromotesEventNotifierBit()
         {
@@ -502,8 +495,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
         }
 
-
-
         [Test]
         public async Task Dispose_CancelsActiveIteratorAsync()
         {
@@ -528,8 +519,6 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
         }
-
-
 
         [Test]
         public void Publish_OnNonFluentManager_ThrowsBadConfigurationErrorWithManagerType()
@@ -648,8 +637,6 @@ namespace Opc.Ua.Server.Tests.Fluent
             using TestablePublishManager manager = CreateManager();
             Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null));
         }
-
-
 
         private TestablePublishManager CreateManager()
         {
@@ -827,6 +814,5 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return AddNodeAsync(SystemContext, default, node, cancellationToken);
             }
         }
-
     }
 }

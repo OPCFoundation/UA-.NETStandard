@@ -39,7 +39,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
@@ -978,7 +977,7 @@ namespace Opc.Ua.Core.Security.Tests
                 expired: false, slug: "notyetvalid");
         }
 
-        private async Task AssertExpiredOrNotYetValidCertRejectedAsync(bool expired, string slug)
+        private Task AssertExpiredOrNotYetValidCertRejectedAsync(bool expired, string slug)
         {
             string appUri = NewTestApplicationUri(slug);
             // Use a subject without DC=localhost so SecurityConfiguration.Validate's
@@ -1004,11 +1003,12 @@ namespace Opc.Ua.Core.Security.Tests
             Assert.That(
                 ex.StatusCode,
                 Is.AnyOf(
-                    (StatusCode)StatusCodes.BadCertificateTimeInvalid,
-                    (StatusCode)StatusCodes.BadCertificateIssuerTimeInvalid,
-                    (StatusCode)StatusCodes.BadSecurityChecksFailed,
-                    (StatusCode)StatusCodes.BadCertificateInvalid),
+                    StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateIssuerTimeInvalid,
+                    StatusCodes.BadSecurityChecksFailed,
+                    StatusCodes.BadCertificateInvalid),
                 $"Got: {ex.StatusCode}");
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -1027,7 +1027,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public Task CertValidation010InvalidSignatureAsync()
         {
-            string slug = "corrupted010";
+            const string slug = "corrupted010";
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
             using Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
@@ -1213,15 +1213,15 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.That(
                     ex.StatusCode,
                     Is.AnyOf(
-                        (StatusCode)StatusCodes.BadCertificateUntrusted,
-                        (StatusCode)StatusCodes.BadCertificateChainIncomplete,
-                        (StatusCode)StatusCodes.BadCertificateUseNotAllowed,
-                        (StatusCode)StatusCodes.BadCertificateIssuerUseNotAllowed,
-                        (StatusCode)StatusCodes.BadCertificateInvalid,
-                        (StatusCode)StatusCodes.BadCertificateRevoked,
-                        (StatusCode)StatusCodes.BadCertificateRevocationUnknown,
-                        (StatusCode)StatusCodes.BadCertificateIssuerRevocationUnknown,
-                        (StatusCode)StatusCodes.BadSecurityChecksFailed),
+                        StatusCodes.BadCertificateUntrusted,
+                        StatusCodes.BadCertificateChainIncomplete,
+                        StatusCodes.BadCertificateUseNotAllowed,
+                        StatusCodes.BadCertificateIssuerUseNotAllowed,
+                        StatusCodes.BadCertificateInvalid,
+                        StatusCodes.BadCertificateRevoked,
+                        StatusCodes.BadCertificateRevocationUnknown,
+                        StatusCodes.BadCertificateIssuerRevocationUnknown,
+                        StatusCodes.BadSecurityChecksFailed),
                     $"Got: {ex.StatusCode}");
             }
             finally
@@ -1346,8 +1346,8 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.That(
                         ex.StatusCode,
                         Is.AnyOf(
-                            (StatusCode)StatusCodes.BadCertificateUntrusted,
-                            (StatusCode)StatusCodes.BadSecurityChecksFailed),
+                            StatusCodes.BadCertificateUntrusted,
+                            StatusCodes.BadSecurityChecksFailed),
                         $"Cert with valid modern crypto rejected with: {ex.StatusCode}");
                 }
             }
@@ -1391,8 +1391,8 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadConnectionClosed ||
-                      sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                      sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    sre.StatusCode == StatusCodes.BadRequestTimeout ||
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed)
             {
                 // The Quickstart Reference Server has a fixed channel limit
                 // (default 10). When the test fixture runs many cert-validation
@@ -1500,8 +1500,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private static bool IsEccPolicy(string policyUri)
         {
-            return !string.IsNullOrEmpty(policyUri)
-                && policyUri.Contains("#ECC_", System.StringComparison.Ordinal);
+            return !string.IsNullOrEmpty(policyUri) &&
+                policyUri.Contains("#ECC_", StringComparison.Ordinal);
         }
 
         private async Task<ISession> ConnectToSecurePolicyAsync(string policyUri)
@@ -1513,7 +1513,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadConnectionClosed ||
-                      sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed)
             {
                 // The Quickstart Reference Server has a fixed MaxChannelCount
                 // (default 10). When the fixture runs many secure-connect

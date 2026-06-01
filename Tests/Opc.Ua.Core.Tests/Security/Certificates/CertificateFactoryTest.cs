@@ -35,12 +35,11 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
+using Opc.Ua.Core.TestFramework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
-
-using Opc.Ua.Core.TestFramework;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {

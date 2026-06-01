@@ -207,7 +207,7 @@ namespace Opc.Ua.Server
                     break;
             }
 
-// set the timestamp and status.
+            // set the timestamp and status.
             var value = new DataValue(
                 Variant.From(result),
                 StatusCodes.Good,
@@ -219,10 +219,8 @@ namespace Opc.Ua.Server
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
-
             // return result.
-            return value;
+            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
 
         /// <summary>
@@ -319,7 +317,7 @@ namespace Opc.Ua.Server
                     break;
             }
 
-// set the timestamp and status.
+            // set the timestamp and status.
             var value = new DataValue(
                 Variant.From(result),
                 StatusCodes.Good,
@@ -331,10 +329,8 @@ namespace Opc.Ua.Server
                 value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
-
             // return result.
-            return value;
+            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
     }
 }

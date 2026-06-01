@@ -30,8 +30,6 @@
 using System.IO;
 using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Tests;
 
 using OptionSetEncoder = Opc.Ua.Encoders.OptionSet;

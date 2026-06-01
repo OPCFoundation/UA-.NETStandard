@@ -41,10 +41,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using V2 = Opc.Ua.Client.Subscriptions;
-
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
@@ -53,7 +52,7 @@ namespace Opc.Ua.Subscriptions.Tests
     /// + <see cref="ManagedSessionExtensions"/> against the
     /// in-process reference fixture server. Verifies that the V2
     /// subscription engine, exposed through the new
-    /// <see cref="ManagedSession.SubscriptionManager"/> property, can
+    /// <see cref="ManagedSessionType.SubscriptionManager"/> property, can
     /// drive subscriptions and deliver data change notifications.
     /// </summary>
     [TestFixture]

@@ -69,6 +69,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// matching item is yielded last, then enumeration stops.
         /// Useful for waiting on a specific state transition.
         /// </summary>
+        /// <typeparam name="T">The type of items in the source sequence.</typeparam>
         public static IAsyncEnumerable<T> TakeUntilAsync<T>(
             this IAsyncEnumerable<T> source,
             Func<T, bool> predicate,
@@ -105,6 +106,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// Yields items until the timeout elapses. The enumeration
         /// completes silently when the timeout expires.
         /// </summary>
+        /// <typeparam name="T">The type of items in the source sequence.</typeparam>
         public static IAsyncEnumerable<T> WithTimeoutAsync<T>(
             this IAsyncEnumerable<T> source,
             TimeSpan timeout,
@@ -159,6 +161,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// <summary>
         /// Yields exactly <paramref name="count"/> items then completes.
         /// </summary>
+        /// <typeparam name="T">The type of items in the source sequence.</typeparam>
         public static IAsyncEnumerable<T> TakeAsync<T>(
             this IAsyncEnumerable<T> source,
             int count,
@@ -196,6 +199,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// Buffers the first <paramref name="count"/> items into a
         /// list and returns it.
         /// </summary>
+        /// <typeparam name="T">The type of items in the source sequence.</typeparam>
         public static async System.Threading.Tasks.ValueTask<IReadOnlyList<T>> BufferedAsync<T>(
             this IAsyncEnumerable<T> source,
             int count,

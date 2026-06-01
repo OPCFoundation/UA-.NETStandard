@@ -54,7 +54,6 @@ namespace Opc.Ua
     {
         private T? m_firstItem;
         private readonly T?[] m_items;
-        private readonly int m_maximumRetained;
         private readonly Func<T> m_factory;
 
         /// <summary>
@@ -76,7 +75,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(maximumRetained));
             }
-            m_maximumRetained = maximumRetained;
+            MaximumRetained = maximumRetained;
             m_factory = factory ?? (() => new T());
             // Subtract one for the first-item slot. If the cap is 1 we
             // keep an empty shared array and rely on the fast slot alone.
@@ -87,7 +86,7 @@ namespace Opc.Ua
         /// Maximum number of instances retained by the pool, including
         /// the fast first-item slot.
         /// </summary>
-        public int MaximumRetained => m_maximumRetained;
+        public int MaximumRetained { get; }
 
         /// <summary>
         /// Rent an instance from the pool. Returns a recycled instance

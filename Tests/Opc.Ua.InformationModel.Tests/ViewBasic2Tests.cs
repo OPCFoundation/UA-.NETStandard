@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.InformationModel.Tests
@@ -882,7 +881,7 @@ namespace Opc.Ua.InformationModel.Tests
             return AssertBrowseNextInjectsServiceResultAsync(StatusCodes.BadBrowseDirectionInvalid);
         }
 
-        private async Task AssertBrowseNextInjectsServiceResultAsync(StatusCode injected)
+        private Task AssertBrowseNextInjectsServiceResultAsync(StatusCode injected)
         {
             using IDisposable expectation = MockController.ExpectNextResponse<BrowseNextResponse>(
                 r => r.ResponseHeader.ServiceResult = injected);
@@ -891,10 +890,11 @@ namespace Opc.Ua.InformationModel.Tests
                 async () => await Session.BrowseNextAsync(
                     null,
                     releaseContinuationPoints: false,
-                    new ByteString[] { new ByteString(new byte[] { 0x01 }.AsMemory()) }.ToArrayOf(),
+                    new ByteString[] { new(new byte[] { 0x01 }.AsMemory()) }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(injected));
+            return Task.CompletedTask;
         }
     }
 }

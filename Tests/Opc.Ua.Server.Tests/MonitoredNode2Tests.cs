@@ -301,7 +301,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            using var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
+            using var firstValidationSignal = new ManualResetEventSlim(false);
             nodeManagerMock
                 .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
@@ -1196,7 +1196,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            using var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
+            using var firstValidationSignal = new ManualResetEventSlim(false);
             nodeManagerMock
                 .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),

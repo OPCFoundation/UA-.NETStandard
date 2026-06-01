@@ -29,7 +29,6 @@
 
 #nullable enable
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -54,7 +53,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddClient(opt => opt.Configuration = CreateConfig());
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var opts = sp.GetRequiredService<OpcUaClientOptions>();
+            OpcUaClientOptions opts = sp.GetRequiredService<OpcUaClientOptions>();
             Assert.That(opts.ReverseConnect, Is.Null);
         }
 
@@ -67,7 +66,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddClient(opt => opt.Configuration = CreateConfig());
 
             using ServiceProvider sp = services.BuildServiceProvider();
-            var manager = sp.GetRequiredService<ReverseConnectManager>();
+            ReverseConnectManager manager = sp.GetRequiredService<ReverseConnectManager>();
             Assert.That(manager, Is.Not.Null);
         }
 

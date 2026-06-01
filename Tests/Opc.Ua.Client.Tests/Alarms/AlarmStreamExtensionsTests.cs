@@ -38,8 +38,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 // Local fake IStreamingSubscription test types are no-op IAsyncDisposable

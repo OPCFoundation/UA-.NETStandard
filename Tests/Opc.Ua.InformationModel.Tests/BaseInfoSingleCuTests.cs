@@ -31,7 +31,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.InformationModel.Tests
@@ -211,7 +210,7 @@ namespace Opc.Ua.InformationModel.Tests
             // server still exposes it.
             if (!hasIdentities)
             {
-                NodeId fallback = Opc.Ua.Core.Security.Tests.WellKnownRoleNodeIds.TryGetChild(
+                NodeId fallback = Core.Security.Tests.WellKnownRoleNodeIds.TryGetChild(
                     ObjectIds.WellKnownRole_Anonymous, "Identities");
                 hasIdentities = !fallback.IsNull;
             }

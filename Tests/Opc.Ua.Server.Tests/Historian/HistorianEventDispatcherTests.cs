@@ -69,11 +69,11 @@ namespace Opc.Ua.Server.Tests.Historian
                     [BrowseNames.EventId] = new Variant(eventId),
                     [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
                     [BrowseNames.Time] = new Variant((DateTimeUtc)when),
-                    [BrowseNames.Message] = new Variant(new LocalizedText("hello")),
+                    [BrowseNames.Message] = new Variant(new LocalizedText("hello"))
                 });
 
             IList<StatusCode> insertStatuses = await provider.InsertEventsAsync(
-                context, notifier, [record], CancellationToken.None);
+                context, notifier, [record], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True);
 
             var filter = new EventFilter();
@@ -88,10 +88,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = filter,
+                    Filter = filter
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(1));
 
@@ -120,11 +120,11 @@ namespace Opc.Ua.Server.Tests.Historian
                     [new HistorianEventRecord(ids[i], ObjectTypeIds.BaseEventType,
                         BaseTime.AddSeconds(i),
                         new Dictionary<string, Variant>(StringComparer.Ordinal))],
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
             }
 
             IList<StatusCode> deleted = await provider.DeleteEventsAsync(
-                context, notifier, [ids[0]], CancellationToken.None);
+                context, notifier, [ids[0]], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(deleted[0]), Is.True);
 
             HistorianPage<HistorianEventRecord> remaining = await provider.ReadEventsAsync(
@@ -135,10 +135,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(remaining.Values, Has.Count.EqualTo(1));
             Assert.That(remaining.Values[0].EventId, Is.EqualTo(ids[1]));
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Historian
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
 
             var opContext = new OperationContext(
-                new RequestHeader(), null!, RequestType.HistoryUpdate, RequestLifetime.None);
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var systemContext = new ServerSystemContext(mockServer.Object, opContext);
             return new HistorianOperationContext(
                 systemContext, opContext, null, HistoryUpdateType.Insert);
