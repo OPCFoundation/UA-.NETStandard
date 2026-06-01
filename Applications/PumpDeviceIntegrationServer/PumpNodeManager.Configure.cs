@@ -50,10 +50,7 @@ namespace Pumps
     {
         // ── Simulation state ────────────────────────────────────────
         private long m_simulationTicks;
-        private double m_speedSetPoint = 50.0;
-        private double m_setPointValue = 100.0;
         private long m_numberOfStarts;
-        private long m_operatingTimeTicks;
 
         // Reference to the hand-rolled Pump #1 instance so the
         // simulation tick can mutate its DI properties in response to
@@ -86,10 +83,7 @@ namespace Pumps
 
             WithIdentification(builder);
             WithMeasurements(builder);
-            WithActuation(builder);
-            WithSignals(builder);
             WithSupervision(builder);
-            WithMaintenance(builder);
 
             // Single manager-owned simulation tick advances all live
             // measurements at 250 ms intervals; lets time-based fault
@@ -99,15 +93,14 @@ namespace Pumps
         }
 
         // ── Identification properties via WithProperty ──────────────
-        // PumpType.Identification only materialises mandatory children
-        // (Manufacturer / ProductInstanceUri / SerialNumber) via the
-        // source-generated factory. Optional children (Model, Hardware-
-        // Revision, etc.) would require explicit materialisation in
-        // CreatePumpInstanceAsync — out of scope for the minimal demo.
+        // PumpType.Identification is a mandatory child of PumpType so
+        // it is materialised by the source-generated factory used in
+        // CreatePumpInstanceAsync. BrowsePathResolver's cross-namespace
+        // name-only fallback (FB-3 phase 1) resolves the unqualified
+        // 'Identification' segment to the DI-namespace child without
+        // requiring an explicit ns= prefix in the path.
         private void WithIdentification(INodeManagerBuilder builder)
         {
-            // Identification is a mandatory child of PumpType — guaranteed
-            // present by the source-generated CreateInstanceOfPumpType factory.
             builder.Node("Pump #1/Identification")
                 .WithProperty("Manufacturer", "SimPump Corp")
                 .WithProperty("SerialNumber", "SN-001")
@@ -116,51 +109,54 @@ namespace Pumps
         }
 
         // ── Measurements with engineering units ─────────────────────
-        // PumpType.Operational/Maintenance/Events children live under
-        // browse names that carry the *Machinery* namespace (the base
-        // type's prefix), not the default Pumps namespace the resolver
-        // uses for unqualified segments. The optional Measurement
-        // variables are also not materialised by the type factory by
-        // default. Both quirks mean these paths may not resolve until
-        // an enhancement either pre-materialises optional children or
-        // teaches the fluent resolver to fall back to name-only matching;
-        // wiring is best-effort with a warning log per failed path.
+        // All seven analog measurements live under
+        // PumpType.Operational.Measurements and are materialised by
+        // CreatePumpInstanceAsync via the generator-emitted AddXxx
+        // helpers. The cross-namespace name-only resolver fallback
+        // means the unqualified browse path resolves through the
+        // Pumps -> Machinery (Operational) -> Pumps (Measurements +
+        // analog states) namespace transitions transparently.
         private void WithMeasurements(INodeManagerBuilder builder)
         {
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/DifferentialPressure",
                 () => m_currentPressure,
                 EngineeringUnits.Pascal, min: 0, max: 1_000_000);
 
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/FluidTemperature",
                 () => m_currentTemperature,
                 EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
 
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/BearingTemperature",
                 () => m_currentBearingTemp,
                 EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
 
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/PumpPowerInput",
                 () => m_currentPower,
                 EngineeringUnits.Watt, min: 0, max: 50_000);
 
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/MassFlow",
                 () => m_currentFlow,
                 EngineeringUnits.KilogramsPerSecond, min: 0, max: 1.0);
 
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/PumpEfficiency",
                 () => m_currentEfficiency,
                 EngineeringUnits.Percent, min: 0, max: 100);
 
-            TryAddMeasurement(builder,
+            AddMeasurement(builder,
                 "Pump #1/Operational/Measurements/Level",
                 () => m_currentLevel,
                 EngineeringUnits.Metre, min: 0, max: 10);
+
+            // Discrete count exposed alongside the analog measurements.
+            builder.Variable<uint>(
+                "Pump #1/Operational/Measurements/NumberOfStarts")
+                .OnRead(() => (uint)Interlocked.Read(ref m_numberOfStarts));
         }
 
         private static class EngineeringUnits
@@ -179,119 +175,42 @@ namespace Pumps
                 new("m", "Metre", "http://www.opcfoundation.org/UA/units/un/cefact");
         }
 
-        // ── Actuation ───────────────────────────────────────────────
-        private void WithActuation(INodeManagerBuilder builder)
-        {
-            TryAddVariableReadWrite<double>(builder,
-                "Pump #1/Operational/Actuation/SetPointValue",
-                () => m_setPointValue,
-                v => m_setPointValue = v);
-
-            TryAddVariableReadWrite<double>(builder,
-                "Pump #1/Operational/Actuation/SpeedSetPoint",
-                () => m_speedSetPoint,
-                v => m_speedSetPoint = v);
-        }
-
-        // ── Signals ─────────────────────────────────────────────────
-        private void WithSignals(INodeManagerBuilder builder)
-        {
-            TryAddVariable<bool>(builder,
-                "Pump #1/Operational/Signals/PumpOperation",
-                () => true);
-
-            TryAddVariable<bool>(builder,
-                "Pump #1/Operational/Signals/RatedSpeed",
-                () => m_speedSetPoint > 45.0);
-        }
-
         // ── Supervision flags wired to NAMUR alarms ─────────────────
+        // Cavitation / MotorOverheat are TwoStateDiscreteState nodes
+        // under PumpType.Events.SupervisionProcessFluid and .Supervision-
+        // PumpOperation respectively. TwoStateDiscreteState inherits
+        // BaseDataVariableState<bool> so the fluent Variable<bool>(path)
+        // lookup picks them up. The alarm attached to the Events
+        // container flips Active in lockstep with the cavitation flag.
         private void WithSupervision(INodeManagerBuilder builder)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
                 global::Opc.Ua.Pumps.Namespaces.Pumps);
 
-            try
-            {
-                // Limit alarm with thresholds in Kelvin, attached to Events.
-                IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = builder
-                    .Node("Pump #1/Events")
-                    .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
-                    .WithLimits(highHigh: 373.15, high: 363.15, low: 283.15, lowLow: 273.15)
-                    .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
+            IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = builder
+                .Node("Pump #1/Events")
+                .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
+                .WithLimits(highHigh: 373.15, high: 363.15, low: 283.15, lowLow: 273.15)
+                .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
-                // Cavitation supervision flag drives the alarm Active state on
-                // each rising / falling edge.
-                TryAddSupervisionEdge(builder,
-                    "Pump #1/Events/Supervision/ProcessFluid/Cavitation",
-                    tempAlarm);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
-            {
-                Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogWarning("Events container not resolvable, alarm wiring skipped: {Msg}", ex.Message);
-            }
+            builder.Variable<bool>(
+                "Pump #1/Events/SupervisionProcessFluid/Cavitation")
+                .OnRead(() => m_cavitation)
+                .ActivatesAlarm(tempAlarm);
 
-            TryAddVariable<bool>(builder,
-                "Pump #1/Events/Supervision/ProcessFluid/Cavitation",
-                () => m_cavitation);
-
-            TryAddVariable<bool>(builder,
-                "Pump #1/Events/Supervision/PumpOperation/MotorOverheat",
-                () => m_motorOverheat);
+            builder.Variable<bool>(
+                "Pump #1/Events/SupervisionPumpOperation/MotorOverheat")
+                .OnRead(() => m_motorOverheat);
         }
 
-        // ── Maintenance ─────────────────────────────────────────────
-        private void WithMaintenance(INodeManagerBuilder builder)
-        {
-            TryAddVariable<double>(builder,
-                "Pump #1/Maintenance/GeneralMaintenance/OperatingTime",
-                SimulateOperatingTime);
-
-            TryAddVariable<uint>(builder,
-                "Pump #1/Operational/Measurements/NumberOfStarts",
-                () => (uint)Interlocked.Read(ref m_numberOfStarts));
-        }
-
-        // Best-effort variable wiring. Failures surface at Warning level —
-        // see the WithMeasurements comment for why some PumpType browse
-        // paths don't resolve cleanly today.
-        private void TryAddVariable<T>(
-            INodeManagerBuilder builder,
-            string browsePath,
-            Func<T> getter)
-        {
-            try
-            {
-                builder.Variable<T>(browsePath).OnRead(getter);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
-            {
-                Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogWarning("Browse path not resolvable: {Path} ({Msg})", browsePath, ex.Message);
-            }
-        }
-
-        private void TryAddVariableReadWrite<T>(
-            INodeManagerBuilder builder,
-            string browsePath,
-            Func<T> getter,
-            Action<T> setter)
-        {
-            try
-            {
-                builder.Variable<T>(browsePath)
-                    .OnRead(getter)
-                    .OnWrite(setter);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
-            {
-                Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogWarning("Browse path not resolvable: {Path} ({Msg})", browsePath, ex.Message);
-            }
-        }
-
-        private void TryAddMeasurement(
+        // Direct measurement wiring — failures now propagate as
+        // BadNodeIdUnknown ServiceResultException so wiring errors
+        // surface at configuration time rather than getting silently
+        // logged. The legacy TryAdd* helpers and their per-method
+        // try/catch blocks were necessary while the optional pump
+        // subtree was unmaterialised; CreatePumpInstanceAsync now
+        // materialises every wired leaf so the wiring is unconditional.
+        private static void AddMeasurement(
             INodeManagerBuilder builder,
             string browsePath,
             Func<double> getter,
@@ -299,48 +218,22 @@ namespace Pumps
             double min,
             double max)
         {
-            try
-            {
-                builder.Variable<double>(browsePath)
-                    .OnRead(getter)
-                    .WithEngineeringUnits(units)
-                    .WithEURange(min, max);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
-            {
-                Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogWarning("Measurement path not resolvable: {Path} ({Msg})", browsePath, ex.Message);
-            }
-        }
-
-        private void TryAddSupervisionEdge<TAlarm>(
-            INodeManagerBuilder builder,
-            string boolPath,
-            IAlarmBuilder<TAlarm> alarm)
-            where TAlarm : ConditionState
-        {
-            try
-            {
-                builder.Variable<bool>(boolPath).ActivatesAlarm(alarm);
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
-            {
-                Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogWarning("Supervision flag not resolvable: {Path} ({Msg})", boolPath, ex.Message);
-            }
+            builder.Variable<double>(browsePath)
+                .OnRead(getter)
+                .WithEngineeringUnits(units)
+                .WithEURange(min, max);
         }
 
         // ── Simulation tick — advances all live measurements ────────
         private void AdvanceSimulation()
         {
             long t = Interlocked.Increment(ref m_simulationTicks);
-            double speedFactor = m_speedSetPoint / 50.0;
 
-            m_currentPressure = 200000.0 + (50000.0 * speedFactor * Math.Sin(t * 0.03));
+            m_currentPressure = 200000.0 + (50000.0 * Math.Sin(t * 0.03));
             m_currentTemperature = 313.15 + (5.0 * Math.Sin(t * 0.01));
             m_currentBearingTemp = 333.15 + (8.0 * Math.Cos(t * 0.008));
-            m_currentPower = 5000.0 * speedFactor + (500.0 * Math.Sin(t * 0.02));
-            m_currentFlow = 0.05 * speedFactor + (0.005 * Math.Cos(t * 0.04));
+            m_currentPower = 5000.0 + (500.0 * Math.Sin(t * 0.02));
+            m_currentFlow = 0.05 + (0.005 * Math.Cos(t * 0.04));
             m_currentEfficiency = 75.0 + (10.0 * Math.Sin(t * 0.015));
             m_currentLevel = 2.5 + (0.5 * Math.Sin(t * 0.02));
 
@@ -359,7 +252,6 @@ namespace Pumps
             {
                 Interlocked.Increment(ref m_numberOfStarts);
             }
-            Interlocked.Increment(ref m_operatingTimeTicks);
         }
 
         /// <summary>
@@ -401,8 +293,5 @@ namespace Pumps
                 health.ClearChangeMasks(SystemContext, includeChildren: false);
             }
         }
-
-        private double SimulateOperatingTime()
-            => Interlocked.Read(ref m_operatingTimeTicks) / 3600.0;
     }
 }

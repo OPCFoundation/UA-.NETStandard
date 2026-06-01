@@ -167,10 +167,15 @@ namespace Pumps
         /// registers it as a predefined node. The instance carries
         /// <c>PumpType</c> as its TypeDefinitionId so clients see the
         /// full OPC 40223 pump surface; the source-generated factory
-        /// materialises mandatory children (Identification) automatically
-        /// and optional children (Operational, Maintenance, Events, …)
-        /// are populated lazily via the standard <c>NodeState.Initialize</c>
-        /// pipeline as soon as the fluent builder queries them.
+        /// materialises mandatory children (Identification) automatically.
+        /// Optional children that the fluent simulation wires
+        /// (Operational/Measurements/{analog states}, Events with the
+        /// SupervisionProcessFluid + SupervisionPumpOperation subtrees,
+        /// Maintenance) are materialised here via the generator-emitted
+        /// <c>AddXxx(context)</c> helpers; each new node gets a
+        /// per-instance NodeId via <see cref="AssignChildNodeIds"/>
+        /// before <c>AddPredefinedNodeAsync</c> recursively registers
+        /// the entire subtree.
         /// </summary>
         private async ValueTask CreatePumpInstanceAsync(
             string browseNameText,
@@ -205,10 +210,20 @@ namespace Pumps
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
+
+            MaterialisePumpOptionalChildren(pump);
+
             // AddChild defaults ReferenceTypeId to HasComponent when null
             // (NodeState.AddChild line 4511-4514); ModellingRuleId defaults
             // to NodeId.Null on every fresh NodeState — no explicit set needed.
             deviceSet.AddChild(pump);
+
+            // Walk the whole pump subtree assigning per-instance NodeIds
+            // BEFORE AddPredefinedNodeAsync uses them as the PredefinedNodes
+            // dictionary key. The generator's AddXxx helpers stamp the
+            // TYPE NodeId on every new child; without this walk every
+            // instance of PumpType would collide on those NodeIds.
+            AssignChildNodeIds(pump);
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
@@ -218,6 +233,72 @@ namespace Pumps
             m_logger.LogInformation(
                 "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.",
                 browseNameText, pump.NodeId);
+        }
+
+        /// <summary>
+        /// Materialises the optional PumpType children that the fluent
+        /// simulation in <see cref="Configure"/> wires. Each call to a
+        /// generator-emitted <c>AddXxx(context)</c> helper creates the
+        /// child and assigns it to the parent's typed property; the
+        /// parent.AddChild bookkeeping happens inside the helpers
+        /// transparently.
+        /// </summary>
+        private void MaterialisePumpOptionalChildren(
+            global::Opc.Ua.Pumps.PumpState pump)
+        {
+            global::Opc.Ua.Pumps.OperationalGroupState operational =
+                pump.AddOperational(SystemContext);
+            global::Opc.Ua.Pumps.MeasurementsState measurements =
+                operational.AddMeasurements(SystemContext);
+
+            // Analog measurements wired by Configure.WithMeasurements.
+            measurements.AddDifferentialPressure(SystemContext);
+            measurements.AddFluidTemperature(SystemContext);
+            measurements.AddBearingTemperature(SystemContext);
+            measurements.AddPumpPowerInput(SystemContext);
+            measurements.AddMassFlow(SystemContext);
+            measurements.AddPumpEfficiency(SystemContext);
+            measurements.AddLevel(SystemContext);
+
+            // Discrete count exposed via Configure.WithMaintenance.
+            measurements.AddNumberOfStarts(SystemContext);
+
+            // Supervision subtree wired by Configure.WithSupervision —
+            // Cavitation under SupervisionProcessFluid, MotorOverheat
+            // under SupervisionPumpOperation.
+            global::Opc.Ua.Pumps.SupervisionState events =
+                pump.AddEvents(SystemContext);
+            global::Opc.Ua.Pumps.SupervisionProcessFluidState processFluid =
+                events.AddSupervisionProcessFluid(SystemContext);
+            processFluid.AddCavitation(SystemContext);
+
+            global::Opc.Ua.Pumps.SupervisionPumpOperationState pumpOperation =
+                events.AddSupervisionPumpOperation(SystemContext);
+            pumpOperation.AddMotorOverheat(SystemContext);
+
+            // Maintenance container — leaf wiring deferred until the
+            // typed-accessor generator (FB-3 phase 3) ships materialisable
+            // leaves for ConditionBasedMaintenance / BreakdownMaintenance.
+            pump.AddMaintenance(SystemContext);
+        }
+
+        /// <summary>
+        /// Recursively walks the children of <paramref name="parent"/>
+        /// and assigns per-instance NodeIds via the active
+        /// <see cref="ISystemContext.NodeIdFactory"/>. Required after
+        /// calling generator-emitted <c>AddXxx(context)</c> helpers
+        /// which stamp the TYPE NodeId on every new child.
+        /// </summary>
+        private void AssignChildNodeIds(NodeState parent)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                child.NodeId = SystemContext.NodeIdFactory.New(
+                    SystemContext, child);
+                AssignChildNodeIds(child);
+            }
         }
 
         /// <summary>

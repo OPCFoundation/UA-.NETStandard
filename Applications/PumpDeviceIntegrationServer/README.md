@@ -51,13 +51,14 @@ firmware payloads.
 | `AddOpcUa().AddServer(...).AddNodeManager<T>()` hosting | `Program.cs` |
 | Multi-model composition (DI library + locally source-generated Machinery + Pumps) | `PumpNodeManager.cs` `LoadPredefinedNodesAsync` |
 | Identification properties via `WithProperty(name, value)` | `PumpNodeManager.Configure.cs` `WithIdentification` |
+| Optional-child materialisation via generator-emitted `AddXxx(context)` helpers (Operational / Measurements / Events / SupervisionProcessFluid / SupervisionPumpOperation / Maintenance) | `PumpNodeManager.cs` `MaterialisePumpOptionalChildren` |
 | Engineering units / EURange via `WithEngineeringUnits` / `WithEURange` | `WithMeasurements` |
+| Discrete `NumberOfStarts` counter wired via `Variable<uint>(...).OnRead(...)` | `WithMeasurements` |
 | 250 ms simulation tick via `Simulation(...).OnTick(...)` | `Configure` → `AdvanceSimulation` |
-| Read-write actuation variables | `WithActuation` |
 | Limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `WithSupervision` |
-| Boolean supervision → alarm activation via `.ActivatesAlarm(...)` | `WithSupervision` |
-| Per-read simulated boolean / discrete signals | `WithSignals`, `WithSupervision` |
-| Maintenance counters (operating time, number of starts) | `WithMaintenance`, `AdvanceSimulation` |
+| Boolean supervision (TwoStateDiscreteState) → alarm activation via `.ActivatesAlarm(...)` | `WithSupervision` |
+| Cross-namespace path resolution (Pump #1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `Libraries/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
+| Cross-pump device-health simulation via `RegisterSupervisedDeviceHealth` + `WithDeviceHealth` | `PumpNodeManager.cs` + `Program.cs` (`Pump #2`) |
 | DI declarative device + `WithIdentification` | `Program.cs` (`Pump #2`) |
 | Software-update facet (`ISoftwarePackageStore` + `WithSoftwareUpdate`) | `Program.cs` (`Pump #2`), `SoftwarePackageSeeder.cs` |
 
