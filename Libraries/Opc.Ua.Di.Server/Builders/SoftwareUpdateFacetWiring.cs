@@ -106,7 +106,8 @@ namespace Opc.Ua.Di.Server.Builders
 
             // Loading subtype (the address-space slot is non-abstract;
             // pick the concrete type per the builder's LoadingMode).
-            su.Loading = CreateLoadingChild(context, su, config.LoadingMode, diNs);
+            su.Loading = CreateLoadingChild(
+                manager, context, su, config.LoadingMode, diNs, packageStore, logger);
 
             // State machines — all four are present but only Installation
             // and Confirmation have method handlers wired by default;
@@ -131,11 +132,16 @@ namespace Opc.Ua.Di.Server.Builders
             return su;
         }
 
+        private const string FileTransferBrowseName = "FileTransfer";
+
         private static SoftwareLoadingState CreateLoadingChild(
+            DiNodeManager manager,
             ISystemContext context,
             SoftwareUpdateState parent,
             SoftwareLoadingMode mode,
-            ushort diNs)
+            ushort diNs,
+            ISoftwarePackageStore packageStore,
+            ILogger logger)
         {
             var browseName = new QualifiedName(LoadingBrowseName, diNs);
 
@@ -151,7 +157,57 @@ namespace Opc.Ua.Di.Server.Builders
             };
 
             FinaliseChild(context, loading, browseName);
+
+            // PackageLoadingType and all its subtypes (Direct, Cached) own
+            // an optional FileTransfer slot. The wiring is shared because
+            // the spec semantics are identical: upload a payload, commit
+            // it to the package store. Subtype-specific behaviour
+            // (Direct/Cached) is layered on top by the application's
+            // OnInstall handler.
+            AttachFileTransfer(manager, context, (PackageLoadingState)loading, diNs,
+                packageStore, logger);
+
             return loading;
+        }
+
+        /// <summary>
+        /// Materialises a <see cref="TemporaryFileTransferState"/> under
+        /// the supplied <see cref="PackageLoadingState"/> and binds a
+        /// <see cref="SoftwareUpdateFileTransferManager"/> to it so
+        /// <c>GenerateFileForWrite</c> / <c>CloseAndCommit</c> commit
+        /// uploaded payloads to the package store. Idempotent — the
+        /// manager keeps a reference to the FileTransfer node for the
+        /// lifetime of the SU subtree.
+        /// </summary>
+        private static void AttachFileTransfer(
+            DiNodeManager manager,
+            ISystemContext context,
+            PackageLoadingState packageLoading,
+            ushort diNs,
+            ISoftwarePackageStore packageStore,
+            ILogger logger)
+        {
+            var browseName = new QualifiedName(FileTransferBrowseName, diNs);
+            TemporaryFileTransferState fileTransfer =
+                packageLoading.FileTransfer
+                    ?? context.CreateInstanceOfTemporaryFileTransferType(
+                        packageLoading, browseName);
+
+            FinaliseChild(context, fileTransfer, browseName);
+            packageLoading.FileTransfer = fileTransfer;
+
+            // The TemporaryFileTransfer manager registers itself onto the
+            // GenerateFileForWrite / CloseAndCommit method handlers via
+            // OnCall delegates that capture the manager instance, so the
+            // GC will keep it alive for the address-space lifetime. The
+            // manager's only IDisposable concern is closing open upload
+            // streams on shutdown, which a per-device dispose chain would
+            // address — TODO: thread the manager through DiNodeManager's
+            // shutdown path when the SU facet adds a managed disposal API.
+#pragma warning disable CA2000 // see comment above re: lifetime anchored by OnCall delegates
+            _ = new SoftwareUpdateFileTransferManager(
+                fileTransfer, manager, packageStore, logger);
+#pragma warning restore CA2000
         }
 
         private static PrepareForUpdateStateMachineState CreatePrepareForUpdate(

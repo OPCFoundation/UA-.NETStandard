@@ -160,6 +160,51 @@ Default implementations:
 | `MemorySoftwareFolder` | Default for `WithSoftwareUpdate`. |
 | `FileSystemSoftwareFolder` | Persistence across server restarts. |
 
+## File-transfer pipeline
+
+When `UsePackageLoading()` is selected (the default), the SU facet
+materialises a `TemporaryFileTransferType` instance under
+`SoftwareUpdate.Loading.FileTransfer`. The internal
+`SoftwareUpdateFileTransferManager` implements the OPC 10000-5 §11.4
+two-tier protocol:
+
+1. Client calls `Loading.FileTransfer.GenerateFileForWrite(generateOptions)`.
+   The server allocates a fresh handle, creates a transient
+   `FileType` child (named `UploadFile_<handle>`) backed by an
+   in-memory buffer, and returns the file NodeId + handle. The
+   `generateOptions` argument is treated as a vendor-defined hint;
+   the default manager interprets a single `String` value as the
+   suggested package id.
+2. Client opens the returned FileState in `Write|EraseExisting` mode
+   (mode 6), streams chunks via the standard `Write` method, and
+   closes it.
+3. Client calls `Loading.FileTransfer.CloseAndCommit(fileHandle)`.
+   The server reads the buffered payload, packages it into a
+   `SoftwarePackage` (id from the `generateOptions` hint or a
+   timestamped fallback), hands it to
+   `ISoftwarePackageStore.AddAsync(metadata, stream)`, and removes
+   the transient FileState from the address space.
+
+Operational caps (defaults, configurable via constants on
+`SoftwareUpdateFileTransferManager`):
+
+| Cap | Value |
+|---|---|
+| Concurrent upload handles per FileTransfer | 8 |
+| Max buffered upload size | 64 MiB |
+| Supported open mode | `Write \| EraseExisting` (6); other modes are rejected with `BadNotSupported` |
+| Read on a transient upload file | rejected with `BadNotSupported` |
+
+Handles are owned by the session that allocated them; cross-session
+access is rejected with `BadUserAccessDenied`.
+
+> **Note** — `DirectLoadingType` and `CachedLoadingType` inherit
+> `PackageLoadingType` and therefore expose the same FileTransfer
+> slot. The wiring is shared because the upload semantics are
+> identical; the difference between Package / Direct / Cached lives
+> in the application's `OnInstall` handler (which decides whether to
+> deploy immediately, atomically swap, or stage as fallback).
+
 ## Client side
 
 The minimal v1 `SoftwareUpdateClient` reads the device's
@@ -170,6 +215,36 @@ var client = new SoftwareUpdateClient(
     session, softwareUpdateNodeId, telemetry);
 string version = await client.ReadSoftwareVersionAsync();
 ```
+
+### Uploading a package
+
+`SoftwareUpdateClient.UploadPackageAsync` drives the full
+GenerateForWrite → Open → Write* → Close → CloseAndCommit flow,
+streaming the payload in `chunkSizeBytes`-sized chunks (default 8 KiB):
+
+```csharp
+var client = new SoftwareUpdateClient(session, suNodeId, telemetry);
+
+// byte-array convenience overload
+long bytesUploaded = await client.UploadPackageAsync(
+    payload: firmwareBytes,
+    suggestedPackageId: "acme-firmware-2.0.0",
+    ct: ct);
+
+// streaming overload (does not seek the stream)
+using FileStream fs = File.OpenRead("firmware.bin");
+await client.UploadPackageAsync(
+    payload: fs,
+    suggestedPackageId: "acme-firmware-2.0.0",
+    chunkSizeBytes: 16 * 1024,
+    ct: ct);
+```
+
+After commit the package is queryable via the server's
+`ISoftwarePackageStore.GetAsync(suggestedPackageId)`. The recommended
+deployment flow is: upload via `UploadPackageAsync(...)` → drive the
+state machines via `PrepareAsync` / `InstallSoftwarePackageAsync` /
+`ConfirmAsync` as described below.
 
 ### Typed Part 16 state-machine surface
 
@@ -268,20 +343,29 @@ device's `SoftwareVersion` reflects the new version.
 - State-machine dispatcher: `SoftwareUpdateStateMachineDispatcher.cs`
   (internal — direct `CurrentState` / `LastTransition` writes until
   the model source generator emits Part 16 tables for `*StateMachineState`).
+- File-transfer pipeline:
+  `Libraries/Opc.Ua.Di.Server/Builders/SoftwareUpdateFileTransferManager.cs`
+  (internal — `GenerateFileForWrite` / `CloseAndCommit` + per-handle
+  transient `FileType` materialisation).
 - Storage abstractions:
   `Libraries/Opc.Ua.Di.Server/SoftwareUpdate/ISoftwarePackageStore.cs` and
   `ISoftwareFolder.cs`.
 - Client helpers: `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.cs`
-  (read-only discovery) and
+  (read-only discovery),
   `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.StateMachine.cs`
-  (typed Part 16 partial: typed snapshot / observe / cause-method
-  wrappers).
+  (typed Part 16 partial), and
+  `Libraries/Opc.Ua.Di.Client/SoftwareUpdateClient.Upload.cs`
+  (`UploadPackageAsync` driving the FileTransfer pipeline).
 - Tests:
   `Tests/Opc.Ua.Di.Tests/DeviceBuilderSoftwareUpdateTests.cs`,
   `DeviceBuilderSoftwareUpdateStateChangeTests.cs`,
+  `SoftwareUpdateFileTransferTests.cs` (server side),
+  `SoftwareUpdateClientStateMachineTests.cs`,
+  `SoftwareUpdateClientUploadTests.cs`,
+  `SoftwareUpdateClientUploadIntegrationTests.cs` (client + bridge
+  end-to-end against `DiInProcessSessionBridge`),
   `MemorySoftwareFolderTests.cs`, `PackageStoreTests.cs`,
-  `SoftwareUpdateClientTests.cs`,
-  `SoftwareUpdateClientStateMachineTests.cs`.
+  `SoftwareUpdateClientTests.cs`.
 - Sample: `Applications/MinimalSoftwareUpdateServer/Program.cs`.
 
 ## Spec references
