@@ -340,13 +340,13 @@ namespace Opc.Ua.Server
             return (monitoredNode, ServiceResult.Good);
         }
 
-        private readonly IAsyncNodeManager m_nodeManager;
-        private readonly IServerInternal m_server;
-        private readonly SamplingGroupManager m_samplingGroupManager;
-
         private bool IsMultiConsumerNode(NodeId nodeId)
         {
             return m_nodeManager.IsMultipleEventConsumerNode(nodeId);
         }
+
+        private readonly IAsyncNodeManager m_nodeManager;
+        private readonly IServerInternal m_server;
+        private readonly SamplingGroupManager m_samplingGroupManager;
     }
 }

@@ -311,13 +311,23 @@ namespace Opc.Ua.Server
         /// (<see cref="ObjectIds.Server"/>) is always auto-opted-in.
         /// </summary>
         /// <param name="nodeId">The <see cref="NodeId"/> of the node to opt in.</param>
-        protected void EnableMultipleEventConsumers(NodeId nodeId)
+        /// <param name="enable">
+        /// <c>true</c> to opt in (default); <c>false</c> to opt out.
+        /// </param>
+        protected void AllowMultipleEventConsumers(NodeId nodeId, bool enable = true)
         {
             if (nodeId.IsNull)
             {
                 throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
             }
-            MultiConsumerNodeIds[nodeId] = true;
+            if (enable)
+            {
+                MultiConsumerNodeIds[nodeId] = true;
+            }
+            else
+            {
+                MultiConsumerNodeIds.Remove(nodeId);
+            }
         }
 
         /// <inheritdoc/>

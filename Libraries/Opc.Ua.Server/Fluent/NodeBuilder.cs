@@ -241,9 +241,9 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
-        public INodeBuilder EnableMultipleEventConsumers()
+        public INodeBuilder AllowMultipleEventConsumers(bool enable = true)
         {
-            m_parent.RegisterMultiConsumerNode(Node);
+            m_parent.RegisterMultiConsumerNode(Node, enable);
             return this;
         }
 
