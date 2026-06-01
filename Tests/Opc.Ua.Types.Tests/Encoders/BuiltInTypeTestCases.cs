@@ -34,7 +34,6 @@ using System.Runtime.Serialization;
 using System.Xml.XPath;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Types;
 
 namespace Opc.Ua.Tests
 {

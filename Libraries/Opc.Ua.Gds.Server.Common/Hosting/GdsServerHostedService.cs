@@ -38,10 +38,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Identity;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
-
-#nullable enable
 
 namespace Opc.Ua.Gds.Server.Hosting
 {
@@ -65,9 +65,14 @@ namespace Opc.Ua.Gds.Server.Hosting
         private readonly ICertificateRequest m_certificateRequest;
         private readonly ICertificateGroup m_certificateGroup;
         private readonly IUserDatabase m_userDatabase;
+        private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
+        private readonly IServiceProvider m_services;
         private readonly IAccessTokenProvider? m_accessTokenProvider;
+        private readonly AuthorizationServiceManager? m_authorizationServiceManager;
         private readonly IKeyCredentialRequestStore? m_keyCredentialStore;
         private readonly IConfigurationDataStore? m_configurationStore;
+        private readonly bool m_enableBuiltInApplicationSelfAdminProvider;
         private readonly ILogger<GdsServerHostedService> m_logger;
 
         // CA2213: IApplicationInstance is IAsyncDisposable; the lifecycle here
@@ -86,8 +91,13 @@ namespace Opc.Ua.Gds.Server.Hosting
             ICertificateRequest certificateRequest,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
+            IServiceProvider services,
+            IOptions<GdsDefaultIdentityAuthenticatorOptions> defaultAuthenticatorOptions,
             ILogger<GdsServerHostedService> logger,
             IAccessTokenProvider? accessTokenProvider = null,
+            AuthorizationServiceManager? authorizationServiceManager = null,
             IKeyCredentialRequestStore? keyCredentialStore = null,
             IConfigurationDataStore? configurationStore = null)
         {
@@ -105,8 +115,20 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_certificateGroup = certificateGroup
                 ?? throw new ArgumentNullException(nameof(certificateGroup));
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
+            m_identityRegistrations = identityRegistrations ??
+                throw new ArgumentNullException(nameof(identityRegistrations));
+            m_augmenterRegistrations = augmenterRegistrations ??
+                throw new ArgumentNullException(nameof(augmenterRegistrations));
+            m_services = services ?? throw new ArgumentNullException(nameof(services));
+            if (defaultAuthenticatorOptions is null)
+            {
+                throw new ArgumentNullException(nameof(defaultAuthenticatorOptions));
+            }
+            m_enableBuiltInApplicationSelfAdminProvider =
+                defaultAuthenticatorOptions.Value.EnableGdsApplicationSelfAdminProvider;
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_accessTokenProvider = accessTokenProvider;
+            m_authorizationServiceManager = authorizationServiceManager;
             m_keyCredentialStore = keyCredentialStore;
             m_configurationStore = configurationStore;
         }
@@ -162,7 +184,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates);
 
             await securityBuilder
-                .AddExtension<GlobalDiscoveryServerConfiguration>(
+                .AddExtension(
                     new XmlQualifiedName(
                         nameof(GlobalDiscoveryServerConfiguration),
                         Namespaces.OpcUaGds + "Configuration.xsd"),
@@ -180,6 +202,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
+            m_authorizationServiceManager?.Initialize(m_application.ApplicationConfiguration!);
+
             m_server = new GdsHostedServer(
                 m_database,
                 m_certificateRequest,
@@ -189,9 +213,12 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_accessTokenProvider,
                 m_keyCredentialStore,
                 m_configurationStore,
-                m_options.AutoApprove);
+                m_options.AutoApprove,
+                m_enableBuiltInApplicationSelfAdminProvider);
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            RegisterIdentityAuthenticators();
+            RegisterIdentityAugmenters();
 
             foreach (string url in urls)
             {
@@ -205,6 +232,43 @@ namespace Opc.Ua.Gds.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
+            }
+        }
+
+        private void RegisterIdentityAuthenticators()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            ICertificateValidatorEx? certificateValidator =
+                m_application?.ApplicationConfiguration?.CertificateManager;
+
+            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
+            {
+                foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
+                    m_services,
+                    certificateValidator))
+                {
+                    // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
+                    // validates one fixed IssuerUri through its resolver.
+                    m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                }
+            }
+        }
+
+        private void RegisterIdentityAugmenters()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            foreach (OpcUaServerIdentityAugmenterRegistration registration in m_augmenterRegistrations)
+            {
+                m_server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+                    registration.CreateAugmenter(m_services));
             }
         }
 
@@ -291,8 +355,16 @@ namespace Opc.Ua.Gds.Server.Hosting
                 IAccessTokenProvider? accessTokenProvider,
                 IKeyCredentialRequestStore? keyCredentialStore,
                 IConfigurationDataStore? configurationStore,
-                bool autoApprove)
-                : base(database, request, certificateGroup, userDatabase, telemetry, autoApprove)
+                bool autoApprove,
+                bool enableApplicationSelfAdminProvider)
+                : base(
+                    database,
+                    request,
+                    certificateGroup,
+                    userDatabase,
+                    telemetry,
+                    autoApprove,
+                    enableApplicationSelfAdminProvider)
             {
                 m_database = database;
                 m_request = request;
@@ -336,8 +408,10 @@ namespace Opc.Ua.Gds.Server.Hosting
                         m_configurationStore));
                 }
 
+#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
                 return new ValueTask<IMasterNodeManager>(
                     new MasterNodeManager(server, configuration, null, nodeManagers, null));
+#pragma warning restore CA2000
             }
         }
     }

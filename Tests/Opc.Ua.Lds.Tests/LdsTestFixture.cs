@@ -30,18 +30,15 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Tests;
-
-using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Lds.Tests
 {
@@ -103,7 +100,8 @@ namespace Opc.Ua.Lds.Tests
             Lds = await ServerFixture.StartAsync().ConfigureAwait(false);
 
             ServerUrl = new Uri(
-                Utils.UriSchemeOpcTcp + "://localhost:" +
+                Utils.UriSchemeOpcTcp +
+                "://localhost:" +
                 ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
 
             m_logger.LogInformation("LDS started at {Url}", ServerUrl);
@@ -150,7 +148,7 @@ namespace Opc.Ua.Lds.Tests
 
         protected Task<DiscoveryClient> CreateDiscoveryClientAsync(CancellationToken ct = default)
         {
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
             return DiscoveryClient.CreateAsync(
                 ServerUrl,
                 endpointConfiguration,
@@ -171,8 +169,8 @@ namespace Opc.Ua.Lds.Tests
             EndpointDescription matching = null;
             foreach (EndpointDescription e in endpoints)
             {
-                if (string.Equals(e.SecurityPolicyUri, securityPolicy, StringComparison.Ordinal)
-                    && e.SecurityMode == securityMode)
+                if (string.Equals(e.SecurityPolicyUri, securityPolicy, StringComparison.Ordinal) &&
+                    e.SecurityMode == securityMode)
                 {
                     matching = e;
                     break;
@@ -185,7 +183,7 @@ namespace Opc.Ua.Lds.Tests
                     $"LDS does not expose endpoint with policy={securityPolicy} mode={securityMode}.");
             }
 
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
 
             Certificate instanceCertificate = ClientFixture.Config.CertificateManager?
                 .GetInstanceCertificate(matching.SecurityPolicyUri ?? SecurityPolicies.None)?

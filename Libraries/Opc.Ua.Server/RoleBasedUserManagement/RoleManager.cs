@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -595,7 +596,7 @@ namespace Opc.Ua.Server
                 {
                     if (RoleMatches(role, identity, clientCertificate, clientApplicationUris,
                             clientThumbprint, clientSubject, candidate, isSignedChannel,
-                            isEncryptedChannel, granted))
+                            isEncryptedChannel))
                     {
                         granted.Add(role.RoleId);
                     }
@@ -629,8 +630,7 @@ namespace Opc.Ua.Server
             string clientSubject,
             EndpointType candidateEndpoint,
             bool isSignedChannel,
-            bool isEncryptedChannel,
-            IReadOnlyList<NodeId> rolesGrantedSoFar)
+            bool isEncryptedChannel)
         {
             // Apply Application filter (Part 18 §4.4.1).
             if (role.Applications.Count > 0)
@@ -679,7 +679,7 @@ namespace Opc.Ua.Server
             {
                 if (IdentityRuleMatches(rule, identity, clientCertificate,
                         clientApplicationUris, clientThumbprint, clientSubject,
-                        isSignedChannel, isEncryptedChannel, rolesGrantedSoFar))
+                        isSignedChannel, isEncryptedChannel))
                 {
                     return true;
                 }
@@ -696,11 +696,11 @@ namespace Opc.Ua.Server
             string clientThumbprint,
             string clientSubject,
             bool isSignedChannel,
-            bool isEncryptedChannel,
-            IReadOnlyList<NodeId> rolesGrantedSoFar)
+            bool isEncryptedChannel)
         {
             UserTokenType tokenType = identity.TokenType;
             string criteria = rule.Criteria ?? string.Empty;
+            var claims = identity as IIdentityClaims;
 
             return rule.CriteriaType switch
             {
@@ -713,7 +713,7 @@ namespace Opc.Ua.Server
                 IdentityCriteriaType.X509Subject => clientCertificate != null &&
                     !string.IsNullOrEmpty(clientSubject) &&
                     string.Equals(clientSubject, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.Role => MatchesGrantedRole(criteria, rolesGrantedSoFar),
+                IdentityCriteriaType.Role => claims != null && MatchClaimRole(claims, criteria),
                 // The certificate may advertise multiple ApplicationUris; any one
                 // matching the rule's criteria is sufficient.
                 IdentityCriteriaType.Application => clientCertificate != null &&
@@ -721,27 +721,35 @@ namespace Opc.Ua.Server
                     clientApplicationUris.Any(uri => string.Equals(uri, criteria, StringComparison.Ordinal)),
                 IdentityCriteriaType.TrustedApplication => clientCertificate != null &&
                     isSignedChannel,
-                // GroupId: requires an external authorization service / JWT
-                // groups claim; without one, the rule cannot match.
-                IdentityCriteriaType.GroupId => false,
+                IdentityCriteriaType.GroupId => claims != null &&
+                    claims.Groups.Contains(criteria, StringComparer.Ordinal),
                 _ => false
             };
         }
 
-        private static bool MatchesGrantedRole(string criteria, IReadOnlyList<NodeId> rolesGrantedSoFar)
+        /// <summary>
+        /// Matches a Part 18 §4.4.4 Role criterion against roles asserted in
+        /// an access token, including the optional <c>iss/roleName</c> prefix.
+        /// </summary>
+        private static bool MatchClaimRole(IIdentityClaims claims, string criteria)
         {
             if (string.IsNullOrEmpty(criteria))
             {
                 return false;
             }
-            foreach (NodeId nodeId in rolesGrantedSoFar)
+
+            int separator = criteria.LastIndexOf('/');
+            if (separator < 0)
             {
-                if (string.Equals(nodeId.ToString(), criteria, StringComparison.Ordinal))
-                {
-                    return true;
-                }
+                return claims.Roles.Contains(criteria, StringComparer.Ordinal);
             }
-            return false;
+
+            string issuer = criteria[..separator];
+            string roleName = criteria[(separator + 1)..];
+            return !string.IsNullOrEmpty(issuer) &&
+                !string.IsNullOrEmpty(roleName) &&
+                string.Equals(claims.Issuer, issuer, StringComparison.Ordinal) &&
+                claims.Roles.Contains(roleName, StringComparer.Ordinal);
         }
 
         private MutableRole AddBuiltInRole(NodeId roleId, string browseName, bool isReserved)

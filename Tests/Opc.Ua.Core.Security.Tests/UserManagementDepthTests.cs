@@ -32,10 +32,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 using ISession = Opc.Ua.Client.ISession;
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -334,6 +334,7 @@ namespace Opc.Ua.Core.Security.Tests
                 UserDb.DeleteUser(u);
             }
         }
+
         [Test]
         public void AddTenUsersSequentially()
         {
@@ -527,6 +528,7 @@ namespace Opc.Ua.Core.Security.Tests
                 UserDb.DeleteUser(u);
             }
         }
+
         [Test]
         public void AllRolesAssignableToUser()
         {
@@ -545,6 +547,7 @@ namespace Opc.Ua.Core.Security.Tests
                 UserDb.DeleteUser(u);
             }
         }
+
         [Test]
         public void CaseSensitiveUserName()
         {

@@ -143,7 +143,9 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
             bool called = false;
 
             IOpcUaBuilder result = services.AddOpcUa()
-                .AddLogging(b => { called = true; b.SetMinimumLevel(LogLevel.Warning); });
+                .AddLogging(b => {
+                called = true;
+                b.SetMinimumLevel(LogLevel.Warning); });
 
             Assert.That(called, Is.True);
             Assert.That(result, Is.Not.Null);
@@ -168,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
         public void AddLoggingNullArgsThrow()
         {
             Assert.That(
-                () => OpcUaServiceCollectionExtensions.AddLogging((IOpcUaBuilder)null!),
+                () => OpcUaServiceCollectionExtensions.AddLogging(null!),
                 Throws.ArgumentNullException);
 
             var services = new ServiceCollection();
@@ -182,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
         public void AddMetricsNullArgsThrow()
         {
             Assert.That(
-                () => OpcUaServiceCollectionExtensions.AddMetrics((IOpcUaBuilder)null!),
+                () => OpcUaServiceCollectionExtensions.AddMetrics(null!),
                 Throws.ArgumentNullException);
 
             var services = new ServiceCollection();
@@ -198,8 +200,7 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
             // Existing extension methods on IDependencyInjectionBuilder must
             // still resolve through the new builder type.
             var services = new ServiceCollection();
-            IOpcUaBuilder builder = services.AddOpcUa();
-            IDependencyInjectionBuilder legacy = builder;
+            IDependencyInjectionBuilder legacy = services.AddOpcUa();
             Assert.That(legacy.Services, Is.SameAs(services));
         }
 
@@ -222,7 +223,10 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
 
             public ActivitySource ActivitySource { get; } = new("Stub");
 
-            public Meter CreateMeter() => new("Stub");
+            public Meter CreateMeter()
+            {
+                return new("Stub");
+            }
         }
     }
 }

@@ -37,7 +37,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Core.Security.Tests
 {
     /// <summary>
@@ -570,7 +569,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             using Certificate userCert = CreateSelfSignedUserCert();
-            var identity = X509UserIdentityHelper.Create(userCert);
+            UserIdentity identity = X509UserIdentityHelper.Create(userCert);
 
             Assert.That(identity.TokenType,
                 Is.EqualTo(UserTokenType.Certificate));
@@ -665,7 +664,7 @@ namespace Opc.Ua.Core.Security.Tests
             byte[] pfx = tempCert.Export(X509ContentType.Pfx, "test");
             X509Certificate2 wrongKuCertLoaded = X509CertificateLoader.LoadPkcs12(
                     pfx, "test", X509KeyStorageFlags.Exportable);
-            using Certificate wrongKuCert = Certificate.From(wrongKuCertLoaded);
+            using var wrongKuCert = Certificate.From(wrongKuCertLoaded);
 
             await AddCertToServerTrustStoreAsync(wrongKuCert)
                 .ConfigureAwait(false);
@@ -738,7 +737,7 @@ namespace Opc.Ua.Core.Security.Tests
             byte[] pfx = tempCert.Export(X509ContentType.Pfx, "test");
             X509Certificate2 sanCertLoaded = X509CertificateLoader.LoadPkcs12(
                     pfx, "test", X509KeyStorageFlags.Exportable);
-            using Certificate sanCert = Certificate.From(sanCertLoaded);
+            using var sanCert = Certificate.From(sanCertLoaded);
 
             await AddCertToServerTrustStoreAsync(sanCert).ConfigureAwait(false);
             try
@@ -779,7 +778,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             using Certificate userCert = CreateSelfSignedUserCert(
                 cn: "CN=DnCheckUser, O=OPC Foundation, C=US");
-            var identity = X509UserIdentityHelper.Create(userCert);
+            UserIdentity identity = X509UserIdentityHelper.Create(userCert);
 
             Assert.That(identity.DisplayName, Is.Not.Null.And.Not.Empty,
                 "X509 user identity should have a display name derived from cert DN.");

@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     {
         private const ushort kNamespaceIndexAllTypes = 3;
         private const string kMqttAddressUrl = "mqtt://localhost:1883";
-        private static List<long> s_publishTimestamps = [];
+        private static readonly List<long> s_publishTimestamps = [];
         private ServiceMessageContext m_messageContext;
         internal const string MetaDataMessageId = "MessageId";
         internal const string MetaDataMessageType = "MessageType";

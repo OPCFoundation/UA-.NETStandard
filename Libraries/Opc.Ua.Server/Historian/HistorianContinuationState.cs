@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// The dispatcher serialises one instance per outstanding paginated
     /// read into the session's continuation-point dictionary
-    /// (<see cref="Opc.Ua.Server.Session.SaveHistoryContinuationPoint"/>).
+    /// (<see cref="Session.SaveHistoryContinuationPoint"/>).
     /// On the next page request the dispatcher restores the state
     /// (which removes it from the session's storage), calls the same
     /// provider with the saved <see cref="ResumeToken"/>, and either
@@ -125,6 +125,6 @@ namespace Opc.Ua.Server.Historian
         Processed,
         AtTime,
         Annotations,
-        Events,
+        Events
     }
 }

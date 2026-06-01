@@ -42,6 +42,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts.ConsoleReferenceClient
@@ -352,7 +353,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         return;
                     }
 
-                    var userIdentity = new UserIdentity();
+                    var identityProviders = new List<IClientIdentityProvider>();
 
                     // set user identity of type username/pw
                     if (!string.IsNullOrEmpty(username))
@@ -362,9 +363,17 @@ namespace Quickstarts.ConsoleReferenceClient
                             Console.WriteLine($"No password provided for user {username}, using empty password.");
                         }
 
-                        // username is non-null after !IsNullOrEmpty (NotNullWhen attribute not
-                        // available on netstandard2.0/net48 reference assemblies).
-                        userIdentity = new UserIdentity(username!, userpassword ?? ""u8);
+                        var passwordStore = new InMemorySecretStore();
+                        var passwordId = new SecretIdentifier(
+                            "console-reference-client-password",
+                            passwordStore.StoreType);
+                        await passwordStore
+                            .SetAsync(passwordId, userpassword ?? [], ct)
+                            .ConfigureAwait(false);
+                        identityProviders.Add(new UserNamePasswordIdentityProvider(
+                            username!,
+                            new SecretRegistry(passwordStore),
+                            passwordId));
                         Console.WriteLine($"Connect with user identity for user {username}");
                     }
 
@@ -381,14 +390,10 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         if (userCertificateIdentifier != null)
                         {
-                            userIdentity = UserIdentity
-                                .CreateAsync(
-                                    userCertificateIdentifier,
-                                    new CertificatePasswordProvider(userCertificatePassword!),
-                                    application.ApplicationConfiguration!.CertificateManager!.CertificateProvider,
-                                    ct)
-                                .GetAwaiter()
-                                .GetResult();
+                            identityProviders.Insert(0, new X509ClientIdentityProvider(
+                                userCertificateIdentifier,
+                                new CertificatePasswordProvider(userCertificatePassword!),
+                                application.ApplicationConfiguration!.CertificateManager!.CertificateProvider));
 
                             Console.WriteLine($"Connect with user certificate with Thumbprint {userCertificateThumbprint}");
                         }
@@ -397,6 +402,9 @@ namespace Quickstarts.ConsoleReferenceClient
                             Console.WriteLine($"Failed to load user certificate with Thumbprint {userCertificateThumbprint}");
                         }
                     }
+
+                    identityProviders.Add(new AnonymousIdentityProvider());
+                    var identityProvider = new CompositeClientIdentityProvider(identityProviders);
 
                     // connect to a server until application stops
                     bool quit = false;
@@ -433,7 +441,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         {
                             AutoAccept = autoAccept,
                             SessionLifeTime = 60_000,
-                            UserIdentity = userIdentity
+                            IdentityProvider = identityProvider
                         };
 
                         if (enableDurableSubscriptions)

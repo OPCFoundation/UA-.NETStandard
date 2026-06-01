@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -164,7 +163,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<Func<CancellationToken, Task<WotConnectivityClient>>>(
                 sp => new WotConnectivityClientAccessor(sp).ConnectAsync);
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            services.AddOpcUa();
         }
 
         /// <summary>

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Aot.Tests
@@ -92,7 +91,7 @@ namespace Opc.Ua.Aot.Tests
             })
             {
                 IsBackground = true,
-                Name = "LeakDetection.FinalizerSweep",
+                Name = "LeakDetection.FinalizerSweep"
             };
             sweep.Start();
             return sweep.Join(timeout);

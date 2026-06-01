@@ -251,7 +251,9 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    _ = Task.Run(async () => await DoSampleAsync(itemsToSample, CancellationToken.None));
+                    _ = Task.Run(
+                        async () => await DoSampleAsync(itemsToSample, CancellationToken.None)
+                            .ConfigureAwait(false));
                 }
 
                 // remove items.

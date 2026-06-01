@@ -78,8 +78,7 @@ namespace Opc.Ua.Server.FileSystem
             SystemContext.SystemHandle = this;
             SystemContext.NodeIdFactory = this;
 
-            var namespaceUris = new List<string> { BuildNamespaceUri(provider) };
-            NamespaceUris = namespaceUris;
+            NamespaceUris = new List<string> { BuildNamespaceUri(provider) };
             NamespaceIndex = base.NamespaceIndex;
         }
 

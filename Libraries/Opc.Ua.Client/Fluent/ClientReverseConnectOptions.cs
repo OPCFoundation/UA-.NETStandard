@@ -55,7 +55,7 @@ namespace Opc.Ua.Client
         /// the manager should bind to. Each URL is registered via
         /// <see cref="ReverseConnectManager.AddEndpoint"/>.
         /// </summary>
-        public IList<string> ClientEndpointUrls { get; } = new List<string>();
+        public IList<string> ClientEndpointUrls { get; } = [];
 
         /// <summary>
         /// Time in milliseconds a reverse-hello port is held open while

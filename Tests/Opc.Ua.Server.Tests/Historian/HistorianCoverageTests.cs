@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 values.Add(MakeValue(BaseTime.AddSeconds(i), i));
             }
-            await provider.InsertAsync(context, nodeId, values, CancellationToken.None);
+            await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
 
             HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
                 context,
@@ -80,10 +80,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime.AddSeconds(10),
                     EndTime = BaseTime.AddSeconds(-1),
                     IsForward = false,
-                    MaxValues = 0,
+                    MaxValues = 0
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(5));
             Assert.That(page.Values[0].Value.SourceTimestamp,
@@ -101,9 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
             DateTime ts = BaseTime.AddSeconds(5);
-            await provider.InsertAsync(context, nodeId, [MakeValue(ts, 1)], CancellationToken.None);
-            await provider.ReplaceAsync(context, nodeId, [MakeValue(ts, 2)], CancellationToken.None);
-            await provider.ReplaceAsync(context, nodeId, [MakeValue(ts, 3)], CancellationToken.None);
+            await provider.InsertAsync(context, nodeId, [MakeValue(ts, 1)], CancellationToken.None).ConfigureAwait(false);
+            await provider.ReplaceAsync(context, nodeId, [MakeValue(ts, 2)], CancellationToken.None).ConfigureAwait(false);
+            await provider.ReplaceAsync(context, nodeId, [MakeValue(ts, 3)], CancellationToken.None).ConfigureAwait(false);
 
             HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
                 context,
@@ -113,10 +113,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
                     IsForward = true,
-                    MaxValues = 0,
+                    MaxValues = 0
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.GreaterThanOrEqualTo(2),
                 "Each Replace should produce a modified-history entry recording the prior value.");

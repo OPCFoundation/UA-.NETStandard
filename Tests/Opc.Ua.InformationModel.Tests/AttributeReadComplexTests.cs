@@ -32,9 +32,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.InformationModel.Tests
 {
@@ -72,7 +71,7 @@ namespace Opc.Ua.InformationModel.Tests
             // wire-encoded as ExtensionObject. Both shapes are accepted: either
             // the wire ExtensionObject or a server that already decoded it.
             bool isExtensionObject = variant.TryGetValue(out ExtensionObject _);
-            bool isDecoded = variant.TryGetStructure<ServerStatusDataType>(out ServerStatusDataType _);
+            bool isDecoded = variant.TryGetStructure(out ServerStatusDataType _);
             Assert.That(isExtensionObject || isDecoded, Is.True,
                 "Server_ServerStatus value should not be null.");
             Assert.That(isExtensionObject || isDecoded, Is.True,
@@ -104,7 +103,7 @@ namespace Opc.Ua.InformationModel.Tests
             // Per spec ServerStatus is a ServerStatusDataType wire-encoded as
             // ExtensionObject; accept both the wire form and an already-decoded
             // structure.
-            if (variant.TryGetStructure<ServerStatusDataType>(out ServerStatusDataType decoded))
+            if (variant.TryGetStructure(out ServerStatusDataType decoded))
             {
                 serverStatus = decoded;
             }

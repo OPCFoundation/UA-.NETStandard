@@ -35,7 +35,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -61,7 +60,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("PagedVar"),
                 AccessLevel = AccessLevels.HistoryRead,
-                Historizing = true,
+                Historizing = true
             };
 
             var details = new ReadRawModifiedDetails
@@ -69,7 +68,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 StartTime = HarnessFixture.BaseTime,
                 EndTime = HarnessFixture.BaseTime.AddMinutes(5),
                 NumValuesPerNode = 10,
-                IsReadModified = false,
+                IsReadModified = false
             };
 
             ByteString cp = ByteString.Empty;
@@ -82,7 +81,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 var nodeToRead = new HistoryReadValueId
                 {
                     NodeId = nodeId,
-                    ContinuationPoint = cp,
+                    ContinuationPoint = cp
                 };
                 var result = new HistoryReadResult();
 
@@ -94,11 +93,11 @@ namespace Opc.Ua.Server.Tests.Historian
                     details,
                     TimestampsToReturn.Source,
                     result,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(ServiceResult.IsGood(error), Is.True);
 
-                if (result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                if (result.HistoryData.TryGetValue(out HistoryData? hd))
                 {
                     DataValue[]? values = hd.DataValues.ToArray();
                     if (values != null)
@@ -139,7 +138,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 NodeId = parentNodeId,
                 BrowseName = new QualifiedName("ParentVar"),
                 AccessLevel = AccessLevels.HistoryReadOrWrite,
-                Historizing = true,
+                Historizing = true
             };
 
             DateTime when = HarnessFixture.BaseTime.AddSeconds(5);
@@ -147,7 +146,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 Message = "comment",
                 UserName = "tester",
-                AnnotationTime = when,
+                AnnotationTime = when
             };
 
             var insertDetails = new UpdateStructureDataDetails
@@ -156,8 +155,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Insert,
                 UpdateValues = new DataValue[]
                 {
-                    new DataValue(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
-                },
+                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue)
+                }
             };
 
             var insertResult = new HistoryUpdateResult();
@@ -167,7 +166,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 parent,
                 insertDetails,
                 insertResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(insertError), Is.True);
             Assert.That(insertResult.OperationResults, Has.Count.EqualTo(1));
@@ -180,8 +179,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformInsertReplace = PerformUpdateType.Remove,
                 UpdateValues = new DataValue[]
                 {
-                    new DataValue(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue),
-                },
+                    new(new Variant(new ExtensionObject(annotation)), StatusCodes.Good, sourceTimestamp: when, serverTimestamp: DateTimeUtc.MinValue)
+                }
             };
 
             var removeResult = new HistoryUpdateResult();
@@ -191,7 +190,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 parent,
                 removeDetails,
                 removeResult,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(removeError), Is.True);
             Assert.That(removeResult.OperationResults, Has.Count.EqualTo(1));
@@ -211,30 +210,30 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 Message = "via-direct-insert",
                 UserName = "tester",
-                AnnotationTime = when,
+                AnnotationTime = when
             };
             await h.Provider.InsertAnnotationsAsync(
-                insertContext, parentNodeId, [annotation], CancellationToken.None);
+                insertContext, parentNodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
 
             var parent = new BaseDataVariableState(null)
             {
                 NodeId = parentNodeId,
                 BrowseName = new QualifiedName("ParentVar"),
                 AccessLevel = AccessLevels.HistoryRead,
-                Historizing = true,
+                Historizing = true
             };
 
             var details = new ReadRawModifiedDetails
             {
                 IsReadModified = false,
                 StartTime = HarnessFixture.BaseTime,
-                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1)
             };
 
             var nodeToRead = new HistoryReadValueId
             {
                 NodeId = new NodeId("parent.var.Annotations", 1),
-                ContinuationPoint = ByteString.Empty,
+                ContinuationPoint = ByteString.Empty
             };
 
             var result = new HistoryReadResult();
@@ -246,17 +245,17 @@ namespace Opc.Ua.Server.Tests.Historian
                 details,
                 TimestampsToReturn.Source,
                 result,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(
-                result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd),
+                result.HistoryData.TryGetValue(out HistoryData? hd),
                 Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
 
             Assert.That(values![0].WrappedValue.TryGetValue(out ExtensionObject ext), Is.True);
-            Assert.That(ext.TryGetValue<Annotation>(out Annotation? readBack), Is.True);
+            Assert.That(ext.TryGetValue(out Annotation? readBack), Is.True);
             Assert.That(readBack!.Message, Is.EqualTo("via-direct-insert"));
         }
 
@@ -274,7 +273,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Provider = new InMemoryHistorianProvider();
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
-                m_continuationStore = new Dictionary<Guid, object>();
+                m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
                 mockSession

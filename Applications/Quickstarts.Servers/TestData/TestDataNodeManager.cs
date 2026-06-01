@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
-using Opc.Ua.Server.Historian.InMemory;
 
 namespace TestData
 {
@@ -49,8 +48,10 @@ namespace TestData
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+#pragma warning disable CA2000 // ownership of TestDataNodeManager transfers to the caller via the returned ValueTask<IAsyncNodeManager>
             return new ValueTask<IAsyncNodeManager>(
                 new TestDataNodeManager(server, configuration, [.. NamespacesUris]));
+#pragma warning restore CA2000
         }
 
         /// <inheritdoc/>
@@ -297,7 +298,7 @@ namespace TestData
         /// managers (e.g. ReferenceNodeManager) that may also register
         /// a default provider in the same process.
         /// </summary>
-        protected override Opc.Ua.Server.Historian.IHistorianProvider? GetHistorianProvider(NodeState node)
+        protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
             return m_system.Historian;
         }
@@ -459,8 +460,6 @@ namespace TestData
             }
             return new ValueTask<NodeState>(predefinedNode);
         }
-
-
 
         /// <summary>
         /// Returns true if the system must be scanning to provide updates for the monitored item.
