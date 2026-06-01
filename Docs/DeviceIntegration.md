@@ -438,18 +438,19 @@ and lifetime traps).
 | `DiNodeManagerFactory` / `PumpNodeManagerFactory` | Singleton (.NET-DI-aware ctor injects runner) | server / app |
 | `DiNodeManager` / `PumpNodeManager` | Per-server startup (factory passes runner) | app |
 
-The runner is injected into the manager via the factory. The manager
-calls `runner.RunAsync(this, cancellationToken)` at the end of its
-own `CreateAddressSpaceAsync` override:
+The runner is injected into the manager via the factory. The base
+`DiNodeManager` auto-invokes it at the end of its own
+`CreateAddressSpaceAsync` for every concrete subclass:
 
-- `DiNodeManager` runs the runner ONLY when its concrete runtime
-  type is exactly `DiNodeManager` — subclasses must opt in by
-  calling `PostSetupRunner.RunAsync(this, ct)` themselves at the
-  appropriate point in their own override (typically AFTER any
-  `Configure(builder)` / `builder.Seal()` work).
-- `PumpNodeManager` does this in `CreateAddressSpaceAsync` after
-  `Configure(builder)` + `builder.Seal()` so configurators see the
-  fully wired pump.
+- The base `DiNodeManager.CreateAddressSpaceAsync` calls
+  `base.CreateAddressSpaceAsync` → `OnAddressSpaceReadyAsync` →
+  `PostSetupRunner.RunAsync(this, ct)` in that order.
+- Subclasses (e.g. `PumpNodeManager`) override the
+  `protected virtual ValueTask OnAddressSpaceReadyAsync(...)` hook to
+  materialise instances + drive the fluent `INodeManagerBuilder`.
+  The runner fires automatically once `OnAddressSpaceReadyAsync`
+  returns — subclasses do not need to call `PostSetupRunner.RunAsync`
+  themselves.
 
 ### Client-side surface
 

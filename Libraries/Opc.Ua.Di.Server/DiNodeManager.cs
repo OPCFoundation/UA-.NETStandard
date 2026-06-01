@@ -95,12 +95,11 @@ namespace Opc.Ua.Di.Server
 
         /// <summary>
         /// Initialises a new <see cref="DiNodeManager"/> with an
-        /// optional post-setup runner. The runner is invoked at the
-        /// end of the manager's
-        /// <c>CreateAddressSpaceAsync</c> (only when the runtime type
-        /// is exactly <see cref="DiNodeManager"/>; subclasses must
-        /// invoke the runner themselves at the appropriate point in
-        /// their own override).
+        /// optional post-setup runner. The runner is invoked
+        /// automatically at the end of
+        /// <see cref="CreateAddressSpaceAsync"/> (after
+        /// <see cref="OnAddressSpaceReadyAsync"/> returns), for both
+        /// the base <see cref="DiNodeManager"/> and every subclass.
         /// </summary>
         public DiNodeManager(
             IServerInternal server,
@@ -158,12 +157,13 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
-        /// Optional post-setup runner injected through the DI hosting
-        /// pipeline. Subclasses invoke this from their
-        /// <c>CreateAddressSpaceAsync</c> override after their own
-        /// builder/wiring work completes; the base class only invokes
-        /// it when the runtime type is exactly
-        /// <see cref="DiNodeManager"/>.
+        /// Optional post-setup runner injected through the
+        /// Device Integration (DI) hosting pipeline. The base class
+        /// auto-invokes it from <see cref="CreateAddressSpaceAsync"/>
+        /// after <see cref="OnAddressSpaceReadyAsync"/> returns, so
+        /// subclasses do not need to (and should not) invoke it
+        /// manually. Read-only on subclasses; exposed mostly for
+        /// diagnostic / test inspection.
         /// </summary>
         protected global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
 
@@ -233,7 +233,30 @@ namespace Opc.Ua.Di.Server
                 new NodeStateCollection().AddOpcUaDi(context));
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Constructs the address space and runs the
+        /// <c>IDiPostSetupRunner</c>-based hosting hooks. The flow is:
+        /// <list type="number">
+        ///   <item><description>
+        ///     The framework's <c>base.CreateAddressSpaceAsync</c> loads
+        ///     predefined nodes and wires the type tree.
+        ///   </description></item>
+        ///   <item><description>
+        ///     <see cref="OnAddressSpaceReadyAsync"/> runs (subclasses
+        ///     override this to materialise additional instances and
+        ///     drive the fluent <c>INodeManagerBuilder</c>).
+        ///   </description></item>
+        ///   <item><description>
+        ///     The DI hosting <see cref="PostSetupRunner"/>, if any, is
+        ///     invoked with <c>this</c>; configurators registered via
+        ///     <c>ConfigureDevicesFor&lt;TNodeManager&gt;</c> see the
+        ///     fully wired manager.
+        ///   </description></item>
+        /// </list>
+        /// Subclasses should override <see cref="OnAddressSpaceReadyAsync"/>
+        /// rather than <c>CreateAddressSpaceAsync</c> so the post-setup
+        /// runner fires automatically.
+        /// </summary>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
@@ -241,16 +264,31 @@ namespace Opc.Ua.Di.Server
             await base.CreateAddressSpaceAsync(
                 externalReferences, cancellationToken).ConfigureAwait(false);
 
-            // Only run post-setup configurators when this is exactly a
-            // DiNodeManager. Subclasses must invoke PostSetupRunner from
-            // their own override at the right point (typically AFTER their
-            // builder configuration completes) so configurators see the
-            // fully wired subclass state.
-            if (PostSetupRunner != null && GetType() == typeof(DiNodeManager))
+            await OnAddressSpaceReadyAsync(cancellationToken).ConfigureAwait(false);
+
+            if (PostSetupRunner != null)
             {
                 await PostSetupRunner.RunAsync(this, cancellationToken)
                     .ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Extension point invoked after
+        /// <see cref="AsyncCustomNodeManager.CreateAddressSpaceAsync"/>
+        /// has populated <c>PredefinedNodes</c> but before the
+        /// <see cref="PostSetupRunner"/> fires. Subclasses materialise
+        /// additional instances (e.g. companion-spec device factories)
+        /// and drive the fluent <c>INodeManagerBuilder</c> from here.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation is a no-op. Implementers do not
+        /// need to invoke <c>base.OnAddressSpaceReadyAsync</c>.
+        /// </remarks>
+        protected virtual ValueTask OnAddressSpaceReadyAsync(
+            CancellationToken cancellationToken)
+        {
+            return default;
         }
 
         /// <summary>

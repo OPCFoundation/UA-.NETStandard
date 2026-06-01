@@ -120,13 +120,9 @@ namespace Pumps
         }
 
         /// <inheritdoc/>
-        public override async ValueTask CreateAddressSpaceAsync(
-            IDictionary<NodeId, IList<IReference>> externalReferences,
-            CancellationToken cancellationToken = default)
+        protected override async ValueTask OnAddressSpaceReadyAsync(
+            CancellationToken cancellationToken)
         {
-            await base.CreateAddressSpaceAsync(
-                externalReferences, cancellationToken).ConfigureAwait(false);
-
             // Materialise the single `Pump #1` instance the fluent
             // wiring in PumpNodeManager.Configure.cs expects to find.
             // The instance is a typed `PumpState` (OPC 40223 PumpType)
@@ -160,14 +156,9 @@ namespace Pumps
                 "PumpNodeManager: address space ready ({NodeCount} predefined nodes).",
                 PredefinedNodes.Count);
 
-            // DI hosting post-setup runs LAST — after the pump-specific
-            // fluent wiring is complete and sealed — so configurators
-            // see the fully wired manager.
-            if (PostSetupRunner != null)
-            {
-                await PostSetupRunner.RunAsync(this, cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            // PostSetupRunner is invoked automatically by the base
+            // DiNodeManager.CreateAddressSpaceAsync after this method
+            // returns; no manual invocation needed here.
         }
 
         /// <summary>
