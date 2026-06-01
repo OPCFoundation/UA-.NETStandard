@@ -93,15 +93,15 @@ want to reference Machinery or Pumps the same way they reference
 `Opc.Ua.Di` should source-generate against the model XML inside their
 own assembly using the same `<AdditionalFiles>` pattern.
 
-## Inspecting / extending the sample
+## Extending the sample
 
 - **Add a measurement**: open `PumpNodeManager.Configure.cs`, add a
-  call to `TryAddMeasurement(builder, browsePath, getter, units, min, max)`
+  call to `AddMeasurement(builder, browsePath, getter, units, min, max)`
   inside `WithMeasurements`, then add a field + line to
   `AdvanceSimulation` that updates the value each tick.
 - **Add an alarm**: inside `WithSupervision`, chain another
-  `events.CreateLimitAlarm(...).WithLimits(...)` and wire the
-  triggering boolean variable via `.ActivatesAlarm(...)`.
+  `builder.Node("Pump #1/Events").CreateLimitAlarm(...).WithLimits(...)`
+  and wire the triggering boolean variable via `.ActivatesAlarm(...)`.
 - **Add a second pump**: two patterns are demonstrated in the sample.
   - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpInstanceAsync`, call `context.CreateInstanceOfPumpType(deviceSet, browseName)`, attach it to the DI `DeviceSet`, and `AddPredefinedNodeAsync(pump)`. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
   - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `ctx.CreateDeviceAsync(new QualifiedName("Pump #N", ctx.Manager.DiNamespaceIndex))` from a `ConfigureDevicesFor<PumpNodeManager>` block, then call `pump.WithIdentification(...)` for the nameplate. This route exercises the `Opc.Ua.Di.Server` builder surface.

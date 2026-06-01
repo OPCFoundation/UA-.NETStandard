@@ -71,13 +71,11 @@ namespace Pumps
             Server.Telemetry.CreateLogger<PumpNodeManager>()
                 .LogInformation("Configuring PumpNodeManager fluent wiring...");
 
-            ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(PumpsNamespaceUri);
-
-            WithIdentification(builder, pumpsNs);
+            WithIdentification(builder);
             WithMeasurements(builder);
             WithActuation(builder);
             WithSignals(builder);
-            WithSupervision(builder, pumpsNs);
+            WithSupervision(builder);
             WithMaintenance(builder);
 
             // Single manager-owned simulation tick advances all live
@@ -88,29 +86,32 @@ namespace Pumps
         }
 
         // ── Identification properties via WithProperty ──────────────
-        private void WithIdentification(INodeManagerBuilder builder, ushort ns)
+        // PumpType.Identification only materialises mandatory children
+        // (Manufacturer / ProductInstanceUri / SerialNumber) via the
+        // source-generated factory. Optional children (Model, Hardware-
+        // Revision, etc.) would require explicit materialisation in
+        // CreatePumpInstanceAsync — out of scope for the minimal demo.
+        private void WithIdentification(INodeManagerBuilder builder)
         {
-            try
-            {
-                INodeBuilder id = builder.Node("Pump #1/Identification");
-                id.WithProperty("Manufacturer", "SimPump Corp")
-                  .WithProperty("Model", "PumpX-2000")
-                  .WithProperty("SerialNumber", "SN-001")
-                  .WithProperty("HardwareRevision", "1.0")
-                  .WithProperty("SoftwareRevision", "2.5.3")
-                  .WithProperty("DeviceRevision", "3")
-                  .WithProperty("DeviceClass", "Pump")
-                  .WithProperty("ProductInstanceUri",
-                      "urn:simdevice:SimPump:PumpX-2000:SN-001");
-            }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
-            {
-                Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogDebug("Identification path not found, skipping ID wiring.");
-            }
+            // Identification is a mandatory child of PumpType — guaranteed
+            // present by the source-generated CreateInstanceOfPumpType factory.
+            builder.Node("Pump #1/Identification")
+                .WithProperty("Manufacturer", "SimPump Corp")
+                .WithProperty("SerialNumber", "SN-001")
+                .WithProperty("ProductInstanceUri",
+                    "urn:simdevice:SimPump:PumpX-2000:SN-001");
         }
 
         // ── Measurements with engineering units ─────────────────────
+        // PumpType.Operational/Maintenance/Events children live under
+        // browse names that carry the *Machinery* namespace (the base
+        // type's prefix), not the default Pumps namespace the resolver
+        // uses for unqualified segments. The optional Measurement
+        // variables are also not materialised by the type factory by
+        // default. Both quirks mean these paths may not resolve until
+        // an enhancement either pre-materialises optional children or
+        // teaches the fluent resolver to fall back to name-only matching;
+        // wiring is best-effort with a warning log per failed path.
         private void WithMeasurements(INodeManagerBuilder builder)
         {
             TryAddMeasurement(builder,
@@ -192,31 +193,32 @@ namespace Pumps
         }
 
         // ── Supervision flags wired to NAMUR alarms ─────────────────
-        private void WithSupervision(INodeManagerBuilder builder, ushort pumpsNs)
+        private void WithSupervision(INodeManagerBuilder builder)
         {
-            // Attach a temperature-high alarm on the Events container and
-            // wire the Cavitation supervision flag to drive it.
+            ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
+                global::Opc.Ua.Pumps.Namespaces.Pumps);
+
             try
             {
-                INodeBuilder events = builder.Node("Pump #1/Events");
-
-                // Limit alarm with thresholds in Kelvin.
-                IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = events
+                // Limit alarm with thresholds in Kelvin, attached to Events.
+                IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = builder
+                    .Node("Pump #1/Events")
                     .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
                     .WithLimits(highHigh: 373.15, high: 363.15, low: 283.15, lowLow: 273.15)
                     .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
-                // bool supervision → alarm Active state.
+                // Cavitation supervision flag drives the alarm Active state on
+                // each rising / falling edge.
                 TryAddSupervisionEdge(builder,
                     "Pump #1/Events/Supervision/ProcessFluid/Cavitation",
                     tempAlarm);
             }
-            catch (ServiceResultException)
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
-                // Events container not found — skip alarm wiring (older NodeSet).
+                Server.Telemetry.CreateLogger<PumpNodeManager>()
+                    .LogWarning("Events container not resolvable, alarm wiring skipped: {Msg}", ex.Message);
             }
 
-            // Per-read simulated supervision flags (kept lightweight).
             TryAddVariable<bool>(builder,
                 "Pump #1/Events/Supervision/ProcessFluid/Cavitation",
                 () => m_cavitation);
@@ -231,14 +233,16 @@ namespace Pumps
         {
             TryAddVariable<double>(builder,
                 "Pump #1/Maintenance/GeneralMaintenance/OperatingTime",
-                () => SimulateOperatingTime());
+                SimulateOperatingTime);
 
             TryAddVariable<uint>(builder,
                 "Pump #1/Operational/Measurements/NumberOfStarts",
                 () => (uint)Interlocked.Read(ref m_numberOfStarts));
         }
 
-        // ── Helper: try wiring a variable, log if path not found ────
+        // Best-effort variable wiring. Failures surface at Warning level —
+        // see the WithMeasurements comment for why some PumpType browse
+        // paths don't resolve cleanly today.
         private void TryAddVariable<T>(
             INodeManagerBuilder builder,
             string browsePath,
@@ -251,7 +255,7 @@ namespace Pumps
             catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
                 Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogDebug("Browse path not found (skipping): {Path}", browsePath);
+                    .LogWarning("Browse path not resolvable: {Path} ({Msg})", browsePath, ex.Message);
             }
         }
 
@@ -270,11 +274,10 @@ namespace Pumps
             catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
                 Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogDebug("Browse path not found (skipping): {Path}", browsePath);
+                    .LogWarning("Browse path not resolvable: {Path} ({Msg})", browsePath, ex.Message);
             }
         }
 
-        // Typed measurement wiring with engineering units + EURange.
         private void TryAddMeasurement(
             INodeManagerBuilder builder,
             string browsePath,
@@ -285,28 +288,18 @@ namespace Pumps
         {
             try
             {
-                IVariableBuilder<double> v = builder.Variable<double>(browsePath);
-                v.OnRead(getter);
-                try
-                {
-                    v.WithEngineeringUnits(units).WithEURange(min, max);
-                }
-                catch (ServiceResultException ex) when (
-                    ex.StatusCode == StatusCodes.BadTypeMismatch)
-                {
-                    // Not an AnalogItemState — read-only wiring is still valid,
-                    // engineering units just don't apply.
-                }
+                builder.Variable<double>(browsePath)
+                    .OnRead(getter)
+                    .WithEngineeringUnits(units)
+                    .WithEURange(min, max);
             }
             catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
                 Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogDebug("Browse path not found (skipping): {Path}", browsePath);
+                    .LogWarning("Measurement path not resolvable: {Path} ({Msg})", browsePath, ex.Message);
             }
         }
 
-        // Wire a bool supervision variable to activate/deactivate an alarm
-        // on each rising / falling edge.
         private void TryAddSupervisionEdge<TAlarm>(
             INodeManagerBuilder builder,
             string boolPath,
@@ -320,7 +313,7 @@ namespace Pumps
             catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
                 Server.Telemetry.CreateLogger<PumpNodeManager>()
-                    .LogDebug("Supervision flag not found (skipping): {Path}", boolPath);
+                    .LogWarning("Supervision flag not resolvable: {Path} ({Msg})", boolPath, ex.Message);
             }
         }
 

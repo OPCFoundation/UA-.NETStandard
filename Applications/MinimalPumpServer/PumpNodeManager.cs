@@ -73,16 +73,13 @@ namespace Pumps
                   server,
                   configuration,
                   postSetupRunner,
-                  PumpsNamespaceUri,
-                  MachineryNamespaceUri)
+                  global::Opc.Ua.Pumps.Namespaces.Pumps,
+                  global::Opc.Ua.Machinery.Namespaces.Machinery)
         {
             // Base class constructor sets SystemContext.NodeIdFactory to
             // itself; our New() override takes over.
             SystemContext.NodeIdFactory = this;
         }
-
-        private const string PumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
-        private const string MachineryNamespaceUri = "http://opcfoundation.org/UA/Machinery/";
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
@@ -139,7 +136,8 @@ namespace Pumps
                 .ConfigureAwait(false);
 
             // Build the fluent wiring surface and invoke Configure.
-            ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(PumpsNamespaceUri);
+            ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
+                global::Opc.Ua.Pumps.Namespaces.Pumps);
             NodeManagerBuilder builder = new NodeManagerBuilder(
                 SystemContext,
                 this,
@@ -186,7 +184,7 @@ namespace Pumps
             CancellationToken cancellationToken)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris
-                .GetIndex(PumpsNamespaceUri);
+                .GetIndex(global::Opc.Ua.Pumps.Namespaces.Pumps);
             var pumpBrowseName = new QualifiedName(browseNameText, pumpsNs);
 
             NodeState? deviceSet = FindNodeById(NodeId.Create(
@@ -214,8 +212,9 @@ namespace Pumps
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
-            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
-            pump.ModellingRuleId = NodeId.Null;
+            // AddChild defaults ReferenceTypeId to HasComponent when null
+            // (NodeState.AddChild line 4511-4514); ModellingRuleId defaults
+            // to NodeId.Null on every fresh NodeState — no explicit set needed.
             deviceSet.AddChild(pump);
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
@@ -293,20 +292,20 @@ namespace Pumps
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris => new string[]
         {
-            "http://opcfoundation.org/UA/Pumps/",
-            "http://opcfoundation.org/UA/Machinery/",
+            global::Opc.Ua.Pumps.Namespaces.Pumps,
+            global::Opc.Ua.Machinery.Namespaces.Machinery,
             global::Opc.Ua.Di.Namespaces.OpcUaDi
         };
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "Ownership transferred to server.")]
         public ValueTask<IAsyncNodeManager> CreateAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+#pragma warning disable CA2000 // ownership transferred to server
             IAsyncNodeManager nm = new PumpNodeManager(server, configuration, m_runner);
+#pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(nm);
         }
     }

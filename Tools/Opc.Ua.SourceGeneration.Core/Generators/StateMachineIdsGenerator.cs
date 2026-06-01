@@ -122,10 +122,6 @@ namespace Opc.Ua.SourceGeneration
             return [fileName.AsTextFileResource()];
         }
 
-        // ------------------------------------------------------------------
-        // discovery
-        // ------------------------------------------------------------------
-
         private List<FsmTypeInfo> CollectFiniteStateMachineTypes()
         {
             var result = new List<FsmTypeInfo>();
@@ -258,10 +254,6 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        // ------------------------------------------------------------------
-        // emission
-        // ------------------------------------------------------------------
-
         private void WriteMachine(TextWriter writer, FsmTypeInfo machine)
         {
             string idsClassName = CoreUtils.Format("{0}Ids", machine.TypeName);
@@ -334,10 +326,6 @@ namespace Opc.Ua.SourceGeneration
             }
             writer.WriteLine("        }");
         }
-
-        // ------------------------------------------------------------------
-        // helper types
-        // ------------------------------------------------------------------
 
         private sealed class FsmTypeInfo
         {
