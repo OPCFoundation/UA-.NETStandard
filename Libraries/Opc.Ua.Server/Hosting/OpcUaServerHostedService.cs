@@ -51,7 +51,6 @@ namespace Opc.Ua.Server.Hosting
     internal sealed class OpcUaServerHostedService : BackgroundService
     {
         private readonly OpcUaServerOptions m_options;
-        private readonly RoleConfigurationOptions m_roleOptions;
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
@@ -69,7 +68,6 @@ namespace Opc.Ua.Server.Hosting
 
         public OpcUaServerHostedService(
             IOptions<OpcUaServerOptions> options,
-            IOptions<RoleConfigurationOptions> roleOptions,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
@@ -83,12 +81,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 throw new ArgumentNullException(nameof(options));
             }
-            if (roleOptions is null)
-            {
-                throw new ArgumentNullException(nameof(roleOptions));
-            }
             m_options = options.Value ?? throw new ArgumentNullException(nameof(options));
-            m_roleOptions = roleOptions.Value ?? throw new ArgumentNullException(nameof(roleOptions));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
             m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
@@ -219,7 +212,7 @@ namespace Opc.Ua.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
-            m_server = new ConfiguredRoleStandardServer(m_telemetry, m_roleOptions);
+            m_server = new StandardServer(m_telemetry);
             foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
             {
                 if (reg.AsyncFactory is not null)
@@ -326,44 +319,6 @@ namespace Opc.Ua.Server.Hosting
         {
             m_server?.Dispose();
             base.Dispose();
-        }
-
-        private sealed class ConfiguredRoleStandardServer : StandardServer
-        {
-            private readonly RoleConfigurationOptions m_roleOptions;
-            private bool m_roleManagerConfigured;
-
-            public ConfiguredRoleStandardServer(
-                ITelemetryContext telemetry,
-                RoleConfigurationOptions roleOptions)
-                : base(telemetry)
-            {
-                m_roleOptions = roleOptions ?? throw new ArgumentNullException(nameof(roleOptions));
-            }
-
-            protected override ResourceManager CreateResourceManager(
-                IServerInternal server,
-                ApplicationConfiguration configuration)
-            {
-                if (!m_roleManagerConfigured)
-                {
-                    IRoleManager previous = server.RoleManager;
-                    RoleManager? roleManager = new(m_roleOptions);
-                    try
-                    {
-                        server.SetRoleManager(roleManager);
-                        roleManager = null;
-                    }
-                    finally
-                    {
-                        roleManager?.Dispose();
-                    }
-                    (previous as IDisposable)?.Dispose();
-                    m_roleManagerConfigured = true;
-                }
-
-                return base.CreateResourceManager(server, configuration);
-            }
         }
 
         private static ReverseConnectServerConfiguration ToReverseConnectConfiguration(

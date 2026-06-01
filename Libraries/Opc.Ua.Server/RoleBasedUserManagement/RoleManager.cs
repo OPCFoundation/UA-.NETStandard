@@ -75,19 +75,7 @@ namespace Opc.Ua.Server
         /// Part 18 §4.3.
         /// </summary>
         public RoleManager()
-            : this(null)
         {
-        }
-
-        /// <summary>
-        /// Creates a new role manager with the supplied role-mapping options.
-        /// </summary>
-        /// <param name="options">Currently reserved for future role-related
-        /// options. May be <c>null</c>; no configurable members exist yet.</param>
-        public RoleManager(RoleConfigurationOptions? options)
-        {
-            _ = options;
-
             // Anonymous role: identities = { Anonymous, AuthenticatedUser }
             AddBuiltInRole(s_anonymous, BrowseNames.WellKnownRole_Anonymous, isReserved: true)
                 .Identities.Add(new IdentityMappingRuleType

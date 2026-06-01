@@ -470,9 +470,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             if (options.EnableX509)
             {
-                ICertificateValidatorEx? certificateValidator = options.CertificateValidator ??
-                    services.GetService<ICertificateValidatorEx>() ??
-                    serverCertificateValidator;
+                ICertificateValidatorEx? certificateValidator =
+                    services.GetService<ICertificateValidatorEx>() ?? serverCertificateValidator;
                 if (certificateValidator != null)
                 {
                     yield return new X509Authenticator(

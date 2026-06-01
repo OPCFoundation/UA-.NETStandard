@@ -53,6 +53,11 @@ namespace Opc.Ua.Server.Hosting
 
         /// <summary>
         /// Register <see cref="X509Authenticator"/> when a certificate validator is available.
+        /// The validator is resolved from the configured
+        /// <see cref="ApplicationConfiguration.CertificateManager"/> (an
+        /// <see cref="ICertificateManager"/> that implements
+        /// <see cref="ICertificateValidatorEx"/>) or from any
+        /// <see cref="ICertificateValidatorEx"/> registered in dependency injection.
         /// </summary>
         public bool EnableX509 { get; set; } = true;
 
@@ -70,11 +75,6 @@ namespace Opc.Ua.Server.Hosting
         /// Optional user-management facade for username/password authentication.
         /// </summary>
         public IUserManagement? UserManagement { get; set; }
-
-        /// <summary>
-        /// Optional certificate validator for X.509 user tokens.
-        /// </summary>
-        public ICertificateValidatorEx? CertificateValidator { get; set; }
 
         /// <summary>
         /// Trust list used for X.509 user tokens.

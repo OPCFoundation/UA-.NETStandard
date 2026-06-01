@@ -520,7 +520,6 @@ namespace Microsoft.Extensions.DependencyInjection
             target.EnableJwt = source.EnableJwt;
             target.UserDatabase = source.UserDatabase;
             target.UserManagement = source.UserManagement;
-            target.CertificateValidator = source.CertificateValidator;
             target.UserCertificateTrustList = source.UserCertificateTrustList;
             target.IssuerKeyResolver = source.IssuerKeyResolver;
             target.ExpectedAudience = source.ExpectedAudience;
