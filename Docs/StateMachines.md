@@ -132,7 +132,7 @@ await foreach (FiniteStateSnapshot s in alarms
 Both methods delegate to `ShelvedStateMachineTypeClient` internally —
 same proxy-delegation pattern used by the rest of `AlarmClient`.
 
-### DI software-update alignment
+### Device Integration (DI) software-update alignment
 
 `SoftwareUpdateClient` (in `Opc.Ua.Di.Client`) wraps the same generic
 API for each of the four child state machines of OPC 10000-100 §10.3
@@ -552,8 +552,9 @@ with the spec; this is tracked but deliberately deferred.
   `IStreamingSubscription` surface the observation methods consume.
 - [Alarms and conditions](AlarmsAndConditions.md) — Part 9 alarm
   client that exposes the shelving-state-machine helpers.
-- [DI software-update facet](SoftwareUpdate.md) — the four DI SU
-  state machines, the typed `SoftwareUpdateClient.StateMachine`
-  partial, and the server-side `On*StateChanged` instrumentation hooks.
+- [Device Integration (DI) software-update facet](SoftwareUpdate.md)
+  — the four DI SU state machines, the typed
+  `SoftwareUpdateClient.StateMachine` partial, and the server-side
+  `On*StateChanged` instrumentation hooks.
 - [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) —
   how vendor NodeSets get their `*TypeClient` proxies emitted.

@@ -1,5 +1,14 @@
 # OPC UA Device Integration (DI)
 
+> **Glossary:** In this document, **DI** refers to **OPC UA Device
+> Integration** (companion specification [OPC 10000-100](https://reference.opcfoundation.org/specs/OPC-10000-100)),
+> *not* to .NET Dependency Injection (covered in
+> [DependencyInjection.md](DependencyInjection.md)). Wherever this
+> document uses the unqualified initialism "DI" it always means the
+> companion spec; .NET-DI mentions are spelled out as "Dependency
+> Injection (.NET DI)" or appear with `Microsoft.Extensions.DependencyInjection`
+> in context.
+
 End-to-end developer guide for the `Opc.Ua.Di*` library trio shipped
 with this repository and the `services.AddOpcUa()` hosting model that
 plugs it together.
@@ -31,7 +40,7 @@ device).
 
 ## Quick start
 
-### Plain DI server
+### Plain Device Integration (DI) server
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -61,7 +70,7 @@ builder.Services
 await builder.Build().RunAsync();
 ```
 
-### Companion-spec server (Pumps + DI)
+### Companion-spec server (Pumps + Device Integration)
 
 ```csharp
 builder.Services
@@ -334,9 +343,9 @@ device.WithSupportInfo(info =>
 
 ## Hosting integration
 
-`AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` plug the DI
-library into the unified `AddOpcUa()` Microsoft.Extensions DI hosting
-pattern.
+`AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` plug the
+Device Integration (DI) library into the unified `AddOpcUa()`
+`Microsoft.Extensions.DependencyInjection` hosting pattern.
 
 ### Server-side surface
 
@@ -357,9 +366,10 @@ IOpcUaServerBuilder ConfigureDevicesFor<TNodeManager>(
 
 #### When to use `AddOpcUaDi()`
 
-Call this when you want a **plain DI server** without any
-companion-spec subclass. It registers the `DiNodeManagerFactory` so
-the hosted service stands up a pure `DiNodeManager`.
+Call this when you want a **plain Device Integration (DI) server**
+without any companion-spec subclass. It registers the
+`DiNodeManagerFactory` so the hosted service stands up a pure
+`DiNodeManager`.
 
 ```csharp
 services.AddOpcUa()
@@ -425,7 +435,7 @@ and lifetime traps).
 |-----------|----------|-------|
 | `IDiPostSetupRunner` | Singleton (registered by `AddOpcUaDi`/`ConfigureDevicesFor`) | `Opc.Ua.Di.Server.Hosting` |
 | `IDiPostSetupConfigurator` | Singleton (one per `ConfigureDevicesFor` call) | `Opc.Ua.Di.Server.Hosting` |
-| `DiNodeManagerFactory` / `PumpNodeManagerFactory` | Singleton (DI-aware ctor injects runner) | server / app |
+| `DiNodeManagerFactory` / `PumpNodeManagerFactory` | Singleton (.NET-DI-aware ctor injects runner) | server / app |
 | `DiNodeManager` / `PumpNodeManager` | Per-server startup (factory passes runner) | app |
 
 The runner is injected into the manager via the factory. The manager
@@ -450,7 +460,7 @@ adds a single extension method on `IOpcUaClientBuilder`:
 IOpcUaClientBuilder AddOpcUaDi();
 ```
 
-This registers four DI-friendly services that wrap the lazy
+This registers four .NET-DI-friendly services that wrap the lazy
 `ManagedSession` accessor produced by `AddClient(...)`:
 
 - `IDiDiscoveryService` — recursive device discovery from the
@@ -559,7 +569,7 @@ independent locks.
 ### Hosting
 
 Register the service as a singleton through standard
-Microsoft.Extensions DI:
+`Microsoft.Extensions.DependencyInjection`:
 
 ```csharp
 services.AddSingleton<ILockService, DefaultLockService>();

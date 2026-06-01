@@ -1,8 +1,12 @@
-# DI Software Update Facet
+# Device Integration (DI) — Software Update Facet
+
+> **Glossary:** "DI" throughout this document means OPC UA
+> [Device Integration (OPC 10000-100)](https://reference.opcfoundation.org/specs/OPC-10000-100),
+> *not* .NET Dependency Injection.
 
 This document explains how to expose the OPC 10000-100 §10.3
-software-update facet on a DI device, what address-space surface it
-creates, and how clients drive it.
+software-update facet on a Device Integration (DI) device, what
+address-space surface it creates, and how clients drive it.
 
 ## Address-space layout
 
@@ -43,7 +47,8 @@ wiring, and method calls all work out of the box.
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
 
-// 1) Register a server-wide package store (commonly via DI).
+// 1) Register a server-wide package store (commonly via
+//    .NET Microsoft.Extensions.DependencyInjection).
 services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
 
 // 2) Inside ConfigureDevicesFor<DiNodeManager>:

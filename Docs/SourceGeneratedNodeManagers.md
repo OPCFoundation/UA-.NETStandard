@@ -633,8 +633,8 @@ variable.
 `INodeBuilder.Organizes`, `.HasComponent`, `.HasProperty` and the
 generic `.AddReference(typeId, isInverse, target)` add forward /
 inverse references on the current node. They're the foundation for
-DI's FunctionalGroup pattern — group unrelated variables under a
-shared object via `Organizes`.
+OPC UA Device Integration (DI)'s FunctionalGroup pattern — group
+unrelated variables under a shared object via `Organizes`.
 
 ```csharp
 // Wire existing measurement variables into a custom FunctionalGroup.
