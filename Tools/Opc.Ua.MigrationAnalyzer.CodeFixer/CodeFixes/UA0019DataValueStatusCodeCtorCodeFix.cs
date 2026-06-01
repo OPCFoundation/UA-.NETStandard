@@ -39,17 +39,17 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0007 code fix: rewrite <c>new NodeId(s)</c> / <c>new ExpandedNodeId(s)</c>
-    /// as the corresponding <c>Parse(s)</c> call.
+    /// UA0019 code fix: rewrite <c>new DataValue(sc)</c> / <c>new DataValue(sc, ts)</c>
+    /// as <c>DataValue.FromStatusCode(sc)</c> / <c>DataValue.FromStatusCode(sc, ts)</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0007ObsoleteNodeIdStringCtorCodeFix)), Shared]
-    public sealed class UA0007ObsoleteNodeIdStringCtorCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0019DataValueStatusCodeCtorCodeFix)), Shared]
+    public sealed class UA0019DataValueStatusCodeCtorCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0007);
+            ImmutableArray.Create(DiagnosticIds.UA0019);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -69,46 +69,26 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
                     continue;
                 }
 
-                string typeName = GetTypeName(creation);
-                if (typeName is null)
-                {
-                    continue;
-                }
-
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: $"Use '{typeName}.Parse(s)'",
-                        createChangedDocument: ct => ApplyAsync(context.Document, creation, typeName, ct),
-                        equivalenceKey: $"{DiagnosticIds.UA0007}:{typeName}"),
+                        title: "Use 'DataValue.FromStatusCode(...)'",
+                        createChangedDocument: ct => ApplyAsync(context.Document, creation, ct),
+                        equivalenceKey: DiagnosticIds.UA0019),
                     diagnostic);
-            }
-        }
-
-        private static string GetTypeName(ObjectCreationExpressionSyntax creation)
-        {
-            switch (creation.Type)
-            {
-                case IdentifierNameSyntax id:
-                    return id.Identifier.ValueText;
-                case QualifiedNameSyntax qn:
-                    return qn.Right.Identifier.ValueText;
-                default:
-                    return null;
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
             ObjectCreationExpressionSyntax creation,
-            string typeName,
             CancellationToken cancellationToken)
         {
             InvocationExpressionSyntax replacement = SyntaxFactory
                 .InvocationExpression(
                     SyntaxFactory.MemberAccessExpression(
                         SyntaxKind.SimpleMemberAccessExpression,
-                        SyntaxFactory.IdentifierName(typeName),
-                        SyntaxFactory.IdentifierName("Parse")),
+                        SyntaxFactory.IdentifierName("DataValue"),
+                        SyntaxFactory.IdentifierName("FromStatusCode")),
                     creation.ArgumentList!)
                 .WithTriviaFrom(creation);
 

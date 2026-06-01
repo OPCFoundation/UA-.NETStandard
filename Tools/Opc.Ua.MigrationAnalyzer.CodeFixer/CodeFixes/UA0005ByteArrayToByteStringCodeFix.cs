@@ -39,17 +39,17 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0012 code fix: rewrite <c>CertificateFactory.X(args)</c> as
-    /// <c>DefaultCertificateFactory.Instance.X(args)</c>.
+    /// UA0005 code fix: append <c>.ToByteString()</c> to a <c>byte[]</c>
+    /// argument that needs to become a <c>ByteString</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0012CertificateFactoryStaticToInstanceCodeFix)), Shared]
-    public sealed class UA0012CertificateFactoryStaticToInstanceCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0005ByteArrayToByteStringCodeFix)), Shared]
+    public sealed class UA0005ByteArrayToByteStringCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0012);
+            ImmutableArray.Create(DiagnosticIds.UA0005);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -61,45 +61,40 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-                InvocationExpressionSyntax invocation = node.AncestorsAndSelf()
-                    .OfType<InvocationExpressionSyntax>()
+                ArgumentSyntax argument = node.AncestorsAndSelf()
+                    .OfType<ArgumentSyntax>()
                     .FirstOrDefault();
-                if (invocation is null || invocation.Expression is not MemberAccessExpressionSyntax member)
+                if (argument is null)
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: "Use 'DefaultCertificateFactory.Instance'",
-                        createChangedDocument: ct => ApplyAsync(context.Document, invocation, member, ct),
-                        equivalenceKey: DiagnosticIds.UA0012),
+                        title: "Append '.ToByteString()'",
+                        createChangedDocument: ct => ApplyAsync(context.Document, argument, ct),
+                        equivalenceKey: DiagnosticIds.UA0005),
                     diagnostic);
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
-            InvocationExpressionSyntax invocation,
-            MemberAccessExpressionSyntax member,
+            ArgumentSyntax argument,
             CancellationToken cancellationToken)
         {
-            MemberAccessExpressionSyntax newReceiver = SyntaxFactory.MemberAccessExpression(
-                SyntaxKind.SimpleMemberAccessExpression,
-                SyntaxFactory.IdentifierName("DefaultCertificateFactory"),
-                SyntaxFactory.IdentifierName("Instance"));
+            ExpressionSyntax expr = argument.Expression;
 
-            MemberAccessExpressionSyntax newMember = SyntaxFactory.MemberAccessExpression(
-                SyntaxKind.SimpleMemberAccessExpression,
-                newReceiver,
-                member.Name);
+            InvocationExpressionSyntax newInvocation = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    expr.WithoutTrivia(),
+                    SyntaxFactory.IdentifierName("ToByteString")));
 
-            InvocationExpressionSyntax replacement = invocation
-                .WithExpression(newMember)
-                .WithTriviaFrom(invocation);
+            ArgumentSyntax newArgument = argument.WithExpression(newInvocation);
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            SyntaxNode newRoot = root.ReplaceNode(invocation, replacement);
+            SyntaxNode newRoot = root.ReplaceNode(argument, newArgument);
             return document.WithSyntaxRoot(newRoot);
         }
     }

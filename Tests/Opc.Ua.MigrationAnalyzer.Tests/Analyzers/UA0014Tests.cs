@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 using Opc.Ua.MigrationAnalyzer.Analyzers;
-using Opc.Ua.MigrationAnalyzer.CodeFixes;
+using Opc.Ua.MigrationAnalyzer.CodeFixer;
 
 namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 {

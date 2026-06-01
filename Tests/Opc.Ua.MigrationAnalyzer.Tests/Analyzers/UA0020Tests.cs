@@ -37,7 +37,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using NUnit.Framework;
 using Opc.Ua.MigrationAnalyzer.Analyzers;
-using Opc.Ua.MigrationAnalyzer.CodeFixes;
+using Opc.Ua.MigrationAnalyzer.CodeFixer;
 
 namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 {

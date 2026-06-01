@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
@@ -39,17 +40,17 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0005 code fix: append <c>.ToByteString()</c> to a <c>byte[]</c>
-    /// argument that needs to become a <c>ByteString</c>.
+    /// UA0014 code fix: rewrite <c>DataValue.IsGood(dv)</c> (or the
+    /// <c>DataValueExtensions</c> extension form) as <c>dv.IsGood</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0005ByteArrayToByteStringCodeFix)), Shared]
-    public sealed class UA0005ByteArrayToByteStringCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0014DataValueIsGoodCodeFix)), Shared]
+    public sealed class UA0014DataValueIsGoodCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0005);
+            ImmutableArray.Create(DiagnosticIds.UA0014);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -61,40 +62,60 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-                ArgumentSyntax argument = node.AncestorsAndSelf()
-                    .OfType<ArgumentSyntax>()
+                InvocationExpressionSyntax invocation = node.AncestorsAndSelf()
+                    .OfType<InvocationExpressionSyntax>()
                     .FirstOrDefault();
-                if (argument is null)
+                if (invocation is null || invocation.ArgumentList.Arguments.Count != 1)
+                {
+                    continue;
+                }
+
+                string memberName = GetMemberName(invocation);
+                if (memberName is null)
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: "Append '.ToByteString()'",
-                        createChangedDocument: ct => ApplyAsync(context.Document, argument, ct),
-                        equivalenceKey: DiagnosticIds.UA0005),
+                        title: $"Use '{memberName}' instance property",
+                        createChangedDocument: ct => ApplyAsync(context.Document, invocation, memberName, ct),
+                        equivalenceKey: $"{DiagnosticIds.UA0014}:{memberName}"),
                     diagnostic);
+            }
+        }
+
+        private static string GetMemberName(InvocationExpressionSyntax invocation)
+        {
+            switch (invocation.Expression)
+            {
+                case MemberAccessExpressionSyntax member:
+                    return member.Name.Identifier.ValueText;
+                case IdentifierNameSyntax id:
+                    return id.Identifier.ValueText;
+                default:
+                    return null;
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
-            ArgumentSyntax argument,
+            InvocationExpressionSyntax invocation,
+            string memberName,
             CancellationToken cancellationToken)
         {
-            ExpressionSyntax expr = argument.Expression;
+            ArgumentSyntax arg = invocation.ArgumentList.Arguments[0];
+            ExpressionSyntax receiver = arg.Expression.WithoutTrivia();
 
-            InvocationExpressionSyntax newInvocation = SyntaxFactory.InvocationExpression(
-                SyntaxFactory.MemberAccessExpression(
+            MemberAccessExpressionSyntax replacement = SyntaxFactory
+                .MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
-                    expr.WithoutTrivia(),
-                    SyntaxFactory.IdentifierName("ToByteString")));
-
-            ArgumentSyntax newArgument = argument.WithExpression(newInvocation);
+                    receiver,
+                    SyntaxFactory.IdentifierName(memberName))
+                .WithTriviaFrom(invocation);
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            SyntaxNode newRoot = root.ReplaceNode(argument, newArgument);
+            SyntaxNode newRoot = root.ReplaceNode(invocation, replacement);
             return document.WithSyntaxRoot(newRoot);
         }
     }

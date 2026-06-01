@@ -3,8 +3,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <IsRoslynComponent>true</IsRoslynComponent>
-    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.CodeFixes</AssemblyName>
-    <RootNamespace>Opc.Ua.MigrationAnalyzer.CodeFixes</RootNamespace>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.CodeFixer</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer.CodeFixer</RootNamespace>
     <Description>OPC UA .NET Standard migration code-fix providers (1.5.378 to 2.0). Companion to Opc.Ua.MigrationAnalyzer analyzers.</Description>
     <!-- This assembly hosts the CodeFixProvider implementations only; they reference
          Microsoft.CodeAnalysis.CSharp.Workspaces which is NOT available in csc.exe's

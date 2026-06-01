@@ -35,21 +35,23 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0004 code fix: drop the leading <c>?.</c> of a null-conditional chain
-    /// whose receiver is a now-struct type, leaving any deeper <c>?.</c> intact.
+    /// UA0020 code fix: rewrite instance <c>factory.Create()</c> as
+    /// <c>factory.Fork()</c>. The <c>GlobalFactory</c> form has no
+    /// automatic fix because the replacement
+    /// (<c>ServiceMessageContext.Factory</c>) requires a context instance
+    /// that the analyzer cannot conjure.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0004ConditionalAccessOnStructCodeFix)), Shared]
-    public sealed class UA0004ConditionalAccessOnStructCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0020EncodeableFactoryRenameCodeFix)), Shared]
+    public sealed class UA0020EncodeableFactoryRenameCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0004);
+            ImmutableArray.Create(DiagnosticIds.UA0020);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -60,59 +62,44 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
 
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
+                if (!diagnostic.Properties.TryGetValue(
+                    WellKnownProperties.Form,
+                    out string form) ||
+                    form != WellKnownProperties.FormCreate)
+                {
+                    continue;
+                }
+
                 SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-                ConditionalAccessExpressionSyntax condAccess = node.AncestorsAndSelf()
-                    .OfType<ConditionalAccessExpressionSyntax>()
+                InvocationExpressionSyntax invocation = node.AncestorsAndSelf()
+                    .OfType<InvocationExpressionSyntax>()
                     .FirstOrDefault();
-                if (condAccess is null)
+                if (invocation is null || invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: "Drop '?.' on value-type receiver",
-                        createChangedDocument: ct => ApplyAsync(context.Document, condAccess, ct),
-                        equivalenceKey: DiagnosticIds.UA0004),
+                        title: "Use 'Fork()'",
+                        createChangedDocument: ct => ApplyAsync(context.Document, invocation, memberAccess, ct),
+                        equivalenceKey: DiagnosticIds.UA0020),
                     diagnostic);
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
-            ConditionalAccessExpressionSyntax condAccess,
+            InvocationExpressionSyntax invocation,
+            MemberAccessExpressionSyntax memberAccess,
             CancellationToken cancellationToken)
         {
-            ExpressionSyntax receiver = condAccess.Expression;
-            ExpressionSyntax whenNotNull = condAccess.WhenNotNull;
-
-            MemberBindingExpressionSyntax firstBinding = whenNotNull
-                .DescendantNodesAndSelf()
-                .OfType<MemberBindingExpressionSyntax>()
-                .FirstOrDefault();
-            if (firstBinding is null)
-            {
-                return document;
-            }
-
-            MemberAccessExpressionSyntax memberAccess = SyntaxFactory.MemberAccessExpression(
-                SyntaxKind.SimpleMemberAccessExpression,
-                receiver.WithoutTrivia(),
-                firstBinding.Name);
-
-            ExpressionSyntax replacement;
-            if (firstBinding == whenNotNull)
-            {
-                replacement = memberAccess;
-            }
-            else
-            {
-                replacement = whenNotNull.ReplaceNode(firstBinding, memberAccess);
-            }
-            replacement = replacement.WithTriviaFrom(condAccess);
+            MemberAccessExpressionSyntax newMemberAccess = memberAccess
+                .WithName(Microsoft.CodeAnalysis.CSharp.SyntaxFactory.IdentifierName("Fork"));
+            InvocationExpressionSyntax newInvocation = invocation.WithExpression(newMemberAccess);
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            SyntaxNode newRoot = root.ReplaceNode(condAccess, replacement);
+            SyntaxNode newRoot = root.ReplaceNode(invocation, newInvocation);
             return document.WithSyntaxRoot(newRoot);
         }
     }

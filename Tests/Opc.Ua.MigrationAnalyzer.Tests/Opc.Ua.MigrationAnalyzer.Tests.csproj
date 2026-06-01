@@ -27,6 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer\Opc.Ua.MigrationAnalyzer.csproj" />
-    <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer.CodeFixes\Opc.Ua.MigrationAnalyzer.CodeFixes.csproj" />
+    <ProjectReference Include="..\..\Tools\Opc.Ua.MigrationAnalyzer.CodeFixer\Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
   </ItemGroup>
 </Project>

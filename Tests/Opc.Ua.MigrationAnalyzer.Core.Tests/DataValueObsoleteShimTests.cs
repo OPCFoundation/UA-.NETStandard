@@ -29,35 +29,45 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Gds.Client;
 
-namespace Opc.Ua.MigrationHelpers.Tests
+namespace Opc.Ua.MigrationAnalyzer.Core.Tests
 {
     /// <summary>
-    /// Runtime tests for <see cref="LocalDiscoveryServerClientShim"/>.
+    /// Runtime tests for the obsolete static <c>DataValue.IsGood</c> /
+    /// <c>IsBad</c> shim helpers defined in <c>DataValueObsolete</c>. Regression
+    /// guard for the Phase 11.A fix that corrected the extension receiver type
+    /// from <c>ExtensionObject</c> to <c>DataValue</c>; the wrong receiver type
+    /// would have made these statics unreachable via the <c>DataValue.</c>
+    /// qualifier (which is exactly how callers invoke them).
     /// </summary>
-    /// <remarks>
-    /// <see cref="LocalDiscoveryServerClient.FindServersAsync"/> is not
-    /// virtual, so the APM <c>BeginFindServers</c>/<c>EndFindServers</c>
-    /// adapter cannot be exercised against a Moq stand-in. End-to-end
-    /// validation requires a live LDS endpoint and lives in the discovery
-    /// integration suite.
-    /// </remarks>
     [TestFixture]
     [Category("Shim")]
-    public class LocalDiscoveryServerClientShimTests
+    public class DataValueObsoleteShimTests
     {
-        /// <summary>
-        /// Placeholder for the APM adapter test. Requires a live LDS
-        /// endpoint to drive <c>FindServersAsync</c>.
-        /// </summary>
         [Test]
-        [Ignore("Requires Local Discovery Server endpoint: " +
-            "LocalDiscoveryServerClient.FindServersAsync is non-virtual, so " +
-            "the APM Begin/End shim cannot be intercepted via Moq. " +
-            "Integration coverage lives in Opc.Ua.Lds.Tests.")]
-        public Task BeginEndFindServersDeliverAsyncResultAsync()
+        public Task IsGoodOnDefaultDataValueReturnsTrueAsync()
         {
+#pragma warning disable CS0618 // Intentional shim call.
+            bool isGood = DataValue.IsGood(default(DataValue));
+#pragma warning restore CS0618
+
+            Assert.That(isGood, Is.True);
+            return Task.CompletedTask;
+        }
+
+        [Test]
+        public Task IsBadOnBadStatusCodeReturnsTrueAsync()
+        {
+            // Construct via FromStatusCode to avoid the obsolete numeric overload
+            // ambiguity flagged on the DataValue(StatusCode) constructor.
+            StatusCode bad = Opc.Ua.Types.StatusCodes.Bad;
+            DataValue dv = DataValue.FromStatusCode(bad);
+
+#pragma warning disable CS0618 // Intentional shim call.
+            bool isBad = DataValue.IsBad(dv);
+#pragma warning restore CS0618
+
+            Assert.That(isBad, Is.True);
             return Task.CompletedTask;
         }
     }

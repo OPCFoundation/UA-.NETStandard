@@ -40,7 +40,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 using Opc.Ua.MigrationAnalyzer.Helpers;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
     /// UA0002 code fix: rewrite every reference to a removed

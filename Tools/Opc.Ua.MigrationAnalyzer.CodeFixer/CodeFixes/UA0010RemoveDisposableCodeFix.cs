@@ -34,7 +34,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
     /// UA0010 code fix: intentionally diagnostic-only — removing the

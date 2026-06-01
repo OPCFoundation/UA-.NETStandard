@@ -11,7 +11,7 @@
   <ItemGroup>
     <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll"
               Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll')" />
-    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixes.dll"
-              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixes.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll')" />
   </ItemGroup>
 </Project>

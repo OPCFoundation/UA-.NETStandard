@@ -39,18 +39,21 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0003 code fix: rewrite <c>x == null</c> as <c>x.IsNull</c> (or
-    /// <c>x.IsNullOrEmpty</c> for LocalizedText) and <c>x != null</c> as the
-    /// negated form.
+    /// UA0022 code fix: rewrite <c>xxx.CertificateValidator</c> as
+    /// <c>xxx.CertificateManager</c>. Only the property identifier is
+    /// renamed; downstream member access on the (now differently-typed)
+    /// <c>ICertificateManager</c> result may still need manual review.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0003NullCheckOnStructTypeCodeFix)), Shared]
-    public sealed class UA0003NullCheckOnStructTypeCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0022CertificateValidatorPropertyRenameCodeFix)), Shared]
+    public sealed class UA0022CertificateValidatorPropertyRenameCodeFix : CodeFixProvider
     {
+        private const string NewPropertyName = "CertificateManager";
+
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0003);
+            ImmutableArray.Create(DiagnosticIds.UA0022);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -62,73 +65,40 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-                BinaryExpressionSyntax binary = node.AncestorsAndSelf()
-                    .OfType<BinaryExpressionSyntax>()
-                    .FirstOrDefault(b => b.IsKind(SyntaxKind.EqualsExpression) || b.IsKind(SyntaxKind.NotEqualsExpression));
-                if (binary is null)
+                MemberAccessExpressionSyntax memberAccess = node.AncestorsAndSelf()
+                    .OfType<MemberAccessExpressionSyntax>()
+                    .FirstOrDefault();
+                if (memberAccess is null ||
+                    memberAccess.Name.Identifier.ValueText != "CertificateValidator")
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: "Use '.IsNull' instead of null comparison",
-                        createChangedDocument: ct => ApplyAsync(context.Document, binary, ct),
-                        equivalenceKey: DiagnosticIds.UA0003),
+                        title: "Use 'CertificateManager' property",
+                        createChangedDocument: ct => ApplyAsync(context.Document, memberAccess, ct),
+                        equivalenceKey: DiagnosticIds.UA0022),
                     diagnostic);
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
-            BinaryExpressionSyntax binary,
+            MemberAccessExpressionSyntax memberAccess,
             CancellationToken cancellationToken)
         {
-            SemanticModel model = (await document.GetSemanticModelAsync(cancellationToken)
-                .ConfigureAwait(false))!;
-
-            ExpressionSyntax valueExpr = GetValueExpression(binary);
-            if (valueExpr is null)
-            {
-                return document;
-            }
-
-            ITypeSymbol valueType = model.GetTypeInfo(valueExpr, cancellationToken).Type;
-            if (valueType is INamedTypeSymbol nullable &&
-                nullable.OriginalDefinition?.SpecialType == SpecialType.System_Nullable_T &&
-                nullable.TypeArguments.Length == 1)
-            {
-                valueType = nullable.TypeArguments[0];
-            }
-            string memberName = valueType?.Name == "LocalizedText" ? "IsNullOrEmpty" : "IsNull";
-
-            MemberAccessExpressionSyntax access = SyntaxFactory.MemberAccessExpression(
-                SyntaxKind.SimpleMemberAccessExpression,
-                valueExpr.WithoutTrivia(),
-                SyntaxFactory.IdentifierName(memberName));
-
-            ExpressionSyntax replacement = binary.IsKind(SyntaxKind.EqualsExpression)
-                ? (ExpressionSyntax)access
-                : SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, access);
-
-            replacement = replacement.WithTriviaFrom(binary);
+            SyntaxToken oldIdentifier = memberAccess.Name.Identifier;
+            SyntaxToken newIdentifier = SyntaxFactory.Identifier(
+                oldIdentifier.LeadingTrivia,
+                NewPropertyName,
+                oldIdentifier.TrailingTrivia);
+            MemberAccessExpressionSyntax newMemberAccess = memberAccess
+                .WithName(SyntaxFactory.IdentifierName(newIdentifier));
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            SyntaxNode newRoot = root.ReplaceNode(binary, replacement);
+            SyntaxNode newRoot = root.ReplaceNode(memberAccess, newMemberAccess);
             return document.WithSyntaxRoot(newRoot);
-        }
-
-        private static ExpressionSyntax GetValueExpression(BinaryExpressionSyntax binary)
-        {
-            if (binary.Left.IsKind(SyntaxKind.NullLiteralExpression))
-            {
-                return binary.Right;
-            }
-            if (binary.Right.IsKind(SyntaxKind.NullLiteralExpression))
-            {
-                return binary.Left;
-            }
-            return null;
         }
     }
 }

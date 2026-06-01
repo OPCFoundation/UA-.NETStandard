@@ -33,7 +33,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.MigrationHelpers.Tests
+namespace Opc.Ua.MigrationAnalyzer.Core.Tests
 {
     /// <summary>
     /// Runtime tests for <see cref="UserIdentityTokenHandlerShim"/>.

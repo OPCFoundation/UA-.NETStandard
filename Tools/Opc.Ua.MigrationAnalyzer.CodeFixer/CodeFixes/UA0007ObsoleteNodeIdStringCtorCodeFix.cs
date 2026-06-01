@@ -35,23 +35,21 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0020 code fix: rewrite instance <c>factory.Create()</c> as
-    /// <c>factory.Fork()</c>. The <c>GlobalFactory</c> form has no
-    /// automatic fix because the replacement
-    /// (<c>ServiceMessageContext.Factory</c>) requires a context instance
-    /// that the analyzer cannot conjure.
+    /// UA0007 code fix: rewrite <c>new NodeId(s)</c> / <c>new ExpandedNodeId(s)</c>
+    /// as the corresponding <c>Parse(s)</c> call.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0020EncodeableFactoryRenameCodeFix)), Shared]
-    public sealed class UA0020EncodeableFactoryRenameCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0007ObsoleteNodeIdStringCtorCodeFix)), Shared]
+    public sealed class UA0007ObsoleteNodeIdStringCtorCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0020);
+            ImmutableArray.Create(DiagnosticIds.UA0007);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -62,44 +60,60 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
 
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
-                if (!diagnostic.Properties.TryGetValue(
-                    WellKnownProperties.Form,
-                    out string form) ||
-                    form != WellKnownProperties.FormCreate)
+                SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
+                ObjectCreationExpressionSyntax creation = node.AncestorsAndSelf()
+                    .OfType<ObjectCreationExpressionSyntax>()
+                    .FirstOrDefault();
+                if (creation is null || creation.ArgumentList is null)
                 {
                     continue;
                 }
 
-                SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-                InvocationExpressionSyntax invocation = node.AncestorsAndSelf()
-                    .OfType<InvocationExpressionSyntax>()
-                    .FirstOrDefault();
-                if (invocation is null || invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+                string typeName = GetTypeName(creation);
+                if (typeName is null)
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: "Use 'Fork()'",
-                        createChangedDocument: ct => ApplyAsync(context.Document, invocation, memberAccess, ct),
-                        equivalenceKey: DiagnosticIds.UA0020),
+                        title: $"Use '{typeName}.Parse(s)'",
+                        createChangedDocument: ct => ApplyAsync(context.Document, creation, typeName, ct),
+                        equivalenceKey: $"{DiagnosticIds.UA0007}:{typeName}"),
                     diagnostic);
+            }
+        }
+
+        private static string GetTypeName(ObjectCreationExpressionSyntax creation)
+        {
+            switch (creation.Type)
+            {
+                case IdentifierNameSyntax id:
+                    return id.Identifier.ValueText;
+                case QualifiedNameSyntax qn:
+                    return qn.Right.Identifier.ValueText;
+                default:
+                    return null;
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
-            InvocationExpressionSyntax invocation,
-            MemberAccessExpressionSyntax memberAccess,
+            ObjectCreationExpressionSyntax creation,
+            string typeName,
             CancellationToken cancellationToken)
         {
-            MemberAccessExpressionSyntax newMemberAccess = memberAccess
-                .WithName(Microsoft.CodeAnalysis.CSharp.SyntaxFactory.IdentifierName("Fork"));
-            InvocationExpressionSyntax newInvocation = invocation.WithExpression(newMemberAccess);
+            InvocationExpressionSyntax replacement = SyntaxFactory
+                .InvocationExpression(
+                    SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        SyntaxFactory.IdentifierName(typeName),
+                        SyntaxFactory.IdentifierName("Parse")),
+                    creation.ArgumentList!)
+                .WithTriviaFrom(creation);
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            SyntaxNode newRoot = root.ReplaceNode(invocation, newInvocation);
+            SyntaxNode newRoot = root.ReplaceNode(creation, replacement);
             return document.WithSyntaxRoot(newRoot);
         }
     }

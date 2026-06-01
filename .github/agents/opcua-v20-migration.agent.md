@@ -20,8 +20,8 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
    ```
 
    The package bundles two payloads:
-   - **Analyzer + code-fix DLLs** (`Opc.Ua.MigrationAnalyzer.dll`, `Opc.Ua.MigrationAnalyzer.CodeFixes.dll`) loaded into csc.exe and the IDE.
-   - **Compatibility shim** (`Opc.Ua.MigrationHelpers.dll`) that re-exposes the 1.5.378 obsolete extension surface so 1.5.378-style call sites compile against 2.0 with warnings instead of errors.
+   - **Analyzer + code-fix DLLs** (`Opc.Ua.MigrationAnalyzer.dll`, `Opc.Ua.MigrationAnalyzer.CodeFixer.dll`) loaded into csc.exe and the IDE.
+   - **Compatibility shim** (`Opc.Ua.MigrationAnalyzer.Core.dll`) that re-exposes the 1.5.378 obsolete extension surface so 1.5.378-style call sites compile against 2.0 with warnings instead of errors.
 
 2. **Bump the OPC UA package versions to `2.0.*-*`** in every consumer project. Do NOT remove existing `OPCFoundation.NetStandard.Opc.Ua.*` references — just update their `Version` attribute.
 
@@ -70,7 +70,7 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
 
 ## What the shim covers
 
-`Opc.Ua.MigrationHelpers.dll` re-exposes the 1.5.378 surface as C# 14 `extension` members so 1.5.378 call sites continue to compile:
+`Opc.Ua.MigrationAnalyzer.Core.dll` re-exposes the 1.5.378 surface as C# 14 `extension` members so 1.5.378 call sites continue to compile:
 
 - **Moved obsolete extensions**: `NodeId` / `Variant` / `DataValue` null-check helpers, `Session` sync helpers, `Subscription` sync helpers, `ApplicationInstance` helpers, `ServerBase.Start` / `Stop`, `TransportChannel` APM, `ChannelBase` static factory methods, and similar surface.
 - **New shims for genuinely-removed members**: `EncodeableFactory.GlobalFactory`, `CertificateIdentifier.Certificate` (throws), sync wrappers for `IUserIdentityTokenHandler.{Encrypt,Decrypt,Sign,Verify}`, sync + APM wrappers for GDS / LDS client APIs.

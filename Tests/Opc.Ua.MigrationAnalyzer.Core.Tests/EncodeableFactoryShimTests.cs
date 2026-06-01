@@ -27,35 +27,30 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.MigrationHelpers.Tests
+namespace Opc.Ua.MigrationAnalyzer.Core.Tests
 {
     /// <summary>
-    /// Runtime tests for <see cref="CertificateIdentifierShim"/>.
+    /// Runtime tests for <see cref="EncodeableFactoryShim"/>.
     /// </summary>
     [TestFixture]
     [Category("Shim")]
-    public class CertificateIdentifierShimTests
+    public class EncodeableFactoryShimTests
     {
         /// <summary>
-        /// Accessing the obsolete <c>Certificate</c> property must throw
-        /// <see cref="NotSupportedException"/> with the migration-pointer
-        /// message that names the async resolver replacement.
+        /// The static <c>GlobalFactory</c> shim must return the same
+        /// instance as <c>ServiceMessageContext.GlobalContext.Factory</c>.
         /// </summary>
         [Test]
-        public Task CertificateGetterThrowsNotSupportedAsync()
+        public Task GlobalFactoryReturnsServiceMessageContextGlobalFactoryAsync()
         {
-            var id = new CertificateIdentifier();
-
-#pragma warning disable CS0618 // CertificateIdentifier.Certificate is an intentional shim call.
-            NotSupportedException ex = Assert.Throws<NotSupportedException>(
-                () => { _ = id.Certificate; })!;
+#pragma warning disable CS0618 // EncodeableFactory.GlobalFactory is an intentional shim call.
+            IEncodeableFactory shimFactory = EncodeableFactory.GlobalFactory;
+            Assert.That(shimFactory, Is.Not.Null);
+            Assert.That(shimFactory, Is.SameAs(ServiceMessageContext.GlobalContext.Factory));
 #pragma warning restore CS0618
-
-            Assert.That(ex.Message, Does.Contain("CertificateIdentifierResolver.ResolveAsync"));
             return Task.CompletedTask;
         }
     }

@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <icon>images/logo.jpg</icon>
     <readme>NugetREADME.md</readme>
-    <description>OPC UA .NET Standard migration analyzers and code fixers (UA0001-UA0020) bundled with the Opc.Ua.MigrationHelpers compatibility assembly that re-exposes the 1.5.378 obsolete surface to ease the move to 1.6.</description>
+    <description>OPC UA .NET Standard migration analyzers and code fixers (UA0001-UA0020) bundled with the Opc.Ua.MigrationAnalyzer.Core compatibility assembly that re-exposes the 1.5.378 obsolete surface to ease the move to 1.6.</description>
     <copyright>Copyright (c) 2004-2025 OPC Foundation, Inc</copyright>
     <tags>OPCFoundation OPC UA analyzer codefix roslyn migration shim</tags>
     <developmentDependency>true</developmentDependency>
@@ -69,13 +69,13 @@
   </metadata>
   <files>
     <file src="$analyzerDll$" target="analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll" />
-    <file src="$codeFixesDll$" target="analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixes.dll" />
-    <file src="$shimBin$\net472\Opc.Ua.MigrationHelpers.dll" target="lib\net472\Opc.Ua.MigrationHelpers.dll" />
-    <file src="$shimBin$\net48\Opc.Ua.MigrationHelpers.dll" target="lib\net48\Opc.Ua.MigrationHelpers.dll" />
-    <file src="$shimBin$\netstandard2.1\Opc.Ua.MigrationHelpers.dll" target="lib\netstandard2.1\Opc.Ua.MigrationHelpers.dll" />
-    <file src="$shimBin$\net8.0\Opc.Ua.MigrationHelpers.dll" target="lib\net8.0\Opc.Ua.MigrationHelpers.dll" />
-    <file src="$shimBin$\net9.0\Opc.Ua.MigrationHelpers.dll" target="lib\net9.0\Opc.Ua.MigrationHelpers.dll" />
-    <file src="$shimBin$\net10.0\Opc.Ua.MigrationHelpers.dll" target="lib\net10.0\Opc.Ua.MigrationHelpers.dll" />
+    <file src="$codeFixesDll$" target="analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll" />
+    <file src="$shimBin$\net472\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net472\Opc.Ua.MigrationAnalyzer.Core.dll" />
+    <file src="$shimBin$\net48\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net48\Opc.Ua.MigrationAnalyzer.Core.dll" />
+    <file src="$shimBin$\netstandard2.1\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\netstandard2.1\Opc.Ua.MigrationAnalyzer.Core.dll" />
+    <file src="$shimBin$\net8.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net8.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
+    <file src="$shimBin$\net9.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net9.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
+    <file src="$shimBin$\net10.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net10.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$propsFile$" target="build\OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" />
     <file src="$repoRoot$\LICENSE.txt" target="LICENSE.txt" />
     <file src="$repoRoot$\nuget\logo.jpg" target="images\logo.jpg" />

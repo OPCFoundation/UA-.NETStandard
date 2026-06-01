@@ -39,21 +39,17 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0022 code fix: rewrite <c>xxx.CertificateValidator</c> as
-    /// <c>xxx.CertificateManager</c>. Only the property identifier is
-    /// renamed; downstream member access on the (now differently-typed)
-    /// <c>ICertificateManager</c> result may still need manual review.
+    /// UA0004 code fix: drop the leading <c>?.</c> of a null-conditional chain
+    /// whose receiver is a now-struct type, leaving any deeper <c>?.</c> intact.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0022CertificateValidatorPropertyRenameCodeFix)), Shared]
-    public sealed class UA0022CertificateValidatorPropertyRenameCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0004ConditionalAccessOnStructCodeFix)), Shared]
+    public sealed class UA0004ConditionalAccessOnStructCodeFix : CodeFixProvider
     {
-        private const string NewPropertyName = "CertificateManager";
-
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0022);
+            ImmutableArray.Create(DiagnosticIds.UA0004);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -65,39 +61,58 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 SyntaxNode node = root.FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-                MemberAccessExpressionSyntax memberAccess = node.AncestorsAndSelf()
-                    .OfType<MemberAccessExpressionSyntax>()
+                ConditionalAccessExpressionSyntax condAccess = node.AncestorsAndSelf()
+                    .OfType<ConditionalAccessExpressionSyntax>()
                     .FirstOrDefault();
-                if (memberAccess is null ||
-                    memberAccess.Name.Identifier.ValueText != "CertificateValidator")
+                if (condAccess is null)
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: "Use 'CertificateManager' property",
-                        createChangedDocument: ct => ApplyAsync(context.Document, memberAccess, ct),
-                        equivalenceKey: DiagnosticIds.UA0022),
+                        title: "Drop '?.' on value-type receiver",
+                        createChangedDocument: ct => ApplyAsync(context.Document, condAccess, ct),
+                        equivalenceKey: DiagnosticIds.UA0004),
                     diagnostic);
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
-            MemberAccessExpressionSyntax memberAccess,
+            ConditionalAccessExpressionSyntax condAccess,
             CancellationToken cancellationToken)
         {
-            SyntaxToken oldIdentifier = memberAccess.Name.Identifier;
-            SyntaxToken newIdentifier = SyntaxFactory.Identifier(
-                oldIdentifier.LeadingTrivia,
-                NewPropertyName,
-                oldIdentifier.TrailingTrivia);
-            MemberAccessExpressionSyntax newMemberAccess = memberAccess
-                .WithName(SyntaxFactory.IdentifierName(newIdentifier));
+            ExpressionSyntax receiver = condAccess.Expression;
+            ExpressionSyntax whenNotNull = condAccess.WhenNotNull;
+
+            MemberBindingExpressionSyntax firstBinding = whenNotNull
+                .DescendantNodesAndSelf()
+                .OfType<MemberBindingExpressionSyntax>()
+                .FirstOrDefault();
+            if (firstBinding is null)
+            {
+                return document;
+            }
+
+            MemberAccessExpressionSyntax memberAccess = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                receiver.WithoutTrivia(),
+                firstBinding.Name);
+
+            ExpressionSyntax replacement;
+            if (firstBinding == whenNotNull)
+            {
+                replacement = memberAccess;
+            }
+            else
+            {
+                replacement = whenNotNull.ReplaceNode(firstBinding, memberAccess);
+            }
+            replacement = replacement.WithTriviaFrom(condAccess);
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
-            SyntaxNode newRoot = root.ReplaceNode(memberAccess, newMemberAccess);
+            SyntaxNode newRoot = root.ReplaceNode(condAccess, replacement);
             return document.WithSyntaxRoot(newRoot);
         }
     }

@@ -8,7 +8,7 @@ ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
 - a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0022`) that flags every
   pattern covered by [`Docs/MigrationGuide.md`](../../Docs/MigrationGuide.md)
   and, where safe, applies the fix automatically; and
-- a **compatibility shim** assembly (`Opc.Ua.MigrationHelpers.dll`) that
+- a **compatibility shim** assembly (`Opc.Ua.MigrationAnalyzer.Core.dll`) that
   re-supplies the obsolete extension surface 1.6 moved or removed, so most
   consumer projects still compile after the upgrade.
 
@@ -57,7 +57,7 @@ ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
 
 ## What the shim provides
 
-`Opc.Ua.MigrationHelpers.dll` is delivered as a regular reference assembly and
+`Opc.Ua.MigrationAnalyzer.Core.dll` is delivered as a regular reference assembly and
 re-exposes the 1.5.378 surface in two flavors:
 
 - **Moved obsolete extensions** the 1.6 libraries no longer carry inline:
@@ -121,7 +121,7 @@ The package ships **two analyzer DLLs** under `analyzers/dotnet/cs/`:
   (the stable analyzer API) and references **only** `Microsoft.CodeAnalysis.CSharp` so it
   loads cleanly in csc.exe's analyzer host (which ships only `Microsoft.CodeAnalysis.dll`
   + `CSharp.dll`, not `Workspaces`). All `DiagnosticAnalyzer` types live here.
-- `Opc.Ua.MigrationAnalyzer.CodeFixes.dll` — the code-fix assembly. References
+- `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` — the code-fix assembly. References
   `Microsoft.CodeAnalysis.CSharp.Workspaces` and hosts all `CodeFixProvider` types.
   Loaded only by Workspaces-aware hosts (Visual Studio / `dotnet format`).
 

@@ -27,47 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.MigrationHelpers.Tests
+namespace Opc.Ua.MigrationAnalyzer.Core.Tests
 {
     /// <summary>
-    /// Runtime tests for the obsolete static <c>DataValue.IsGood</c> /
-    /// <c>IsBad</c> shim helpers defined in <c>DataValueObsolete</c>. Regression
-    /// guard for the Phase 11.A fix that corrected the extension receiver type
-    /// from <c>ExtensionObject</c> to <c>DataValue</c>; the wrong receiver type
-    /// would have made these statics unreachable via the <c>DataValue.</c>
-    /// qualifier (which is exactly how callers invoke them).
+    /// Runtime tests for <see cref="CertificateIdentifierShim"/>.
     /// </summary>
     [TestFixture]
     [Category("Shim")]
-    public class DataValueObsoleteShimTests
+    public class CertificateIdentifierShimTests
     {
+        /// <summary>
+        /// Accessing the obsolete <c>Certificate</c> property must throw
+        /// <see cref="NotSupportedException"/> with the migration-pointer
+        /// message that names the async resolver replacement.
+        /// </summary>
         [Test]
-        public Task IsGoodOnDefaultDataValueReturnsTrueAsync()
+        public Task CertificateGetterThrowsNotSupportedAsync()
         {
-#pragma warning disable CS0618 // Intentional shim call.
-            bool isGood = DataValue.IsGood(default(DataValue));
+            var id = new CertificateIdentifier();
+
+#pragma warning disable CS0618 // CertificateIdentifier.Certificate is an intentional shim call.
+            NotSupportedException ex = Assert.Throws<NotSupportedException>(
+                () => { _ = id.Certificate; })!;
 #pragma warning restore CS0618
 
-            Assert.That(isGood, Is.True);
-            return Task.CompletedTask;
-        }
-
-        [Test]
-        public Task IsBadOnBadStatusCodeReturnsTrueAsync()
-        {
-            // Construct via FromStatusCode to avoid the obsolete numeric overload
-            // ambiguity flagged on the DataValue(StatusCode) constructor.
-            StatusCode bad = Opc.Ua.Types.StatusCodes.Bad;
-            DataValue dv = DataValue.FromStatusCode(bad);
-
-#pragma warning disable CS0618 // Intentional shim call.
-            bool isBad = DataValue.IsBad(dv);
-#pragma warning restore CS0618
-
-            Assert.That(isBad, Is.True);
+            Assert.That(ex.Message, Does.Contain("CertificateIdentifierResolver.ResolveAsync"));
             return Task.CompletedTask;
         }
     }

@@ -6,11 +6,11 @@
     <Project Path="Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
   </Folder>
   <Folder Name="/MigrationAnalyzer/">
-    <Project Path="../Tests/Opc.Ua.MigrationHelpers.Tests/Opc.Ua.MigrationHelpers.Tests.csproj" />
+    <Project Path="../Tests/Opc.Ua.MigrationAnalyzer.Core.Tests/Opc.Ua.MigrationAnalyzer.Core.Tests.csproj" />
     <Project Path="../Tests/Opc.Ua.MigrationAnalyzer.Tests/Opc.Ua.MigrationAnalyzer.Tests.csproj" />
     <Project Path="Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj" />
-    <Project Path="Opc.Ua.MigrationAnalyzer.CodeFixes/Opc.Ua.MigrationAnalyzer.CodeFixes.csproj" />
-    <Project Path="Opc.Ua.MigrationHelpers/Opc.Ua.MigrationHelpers.csproj" />
+    <Project Path="Opc.Ua.MigrationAnalyzer.CodeFixer/Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
+    <Project Path="Opc.Ua.MigrationAnalyzer.Core/Opc.Ua.MigrationAnalyzer.Core.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="../.editorconfig" />

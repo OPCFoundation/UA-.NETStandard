@@ -35,7 +35,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Opc.Ua.MigrationHelpers.Tests
+namespace Opc.Ua.MigrationAnalyzer.Core.Tests
 {
     /// <summary>
     /// Meta-tests that scan every <see cref="OpcUaShimAttribute"/>-marked

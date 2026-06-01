@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).MigrationHelpers</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.Core</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA 1.5.378 → 1.6 compatibility shim. Provides the obsolete extension-method surface that 1.6 removed, marked [Obsolete] so the matching Opc.Ua.MigrationAnalyzer analyzer rules guide consumers off it. Ships in the OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet alongside the analyzer DLL.</Description>

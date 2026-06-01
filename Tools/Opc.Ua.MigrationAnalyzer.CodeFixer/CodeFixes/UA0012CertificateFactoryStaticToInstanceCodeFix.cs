@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
@@ -40,17 +39,17 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Opc.Ua.MigrationAnalyzer.Diagnostics;
 
-namespace Opc.Ua.MigrationAnalyzer.CodeFixes
+namespace Opc.Ua.MigrationAnalyzer.CodeFixer
 {
     /// <summary>
-    /// UA0014 code fix: rewrite <c>DataValue.IsGood(dv)</c> (or the
-    /// <c>DataValueExtensions</c> extension form) as <c>dv.IsGood</c>.
+    /// UA0012 code fix: rewrite <c>CertificateFactory.X(args)</c> as
+    /// <c>DefaultCertificateFactory.Instance.X(args)</c>.
     /// </summary>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0014DataValueIsGoodCodeFix)), Shared]
-    public sealed class UA0014DataValueIsGoodCodeFix : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UA0012CertificateFactoryStaticToInstanceCodeFix)), Shared]
+    public sealed class UA0012CertificateFactoryStaticToInstanceCodeFix : CodeFixProvider
     {
         public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-            ImmutableArray.Create(DiagnosticIds.UA0014);
+            ImmutableArray.Create(DiagnosticIds.UA0012);
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -65,53 +64,38 @@ namespace Opc.Ua.MigrationAnalyzer.CodeFixes
                 InvocationExpressionSyntax invocation = node.AncestorsAndSelf()
                     .OfType<InvocationExpressionSyntax>()
                     .FirstOrDefault();
-                if (invocation is null || invocation.ArgumentList.Arguments.Count != 1)
-                {
-                    continue;
-                }
-
-                string memberName = GetMemberName(invocation);
-                if (memberName is null)
+                if (invocation is null || invocation.Expression is not MemberAccessExpressionSyntax member)
                 {
                     continue;
                 }
 
                 context.RegisterCodeFix(
                     CodeAction.Create(
-                        title: $"Use '{memberName}' instance property",
-                        createChangedDocument: ct => ApplyAsync(context.Document, invocation, memberName, ct),
-                        equivalenceKey: $"{DiagnosticIds.UA0014}:{memberName}"),
+                        title: "Use 'DefaultCertificateFactory.Instance'",
+                        createChangedDocument: ct => ApplyAsync(context.Document, invocation, member, ct),
+                        equivalenceKey: DiagnosticIds.UA0012),
                     diagnostic);
-            }
-        }
-
-        private static string GetMemberName(InvocationExpressionSyntax invocation)
-        {
-            switch (invocation.Expression)
-            {
-                case MemberAccessExpressionSyntax member:
-                    return member.Name.Identifier.ValueText;
-                case IdentifierNameSyntax id:
-                    return id.Identifier.ValueText;
-                default:
-                    return null;
             }
         }
 
         private static async Task<Document> ApplyAsync(
             Document document,
             InvocationExpressionSyntax invocation,
-            string memberName,
+            MemberAccessExpressionSyntax member,
             CancellationToken cancellationToken)
         {
-            ArgumentSyntax arg = invocation.ArgumentList.Arguments[0];
-            ExpressionSyntax receiver = arg.Expression.WithoutTrivia();
+            MemberAccessExpressionSyntax newReceiver = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                SyntaxFactory.IdentifierName("DefaultCertificateFactory"),
+                SyntaxFactory.IdentifierName("Instance"));
 
-            MemberAccessExpressionSyntax replacement = SyntaxFactory
-                .MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    receiver,
-                    SyntaxFactory.IdentifierName(memberName))
+            MemberAccessExpressionSyntax newMember = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                newReceiver,
+                member.Name);
+
+            InvocationExpressionSyntax replacement = invocation
+                .WithExpression(newMember)
                 .WithTriviaFrom(invocation);
 
             SyntaxNode root = (await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false))!;
