@@ -164,7 +164,10 @@ namespace Opc.Ua.Di.Tests
         private static async Task<byte[]> ReadAllAsync(
             MemoryPackageStore store, string packageId)
         {
-            await using Stream stream = await store
+            // 'using' (sync dispose) instead of 'await using' so the
+            // assertion helper compiles on net48 where System.IO.Stream
+            // does not implement IAsyncDisposable.
+            using Stream stream = await store
                 .OpenReadAsync(packageId, CancellationToken.None)
                 .ConfigureAwait(false);
             using var ms = new MemoryStream();
