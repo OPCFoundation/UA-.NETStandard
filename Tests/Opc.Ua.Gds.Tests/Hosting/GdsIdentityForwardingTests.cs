@@ -55,34 +55,6 @@ namespace Opc.Ua.Gds.Tests.Hosting
     public sealed class GdsIdentityForwardingTests
     {
         [Test]
-        public void ConfigureRolesActionMatchesServerBuilderRegistration()
-        {
-            IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
-                builder.ConfigureRoles(options => { }));
-            IReadOnlyList<string> gdsDelta = CaptureGdsDelta(builder =>
-                builder.ConfigureRoles(options => { }));
-
-            Assert.That(gdsDelta, Is.EqualTo(serverDelta));
-        }
-
-        [Test]
-        public void ConfigureRolesActionRegistersOptions()
-        {
-            var services = new ServiceCollection();
-            IGdsServerBuilder builder = services.AddOpcUa()
-                .AddGdsServer(options => options.ApplicationName = "Gds");
-
-            IGdsServerBuilder returned = builder.ConfigureRoles(options => { });
-
-            using ServiceProvider sp = services.BuildServiceProvider();
-
-            Assert.That(returned, Is.SameAs(builder));
-            Assert.That(
-                sp.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value,
-                Is.Not.Null);
-        }
-
-        [Test]
         public void AddIdentityAuthenticatorMatchesServerBuilderRegistration()
         {
             IReadOnlyList<string> serverDelta = CaptureServerDelta(builder =>
@@ -219,17 +191,17 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 string.Empty,
                 identityAugmenterRegistration);
 
-            const string selfAdminOptions =
-                "Opc.Ua.Gds.Server.Hosting.GdsApplicationSelfAdminProviderOptions";
+            const string defaultAuthenticatorOptions =
+                "Opc.Ua.Gds.Server.Hosting.GdsDefaultIdentityAuthenticatorOptions";
 
             Assert.That(gdsDelta.Take(serverDelta.Count), Is.EqualTo(serverDelta));
             Assert.That(gdsDelta.Skip(serverDelta.Count).ToArray(), Has.Length.EqualTo(2));
             Assert.That(
                 gdsDelta[serverDelta.Count],
-                Does.Contain("Microsoft.Extensions.Options.IConfigureOptions`1[[" + selfAdminOptions));
+                Does.Contain("Microsoft.Extensions.Options.IPostConfigureOptions`1[[" + defaultAuthenticatorOptions));
             Assert.That(
                 gdsDelta[serverDelta.Count],
-                Does.Contain("Microsoft.Extensions.Options.ConfigureNamedOptions`1[[" + selfAdminOptions));
+                Does.Contain("Microsoft.Extensions.Options.PostConfigureOptions`1[[" + defaultAuthenticatorOptions));
             Assert.That(gdsDelta[serverDelta.Count + 1], Is.EqualTo(selfAdminRegistration));
         }
 

@@ -105,7 +105,7 @@ builder.WithAuthorizationService<MyTokenIssuer>(o =>
 });
 ```
 
-`MyTokenIssuer` implements `Opc.Ua.Identity.ITokenIssuer`. The default `EcdsaJwtIssuer` signs hand-rolled RFC 7515 JWS tokens with ECDSA (`ES256`/`ES384`/`ES512`) or RSA (`RS256` default; RSA-PSS supported by custom issuers) without adding a JWT package dependency.
+`MyTokenIssuer` implements `Opc.Ua.Identity.ITokenIssuer`. The default `CertificateJwtIssuer` signs hand-rolled RFC 7515 JWS tokens with ECDSA (`ES256`/`ES384`/`ES512`) or RSA (`RS256` default; RSA-PSS supported by custom issuers) without adding a JWT package dependency.
 
 ### Custom `ITokenIssuer` for cloud or HSM signing
 

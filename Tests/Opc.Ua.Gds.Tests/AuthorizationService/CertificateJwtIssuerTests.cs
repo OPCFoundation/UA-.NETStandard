@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public sealed class EcdsaJwtIssuerTests
+    public sealed class CertificateJwtIssuerTests
     {
         private const string Issuer = "urn:opcua:test:gds";
         private const string Audience = "urn:opcua:test:server";
@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             using AccessToken token = await issuer.IssueAsync(
                 new TokenIssuanceRequest(

@@ -91,7 +91,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            if (m_tokenIssuer is EcdsaJwtIssuer issuer &&
+            if (m_tokenIssuer is CertificateJwtIssuer issuer &&
                 configuration.CertificateManager?.CertificateProvider != null)
             {
                 issuer.Initialize(

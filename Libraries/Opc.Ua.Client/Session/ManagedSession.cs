@@ -1563,7 +1563,7 @@ namespace Opc.Ua.Client
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
         private ServerRedundancyInfo? m_redundancyInfo;
-        private readonly object m_identityRefreshLock = new();
+        private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213
         // Disposed by StopIdentityRefreshLoopAsync; sync Dispose cancels because it cannot await.
         // TODO: move ManagedSession to async-only disposal.

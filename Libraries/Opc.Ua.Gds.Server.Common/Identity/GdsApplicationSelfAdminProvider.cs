@@ -70,6 +70,7 @@ namespace Opc.Ua.Gds.Server.Identity
         private readonly ILogger<GdsApplicationSelfAdminProvider> m_logger;
         private readonly NamespaceTable? m_namespaces;
         private readonly Func<Certificate, bool>? m_isRegisteredCertificate;
+        private readonly Func<Certificate, CancellationToken, ValueTask<bool>>? m_isRevokedCertificateAsync;
 
         /// <summary>
         /// Creates a provider backed by an applications database.
@@ -81,20 +82,30 @@ namespace Opc.Ua.Gds.Server.Identity
         /// Optional legacy registration check for certificates that are still accepted by the GDS
         /// application store.
         /// </param>
+        /// <param name="isRevokedCertificateAsync">
+        /// Optional revocation check. When supplied and it returns <c>true</c>, the augmenter
+        /// declines to grant <see cref="GdsRole.ApplicationSelfAdmin"/> even when the channel
+        /// certificate matches a registered application. The default implementation only inspects
+        /// the registered ApplicationsDatabase entries; revocation must be enforced separately by
+        /// the surrounding GDS pipeline (CRL trust list, secure-channel certificate validation,
+        /// or by clearing the application's stored certificate when it is revoked).
+        /// </param>
         public GdsApplicationSelfAdminProvider(
             IApplicationsDatabase database,
             ILogger<GdsApplicationSelfAdminProvider> logger,
             NamespaceTable? namespaces = null,
-            Func<Certificate, bool>? isRegisteredCertificate = null)
+            Func<Certificate, bool>? isRegisteredCertificate = null,
+            Func<Certificate, CancellationToken, ValueTask<bool>>? isRevokedCertificateAsync = null)
         {
             m_database = database ?? throw new ArgumentNullException(nameof(database));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_namespaces = namespaces;
             m_isRegisteredCertificate = isRegisteredCertificate;
+            m_isRevokedCertificateAsync = isRevokedCertificateAsync;
         }
 
         /// <inheritdoc/>
-        public ValueTask<AuthenticationResult> AugmentAsync(
+        public async ValueTask<AuthenticationResult> AugmentAsync(
             IUserIdentity identity,
             AuthenticationContext context,
             CancellationToken ct = default)
@@ -108,18 +119,28 @@ namespace Opc.Ua.Gds.Server.Identity
 
             if (context.ChannelCertificate == null)
             {
-                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+                return AuthenticationResult.NotHandled;
             }
             if (context.ChannelApplicationUri == null)
             {
-                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
+                return AuthenticationResult.Accept(identity);
+            }
+
+            if (m_isRevokedCertificateAsync != null &&
+                await m_isRevokedCertificateAsync(context.ChannelCertificate, ct).ConfigureAwait(false))
+            {
+                m_logger.LogDebug(
+                    "ApplicationSelfAdmin denied for {AppUri}: channel certificate {Thumbprint} is revoked.",
+                    context.ChannelApplicationUri,
+                    context.ChannelCertificate.Thumbprint);
+                return AuthenticationResult.Accept(identity);
             }
 
             ApplicationRecordDataType[]? matches =
                 m_database.FindApplications(context.ChannelApplicationUri);
             if (matches == null || matches.Length == 0)
             {
-                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
+                return AuthenticationResult.Accept(identity);
             }
 
             foreach (ApplicationRecordDataType match in matches)
@@ -130,7 +151,7 @@ namespace Opc.Ua.Gds.Server.Identity
                         identity,
                         context,
                         match.ApplicationId);
-                    return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(augmentedIdentity));
+                    return AuthenticationResult.Accept(augmentedIdentity);
                 }
             }
 
@@ -142,10 +163,10 @@ namespace Opc.Ua.Gds.Server.Identity
                     identity,
                     context,
                     matches[0].ApplicationId);
-                return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(augmentedIdentity));
+                return AuthenticationResult.Accept(augmentedIdentity);
             }
 
-            return new ValueTask<AuthenticationResult>(AuthenticationResult.Accept(identity));
+            return AuthenticationResult.Accept(identity);
         }
 
         private IUserIdentity CreateAugmentedIdentity(

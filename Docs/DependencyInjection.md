@@ -5,7 +5,7 @@ surface for the OPC UA .NET Standard libraries. The surface is rooted in
 a single `services.AddOpcUa()` call that returns an `IOpcUaBuilder` on
 which every feature library hangs its own fluent `.AddXxx(...)` extension.
 
-The DI surface is consistent across:
+The dependency injection surface is consistent across:
 
 - The OPC UA Core stack (`Stack/Opc.Ua.Core`)
 - Application configuration (`Libraries/Opc.Ua.Configuration`)
@@ -19,12 +19,12 @@ The DI surface is consistent across:
 - The WoT Connectivity server (`Libraries/Opc.Ua.WotCon.Server`)
 - The WoT Connectivity client (`Libraries/Opc.Ua.WotCon.Client`)
 
-PubSub is **not** part of the DI surface.
+PubSub is **not** part of the dependency injection surface.
 
-The non-DI public constructors and factories of every library
+The non-dependency-injection public constructors and factories of every library
 (`new ApplicationInstance(telemetry)`, `new StandardServer(telemetry)`,
 `new LdsServer(telemetry)`, `new ManagedSession(...)` etc.) remain
-unchanged. Use DI when you want the .NET Generic Host to own application
+unchanged. Use dependency injection when you want the .NET Generic Host to own application
 lifetime, logging, and configuration; use the manual constructors when
 you need finer control.
 
@@ -128,14 +128,14 @@ The default section names are:
 | WoT Connectivity Client        | `OpcUa:WotCon:Client`    |
 
 The `IConfiguration` / `IConfigurationSection` overloads are
-**AOT-safe** on every library. Each DI-emitting library opts into the
+**AOT-safe** on every library. Each dependency-injection-emitting library opts into the
 .NET 8+ [Configuration Binding Source Generator](https://learn.microsoft.com/dotnet/core/extensions/configuration-generator)
 (`<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>`),
 which replaces the reflection-based binder with statically-generated
 [C# 12 interceptors](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-12#interceptors).
 The `Tests/Opc.Ua.Aot.Tests` project verifies that `dotnet publish`
 under `PublishAot=true` produces zero `IL2026` / `IL3050` warnings
-from the DI surface.
+from the dependency injection surface.
 
 ## Server feature
 
@@ -285,7 +285,7 @@ the hosted service falls back to a single `Anonymous` policy.
 
 > Full identity surface is documented in
 > [Identity Providers](IdentityProviders.md). This section covers only
-> the DI bindings.
+> the dependency injection bindings.
 
 `builder.AddServer(...)` exposes identity-related extension methods on
 `IOpcUaServerBuilder`:
@@ -339,7 +339,7 @@ extensions explicitly when configuring from code.
 
 The `IUserDatabase` / `IUserManagement` services needed by the
 UserNamePassword authenticator must be registered separately — the
-hosted service skips that authenticator if neither is in DI. See
+hosted service skips that authenticator if neither is in dependency injection. See
 [Role-Based Security](RoleBasedUserManagement.md) for the role-mapping
 layer.
 
@@ -381,7 +381,7 @@ ManagedSession session = await sessionFactory(ct);
 
 > Full identity surface is documented in
 > [Identity Providers](IdentityProviders.md). This section covers only
-> the DI bindings.
+> the dependency injection bindings.
 
 `builder.AddClient(...)` exposes:
 
@@ -472,7 +472,7 @@ await cts.LoadAsync(...);
 services.AddOpcUa().AddClient(/* … */).AddAlarms();
 ```
 
-Registers a singleton `AlarmClientFactory` so DI-hosted client
+Registers a singleton `AlarmClientFactory` so dependency-injection-hosted client
 applications can obtain a Part 9 `AlarmClient` per connected session
 without `new`-ing one manually. Source-generated event records
 (`ConditionTypeRecord`, `AlarmConditionTypeRecord`,
@@ -500,15 +500,15 @@ await foreach (ConditionTypeRecord record in session.DefaultStreaming
 }
 ```
 
-The non-DI path (`session.GetAlarmClient()` extension and the public
+The non-dependency-injection path (`session.GetAlarmClient()` extension and the public
 `AlarmClient` constructor) remains available for callers that do not
-use the DI infrastructure. See
+use the dependency injection infrastructure. See
 [Alarms and Conditions](AlarmsAndConditions.md) for the full
 developer guide.
 
 ### Client-side reverse connect
 
-When `OpcUaClientOptions.ReverseConnect` is set, the DI container
+When `OpcUaClientOptions.ReverseConnect` is set, the dependency injection container
 registers a singleton `ReverseConnectManager` that opens the configured
 listener endpoints on first resolution. Inbound reverse-hello messages
 are surfaced via
@@ -645,7 +645,7 @@ services
 augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
 OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
 `AddDefaultIdentityAuthenticators(...)` helper.
-`WithAuthorizationService(...)` enables the default `EcdsaJwtIssuer`;
+`WithAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
 `WithAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
 for cloud KMS, HSM, or external token-service signing.
 
@@ -705,7 +705,7 @@ services
 `AddWotConServer` registers the WoT `WotConnectivityNodeManagerFactory`
 as an `OpcUaServerNodeManagerRegistration` so it attaches to the regular
 server feature. `IWotAssetProviderFactory` and `IWotAssetDiscoveryProvider`
-services registered in DI are picked up automatically.
+services registered in dependency injection are picked up automatically.
 
 ## WoT Connectivity Client
 
@@ -789,7 +789,7 @@ Notes:
   diagnostics in their csproj.
 - The `Tests/Opc.Ua.Aot.Tests` project verifies the end-to-end AOT
   path: build + AOT publish produce **zero** `IL2026` / `IL3050`
-  warnings from any DI extension.
+  warnings from any dependency injection extension.
 
 For AOT consumers, configure options through code or configuration —
 both are supported:

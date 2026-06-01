@@ -49,11 +49,11 @@ namespace Opc.Ua.Gds.Server.Identity
     /// Default <see cref="ITokenIssuer"/> that produces compact JWS JWTs
     /// signed with the configured GDS certificate.
     /// </summary>
-    public sealed class EcdsaJwtIssuer : ITokenIssuer
+    public sealed class CertificateJwtIssuer : ITokenIssuer
     {
         private readonly AuthorizationServiceOptions m_options;
         private readonly ITelemetryContext m_telemetry;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private ICertificateProvider? m_certificateProvider;
         private CertificateIdentifier? m_defaultSigningCertificate;
         private string? m_defaultIssuerUri;
@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Server.Identity
         /// Creates an issuer that resolves certificates directly from the
         /// configured <see cref="CertificateIdentifier"/>.
         /// </summary>
-        public EcdsaJwtIssuer(
+        public CertificateJwtIssuer(
             IOptions<AuthorizationServiceOptions> options,
             ITelemetryContext telemetry)
             : this(options, null, telemetry, true)
@@ -73,7 +73,7 @@ namespace Opc.Ua.Gds.Server.Identity
         /// Creates an issuer that resolves signing keys through an
         /// <see cref="ICertificateProvider"/>.
         /// </summary>
-        public EcdsaJwtIssuer(
+        public CertificateJwtIssuer(
             IOptions<AuthorizationServiceOptions> options,
             ICertificateProvider certificateProvider,
             ITelemetryContext telemetry)
@@ -84,7 +84,7 @@ namespace Opc.Ua.Gds.Server.Identity
         /// <summary>
         /// Creates an issuer for tests and direct hosting.
         /// </summary>
-        public EcdsaJwtIssuer(
+        public CertificateJwtIssuer(
             AuthorizationServiceOptions options,
             ICertificateProvider certificateProvider,
             ITelemetryContext telemetry)
@@ -92,7 +92,7 @@ namespace Opc.Ua.Gds.Server.Identity
         {
         }
 
-        private EcdsaJwtIssuer(
+        private CertificateJwtIssuer(
             IOptions<AuthorizationServiceOptions> options,
             ICertificateProvider? certificateProvider,
             ITelemetryContext telemetry,

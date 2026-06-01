@@ -296,7 +296,7 @@ ApplicationUri. The provider is an `IIdentityAugmenter`, so it layers
 SelfAdmin on top of any accepted identity instead of using a custom
 `ImpersonateUser` callback.
 
-For DI-hosted GDS servers the provider is registered with the symmetric
+For dependency-injection-hosted GDS servers the provider is registered with the symmetric
 builder extension:
 
 ```csharp
@@ -532,7 +532,7 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 
 ### Refresh tokens
 
-The default in-memory AuthorizationService provider now issues a refresh token from
+The default in-memory AuthorizationService provider issues a refresh token from
 `FinishRequestToken` and accepts it through `RefreshToken` (OPC 10000-12 §9.7). Refresh
 tokens are opaque, single-use secrets: each successful refresh consumes the current token,
 issues a new access token, and rotates to a new refresh token. The refresh-token lifetime

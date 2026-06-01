@@ -186,29 +186,6 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Configures the default role manager used by the hosted GDS server.
-        /// </summary>
-        /// <param name="gdsBuilder">The GDS server builder.</param>
-        /// <param name="configure">Callback used to populate
-        /// <see cref="RoleConfigurationOptions"/>.</param>
-        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
-        /// or <paramref name="configure"/> is <c>null</c>.</exception>
-        public static IGdsServerBuilder ConfigureRoles(
-            this IGdsServerBuilder gdsBuilder,
-            Action<RoleConfigurationOptions> configure)
-        {
-            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
-            if (configure is null)
-            {
-                throw new ArgumentNullException(nameof(configure));
-            }
-
-            serverBuilder.ConfigureRoles(configure);
-            return gdsBuilder;
-        }
-
-        /// <summary>
         /// Registers a GDS server-side identity authenticator and adds it to
         /// the server registry on startup.
         /// </summary>
@@ -457,7 +434,7 @@ namespace Microsoft.Extensions.DependencyInjection
             this IGdsServerBuilder gdsBuilder,
             Action<AuthorizationServiceOptions> configure)
         {
-            return WithAuthorizationService<EcdsaJwtIssuer>(gdsBuilder, configure);
+            return WithAuthorizationService<CertificateJwtIssuer>(gdsBuilder, configure);
         }
 
         /// <summary>
@@ -524,15 +501,15 @@ namespace Microsoft.Extensions.DependencyInjection
             // OpcUaServerBuilderExtensions pattern so the GDS feature
             // can be added independently of AddServer.
             services.AddOpcUa().AddApplicationInstance();
-            services.AddOptions<GdsApplicationSelfAdminProviderOptions>();
+            services.AddOptions<GdsDefaultIdentityAuthenticatorOptions>();
 
             services.AddHostedService<GdsServerHostedService>();
         }
 
         private static void SuppressBuiltInGdsApplicationSelfAdminProvider(IServiceCollection services)
         {
-            services.Configure<GdsApplicationSelfAdminProviderOptions>(
-                options => options.SuppressBuiltInRegistration = true);
+            services.PostConfigure<GdsDefaultIdentityAuthenticatorOptions>(
+                options => options.EnableGdsApplicationSelfAdminProvider = false);
         }
 
         private static void CopyDefaultAuthenticatorOptions(

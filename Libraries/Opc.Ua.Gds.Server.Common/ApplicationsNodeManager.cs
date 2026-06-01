@@ -525,47 +525,14 @@ namespace Opc.Ua.Gds.Server
                 new LocalizedText("Default"),
                 false);
 
-            service.GetServiceDescription = new GetServiceDescriptionMethodState(service);
-            service.GetServiceDescription.Create(
-                context,
-                new NodeId(Methods.AuthorizationServiceType_GetServiceDescription, namespaceIndex),
-                new QualifiedName("GetServiceDescription", namespaceIndex),
-                new LocalizedText("GetServiceDescription"),
-                false);
-            service.RequestAccessToken = new RequestAccessTokenMethodState(service);
-            service.RequestAccessToken.Create(
-                context,
-                new NodeId(Methods.AuthorizationServiceType_RequestAccessToken, namespaceIndex),
-                new QualifiedName("RequestAccessToken", namespaceIndex),
-                new LocalizedText("RequestAccessToken"),
-                false);
-            service.StartRequestToken = new StartRequestTokenMethodState(service);
-            service.StartRequestToken.Create(
-                context,
-                new NodeId(Methods.AuthorizationServiceType_StartRequestToken, namespaceIndex),
-                new QualifiedName("StartRequestToken", namespaceIndex),
-                new LocalizedText("StartRequestToken"),
-                false);
-            service.FinishRequestToken = new FinishRequestTokenMethodState(service);
-            service.FinishRequestToken.Create(
-                context,
-                new NodeId(Methods.AuthorizationServiceType_FinishRequestToken, namespaceIndex),
-                new QualifiedName("FinishRequestToken", namespaceIndex),
-                new LocalizedText("FinishRequestToken"),
-                false);
-            service.RefreshToken = new RefreshTokenMethodState(service);
-            service.RefreshToken.Create(
-                context,
-                new NodeId(Methods.AuthorizationServiceType_RefreshToken, namespaceIndex),
-                new QualifiedName("RefreshToken", namespaceIndex),
-                new LocalizedText("RefreshToken"),
-                false);
-
-            service.AddChild(service.GetServiceDescription);
-            service.AddChild(service.RequestAccessToken);
-            service.AddChild(service.StartRequestToken);
-            service.AddChild(service.FinishRequestToken);
-            service.AddChild(service.RefreshToken);
+            // ServiceUri, ServiceCertificate and the mandatory GetServiceDescription method
+            // are created automatically by the source-generated AuthorizationServiceState.
+            // The Optional method children must be added explicitly using the generated
+            // Add* helpers before ConfigureAuthorizationServiceNode wires the OnCall handlers.
+            service.AddRequestAccessToken(context);
+            service.AddStartRequestToken(context);
+            service.AddFinishRequestToken(context);
+            service.AddRefreshToken(context);
 
             service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
             service.ServiceCertificate!.Value = ByteString.Empty;

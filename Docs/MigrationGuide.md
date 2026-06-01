@@ -237,7 +237,7 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `Microsoft.CodeAnalysis.Analyzers` 4.14.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` (runtime source-generation surface) |
 | `Microsoft.CodeAnalysis.Common` 4.14.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` |
 | `Microsoft.CodeAnalysis.CSharp` 5.3.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` |
-| `Microsoft.Extensions.Configuration.Abstractions` 10.0.8 | Added (pinned) | Used by DI integration |
+| `Microsoft.Extensions.Configuration.Abstractions` 10.0.8 | Added (pinned) | Used by dependency injection integration |
 | `Microsoft.Extensions.Diagnostics` 10.0.8 | Added (pinned) | Centralised pin |
 | `Microsoft.Extensions.Hosting` 10.0.8 | Added (pinned) | Centralised pin |
 | `Microsoft.Extensions.Hosting.Abstractions` 10.0.8 | Added (pinned) | Centralised pin |
@@ -894,7 +894,7 @@ private void SessionManager_ImpersonateUser(
 }
 ```
 
-Modern authenticator plus DI registration:
+Modern authenticator plus dependency injection registration:
 
 ```csharp
 public sealed class MyUserNameAuthenticator : IUserTokenAuthenticator
@@ -1249,7 +1249,7 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `CertificateFactory.RevokeCertificate(...)` | `DefaultCertificateIssuer.Instance.RevokeCertificates(...)` |
 | `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
 | `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
-| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to the `CertificateManager` constructor |
+| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via dependency injection or pass to the `CertificateManager` constructor |
 | `CertificateValidator` (class) | `ICertificateManager` (composed of `ICertificateValidatorEx` for validation, `ICertificateRegistry` for app certs, `ICertificateTrustListManager` for trust lists, `ICertificateLifecycle` for change events). Construct via `CertificateManagerFactory.Create(securityConfiguration, telemetry, ...)` |
 | `ICertificateValidator` (interface) | `ICertificateValidatorEx` from `ICertificateManager`. The new interface returns a structured `CertificateValidationResult` (`IsValid`, `StatusCode`, `Errors`, `IsBeingTrustedTransiently`) instead of throwing. Per-error accept logic moves from the `CertificateValidation` event to the new `CertificateValidationOptions.AcceptError` callback. |
 | `CertificateTypesProvider` (class) | `ICertificateRegistry` (composed in `ICertificateManager`). Use `manager.GetInstanceCertificate(securityPolicyUri)` and `manager.LoadCertificateChainAsync(...)`. |
@@ -1449,7 +1449,7 @@ ISession session = await factory.CreateAsync(...);
 
 #### Configuring Reconnection Policy
 
-Two related types ship side-by-side and are not interchangeable. `ReconnectPolicyOptions` is a `public sealed record` with init-only properties - the DTO consumed by DI / `ManagedSessionOptions`. `ReconnectPolicy` is a `public class` (implementing `IReconnectPolicy`) - the runtime policy passed to `ManagedSession.CreateAsync` and `SessionReconnectHandler`. Construct the runtime policy from the options snapshot with `new ReconnectPolicy(options)`; `ManagedSessionBuilder.ConnectAsync` performs this conversion internally.
+Two related types ship side-by-side and are not interchangeable. `ReconnectPolicyOptions` is a `public sealed record` with init-only properties - the DTO consumed by dependency injection / `ManagedSessionOptions`. `ReconnectPolicy` is a `public class` (implementing `IReconnectPolicy`) - the runtime policy passed to `ManagedSession.CreateAsync` and `SessionReconnectHandler`. Construct the runtime policy from the options snapshot with `new ReconnectPolicy(options)`; `ManagedSessionBuilder.ConnectAsync` performs this conversion internally.
 
 ```csharp
 var policy = new ReconnectPolicy
@@ -1623,9 +1623,9 @@ var sessionFactory = serviceProvider
 ManagedSession session = await sessionFactory(ct);
 ```
 
-The factory caches the connected session — subsequent awaits return the same instance. The registered delegate type is `Func<CancellationToken, Task<ManagedSession>>` (the OPC UA client APIs use `Task` here, not `ValueTask`), so resolving it from DI and `await`-ing the result returns the connected `ManagedSession`. The DI registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+The factory caches the connected session — subsequent awaits return the same instance. The registered delegate type is `Func<CancellationToken, Task<ManagedSession>>` (the OPC UA client APIs use `Task` here, not `ValueTask`), so resolving it from dependency injection and `await`-ing the result returns the connected `ManagedSession`. The dependency injection registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
 
-This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
+This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options dependency injection is deferred to a future iteration.
 
 ### `INodeCache` changes
 
@@ -1821,7 +1821,7 @@ version and make it sync by appending `GetAwaiter().GetResult()` to it.
 
 ### Observability
 
-[Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better DI support. See documentation for breaking changes.
+[Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better dependency injection support. See documentation for breaking changes.
 
 ## Migrating from 1.04 to 1.05
 

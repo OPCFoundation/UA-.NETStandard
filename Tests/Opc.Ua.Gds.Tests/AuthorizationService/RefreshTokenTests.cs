@@ -97,7 +97,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             options.AllowedAudiences.Add(Audience);
             options.DefaultScopes.Add("read");
 
-            var issuer = new EcdsaJwtIssuer(options, m_certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, m_certificateProvider, NUnitTelemetryContext.Create());
             var provider = new InMemoryAccessTokenProvider(issuer, options);
             var manager = new AuthorizationServiceManager(provider, issuer, options);
 

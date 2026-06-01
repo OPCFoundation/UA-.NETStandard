@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public sealed class EcdsaJwtIssuerEdgeCaseTests
+    public sealed class CertificateJwtIssuerEdgeCaseTests
     {
         private const string Issuer = "urn:opcua:test:gds-edge";
         private const string Audience = "urn:opcua:test:server-edge";
@@ -68,7 +68,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             {
                 IssuerUri = Issuer
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
@@ -91,7 +91,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
@@ -137,7 +137,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             using AccessToken token = await issuer.IssueAsync(
                 new TokenIssuanceRequest(
@@ -182,7 +182,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             using AccessToken token = await issuer.IssueAsync(
                 new TokenIssuanceRequest(
@@ -219,7 +219,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             var additional = new Dictionary<string, object?>
             {
@@ -262,7 +262,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 IssuerUri = Issuer,
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             using AccessToken token = await issuer.IssueAsync(
                 new TokenIssuanceRequest(
@@ -290,7 +290,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint },
                 DefaultTokenLifetime = TimeSpan.FromMinutes(7)
             };
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
             DateTime issuedAt = DateTime.UtcNow;
             using AccessToken token = await issuer.IssueAsync(
@@ -313,7 +313,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             var options = new AuthorizationServiceOptions();
             using Certificate certificate = CreateEcCertificate(ECCurve.NamedCurves.nistP256);
             using var certificateProvider = new InProcessCertificateProvider(certificate);
-            var issuer = new EcdsaJwtIssuer(
+            var issuer = new CertificateJwtIssuer(
                 options,
                 certificateProvider,
                 NUnitTelemetryContext.Create());
@@ -325,7 +325,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private static Certificate CreateEcCertificate(ECCurve curve)
         {
             return CertificateBuilder
-                .Create("CN=EcdsaJwtIssuerEdgeCaseTests")
+                .Create("CN=CertificateJwtIssuerEdgeCaseTests")
                 .SetECCurve(curve)
                 .CreateForECDsa();
         }

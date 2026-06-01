@@ -50,4 +50,4 @@ Starting with version 1.5.375.XX the Windows Forms reference client & reference 
 * [AuthorizationService](AuthorizationService.md) — OAuth2-style access token issuance, IAccessTokenProvider implementation guide.
 * [Role-Based Security](RoleBasedUserManagement.md) — Part 18 roles and claim-based identity-mapping rules.
 * [Identity Providers](IdentityProviders.md) — server and client identity-provider architecture.
-* [Dependency Injection](DependencyInjection.md) — DI hosting and identity registration extensions.
+* [Dependency Injection](DependencyInjection.md) — dependency injection hosting and identity registration extensions.

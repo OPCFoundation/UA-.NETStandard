@@ -96,7 +96,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IServiceProvider services,
-            IOptions<GdsApplicationSelfAdminProviderOptions> selfAdminProviderOptions,
+            IOptions<GdsDefaultIdentityAuthenticatorOptions> defaultAuthenticatorOptions,
             ILogger<GdsServerHostedService> logger,
             IAccessTokenProvider? accessTokenProvider = null,
             AuthorizationServiceManager? authorizationServiceManager = null,
@@ -122,12 +122,12 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_augmenterRegistrations = augmenterRegistrations ??
                 throw new ArgumentNullException(nameof(augmenterRegistrations));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
-            if (selfAdminProviderOptions is null)
+            if (defaultAuthenticatorOptions is null)
             {
-                throw new ArgumentNullException(nameof(selfAdminProviderOptions));
+                throw new ArgumentNullException(nameof(defaultAuthenticatorOptions));
             }
             m_enableBuiltInApplicationSelfAdminProvider =
-                !selfAdminProviderOptions.Value.SuppressBuiltInRegistration;
+                defaultAuthenticatorOptions.Value.EnableGdsApplicationSelfAdminProvider;
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_accessTokenProvider = accessTokenProvider;
             m_authorizationServiceManager = authorizationServiceManager;

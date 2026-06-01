@@ -252,7 +252,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             InProcessCertificateProvider certificateProvider,
             AuthorizationServiceOptions options)
         {
-            var issuer = new EcdsaJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
             return new InMemoryAccessTokenProvider(issuer, options);
         }
 

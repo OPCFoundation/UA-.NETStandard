@@ -1,12 +1,5 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-> **Status**: phases P1 – P7, PI, G1, and G2 are shipped on `kube`.
-> The server registry, default authenticators, client providers, DI
-> integration, GDS hosted-service consumption, reference-sample migration,
-> modern AuthorizationService token flow, KeyCredential Push binding,
-> experimental KeyCredential bridge, and provider implementation guidance
-> are available.
-
 The OPC UA .NET Standard stack exposes a pluggable identity-provider model
 that covers every user identity mechanism defined in
 [OPC UA Part 6 §6.5](https://reference.opcfoundation.org/Core/Part6/v105/docs/6.5) and the
@@ -28,10 +21,10 @@ The design is intentionally **symmetric**:
    AuthorizationServerMetadata                            ITokenIssuer
               │                                                       │
    Used by:                                              Used by:
-     ManagedSession,                                       SessionManager (P2)
-     ConsoleReferenceClient (P5)                           ReferenceServer (P5)
+     ManagedSession,                                       SessionManager
+     ConsoleReferenceClient                                ReferenceServer
      custom Entra/OIDC providers                           JwtAuthenticator, X509Authenticator
-     custom Windows/AspNetCore providers                   AuthorizationServiceType (P6)
+     custom Windows/AspNetCore providers                   AuthorizationServiceType
 ```
 
 The model **does not replace** the existing
@@ -42,7 +35,7 @@ on-the-wire types. The provider model layers on top of those types so
 legacy callbacks keep working during migration, while new code can
 register `IUserTokenAuthenticator` instances directly.
 
-## Quick start — DI
+## Quick start — dependency injection
 
 For applications hosted on `Microsoft.Extensions.Hosting` (the default
 in this stack — see [Dependency Injection](DependencyInjection.md)),
@@ -152,7 +145,7 @@ services.AddOpcUa()
 
 Or, drive the composite from configuration — the `IConfiguration`
 overload resolves the `ISecretRegistry` and `IAccessTokenProvider`
-from DI:
+from the dependency-injection container:
 
 ```csharp
 services.AddOpcUa()
@@ -622,7 +615,7 @@ It backs the modern Part 12 v1.05 `AuthorizationServiceType`
 `RequestAccessToken` compatibility path.
 
 ```csharp
-public sealed class EcdsaJwtIssuer : ITokenIssuer
+public sealed class CertificateJwtIssuer : ITokenIssuer
 {
     public string IssuerUri => "https://my-gds.example.com";
     public string ProfileUri => Profiles.JwtUserToken;
@@ -647,7 +640,7 @@ or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
 
 ### `IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation
 
-Server-side JWT validation in P2's `JwtAuthenticator` resolves
+Server-side JWT validation in the GDS `JwtAuthenticator` resolves
 verification keys through `IIssuerKeyResolver` and exercises them
 through `IssuerVerificationKey`. The helper deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
@@ -674,7 +667,7 @@ bool isValid = key.VerifySignature(signingInputBytes, signatureBytes);
 
 ## How-to: server-side authentication
 
-Use DI when the .NET Generic Host owns the server. This example wires the
+Use dependency injection when the .NET Generic Host owns the server. This example wires the
 shipped defaults, a custom authenticator, and a trusted JWT issuer.
 
 ```csharp
@@ -729,7 +722,7 @@ public sealed class MyAuthenticator : IUserTokenAuthenticator
 }
 ```
 
-Manual hosts can register against the running server instance. Prefer DI
+Manual hosts can register against the running server instance. Prefer dependency injection
 for hosted applications, but this is useful for existing `StandardServer`
 subclasses:
 
@@ -739,7 +732,7 @@ server.CurrentInstance.IdentityRegistry.Register(
     new JwtAuthenticator(keyResolver, expectedAudience: "urn:example:my-server"));
 ```
 
-`GdsServerHostedService` consumes the same DI registrations, so a GDS host
+`GdsServerHostedService` consumes the same dependency-injection registrations, so a GDS host
 uses `.AddIdentityAuthenticator<T>()`, `.AddDefaultIdentityAuthenticators()`,
 and `.AddJwtIssuer(...)` exactly like a regular server.
 
@@ -850,14 +843,14 @@ public sealed class MyUserNameAuthenticator : IUserTokenAuthenticator
 }
 ```
 
-### 3. Register via DI or the server registry
+### 3. Register via dependency injection or the server registry
 
 ```csharp
 services.AddOpcUa()
     .AddServer(o => o.ApplicationUri = "urn:example:my-server")
     .AddIdentityAuthenticator<MyUserNameAuthenticator>();
 
-// Non-DI host:
+// Without dependency injection:
 server.CurrentInstance.IdentityRegistry.Register(new MyUserNameAuthenticator());
 ```
 
