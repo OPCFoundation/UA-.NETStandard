@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
             m_isServerNode = node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
-                SingleReader = true,
+                SingleReader = !m_isServerNode,
                 FullMode = BoundedChannelFullMode.Wait,
                 AllowSynchronousContinuations = false,
             });
@@ -74,16 +74,7 @@ namespace Opc.Ua.Server
 
             if (m_isServerNode)
             {
-                m_eventChannel = Channel.CreateBounded<EventSnapshot>(new BoundedChannelOptions(k_defaultChannelCapacity)
-                {
-                    SingleReader = false,
-                    FullMode = BoundedChannelFullMode.Wait,
-                    AllowSynchronousContinuations = false,
-                });
-                m_eventConsumers = new List<EventConsumerEntry>();
-
-                // Always start with one consumer task.
-                AddEventConsumer();
+                m_additionalConsumers = new List<ConsumerEntry>();
             }
         }
 
@@ -181,14 +172,17 @@ namespace Opc.Ua.Server
 
             Node.OnReportEvent = OnReportEvent;
 
-            // Scale up: add a consumer task for each new MI beyond the first.
-            if (m_isServerNode && m_eventConsumers != null)
+            // Scale up: add a consumer task for each new event MI beyond the first.
+            if (m_isServerNode && m_additionalConsumers != null)
             {
-                lock (m_eventConsumersLock)
+                lock (m_additionalConsumersLock)
                 {
-                    if (EventMonitoredItems.Count > m_eventConsumers.Count)
+                    // The primary consumer task always runs; add additional ones
+                    // so total consumers = EventMonitoredItems.Count.
+                    int totalDesired = EventMonitoredItems.Count;
+                    if (totalDesired > m_additionalConsumers.Count + 1)
                     {
-                        AddEventConsumer();
+                        AddConsumer();
                     }
                 }
             }
@@ -208,15 +202,16 @@ namespace Opc.Ua.Server
                 Node.OnReportEvent = null;
             }
 
-            // Scale down: remove a consumer task when MIs decrease (keep at least 1).
-            if (m_isServerNode && m_eventConsumers != null)
+            // Scale down: remove a consumer task when MIs decrease (keep at least 1 total = primary).
+            if (m_isServerNode && m_additionalConsumers != null)
             {
-                lock (m_eventConsumersLock)
+                lock (m_additionalConsumersLock)
                 {
-                    int desired = Math.Max(1, EventMonitoredItems.Count);
-                    while (m_eventConsumers.Count > desired)
+                    // Total consumers = 1 (primary) + m_additionalConsumers.Count
+                    int totalDesired = Math.Max(1, EventMonitoredItems.Count);
+                    while (m_additionalConsumers.Count + 1 > totalDesired)
                     {
-                        RemoveLastEventConsumer();
+                        RemoveLastConsumer();
                     }
                 }
             }
@@ -247,20 +242,6 @@ namespace Opc.Ua.Server
                 Context = context,
                 EventTargetSnapshot = eventTarget
             };
-
-            if (m_isServerNode)
-            {
-                // Write to the shared event channel; multiple consumer tasks will process it.
-                try
-                {
-                    m_eventChannel!.Writer.WriteAsync(notification).AsTask().GetAwaiter().GetResult();
-                }
-                catch (ChannelClosedException)
-                {
-                    // The channel was completed during removal/disposal.
-                }
-                return;
-            }
 
             try
             {
@@ -441,41 +422,6 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredItem?.QueueEvent(e);
-            }
-        }
-
-        /// <summary>
-        /// Consumer loop for the shared event channel on the Server node.
-        /// Multiple instances of this task run concurrently, each picking up
-        /// events and processing them for all event monitored items.
-        /// </summary>
-        private async Task ProcessEventChannelAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                await foreach (EventSnapshot snapshot in m_eventChannel!.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    try
-                    {
-                        await ProcessEventSnapshotAsync(snapshot, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger?.LogWarning(ex, "MonitoredNode2 event consumer encountered an error.");
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // shutdown
-            }
-            catch (Exception ex)
-            {
-                m_logger?.LogError(ex, "MonitoredNode2 event consumer terminated unexpectedly.");
             }
         }
 
@@ -780,41 +726,40 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds a new event consumer task to the pool.
-        /// Must be called while holding the <see cref="m_eventConsumers"/> lock.
+        /// Adds a new consumer task to the pool for the regular channel.
+        /// Must be called while holding the <see cref="m_additionalConsumersLock"/> lock.
         /// </summary>
-        private void AddEventConsumer()
+        private void AddConsumer()
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(m_consumerCts.Token);
-            var task = Task.Run(() => ProcessEventChannelAsync(cts.Token));
-            m_eventConsumers!.Add(new EventConsumerEntry(task, cts));
+            var task = Task.Run(() => ProcessChannelAsync(cts.Token));
+            m_additionalConsumers!.Add(new ConsumerEntry(task, cts));
         }
 
         /// <summary>
-        /// Removes the last event consumer task from the pool.
-        /// Must be called while holding the <see cref="m_eventConsumers"/> lock.
-        /// Keeps at least one consumer alive.
+        /// Removes the last additional consumer task from the pool.
+        /// Must be called while holding the <see cref="m_additionalConsumersLock"/> lock.
         /// </summary>
-        private void RemoveLastEventConsumer()
+        private void RemoveLastConsumer()
         {
-            if (m_eventConsumers!.Count <= 1)
+            if (m_additionalConsumers!.Count == 0)
             {
                 return;
             }
 
-            int lastIndex = m_eventConsumers.Count - 1;
-            EventConsumerEntry entry = m_eventConsumers[lastIndex];
-            m_eventConsumers.RemoveAt(lastIndex);
+            int lastIndex = m_additionalConsumers.Count - 1;
+            ConsumerEntry entry = m_additionalConsumers[lastIndex];
+            m_additionalConsumers.RemoveAt(lastIndex);
             entry.Cts.Cancel();
             entry.Cts.Dispose();
         }
 
         /// <summary>
-        /// Represents a single event consumer task and its associated cancellation token.
+        /// Represents a single consumer task and its associated cancellation token.
         /// </summary>
-        private readonly struct EventConsumerEntry
+        private readonly struct ConsumerEntry
         {
-            public EventConsumerEntry(Task task, CancellationTokenSource cts)
+            public ConsumerEntry(Task task, CancellationTokenSource cts)
             {
                 Task = task;
                 Cts = cts;
@@ -841,9 +786,8 @@ namespace Opc.Ua.Server
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
         private readonly bool m_isServerNode;
-        private readonly Channel<EventSnapshot>? m_eventChannel;
-        private readonly List<EventConsumerEntry>? m_eventConsumers;
-        private readonly Lock m_eventConsumersLock = new();
+        private readonly List<ConsumerEntry>? m_additionalConsumers;
+        private readonly Lock m_additionalConsumersLock = new();
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -866,19 +810,16 @@ namespace Opc.Ua.Server
 
             if (disposing)
             {
-                // Complete the writer; the consumer drains remaining items and exits normally.
+                // Complete the writer; consumers drain remaining items and exit normally.
                 m_channel.Writer.TryComplete();
 
-                // Complete the shared event channel if it exists.
-                m_eventChannel?.Writer.TryComplete();
-
-                // Wait for event consumer tasks to finish.
-                if (m_eventConsumers != null)
+                // Wait for additional consumer tasks to finish.
+                if (m_additionalConsumers != null)
                 {
                     Task[] tasks;
-                    lock (m_eventConsumersLock)
+                    lock (m_additionalConsumersLock)
                     {
-                        tasks = m_eventConsumers.ConvertAll(e => e.Task).ToArray();
+                        tasks = m_additionalConsumers.ConvertAll(e => e.Task).ToArray();
                     }
 
                     try
@@ -890,14 +831,14 @@ namespace Opc.Ua.Server
                         // Ignore exceptions during shutdown
                     }
 
-                    lock (m_eventConsumersLock)
+                    lock (m_additionalConsumersLock)
                     {
-                        foreach (EventConsumerEntry entry in m_eventConsumers)
+                        foreach (ConsumerEntry entry in m_additionalConsumers)
                         {
                             entry.Cts.Cancel();
                             entry.Cts.Dispose();
                         }
-                        m_eventConsumers.Clear();
+                        m_additionalConsumers.Clear();
                     }
                 }
 
