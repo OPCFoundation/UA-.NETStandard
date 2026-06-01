@@ -49,7 +49,6 @@ namespace Opc.Ua.Server
     public class MonitoredNode2 : IDisposable
     {
         private const int k_defaultChannelCapacity = 4096;
-        private const int k_serverNodeEventConsumerCount = 4;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
@@ -58,21 +57,6 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="node">The node.</param>
         public MonitoredNode2(IAsyncNodeManager nodeManager, IServerInternal server, NodeState node)
-            : this(nodeManager, server, node, k_serverNodeEventConsumerCount)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
-        /// </summary>
-        /// <param name="nodeManager">The node manager.</param>
-        /// <param name="server">The server.</param>
-        /// <param name="node">The node.</param>
-        /// <param name="eventConsumerCount">
-        /// Number of concurrent consumer tasks for the Server node event channel.
-        /// Must be at least 1. Only applies when <paramref name="node"/> is the Server object.
-        /// </param>
-        internal MonitoredNode2(IAsyncNodeManager nodeManager, IServerInternal server, NodeState node, int eventConsumerCount)
         {
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_server = server ?? throw new ArgumentNullException(nameof(server));
@@ -90,18 +74,16 @@ namespace Opc.Ua.Server
 
             if (m_isServerNode)
             {
-                int consumerCount = Math.Max(1, eventConsumerCount);
                 m_eventChannel = Channel.CreateBounded<EventSnapshot>(new BoundedChannelOptions(k_defaultChannelCapacity)
                 {
-                    SingleReader = consumerCount == 1,
+                    SingleReader = false,
                     FullMode = BoundedChannelFullMode.Wait,
                     AllowSynchronousContinuations = false,
                 });
-                m_eventConsumerTasks = new Task[consumerCount];
-                for (int i = 0; i < consumerCount; i++)
-                {
-                    m_eventConsumerTasks[i] = Task.Run(() => ProcessEventChannelAsync(m_consumerCts.Token));
-                }
+                m_eventConsumers = new List<EventConsumerEntry>();
+
+                // Always start with one consumer task.
+                AddEventConsumer();
             }
         }
 
@@ -198,6 +180,18 @@ namespace Opc.Ua.Server
             EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
             Node.OnReportEvent = OnReportEvent;
+
+            // Scale up: add a consumer task for each new MI beyond the first.
+            if (m_isServerNode && m_eventConsumers != null)
+            {
+                lock (m_eventConsumers)
+                {
+                    if (EventMonitoredItems.Count > m_eventConsumers.Count)
+                    {
+                        AddEventConsumer();
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -212,6 +206,19 @@ namespace Opc.Ua.Server
             if (EventMonitoredItems.IsEmpty)
             {
                 Node.OnReportEvent = null;
+            }
+
+            // Scale down: remove a consumer task when MIs decrease (keep at least 1).
+            if (m_isServerNode && m_eventConsumers != null)
+            {
+                lock (m_eventConsumers)
+                {
+                    int desired = Math.Max(1, EventMonitoredItems.Count);
+                    while (m_eventConsumers.Count > desired)
+                    {
+                        RemoveLastEventConsumer();
+                    }
+                }
             }
         }
 
@@ -772,6 +779,51 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Adds a new event consumer task to the pool.
+        /// Must be called while holding the <see cref="m_eventConsumers"/> lock.
+        /// </summary>
+        private void AddEventConsumer()
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(m_consumerCts.Token);
+            var task = Task.Run(() => ProcessEventChannelAsync(cts.Token));
+            m_eventConsumers!.Add(new EventConsumerEntry(task, cts));
+        }
+
+        /// <summary>
+        /// Removes the last event consumer task from the pool.
+        /// Must be called while holding the <see cref="m_eventConsumers"/> lock.
+        /// Keeps at least one consumer alive.
+        /// </summary>
+        private void RemoveLastEventConsumer()
+        {
+            if (m_eventConsumers!.Count <= 1)
+            {
+                return;
+            }
+
+            int lastIndex = m_eventConsumers.Count - 1;
+            EventConsumerEntry entry = m_eventConsumers[lastIndex];
+            m_eventConsumers.RemoveAt(lastIndex);
+            entry.Cts.Cancel();
+            entry.Cts.Dispose();
+        }
+
+        /// <summary>
+        /// Represents a single event consumer task and its associated cancellation token.
+        /// </summary>
+        private readonly struct EventConsumerEntry
+        {
+            public EventConsumerEntry(Task task, CancellationTokenSource cts)
+            {
+                Task = task;
+                Cts = cts;
+            }
+
+            public Task Task { get; }
+            public CancellationTokenSource Cts { get; }
+        }
+
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
             new();
 
@@ -790,7 +842,7 @@ namespace Opc.Ua.Server
         private readonly Task m_consumerTask;
         private readonly bool m_isServerNode;
         private readonly Channel<EventSnapshot>? m_eventChannel;
-        private readonly Task[]? m_eventConsumerTasks;
+        private readonly List<EventConsumerEntry>? m_eventConsumers;
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -820,15 +872,31 @@ namespace Opc.Ua.Server
                 m_eventChannel?.Writer.TryComplete();
 
                 // Wait for event consumer tasks to finish.
-                if (m_eventConsumerTasks != null)
+                if (m_eventConsumers != null)
                 {
+                    Task[] tasks;
+                    lock (m_eventConsumers)
+                    {
+                        tasks = m_eventConsumers.ConvertAll(e => e.Task).ToArray();
+                    }
+
                     try
                     {
-                        Task.WaitAll(m_eventConsumerTasks, TimeSpan.FromSeconds(5));
+                        Task.WaitAll(tasks, TimeSpan.FromSeconds(5));
                     }
                     catch (AggregateException)
                     {
                         // Ignore exceptions during shutdown
+                    }
+
+                    lock (m_eventConsumers)
+                    {
+                        foreach (EventConsumerEntry entry in m_eventConsumers)
+                        {
+                            entry.Cts.Cancel();
+                            entry.Cts.Dispose();
+                        }
+                        m_eventConsumers.Clear();
                     }
                 }
 

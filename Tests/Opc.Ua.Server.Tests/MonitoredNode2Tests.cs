@@ -1446,8 +1446,8 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that when the MonitoredNode2 is configured for the Server object
-        /// (ObjectIds.Server), multiple consumer tasks drain the shared event channel
-        /// concurrently and all events are delivered to all monitored items.
+        /// (ObjectIds.Server), consumer tasks scale up as event monitored items are added
+        /// and all events are delivered to all monitored items.
         /// </summary>
         [Test]
         public void ServerNode_MultipleEventConsumers_AllEventsDelivered()
@@ -1480,9 +1480,9 @@ namespace Opc.Ua.Server.Tests
             Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
             Mock<IEventMonitoredItem> item3Mock = CreateEventMonitoredItemMock(3u);
 
-            // Use 3 consumer tasks via the internal constructor
+            // Consumer tasks scale up as MIs are added (starts with 1, scales to 3)
             var monitoredNode = new MonitoredNode2(
-                nodeManagerMock.Object, serverMock.Object, node, eventConsumerCount: 3);
+                nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(item1Mock.Object);
             monitoredNode.Add(item2Mock.Object);
             monitoredNode.Add(item3Mock.Object);
