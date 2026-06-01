@@ -108,13 +108,14 @@ namespace Pumps
             //  - Opc.Ua.Machinery (source-generated inside this assembly)
             //  - Opc.Ua.Pumps     (source-generated inside this assembly)
             // No runtime XML loading — the NodeSet2 XMLs ship only as
-            // <AdditionalFiles> for the source generator.
-            NodeStateCollection nodes = new ModelLoaderBuilder()
-                .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))
-                .AddModel((coll, ctx) => coll.AddOpcUaMachinery(ctx))
-                .AddModel((coll, ctx) => coll.AddOpcUaPumps(ctx))
-                .Build(new NodeStateCollection(), context);
-
+            // <AdditionalFiles> for the source generator. The generated
+            // AddOpcUa* extension methods are idempotent and pull in
+            // their declared dependencies via [ModelDependencyAttribute],
+            // so a direct chain in dependency order is sufficient.
+            var nodes = new NodeStateCollection();
+            nodes.AddOpcUaDi(context);
+            nodes.AddOpcUaMachinery(context);
+            nodes.AddOpcUaPumps(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 

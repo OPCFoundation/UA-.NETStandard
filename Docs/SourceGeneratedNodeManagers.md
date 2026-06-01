@@ -777,18 +777,17 @@ The only supported mode for combining models is **source-generated
 library references**. Each companion spec is built once into its
 own model library (a `Libraries/Opc.Ua.{Spec}/` project that
 consumes the ModelDesign XML and emits an `AddOpcUa{Spec}`
-extension method); the consumer adds project references and
-composes them through `ModelLoaderBuilder`:
+extension method); the consumer adds project references and calls
+the generated extensions directly in dependency order:
 
 ```csharp
 protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
     ISystemContext context, CancellationToken ct = default)
 {
-    NodeStateCollection nodes = new ModelLoaderBuilder()
-        .AddModel((coll, ctx) => coll.AddOpcUaDi(ctx))
-        .AddModel((coll, ctx) => coll.AddOpcUaMachinery(ctx))
-        .AddModel((coll, ctx) => coll.AddOpcUaPumps(ctx))
-        .Build(new NodeStateCollection(), context);
+    var nodes = new NodeStateCollection();
+    nodes.AddOpcUaDi(context);
+    nodes.AddOpcUaMachinery(context);
+    nodes.AddOpcUaPumps(context);
     return new ValueTask<NodeStateCollection>(nodes);
 }
 ```
@@ -798,16 +797,9 @@ produce typed `*State` / `*Client` proxies. **Every application-
 owned model must ship as source-generated content** — companion
 specs ship as project references; locally-owned NodeSet2 XMLs are
 wired through `<AdditionalFiles>` so the source generator emits
-the same typed surface inside the consuming assembly. The
-generator runs the model loaders in registration order, so later
-additions can layer on top of earlier ones.
-
-> The legacy `ImportNodeSet(Stream)` / `ImportEmbeddedNodeSet(...)`
-> overloads on `IModelLoaderBuilder` exist only for the narrow case
-> of an unverified third-party NodeSet2 received at runtime by a
-> multi-tenant server (i.e. content the application does not own
-> at build time). New code should not use them for first-party
-> models.
+the same typed surface inside the consuming assembly. Each
+`AddOpcUa{Spec}(context)` extension is idempotent and re-entrant,
+so direct chaining in dependency order is the recommended pattern.
 
 ## Current limitations
 

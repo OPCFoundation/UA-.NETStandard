@@ -68,8 +68,9 @@ builder.Services
     .AddOpcUa()
     .AddServer(o => { ... })
     .AddNodeManager<Pumps.PumpNodeManagerFactory>()
-    // Pump factory already loads DI via its own ModelLoaderBuilder; do NOT
-    // call AddOpcUaDi() — that would double-register the DI namespace.
+    // Pump factory already loads DI via its LoadPredefinedNodesAsync
+    // direct chain; do NOT call AddOpcUaDi() — that would
+    // double-register the DI namespace.
     .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
     {
         var pump = await ctx.CreateDeviceAsync(
