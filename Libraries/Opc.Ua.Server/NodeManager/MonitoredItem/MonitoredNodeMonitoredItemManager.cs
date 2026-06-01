@@ -341,8 +341,7 @@ namespace Opc.Ua.Server
 
         private bool IsMultiConsumerNode(NodeId nodeId)
         {
-            return m_nodeManager is AsyncCustomNodeManager acnm &&
-                acnm.MultiConsumerNodeIds.ContainsKey(nodeId);
+            return m_nodeManager.IsMultipleEventConsumerNode(nodeId);
         }
     }
 }

@@ -320,6 +320,12 @@ namespace Opc.Ua.Server
             MultiConsumerNodeIds[nodeId] = true;
         }
 
+        /// <inheritdoc/>
+        public bool IsMultipleEventConsumerNode(NodeId nodeId)
+        {
+            return MultiConsumerNodeIds.ContainsKey(nodeId);
+        }
+
         /// <summary>
         /// Sets the namespaces supported by the NodeManager.
         /// </summary>

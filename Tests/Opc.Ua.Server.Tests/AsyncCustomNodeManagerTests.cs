@@ -5003,6 +5003,9 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
             => m_adapter.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
 
+        public bool IsMultipleEventConsumerNode(NodeId nodeId)
+            => m_adapter.IsMultipleEventConsumerNode(nodeId);
+
         public NodeIdDictionary<NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
 
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
