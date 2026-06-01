@@ -246,15 +246,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 triggered = [.. m_triggeredItems];
             }
-            return new MonitoredItemStateSnapshot
-            {
-                Name = Name,
-                Options = m_options.CurrentValue,
-                ClientHandle = ClientHandle,
-                ServerId = ServerId,
-                TriggeringItemClientHandle = TriggeringItemClientHandle,
-                TriggeredItemClientHandles = triggered.ToArrayOf()
-            };
+            return MonitoredItemStateSnapshot.FromOptions(
+                Name,
+                m_options.CurrentValue,
+                ClientHandle,
+                ServerId,
+                TriggeringItemClientHandle,
+                triggered.ToArrayOf());
         }
 
         /// <inheritdoc/>

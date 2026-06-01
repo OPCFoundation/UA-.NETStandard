@@ -31,10 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions
@@ -44,38 +42,30 @@ namespace Opc.Ua.Client.Subscriptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The on-wire format is the OPC UA <see cref="BinaryEncoder"/> format
-    /// (same encoder as the classic <c>Session.Save</c>). The stream
-    /// starts with a header that captures the message context's namespace
-    /// and server URI tables so the snapshot is portable across sessions
-    /// whose tables index URIs in different positions.
+    /// The on-wire format is the OPC UA <see cref="BinaryEncoder"/> format.
+    /// Each subscription is captured as a
+    /// <see cref="SubscriptionStateSnapshot"/> — an
+    /// <see cref="IEncodeable"/> emitted by the
+    /// <see cref="DataTypeAttribute"/> source generator — and written
+    /// directly via <see cref="IEncoder.WriteEncodeable{T}(string, T)"/>.
+    /// The reader instantiates <see cref="SubscriptionStateSnapshot"/>
+    /// statically by type (no <see cref="ExpandedNodeId"/> lookup is
+    /// required because the wire schema is implicit in the call site).
+    /// Future schema evolution is handled by adding new optional fields
+    /// to the snapshot record — they are encoded only when set and
+    /// recognized via <see cref="IDecoder.HasField(string)"/> by the
+    /// reader.
     /// </para>
     /// <para>
-    /// Each subscription is captured as a snapshot of its <em>current
-    /// options</em> (read via the internal <see cref="Subscription.Options"/>
-    /// surface) plus the server-side subscription id, available
-    /// sequence numbers (so an immediate take-over via TransferSubscriptions
-    /// can republish gaps), and the list of monitored items. Each item
-    /// snapshot captures the value of <see cref="MonitoredItemOptions"/>
-    /// at the time of save (<em>not</em> the live
-    /// <see cref="IOptionsMonitor{T}"/> wrapper) — rehydration wraps the
-    /// loaded options in a fresh <see cref="OptionsMonitor{T}"/> per item.
+    /// The stream still preserves the source session's namespace and
+    /// server URI tables so the snapshot is portable across sessions
+    /// whose tables index URIs at different positions; the loader
+    /// remaps those indices into the target session's tables before
+    /// decoding each snapshot's <c>NodeId</c> fields.
     /// </para>
     /// </remarks>
     internal static class SubscriptionManagerSerializer
     {
-        /// <summary>
-        /// Format identifier. Increment when the layout changes; older
-        /// snapshots are rejected with a clear error.
-        /// </summary>
-        private const ushort kFormatVersion = 1;
-
-        /// <summary>
-        /// Magic bytes prefix so a wrong stream type fails fast instead
-        /// of producing garbage decoded values.
-        /// </summary>
-        private static readonly byte[] s_magic = "UA2S"u8.ToArray();
-
 #pragma warning disable RCS1229 // Use async/await when necessary - this path is synchronous; ValueTask wraps work for future async I/O
         public static ValueTask SaveAsync(
             SubscriptionManager manager,
@@ -101,8 +91,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Capture a snapshot per selected subscription. Default =
             // all subscriptions managed by this instance. Snapshot is
-            // taken from the concrete subscription type (not on the
-            // ISubscription interface).
+            // taken from the concrete subscription type.
             IEnumerable<ISubscription> selected =
                 subscriptions ?? manager.Items;
             var snapshots = new List<SubscriptionStateSnapshot>();
@@ -115,16 +104,17 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             using var encoder = new BinaryEncoder(stream, messageContext, true);
-            encoder.WriteByteString(null, s_magic);
-            encoder.WriteUInt16(null, kFormatVersion);
             encoder.WriteStringArray(null, messageContext.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, messageContext.ServerUris.ToArrayOf());
             encoder.WriteInt32(null, snapshots.Count);
-
-            int index = 0;
             foreach (SubscriptionStateSnapshot snapshot in snapshots)
             {
-                WriteSnapshot(encoder, snapshot, index++);
+                // Write the snapshot directly as an IEncodeable.
+                // Schema identity is statically encoded by the call site
+                // (we always read back a SubscriptionStateSnapshot); schema
+                // evolution is handled by adding new optional fields with
+                // CanOmitFields-aware encoding.
+                encoder.WriteEncodeable(null, snapshot);
             }
             return default;
         }
@@ -155,22 +145,6 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             using var decoder = new BinaryDecoder(stream, messageContext, true);
-            ByteString magic = decoder.ReadByteString(null);
-            if (magic.IsNull || !magic.Memory.Span.SequenceEqual(s_magic))
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError,
-                    "Stream does not start with the V2 subscription manager " +
-                    "save magic prefix.");
-            }
-            ushort version = decoder.ReadUInt16(null);
-            if (version != kFormatVersion)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError,
-                    string.Format(CultureInfo.InvariantCulture,
-                        "Unsupported V2 subscription manager save format version: " +
-                        "got {0}, expected {1}.", version, kFormatVersion));
-            }
-
             ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
             ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
@@ -191,196 +165,23 @@ namespace Opc.Ua.Client.Subscriptions
             for (int i = 0; i < count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                (string syntheticName, SubscriptionStateSnapshot state) =
-                    ReadSnapshot(decoder);
+                // Schema identity is implicit in the call: we always
+                // read a SubscriptionStateSnapshot. Future schema evolution
+                // happens by adding optional fields recognized via
+                // HasField on the decoder side.
+                SubscriptionStateSnapshot state =
+                    decoder.ReadEncodeable<SubscriptionStateSnapshot>(null);
+                string syntheticName = i.ToString(CultureInfo.InvariantCulture);
                 ISubscriptionNotificationHandler handler =
                     handlerFactory(syntheticName);
                 ISubscription subscription = await manager.RestoreAsync(
-                    handler, state, transferSubscriptions, ct)
-                    .ConfigureAwait(false);
+                    handler,
+                    state,
+                    transferSubscriptions,
+                    ct).ConfigureAwait(false);
                 restored.Add(subscription);
             }
             return restored;
-        }
-
-        private static void WriteSnapshot(BinaryEncoder encoder,
-            SubscriptionStateSnapshot snapshot, int index)
-        {
-            string syntheticName = index.ToString(CultureInfo.InvariantCulture);
-            encoder.WriteString(null, syntheticName);
-            encoder.WriteUInt32(null, snapshot.ServerId);
-            ArrayOf<uint> available = snapshot.AvailableSequenceNumbers.IsNull
-                ? Array.Empty<uint>().ToArrayOf()
-                : snapshot.AvailableSequenceNumbers;
-            encoder.WriteUInt32Array(null, available);
-            WriteSubscriptionOptions(encoder, snapshot.Options);
-
-            int itemCount = snapshot.MonitoredItems.IsNull
-                ? 0
-                : snapshot.MonitoredItems.Count;
-            encoder.WriteInt32(null, itemCount);
-            if (itemCount > 0)
-            {
-                foreach (MonitoredItemStateSnapshot item in snapshot.MonitoredItems)
-                {
-                    WriteMonitoredItemSnapshot(encoder, item);
-                }
-            }
-        }
-
-        private static (string Name, SubscriptionStateSnapshot Snapshot) ReadSnapshot(
-            BinaryDecoder decoder)
-        {
-            string? name = decoder.ReadString(null);
-            uint serverId = decoder.ReadUInt32(null);
-            ArrayOf<uint> available = decoder.ReadUInt32Array(null);
-            SubscriptionOptions options = ReadSubscriptionOptions(decoder);
-
-            int itemCount = decoder.ReadInt32(null);
-            var items = new MonitoredItemStateSnapshot[itemCount];
-            for (int i = 0; i < itemCount; i++)
-            {
-                items[i] = ReadMonitoredItemSnapshot(decoder);
-            }
-
-            return (name ?? string.Empty, new SubscriptionStateSnapshot
-            {
-                Options = options,
-                ServerId = serverId,
-                AvailableSequenceNumbers = available,
-                MonitoredItems = items.ToArrayOf()
-            });
-        }
-
-        private static void WriteSubscriptionOptions(BinaryEncoder encoder,
-            SubscriptionOptions options)
-        {
-            encoder.WriteBoolean(null, options.Disabled);
-            encoder.WriteUInt32(null, options.KeepAliveCount);
-            encoder.WriteUInt32(null, options.LifetimeCount);
-            encoder.WriteByte(null, options.Priority);
-            encoder.WriteInt64(null, options.PublishingInterval.Ticks);
-            encoder.WriteBoolean(null, options.PublishingEnabled);
-            encoder.WriteUInt32(null, options.MaxNotificationsPerPublish);
-            encoder.WriteInt64(null, options.MinLifetimeInterval.Ticks);
-        }
-
-        private static void WriteMonitoredItemSnapshot(BinaryEncoder encoder,
-            MonitoredItemStateSnapshot item)
-        {
-            encoder.WriteString(null, item.Name);
-            encoder.WriteUInt32(null, item.ClientHandle);
-            encoder.WriteUInt32(null, item.ServerId);
-            encoder.WriteUInt32(null, item.TriggeringItemClientHandle);
-            ArrayOf<uint> triggered = item.TriggeredItemClientHandles.IsNull
-                ? Array.Empty<uint>().ToArrayOf()
-                : item.TriggeredItemClientHandles;
-            encoder.WriteUInt32Array(null, triggered);
-            WriteMonitoredItemOptions(encoder, item.Options);
-        }
-
-        private static MonitoredItemStateSnapshot ReadMonitoredItemSnapshot(
-            BinaryDecoder decoder)
-        {
-            string? name = decoder.ReadString(null);
-            uint clientHandle = decoder.ReadUInt32(null);
-            uint serverId = decoder.ReadUInt32(null);
-            uint triggeringHandle = decoder.ReadUInt32(null);
-            ArrayOf<uint> triggered = decoder.ReadUInt32Array(null);
-            MonitoredItems.MonitoredItemOptions options = ReadMonitoredItemOptions(decoder);
-            return new MonitoredItemStateSnapshot
-            {
-                Name = name ?? string.Empty,
-                Options = options,
-                ClientHandle = clientHandle,
-                ServerId = serverId,
-                TriggeringItemClientHandle = triggeringHandle,
-                TriggeredItemClientHandles = triggered
-            };
-        }
-
-        private static SubscriptionOptions ReadSubscriptionOptions(BinaryDecoder decoder)
-        {
-            bool disabled = decoder.ReadBoolean(null);
-            uint keepAlive = decoder.ReadUInt32(null);
-            uint lifetime = decoder.ReadUInt32(null);
-            byte priority = decoder.ReadByte(null);
-            long publishTicks = decoder.ReadInt64(null);
-            bool publishing = decoder.ReadBoolean(null);
-            uint maxNotif = decoder.ReadUInt32(null);
-            long minLifetimeTicks = decoder.ReadInt64(null);
-            return new SubscriptionOptions
-            {
-                Disabled = disabled,
-                KeepAliveCount = keepAlive,
-                LifetimeCount = lifetime,
-                Priority = priority,
-                PublishingInterval = TimeSpan.FromTicks(publishTicks),
-                PublishingEnabled = publishing,
-                MaxNotificationsPerPublish = maxNotif,
-                MinLifetimeInterval = TimeSpan.FromTicks(minLifetimeTicks)
-            };
-        }
-
-        private static void WriteMonitoredItemOptions(BinaryEncoder encoder,
-            MonitoredItems.MonitoredItemOptions options)
-        {
-            encoder.WriteUInt32(null, options.Order);
-            encoder.WriteNodeId(null, options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId);
-            encoder.WriteInt32(null, (int)options.TimestampsToReturn);
-            encoder.WriteUInt32(null, options.AttributeId);
-            encoder.WriteString(null, options.IndexRange);
-            QualifiedName encoding = options.Encoding.HasValue && !options.Encoding.Value.IsNull
-                ? options.Encoding.Value
-                : QualifiedName.Null;
-            encoder.WriteQualifiedName(null, encoding);
-            encoder.WriteInt32(null, (int)options.MonitoringMode);
-            encoder.WriteInt64(null, options.SamplingInterval.Ticks);
-            ExtensionObject filterEo = options.Filter == null
-                ? ExtensionObject.Null
-                : new ExtensionObject(options.Filter);
-            encoder.WriteExtensionObject(null, filterEo);
-            encoder.WriteUInt32(null, options.QueueSize);
-            encoder.WriteBoolean(null, options.DiscardOldest);
-            encoder.WriteBoolean(null, options.AutoSetQueueSize);
-        }
-
-        private static MonitoredItems.MonitoredItemOptions ReadMonitoredItemOptions(BinaryDecoder decoder)
-        {
-            uint order = decoder.ReadUInt32(null);
-            NodeId startNodeId = decoder.ReadNodeId(null);
-            var ttr = (TimestampsToReturn)decoder.ReadInt32(null);
-            uint attributeId = decoder.ReadUInt32(null);
-            string? indexRange = decoder.ReadString(null);
-            QualifiedName encoding = decoder.ReadQualifiedName(null);
-            var mode = (MonitoringMode)decoder.ReadInt32(null);
-            long samplingTicks = decoder.ReadInt64(null);
-            ExtensionObject filterEo = decoder.ReadExtensionObject(null);
-            uint queueSize = decoder.ReadUInt32(null);
-            bool discardOldest = decoder.ReadBoolean(null);
-            bool autoSetQueueSize = decoder.ReadBoolean(null);
-
-            MonitoringFilter? filter = null;
-            if (!filterEo.IsNull && filterEo.TryGetValue(out MonitoringFilter? mf))
-            {
-                filter = mf;
-            }
-
-            return new MonitoredItems.MonitoredItemOptions
-            {
-                Order = order,
-                StartNodeId = startNodeId,
-                TimestampsToReturn = ttr,
-                AttributeId = attributeId,
-                IndexRange = indexRange,
-                Encoding = encoding.IsNull ? null : encoding,
-                MonitoringMode = mode,
-                SamplingInterval = TimeSpan.FromTicks(samplingTicks),
-                Filter = filter,
-                QueueSize = queueSize,
-                DiscardOldest = discardOldest,
-                AutoSetQueueSize = autoSetQueueSize
-            };
         }
     }
 }

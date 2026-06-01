@@ -187,13 +187,11 @@ namespace Opc.Ua.Client.Subscriptions
             uint[] available = AvailableInRetransmissionQueue == null
                 ? []
                 : [.. AvailableInRetransmissionQueue];
-            return new SubscriptionStateSnapshot
-            {
-                Options = Options,
-                ServerId = Id,
-                AvailableSequenceNumbers = available.ToArrayOf(),
-                MonitoredItems = items.ToArrayOf()
-            };
+            return SubscriptionStateSnapshot.FromOptions(
+                Options,
+                Id,
+                available.ToArrayOf(),
+                items.ToArrayOf());
         }
 
         /// <inheritdoc/>

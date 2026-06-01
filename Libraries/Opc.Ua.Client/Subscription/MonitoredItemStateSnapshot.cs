@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     /// <summary>
@@ -35,35 +37,46 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// over the item on a transferred subscription.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Produced by <see cref="MonitoredItem.Snapshot"/> and consumed by
     /// <see cref="Opc.Ua.Client.Subscriptions.ISubscriptionManager.LoadAsync"/>.
     /// Per-item runtime values (filter result, last sample,
     /// current sampling interval) are intentionally not captured — the
     /// transfer path re-binds them from the server via
     /// <c>GetMonitoredItems</c>, and the recreate path mints fresh ones.
+    /// </para>
+    /// <para>
+    /// The snapshot is itself an <see cref="IEncodeable"/> via the
+    /// <see cref="DataTypeAttribute"/> source generator. The fields
+    /// carried on the wire are simple primitives (e.g. <see cref="int"/>
+    /// milliseconds for durations, <see cref="uint"/> for enums); the
+    /// non-encoded <see cref="Options"/> projection exposes a
+    /// consumer-friendly <see cref="MonitoredItemOptions"/> built from
+    /// those surrogate fields. The companion <see cref="FromOptions"/>
+    /// factory does the inverse mapping at <see cref="MonitoredItem.Snapshot"/>
+    /// time.
+    /// </para>
     /// </remarks>
-    public sealed record MonitoredItemStateSnapshot
+    [DataType(Namespace = Namespaces.OpcUaXsd)]
+    public sealed partial record class MonitoredItemStateSnapshot
     {
         /// <summary>
         /// Stable, manager-unique name (the lookup key used by
         /// <see cref="IMonitoredItemCollection.TryGetMonitoredItemByName"/>
         /// and by <see cref="IMonitoredItemCollection.TryAdd"/>).
         /// </summary>
-        public required string Name { get; init; }
-
-        /// <summary>
-        /// The live <see cref="MonitoredItemOptions"/> at snapshot time.
-        /// </summary>
-        public required MonitoredItemOptions Options { get; init; }
+        [DataTypeField(Order = 1)]
+        public partial string Name { get; init; }
 
         /// <summary>
         /// Client-assigned handle at snapshot time. Used by the
         /// transfer leg of restore to re-bind to the server-side
-        /// monitored item via the saved
-        /// <see cref="ServerId"/>; ignored by the recreate leg
-        /// (the V2 state machine mints a fresh client handle).
+        /// monitored item via the saved <see cref="ServerId"/>;
+        /// ignored by the recreate leg (the V2 state machine mints a
+        /// fresh client handle).
         /// </summary>
-        public uint ClientHandle { get; init; }
+        [DataTypeField(Order = 2)]
+        public partial uint ClientHandle { get; init; }
 
         /// <summary>
         /// Server-assigned monitored item id, or <c>0</c> if the item
@@ -71,20 +84,164 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// transfer leg to match this item via the
         /// <c>GetMonitoredItems</c> server-handle table.
         /// </summary>
-        public uint ServerId { get; init; }
+        [DataTypeField(Order = 3)]
+        public partial uint ServerId { get; init; }
 
         /// <summary>
         /// Client handle of the monitored item that triggers this item,
-        /// or <c>0</c> if not triggered. Captured for replay via
-        /// <see cref="ISubscription.SetTriggeringAsync"/> after restore.
+        /// or <c>0</c> if not triggered.
         /// </summary>
-        public uint TriggeringItemClientHandle { get; init; }
+        [DataTypeField(Order = 4)]
+        public partial uint TriggeringItemClientHandle { get; init; }
 
         /// <summary>
-        /// Client handles of items triggered by this item. Captured for
-        /// replay via <see cref="ISubscription.SetTriggeringAsync"/>
-        /// after restore.
+        /// Client handles of items triggered by this item.
         /// </summary>
-        public ArrayOf<uint> TriggeredItemClientHandles { get; init; }
+        [DataTypeField(Order = 5)]
+        public partial ArrayOf<uint> TriggeredItemClientHandles { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.Order"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 10)]
+        public partial uint OptionsOrder { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.StartNodeId"/> surrogate.
+        /// Null sentinel: <see cref="NodeId.Null"/>.
+        /// </summary>
+        [DataTypeField(Order = 11)]
+        public partial NodeId OptionsStartNodeId { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.TimestampsToReturn"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 12)]
+        public partial uint OptionsTimestampsToReturn { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.AttributeId"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 13)]
+        public partial uint OptionsAttributeId { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.IndexRange"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 14)]
+        public partial string OptionsIndexRange { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.Encoding"/> surrogate. Null
+        /// sentinel: <see cref="QualifiedName.Null"/>.
+        /// </summary>
+        [DataTypeField(Order = 15)]
+        public partial QualifiedName OptionsEncoding { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.MonitoringMode"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 16)]
+        public partial uint OptionsMonitoringMode { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.SamplingInterval"/> as whole
+        /// milliseconds.
+        /// </summary>
+        [DataTypeField(Order = 17)]
+        public partial int OptionsSamplingIntervalMs { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.Filter"/> surrogate.
+        /// Polymorphic; encoded via <see cref="ExtensionObject"/> so the
+        /// concrete <see cref="DataChangeFilter"/> /
+        /// <see cref="EventFilter"/> / <see cref="AggregateFilter"/>
+        /// type round-trips.
+        /// </summary>
+        [DataTypeField(Order = 18, StructureHandling = StructureHandling.ExtensionObject)]
+        public partial MonitoringFilter? OptionsFilter { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.QueueSize"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 19)]
+        public partial uint OptionsQueueSize { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.DiscardOldest"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 20)]
+        public partial bool OptionsDiscardOldest { get; init; }
+
+        /// <summary>
+        /// <see cref="MonitoredItemOptions.AutoSetQueueSize"/> surrogate.
+        /// </summary>
+        [DataTypeField(Order = 21)]
+        public partial bool OptionsAutoSetQueueSize { get; init; }
+
+        /// <summary>
+        /// The live <see cref="MonitoredItemOptions"/> represented by
+        /// this snapshot. Projects the encoded surrogate fields back to
+        /// the consumer-friendly types — this property is computed and
+        /// is NOT serialized.
+        /// </summary>
+        public MonitoredItemOptions Options => new()
+        {
+            Order = OptionsOrder,
+            StartNodeId = OptionsStartNodeId.IsNull ? NodeId.Null : OptionsStartNodeId,
+            TimestampsToReturn = (TimestampsToReturn)OptionsTimestampsToReturn,
+            AttributeId = OptionsAttributeId,
+            IndexRange = OptionsIndexRange,
+            Encoding = OptionsEncoding.IsNull ? null : OptionsEncoding,
+            MonitoringMode = (MonitoringMode)OptionsMonitoringMode,
+            SamplingInterval = TimeSpan.FromMilliseconds(OptionsSamplingIntervalMs),
+            Filter = OptionsFilter,
+            QueueSize = OptionsQueueSize,
+            DiscardOldest = OptionsDiscardOldest,
+            AutoSetQueueSize = OptionsAutoSetQueueSize
+        };
+
+        /// <summary>
+        /// Construct a <see cref="MonitoredItemStateSnapshot"/> from a
+        /// live <see cref="MonitoredItemOptions"/> + the captured
+        /// server-side state.
+        /// </summary>
+        public static MonitoredItemStateSnapshot FromOptions(
+            string name,
+            MonitoredItemOptions options,
+            uint clientHandle,
+            uint serverId,
+            uint triggeringItemClientHandle,
+            ArrayOf<uint> triggeredItemClientHandles)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            return new MonitoredItemStateSnapshot
+            {
+                Name = name ?? string.Empty,
+                ClientHandle = clientHandle,
+                ServerId = serverId,
+                TriggeringItemClientHandle = triggeringItemClientHandle,
+                TriggeredItemClientHandles = triggeredItemClientHandles,
+                OptionsOrder = options.Order,
+                OptionsStartNodeId = options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId,
+                OptionsTimestampsToReturn = (uint)options.TimestampsToReturn,
+                OptionsAttributeId = options.AttributeId,
+                OptionsIndexRange = options.IndexRange ?? string.Empty,
+                OptionsEncoding = options.Encoding.HasValue && !options.Encoding.Value.IsNull
+                    ? options.Encoding.Value
+                    : QualifiedName.Null,
+                OptionsMonitoringMode = (uint)options.MonitoringMode,
+                OptionsSamplingIntervalMs = (int)Math.Min(
+                    int.MaxValue,
+                    Math.Max(0, options.SamplingInterval.TotalMilliseconds)),
+                OptionsFilter = options.Filter,
+                OptionsQueueSize = options.QueueSize,
+                OptionsDiscardOldest = options.DiscardOldest,
+                OptionsAutoSetQueueSize = options.AutoSetQueueSize
+            };
+        }
     }
 }
