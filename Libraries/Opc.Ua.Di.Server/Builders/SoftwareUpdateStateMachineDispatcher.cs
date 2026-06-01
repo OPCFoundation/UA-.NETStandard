@@ -52,71 +52,102 @@ namespace Opc.Ua.Di.Server.Builders
     /// </remarks>
     internal static class SoftwareUpdateStateMachineDispatcher
     {
-        // ---- well-known state identifiers (numeric ids in the DI ns) ----
+        // ---- well-known state identifiers (delegated to typed Ids classes) ----
         // PrepareForUpdate
-        internal const uint PrepareForUpdate_Idle = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_Idle;
-        internal const uint PrepareForUpdate_Preparing = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_Preparing;
-        internal const uint PrepareForUpdate_PreparedForUpdate = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_PreparedForUpdate;
+        internal const uint PrepareForUpdate_Idle = PrepareForUpdateStateMachineTypeIds.StateIds.Idle;
+        internal const uint PrepareForUpdate_Preparing = PrepareForUpdateStateMachineTypeIds.StateIds.Preparing;
+        internal const uint PrepareForUpdate_PreparedForUpdate = PrepareForUpdateStateMachineTypeIds.StateIds.PreparedForUpdate;
 
         // Installation
-        internal const uint Installation_Idle = Opc.Ua.Di.Objects.InstallationStateMachineType_Idle;
-        internal const uint Installation_Installing = Opc.Ua.Di.Objects.InstallationStateMachineType_Installing;
-        internal const uint Installation_Error = Opc.Ua.Di.Objects.InstallationStateMachineType_Error;
+        internal const uint Installation_Idle = InstallationStateMachineTypeIds.StateIds.Idle;
+        internal const uint Installation_Installing = InstallationStateMachineTypeIds.StateIds.Installing;
+        internal const uint Installation_Error = InstallationStateMachineTypeIds.StateIds.Error;
 
         // PowerCycle
-        internal const uint PowerCycle_NotWaiting = Opc.Ua.Di.Objects.PowerCycleStateMachineType_NotWaitingForPowerCycle;
-        internal const uint PowerCycle_Waiting = Opc.Ua.Di.Objects.PowerCycleStateMachineType_WaitingForPowerCycle;
+        internal const uint PowerCycle_NotWaiting = PowerCycleStateMachineTypeIds.StateIds.NotWaitingForPowerCycle;
+        internal const uint PowerCycle_Waiting = PowerCycleStateMachineTypeIds.StateIds.WaitingForPowerCycle;
 
         // Confirmation
-        internal const uint Confirmation_NotWaitingForConfirm = Opc.Ua.Di.Objects.ConfirmationStateMachineType_NotWaitingForConfirm;
-        internal const uint Confirmation_WaitingForConfirm = Opc.Ua.Di.Objects.ConfirmationStateMachineType_WaitingForConfirm;
+        internal const uint Confirmation_NotWaitingForConfirm = ConfirmationStateMachineTypeIds.StateIds.NotWaitingForConfirm;
+        internal const uint Confirmation_WaitingForConfirm = ConfirmationStateMachineTypeIds.StateIds.WaitingForConfirm;
 
-        // ---- well-known transition identifiers ----
+        // ---- well-known transition identifiers (delegated to typed Ids classes) ----
         // PrepareForUpdate
-        internal const uint PrepareForUpdate_IdleToPreparing = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_IdleToPreparing;
-        internal const uint PrepareForUpdate_PreparingToIdle = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_PreparingToIdle;
-        internal const uint PrepareForUpdate_PreparingToPreparedForUpdate = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_PreparingToPreparedForUpdate;
-        internal const uint PrepareForUpdate_PreparedForUpdateToResuming = Opc.Ua.Di.Objects.PrepareForUpdateStateMachineType_PreparedForUpdateToResuming;
+        internal const uint PrepareForUpdate_IdleToPreparing = PrepareForUpdateStateMachineTypeIds.TransitionIds.IdleToPreparing;
+        internal const uint PrepareForUpdate_PreparingToIdle = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToIdle;
+        internal const uint PrepareForUpdate_PreparingToPreparedForUpdate = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToPreparedForUpdate;
+        internal const uint PrepareForUpdate_PreparedForUpdateToResuming = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparedForUpdateToResuming;
 
         // Installation
-        internal const uint Installation_IdleToInstalling = Opc.Ua.Di.Objects.InstallationStateMachineType_IdleToInstalling;
-        internal const uint Installation_InstallingToIdle = Opc.Ua.Di.Objects.InstallationStateMachineType_InstallingToIdle;
-        internal const uint Installation_InstallingToError = Opc.Ua.Di.Objects.InstallationStateMachineType_InstallingToError;
-        internal const uint Installation_ErrorToIdle = Opc.Ua.Di.Objects.InstallationStateMachineType_ErrorToIdle;
+        internal const uint Installation_IdleToInstalling = InstallationStateMachineTypeIds.TransitionIds.IdleToInstalling;
+        internal const uint Installation_InstallingToIdle = InstallationStateMachineTypeIds.TransitionIds.InstallingToIdle;
+        internal const uint Installation_InstallingToError = InstallationStateMachineTypeIds.TransitionIds.InstallingToError;
+        internal const uint Installation_ErrorToIdle = InstallationStateMachineTypeIds.TransitionIds.ErrorToIdle;
 
         // Confirmation
-        internal const uint Confirmation_NotWaitingToWaiting = Opc.Ua.Di.Objects.ConfirmationStateMachineType_NotWaitingForConfirmToWaitingForConfirm;
-        internal const uint Confirmation_WaitingToNotWaiting = Opc.Ua.Di.Objects.ConfirmationStateMachineType_WaitingForConfirmToNotWaitingForConfirm;
+        internal const uint Confirmation_NotWaitingToWaiting = ConfirmationStateMachineTypeIds.TransitionIds.NotWaitingForConfirmToWaitingForConfirm;
+        internal const uint Confirmation_WaitingToNotWaiting = ConfirmationStateMachineTypeIds.TransitionIds.WaitingForConfirmToNotWaitingForConfirm;
 
         // ---- per-state browse-name + state-number lookup table ----
-        // Layout: (stateId, stateNumber, displayName)
+        // (StateNumber values now sourced from the generator-emitted *Ids.StateNumbers classes
+        //  so any future change in the DI model is picked up automatically.)
         private static readonly (uint Id, uint Number, string Name)[] s_states =
         [
-            (PrepareForUpdate_Idle,                1, "Idle"),
-            (PrepareForUpdate_Preparing,           2, "Preparing"),
-            (PrepareForUpdate_PreparedForUpdate,   3, "PreparedForUpdate"),
-            (Installation_Idle,                    1, "Idle"),
-            (Installation_Installing,              2, "Installing"),
-            (Installation_Error,                   3, "Error"),
-            (PowerCycle_NotWaiting,                1, "NotWaitingForPowerCycle"),
-            (PowerCycle_Waiting,                   2, "WaitingForPowerCycle"),
-            (Confirmation_NotWaitingForConfirm,    1, "NotWaitingForConfirm"),
-            (Confirmation_WaitingForConfirm,       2, "WaitingForConfirm"),
+            (PrepareForUpdate_Idle,
+             PrepareForUpdateStateMachineTypeIds.StateNumbers.Idle, "Idle"),
+            (PrepareForUpdate_Preparing,
+             PrepareForUpdateStateMachineTypeIds.StateNumbers.Preparing, "Preparing"),
+            (PrepareForUpdate_PreparedForUpdate,
+             PrepareForUpdateStateMachineTypeIds.StateNumbers.PreparedForUpdate, "PreparedForUpdate"),
+            (Installation_Idle,
+             InstallationStateMachineTypeIds.StateNumbers.Idle, "Idle"),
+            (Installation_Installing,
+             InstallationStateMachineTypeIds.StateNumbers.Installing, "Installing"),
+            (Installation_Error,
+             InstallationStateMachineTypeIds.StateNumbers.Error, "Error"),
+            (PowerCycle_NotWaiting,
+             PowerCycleStateMachineTypeIds.StateNumbers.NotWaitingForPowerCycle, "NotWaitingForPowerCycle"),
+            (PowerCycle_Waiting,
+             PowerCycleStateMachineTypeIds.StateNumbers.WaitingForPowerCycle, "WaitingForPowerCycle"),
+            (Confirmation_NotWaitingForConfirm,
+             ConfirmationStateMachineTypeIds.StateNumbers.NotWaitingForConfirm, "NotWaitingForConfirm"),
+            (Confirmation_WaitingForConfirm,
+             ConfirmationStateMachineTypeIds.StateNumbers.WaitingForConfirm, "WaitingForConfirm"),
         ];
 
         // ---- per-transition browse-name + transition-number lookup table ----
         private static readonly (uint Id, uint Number, string Name)[] s_transitions =
         [
-            (PrepareForUpdate_IdleToPreparing,                  12, "IdleToPreparing"),
-            (PrepareForUpdate_PreparingToIdle,                  21, "PreparingToIdle"),
-            (PrepareForUpdate_PreparingToPreparedForUpdate,     23, "PreparingToPreparedForUpdate"),
-            (PrepareForUpdate_PreparedForUpdateToResuming,      34, "PreparedForUpdateToResuming"),
-            (Installation_IdleToInstalling,                     12, "IdleToInstalling"),
-            (Installation_InstallingToIdle,                     21, "InstallingToIdle"),
-            (Installation_InstallingToError,                    23, "InstallingToError"),
-            (Installation_ErrorToIdle,                          31, "ErrorToIdle"),
-            (Confirmation_NotWaitingToWaiting,                  12, "NotWaitingForConfirmToWaitingForConfirm"),
-            (Confirmation_WaitingToNotWaiting,                  21, "WaitingForConfirmToNotWaitingForConfirm"),
+            (PrepareForUpdate_IdleToPreparing,
+             PrepareForUpdateStateMachineTypeIds.TransitionNumbers.IdleToPreparing,
+             "IdleToPreparing"),
+            (PrepareForUpdate_PreparingToIdle,
+             PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparingToIdle,
+             "PreparingToIdle"),
+            (PrepareForUpdate_PreparingToPreparedForUpdate,
+             PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparingToPreparedForUpdate,
+             "PreparingToPreparedForUpdate"),
+            (PrepareForUpdate_PreparedForUpdateToResuming,
+             PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparedForUpdateToResuming,
+             "PreparedForUpdateToResuming"),
+            (Installation_IdleToInstalling,
+             InstallationStateMachineTypeIds.TransitionNumbers.IdleToInstalling,
+             "IdleToInstalling"),
+            (Installation_InstallingToIdle,
+             InstallationStateMachineTypeIds.TransitionNumbers.InstallingToIdle,
+             "InstallingToIdle"),
+            (Installation_InstallingToError,
+             InstallationStateMachineTypeIds.TransitionNumbers.InstallingToError,
+             "InstallingToError"),
+            (Installation_ErrorToIdle,
+             InstallationStateMachineTypeIds.TransitionNumbers.ErrorToIdle,
+             "ErrorToIdle"),
+            (Confirmation_NotWaitingToWaiting,
+             ConfirmationStateMachineTypeIds.TransitionNumbers.NotWaitingForConfirmToWaitingForConfirm,
+             "NotWaitingForConfirmToWaitingForConfirm"),
+            (Confirmation_WaitingToNotWaiting,
+             ConfirmationStateMachineTypeIds.TransitionNumbers.WaitingForConfirmToNotWaitingForConfirm,
+             "WaitingForConfirmToNotWaitingForConfirm"),
         ];
 
         /// <summary>

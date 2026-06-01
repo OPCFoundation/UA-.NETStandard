@@ -67,6 +67,17 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitObjectTypeProxies { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the
+        /// <see cref="StateMachineIdsGenerator"/> is suppressed and no
+        /// <c>{TypeName}Ids</c> classes (nested <c>StateIds</c> /
+        /// <c>StateNumbers</c> / <c>TransitionIds</c> /
+        /// <c>TransitionNumbers</c>) are emitted. Off by default — IDs
+        /// are emitted for every concrete <c>FiniteStateMachineType</c>
+        /// subtype declared in the model.
+        /// </summary>
+        public bool OmitStateMachineIds { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.

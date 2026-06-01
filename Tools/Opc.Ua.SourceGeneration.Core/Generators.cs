@@ -641,6 +641,11 @@ namespace Opc.Ua.SourceGeneration
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
             }
+            if (context.Options?.OmitStateMachineIds != true)
+            {
+                var stateMachineIdsGenerator = new StateMachineIdsGenerator(context);
+                stateMachineIdsGenerator.Emit();
+            }
             if (context.Options?.EmitDependencyMetadata != false)
             {
                 var modelDependencyGenerator = new ModelDependencyGenerator(context);
