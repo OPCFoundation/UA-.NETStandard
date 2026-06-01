@@ -816,29 +816,41 @@ namespace Opc.Ua.Server
                 // Wait for additional consumer tasks to finish.
                 if (m_additionalConsumers != null)
                 {
-                    Task[] tasks;
+                    ConsumerEntry[] entries;
                     lock (m_additionalConsumersLock)
                     {
-                        tasks = m_additionalConsumers.ConvertAll(e => e.Task).ToArray();
+                        entries = m_additionalConsumers.ToArray();
+                        m_additionalConsumers.Clear();
                     }
 
-                    try
+                    foreach (ConsumerEntry entry in entries)
                     {
-                        Task.WaitAll(tasks, TimeSpan.FromSeconds(5));
-                    }
-                    catch (AggregateException)
-                    {
-                        // Ignore exceptions during shutdown
-                    }
-
-                    lock (m_additionalConsumersLock)
-                    {
-                        foreach (ConsumerEntry entry in m_additionalConsumers)
+                        try
                         {
-                            entry.Cts.Cancel();
+                            bool completed = entry.Task
+                                .Wait(TimeSpan.FromSeconds(5));
+
+                            if (!completed)
+                            {
+                                m_logger?.LogWarning(
+                                    "MonitoredNode2 additional consumer did not drain within 5 s; cancelling forcibly.");
+                                entry.Cts.Cancel();
+
+                                try
+                                {
+                                    entry.Task.GetAwaiter().GetResult();
+                                }
+                                catch { }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger?.LogWarning(ex, "MonitoredNode2 additional consumer faulted during shutdown.");
+                        }
+                        finally
+                        {
                             entry.Cts.Dispose();
                         }
-                        m_additionalConsumers.Clear();
                     }
                 }
 
