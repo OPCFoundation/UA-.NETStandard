@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,7 +34,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Security.Certificates;
-
 
 namespace Opc.Ua.Core.Security.Tests
 {
@@ -278,8 +275,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task AddIssuerToServerAsync(X509Certificate2 caCert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration
-                ?.TrustedIssuerCertificates;
+            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
+                .TrustedIssuerCertificates;
             if (store == null)
             {
                 Assert.Ignore("Server has no TrustedIssuerCertificates store.");
@@ -290,8 +287,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task RemoveIssuerFromServerAsync(X509Certificate2 caCert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration
-                ?.TrustedIssuerCertificates;
+            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
+                .TrustedIssuerCertificates;
             if (store == null)
             {
                 return;
@@ -302,8 +299,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task AddTrustedUserAsync(X509Certificate2 cert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration
-                ?.TrustedUserCertificates;
+            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
+                .TrustedUserCertificates;
             if (store == null)
             {
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
@@ -314,8 +311,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task RemoveTrustedUserAsync(X509Certificate2 cert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration
-                ?.TrustedUserCertificates;
+            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
+                .TrustedUserCertificates;
             if (store == null)
             {
                 return;

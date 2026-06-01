@@ -1755,7 +1755,6 @@ namespace Opc.Ua
         private ArrayOf<CertificateIdentifier> m_trustedCertificates;
     }
 
-#nullable enable
     [DataType(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateIdentifier
     {
@@ -1874,7 +1873,6 @@ namespace Opc.Ua
         private string? m_thumbprint;
         private byte[]? m_rawData;
     }
-#nullable restore
 
     /// <summary>
     /// Stores a list of cached endpoints.

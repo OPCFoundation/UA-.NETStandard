@@ -33,13 +33,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server.UserDatabase;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Server.Hosting
 {
     /// <summary>
     /// Fluent helper returned by
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaGdsServerBuilderExtensions.AddGdsServer(Opc.Ua.IOpcUaBuilder, System.Action{Opc.Ua.Gds.Server.Hosting.GdsServerOptions})"/>;
+    /// <see cref="OpcUaGdsServerBuilderExtensions.AddGdsServer(IOpcUaBuilder, Action{GdsServerOptions})"/>;
     /// allows chained registration of the pluggable services consumed
     /// by the GDS hosted service (applications database, certificate
     /// stores, user database, optional token / key-credential / managed

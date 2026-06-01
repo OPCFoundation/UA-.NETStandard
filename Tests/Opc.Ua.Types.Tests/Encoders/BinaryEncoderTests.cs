@@ -6837,7 +6837,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             using var encoder = new BinaryEncoder(messageContext);
-            var array = new ArrayOf<DataValue>(new DataValue[] { default, new DataValue(Variant.From(42)), default });
+            var array = new ArrayOf<DataValue>([default, new DataValue(Variant.From(42)), default]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();

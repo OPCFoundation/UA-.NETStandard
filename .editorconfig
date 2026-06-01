@@ -405,6 +405,12 @@ dotnet_diagnostic.CA1307.severity                                             = 
 dotnet_diagnostic.CA2016.severity                                             = error
 # RCS1166: Value type object is never null (catches dead null-checks on structs)
 dotnet_diagnostic.RCS1166.severity                                            = error
+# CA1859: Use concrete types when possible for improved performance — verified 0 hits at promotion time
+dotnet_diagnostic.CA1859.severity                                             = error
+# CA1068: CancellationToken parameters must come last — verified 0 hits at promotion time
+dotnet_diagnostic.CA1068.severity                                             = error
+# CA1825: Avoid zero-length array allocations — verified 0 hits at promotion time
+dotnet_diagnostic.CA1825.severity                                             = error
 
 #
 # https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
@@ -821,7 +827,8 @@ dotnet_diagnostic.RCS1140.severity                                            = 
 # RCS1141 Add 'param' element to documentation comment
 dotnet_diagnostic.RCS1141.severity                                            = silent
 # RCS1142 Add 'typeparam' element to documentation comment
-dotnet_diagnostic.RCS1142.severity                                            = suggestion
+# Promoted after Phase 4 cleanup verified 0 hits across UA.slnx
+dotnet_diagnostic.RCS1142.severity                                            = warning
 # RCS1143 Simplify coalesce expression
 dotnet_diagnostic.RCS1143.severity                                            = suggestion
 # RCS1145 Remove redundant 'as' operator

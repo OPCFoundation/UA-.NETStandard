@@ -265,19 +265,17 @@ namespace Opc.Ua.Server
             if (returnActualTime)
             {
                 DateTimeUtc minMaxStamp = processedTimestamp;
-                value = value
+                return value
                     .WithSourceTimestamp(minMaxStamp)
                     .WithServerTimestamp(minMaxStamp);
             }
             else
             {
                 DateTimeUtc sliceStamp = GetTimestamp(slice);
-                value = value
+                return value
                     .WithSourceTimestamp(sliceStamp)
                     .WithServerTimestamp(sliceStamp);
             }
-
-            return value;
         }
 
         /// <summary>
@@ -469,19 +467,17 @@ namespace Opc.Ua.Server
                         value.StatusCode.AggregateBits | AggregateBits.Interpolated));
                 }
 
-                value = value
+                return value
                     .WithSourceTimestamp(processedTimestamp)
                     .WithServerTimestamp(processedTimestamp);
             }
             else
             {
                 DateTimeUtc sliceStamp = GetTimestamp(slice);
-                value = value
+                return value
                     .WithSourceTimestamp(sliceStamp)
                     .WithServerTimestamp(sliceStamp);
             }
-
-            return value;
         }
     }
 }

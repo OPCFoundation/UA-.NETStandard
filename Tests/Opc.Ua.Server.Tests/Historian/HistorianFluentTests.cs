@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 ReplaceData = true,
                 DeleteRaw = false,
                 InsertAnnotation = true,
-                ServerTimestampSupported = true,
+                ServerTimestampSupported = true
             };
 
             b.Variable<int>(v.NodeId).Historize(capabilities: custom);

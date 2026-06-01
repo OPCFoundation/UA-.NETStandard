@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Historian
         /// Guarantees no sample loss at the cost of back-pressuring the
         /// producer.
         /// </summary>
-        Wait = 2,
+        Wait = 2
     }
 
     /// <summary>

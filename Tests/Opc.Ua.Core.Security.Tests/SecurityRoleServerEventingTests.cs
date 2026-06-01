@@ -31,8 +31,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Core.Security.Tests
 {

@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Historian
                 StartTime = startTime,
                 EndTime = endTime,
                 NumValuesPerNode = maxValuesPerNode,
-                ReturnBounds = returnBounds,
+                ReturnBounds = returnBounds
             };
 
             await foreach (DataValue value in ReadRawOrModifiedAsync(
@@ -123,7 +123,7 @@ namespace Opc.Ua.Client.Historian
                 IsReadModified = true,
                 StartTime = startTime,
                 EndTime = endTime,
-                NumValuesPerNode = maxValuesPerNode,
+                NumValuesPerNode = maxValuesPerNode
             };
 
             await foreach (DataValue value in ReadRawOrModifiedAsync(
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.Historian
                 NodeId = nodeId,
                 IsDeleteModified = isDeleteModified,
                 StartTime = startTime,
-                EndTime = endTime,
+                EndTime = endTime
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -185,7 +185,7 @@ namespace Opc.Ua.Client.Historian
                 [new ExtensionObject(details)],
                 cancellationToken).ConfigureAwait(false);
 
-            return response.Results.Count > 0 ? response.Results[0].StatusCode : (StatusCode)StatusCodes.BadInternalError;
+            return response.Results.Count > 0 ? response.Results[0].StatusCode : StatusCodes.BadInternalError;
         }
 
         /// <summary>Deletes values at the specified timestamps.</summary>
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Historian
             var details = new DeleteAtTimeDetails
             {
                 NodeId = nodeId,
-                ReqTimes = typed,
+                ReqTimes = typed
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -248,8 +248,8 @@ namespace Opc.Ua.Client.Historian
                         new()
                         {
                             NodeId = nodeId,
-                            ContinuationPoint = continuationPoint,
-                        },
+                            ContinuationPoint = continuationPoint
+                        }
                     };
 
                     HistoryReadResponse response = await Session.HistoryReadAsync(
@@ -274,8 +274,8 @@ namespace Opc.Ua.Client.Historian
                     liveContinuationPoint = result.ContinuationPoint;
 
                     bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull
-                        && result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                    if (!result.HistoryData.IsNull &&
+                        result.HistoryData.TryGetValue(out HistoryData? hd))
                     {
                         DataValue[]? values = hd.DataValues.ToArray();
                         if (values != null && values.Length > 0)
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.Historian
                     {
                         var releaseNodes = new HistoryReadValueId[]
                         {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint },
+                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
                         };
                         _ = await Session.HistoryReadAsync(
                             null,
@@ -334,11 +334,11 @@ namespace Opc.Ua.Client.Historian
                     {
                         // best-effort cleanup
                     }
-                    catch (System.Threading.Tasks.TaskCanceledException)
+                    catch (TaskCanceledException)
                     {
                         // best-effort cleanup
                     }
-                    catch (System.OperationCanceledException)
+                    catch (OperationCanceledException)
                     {
                         // best-effort cleanup
                     }
@@ -362,7 +362,7 @@ namespace Opc.Ua.Client.Historian
             {
                 NodeId = nodeId,
                 PerformInsertReplace = performUpdate,
-                UpdateValues = updateValues,
+                UpdateValues = updateValues
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(

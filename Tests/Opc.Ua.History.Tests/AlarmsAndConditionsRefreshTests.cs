@@ -89,8 +89,8 @@ namespace Opc.Ua.History.Tests
                     null, m_subscriptionId, TimestampsToReturn.Neither,
                     new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
-            m_monitoredItemId = miResp.Results.Count > 0
-                && StatusCode.IsGood(miResp.Results[0].StatusCode)
+            m_monitoredItemId = miResp.Results.Count > 0 &&
+                StatusCode.IsGood(miResp.Results[0].StatusCode)
                 ? miResp.Results[0].MonitoredItemId
                 : 0;
         }

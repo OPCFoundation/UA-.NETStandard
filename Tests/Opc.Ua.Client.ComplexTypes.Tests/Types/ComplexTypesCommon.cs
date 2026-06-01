@@ -34,10 +34,8 @@ using System.Linq;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Core.Encoders.Tests;
-using Opc.Ua.Test;
-
 using Opc.Ua.Core.TestFramework;
+using Opc.Ua.Test;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {

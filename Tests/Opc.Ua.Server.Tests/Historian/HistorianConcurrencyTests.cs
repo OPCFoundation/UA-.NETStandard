@@ -70,9 +70,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     for (int i = 0; i < perWriter; i++)
                     {
-                        DateTime ts = BaseTime.AddTicks(writerIndex * 10_000_000L + i);
+                        DateTime ts = BaseTime.AddTicks((writerIndex * 10_000_000L) + i);
                         IList<StatusCode> statuses = await provider.InsertAsync(
-                            context, nodeId, [MakeValue(ts, writerIndex * perWriter + i)], CancellationToken.None)
+                            context, nodeId, [MakeValue(ts, (writerIndex * perWriter) + i)], CancellationToken.None)
                             .ConfigureAwait(false);
                         Assert.That(StatusCode.IsGood(statuses[0]), Is.True);
                     }
@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests.Historian
             const int totalInserts = 1000;
 
             using var cts = new CancellationTokenSource();
-            Task writer = Task.Run(async () =>
+            var writer = Task.Run(async () =>
             {
                 for (int i = 0; i < totalInserts; i++)
                 {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             await provider.InsertAsync(context, nodeId, seed, CancellationToken.None).ConfigureAwait(false);
 
-            Task replacer = Task.Run(async () =>
+            var replacer = Task.Run(async () =>
             {
                 for (int i = 0; i < slots; i++)
                 {
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         .ConfigureAwait(false);
                 }
             });
-            Task reader = Task.Run(async () =>
+            var reader = Task.Run(async () =>
             {
                 for (int iter = 0; iter < 50; iter++)
                 {
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddSeconds(slots + 1),
                     MaxValues = 0,
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None).ConfigureAwait(false);
@@ -209,12 +209,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     for (int i = 0; i < perWriter; i++)
                     {
-                        DateTime when = BaseTime.AddTicks(writerIndex * 10_000_000L + i);
+                        DateTime when = BaseTime.AddTicks((writerIndex * 10_000_000L) + i);
                         var annotation = new Annotation
                         {
                             Message = $"w{writerIndex}-{i}",
                             UserName = $"u{writerIndex}",
-                            AnnotationTime = when,
+                            AnnotationTime = when
                         };
                         IList<StatusCode> statuses = await provider.InsertAnnotationsAsync(
                             context, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddDays(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
                 CancellationToken.None).ConfigureAwait(false);
@@ -255,21 +255,21 @@ namespace Opc.Ua.Server.Tests.Historian
                 provider.Register(ids[i]);
             }
 
-            Task registrarA = Task.Run(() =>
+            var registrarA = Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
                 {
                     provider.Register(ids[i % ids.Length]);
                 }
             });
-            Task registrarB = Task.Run(() =>
+            var registrarB = Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
                 {
                     provider.Register(ids[i % ids.Length]);
                 }
             });
-            Task inserter = Task.Run(async () =>
+            var inserter = Task.Run(async () =>
             {
                 for (int i = 0; i < iterations; i++)
                 {
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         StartTime = BaseTime.AddYears(-1),
                         EndTime = BaseTime.AddYears(1),
                         MaxValues = 0,
-                        IsForward = true,
+                        IsForward = true
                     },
                     token,
                     CancellationToken.None).ConfigureAwait(false);

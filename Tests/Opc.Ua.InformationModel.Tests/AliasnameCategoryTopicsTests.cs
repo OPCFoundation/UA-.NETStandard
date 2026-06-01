@@ -31,9 +31,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
-
 using Opc.Ua.Client.TestFramework;
+using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
 
 namespace Opc.Ua.InformationModel.Tests
 {

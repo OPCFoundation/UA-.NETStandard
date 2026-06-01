@@ -36,8 +36,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Configuration;
-
-#nullable enable
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -55,6 +54,10 @@ namespace Opc.Ua.Server.Hosting
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
+        private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
+        private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
+        private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
+        private readonly IServiceProvider m_services;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
         // managed via the async StopAsync override which calls m_application.StopAsync.
@@ -68,6 +71,10 @@ namespace Opc.Ua.Server.Hosting
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
+            IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
+            IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
+            IServiceProvider services,
             ILogger<OpcUaServerHostedService> logger)
         {
             if (options is null)
@@ -78,6 +85,13 @@ namespace Opc.Ua.Server.Hosting
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
             m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
+            m_identityRegistrations = identityRegistrations ??
+                throw new ArgumentNullException(nameof(identityRegistrations));
+            m_augmenterRegistrations = augmenterRegistrations ??
+                throw new ArgumentNullException(nameof(augmenterRegistrations));
+            m_keyCredentialPushSubjects = keyCredentialPushSubjects ??
+                throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
+            m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -212,6 +226,9 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
+            RegisterIdentityAuthenticators();
+            RegisterIdentityAugmenters();
 
             foreach (string url in urls)
             {
@@ -225,6 +242,58 @@ namespace Opc.Ua.Server.Hosting
             catch (OperationCanceledException)
             {
                 // Expected on host shutdown.
+            }
+        }
+
+        private async Task BindKeyCredentialPushAsync(CancellationToken ct)
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            foreach (KeyCredentialPushSubject subject in m_keyCredentialPushSubjects)
+            {
+                await m_server.CurrentInstance.ConfigurationNodeManager
+                    .BindKeyCredentialPushAsync(subject, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private void RegisterIdentityAuthenticators()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            ICertificateValidatorEx? certificateValidator =
+                m_application?.ApplicationConfiguration?.CertificateManager;
+
+            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
+            {
+                foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
+                    m_services,
+                    certificateValidator))
+                {
+                    // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
+                    // validates one fixed IssuerUri through its resolver.
+                    m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                }
+            }
+        }
+
+        private void RegisterIdentityAugmenters()
+        {
+            if (m_server == null)
+            {
+                return;
+            }
+
+            foreach (OpcUaServerIdentityAugmenterRegistration registration in m_augmenterRegistrations)
+            {
+                m_server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+                    registration.CreateAugmenter(m_services));
             }
         }
 

@@ -36,10 +36,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Subscription = Opc.Ua.Client.Subscription;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
+using Subscription = Opc.Ua.Client.Subscription;
 
 namespace Opc.Ua.Sessions.Tests
 {

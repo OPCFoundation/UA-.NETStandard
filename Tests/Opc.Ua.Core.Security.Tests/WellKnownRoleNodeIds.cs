@@ -48,10 +48,11 @@ namespace Opc.Ua.Core.Security.Tests
 
         public static NodeId TryGetChild(NodeId parentId, string childName)
         {
-            if (parentId == null || parentId.IsNull
-                || parentId.IdType != IdType.Numeric
-                || parentId.NamespaceIndex != 0
-                || string.IsNullOrEmpty(childName))
+            if (parentId == null ||
+                parentId.IsNull ||
+                parentId.IdType != IdType.Numeric ||
+                parentId.NamespaceIndex != 0 ||
+                string.IsNullOrEmpty(childName))
             {
                 return NodeId.Null;
             }
@@ -69,13 +70,14 @@ namespace Opc.Ua.Core.Security.Tests
 
         private static Dictionary<Key, uint> BuildMap()
         {
-            var m = new Dictionary<Key, uint>();
-
-            // RoleSet itself.
-            m[new(Objects.Server_ServerCapabilities_RoleSet, "AddRole")]
-                = Methods.Server_ServerCapabilities_RoleSet_AddRole;
-            m[new(Objects.Server_ServerCapabilities_RoleSet, "RemoveRole")]
-                = Methods.Server_ServerCapabilities_RoleSet_RemoveRole;
+            var m = new Dictionary<Key, uint>
+            {
+                // RoleSet itself.
+                [new(Objects.Server_ServerCapabilities_RoleSet, "AddRole")]
+                = Methods.Server_ServerCapabilities_RoleSet_AddRole,
+                [new(Objects.Server_ServerCapabilities_RoleSet, "RemoveRole")]
+                = Methods.Server_ServerCapabilities_RoleSet_RemoveRole
+            };
 
             AddRoleChildren(m, Objects.WellKnownRole_Anonymous, false,
                 Variables.WellKnownRole_Anonymous_Identities, 0, 0, 0, 0,

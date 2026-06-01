@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Stress.Tests
@@ -716,7 +715,7 @@ namespace Opc.Ua.Stress.Tests
             CreateSubscriptionResponse resp1 = await CreateSubscriptionAsync().ConfigureAwait(false);
             CreateSubscriptionResponse resp2 = await CreateSubscriptionAsync().ConfigureAwait(false);
 
-            uint[] ids = new uint[] { resp1.SubscriptionId, resp2.SubscriptionId };
+            uint[] ids = [resp1.SubscriptionId, resp2.SubscriptionId];
 
             // Disable both
             SetPublishingModeResponse disableResp = await Session.SetPublishingModeAsync(

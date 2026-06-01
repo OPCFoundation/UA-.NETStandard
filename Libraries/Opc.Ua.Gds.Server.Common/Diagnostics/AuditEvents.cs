@@ -419,7 +419,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
 
         /// <summary>
         /// Generic helper that raises a simple audit event derived from
-        /// <see cref="Ua.AuditUpdateMethodEventState"/>.
+        /// <see cref="AuditUpdateMethodEventState"/>.
         /// </summary>
         private static void ReportSimpleAuditEvent(
             IAuditEventServer? server,
@@ -428,13 +428,13 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             MethodState? method,
             ArrayOf<Variant> inputArguments,
             string eventName,
-            Func<Ua.AuditUpdateMethodEventState> factory,
+            Func<AuditUpdateMethodEventState> factory,
             ILogger logger,
             Exception? exception)
         {
             try
             {
-                Ua.AuditUpdateMethodEventState e = factory();
+                AuditUpdateMethodEventState e = factory();
 
                 TranslationInfo message = exception == null
                     ? new TranslationInfo(eventName, "en-US", $"{eventName}.")

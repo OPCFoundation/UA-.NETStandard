@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.Security.Tests
             DateTimeOffset na = notAfter ?? DateTimeOffset.UtcNow.AddYears(5);
 
             byte[] serial = new byte[16];
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(serial);
             }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Core.Security.Tests
             DateTimeOffset na = notAfter ?? DateTimeOffset.UtcNow.AddYears(1);
 
             byte[] serial = new byte[16];
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(serial);
             }

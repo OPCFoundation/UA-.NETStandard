@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Tests.Historian
     public class InMemoryHistorianProviderGapsTests
     {
         private const ushort NamespaceIndex = 1;
+
         private static readonly DateTime BaseTime =
             new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -89,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Historian
             provider.Register(nodeId, capsB);
 
             HistorianNodeCapabilities result =
-                await provider.GetCapabilitiesAsync(nodeId, CancellationToken.None);
+                await provider.GetCapabilitiesAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
 
             // Register overwrites: second call wins.
             Assert.That(result.InsertData, Is.EqualTo(capsB.InsertData));
@@ -125,7 +126,7 @@ namespace Opc.Ua.Server.Tests.Historian
             provider.SetCapabilities(nodeId, capsB);
 
             HistorianNodeCapabilities result =
-                await provider.GetCapabilitiesAsync(nodeId, CancellationToken.None);
+                await provider.GetCapabilitiesAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.InsertData, Is.EqualTo(capsB.InsertData));
             Assert.That(result.DeleteRaw, Is.EqualTo(capsB.DeleteRaw));
@@ -148,18 +149,18 @@ namespace Opc.Ua.Server.Tests.Historian
                 [
                     MakeValue(BaseTime.AddSeconds(1), 10.0),
                     MakeValue(BaseTime.AddSeconds(2), 20.0),
-                    MakeValue(BaseTime.AddSeconds(3), 30.0),
+                    MakeValue(BaseTime.AddSeconds(3), 30.0)
                 ],
                 [nodeB] =
                 [
                     MakeValue(BaseTime.AddSeconds(4), 40.0),
                     MakeValue(BaseTime.AddSeconds(5), 50.0),
-                    MakeValue(BaseTime.AddSeconds(6), 60.0),
-                ],
+                    MakeValue(BaseTime.AddSeconds(6), 60.0)
+                ]
             };
 
             IReadOnlyDictionary<NodeId, IList<StatusCode>> result =
-                await provider.InsertBatchAsync(context, batch, CancellationToken.None);
+                await provider.InsertBatchAsync(context, batch, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result[nodeA], Has.Count.EqualTo(3));
@@ -171,13 +172,13 @@ namespace Opc.Ua.Server.Tests.Historian
             }
 
             // Verify values are readable.
-            HistorianPage<HistoricalDataValue> pageA = await ReadAll(provider, context, nodeA);
+            HistorianPage<HistoricalDataValue> pageA = await ReadAll(provider, context, nodeA).ConfigureAwait(false);
             Assert.That(pageA.Values, Has.Count.EqualTo(3));
             Assert.That(
                 Convert.ToDouble(pageA.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
                 Is.EqualTo(10.0));
 
-            HistorianPage<HistoricalDataValue> pageB = await ReadAll(provider, context, nodeB);
+            HistorianPage<HistoricalDataValue> pageB = await ReadAll(provider, context, nodeB).ConfigureAwait(false);
             Assert.That(pageB.Values, Has.Count.EqualTo(3));
             Assert.That(
                 Convert.ToDouble(pageB.Values[2].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
@@ -199,7 +200,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 await provider.InsertAsync(
                     context, nodeId, [MakeValue(t0.AddSeconds(i), i)],
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
             }
 
             DateTime t1 = t0.AddSeconds(1);
@@ -208,19 +209,17 @@ namespace Opc.Ua.Server.Tests.Historian
             // DeleteRawAsync uses [start, end) — start-inclusive, end-exclusive.
             StatusCode status = await provider.DeleteRawAsync(
                 context, nodeId, (DateTimeUtc)t1, (DateTimeUtc)t3,
-                isDeleteModified: false, CancellationToken.None);
+                isDeleteModified: false, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(status), Is.True);
 
             // Read remaining values.
-            HistorianPage<HistoricalDataValue> page = await ReadAll(provider, context, nodeId);
+            HistorianPage<HistoricalDataValue> page = await ReadAll(provider, context, nodeId).ConfigureAwait(false);
 
             // t1 and t2 deleted ([1,3) range); t0, t3, t4 remain.
             Assert.That(page.Values, Has.Count.EqualTo(3));
-            double[] remaining = page.Values
-                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))
-                .ToArray();
-            Assert.That(remaining, Is.EqualTo(new[] { 0.0, 3.0, 4.0 }));
+            double[] remaining = [.. page.Values.Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))];
+            Assert.That(remaining, Is.EqualTo([0.0, 3.0, 4.0]));
         }
 
         [Test]
@@ -231,8 +230,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
 
-            ByteString evtId1 = (ByteString)new byte[] { 0x01 };
-            ByteString evtId2 = (ByteString)new byte[] { 0x02 };
+            var evtId1 = (ByteString)new byte[] { 0x01 };
+            var evtId2 = (ByteString)new byte[] { 0x02 };
 
             var events = new List<HistorianEventRecord>
             {
@@ -241,11 +240,11 @@ namespace Opc.Ua.Server.Tests.Historian
                     new Dictionary<string, Variant> { ["Message"] = new Variant("hello") }),
                 new(evtId2, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(20),
-                    new Dictionary<string, Variant> { ["Message"] = new Variant("world") }),
+                    new Dictionary<string, Variant> { ["Message"] = new Variant("world") })
             };
 
             IList<StatusCode> insertResult =
-                await provider.InsertEventsAsync(context, nodeId, events, CancellationToken.None);
+                await provider.InsertEventsAsync(context, nodeId, events, CancellationToken.None).ConfigureAwait(false);
             Assert.That(insertResult, Has.Count.EqualTo(2));
             Assert.That(StatusCode.IsGood(insertResult[0]), Is.True);
             Assert.That(StatusCode.IsGood(insertResult[1]), Is.True);
@@ -258,10 +257,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = (DateTimeUtc)BaseTime,
                     EndTime = (DateTimeUtc)BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(2));
             Assert.That(page.Values[0].EventId, Is.EqualTo(evtId1));
@@ -276,13 +275,13 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
 
-            ByteString evtId = (ByteString)new byte[] { 0xAA };
+            var evtId = (ByteString)new byte[] { 0xAA };
             var original = new HistorianEventRecord(
                 evtId, ObjectTypeIds.BaseEventType,
                 (DateTimeUtc)BaseTime.AddSeconds(10),
                 new Dictionary<string, Variant> { ["Message"] = new Variant("original") });
 
-            await provider.InsertEventsAsync(context, nodeId, [original], CancellationToken.None);
+            await provider.InsertEventsAsync(context, nodeId, [original], CancellationToken.None).ConfigureAwait(false);
 
             var replacement = new HistorianEventRecord(
                 evtId, ObjectTypeIds.BaseEventType,
@@ -290,7 +289,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant> { ["Message"] = new Variant("replaced") });
 
             IList<StatusCode> replaceResult =
-                await provider.ReplaceEventsAsync(context, nodeId, [replacement], CancellationToken.None);
+                await provider.ReplaceEventsAsync(context, nodeId, [replacement], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(replaceResult[0]), Is.True);
 
             HistorianPage<HistorianEventRecord> page = await provider.ReadEventsAsync(
@@ -301,10 +300,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = (DateTimeUtc)BaseTime,
                     EndTime = (DateTimeUtc)BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
@@ -320,9 +319,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             HistorianOperationContext context = CreateContext();
 
-            ByteString id1 = (ByteString)new byte[] { 0x01 };
-            ByteString id2 = (ByteString)new byte[] { 0x02 };
-            ByteString id3 = (ByteString)new byte[] { 0x03 };
+            var id1 = (ByteString)new byte[] { 0x01 };
+            var id2 = (ByteString)new byte[] { 0x02 };
+            var id3 = (ByteString)new byte[] { 0x03 };
 
             var events = new List<HistorianEventRecord>
             {
@@ -334,14 +333,14 @@ namespace Opc.Ua.Server.Tests.Historian
                     new Dictionary<string, Variant> { ["Message"] = new Variant("b") }),
                 new(id3, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(30),
-                    new Dictionary<string, Variant> { ["Message"] = new Variant("c") }),
+                    new Dictionary<string, Variant> { ["Message"] = new Variant("c") })
             };
 
-            await provider.InsertEventsAsync(context, nodeId, events, CancellationToken.None);
+            await provider.InsertEventsAsync(context, nodeId, events, CancellationToken.None).ConfigureAwait(false);
 
             // Delete the middle event.
             IList<StatusCode> delResult = await provider.DeleteEventsAsync(
-                context, nodeId, [id2], CancellationToken.None);
+                context, nodeId, [id2], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(delResult[0]), Is.True);
 
             HistorianPage<HistorianEventRecord> page = await provider.ReadEventsAsync(
@@ -352,14 +351,14 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = (DateTimeUtc)BaseTime,
                     EndTime = (DateTimeUtc)BaseTime.AddMinutes(1),
                     IsForward = true,
-                    Filter = new EventFilter(),
+                    Filter = new EventFilter()
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(2));
 
-            ByteString[] remainingIds = page.Values.Select(v => v.EventId).ToArray();
+            ByteString[] remainingIds = [.. page.Values.Select(v => v.EventId)];
             Assert.That(remainingIds, Does.Contain(id1));
             Assert.That(remainingIds, Does.Contain(id3));
             Assert.That(remainingIds, Does.Not.Contain(id2));
@@ -385,13 +384,13 @@ namespace Opc.Ua.Server.Tests.Historian
             // Pre-insert 3 values.
             await provider.InsertAsync(context, nodeId,
                 [MakeValue(t1, 1.0), MakeValue(t2, 2.0), MakeValue(t3, 3.0)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             // Atomically replace all 3 with new values.
             IList<StatusCode> statuses = await provider.ReplaceAtomicAsync(
                 context, nodeId,
                 [MakeValue(t1, 100.0), MakeValue(t2, 200.0), MakeValue(t3, 300.0)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
             foreach (StatusCode sc in statuses)
@@ -400,13 +399,11 @@ namespace Opc.Ua.Server.Tests.Historian
             }
 
             // Verify values were replaced.
-            HistorianPage<HistoricalDataValue> page = await ReadAll(provider, context, nodeId);
+            HistorianPage<HistoricalDataValue> page = await ReadAll(provider, context, nodeId).ConfigureAwait(false);
             Assert.That(page.Values, Has.Count.EqualTo(3));
 
-            double[] vals = page.Values
-                .Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))
-                .ToArray();
-            Assert.That(vals, Is.EqualTo(new[] { 100.0, 200.0, 300.0 }));
+            double[] vals = [.. page.Values.Select(v => Convert.ToDouble(v.Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture))];
+            Assert.That(vals, Is.EqualTo([100.0, 200.0, 300.0]));
         }
 
         private static DataValue MakeValue(DateTime sourceTimestamp, double value)
@@ -431,7 +428,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     EndTime = BaseTime.AddHours(1),
                     MaxValues = 0,
                     IsForward = true,
-                    ReturnBounds = false,
+                    ReturnBounds = false
                 },
                 default,
                 CancellationToken.None);

@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         internal const ushort NamespaceIndexAllTypes = 3;
 
         internal const string MqttAddressUrl = "mqtt://localhost:1883";
-        private static List<long> s_publishTimestamps = [];
+        private static readonly List<long> s_publishTimestamps = [];
 
         private static readonly Variant[] s_validPublisherIds =
         [

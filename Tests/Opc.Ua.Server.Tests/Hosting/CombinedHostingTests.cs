@@ -34,15 +34,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
-using Opc.Ua.Lds.Server.Hosting;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.WotCon.Server;
@@ -127,7 +123,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            IList<IHostedService> hosted = sp.GetServices<IHostedService>().ToList();
+            IList<IHostedService> hosted = [.. sp.GetServices<IHostedService>()];
             int serverCount = hosted.Count(h => h is OpcUaServerHostedService);
             int ldsCount = hosted.Count(h => h.GetType().Name == "LdsServerHostedService");
 
@@ -156,7 +152,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            IList<IHostedService> hosted = sp.GetServices<IHostedService>().ToList();
+            IList<IHostedService> hosted = [.. sp.GetServices<IHostedService>()];
             int serverCount = hosted.Count(h => h is OpcUaServerHostedService);
             int gdsCount = hosted.Count(h => h.GetType().Name == "GdsServerHostedService");
 
@@ -187,7 +183,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            IList<IHostedService> hosted = sp.GetServices<IHostedService>().ToList();
+            IList<IHostedService> hosted = [.. sp.GetServices<IHostedService>()];
             int gdsCount = hosted.Count(h => h.GetType().Name == "GdsServerHostedService");
             int ldsCount = hosted.Count(h => h.GetType().Name == "LdsServerHostedService");
 
@@ -274,7 +270,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             using ServiceProvider sp = services.BuildServiceProvider();
 
             IList<OpcUaServerNodeManagerRegistration> registrations =
-                sp.GetServices<OpcUaServerNodeManagerRegistration>().ToList();
+                [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
 
             int fakeCount = registrations.Count(
                 r => r.AsyncFactory is FakeAsyncNodeManagerFactory);
@@ -289,10 +285,10 @@ namespace Opc.Ua.Server.Tests.Hosting
             // descriptors directly.
             ServiceDescriptor? gdsDescriptor = services.FirstOrDefault(
                 d => d.ServiceType == typeof(IHostedService) &&
-                     d.ImplementationType?.Name == "GdsServerHostedService");
+                    d.ImplementationType?.Name == "GdsServerHostedService");
             ServiceDescriptor? ldsDescriptor = services.FirstOrDefault(
                 d => d.ServiceType == typeof(IHostedService) &&
-                     d.ImplementationType?.Name == "LdsServerHostedService");
+                    d.ImplementationType?.Name == "LdsServerHostedService");
             Assert.That(gdsDescriptor, Is.Not.Null);
             Assert.That(ldsDescriptor, Is.Not.Null);
 
@@ -318,15 +314,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             services.AddOpcUa()
                 .AddServer(opt => ConfigureServerOptions(opt, "WotConHostServer"))
                 .Services.AddOpcUa()
-                .AddWotConServer(opt =>
-                {
-                    opt.AssetNamespaceUri = "urn:test:wot:assets";
-                });
+                .AddWotConServer(opt => opt.AssetNamespaceUri = "urn:test:wot:assets");
 
             using ServiceProvider sp = services.BuildServiceProvider();
 
             IList<OpcUaServerNodeManagerRegistration> registrations =
-                sp.GetServices<OpcUaServerNodeManagerRegistration>().ToList();
+                [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
 
             int wotCount = registrations.Count(
                 r => r.SyncFactory is WotConnectivityNodeManagerFactory);

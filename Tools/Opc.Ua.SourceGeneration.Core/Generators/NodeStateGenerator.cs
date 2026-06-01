@@ -1449,12 +1449,8 @@ namespace Opc.Ua.SourceGeneration
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
-                    root.AccessRestrictionsSpecified);
-            if (accessRestrictions == null)
-            {
-                accessRestrictions = root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
+                    root.AccessRestrictionsSpecified) ?? root.DefaultAccessRestrictions.GetAccessRestrictionsAsCode(
                     root.DefaultAccessRestrictionsSpecified);
-            }
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
                 accessRestrictions != null
@@ -3049,11 +3045,7 @@ namespace Opc.Ua.SourceGeneration
             // Type hierarchy nodes carry permissions as metadata but the server
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             RolePermission[] nodeRolePermissions =
-                node.RolePermissions?.RolePermission;
-            if (nodeRolePermissions == null)
-            {
-                nodeRolePermissions = node.DefaultRolePermissions?.RolePermission;
-            }
+                (node.RolePermissions?.RolePermission) ?? (node.DefaultRolePermissions?.RolePermission);
             if (nodeRolePermissions != null)
             {
                 foreach (RolePermission rp in nodeRolePermissions)

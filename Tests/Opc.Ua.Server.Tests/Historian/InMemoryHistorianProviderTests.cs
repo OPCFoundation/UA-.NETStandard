@@ -36,7 +36,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -63,11 +62,11 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 MakeValue(BaseTime.AddSeconds(10), 1.0),
                 MakeValue(BaseTime.AddSeconds(20), 2.0),
-                MakeValue(BaseTime.AddSeconds(30), 3.0),
+                MakeValue(BaseTime.AddSeconds(30), 3.0)
             };
 
             IList<StatusCode> insertStatuses = await provider.InsertAsync(
-                context, nodeId, values, CancellationToken.None);
+                context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
             Assert.That(insertStatuses, Has.Count.EqualTo(3));
             foreach (StatusCode sc in insertStatuses)
             {
@@ -83,10 +82,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     EndTime = BaseTime.AddMinutes(1),
                     MaxValues = 0,
                     IsForward = true,
-                    ReturnBounds = false,
+                    ReturnBounds = false
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(3));
             Assert.That(page.IsFinal, Is.True);
@@ -108,12 +107,12 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext context = CreateContext();
             DateTime when = BaseTime.AddSeconds(10);
             IList<StatusCode> first = await provider.InsertAsync(
-                context, nodeId, [MakeValue(when, 1.0)], CancellationToken.None);
+                context, nodeId, [MakeValue(when, 1.0)], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(first[0]), Is.True);
 
             IList<StatusCode> second = await provider.InsertAsync(
-                context, nodeId, [MakeValue(when, 1.5)], CancellationToken.None);
-            Assert.That((uint)second[0].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
+                context, nodeId, [MakeValue(when, 1.5)], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(second[0].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
         }
 
         [Test]
@@ -128,9 +127,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 context,
                 nodeId,
                 [MakeValue(BaseTime.AddSeconds(15), 42.0)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That((uint)statuses[0].Code, Is.EqualTo(StatusCodes.BadNoEntryExists.Code));
+            Assert.That(statuses[0].Code, Is.EqualTo(StatusCodes.BadNoEntryExists.Code));
         }
 
         [Test]
@@ -144,9 +143,9 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTime when = BaseTime.AddSeconds(10);
 
             await provider.InsertAsync(
-                context, nodeId, [MakeValue(when, 1.0)], CancellationToken.None);
+                context, nodeId, [MakeValue(when, 1.0)], CancellationToken.None).ConfigureAwait(false);
             await provider.UpdateAsync(
-                context, nodeId, [MakeValue(when, 2.0)], CancellationToken.None);
+                context, nodeId, [MakeValue(when, 2.0)], CancellationToken.None).ConfigureAwait(false);
 
             HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
                 context,
@@ -155,10 +154,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
@@ -171,10 +170,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             Assert.That(mod.Values, Has.Count.EqualTo(1));
             Assert.That(mod.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Update));
         }
@@ -189,10 +188,10 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext context = CreateContext();
             await provider.InsertAsync(context, nodeId,
                 [MakeValue(BaseTime.AddSeconds(10), 1.0), MakeValue(BaseTime.AddSeconds(20), 2.0)],
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
 
             IList<StatusCode> result = await provider.DeleteAtTimeAsync(
-                context, nodeId, [(DateTimeUtc)BaseTime.AddSeconds(10)], CancellationToken.None);
+                context, nodeId, [(DateTimeUtc)BaseTime.AddSeconds(10)], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result[0]), Is.True);
 
             HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
@@ -202,10 +201,10 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 Convert.ToDouble(page.Values[0].Value.WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture),
@@ -225,9 +224,9 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 values.Add(MakeValue(BaseTime.AddSeconds(i), i));
             }
-            await provider.InsertAsync(context, nodeId, values, CancellationToken.None);
+            await provider.InsertAsync(context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
 
-            uint pageSize = 10;
+            const uint pageSize = 10;
             var allReturned = new List<DataValue>();
             HistorianResumeToken token = default;
             int pages = 0;
@@ -241,10 +240,10 @@ namespace Opc.Ua.Server.Tests.Historian
                         StartTime = BaseTime,
                         EndTime = BaseTime.AddMinutes(2),
                         MaxValues = pageSize,
-                        IsForward = true,
+                        IsForward = true
                     },
                     token,
-                    CancellationToken.None);
+                    CancellationToken.None).ConfigureAwait(false);
                 foreach (HistoricalDataValue v in page.Values)
                 {
                     allReturned.Add(v.Value);
@@ -278,7 +277,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var annotation = new Annotation { Message = "test", UserName = "alice", AnnotationTime = when };
 
             IList<StatusCode> insert = await provider.InsertAnnotationsAsync(
-                context, nodeId, [annotation], CancellationToken.None);
+                context, nodeId, [annotation], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(insert[0]), Is.True);
 
             HistorianPage<Annotation> page = await provider.ReadAnnotationsAsync(
@@ -288,15 +287,15 @@ namespace Opc.Ua.Server.Tests.Historian
                     NodeId = nodeId,
                     StartTime = BaseTime,
                     EndTime = BaseTime.AddMinutes(1),
-                    IsForward = true,
+                    IsForward = true
                 },
                 default,
-                CancellationToken.None);
+                CancellationToken.None).ConfigureAwait(false);
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(page.Values[0].Message, Is.EqualTo("test"));
 
             IList<StatusCode> del = await provider.DeleteAnnotationsAsync(
-                context, nodeId, [(DateTimeUtc)when], CancellationToken.None);
+                context, nodeId, [(DateTimeUtc)when], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(del[0]), Is.True);
         }
 

@@ -58,8 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var source = new MemoryStream(data);
             var chunks = new List<byte[]>();
 
-            await FileTypeClientExtensions.CopyStreamInChunksAsync(
-                source,
+            await source.CopyStreamInChunksAsync(
                 chunkSize: 1024,
                 (chunk, _) =>
                 {
@@ -85,8 +84,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var source = new ForwardOnlyStream(data);
             var chunks = new List<byte[]>();
 
-            await FileTypeClientExtensions.CopyStreamInChunksAsync(
-                source,
+            await source.CopyStreamInChunksAsync(
                 chunkSize: 256,
                 (chunk, _) =>
                 {
@@ -104,8 +102,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var source = new MemoryStream();
             int writes = 0;
 
-            await FileTypeClientExtensions.CopyStreamInChunksAsync(
-                source,
+            await source.CopyStreamInChunksAsync(
                 chunkSize: 256,
                 (_, _) =>
                 {
@@ -124,8 +121,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var source = new MemoryStream(data);
             int writes = 0;
 
-            await FileTypeClientExtensions.CopyStreamInChunksAsync(
-                source,
+            await source.CopyStreamInChunksAsync(
                 chunkSize: 1024,
                 (_, _) =>
                 {
@@ -144,8 +140,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.That(async () => await FileTypeClientExtensions.CopyStreamInChunksAsync(
-                    source,
+            Assert.That(async () => await source.CopyStreamInChunksAsync(
                     1024,
                     (_, _) => default,
                     cts.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
@@ -169,8 +164,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
 
             using var dest = new MemoryStream();
-            await FileTypeClientExtensions.CopyChunksToStreamAsync(
-                dest,
+            await dest.CopyChunksToStreamAsync(
                 chunkSize: 1024,
                 (_, _) =>
                 {
@@ -197,8 +191,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var source = new Queue<byte[]>([full, partial, extra]);
 
             using var dest = new MemoryStream();
-            await FileTypeClientExtensions.CopyChunksToStreamAsync(
-                dest,
+            await dest.CopyChunksToStreamAsync(
                 chunkSize: 1024,
                 (_, _) =>
                 {
@@ -218,8 +211,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.That(async () => await FileTypeClientExtensions.CopyChunksToStreamAsync(
-                    dest,
+            Assert.That(async () => await dest.CopyChunksToStreamAsync(
                     1024,
                     (_, _) => new ValueTask<ReadOnlyMemory<byte>>(new byte[1024]),
                     cts.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());

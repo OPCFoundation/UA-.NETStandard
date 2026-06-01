@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Identity;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.TestFramework
@@ -46,6 +49,50 @@ namespace Opc.Ua.Client.TestFramework
             LastIssuedToken = issuedToken.Copy();
 
             return new UserIdentity(issuedToken);
+        }
+    }
+
+    /// <summary>
+    /// Adapts the legacy quickstart token validator to the P5 identity-registry surface.
+    /// </summary>
+    public sealed class MockJwtAuthenticator : IUserTokenAuthenticator
+    {
+        private readonly ITokenValidator m_validator;
+
+        public MockJwtAuthenticator(ITokenValidator validator)
+        {
+            m_validator = validator ?? throw new ArgumentNullException(nameof(validator));
+        }
+
+        public UserTokenType TokenType => UserTokenType.IssuedToken;
+
+        public string? IssuedTokenProfileUri => Profiles.JwtUserToken;
+
+        public async ValueTask<AuthenticationResult> AuthenticateAsync(
+            AuthenticationContext context,
+            CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (context.TokenHandler is not IssuedIdentityTokenHandler issuedToken ||
+                issuedToken.IssuedTokenType != IssuedTokenType.JWT)
+            {
+                return AuthenticationResult.NotHandled;
+            }
+
+            return await new ValueTask<AuthenticationResult>(AuthenticateJwt(issuedToken))
+                .ConfigureAwait(false);
+        }
+
+        private AuthenticationResult AuthenticateJwt(IssuedIdentityTokenHandler issuedToken)
+        {
+            try
+            {
+                return AuthenticationResult.Accept(m_validator.ValidateToken(issuedToken));
+            }
+            catch (ServiceResultException ex)
+            {
+                return AuthenticationResult.Reject(ex.Result);
+            }
         }
     }
 }

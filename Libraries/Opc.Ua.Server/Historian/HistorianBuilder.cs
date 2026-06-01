@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public InMemoryHistorianProvider UseInMemory(InMemoryHistorianOptions? options = null)
         {
-            var provider = options is null
+            InMemoryHistorianProvider provider = options is null
                 ? new InMemoryHistorianProvider()
                 : new InMemoryHistorianProvider(options);
             Provider = provider;
@@ -87,6 +87,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Configures the builder to use the supplied provider.
         /// </summary>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>
         public HistorianBuilder UseProvider(IHistorianProvider provider)
         {
             Provider = provider ?? throw new ArgumentNullException(nameof(provider));
@@ -123,6 +124,7 @@ namespace Opc.Ua.Server.Historian
         /// throws.
         /// </para>
         /// </remarks>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="variable"/> is <c>null</c>.</exception>
         public HistorianBuilder Historize(
             BaseVariableState variable,
             byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
@@ -182,6 +184,10 @@ namespace Opc.Ua.Server.Historian
         /// pushes every value-mask change into the per-builder
         /// <see cref="HistorianCaptureSink"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when no historian provider has been bound, or when <paramref name="systemContext"/>
+        /// is not a <see cref="ServerSystemContext"/>.
+        /// </exception>
         private void AttachAutoCapture(
             BaseVariableState variable,
             ISystemContext? systemContext,
@@ -205,7 +211,7 @@ namespace Opc.Ua.Server.Historian
             // The handler is a per-instance closure so the same NodeId
             // routes to its sink across multiple captures; detach when
             // the builder is disposed.
-            NodeStateChangedHandler handler = (ctx, node, masks) =>
+            void handler(ISystemContext ctx, NodeState node, NodeStateChangeMasks masks)
             {
                 if ((masks & NodeStateChangeMasks.Value) == 0)
                 {
@@ -220,7 +226,7 @@ namespace Opc.Ua.Server.Historian
                     v.StatusCode,
                     sourceTimestamp: v.Timestamp,
                     serverTimestamp: DateTime.UtcNow));
-            };
+            }
             variable.StateChanged += handler;
             lock (m_captureSinkLock)
             {
@@ -296,8 +302,7 @@ namespace Opc.Ua.Server.Historian
             BaseVariableState variable,
             IHistorianProvider provider)
         {
-            NodeStatePopulateBrowserEventHandler? handler = null;
-            handler = (context, node, browser) =>
+            void handler(ISystemContext context, NodeState node, NodeBrowser browser)
             {
                 try
                 {
@@ -315,7 +320,8 @@ namespace Opc.Ua.Server.Historian
                     // Self-detach so subsequent browses don't repeat the work.
                     variable.OnPopulateBrowser -= handler!;
                 }
-            };
+            }
+
             variable.OnPopulateBrowser += handler;
         }
 
@@ -353,7 +359,7 @@ namespace Opc.Ua.Server.Historian
                     BrowseName = browseName,
                     DisplayName = LocalizedText.From(BrowseNames.Annotations),
                     AccessLevel = historyAccessLevel,
-                    UserAccessLevel = historyAccessLevel,
+                    UserAccessLevel = historyAccessLevel
                 };
                 annotations.NodeId = annotations.NodeId.IsNull
                     ? new NodeId(variable.NodeId + "/Annotations", variable.NodeId.NamespaceIndex)
