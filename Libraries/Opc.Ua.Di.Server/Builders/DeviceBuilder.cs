@@ -37,6 +37,7 @@ namespace Opc.Ua.Di.Server.Builders
     /// by a <see cref="ComponentState"/> instance attached to a parent
     /// node within a <see cref="DiNodeManager"/>'s address space.
     /// </summary>
+    /// <typeparam name="TDevice">Concrete device state type.</typeparam>
     internal sealed class DeviceBuilder<TDevice> : IDeviceBuilder<TDevice>
         where TDevice : ComponentState
     {
@@ -424,6 +425,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// nameplate property, writes its value, and registers it with
         /// the manager so direct NodeId lookup and event delivery work.
         /// </summary>
+        /// <typeparam name="TValue">Property value type.</typeparam>
         private void FinalizeAndRegister<TValue>(
             PropertyState created,
             PropertyState<TValue> typed,

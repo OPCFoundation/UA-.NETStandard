@@ -62,6 +62,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// with it. The interface is created on first call with
         /// browse-name <c>"SupportInfo"</c> in the device's namespace.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public static IDeviceBuilder<TDevice> WithSupportInfo<TDevice>(
             this IDeviceBuilder<TDevice> device,
             Action<ISupportInfoState> configure)

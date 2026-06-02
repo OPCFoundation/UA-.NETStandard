@@ -99,6 +99,7 @@ namespace Opc.Ua.Server.Fluent
         /// the resolved parent and stamps an explicit
         /// <c>TypeDefinitionId</c>.
         /// </summary>
+        /// <typeparam name="TState">Concrete instance state class.</typeparam>
         public static IInstanceBuilder<TState> CreateInstance<TState>(
             this INodeBuilder parent,
             QualifiedName browseName,
@@ -187,6 +188,7 @@ namespace Opc.Ua.Server.Fluent
     /// <see cref="ReferenceBuilderExtensions.AddObject(INodeBuilder, QualifiedName, NodeId)"/>
     /// so chained fluent calls work uniformly.
     /// </summary>
+    /// <typeparam name="TState">Concrete instance state class.</typeparam>
     internal sealed class InstanceBuilder<TState> : IInstanceBuilder<TState>
         where TState : BaseInstanceState
     {
@@ -220,6 +222,7 @@ namespace Opc.Ua.Server.Fluent
     /// of <c>ReferenceBuilderExtensions.AdHocNodeBuilder</c> but exposes
     /// a strongly-typed <see cref="Node"/> property.
     /// </summary>
+    /// <typeparam name="TState">Concrete node state class.</typeparam>
     internal sealed class AdHocInstanceNodeBuilder<TState> : INodeBuilder<TState>
         where TState : NodeState
     {

@@ -82,6 +82,7 @@ namespace Opc.Ua.Di.Server.Hosting
         /// scoped to the OPC UA hosting graph and intentionally narrow
         /// to prevent ad-hoc service-locator anti-patterns.
         /// </summary>
+        /// <typeparam name="T">Service contract to resolve.</typeparam>
         T GetRequiredService<T>() where T : notnull;
 
         /// <summary>
@@ -96,6 +97,7 @@ namespace Opc.Ua.Di.Server.Hosting
         /// Convenience pass-through to the generic
         /// <see cref="DiNodeManager.CreateDeviceAsync{TDevice}(QualifiedName, NodeId, Func{NodeState, TDevice}, NodeState?, CancellationToken)"/>.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         ValueTask<IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
             QualifiedName browseName,
             NodeId typeDefinitionId,
@@ -107,6 +109,7 @@ namespace Opc.Ua.Di.Server.Hosting
         /// Resolves an existing device by NodeId and returns its
         /// fluent builder for further configuration.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId)
             where TDevice : ComponentState;
 
@@ -114,6 +117,7 @@ namespace Opc.Ua.Di.Server.Hosting
         /// Resolves an existing device by browse name (under the
         /// manager's default parent) and returns its fluent builder.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
             QualifiedName browseName,
             NodeState? parent = null)

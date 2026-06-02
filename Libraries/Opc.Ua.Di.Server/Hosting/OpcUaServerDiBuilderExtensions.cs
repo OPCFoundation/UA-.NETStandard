@@ -144,6 +144,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// The delegate receives the same context and is awaited inline
         /// by the runner; thrown exceptions abort hosted-server startup.
         /// </summary>
+        /// <typeparam name="TNodeManager">Target node-manager subclass.</typeparam>
         public static IOpcUaServerBuilder ConfigureDevicesFor<TNodeManager>(
             this IOpcUaServerBuilder builder,
             Func<IDiPostSetupContext, ValueTask> configure)

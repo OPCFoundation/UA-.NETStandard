@@ -65,6 +65,7 @@ namespace Opc.Ua.Server.Fluent
         /// Returns control to the owning node builder so subsequent
         /// fluent calls operate on the state machine's parent again.
         /// </summary>
+        /// <typeparam name="TState">Concrete finite state machine state type.</typeparam>
         public static INodeBuilder Done<TState>(this IStateMachineBuilder<TState> builder)
             where TState : FiniteStateMachineState
         {

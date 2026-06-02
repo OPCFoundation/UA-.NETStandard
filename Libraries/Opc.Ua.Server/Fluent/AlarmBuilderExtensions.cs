@@ -147,6 +147,7 @@ namespace Opc.Ua.Server.Fluent
         /// Use for properties not covered by the narrow MVP surface
         /// (e.g. severity table, retain flag, branches).
         /// </summary>
+        /// <typeparam name="TState">Concrete alarm condition state type.</typeparam>
         public static IAlarmBuilder<TState> ConfigureAlarm<TState>(
             this IAlarmBuilder<TState> builder,
             Action<TState> configure)
@@ -163,6 +164,7 @@ namespace Opc.Ua.Server.Fluent
         /// fluent calls operate on the alarm's parent again. Use this
         /// when chaining multiple alarms.
         /// </summary>
+        /// <typeparam name="TState">Concrete alarm condition state type.</typeparam>
         public static INodeBuilder Done<TState>(this IAlarmBuilder<TState> builder)
             where TState : ConditionState
         {
@@ -211,6 +213,7 @@ namespace Opc.Ua.Server.Fluent
     /// <summary>
     /// Internal implementation of <see cref="IAlarmBuilder{TState}"/>.
     /// </summary>
+    /// <typeparam name="TState">Concrete alarm condition state type.</typeparam>
     internal sealed class AlarmBuilder<TState> : IAlarmBuilder<TState>
         where TState : ConditionState
     {

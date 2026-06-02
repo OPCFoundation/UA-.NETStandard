@@ -133,6 +133,7 @@ namespace Opc.Ua.Server.Fluent
         /// Convenience overload that sets <c>EngineeringUnits</c> and
         /// <c>EURange</c> in one call.
         /// </summary>
+        /// <typeparam name="TValue">Variable value type.</typeparam>
         public static IVariableBuilder<TValue> WithUnits<TValue>(
             this IVariableBuilder<TValue> builder,
             EUInformation units,

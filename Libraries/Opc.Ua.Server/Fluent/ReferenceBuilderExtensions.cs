@@ -211,6 +211,7 @@ namespace Opc.Ua.Server.Fluent
         /// child wiring through the same mechanisms used by the
         /// production <c>NodeBuilder</c>.
         /// </summary>
+        /// <typeparam name="TState">Concrete node state class.</typeparam>
         private sealed class AdHocNodeBuilder<TState> :
             INodeBuilder<TState>
             where TState : NodeState

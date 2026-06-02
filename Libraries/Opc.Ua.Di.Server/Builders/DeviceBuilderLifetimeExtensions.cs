@@ -43,6 +43,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// with the supplied start value and the indication
         /// classifier kind.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public static LifetimeVariableState AddLifetimeIndication<TDevice>(
             this IDeviceBuilder<TDevice> device,
             QualifiedName browseName,

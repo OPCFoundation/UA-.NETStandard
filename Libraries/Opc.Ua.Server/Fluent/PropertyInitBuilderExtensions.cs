@@ -213,6 +213,7 @@ namespace Opc.Ua.Server.Fluent
         /// Typed-view variant of <see cref="WithProperty(INodeBuilder, string, Variant)"/>
         /// that preserves the typed builder return value.
         /// </summary>
+        /// <typeparam name="TState">Concrete node state class.</typeparam>
         public static INodeBuilder<TState> WithProperty<TState>(
             this INodeBuilder<TState> builder,
             string browseName,

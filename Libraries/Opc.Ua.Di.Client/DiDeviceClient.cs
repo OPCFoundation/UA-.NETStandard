@@ -289,6 +289,7 @@ namespace Opc.Ua.Di.Client
         /// Returns <c>default</c> if the property is not found or the
         /// value cannot be converted to <typeparamref name="T"/>.
         /// </summary>
+        /// <typeparam name="T">Expected property value type.</typeparam>
         public async ValueTask<T?> ReadPropertyAsync<T>(
             string browseName,
             CancellationToken ct = default)

@@ -433,6 +433,7 @@ namespace Opc.Ua.Di.Server
         /// same configuration code can run against loaded and
         /// programmatically created devices alike.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public IDeviceBuilder<TDevice> Device<TDevice>(TDevice device)
             where TDevice : ComponentState
         {
@@ -450,6 +451,7 @@ namespace Opc.Ua.Di.Server
         /// in the manager's predefined nodes or is not assignable to
         /// <typeparamref name="TDevice"/>.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId)
             where TDevice : ComponentState
         {
@@ -484,6 +486,7 @@ namespace Opc.Ua.Di.Server
         /// (defaulting to <see cref="ResolveDefaultDeviceParent"/>) and
         /// returns a fluent builder over it.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
             QualifiedName browseName,
             NodeState? parent = null)

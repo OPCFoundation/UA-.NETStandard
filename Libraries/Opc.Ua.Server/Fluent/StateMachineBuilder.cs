@@ -39,6 +39,7 @@ namespace Opc.Ua.Server.Fluent
     /// <see cref="FiniteStateMachineState"/> so user callbacks (enter,
     /// exit, transition, guards) and pre-existing handlers all run.
     /// </summary>
+    /// <typeparam name="TState">Concrete finite state machine state type.</typeparam>
     /// <remarks>
     /// <para>
     /// State IDs are derived from <c>CurrentState.Id.Value</c> — a

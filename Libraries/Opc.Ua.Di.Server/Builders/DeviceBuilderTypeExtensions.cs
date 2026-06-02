@@ -52,6 +52,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// <summary>
         /// Adds a <see cref="SoftwareState"/> instance under the device.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public static SoftwareState AddSoftware<TDevice>(
             this IDeviceBuilder<TDevice> device,
             QualifiedName browseName,
@@ -65,6 +66,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// <summary>
         /// Adds a <see cref="BlockState"/> instance under the device.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public static BlockState AddBlock<TDevice>(
             this IDeviceBuilder<TDevice> device,
             QualifiedName browseName,
@@ -79,6 +81,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// Adds a <see cref="ConfigurableObjectState"/> instance under
         /// the device.
         /// </summary>
+        /// <typeparam name="TDevice">Concrete device state type.</typeparam>
         public static ConfigurableObjectState AddConfigurableObject<TDevice>(
             this IDeviceBuilder<TDevice> device,
             QualifiedName browseName,
