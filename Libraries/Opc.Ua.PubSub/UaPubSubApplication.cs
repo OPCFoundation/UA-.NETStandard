@@ -46,7 +46,6 @@ namespace Opc.Ua.PubSub
         private readonly List<IUaPubSubConnection> m_uaPubSubConnections;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
         /// </summary>
@@ -93,16 +92,21 @@ namespace Opc.Ua.PubSub
         /// <param name="dataStore">The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
         /// <param name="applicationId"> The application id for instance.</param>
+        /// <param name="timeProvider">The optional <see cref="System.TimeProvider"/>
+        /// used for timer and duration calculations. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         private UaPubSubApplication(
             ITelemetryContext telemetry,
             IUaPubSubDataStore? dataStore = null,
-            string? applicationId = null)
+            string? applicationId = null,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<UaPubSubApplication>();
             m_uaPubSubConnections = [];
 
             m_telemetry = telemetry;
             DataStore = dataStore ?? new UaPubSubDataStore();
+            TimeProvider = timeProvider ??= TimeProvider.System;
 
             if (!string.IsNullOrEmpty(applicationId))
             {
@@ -160,16 +164,32 @@ namespace Opc.Ua.PubSub
         internal DataCollector DataCollector { get; }
 
         /// <summary>
+        /// Gets the <see cref="System.TimeProvider"/> used by this PubSub application and
+        /// all components it owns (connections, publishers, discovery, metadata publishers,
+        /// interval runners) for timer and duration calculations.
+        /// </summary>
+        public TimeProvider TimeProvider { get; }
+
+        /// <summary>
         /// Creates a new <see cref="UaPubSubApplication"/> and associates it with a
         /// custom implementation of <see cref="IUaPubSubDataStore"/>.
         /// </summary>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> for timer and
+        /// duration calculations. Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(IUaPubSubDataStore dataStore, ITelemetryContext telemetry)
+        public static UaPubSubApplication Create(
+            IUaPubSubDataStore dataStore,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
-            return Create(new PubSubConfigurationDataType { Enabled = true }, dataStore, telemetry);
+            return Create(
+                new PubSubConfigurationDataType { Enabled = true },
+                dataStore,
+                telemetry,
+                timeProvider);
         }
 
         /// <summary>
@@ -180,13 +200,16 @@ namespace Opc.Ua.PubSub
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> for timer and
+        /// duration calculations. Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         /// <exception cref="ArgumentNullException"><paramref name="configFilePath"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         public static UaPubSubApplication Create(
             string configFilePath,
             ITelemetryContext telemetry,
-            IUaPubSubDataStore? dataStore = null)
+            IUaPubSubDataStore? dataStore = null,
+            TimeProvider? timeProvider = null)
         {
             // validate input argument
             if (configFilePath == null)
@@ -202,7 +225,7 @@ namespace Opc.Ua.PubSub
             PubSubConfigurationDataType pubSubConfiguration =
                 UaPubSubConfigurationHelper.LoadConfiguration(configFilePath, telemetry);
 
-            return Create(pubSubConfiguration, dataStore, telemetry);
+            return Create(pubSubConfiguration, dataStore, telemetry, timeProvider);
         }
 
         /// <summary>
@@ -210,11 +233,14 @@ namespace Opc.Ua.PubSub
         /// specified <see cref="PubSubConfigurationDataType"/> parameter.
         /// </summary>
         /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> for timer and
+        /// duration calculations. Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
-            return Create(null!, null, telemetry);
+            return Create(null!, null, telemetry, timeProvider);
         }
 
         /// <summary>
@@ -223,12 +249,15 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object.</param>
         /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> for timer and
+        /// duration calculations. Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(
             PubSubConfigurationDataType pubSubConfiguration,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
-            return Create(pubSubConfiguration, null, telemetry);
+            return Create(pubSubConfiguration, null, telemetry, timeProvider);
         }
 
         /// <summary>
@@ -239,16 +268,22 @@ namespace Opc.Ua.PubSub
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/>
         /// used by this instance of pub sub application</param>
         /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> for timer and
+        /// duration calculations. Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(
             PubSubConfigurationDataType pubSubConfiguration,
             IUaPubSubDataStore? dataStore,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             // if no argument received, start with empty configuration
             pubSubConfiguration ??= new PubSubConfigurationDataType { Enabled = true };
 
-            var uaPubSubApplication = new UaPubSubApplication(telemetry, dataStore);
+            var uaPubSubApplication = new UaPubSubApplication(
+                telemetry,
+                dataStore,
+                timeProvider: timeProvider);
             uaPubSubApplication.UaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
             return uaPubSubApplication;
         }

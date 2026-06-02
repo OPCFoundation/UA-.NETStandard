@@ -61,7 +61,10 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoverySubscriber"/>
         /// </summary>
-        public UdpDiscoverySubscriber(UdpPubSubConnection udpConnection, ITelemetryContext telemetry)
+        public UdpDiscoverySubscriber(
+            UdpPubSubConnection udpConnection,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
             : base(udpConnection, telemetry, telemetry.CreateLogger<UdpDiscoverySubscriber>())
         {
             m_metadataWriterIdsToSend = [];
@@ -70,7 +73,8 @@ namespace Opc.Ua.PubSub.Transport
                 kInitialRequestInterval,
                 CanPublish,
                 RequestDiscoveryMessagesAsync,
-                telemetry);
+                telemetry,
+                timeProvider);
         }
 
         /// <summary>

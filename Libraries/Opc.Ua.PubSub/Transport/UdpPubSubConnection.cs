@@ -188,7 +188,10 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 // initialize the discovery channel
-                m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(this, Telemetry);
+                m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(
+                    this,
+                    Telemetry,
+                    Application.TimeProvider);
                 await m_udpDiscoverySubscriber.StartAsync(MessageContext).ConfigureAwait(false);
 
                 // add handler to metaDataReceived event

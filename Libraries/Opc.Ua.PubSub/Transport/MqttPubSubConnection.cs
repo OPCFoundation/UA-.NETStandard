@@ -437,7 +437,8 @@ namespace Opc.Ua.PubSub.Transport
                                 writerGroup,
                                 dataSetWriter,
                                 transport.MetaDataUpdateTime,
-                                Telemetry));
+                                Telemetry,
+                                Application.TimeProvider));
                     }
                 }
 

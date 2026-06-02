@@ -42,6 +42,7 @@ namespace Opc.Ua.PubSub
         private const int kMinInterval = 10;
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
 
         private double m_interval = kMinInterval;
         private double m_nextPublishTick;
@@ -59,13 +60,15 @@ namespace Opc.Ua.PubSub
             double interval,
             Func<bool> canExecuteFunc,
             Func<Task> intervalActionAsync,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<IntervalRunner>();
             Id = id;
             Interval = interval;
             CanExecuteFunc = canExecuteFunc;
             IntervalActionAsync = intervalActionAsync;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         /// <summary>
@@ -166,15 +169,17 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private async Task ProcessAsync()
         {
+            bool isSystemProvider = ReferenceEquals(m_timeProvider, TimeProvider.System);
+            long ticksPerMs = Math.Max(1L, m_timeProvider.TimestampFrequency / 1000L);
             lock (m_lock)
             {
-                m_nextPublishTick = HiResClock.Ticks;
+                m_nextPublishTick = m_timeProvider.GetTimestamp();
             }
             // m_cancellationToken is only null after Dispose; ProcessAsync is started
             // by Start before Dispose can be reached in normal usage.
             while (!m_cancellationToken!.IsCancellationRequested)
             {
-                long nowTick = HiResClock.Ticks;
+                long nowTick = m_timeProvider.GetTimestamp();
                 double nextPublishTick = 0;
 
                 lock (m_lock)
@@ -182,30 +187,54 @@ namespace Opc.Ua.PubSub
                     nextPublishTick = m_nextPublishTick;
                 }
 
-                double sleepCycle = (nextPublishTick - nowTick) / HiResClock.TicksPerMillisecond;
+                double sleepCycle = (nextPublishTick - nowTick) / ticksPerMs;
                 if (sleepCycle > 16)
                 {
                     // Use Task.Delay if sleep cycle is larger
-                    await Task.Delay(
+                    await m_timeProvider.Delay(
                         TimeSpan.FromMilliseconds(sleepCycle),
                         m_cancellationToken.Token)
                         .ConfigureAwait(false);
 
                     // Still ticks to consume (spurious wakeup too early), improbable
-                    nowTick = HiResClock.Ticks;
+                    nowTick = m_timeProvider.GetTimestamp();
                     if (nowTick < nextPublishTick)
                     {
-                        SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
+                        if (isSystemProvider)
+                        {
+                            SpinWait.SpinUntil(() => m_timeProvider.GetTimestamp() >= nextPublishTick);
+                        }
+                        else
+                        {
+                            double remainingMs = (nextPublishTick - nowTick) / ticksPerMs;
+                            if (remainingMs > 0)
+                            {
+                                await m_timeProvider.Delay(
+                                    TimeSpan.FromMilliseconds(remainingMs),
+                                    m_cancellationToken.Token)
+                                    .ConfigureAwait(false);
+                            }
+                        }
                     }
                 }
                 else if (sleepCycle is >= 0 and <= 16)
                 {
-                    SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
+                    if (isSystemProvider)
+                    {
+                        SpinWait.SpinUntil(() => m_timeProvider.GetTimestamp() >= nextPublishTick);
+                    }
+                    else if (sleepCycle > 0)
+                    {
+                        await m_timeProvider.Delay(
+                            TimeSpan.FromMilliseconds(sleepCycle),
+                            m_cancellationToken.Token)
+                            .ConfigureAwait(false);
+                    }
                 }
 
                 lock (m_lock)
                 {
-                    double nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
+                    double nextCycle = (long)m_interval * ticksPerMs;
                     m_nextPublishTick += nextCycle;
 
                     if (IntervalActionAsync != null && CanExecuteFunc != null && CanExecuteFunc())
