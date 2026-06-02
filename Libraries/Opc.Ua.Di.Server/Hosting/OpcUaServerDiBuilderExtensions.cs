@@ -194,7 +194,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public Type TargetManagerType { get; }
 
-            public ValueTask RunAsync(IDiPostSetupContext context) => m_configure(context);
+            public ValueTask RunAsync(IDiPostSetupContext context)
+            {
+                return m_configure(context);
+            }
         }
     }
 }

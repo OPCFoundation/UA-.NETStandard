@@ -76,7 +76,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder Organizes(
             this INodeBuilder builder,
             NodeId targetId)
-            => builder.AddReference(ReferenceTypeIds.Organizes, isInverse: false, targetId);
+            {
+            return builder.AddReference(ReferenceTypeIds.Organizes, isInverse: false, targetId);
+            }
 
         /// <summary>
         /// Convenience overload that takes a <see cref="NodeState"/> for
@@ -97,7 +99,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder HasComponent(
             this INodeBuilder builder,
             NodeId targetId)
-            => builder.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, targetId);
+            {
+            return builder.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, targetId);
+            }
 
         /// <summary>
         /// Adds a <see cref="ReferenceTypeIds.HasProperty"/> reference
@@ -106,7 +110,9 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder HasProperty(
             this INodeBuilder builder,
             NodeId targetId)
-            => builder.AddReference(ReferenceTypeIds.HasProperty, isInverse: false, targetId);
+            {
+            return builder.AddReference(ReferenceTypeIds.HasProperty, isInverse: false, targetId);
+            }
 
         /// <summary>
         /// Adds an arbitrary reference from the current node to
@@ -240,36 +246,71 @@ namespace Opc.Ua.Server.Fluent
             }
 
             public INodeBuilder OnRead(NodeValueEventHandler handler)
-                => SetVariable(v => v.OnReadValue = handler);
+            {
+                return SetVariable(v => v.OnReadValue = handler);
+            }
             public INodeBuilder OnRead(NodeValueSimpleEventHandler handler)
-                => SetVariable(v => v.OnSimpleReadValue = handler);
+            {
+                return SetVariable(v => v.OnSimpleReadValue = handler);
+            }
             public INodeBuilder OnWrite(NodeValueEventHandler handler)
-                => SetVariable(v => v.OnWriteValue = handler);
+            {
+                return SetVariable(v => v.OnWriteValue = handler);
+            }
             public INodeBuilder OnWrite(NodeValueSimpleEventHandler handler)
-                => SetVariable(v => v.OnSimpleWriteValue = handler);
+            {
+                return SetVariable(v => v.OnSimpleWriteValue = handler);
+            }
             public INodeBuilder OnRead(NodeValueEventHandlerAsync handler)
-                => SetVariable(v => v.OnReadValueAsync = handler);
+            {
+                return SetVariable(v => v.OnReadValueAsync = handler);
+            }
             public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler)
-                => SetVariable(v => v.OnSimpleReadValueAsync = handler);
+            {
+                return SetVariable(v => v.OnSimpleReadValueAsync = handler);
+            }
             public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler)
-                => SetVariable(v => v.OnWriteValueAsync = handler);
+            {
+                return SetVariable(v => v.OnWriteValueAsync = handler);
+            }
             public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler)
-                => SetVariable(v => v.OnSimpleWriteValueAsync = handler);
+            {
+                return SetVariable(v => v.OnSimpleWriteValueAsync = handler);
+            }
             public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
-                => SetMethod(m => m.OnCallMethod2 = handler);
+            {
+                return SetMethod(m => m.OnCallMethod2 = handler);
+            }
             public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
-                => SetMethod(m => m.OnCallMethod2Async = handler);
+            {
+                return SetMethod(m => m.OnCallMethod2Async = handler);
+            }
 
             public INodeBuilder OnNodeAdded(NodeLifecycleHandler handler)
             {
                 handler(Builder.Context, Node);
                 return this;
             }
-            public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler) => this;
-            public INodeBuilder OnHistoryRead(HistoryReadHandler handler) => this;
-            public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler) => this;
-            public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler) => this;
-            public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler) => this;
+            public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler)
+            {
+                return this;
+            }
+            public INodeBuilder OnHistoryRead(HistoryReadHandler handler)
+            {
+                return this;
+            }
+            public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler)
+            {
+                return this;
+            }
+            public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler)
+            {
+                return this;
+            }
+            public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
+            {
+                return this;
+            }
             public INodeBuilder OnEvent(EventNotificationHandler handler)
             {
                 Node.OnReportEvent = (ctx, n, ev) => handler(ctx, n, ev);

@@ -411,10 +411,14 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
         }
 
         private string BuildPath(string version)
-            => m_rootPath.TrimEnd('/') + "/" + version;
+        {
+            return m_rootPath.TrimEnd('/') + "/" + version;
+        }
 
         private string BuildPath(string version, string fileName)
-            => BuildPath(version) + "/" + fileName;
+        {
+            return BuildPath(version) + "/" + fileName;
+        }
 
         private readonly IFileSystemProvider m_provider;
         private readonly string m_rootPath;

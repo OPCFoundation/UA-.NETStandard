@@ -70,7 +70,9 @@ namespace Opc.Ua.Di.Server.Hosting
         public ValueTask<IDeviceBuilder<DeviceState>> CreateDeviceAsync(
             QualifiedName browseName,
             NodeState? parent = null)
-            => Manager.CreateDeviceAsync(browseName, parent, CancellationToken);
+            {
+            return Manager.CreateDeviceAsync(browseName, parent, CancellationToken);
+            }
 
         public ValueTask<IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
             QualifiedName browseName,

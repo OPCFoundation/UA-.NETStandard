@@ -217,7 +217,10 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
-        public INodeBuilder Done() => Parent;
+        public INodeBuilder Done()
+        {
+            return Parent;
+        }
     }
 
     /// <summary>
@@ -279,11 +282,26 @@ namespace Opc.Ua.Server.Fluent
             handler(Builder.Context, Node);
             return this;
         }
-        public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler) => this;
-        public INodeBuilder OnHistoryRead(HistoryReadHandler handler) => this;
-        public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler) => this;
-        public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler) => this;
-        public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler) => this;
+        public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler)
+        {
+            return this;
+        }
+        public INodeBuilder OnHistoryRead(HistoryReadHandler handler)
+        {
+            return this;
+        }
+        public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler)
+        {
+            return this;
+        }
+        public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler)
+        {
+            return this;
+        }
+        public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
+        {
+            return this;
+        }
 
         public INodeBuilder OnEvent(EventNotificationHandler handler)
         {

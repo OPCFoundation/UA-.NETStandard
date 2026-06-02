@@ -90,16 +90,20 @@ namespace Opc.Ua.Di.Client
         /// that subsequent <see cref="StreamAsync"/> calls poll on.
         /// </summary>
         public ValueTask<int> TransferToDeviceAsync(CancellationToken ct = default)
-            => InitiateTransferAsync(
+        {
+            return InitiateTransferAsync(
                 Opc.Ua.Di.Methods.TransferServicesType_TransferToDevice, ct);
+        }
 
         /// <summary>
         /// Invokes <c>TransferFromDevice</c>. Returns the transfer ID
         /// that subsequent <see cref="StreamAsync"/> calls poll on.
         /// </summary>
         public ValueTask<int> TransferFromDeviceAsync(CancellationToken ct = default)
-            => InitiateTransferAsync(
+        {
+            return InitiateTransferAsync(
                 Opc.Ua.Di.Methods.TransferServicesType_TransferFromDevice, ct);
+        }
 
         /// <summary>
         /// Streams parameter entries from a previously-initiated

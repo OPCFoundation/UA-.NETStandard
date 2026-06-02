@@ -96,7 +96,9 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public IAsyncEnumerable<TopologyEntry> EnumerateDevicesAsync(
             CancellationToken cancellationToken = default)
-            => BrowseChildrenAsync(DeviceSetId, cancellationToken);
+            {
+            return BrowseChildrenAsync(DeviceSetId, cancellationToken);
+            }
 
         /// <summary>
         /// Enumerates the direct children of <c>NetworkSet</c> (usually
@@ -104,7 +106,9 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public IAsyncEnumerable<TopologyEntry> EnumerateNetworksAsync(
             CancellationToken cancellationToken = default)
-            => BrowseChildrenAsync(NetworkSetId, cancellationToken);
+            {
+            return BrowseChildrenAsync(NetworkSetId, cancellationToken);
+            }
 
         /// <summary>
         /// Enumerates the direct children of an arbitrary topology

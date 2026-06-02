@@ -94,37 +94,45 @@ namespace Opc.Ua.Di.Client
         /// 1 = already locked, 2 = could not lock.
         /// </summary>
         public ValueTask<int> InitLockAsync(string context, CancellationToken ct = default)
-            => CallMethodAsync(
+        {
+            return CallMethodAsync(
                 Opc.Ua.Di.Methods.LockingServicesType_InitLock,
                 new Variant[] { new Variant(context ?? string.Empty) },
                 ct);
+        }
 
         /// <summary>
         /// Calls <c>RenewLock</c>. 0 = OK, 1 = not locked, 2 = wrong client.
         /// </summary>
         public ValueTask<int> RenewLockAsync(CancellationToken ct = default)
-            => CallMethodAsync(
+        {
+            return CallMethodAsync(
                 Opc.Ua.Di.Methods.LockingServicesType_RenewLock,
                 Array.Empty<Variant>(),
                 ct);
+        }
 
         /// <summary>
         /// Calls <c>ExitLock</c>. 0 = OK, 1 = not locked, 2 = wrong client.
         /// </summary>
         public ValueTask<int> ExitLockAsync(CancellationToken ct = default)
-            => CallMethodAsync(
+        {
+            return CallMethodAsync(
                 Opc.Ua.Di.Methods.LockingServicesType_ExitLock,
                 Array.Empty<Variant>(),
                 ct);
+        }
 
         /// <summary>
         /// Calls <c>BreakLock</c>. 0 = OK, 1 = not locked.
         /// </summary>
         public ValueTask<int> BreakLockAsync(CancellationToken ct = default)
-            => CallMethodAsync(
+        {
+            return CallMethodAsync(
                 Opc.Ua.Di.Methods.LockingServicesType_BreakLock,
                 Array.Empty<Variant>(),
                 ct);
+        }
 
         private async ValueTask<int> CallMethodAsync(
             uint methodTypeId,
