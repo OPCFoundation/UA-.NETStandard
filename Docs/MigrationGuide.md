@@ -314,6 +314,8 @@ Note that equality operators and methods now compare the content of the Array an
 
 **Change code as follows:**
 
+> ℹ **Tip — install `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`** before touching collection sites. Its source generator emits an `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shim per consumer compilation for every `<Type>Collection` the consumer references (including model-compiled `<UserType>Collection` patterns), so `CS0246: type or namespace 'XxxCollection' not found` is replaced with `[Obsolete]` warnings + `UA0002` analyzer guidance you can iterate through.
+
 - Replace any `T[]` with `ArrayOf<T>` where T is the type of the element in the array. Do this where errors are flagged, e.g. wherever casting a Variant to a `T[]` change it to `ArrayOf<T>` if it is a T array.
 - Change all use of `<Type>Collection` or `IList<Type>` to `List<Type>` (add a `using System.Collections.Generic` directive if needed). When the collection is never mutated (items added, inserted or removed), use `ArrayOf<Type>`.
 - In case of `error CS4007: Instance of type 'System.ReadOnlySpan<T>.Enumerator' cannot be preserved across 'await' or 'yield' boundary` convert the enumerated `ArrayOf<T>` to a list using `ToList()` and enumerate the list.

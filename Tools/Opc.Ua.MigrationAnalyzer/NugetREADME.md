@@ -1,20 +1,37 @@
-# OPC UA migration analyzers, code fixers, and compatibility shim
+# OPC UA migration analyzers, code fixers, source generator, and compatibility shim
 
 ## What you get
 
 A single NuGet install (`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`) that
-ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
+ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
+.NET Standard 1.5.378 to 2.0:
 
 - a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0022`) that flags every
   pattern covered by [`Docs/MigrationGuide.md`](../../Docs/MigrationGuide.md)
-  and, where safe, applies the fix automatically; and
+  and, where safe, applies the fix automatically;
+- a Roslyn **source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that
+  emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`
+  shims for every `<Type>Collection` wrapper the consumer references but that
+  2.0 removed — **including** model-compiled `<UserType>Collection` patterns,
+  not just the 30 well-known built-in ones. Element types renamed across the
+  1.5.378 → 2.0 boundary (e.g. `DateTime`→`DateTimeUtc`, `Guid`→`Uuid`,
+  `byte[]`→`ByteString`, `XmlElement`→`Opc.Ua.XmlElement`) are pinned through
+  a 30-entry override table; everything else falls back to semantic lookup in
+  the consumer's compilation; and
 - a **compatibility shim** assembly (`Opc.Ua.MigrationAnalyzer.Core.dll`) that
-  re-supplies the obsolete extension surface 1.6 moved or removed, so most
+  re-supplies the obsolete extension surface 2.0 moved or removed, so most
   consumer projects still compile after the upgrade.
+
+> ℹ **The generator emits `internal` types by design** — they never leak through
+> the consumer's public API surface. If your consumer has *public* methods or
+> properties that return / accept a `<Type>Collection`, you'll hit `CS0050:
+> Inconsistent accessibility`. That's the intended signal that your **public
+> API** has to migrate to `List<T>` / `ArrayOf<T>` first; internal call sites
+> keep compiling under the shim so you can iterate at your own pace.
 
 ## How to migrate
 
-1. Add the 1.6 OPC UA packages **and** the MigrationAnalyzer package to your
+1. Add the 2.0 OPC UA packages **and** the MigrationAnalyzer package to your
    consumer project:
 
    ```xml
@@ -22,14 +39,17 @@ ships **two things** to help migrate from OPC UA .NET Standard 1.5.378 to 1.6:
    ```
 
 2. Run `dotnet build`. Your code should compile: the shim covers the
-   `[Obsolete]` extension surface that 1.6 moved or removed, so what remains
-   are warnings rather than errors.
+   `[Obsolete]` extension surface that 2.0 moved or removed; the source
+   generator covers `<Type>Collection` wrappers; what remains are warnings
+   rather than errors.
 3. Walk through the `UA00xx` analyzer warnings in the IDE and apply the
-   offered auto-fixes. A handful (`UA0001`, `UA0011`, `UA0015`, `UA0018`) are
-   `Info`-level and need a manual review.
+   offered auto-fixes. A handful (`UA0001`, `UA0011`, `UA0015`, `UA0018`,
+   `UA0021`) are `Info`-level and need a manual review. A single generator
+   diagnostic (`MIG01`) fires when the generator can't resolve a model-compiled
+   element type — add the appropriate `using` or migrate the site manually.
 4. Once the project is warning-free, remove the
    `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` package reference. You are
-   on clean 1.6 with no shim dependency.
+   on clean 2.0 with no shim dependency.
 
 ## Rules
 

@@ -126,6 +126,7 @@
     <Project Path="Tools/Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj" />
     <Project Path="Tools/Opc.Ua.MigrationAnalyzer.CodeFixer/Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
     <Project Path="Tools/Opc.Ua.MigrationAnalyzer.Core/Opc.Ua.MigrationAnalyzer.Core.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer.Generator/Opc.Ua.MigrationAnalyzer.Generator.csproj" />
   </Folder>
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />

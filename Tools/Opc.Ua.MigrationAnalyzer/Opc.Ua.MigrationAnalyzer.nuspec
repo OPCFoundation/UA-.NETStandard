@@ -70,6 +70,7 @@
   <files>
     <file src="$analyzerDll$" target="analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll" />
     <file src="$codeFixesDll$" target="analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll" />
+    <file src="$generatorDll$" target="analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.Generator.dll" />
     <file src="$shimBin$\net472\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net472\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$shimBin$\net48\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net48\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$shimBin$\netstandard2.1\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\netstandard2.1\Opc.Ua.MigrationAnalyzer.Core.dll" />

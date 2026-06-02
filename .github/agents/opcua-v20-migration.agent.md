@@ -19,13 +19,14 @@ You are an expert migration agent for upgrading OPC UA .NET Standard application
                      PrivateAssets="all" />
    ```
 
-   The package bundles two payloads:
+   The package bundles three Roslyn components + a runtime shim:
    - **Analyzer + code-fix DLLs** (`Opc.Ua.MigrationAnalyzer.dll`, `Opc.Ua.MigrationAnalyzer.CodeFixer.dll`) loaded into csc.exe and the IDE.
+   - **Source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that emits an `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shim into the consumer's compilation for every `<Type>Collection` wrapper the consumer references — including **model-compiled `<UserType>Collection` patterns**, not just the 30 well-known built-in ones. Element types renamed across the 1.5.378 → 2.0 boundary (`DateTime`→`DateTimeUtc`, `Guid`→`Uuid`, `byte[]`→`ByteString`, `XmlElement`→`Opc.Ua.XmlElement`) are pinned through a 30-entry override table; everything else falls back to semantic lookup in the consumer's compilation.
    - **Compatibility shim** (`Opc.Ua.MigrationAnalyzer.Core.dll`) that re-exposes the 1.5.378 obsolete extension surface so 1.5.378-style call sites compile against 2.0 with warnings instead of errors.
 
 2. **Bump the OPC UA package versions to `2.0.*-*`** in every consumer project. Do NOT remove existing `OPCFoundation.NetStandard.Opc.Ua.*` references — just update their `Version` attribute.
 
-3. **Run `dotnet restore` then `dotnet build`**. The shim usually gets the project to compile; what remains are `[Obsolete]` warnings (CS0618) and `UA0001`–`UA0022` analyzer diagnostics that point at the patterns still using the old surface.
+3. **Run `dotnet restore` then `dotnet build`**. The shim usually gets the project to compile; the source generator covers `<Type>Collection` references; what remains are `[Obsolete]` warnings (CS0618) and `UA0001`–`UA0022` analyzer diagnostics that point at the patterns still using the old surface. A single generator diagnostic (`MIG01`) fires only when the generator can't resolve a model-compiled element type — add the appropriate `using` for the namespace defining the element type, or migrate the site manually.
 
 4. **Apply analyzer auto-fixes**: in Visual Studio, hover each `UA00xx` diagnostic and apply the offered Quick Fix. From the command line, run:
 

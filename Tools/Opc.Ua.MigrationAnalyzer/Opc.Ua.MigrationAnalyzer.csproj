@@ -62,13 +62,14 @@
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
   </ItemGroup>
-  <!-- Ensure the multi-TFM Core (shim) DLL AND the CodeFixer DLL are built before
-       pack consumes them. The Core ProjectReference above only triggers a build
-       of its single closest TFM; invoking the outer build here materializes every
-       TFM under bin\$(Configuration)\<tfm>\ that the nuspec <files> entries
-       reference. CodeFixer cannot be a ProjectReference here (it back-references
-       this analyzer for shared DiagnosticIds, which creates a NuGet restore
-       cycle); we invoke its build via an MSBuild task instead. -->
+  <!-- Ensure the multi-TFM Core (shim) DLL AND the CodeFixer + Generator DLLs are
+       built before pack consumes them. The Core ProjectReference above only triggers
+       a build of its single closest TFM; invoking the outer build here materializes
+       every TFM under bin\$(Configuration)\<tfm>\ that the nuspec <files> entries
+       reference. CodeFixer + Generator cannot be ProjectReferences here (the former
+       back-references this analyzer for shared DiagnosticIds, which creates a NuGet
+       restore cycle; the latter has no compile dependency so a ProjectReference is
+       unneeded); we invoke their builds via MSBuild tasks instead. -->
   <Target Name="_BuildShimAllTfmsBeforePack" BeforeTargets="GenerateNuspec">
     <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
              Targets="Build"
@@ -78,12 +79,16 @@
              Targets="Build"
              Properties="Configuration=$(Configuration)"
              RemoveProperties="TargetFramework" />
+    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
   </Target>
   <!-- Populate NuspecProperties after $(PackageVersion) is materialized (NBGV runs
        inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
   <Target Name="_SetMigrationAnalyzerNuspecProperties" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
-      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.dll;codeFixesDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.CodeFixer\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.CodeFixer.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Core\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props</NuspecProperties>
+      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.dll;codeFixesDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.CodeFixer\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.CodeFixer.dll;generatorDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Generator\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.Generator.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Core\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props</NuspecProperties>
     </PropertyGroup>
   </Target>
 </Project>
