@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,6 +35,7 @@ using Opc.Ua;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
+using Opc.Ua.Server.Fluent;
 using Pumps;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -95,6 +97,20 @@ builder.Services
         ISoftwarePackageStore packageStore =
             ctx.GetRequiredService<ISoftwarePackageStore>();
         await SoftwarePackageSeeder.SeedAsync(packageStore).ConfigureAwait(false);
+
+        // Demonstrate the non-typed WithFunctionalGroup(QualifiedName)
+        // builder for ad-hoc groups not covered by the 8 well-known
+        // DI typed extensions (WithMaintenanceGroup, WithOperationalGroup,
+        // ...). Pump #2 exposes a custom "Diagnostics" group that
+        // surfaces the supervision flags as plain properties so clients
+        // get a single browsable folder of operational signals without
+        // having to chase the supervision alarm tree.
+        pump.WithFunctionalGroup(
+            new QualifiedName("Diagnostics", ctx.Manager.DiNamespaceIndex),
+            fg => fg.Configure(node =>
+                node.WithProperty("LastError", string.Empty)
+                    .WithProperty("ErrorCount", 0)
+                    .WithProperty("LastSelfTest", DateTime.UtcNow)));
 
         // Materialise the OPC 10000-100 §10.3 SoftwareUpdateType facet
         // under Pump #2. The default PackageLoading + library-supplied

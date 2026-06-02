@@ -234,6 +234,23 @@ device.WithMaintenanceGroup(fg =>
 });
 ```
 
+For groups outside the eight well-known set, use the non-typed
+`WithFunctionalGroup(QualifiedName, action)` overload. The browse
+name's namespace index controls where the group lives — pass the DI
+namespace for parity with the well-known groups, or any other
+namespace for a vendor-specific extension. The
+`PumpDeviceIntegrationServer` sample demonstrates this on `Pump #2`
+to surface a custom `Diagnostics` folder:
+
+```csharp
+pump.WithFunctionalGroup(
+    new QualifiedName("Diagnostics", ctx.Manager.DiNamespaceIndex),
+    fg => fg.Configure(node =>
+        node.WithProperty("LastError", string.Empty)
+            .WithProperty("ErrorCount", 0)
+            .WithProperty("LastSelfTest", DateTime.UtcNow)));
+```
+
 #### Topology references
 
 `ConnectsTo(NodeId)` adds a forward `Opc.Ua.Di.ReferenceTypes.ConnectsTo`

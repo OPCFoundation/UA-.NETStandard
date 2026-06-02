@@ -123,34 +123,20 @@ namespace Pumps
         protected override async ValueTask OnAddressSpaceReadyAsync(
             CancellationToken cancellationToken)
         {
-            // Materialise the single `Pump #1` instance the fluent
-            // wiring in PumpNodeManager.Configure.cs expects to find.
-            // The instance is a typed `PumpState` (OPC 40223 PumpType)
-            // attached as a child of the DI `DeviceSet` root so it is
-            // browseable at `Objects > DeviceSet > Pump #1` — alongside
-            // any additional pumps declared declaratively via
-            // ConfigureDevicesFor in Program.cs.
-            await CreatePumpInstanceAsync("Pump #1", cancellationToken)
+            // Configuration phase 1 (async): materialise the
+            // predefined instances that Configure(builder) will wire.
+            // Mirrors the synchronous fluent Configure(builder) but
+            // runs first so the builder has typed nodes available.
+            await ConfigureInstancesAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            // Build the fluent wiring surface and invoke Configure.
+            // Configuration phase 2 (sync): wire fluent callbacks
+            // against the predefined nodes.
             ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
-            NodeManagerBuilder builder = new NodeManagerBuilder(
-                SystemContext,
-                this,
-                nsIndex,
-                browseName => PredefinedNodes.Values.FindByBrowseName(browseName)!,
-                nodeId => PredefinedNodes.FindById(nodeId)!,
-                typeDefId => PredefinedNodes.Values.FindByTypeDefinition(typeDefId));
-
-            // Attach FluentNodeManagerBase registries (event sources +
-            // simulation loops) so the fluent .Publish() and .Simulation()
-            // extensions can find them.
-            AttachToBuilder(builder);
-
-            Configure(builder);
-            builder.Seal();
+            this.CreateFluentBuilder(nsIndex)
+                .Configure(Configure)
+                .Seal();
 
             m_logger.LogInformation(
                 "PumpNodeManager: address space ready ({NodeCount} predefined nodes).",
@@ -159,6 +145,37 @@ namespace Pumps
             // PostSetupRunner is invoked automatically by the base
             // DiNodeManager.CreateAddressSpaceAsync after this method
             // returns; no manual invocation needed here.
+        }
+
+        /// <summary>
+        /// Materialises the predefined instances that the fluent
+        /// <see cref="Configure"/> wiring expects to find. Runs as
+        /// the async phase of <see cref="OnAddressSpaceReadyAsync"/>
+        /// before the synchronous fluent builder pass.
+        /// </summary>
+        /// <remarks>
+        /// Cannot use
+        /// <see cref="DiNodeManager.CreateDeviceAsync{TDevice}(QualifiedName, NodeId, System.Func{NodeState, TDevice}, NodeState?, CancellationToken)"/>
+        /// here because <c>PumpType</c> in OPC 40223 derives from the
+        /// Machinery <c>MachineType</c>, not from the DI
+        /// <c>ComponentType</c> hierarchy that
+        /// <c>CreateDeviceAsync</c> requires
+        /// (<c>where TDevice : ComponentState</c>). The materialisation
+        /// therefore goes through
+        /// <see cref="MaterialisePumpInstanceAsync(QualifiedName, CancellationToken)"/>
+        /// which composes the same primitives
+        /// (<see cref="SystemContext"/> +
+        /// <see cref="CustomNodeManager2.AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>)
+        /// directly.
+        /// </remarks>
+        private async ValueTask ConfigureInstancesAsync(
+            CancellationToken cancellationToken)
+        {
+            ushort pumpsNs = (ushort)Server.NamespaceUris
+                .GetIndex(Opc.Ua.Pumps.Namespaces.Pumps);
+            var pumpBrowseName = new QualifiedName("Pump #1", pumpsNs);
+            await MaterialisePumpInstanceAsync(pumpBrowseName, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -177,14 +194,10 @@ namespace Pumps
         /// before <c>AddPredefinedNodeAsync</c> recursively registers
         /// the entire subtree.
         /// </summary>
-        private async ValueTask CreatePumpInstanceAsync(
-            string browseNameText,
+        private async ValueTask MaterialisePumpInstanceAsync(
+            QualifiedName pumpBrowseName,
             CancellationToken cancellationToken)
         {
-            ushort pumpsNs = (ushort)Server.NamespaceUris
-                .GetIndex(Opc.Ua.Pumps.Namespaces.Pumps);
-            var pumpBrowseName = new QualifiedName(browseNameText, pumpsNs);
-
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
@@ -193,7 +206,7 @@ namespace Pumps
             {
                 m_logger.LogWarning(
                     "DI DeviceSet not found — '{Name}' will not be created.",
-                    browseNameText);
+                    pumpBrowseName.Name);
                 return;
             }
 
@@ -202,7 +215,7 @@ namespace Pumps
             {
                 m_logger.LogDebug(
                     "DeviceSet already contains '{Name}' — skipping recreation.",
-                    browseNameText);
+                    pumpBrowseName.Name);
                 return;
             }
 
@@ -232,7 +245,7 @@ namespace Pumps
 
             m_logger.LogInformation(
                 "Materialised '{Name}' (PumpType) under DeviceSet, NodeId={NodeId}.",
-                browseNameText, pump.NodeId);
+                pumpBrowseName.Name, pump.NodeId);
         }
 
         /// <summary>

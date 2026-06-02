@@ -30,6 +30,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -156,6 +157,49 @@ namespace Opc.Ua.Server.Fluent
         /// and torn down on disposal.
         /// </summary>
         internal SimulationRegistry Simulations { get; }
+
+        /// <summary>
+        /// Constructs a <see cref="NodeManagerBuilder"/> for this
+        /// manager and attaches the fluent event-source / simulation
+        /// registries in a single call. Hand-written managers use this
+        /// to collapse the imperative
+        /// <c>new NodeManagerBuilder(SystemContext, this, nsIndex, ...)</c>
+        /// + <c>AttachToBuilder(builder)</c> + <c>Configure(builder)</c>
+        /// + <c>builder.Seal()</c> quadruple to a single fluent chain:
+        /// <code>
+        /// this.CreateFluentBuilder(nsIndex)
+        ///     .Configure(Configure)
+        ///     .Seal();
+        /// </code>
+        /// The three root/nodeId/typeId lookups default to scanning the
+        /// manager's <see cref="CustomNodeManager2.PredefinedNodes"/>
+        /// dictionary, mirroring the resolver wiring that the
+        /// source-generated <c>NodeManagerBase.CreateAddressSpaceAsync</c>
+        /// emits.
+        /// </summary>
+        /// <param name="defaultNamespaceIndex">
+        /// Namespace index used when a browse-path segment omits an
+        /// explicit <c>ns=N;</c> prefix. Typically the manager's
+        /// model-specific namespace index.
+        /// </param>
+        /// <returns>
+        /// A configured <see cref="NodeManagerBuilder"/> ready to
+        /// receive <c>Configure(builder)</c> wiring; the fluent
+        /// extensions <see cref="FluentNodeManagerBuilderExtensions.Configure(NodeManagerBuilder, System.Action{INodeManagerBuilder})"/>
+        /// and <see cref="NodeManagerBuilder.Seal"/> chain off it.
+        /// </returns>
+        public NodeManagerBuilder CreateFluentBuilder(ushort defaultNamespaceIndex)
+        {
+            var builder = new NodeManagerBuilder(
+                SystemContext,
+                this,
+                defaultNamespaceIndex,
+                browseName => PredefinedNodes.Values.FindByBrowseName(browseName)!,
+                nodeId => PredefinedNodes.FindById(nodeId)!,
+                typeDefId => PredefinedNodes.Values.FindByTypeDefinition(typeDefId));
+            AttachToBuilder(builder);
+            return builder;
+        }
 
         /// <summary>
         /// Attaches this manager's event-source registry to the supplied
