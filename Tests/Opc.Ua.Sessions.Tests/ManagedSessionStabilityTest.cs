@@ -582,13 +582,16 @@ namespace Opc.Ua.Sessions.Tests
         {
             private long m_receivedCount;
             private long m_errorCount;
-            private uint m_lastValue;
+            // Stored as long so Interlocked.Exchange / Volatile.Read have
+            // overloads on net4x (the typed uint overload is .NET 5+).
+            // Value range stays within uint at runtime.
+            private long m_lastValue;
             private readonly ConcurrentQueue<string> m_monotonicityErrors = new();
             private readonly ConcurrentQueue<string> m_errors = new();
 
             public long ReceivedCount => Volatile.Read(ref m_receivedCount);
             public long ErrorCount => Volatile.Read(ref m_errorCount);
-            public uint LastValue => Volatile.Read(ref m_lastValue);
+            public uint LastValue => (uint)Volatile.Read(ref m_lastValue);
             public IReadOnlyList<string> MonotonicityErrors
                 => m_monotonicityErrors.ToArray();
             public IReadOnlyList<string> Errors => m_errors.ToArray();
@@ -630,7 +633,7 @@ namespace Opc.Ua.Sessions.Tests
                             $"Sample wrong type: {change.Value.WrappedValue.TypeInfo}");
                         continue;
                     }
-                    uint previous = Interlocked.Exchange(ref m_lastValue, sample);
+                    uint previous = (uint)Interlocked.Exchange(ref m_lastValue, sample);
                     Interlocked.Increment(ref m_receivedCount);
                     // Strict monotonic non-decreasing. We allow == only
                     // on the very first observed sample (previous=0,
