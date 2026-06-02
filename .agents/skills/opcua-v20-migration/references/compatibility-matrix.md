@@ -101,6 +101,19 @@ safe in Workspaces-aware hosts; csc.exe gets the smaller analyzer DLL.
 | `Version="2.0.10-preview.gXXXXXXXX"` (pinned) | When you want bit-for-bit reproducibility (CI builds, release candidates) |
 | `Version="2.0.*"` (floating release-only) | After 2.0 stable ships (no `-preview` suffix); avoid for early-adopter work |
 
+## What else changed across 1.5.378 → 2.0
+
+| Component | 1.5.378 | 2.0.x |
+|---|---|---|
+| .NET SDK | 10.0.x | 10.0.x |
+| Version stream | `1.5.378-preview` | `2.0-preview` → `2.0` |
+| Target frameworks | `net8.0; net9.0; net10.0; net48` | `net8.0; net9.0; net10.0; net48` (unchanged) |
+| NUnit | `4.4.0` | `4.5.1` |
+| `coverlet.collector` | `6.0.4` | `8.0.0` |
+| `DotNext` | — | `5.26.3` (new dependency) |
+| `NUnit.Analyzers` | — | `4.12.0` (new analyzer) |
+| Source Generators | — | now shipped via `Opc.Ua.SourceGeneration` (replaces ModelCompiler-generated C#) |
+
 ## NuGet feed configuration
 
 Until the package promotes to nuget.org, it ships on the OPC Foundation preview

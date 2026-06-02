@@ -2,9 +2,7 @@
 
 Pattern reference for the manual residuals + the cross-cutting changes the
 `UA00xx` analyzers don't fully automate. Apply in the priority order below to
-minimize cascading errors. Distilled from
-[`.github/agents/opcua-v20-migration.agent.md`](../../../.github/agents/opcua-v20-migration.agent.md);
-sync changes back to that file when you edit this one.
+minimize cascading errors.
 
 > **Priority order summary** — work top-to-bottom; later sections often
 > dissolve under earlier fixes:

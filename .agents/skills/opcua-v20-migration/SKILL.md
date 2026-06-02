@@ -6,10 +6,15 @@ description: |
   OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet (analyzers UA0001-UA0022,
   source-generated <Type>Collection shims, runtime compat shim), running
   `dotnet format analyzers` to apply auto-fixes, and walking the residual manual
-  patterns. Use when asked to migrate to v20, fix v20 build errors, update from
-  master378, modernize Variant / ArrayOf / DateTimeUtc / ByteString APIs, fix
-  CS0246 on <Type>Collection wrappers, address UA00xx / MIG01 warnings, or fix
-  CS0246 on CertificateValidator after upgrading the OPC UA NuGets to 2.0.
+  patterns. Use when asked to "migrate to v20", "update from master378", "fix
+  v20 build errors", "migrate OPC UA code to 2.0", "update to new Variant API",
+  "fix ArrayOf migration", "update NodeId readonly struct", "migrate from object
+  to Variant", "fix CS0246 on <Type>Collection wrappers", "fix CS0246 on
+  CertificateValidator", or "address UA00xx / MIG01 warnings". Sample triggers:
+  user says "my project targets master378 and I need to update to v20"; user
+  provides build errors after updating NuGet packages to 2.0; user asks "how do
+  I update my custom NodeManager for v20?"; user says "fix all the CS0029
+  errors after upgrading to v20".
 license: MIT
 compatibility: |
   Requires .NET SDK 10.0.300+, a C# project, and resolvable access to the
@@ -22,7 +27,6 @@ metadata:
   upstream: https://github.com/OPCFoundation/UA-.NETStandard
   canonical-docs:
     - Docs/MigrationGuide.md
-    - .github/agents/opcua-v20-migration.agent.md
     - Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md
 ---
 
@@ -298,6 +302,5 @@ material. Load them on demand via your agent runtime's
 
 ### Canonical upstream docs
 
-- [`Docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md) — the human-facing migration guide that this skill distills.
-- [`.github/agents/opcua-v20-migration.agent.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/.github/agents/opcua-v20-migration.agent.md) — the GitHub Copilot CLI / Copilot Coding Agent profile for the same migration. When you update one of these files, also update the other.
+- [`Docs/MigrationGuide.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/MigrationGuide.md) — the human-facing migration guide that this skill distils.
 - [`Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md) — the package's own README, shipped inside the NuGet.

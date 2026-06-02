@@ -51,12 +51,10 @@ opcua-v20-migration/
 ## Canonical upstream docs
 
 This skill **distils** the following authoritative repo files. When you update
-the skill, also update them (and vice versa) so the three views stay in sync:
+the skill, also update them (and vice versa) so the views stay in sync:
 
 - [`Docs/MigrationGuide.md`](../../../Docs/MigrationGuide.md) — the human-facing
   migration guide.
-- [`.github/agents/opcua-v20-migration.agent.md`](../../../.github/agents/opcua-v20-migration.agent.md)
-  — the GitHub Copilot CLI / Copilot Coding Agent profile.
 - [`Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](../../../Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
   — the package's own NuGet README.
 
