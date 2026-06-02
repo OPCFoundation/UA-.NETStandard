@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// When the token was created (refers to the local tick count).
-        /// Used for calculation of renewals. Uses <see cref="HiResClock.TickCount"/>.
+        /// Used for calculation of renewals. Uses <c>HiResClock.TickCount</c>.
         /// </summary>
         public int CreatedAtTickCount { get; set; }
 
@@ -108,6 +108,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public int Lifetime { get; set; }
 
+#pragma warning disable CS0618 // Back-compat surface; new code uses IsExpired(TimeProvider).
         /// <summary>
         /// Whether the token has expired.
         /// </summary>
@@ -119,6 +120,7 @@ namespace Opc.Ua.Bindings
         public bool ActivationRequired =>
             (HiResClock.TickCount - CreatedAtTickCount) >
             (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+#pragma warning restore CS0618
 
         /// <summary>
         /// Whether the token has expired according to the supplied

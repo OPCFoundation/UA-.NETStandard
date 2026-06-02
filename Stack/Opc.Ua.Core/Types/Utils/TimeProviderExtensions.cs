@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// These helpers exist primarily to support the migration off
-    /// <see cref="HiResClock"/>; new public APIs should consume
+    /// <c>HiResClock</c>; new public APIs should consume
     /// <see cref="TimeProvider"/> directly via constructor injection.
     /// </remarks>
     public static class TimeProviderExtensions
@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// Returns the current monotonic timestamp normalised to milliseconds.
         /// </summary>
         /// <remarks>
-        /// Equivalent to <see cref="HiResClock.TickCount64"/>, computed from
+        /// Equivalent to <c>HiResClock.TickCount64</c>, computed from
         /// <see cref="TimeProvider.GetTimestamp"/> and the provider's
         /// <see cref="TimeProvider.TimestampFrequency"/>.
         /// </remarks>

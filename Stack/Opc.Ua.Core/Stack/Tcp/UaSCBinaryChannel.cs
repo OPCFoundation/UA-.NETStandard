@@ -338,7 +338,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The tickcount in milliseconds when the channel received/sent the last message.
         /// </summary>
+#pragma warning disable CS0618 // Back-compat surface; new code uses GetElapsedSinceLastActive().
         protected int LastActiveTickCount { get; private set; } = HiResClock.TickCount;
+#pragma warning restore CS0618
 
         /// <summary>
         /// Returns the monotonic elapsed time since the channel last
@@ -1054,7 +1056,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void UpdateLastActiveTime()
         {
+#pragma warning disable CS0618 // Back-compat surface kept in sync with m_lastActiveTimestamp.
             LastActiveTickCount = HiResClock.TickCount;
+#pragma warning restore CS0618
             m_lastActiveTimestamp = TimeProvider.GetTimestamp();
         }
 

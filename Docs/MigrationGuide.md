@@ -68,6 +68,7 @@
       - [Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`](#auto-emit-generalmodelchangeevent-from-customnodemanager)
     - [Address-space model change tracking](#address-space-model-change-tracking)
       - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
+    - [Time and Timer abstraction (`TimeProvider`)](#time-and-timer-abstraction-timeprovider)
     - [Subscriptions and Transports](#subscriptions-and-transports)
       - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
       - [PubSub](#pubsub)
@@ -1794,6 +1795,105 @@ public sealed class MyNodeCache : INodeCache
 Implementations that can perform per-node eviction should do so —
 the tracker is most efficient when targeted invalidation is
 available.
+
+### Time and Timer abstraction (`TimeProvider`)
+
+**Not source-breaking.** The stack now uses
+[`System.TimeProvider`](https://learn.microsoft.com/dotnet/api/system.timeprovider) as
+its canonical clock and scheduler so that timeouts, intervals, keep-alive loops,
+reconnect back-off, publishing pacing, certificate-lifetime checks, and similar
+duration-sensitive code paths are mockable in tests and immune to wall-clock changes.
+
+`HiResClock` is still in place but **every public member is now marked
+`[Obsolete]`**. The class itself is not obsolete so that existing field references
+(`HiResClock.Disabled`) keep round-tripping through configuration; only the static
+clock-reading members raise CS0618. The recommended replacements are:
+
+| Legacy API                              | Replacement                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------ |
+| `HiResClock.UtcNow`                     | `timeProvider.GetUtcNow().UtcDateTime`                                               |
+| `HiResClock.TickCount64` / `.Ticks`     | `timeProvider.GetTimestamp()`                                                        |
+| `HiResClock.TickCount` (int wraparound) | `timeProvider.GetTickCount()` (internal extension in `Opc.Ua`)                       |
+| `HiResClock.UtcTickCount(offsetMs)`     | `timeProvider.GetTimestampMilliseconds() + offsetMs`                                 |
+| elapsed-time math via `TickCount`       | `long start = timeProvider.GetTimestamp(); … TimeSpan elapsed = timeProvider.GetElapsedTime(start);` |
+| `new Stopwatch()` / `Stopwatch.StartNew()` for duration | `long start = timeProvider.GetTimestamp(); … timeProvider.GetElapsedTime(start);` |
+| `new System.Threading.Timer(…)`         | `ITimer timer = timeProvider.CreateTimer(callback, state, dueTime, period);`         |
+| `Task.Delay(delay, ct)` in production timing loops | `Task.Delay(delay, timeProvider, ct)`                                       |
+| `new CancellationTokenSource(timeout)`  | `new CancellationTokenSource(timeout, timeProvider)`                                 |
+
+**Constructor pattern.** Components that need a clock now take a nullable
+`TimeProvider` as the **last** constructor parameter with a default value of `null`.
+If `null` is passed, `TimeProvider.System` is used. Example:
+
+```csharp
+public sealed class Foo
+{
+    private readonly TimeProvider m_timeProvider;
+
+    public Foo(/* existing args */, TimeProvider? timeProvider = null)
+    {
+        // existing initialisation…
+        m_timeProvider = timeProvider ??= TimeProvider.System;
+    }
+}
+```
+
+For published public types whose existing constructors must remain
+binary-compatible, the original constructor signature is preserved and a new
+overload that ends with `TimeProvider?` is added. The legacy constructor delegates
+to the new one passing `timeProvider: null`. No existing constructor is marked
+`[Obsolete]` in this release.
+
+**Dependency injection.** `AddOpcUaServerBuilder` / `AddOpcUaClientBuilder` register
+`TimeProvider.System` via `TryAddSingleton<TimeProvider>` and wire the resolved
+provider into every component they construct. To run a server or client against a
+fake clock in tests, register a `Microsoft.Extensions.Time.Testing.FakeTimeProvider`
+in the service collection before the OPC UA builders.
+
+```csharp
+services.AddSingleton<TimeProvider>(new FakeTimeProvider());
+services.AddOpcUaServerBuilder(/* … */);
+```
+
+Outside DI, pass the `TimeProvider` directly to the type's constructor as the last
+argument.
+
+**Migrating off `HiResClock`.** Replace the call with the table above. If the
+migration cannot happen immediately, wrap the affected scope with
+`#pragma warning disable CS0618` / `#pragma warning restore CS0618`.
+
+```csharp
+// before:
+long start = HiResClock.TickCount64;
+DoWork();
+TimeSpan elapsed = TimeSpan.FromTicks(HiResClock.TickCount64 - start);
+
+// after:
+long start = m_timeProvider.GetTimestamp();
+DoWork();
+TimeSpan elapsed = m_timeProvider.GetElapsedTime(start);
+```
+
+```csharp
+// before:
+DateTime utcNow = HiResClock.UtcNow;
+
+// after — when a wall-clock value is required (e.g. for an OPC UA SourceTimestamp):
+DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
+```
+
+```csharp
+// before:
+m_timer = new Timer(OnTick, state: null, dueTime: 1_000, period: Timeout.Infinite);
+
+// after:
+m_timer = m_timeProvider.CreateTimer(OnTick, state: null,
+    dueTime: TimeSpan.FromMilliseconds(1_000), period: Timeout.InfiniteTimeSpan);
+```
+
+The `Timer` field type changes from `System.Threading.Timer` to `ITimer` — both
+implement `IDisposable` and the same `Change` / `Dispose` semantics; only the
+parameter types on `Change` differ (`TimeSpan` instead of `int`/`uint`/`long`).
 
 ### Subscriptions and Transports
 
