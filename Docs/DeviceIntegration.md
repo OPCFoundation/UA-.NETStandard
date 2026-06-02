@@ -77,9 +77,9 @@ builder.Services
     .AddOpcUa()
     .AddServer(o => { ... })
     .AddNodeManager<Pumps.PumpNodeManagerFactory>()
-    // Pump factory already loads DI via its LoadPredefinedNodesAsync
+    // Pump factory already loads OPC UA Device Integration via its LoadPredefinedNodesAsync
     // direct chain; do NOT call AddOpcUaDi() — that would
-    // double-register the DI namespace.
+    // double-register the OPC UA Device Integration namespace.
     .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
     {
         var pump = await ctx.CreateDeviceAsync(
@@ -122,7 +122,7 @@ public sealed class MyAppService(
 ## Device builder
 
 The `IDeviceBuilder<TDevice>` fluent surface is the recommended way
-to create and configure DI device instances programmatically. It
+to create and configure Device Integration device instances programmatically. It
 lives in `Opc.Ua.Di.Server.Builders` and integrates with the broader
 fluent API for node managers.
 
@@ -131,7 +131,7 @@ fluent API for node managers.
 All entry points live on `DiNodeManager`:
 
 ```csharp
-// Default DeviceState under the DI DeviceSet folder (or whatever
+// Default DeviceState under the Device Integration DeviceSet folder (or whatever
 // ResolveDefaultDeviceParent() returns).
 ValueTask<IDeviceBuilder<DeviceState>> CreateDeviceAsync(
     QualifiedName browseName,
@@ -160,7 +160,7 @@ IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
 
 `CreateDeviceAsync` performs four steps:
 
-1. Resolves the parent (default: DI `DeviceSet`; subclasses override
+1. Resolves the parent (default: Device Integration `DeviceSet`; subclasses override
    `ResolveDefaultDeviceParent()` — e.g. machinery managers can return
    the `Machines` folder).
 2. Fails fast if a child with the same browse name already exists
@@ -194,7 +194,7 @@ IDeviceBuilder<TDevice>
 
 #### Identification properties
 
-`WithIdentification(action)` populates the standard DI nameplate
+`WithIdentification(action)` populates the standard Device Integration nameplate
 properties on the device. The mutable `DeviceIdentificationData`
 record holds:
 
@@ -214,7 +214,7 @@ without a generated companion type.
 
 #### Functional groups
 
-The 8 well-known DI functional groups have typed builder methods.
+The 8 well-known Device Integration functional groups have typed builder methods.
 Arbitrary group names go through `WithFunctionalGroup(qualifiedName, action)`.
 Each call is idempotent: invoking the same accessor twice reuses the
 existing group. The order of operations inside the builder is:
@@ -378,8 +378,8 @@ services.AddOpcUa()
 ```
 
 **Do NOT call `AddOpcUaDi()`** alongside a companion-spec factory
-that already loads DI (e.g. `PumpNodeManagerFactory` which loads
-DI + Machinery + Pumps). The DI namespace would be registered twice
+that already loads OPC UA Device Integration (e.g. `PumpNodeManagerFactory` which loads
+Device Integration + Machinery + Pumps). The Device Integration namespace would be registered twice
 and the OPC UA server may reject the duplicate. `AddOpcUaDi()` throws
 on its second invocation to surface the misuse early.
 
@@ -396,7 +396,7 @@ type. The runner invokes each matching delegate **after**:
   `Configure(builder)` + `builder.Seal()` is complete.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
-delegate targeting `DiNodeManager` runs against every DI-derived
+delegate targeting `DiNodeManager` runs against every Device Integration-derived
 manager (including `PumpNodeManager`); a delegate targeting
 `PumpNodeManager` will NOT run against a plain `DiNodeManager`.
 
@@ -474,7 +474,7 @@ This registers four .NET-DI-friendly services that wrap the lazy
   client wrapper for `LockingServicesType.InitLock` /
   `RenewLock` / `ExitLock` / `BreakLock`.
 - `Func<CancellationToken, ValueTask<DiTopologyClient>>` —
-  topology browser for the DI well-known folders.
+  topology browser for the Device Integration well-known folders.
 - `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>` —
   software-version reader for a SoftwareUpdate instance.
 
@@ -534,7 +534,7 @@ distinguish callers.
 
 ### Binding to a `LockingServicesState`
 
-The DI spec defines a `Lock` child on every `TopologyElementType`
+The Device Integration spec defines a `Lock` child on every `TopologyElementType`
 that implements four method invocations. Wire them through your
 service:
 
@@ -608,7 +608,7 @@ needed.
 ### Server-side: package store
 
 The store is an application-facing abstraction over the binary
-artifacts that the DI software-update facet exposes. Two
+artifacts that the Device Integration software-update facet exposes. Two
 implementations ship in `Opc.Ua.Di.Server.SoftwareUpdate`:
 
 | Type | Backing | Use case |
@@ -713,7 +713,7 @@ public sealed class SoftwareUpdateClient
 
 Method-level invocation (Loading, Installation, ...) is performed
 through the typed `*MethodStateClient` proxies emitted by the source
-generator for the DI model. The client integration registers the
+generator for the Device Integration model. The client integration registers the
 factory `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>`
 via `services.AddOpcUa().AddClient(...).AddOpcUaDi()`.
 
@@ -848,7 +848,7 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 ### Foundation — nameplates and topology elements
 
-- `TopologyElementType` (§5.2) — abstract base for every DI node.
+- `TopologyElementType` (§5.2) — abstract base for every Device Integration node.
 - `IVendorNameplateType` (§5.10) — Manufacturer, Model, SerialNumber, HardwareRevision, SoftwareRevision, DeviceRevision, DeviceManual, DeviceClass, ProductInstanceUri, ProductCode. Populated by `IDeviceBuilder.WithIdentification(...)`.
 - `ITagNameplateType` (§5.11) — AssetId, ComponentName, DeviceRevision. Populated by the same builder.
 - `IDeviceHealthType` (§5.12) — DeviceHealth enum plus the four NAMUR alarm references.
@@ -877,7 +877,7 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 ### Functional groups (§5.7)
 
-All eight well-known DI functional groups are exposed through typed builder methods on `IDeviceBuilder`:
+All eight well-known Device Integration functional groups are exposed through typed builder methods on `IDeviceBuilder`:
 
 - `Identification`, `Configuration`, `Maintenance`, `Diagnostics`, `Statistics`, `Status`, `Operational`, `OperationCounters`.
 
@@ -907,7 +907,7 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 
 ### DataTypes & VariableTypes
 
-All DI DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `LocationIndicationType`, `SoftwareVersionFileType`, `UpdateBehavior`, `FetchResultDataType`, `TransferResultErrorDataType`, `TransferResultDataDataType`, `ParameterResultDataType`) ship as source-generated types in the `Opc.Ua.Di` model library.
+All Device Integration DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `LocationIndicationType`, `SoftwareVersionFileType`, `UpdateBehavior`, `FetchResultDataType`, `TransferResultErrorDataType`, `TransferResultDataDataType`, `ParameterResultDataType`) ship as source-generated types in the `Opc.Ua.Di` model library.
 
 ### Not yet implemented
 
