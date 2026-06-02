@@ -237,6 +237,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
             try
             {
                 await m_cts.CancelAsync().ConfigureAwait(false);
@@ -1249,6 +1253,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
         private int m_activePublishRequests;
+        private int m_disposed;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();
