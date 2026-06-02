@@ -276,6 +276,15 @@ namespace Opc.Ua.Server.Fluent
                 return this;
             }
 
+            public INodeBuilder AllowMultipleEventConsumers(bool enable = true)
+            {
+                if (Builder is NodeManagerBuilder nmb)
+                {
+                    nmb.RegisterMultiConsumerNode(Node, enable);
+                }
+                return this;
+            }
+
             public INodeBuilder Child(QualifiedName browseName)
             {
                 NodeState? c = Node.FindChild(Builder.Context, browseName);
