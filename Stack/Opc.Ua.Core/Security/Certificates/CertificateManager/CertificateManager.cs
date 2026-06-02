@@ -68,6 +68,20 @@ namespace Opc.Ua
             IEnumerable<ICertificateStoreProvider>? storeProviders = null,
             int maxRejectedCertificates = 5,
             TimeSpan? expiryWarningThreshold = null)
+            : this(telemetry, storeProviders, maxRejectedCertificates, expiryWarningThreshold, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a certificate manager with the supplied
+        /// <see cref="TimeProvider"/> used for expiry monitoring.
+        /// </summary>
+        public CertificateManager(
+            ITelemetryContext telemetry,
+            IEnumerable<ICertificateStoreProvider>? storeProviders,
+            int maxRejectedCertificates,
+            TimeSpan? expiryWarningThreshold,
+            TimeProvider? timeProvider)
         {
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_logger = telemetry.CreateLogger<CertificateManager>();
@@ -77,6 +91,7 @@ namespace Opc.Ua
                     new DirectoryStoreProvider(),
                     new X509StoreProvider()
                 ];
+            m_timeProvider = timeProvider ??= TimeProvider.System;
 
             TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(
@@ -84,7 +99,8 @@ namespace Opc.Ua
                 () => m_applicationCertificates,
                 threshold,
                 TimeSpan.FromHours(1),
-                m_telemetry);
+                m_telemetry,
+                m_timeProvider);
 
             m_certificateProvider = new CertificateProvider(m_telemetry);
         }
@@ -1268,6 +1284,7 @@ namespace Opc.Ua
         private readonly CertificateChangeSubject m_changeSubject = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private int m_maxRejectedCertificates;
 
         /// <summary>

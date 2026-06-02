@@ -63,7 +63,36 @@ namespace Opc.Ua.Bindings
                 endpoints,
                 securityMode,
                 securityPolicyUri,
-                telemetry)
+                telemetry,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket using the supplied
+        /// <see cref="TimeProvider"/> for token-lifetime tracking.
+        /// </summary>
+        public UaSCUaBinaryChannel(
+            string contextId,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            Certificate? serverCertificate,
+            List<EndpointDescription>? endpoints,
+            MessageSecurityMode securityMode,
+            string? securityPolicyUri,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
+            : this(
+                contextId,
+                bufferManager,
+                quotas,
+                null,
+                serverCertificate,
+                endpoints,
+                securityMode,
+                securityPolicyUri,
+                telemetry,
+                timeProvider)
         {
         }
 
@@ -88,7 +117,36 @@ namespace Opc.Ua.Bindings
                 endpoints,
                 securityMode,
                 securityPolicyUri,
-                telemetry)
+                telemetry,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket using the supplied
+        /// <see cref="TimeProvider"/> for token-lifetime tracking.
+        /// </summary>
+        public UaSCUaBinaryChannel(
+            string contextId,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            ICertificateRegistry? serverCertificates,
+            List<EndpointDescription>? endpoints,
+            MessageSecurityMode securityMode,
+            string? securityPolicyUri,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
+            : this(
+                contextId,
+                bufferManager,
+                quotas,
+                serverCertificates,
+                null,
+                endpoints,
+                securityMode,
+                securityPolicyUri,
+                telemetry,
+                timeProvider)
         {
         }
 
@@ -104,12 +162,15 @@ namespace Opc.Ua.Bindings
             List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
             string? securityPolicyUri,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
         {
             // create a unique contex if none provided.
             m_contextId = contextId;
             Telemetry = telemetry;
             m_logger = telemetry.CreateLogger<UaSCUaBinaryChannel>();
+            TimeProvider = timeProvider ??= TimeProvider.System;
+            m_lastActiveTimestamp = TimeProvider.GetTimestamp();
 
             if (string.IsNullOrEmpty(m_contextId))
             {
@@ -239,6 +300,12 @@ namespace Opc.Ua.Bindings
         protected ITelemetryContext Telemetry { get; }
 
         /// <summary>
+        /// The <see cref="System.TimeProvider"/> used by this channel for
+        /// time and duration calculations.
+        /// </summary>
+        protected TimeProvider TimeProvider { get; }
+
+        /// <summary>
         /// The identifier assigned to the channel by the server.
         /// </summary>
         public uint Id { get; private set; }
@@ -272,6 +339,16 @@ namespace Opc.Ua.Bindings
         /// The tickcount in milliseconds when the channel received/sent the last message.
         /// </summary>
         protected int LastActiveTickCount { get; private set; } = HiResClock.TickCount;
+
+        /// <summary>
+        /// Returns the monotonic elapsed time since the channel last
+        /// received or sent a message, measured against the channel's
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        internal TimeSpan GetElapsedSinceLastActive()
+        {
+            return TimeProvider.GetElapsedTime(m_lastActiveTimestamp);
+        }
 
         /// <summary>
         /// Reports that the channel state has changed (in another thread).
@@ -891,7 +968,21 @@ namespace Opc.Ua.Bindings
             /// Initializes the object with a callback
             /// </summary>
             public WriteOperation(int timeout, AsyncCallback? callback, object? asyncState, ILogger logger)
-                : base(timeout, callback, asyncState, logger)
+                : this(timeout, callback, asyncState, logger, null)
+            {
+            }
+
+            /// <summary>
+            /// Initializes the object with a callback and supplied
+            /// <see cref="TimeProvider"/>.
+            /// </summary>
+            public WriteOperation(
+                int timeout,
+                AsyncCallback? callback,
+                object? asyncState,
+                ILogger logger,
+                TimeProvider? timeProvider)
+                : base(timeout, callback, asyncState, logger, timeProvider)
             {
             }
 
@@ -964,6 +1055,7 @@ namespace Opc.Ua.Bindings
         public void UpdateLastActiveTime()
         {
             LastActiveTickCount = HiResClock.TickCount;
+            m_lastActiveTimestamp = TimeProvider.GetTimestamp();
         }
 
         /// <summary>
@@ -971,6 +1063,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private int m_state;
         private int m_activeWriteRequests;
+        private long m_lastActiveTimestamp;
         private readonly string m_contextId;
         private readonly ILogger m_logger;
         private long m_sequenceNumber;

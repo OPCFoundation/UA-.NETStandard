@@ -121,6 +121,25 @@ namespace Opc.Ua.Bindings
             (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
 
         /// <summary>
+        /// Whether the token has expired according to the supplied
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        internal bool IsExpired(TimeProvider timeProvider)
+        {
+            return unchecked(timeProvider.GetTickCount() - CreatedAtTickCount) > Lifetime;
+        }
+
+        /// <summary>
+        /// Whether activation is required according to the supplied
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        internal bool IsActivationRequired(TimeProvider timeProvider)
+        {
+            return unchecked(timeProvider.GetTickCount() - CreatedAtTickCount) >
+                (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+        }
+
+        /// <summary>
         /// The SecurityPolicy used to encrypt and sign the messages.
         /// </summary>
         public SecurityPolicyInfo? SecurityPolicy { get; set; }

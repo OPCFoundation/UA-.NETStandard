@@ -60,28 +60,35 @@ namespace Opc.Ua
         /// <param name="telemetry">
         /// The telemetry context used for logging.
         /// </param>
+        /// <param name="timeProvider">
+        /// The <see cref="TimeProvider"/> used for timer scheduling and
+        /// expiry comparison. Defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
         public CertificateLifecycleMonitor(
             CertificateChangeSubject subject,
             Func<IReadOnlyList<CertificateEntry>> getCertificates,
             TimeSpan expiryThreshold,
             TimeSpan checkInterval,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_subject = subject ?? throw new ArgumentNullException(nameof(subject));
             m_getCertificates = getCertificates ?? throw new ArgumentNullException(nameof(getCertificates));
             m_expiryThreshold = expiryThreshold;
             m_logger = telemetry.CreateLogger<CertificateLifecycleMonitor>();
+            m_timeProvider = timeProvider ??= TimeProvider.System;
 
-            m_timer = new Timer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
+            m_timer = m_timeProvider.CreateTimer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
         }
 
         private void CheckExpiry(object? state)
         {
             try
             {
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 foreach (CertificateEntry entry in m_getCertificates())
                 {
-                    if (entry.IsNearExpiry(m_expiryThreshold) &&
+                    if (now.Add(m_expiryThreshold) >= entry.NotAfter &&
                         m_alreadyNotified.Add(entry.Certificate.Thumbprint))
                     {
                         m_logger.LogWarning(
@@ -123,7 +130,8 @@ namespace Opc.Ua
         private readonly CertificateChangeSubject m_subject;
         private readonly Func<IReadOnlyList<CertificateEntry>> m_getCertificates;
         private readonly TimeSpan m_expiryThreshold;
-        private readonly Timer m_timer;
+        private readonly TimeProvider m_timeProvider;
+        private readonly ITimer m_timer;
         private readonly ILogger m_logger;
         private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
     }

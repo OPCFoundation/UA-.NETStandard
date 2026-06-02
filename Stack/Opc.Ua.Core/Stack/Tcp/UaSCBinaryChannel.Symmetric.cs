@@ -66,8 +66,8 @@ namespace Opc.Ua.Bindings
             {
                 ChannelId = Id,
                 TokenId = 0,
-                CreatedAt = DateTime.UtcNow,
-                CreatedAtTickCount = HiResClock.TickCount,
+                CreatedAt = TimeProvider.GetUtcNow().UtcDateTime,
+                CreatedAtTickCount = TimeProvider.GetTickCount(),
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
@@ -604,7 +604,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check if token has expired.
-            if (token.Expired)
+            if (token.IsExpired(TimeProvider))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,

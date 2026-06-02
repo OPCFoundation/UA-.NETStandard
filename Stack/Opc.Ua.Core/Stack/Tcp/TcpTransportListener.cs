@@ -85,14 +85,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Constructor
         /// </summary>
-        public ActiveClientTracker(ITelemetryContext telemetry)
+        public ActiveClientTracker(ITelemetryContext telemetry, TimeProvider timeProvider)
         {
+            m_timeProvider = timeProvider;
             m_logger = telemetry.CreateLogger<ActiveClientTracker>();
-            m_cleanupTimer = new Timer(
+            m_cleanupTimer = m_timeProvider.CreateTimer(
                 CleanupExpiredEntries,
                 null,
-                kCleanupIntervalMs,
-                kCleanupIntervalMs);
+                TimeSpan.FromMilliseconds(kCleanupIntervalMs),
+                TimeSpan.FromMilliseconds(kCleanupIntervalMs));
         }
 
         /// <summary>
@@ -102,7 +103,7 @@ namespace Opc.Ua.Bindings
         {
             if (m_activeClients.TryGetValue(ipAddress, out ActiveClient? client))
             {
-                int currentTicks = HiResClock.TickCount;
+                int currentTicks = m_timeProvider.GetTickCount();
                 return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
             }
             return false;
@@ -113,7 +114,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void AddClientAction(IPAddress ipAddress)
         {
-            int currentTicks = HiResClock.TickCount;
+            int currentTicks = m_timeProvider.GetTickCount();
 
             m_activeClients.AddOrUpdate(
                 ipAddress,
@@ -177,7 +178,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void CleanupExpiredEntries(object? state)
         {
-            int currentTicks = HiResClock.TickCount;
+            int currentTicks = m_timeProvider.GetTickCount();
 
             foreach (KeyValuePair<IPAddress, ActiveClient> entry in m_activeClients)
             {
@@ -245,7 +246,8 @@ namespace Opc.Ua.Bindings
         private const int kEntryExpirationMs = 600_000;
 
         private readonly ILogger m_logger;
-        private readonly Timer m_cleanupTimer;
+        private readonly TimeProvider m_timeProvider;
+        private readonly ITimer m_cleanupTimer;
     }
 
     /// <summary>
@@ -263,9 +265,20 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="telemetry">Telemetry context to use</param>
         public TcpTransportListener(ITelemetryContext telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Create listener
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="timeProvider">Time provider to use for timers and durations.</param>
+        public TcpTransportListener(ITelemetryContext telemetry, TimeProvider? timeProvider = null)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<TcpTransportListener>();
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         /// <summary>
@@ -588,7 +601,7 @@ namespace Opc.Ua.Bindings
                 if (m_descriptions != null &&
                     m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
                 {
-                    m_activeClientTracker = new ActiveClientTracker(m_telemetry);
+                    m_activeClientTracker = new ActiveClientTracker(m_telemetry, m_timeProvider);
                 }
 
                 // ensure a valid port.
@@ -622,11 +635,11 @@ namespace Opc.Ua.Bindings
                     m_listeningSocket.Bind(endpoint);
                     m_listeningSocket.Listen(kSocketBacklog);
 
-                    m_inactivityDetectionTimer = new Timer(
+                    m_inactivityDetectionTimer = m_timeProvider.CreateTimer(
                         DetectInactiveChannels,
                         null,
-                        m_inactivityDetectPeriod,
-                        m_inactivityDetectPeriod);
+                        TimeSpan.FromMilliseconds(m_inactivityDetectPeriod),
+                        TimeSpan.FromMilliseconds(m_inactivityDetectPeriod));
 
                     SocketAsyncEventArgs? args = null;
                     try
@@ -936,7 +949,8 @@ namespace Opc.Ua.Bindings
                                         m_bufferManager,
                                         m_quotas,
                                         m_descriptions,
-                                        m_telemetry);
+                                        m_telemetry,
+                                        m_timeProvider);
                                 }
                                 else
                                 {
@@ -948,7 +962,8 @@ namespace Opc.Ua.Bindings
                                         m_quotas,
                                         m_serverCertificates,
                                         m_descriptions,
-                                        m_telemetry);
+                                        m_telemetry,
+                                        m_timeProvider);
                                 }
 
                                 if (m_callback != null)
@@ -1217,6 +1232,7 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_lock = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
 
         /// <summary>
         /// These fields are populated by Open(); they remain non-null
@@ -1234,7 +1250,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback? m_callback;
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
-        private Timer? m_inactivityDetectionTimer;
+        private ITimer? m_inactivityDetectionTimer;
         private ActiveClientTracker? m_activeClientTracker;
     }
 

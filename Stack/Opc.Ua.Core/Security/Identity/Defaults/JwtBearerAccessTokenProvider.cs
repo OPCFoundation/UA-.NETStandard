@@ -49,6 +49,20 @@ namespace Opc.Ua.Identity
             byte[] tokenBytes,
             DateTime expiresAt,
             string displayName = "")
+            : this(authorityUri, tokenBytes, expiresAt, displayName, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a provider for a pre-supplied JWT payload with a
+        /// caller-supplied <see cref="TimeProvider"/> for expiry checks.
+        /// </summary>
+        public JwtBearerAccessTokenProvider(
+            string authorityUri,
+            byte[] tokenBytes,
+            DateTime expiresAt,
+            string displayName,
+            TimeProvider? timeProvider)
         {
             if (tokenBytes == null)
             {
@@ -59,6 +73,7 @@ namespace Opc.Ua.Identity
             m_tokenBytes = (byte[])tokenBytes.Clone();
             m_expiresAt = expiresAt;
             m_displayName = displayName ?? string.Empty;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         /// <summary>
@@ -70,6 +85,20 @@ namespace Opc.Ua.Identity
             DateTime expiresAt,
             string displayName = "")
         {
+            return FromJwtString(authorityUri, jwt, expiresAt, displayName, null);
+        }
+
+        /// <summary>
+        /// Creates a provider by UTF-8 encoding a compact JWT string,
+        /// using the supplied <see cref="TimeProvider"/> for expiry checks.
+        /// </summary>
+        public static JwtBearerAccessTokenProvider FromJwtString(
+            string authorityUri,
+            string jwt,
+            DateTime expiresAt,
+            string displayName,
+            TimeProvider? timeProvider)
+        {
             if (jwt == null)
             {
                 throw new ArgumentNullException(nameof(jwt));
@@ -79,7 +108,8 @@ namespace Opc.Ua.Identity
                 authorityUri,
                 Encoding.UTF8.GetBytes(jwt),
                 expiresAt,
-                displayName);
+                displayName,
+                timeProvider);
         }
 
         /// <inheritdoc/>
@@ -91,7 +121,7 @@ namespace Opc.Ua.Identity
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
-            if (m_expiresAt <= TimeProvider.System.GetUtcNow().UtcDateTime)
+            if (m_expiresAt <= m_timeProvider.GetUtcNow().UtcDateTime)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
@@ -115,5 +145,6 @@ namespace Opc.Ua.Identity
         private readonly byte[] m_tokenBytes;
         private readonly DateTime m_expiresAt;
         private readonly string m_displayName;
+        private readonly TimeProvider m_timeProvider;
     }
 }
