@@ -626,7 +626,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(allCreated, Is.True);
 
-                SetTriggeringResponse response = await subscription
+                SetTriggeringResponse response = await ((V2.Subscription)subscription)
                     .SetTriggeringAsync(
                         triggering!.ClientHandle,
                         [triggered1!.ClientHandle, triggered2!.ClientHandle],
@@ -636,28 +636,22 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(StatusCode.IsGood(response.AddResults[0]), Is.True);
                 Assert.That(StatusCode.IsGood(response.AddResults[1]), Is.True);
 
-                // Verify local tracking was updated
-                Assert.That(triggering.TriggeredItemClientHandles.ToArray(), Has.Length.EqualTo(2));
-                Assert.That(triggering.TriggeredItemClientHandles.ToArray(),
-                    Has.Member(triggered1.ClientHandle));
-                Assert.That(triggering.TriggeredItemClientHandles.ToArray(),
-                    Has.Member(triggered2.ClientHandle));
-                Assert.That(triggered1.TriggeringItemClientHandle,
-                    Is.EqualTo(triggering.ClientHandle));
-                Assert.That(triggered2.TriggeringItemClientHandle,
-                    Is.EqualTo(triggering.ClientHandle));
+                // Verify local tracking was updated: triggered items
+                // remember who triggers them (the reverse "what does
+                // this item trigger" lookup is on demand via the
+                // subscription's items, no eager list).
+                Assert.That(triggered1.TriggeringItem, Is.SameAs(triggering));
+                Assert.That(triggered2.TriggeringItem, Is.SameAs(triggering));
 
                 // Remove one of the links
-                SetTriggeringResponse removeResponse = await subscription
+                SetTriggeringResponse removeResponse = await ((V2.Subscription)subscription)
                     .SetTriggeringAsync(triggering.ClientHandle,
                         [],
                         [triggered1.ClientHandle], ct).ConfigureAwait(false);
                 Assert.That(removeResponse.RemoveResults, Has.Count.EqualTo(1));
                 Assert.That(StatusCode.IsGood(removeResponse.RemoveResults[0]), Is.True);
-                Assert.That(triggering.TriggeredItemClientHandles.ToArray(), Has.Length.EqualTo(1));
-                Assert.That(triggering.TriggeredItemClientHandles.ToArray(),
-                    Has.Member(triggered2.ClientHandle));
-                Assert.That(triggered1.TriggeringItemClientHandle, Is.Zero);
+                Assert.That(triggered1.TriggeringItem, Is.Null);
+                Assert.That(triggered2.TriggeringItem, Is.SameAs(triggering));
 
                 await subscription.DisposeAsync().ConfigureAwait(false);
             }

@@ -47,9 +47,9 @@ namespace Opc.Ua.Client.Subscriptions
     /// <see cref="DataTypeAttribute"/> source generator. The fields
     /// carried on the wire are simple primitives (e.g. <see cref="int"/>
     /// milliseconds for durations, <see cref="uint"/> for enums); the
-    /// non-encoded <see cref="Options"/> projection exposes a
+    /// non-encoded <see cref="ToOptions"/> projection exposes a
     /// consumer-friendly <see cref="SubscriptionOptions"/> built from
-    /// those surrogate fields. The companion <see cref="FromOptions"/>
+    /// those surrogate fields. The companion <see cref="AsOptions"/>
     /// factory does the inverse mapping at <see cref="Subscription.Snapshot"/>
     /// time. This split keeps the wire schema independent of
     /// .NET-specific types like <see cref="TimeSpan"/> that the source
@@ -79,60 +79,60 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="SubscriptionOptions.Disabled"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 10)]
-        public partial bool OptionsDisabled { get; init; }
+        public partial bool Disabled { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.KeepAliveCount"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 11)]
-        public partial uint OptionsKeepAliveCount { get; init; }
+        public partial uint KeepAliveCount { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.LifetimeCount"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 12)]
-        public partial uint OptionsLifetimeCount { get; init; }
+        public partial uint LifetimeCount { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.Priority"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 13)]
-        public partial byte OptionsPriority { get; init; }
+        public partial byte Priority { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.PublishingInterval"/> as
         /// whole milliseconds (the <see cref="TimeSpan"/> projection is
-        /// rebuilt in the <see cref="Options"/> getter).
+        /// rebuilt in the <see cref="ToOptions"/> getter).
         /// </summary>
         [DataTypeField(Order = 14)]
-        public partial int OptionsPublishingIntervalMs { get; init; }
+        public partial int PublishingIntervalMs { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.PublishingEnabled"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 15)]
-        public partial bool OptionsPublishingEnabled { get; init; }
+        public partial bool PublishingEnabled { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.MaxNotificationsPerPublish"/>
         /// surrogate.
         /// </summary>
         [DataTypeField(Order = 16)]
-        public partial uint OptionsMaxNotificationsPerPublish { get; init; }
+        public partial uint MaxNotificationsPerPublish { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.MinLifetimeInterval"/> as
         /// whole milliseconds.
         /// </summary>
         [DataTypeField(Order = 17)]
-        public partial int OptionsMinLifetimeIntervalMs { get; init; }
+        public partial int MinLifetimeIntervalMs { get; init; }
 
         /// <summary>
         /// <see cref="SubscriptionOptions.SendInitialValuesOnTransfer"/>
         /// surrogate.
         /// </summary>
         [DataTypeField(Order = 18)]
-        public partial bool OptionsSendInitialValuesOnTransfer { get; init; }
+        public partial bool SendInitialValuesOnTransfer { get; init; }
 
         /// <summary>
         /// Per-item state at snapshot time. Encoded inline (not via
@@ -144,23 +144,24 @@ namespace Opc.Ua.Client.Subscriptions
         public partial ArrayOf<MonitoredItemStateSnapshot> MonitoredItems { get; init; }
 
         /// <summary>
-        /// The live <see cref="SubscriptionOptions"/> represented by
-        /// this snapshot. Projects the encoded surrogate fields back to
-        /// the consumer-friendly types — this property is computed and
-        /// is NOT serialized.
+        /// Project the encoded surrogate fields back into a live
+        /// <see cref="SubscriptionOptions"/>. Not serialized.
         /// </summary>
-        public SubscriptionOptions Options => new()
+        public SubscriptionOptions ToOptions()
         {
-            Disabled = OptionsDisabled,
-            KeepAliveCount = OptionsKeepAliveCount,
-            LifetimeCount = OptionsLifetimeCount,
-            Priority = OptionsPriority,
-            PublishingInterval = TimeSpan.FromMilliseconds(OptionsPublishingIntervalMs),
-            PublishingEnabled = OptionsPublishingEnabled,
-            MaxNotificationsPerPublish = OptionsMaxNotificationsPerPublish,
-            MinLifetimeInterval = TimeSpan.FromMilliseconds(OptionsMinLifetimeIntervalMs),
-            SendInitialValuesOnTransfer = OptionsSendInitialValuesOnTransfer
-        };
+            return new SubscriptionOptions
+            {
+                Disabled = Disabled,
+                KeepAliveCount = KeepAliveCount,
+                LifetimeCount = LifetimeCount,
+                Priority = Priority,
+                PublishingInterval = TimeSpan.FromMilliseconds(PublishingIntervalMs),
+                PublishingEnabled = PublishingEnabled,
+                MaxNotificationsPerPublish = MaxNotificationsPerPublish,
+                MinLifetimeInterval = TimeSpan.FromMilliseconds(MinLifetimeIntervalMs),
+                SendInitialValuesOnTransfer = SendInitialValuesOnTransfer
+            };
+        }
 
         /// <summary>
         /// Construct a <see cref="SubscriptionStateSnapshot"/> from a
@@ -176,7 +177,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="availableSequenceNumbers">Server's
         /// retransmission-queue sequence numbers.</param>
         /// <param name="monitoredItems">Per-item snapshots.</param>
-        public static SubscriptionStateSnapshot FromOptions(
+        public static SubscriptionStateSnapshot AsOptions(
             SubscriptionOptions options,
             uint serverId,
             ArrayOf<uint> availableSequenceNumbers,
@@ -190,19 +191,19 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 ServerId = serverId,
                 AvailableSequenceNumbers = availableSequenceNumbers,
-                OptionsDisabled = options.Disabled,
-                OptionsKeepAliveCount = options.KeepAliveCount,
-                OptionsLifetimeCount = options.LifetimeCount,
-                OptionsPriority = options.Priority,
-                OptionsPublishingIntervalMs = (int)Math.Min(
+                Disabled = options.Disabled,
+                KeepAliveCount = options.KeepAliveCount,
+                LifetimeCount = options.LifetimeCount,
+                Priority = options.Priority,
+                PublishingIntervalMs = (int)Math.Min(
                     int.MaxValue,
                     Math.Max(0, options.PublishingInterval.TotalMilliseconds)),
-                OptionsPublishingEnabled = options.PublishingEnabled,
-                OptionsMaxNotificationsPerPublish = options.MaxNotificationsPerPublish,
-                OptionsMinLifetimeIntervalMs = (int)Math.Min(
+                PublishingEnabled = options.PublishingEnabled,
+                MaxNotificationsPerPublish = options.MaxNotificationsPerPublish,
+                MinLifetimeIntervalMs = (int)Math.Min(
                     int.MaxValue,
                     Math.Max(0, options.MinLifetimeInterval.TotalMilliseconds)),
-                OptionsSendInitialValuesOnTransfer = options.SendInitialValuesOnTransfer,
+                SendInitialValuesOnTransfer = options.SendInitialValuesOnTransfer,
                 MonitoredItems = monitoredItems
             };
         }

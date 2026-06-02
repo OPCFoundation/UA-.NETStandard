@@ -50,9 +50,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// <see cref="DataTypeAttribute"/> source generator. The fields
     /// carried on the wire are simple primitives (e.g. <see cref="int"/>
     /// milliseconds for durations, <see cref="uint"/> for enums); the
-    /// non-encoded <see cref="Options"/> projection exposes a
+    /// non-encoded <see cref="ToOptions"/> projection exposes a
     /// consumer-friendly <see cref="MonitoredItemOptions"/> built from
-    /// those surrogate fields. The companion <see cref="FromOptions"/>
+    /// those surrogate fields. The companion <see cref="AsOptions"/>
     /// factory does the inverse mapping at <see cref="MonitoredItem.Snapshot"/>
     /// time.
     /// </para>
@@ -95,61 +95,55 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public partial uint TriggeringItemClientHandle { get; init; }
 
         /// <summary>
-        /// Client handles of items triggered by this item.
-        /// </summary>
-        [DataTypeField(Order = 5)]
-        public partial ArrayOf<uint> TriggeredItemClientHandles { get; init; }
-
-        /// <summary>
         /// <see cref="MonitoredItemOptions.Order"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 10)]
-        public partial uint OptionsOrder { get; init; }
+        public partial uint Order { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.StartNodeId"/> surrogate.
         /// Null sentinel: <see cref="NodeId.Null"/>.
         /// </summary>
         [DataTypeField(Order = 11)]
-        public partial NodeId OptionsStartNodeId { get; init; }
+        public partial NodeId StartNodeId { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.TimestampsToReturn"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 12)]
-        public partial uint OptionsTimestampsToReturn { get; init; }
+        public partial uint TimestampsToReturn { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.AttributeId"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 13)]
-        public partial uint OptionsAttributeId { get; init; }
+        public partial uint AttributeId { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.IndexRange"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 14)]
-        public partial string OptionsIndexRange { get; init; }
+        public partial string IndexRange { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.Encoding"/> surrogate. Null
         /// sentinel: <see cref="QualifiedName.Null"/>.
         /// </summary>
         [DataTypeField(Order = 15)]
-        public partial QualifiedName OptionsEncoding { get; init; }
+        public partial QualifiedName Encoding { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.MonitoringMode"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 16)]
-        public partial uint OptionsMonitoringMode { get; init; }
+        public partial uint MonitoringMode { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.SamplingInterval"/> as whole
         /// milliseconds.
         /// </summary>
         [DataTypeField(Order = 17)]
-        public partial int OptionsSamplingIntervalMs { get; init; }
+        public partial int SamplingIntervalMs { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.Filter"/> surrogate.
@@ -159,60 +153,60 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// type round-trips.
         /// </summary>
         [DataTypeField(Order = 18, StructureHandling = StructureHandling.ExtensionObject)]
-        public partial MonitoringFilter? OptionsFilter { get; init; }
+        public partial MonitoringFilter? Filter { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.QueueSize"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 19)]
-        public partial uint OptionsQueueSize { get; init; }
+        public partial uint QueueSize { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.DiscardOldest"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 20)]
-        public partial bool OptionsDiscardOldest { get; init; }
+        public partial bool DiscardOldest { get; init; }
 
         /// <summary>
         /// <see cref="MonitoredItemOptions.AutoSetQueueSize"/> surrogate.
         /// </summary>
         [DataTypeField(Order = 21)]
-        public partial bool OptionsAutoSetQueueSize { get; init; }
+        public partial bool AutoSetQueueSize { get; init; }
 
         /// <summary>
-        /// The live <see cref="MonitoredItemOptions"/> represented by
-        /// this snapshot. Projects the encoded surrogate fields back to
-        /// the consumer-friendly types — this property is computed and
-        /// is NOT serialized.
+        /// Project the encoded surrogate fields back into a live
+        /// <see cref="MonitoredItemOptions"/>. Not serialized.
         /// </summary>
-        public MonitoredItemOptions Options => new()
+        public MonitoredItemOptions ToOptions()
         {
-            Order = OptionsOrder,
-            StartNodeId = OptionsStartNodeId.IsNull ? NodeId.Null : OptionsStartNodeId,
-            TimestampsToReturn = (TimestampsToReturn)OptionsTimestampsToReturn,
-            AttributeId = OptionsAttributeId,
-            IndexRange = OptionsIndexRange,
-            Encoding = OptionsEncoding.IsNull ? null : OptionsEncoding,
-            MonitoringMode = (MonitoringMode)OptionsMonitoringMode,
-            SamplingInterval = TimeSpan.FromMilliseconds(OptionsSamplingIntervalMs),
-            Filter = OptionsFilter,
-            QueueSize = OptionsQueueSize,
-            DiscardOldest = OptionsDiscardOldest,
-            AutoSetQueueSize = OptionsAutoSetQueueSize
-        };
+            return new MonitoredItemOptions
+            {
+                Order = Order,
+                StartNodeId = StartNodeId.IsNull ? NodeId.Null : StartNodeId,
+                TimestampsToReturn = (Opc.Ua.TimestampsToReturn)TimestampsToReturn,
+                AttributeId = AttributeId,
+                IndexRange = IndexRange,
+                Encoding = Encoding.IsNull ? null : Encoding,
+                MonitoringMode = (Opc.Ua.MonitoringMode)MonitoringMode,
+                SamplingInterval = TimeSpan.FromMilliseconds(SamplingIntervalMs),
+                Filter = Filter,
+                QueueSize = QueueSize,
+                DiscardOldest = DiscardOldest,
+                AutoSetQueueSize = AutoSetQueueSize
+            };
+        }
 
         /// <summary>
         /// Construct a <see cref="MonitoredItemStateSnapshot"/> from a
         /// live <see cref="MonitoredItemOptions"/> + the captured
         /// server-side state.
         /// </summary>
-        public static MonitoredItemStateSnapshot FromOptions(
+        public static MonitoredItemStateSnapshot AsOptions(
             string name,
             MonitoredItemOptions options,
             uint clientHandle,
             uint serverId,
-            uint triggeringItemClientHandle,
-            ArrayOf<uint> triggeredItemClientHandles)
+            uint triggeringItemClientHandle)
         {
             if (options == null)
             {
@@ -224,23 +218,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ClientHandle = clientHandle,
                 ServerId = serverId,
                 TriggeringItemClientHandle = triggeringItemClientHandle,
-                TriggeredItemClientHandles = triggeredItemClientHandles,
-                OptionsOrder = options.Order,
-                OptionsStartNodeId = options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId,
-                OptionsTimestampsToReturn = (uint)options.TimestampsToReturn,
-                OptionsAttributeId = options.AttributeId,
-                OptionsIndexRange = options.IndexRange ?? string.Empty,
-                OptionsEncoding = options.Encoding.HasValue && !options.Encoding.Value.IsNull
+                Order = options.Order,
+                StartNodeId = options.StartNodeId.IsNull ? NodeId.Null : options.StartNodeId,
+                TimestampsToReturn = (uint)options.TimestampsToReturn,
+                AttributeId = options.AttributeId,
+                IndexRange = options.IndexRange ?? string.Empty,
+                Encoding = options.Encoding.HasValue && !options.Encoding.Value.IsNull
                     ? options.Encoding.Value
                     : QualifiedName.Null,
-                OptionsMonitoringMode = (uint)options.MonitoringMode,
-                OptionsSamplingIntervalMs = (int)Math.Min(
+                MonitoringMode = (uint)options.MonitoringMode,
+                SamplingIntervalMs = (int)Math.Min(
                     int.MaxValue,
                     Math.Max(0, options.SamplingInterval.TotalMilliseconds)),
-                OptionsFilter = options.Filter,
-                OptionsQueueSize = options.QueueSize,
-                OptionsDiscardOldest = options.DiscardOldest,
-                OptionsAutoSetQueueSize = options.AutoSetQueueSize
+                Filter = options.Filter,
+                QueueSize = options.QueueSize,
+                DiscardOldest = options.DiscardOldest,
+                AutoSetQueueSize = options.AutoSetQueueSize
             };
         }
     }

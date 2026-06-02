@@ -76,20 +76,27 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <inheritdoc/>
         public uint ClientHandle { get; private set; }
 
-        /// <inheritdoc/>
-        public uint TriggeringItemClientHandle { get; internal set; }
+        /// <summary>
+        /// Client handle of the item that triggers this item, or
+        /// <c>0</c> if no triggering relationship has been set. Used
+        /// by the snapshot path and by the <see cref="TriggeringItem"/>
+        /// public projection which resolves the handle to the live
+        /// sibling via <see cref="IMonitoredItemContext"/>.
+        /// </summary>
+        internal uint TriggeringItemClientHandle { get; set; }
 
         /// <inheritdoc/>
-        public ArrayOf<uint> TriggeredItemClientHandles
+        public IMonitoredItem? TriggeringItem
         {
             get
             {
-                lock (m_triggeredItemsLock)
+                uint handle = TriggeringItemClientHandle;
+                if (handle == 0)
                 {
-                    uint[] arr = new uint[m_triggeredItems.Count];
-                    m_triggeredItems.CopyTo(arr);
-                    return new ArrayOf<uint>(arr);
+                    return null;
                 }
+                return Context.TryGetMonitoredItemByClientHandle(
+                    handle, out IMonitoredItem? item) ? item : null;
             }
         }
 
@@ -150,38 +157,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             ClientHandle = state.ClientHandle;
             ServerId = state.ServerId;
             TriggeringItemClientHandle = state.TriggeringItemClientHandle;
-            lock (m_triggeredItemsLock)
-            {
-                m_triggeredItems.Clear();
-                foreach (uint t in state.TriggeredItemClientHandles)
-                {
-                    m_triggeredItems.Add(t);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Add a triggered item link locally; called by the owning
-        /// subscription after the server reported Good for the link.
-        /// </summary>
-        internal void AddTriggeredLink(uint triggeredClientHandle)
-        {
-            lock (m_triggeredItemsLock)
-            {
-                m_triggeredItems.Add(triggeredClientHandle);
-            }
-        }
-
-        /// <summary>
-        /// Remove a triggered item link locally; called by the owning
-        /// subscription after the server reported Good for the link.
-        /// </summary>
-        internal void RemoveTriggeredLink(uint triggeredClientHandle)
-        {
-            lock (m_triggeredItemsLock)
-            {
-                m_triggeredItems.Remove(triggeredClientHandle);
-            }
         }
 
         /// <summary>
@@ -241,18 +216,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         public MonitoredItemStateSnapshot Snapshot()
         {
-            uint[] triggered;
-            lock (m_triggeredItemsLock)
-            {
-                triggered = [.. m_triggeredItems];
-            }
-            return MonitoredItemStateSnapshot.FromOptions(
+            return MonitoredItemStateSnapshot.AsOptions(
                 Name,
                 m_options.CurrentValue,
                 ClientHandle,
                 ServerId,
-                TriggeringItemClientHandle,
-                triggered.ToArrayOf());
+                TriggeringItemClientHandle);
         }
 
         /// <inheritdoc/>
@@ -878,7 +847,5 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private readonly ILogger m_logger;
         internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;
-        private readonly HashSet<uint> m_triggeredItems = [];
-        private readonly Lock m_triggeredItemsLock = new();
     }
 }

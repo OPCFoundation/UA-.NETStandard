@@ -31,11 +31,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using V2MonitoredItem = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItem;
-using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Subscriptions.Fakes
 {
@@ -74,6 +73,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public List<ConditionRefreshCall> ConditionRefreshCalls { get; } = [];
 
+        /// <summary>
+        /// Lookup table for <see cref="TryGetMonitoredItemByClientHandle"/>.
+        /// Tests populate this directly when they need the
+        /// <see cref="IMonitoredItem.TriggeringItem"/> projection to
+        /// resolve.
+        /// </summary>
+        public Dictionary<uint, IMonitoredItem> ItemsByClientHandle { get; } = [];
+
         public ValueTask ConditionRefreshAsync(
             uint monitoredItemServerId,
             CancellationToken ct = default)
@@ -90,9 +97,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             uint MonitoredItemServerId, CancellationToken Ct);
 
         public bool NotifyItemChangeResult(
-            V2MonitoredItem monitoredItem,
+            MonitoredItems.MonitoredItem monitoredItem,
             int retryCount,
-            V2MonitoredItemOptions source,
+            MonitoredItems.MonitoredItemOptions source,
             ServiceResult serviceResult,
             bool final,
             MonitoringFilterResult? filterResult)
@@ -104,11 +111,18 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         public void NotifyItemChange(
-            V2MonitoredItem monitoredItem,
+            MonitoredItems.MonitoredItem monitoredItem,
             bool itemDisposed = false)
         {
             NotifyItemChangeCalls.Add(new NotifyItemChangeCall(monitoredItem,
                 itemDisposed));
+        }
+
+        public bool TryGetMonitoredItemByClientHandle(
+            uint clientHandle,
+            [MaybeNullWhen(false)] out IMonitoredItem? item)
+        {
+            return ItemsByClientHandle.TryGetValue(clientHandle, out item);
         }
 
         public override string ToString()
@@ -117,11 +131,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         internal readonly record struct NotifyItemChangeResultCall(
-            V2MonitoredItem MonitoredItem, int RetryCount,
-            V2MonitoredItemOptions Source, ServiceResult ServiceResult,
+            MonitoredItems.MonitoredItem MonitoredItem, int RetryCount,
+            MonitoredItems.MonitoredItemOptions Source, ServiceResult ServiceResult,
             bool Final, MonitoringFilterResult? FilterResult);
 
         internal readonly record struct NotifyItemChangeCall(
-            V2MonitoredItem MonitoredItem, bool ItemDisposed);
+            MonitoredItems.MonitoredItem MonitoredItem, bool ItemDisposed);
     }
 }

@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public SubscriptionStateSnapshot Snapshot()
         {
-            return OnSnapshot?.Invoke() ?? SubscriptionStateSnapshot.FromOptions(
+            return OnSnapshot?.Invoke() ?? SubscriptionStateSnapshot.AsOptions(
                 new SubscriptionOptions(),
                 Id,
                 Array.Empty<uint>().ToArrayOf(),

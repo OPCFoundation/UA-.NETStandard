@@ -56,6 +56,5 @@ namespace Opc.Ua.Client.Subscriptions
         IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options,
         uint ClientHandle,
         uint ServerId,
-        uint TriggeringItemClientHandle,
-        IReadOnlyList<uint> TriggeredItemClientHandles);
+        uint TriggeringItemClientHandle);
 }

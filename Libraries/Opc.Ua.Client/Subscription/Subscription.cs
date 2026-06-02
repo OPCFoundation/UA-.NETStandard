@@ -129,9 +129,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// The owning <see cref="SubscriptionManager.RestoreAsync"/>
         /// flow then issues TransferSubscriptions and binds runtime
         /// state via <see cref="TryCompleteTransferAsync"/>.</param>
-        protected Subscription(ISubscriptionContext context, ISubscriptionNotificationHandler handler,
-            IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
-            ITelemetryContext telemetry, SubscriptionLoadState? loadState = null)
+        protected Subscription(
+            ISubscriptionContext context,
+            ISubscriptionNotificationHandler handler,
+            IMessageAckQueue completion,
+            IOptionsMonitor<SubscriptionOptions> options,
+            ITelemetryContext telemetry,
+            SubscriptionLoadState? loadState = null)
             : base(context.SubscriptionServiceSet, completion, telemetry)
         {
             m_handler = handler;
@@ -187,7 +191,7 @@ namespace Opc.Ua.Client.Subscriptions
             uint[] available = AvailableInRetransmissionQueue == null
                 ? []
                 : [.. AvailableInRetransmissionQueue];
-            return SubscriptionStateSnapshot.FromOptions(
+            return SubscriptionStateSnapshot.AsOptions(
                 Options,
                 Id,
                 available.ToArrayOf(),
@@ -214,7 +218,21 @@ namespace Opc.Ua.Client.Subscriptions
                 ct).ConfigureAwait(false);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Configure triggering relationships between monitored items
+        /// in this subscription. Per OPC UA Part 4 §5.13.5, the service
+        /// call reports per-link status; this implementation updates
+        /// the triggered items' <see cref="IMonitoredItem.TriggeringItem"/>
+        /// link only for results whose status is Good. Partial failures
+        /// do not corrupt local state; callers inspect the returned
+        /// <see cref="SetTriggeringResponse"/> for per-link results.
+        /// </summary>
+        /// <remarks>
+        /// Kept on the concrete <see cref="Subscription"/> class (not on
+        /// <see cref="ISubscription"/>) — the API surface is too
+        /// low-level for the SDK contract; per-item link/unlink methods
+        /// are tracked as a follow-up.
+        /// </remarks>
         public async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             uint triggeringItemClientHandle,
             IReadOnlyList<uint> linksToAdd,
@@ -236,7 +254,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             if (!m_monitoredItems.TryGetMonitoredItemByClientHandle(
                 triggeringItemClientHandle, out IMonitoredItem? triggeringItem) ||
-                triggeringItem is not MonitoredItems.MonitoredItem triggeringInternal)
+                triggeringItem is null)
             {
                 throw new ArgumentException(
                     $"Triggering item with client handle {triggeringItemClientHandle} " +
@@ -277,6 +295,10 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Update local state only for results with a Good status —
             // partial failure must not corrupt the in-process tracking.
+            // The triggered items remember who triggers them; the
+            // reverse list (triggered-by-this) is resolved on demand via
+            // the manager when callers ask for "what does this item
+            // trigger".
             ArrayOf<StatusCode> addResults = response.AddResults;
             for (int i = 0; i < linksToAdd.Count; i++)
             {
@@ -285,7 +307,6 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     continue;
                 }
-                triggeringInternal.AddTriggeredLink(linksToAdd[i]);
                 if (m_monitoredItems.TryGetMonitoredItemByClientHandle(
                     linksToAdd[i], out IMonitoredItem? triggered) &&
                     triggered is MonitoredItems.MonitoredItem triggeredInternal)
@@ -302,7 +323,6 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     continue;
                 }
-                triggeringInternal.RemoveTriggeredLink(linksToRemove[i]);
                 if (m_monitoredItems.TryGetMonitoredItemByClientHandle(
                     linksToRemove[i], out IMonitoredItem? triggered) &&
                     triggered is MonitoredItems.MonitoredItem triggeredInternal &&

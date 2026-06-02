@@ -34,7 +34,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
-using V2 = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Client
 {
@@ -289,8 +288,8 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(handlerFactory));
             }
             var result = new List<ISubscription>(states.Count);
-            V2.SubscriptionManager manager =
-                (V2.SubscriptionManager)session.SubscriptionManager;
+            Subscriptions.SubscriptionManager manager =
+                (Subscriptions.SubscriptionManager)session.SubscriptionManager;
             foreach (SubscriptionStateSnapshot state in states)
             {
                 result.Add(await manager.RestoreAsync(

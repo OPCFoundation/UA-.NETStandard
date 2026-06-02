@@ -88,21 +88,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         uint ClientHandle { get; }
 
         /// <summary>
-        /// The client handle of the monitored item that triggers
-        /// this item, or <c>0</c> if no triggering relationship has
-        /// been recorded via
-        /// <see cref="ISubscription.SetTriggeringAsync"/>. Updated only
-        /// after a successful service call result for this link.
+        /// The monitored item that triggers this item, or <c>null</c>
+        /// if no triggering relationship has been recorded via
+        /// <c>SetTriggeringAsync</c> on the owning subscription. The
+        /// relationship is resolved on demand against the owning
+        /// subscription's collection; the reverse lookup ("what items
+        /// does this item trigger") is also performed on demand via the
+        /// owning context — there is no eagerly-maintained list.
         /// </summary>
-        uint TriggeringItemClientHandle { get; }
-
-        /// <summary>
-        /// Client handles of the monitored items that are triggered
-        /// by this item. Empty when this item does not currently
-        /// trigger any other items. Updated only after successful
-        /// service call results for each link.
-        /// </summary>
-        ArrayOf<uint> TriggeredItemClientHandles { get; }
+        IMonitoredItem? TriggeringItem { get; }
 
         /// <summary>
         /// Issue an OPC UA Part 9 §5.5.7 ConditionRefresh2 method call

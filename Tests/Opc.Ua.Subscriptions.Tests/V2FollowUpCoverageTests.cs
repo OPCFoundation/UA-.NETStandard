@@ -265,9 +265,9 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
 
                 // Snapshot includes the SendInitialValuesOnTransfer
-                // option through SubscriptionStateSnapshot.Options.
+                // option through SubscriptionStateSnapshot.ToOptions().
                 SubscriptionStateSnapshot snap = ((V2.Subscription)origin).Snapshot();
-                Assert.That(snap.Options.SendInitialValuesOnTransfer, Is.True,
+                Assert.That(snap.SendInitialValuesOnTransfer, Is.True,
                     "SendInitialValuesOnTransfer option must round-trip through Snapshot");
 
                 using (var output = File.Create(saveFile))
@@ -417,9 +417,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.EqualTo(1));
                 MonitoredItemStateSnapshot itemSnap = snap.MonitoredItems[0];
-                Assert.That(itemSnap.Options.Filter, Is.Not.Null);
-                Assert.That(itemSnap.Options.Filter, Is.InstanceOf<DataChangeFilter>());
-                DataChangeFilter restoredFilter = (DataChangeFilter)itemSnap.Options.Filter!;
+                Assert.That(itemSnap.Filter, Is.Not.Null);
+                Assert.That(itemSnap.Filter, Is.InstanceOf<DataChangeFilter>());
+                DataChangeFilter restoredFilter = (DataChangeFilter)itemSnap.Filter!;
                 Assert.That(restoredFilter.Trigger,
                     Is.EqualTo(dataChangeFilter.Trigger));
                 Assert.That(restoredFilter.DeadbandType,

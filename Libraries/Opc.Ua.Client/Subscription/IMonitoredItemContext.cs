@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     /// <summary>
@@ -46,9 +49,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// item id (<see cref="IMonitoredItem.ServerId"/>). The item
         /// must have been created on the server.</param>
         /// <param name="ct">Cancellation token.</param>
-        System.Threading.Tasks.ValueTask ConditionRefreshAsync(
+        ValueTask ConditionRefreshAsync(
             uint monitoredItemServerId,
-            System.Threading.CancellationToken ct = default);
+            CancellationToken ct = default);
 
         /// <summary>
         /// Notify item change results. This includes intermittent
@@ -76,5 +79,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         void NotifyItemChange(
             MonitoredItem monitoredItem,
             bool itemDisposed = false);
+
+        /// <summary>
+        /// Resolve a sibling monitored item by client handle. Used by
+        /// <see cref="IMonitoredItem.TriggeringItem"/> to expose the
+        /// triggering relationship as a concrete item reference rather
+        /// than a raw handle, and by reverse lookups that find the set
+        /// of items triggered by a given item.
+        /// </summary>
+        /// <param name="clientHandle">Client-assigned handle of the
+        /// item to resolve.</param>
+        /// <param name="item">The resolved item, or <c>null</c> if no
+        /// item with that handle is currently registered.</param>
+        bool TryGetMonitoredItemByClientHandle(
+            uint clientHandle,
+            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IMonitoredItem? item);
     }
 }

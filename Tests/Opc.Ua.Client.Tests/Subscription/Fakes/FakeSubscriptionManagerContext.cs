@@ -96,8 +96,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IMessageAckQueue queue,
             SubscriptionLoadState? loadState = null)
         {
-            CreateSubscriptionCalls.Add(new CreateSubscriptionCall(handler,
-                options, queue, loadState));
+            CreateSubscriptionCalls.Add(
+                new CreateSubscriptionCall(handler, options, queue, loadState));
             return CreateSubscriptionFactory(handler, options, queue);
         }
 

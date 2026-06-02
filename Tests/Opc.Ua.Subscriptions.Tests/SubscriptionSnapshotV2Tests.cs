@@ -132,10 +132,10 @@ namespace Opc.Ua.Subscriptions.Tests
                     originSession.SnapshotSubscriptions();
                 Assert.That(snapshots, Has.Count.EqualTo(1));
                 SubscriptionStateSnapshot subSnap = snapshots[0];
-                Assert.That(subSnap.Options.PublishingInterval,
-                    Is.EqualTo(TimeSpan.FromMilliseconds(500)));
-                Assert.That(subSnap.Options.Priority, Is.EqualTo(50));
-                Assert.That(subSnap.Options.MaxNotificationsPerPublish,
+                Assert.That(subSnap.PublishingIntervalMs,
+                    Is.EqualTo(500));
+                Assert.That(subSnap.Priority, Is.EqualTo(50));
+                Assert.That(subSnap.MaxNotificationsPerPublish,
                     Is.EqualTo(42u));
                 Assert.That(subSnap.ServerId, Is.GreaterThan(0u));
                 Assert.That(subSnap.MonitoredItems.Count, Is.EqualTo(2));
@@ -155,10 +155,10 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
                 Assert.That(timeSnap, Is.Not.Null);
                 Assert.That(stateSnap, Is.Not.Null);
-                Assert.That(timeSnap.Options.SamplingInterval,
-                    Is.EqualTo(TimeSpan.FromMilliseconds(250)));
-                Assert.That(stateSnap.Options.SamplingInterval,
-                    Is.EqualTo(TimeSpan.FromMilliseconds(500)));
+                Assert.That(timeSnap.SamplingIntervalMs,
+                    Is.EqualTo(250));
+                Assert.That(stateSnap.SamplingIntervalMs,
+                    Is.EqualTo(500));
                 Assert.That(timeSnap.ServerId, Is.GreaterThan(0u));
                 Assert.That(stateSnap.ServerId, Is.GreaterThan(0u));
 
@@ -246,7 +246,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(both, Is.True);
 
-                await sub.SetTriggeringAsync(triggering!.ClientHandle,
+                await ((V2.Subscription)sub).SetTriggeringAsync(triggering!.ClientHandle,
                     [triggered!.ClientHandle], [], ct).ConfigureAwait(false);
 
                 SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
@@ -265,10 +265,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
                 Assert.That(triggerSnap, Is.Not.Null);
                 Assert.That(triggeredSnap, Is.Not.Null);
-                Assert.That(triggerSnap!.TriggeredItemClientHandles.Count,
-                    Is.EqualTo(1));
-                Assert.That(triggerSnap.TriggeredItemClientHandles[0],
-                    Is.EqualTo(triggered.ClientHandle));
+                // The snapshot stores the triggering relationship only
+                // on the triggered side; the reverse "items I trigger"
+                // set is reconstructed on demand from sibling items.
                 Assert.That(triggeredSnap!.TriggeringItemClientHandle,
                     Is.EqualTo(triggering.ClientHandle));
 

@@ -738,7 +738,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                         "Output arguments incorrect");
                 }
-                return new MonitoredItemsHandles(true,
+                return new MonitoredItemsHandles(
+                    true,
                     serverHandles.ToList().Zip(clientHandles.ToList()).ToList());
             }
             catch (ServiceResultException sre)

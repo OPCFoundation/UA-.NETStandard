@@ -369,12 +369,6 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(state));
             }
-            if (state.Options == null)
-            {
-                throw new ArgumentException(
-                    "SubscriptionStateSnapshot.Options is required.",
-                    nameof(state));
-            }
             if (transferSubscriptions && state.ServerId != 0)
             {
                 return RestoreTransferAsync(handler, state, ct);
@@ -390,12 +384,12 @@ namespace Opc.Ua.Client.Subscriptions
             ct.ThrowIfCancellationRequested();
             ISubscription subscription = Add(
                 handler,
-                new OptionsMonitor<SubscriptionOptions>(state.Options));
+                new OptionsMonitor<SubscriptionOptions>(state.ToOptions()));
             foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
             {
                 subscription.MonitoredItems.TryAdd(
                     item.Name,
-                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.Options),
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     out _);
             }
             return new ValueTask<ISubscription>(subscription);
@@ -407,28 +401,27 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct)
         {
             // Build the internal load-state record (decoupled from the
-            // public DTO so the engine has no DTO coupling).
+            // public DTO so the engine has no DTO coupling). The reverse
+            // "items I trigger" set is reconstructed on demand from the
+            // triggering relationships per item.
             var itemLoadStates = new List<MonitoredItemLoadState>(
                 state.MonitoredItems.Count);
             foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
             {
-                uint[] triggered = item.TriggeredItemClientHandles.IsNull
-                    ? []
-                    : [.. item.TriggeredItemClientHandles];
                 itemLoadStates.Add(new MonitoredItemLoadState(
                     item.Name,
-                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.Options),
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     item.ClientHandle,
                     item.ServerId,
-                    item.TriggeringItemClientHandle,
-                    triggered));
+                    item.TriggeringItemClientHandle));
             }
             var loadState = new SubscriptionLoadState(
                 state.ServerId, itemLoadStates);
 
+            SubscriptionOptions options = state.ToOptions();
             IManagedSubscription subscription = m_session.CreateSubscription(
                 handler,
-                new OptionsMonitor<SubscriptionOptions>(state.Options),
+                new OptionsMonitor<SubscriptionOptions>(options),
                 this,
                 loadState);
             lock (m_subscriptionLock)
@@ -455,7 +448,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .TransferSubscriptionsAsync(
                     null,
                     ids.ToArrayOf(),
-                    sendInitialValues: state.Options.SendInitialValuesOnTransfer,
+                    sendInitialValues: options.SendInitialValuesOnTransfer,
                     ct)
                 .ConfigureAwait(false);
 
