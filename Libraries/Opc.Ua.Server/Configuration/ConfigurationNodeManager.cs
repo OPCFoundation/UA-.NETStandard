@@ -1467,7 +1467,7 @@ namespace Opc.Ua.Server
 
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
-                    await Task.Delay(TimeSpan.FromMilliseconds(1000), m_timeProvider).ConfigureAwait(false);
+                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(1000)).ConfigureAwait(false);
 
                     try
                     {

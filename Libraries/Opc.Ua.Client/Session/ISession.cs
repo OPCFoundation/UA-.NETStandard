@@ -265,7 +265,7 @@ namespace Opc.Ua.Client
         DateTime LastKeepAliveTime { get; }
 
         /// <summary>
-        /// Gets the TickCount in ms of the last keep alive based on <see cref="HiResClock.TickCount"/>.
+        /// Gets the TickCount in ms of the last keep alive based on <see cref="TimeProvider"/>.
         /// </summary>
         int LastKeepAliveTickCount { get; }
 

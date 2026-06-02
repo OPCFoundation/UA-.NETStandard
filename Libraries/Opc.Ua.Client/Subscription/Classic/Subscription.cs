@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use Subscription(TelemetryContext) instead")]
         public Subscription()
-            : this(null!, null)
+            : this(null!, null, null)
         {
         }
 
@@ -70,12 +70,21 @@ namespace Opc.Ua.Client
         /// Creates a empty object.
         /// </summary>
         public Subscription(ITelemetryContext telemetry, SubscriptionOptions? options = null)
+            : this(telemetry, options, null)
         {
+        }
+
+        /// <summary>
+        /// Creates a empty object.
+        /// </summary>
+        public Subscription(ITelemetryContext telemetry, SubscriptionOptions? options,
+            TimeProvider? timeProvider)
+        {
+            m_timeProvider = timeProvider ??= TimeProvider.System;
             Telemetry = telemetry ?? AmbientMessageContext.Telemetry;
             m_logger = Telemetry.CreateLogger<Subscription>();
             State = options ?? new SubscriptionOptions();
             DefaultItem = CreateMonitoredItem();
-            m_timeProvider = TimeProvider.System;
         }
 
         /// <summary>
@@ -776,7 +785,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                int timeSinceLastNotification = HiResClock.TickCount - m_lastNotificationTickCount;
+                int timeSinceLastNotification = m_timeProvider.GetTickCount() - m_lastNotificationTickCount;
                 return timeSinceLastNotification > m_keepAliveInterval + kKeepAliveTimerMargin;
             }
         }
@@ -1597,10 +1606,10 @@ namespace Opc.Ua.Client
                     TraceState("PUBLISHING RECOVERED");
                 }
 
-                DateTime now = DateTime.UtcNow;
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 Interlocked.Exchange(ref m_lastNotificationTime, now.Ticks);
 
-                int tickCount = HiResClock.TickCount;
+                int tickCount = m_timeProvider.GetTickCount();
                 m_lastNotificationTickCount = tickCount;
 
                 // create queue for the first time.
@@ -1987,8 +1996,8 @@ namespace Opc.Ua.Client
                     // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
-                    DateTime now = DateTime.UtcNow.AddMilliseconds(-RepublishMessageTimeout * 2);
-                    int tickCount = HiResClock.TickCount - (RepublishMessageTimeout * 2);
+                    DateTime now = m_timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(-RepublishMessageTimeout * 2);
+                    int tickCount = m_timeProvider.GetTickCount() - (RepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
                     int availableNumbers = availableSequenceNumberList.Count;
                     int republishMessages = 0;
@@ -2057,8 +2066,8 @@ namespace Opc.Ua.Client
                 {
                     m_publishTimer?.Dispose();
                     m_publishTimer = null;
-                    Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
-                    m_lastNotificationTickCount = HiResClock.TickCount;
+                    Interlocked.Exchange(ref m_lastNotificationTime, m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                    m_lastNotificationTickCount = m_timeProvider.GetTickCount();
                     m_publishTimer = m_timeProvider.CreateTimer(
                         OnKeepAlive,
                         m_keepAliveInterval,
@@ -2526,7 +2535,7 @@ namespace Opc.Ua.Client
                         {
                             // tolerate if a single request was received out of order
                             if (ii.Next.Next != null &&
-                                (HiResClock.TickCount -
+                                (m_timeProvider.GetTickCount() -
                                     ii.Value.TickCount) > RepublishMessageTimeout)
                             {
                                 ii.Value.Republished = true;

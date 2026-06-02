@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return false;
                 }
-                TimeSpan timeSinceLastNotification = TimeProvider.System
+                TimeSpan timeSinceLastNotification = TimeProvider
                     .GetElapsedTime(lastNotificationTimestamp);
                 return timeSinceLastNotification >
                     m_keepAliveInterval + s_keepAliveTimerMargin;
@@ -113,15 +113,18 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="completion"></param>
         /// <param name="options"></param>
         /// <param name="telemetry"></param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// for elapsed-time and timer calculations. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         protected Subscription(ISubscriptionContext context, ISubscriptionNotificationHandler handler,
             IMessageAckQueue completion, IOptionsMonitor<SubscriptionOptions> options,
-            ITelemetryContext telemetry)
-            : base(context.SubscriptionServiceSet, completion, telemetry)
+            ITelemetryContext telemetry, TimeProvider? timeProvider = null)
+            : base(context.SubscriptionServiceSet, completion, telemetry, timeProvider)
         {
             m_handler = handler;
             m_context = context;
             m_monitoredItems = new MonitoredItemManager(this, telemetry);
-            m_publishTimer = TimeProvider.System.CreateTimer(OnKeepAlive,
+            m_publishTimer = TimeProvider.CreateTimer(OnKeepAlive,
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             OnOptionsChanged(options.CurrentValue);
             m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
@@ -717,7 +720,7 @@ namespace Opc.Ua.Client.Subscriptions
         private void StartKeepAliveTimer()
         {
             SubscriptionOptions options = Options;
-            LastNotificationTimestamp = TimeProvider.System.GetTimestamp();
+            LastNotificationTimestamp = TimeProvider.GetTimestamp();
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {

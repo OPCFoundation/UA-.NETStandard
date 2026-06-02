@@ -58,6 +58,7 @@ namespace Opc.Ua.Client
         private static readonly TimeSpan s_defaultCacheLifetime = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_refreshSkew = TimeSpan.FromSeconds(30);
         private readonly Func<CancellationToken, ValueTask<GdsIssuedKeyCredential>> m_acquireCredential;
+        private readonly TimeProvider m_timeProvider;
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private GdsIssuedKeyCredential? m_cachedCredential;
         private bool m_disposed;
@@ -72,7 +73,8 @@ namespace Opc.Ua.Client
             ByteString publicKey = default,
             string? securityPolicyUri = null,
             ArrayOf<NodeId>? requestedRoles = null,
-            TimeSpan? cacheLifetime = null)
+            TimeSpan? cacheLifetime = null,
+            TimeProvider? timeProvider = null)
             : this(
                 new ReflectionKeyCredentialClient(
                     keyCredentialServiceClient,
@@ -81,7 +83,8 @@ namespace Opc.Ua.Client
                     securityPolicyUri,
                     requestedRoles ?? []).AcquireAsync,
                 authorityUri,
-                cacheLifetime)
+                cacheLifetime,
+                timeProvider)
         {
         }
 
@@ -91,11 +94,13 @@ namespace Opc.Ua.Client
         public GdsKeyCredentialAccessTokenProvider(
             Func<CancellationToken, ValueTask<GdsIssuedKeyCredential>> acquireCredential,
             string authorityUri,
-            TimeSpan? cacheLifetime = null)
+            TimeSpan? cacheLifetime = null,
+            TimeProvider? timeProvider = null)
         {
             m_acquireCredential = acquireCredential ?? throw new ArgumentNullException(nameof(acquireCredential));
             AuthorityUri = authorityUri ?? throw new ArgumentNullException(nameof(authorityUri));
             CacheLifetime = cacheLifetime ?? s_defaultCacheLifetime;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -114,7 +119,7 @@ namespace Opc.Ua.Client
             ThrowIfDisposed();
             GdsIssuedKeyCredential credential = await GetCredentialAsync(ct).ConfigureAwait(false);
             string nonce = CreateNonce();
-            DateTime issuedAt = DateTime.UtcNow;
+            DateTime issuedAt = m_timeProvider.GetUtcNow().UtcDateTime;
             long issuedAtSeconds = new DateTimeOffset(issuedAt).ToUnixTimeSeconds();
             string proof = CreateProof(
                 credential.CredentialSecret,
@@ -162,7 +167,7 @@ namespace Opc.Ua.Client
             {
                 ThrowIfDisposed();
                 if (m_cachedCredential != null &&
-                    m_cachedCredential.ExpiresAt - s_refreshSkew > DateTime.UtcNow)
+                    m_cachedCredential.ExpiresAt - s_refreshSkew > m_timeProvider.GetUtcNow().UtcDateTime)
                 {
                     return m_cachedCredential.Copy();
                 }
@@ -171,7 +176,7 @@ namespace Opc.Ua.Client
                 GdsIssuedKeyCredential issued = await m_acquireCredential(ct).ConfigureAwait(false);
                 if (issued.ExpiresAt == DateTime.MinValue || issued.ExpiresAt == default)
                 {
-                    issued = issued with { ExpiresAt = DateTime.UtcNow.Add(CacheLifetime) };
+                    issued = issued with { ExpiresAt = m_timeProvider.GetUtcNow().UtcDateTime.Add(CacheLifetime) };
                 }
                 m_cachedCredential = issued.Copy();
                 return issued;

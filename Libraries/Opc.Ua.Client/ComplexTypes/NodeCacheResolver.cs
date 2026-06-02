@@ -91,8 +91,10 @@ namespace Opc.Ua.Client.ComplexTypes
         public NodeCacheResolver(
             ISession session,
             INodeCache nodeCache,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
+            m_timeProvider = timeProvider ??= TimeProvider.System;
             m_session = session;
             m_nodeCache = nodeCache;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();
@@ -380,8 +382,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var result = new List<INode>();
             var nodesToBrowse = new List<ExpandedNodeId> { dataType };
 #if DEBUG
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
+            long startTimestamp = m_timeProvider.GetTimestamp();
 #endif
             if (addRootNode)
             {
@@ -422,11 +423,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 nodesToBrowse = nextNodesToBrowse;
             }
 #if DEBUG
-            stopwatch.Stop();
             m_logger.LogInformation(
                 "LoadDataTypes returns {Count} nodes in {Duration}ms",
                 result.Count,
-                stopwatch.ElapsedMilliseconds);
+                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
 #endif
             return result;
         }
@@ -812,5 +812,6 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly INodeCache m_nodeCache;
         private readonly ISession m_session;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
     }
 }

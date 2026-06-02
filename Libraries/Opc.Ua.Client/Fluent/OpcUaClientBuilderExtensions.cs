@@ -572,11 +572,13 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                TimeProvider timeProvider = sp.GetRequiredService<TimeProvider>();
                 return new DefaultSessionFactory(telemetry)
                 {
                     SubscriptionEngineFactory =
                         options.Session.SubscriptionEngineFactory
-                        ?? DefaultSubscriptionEngineFactory.Instance
+                        ?? new DefaultSubscriptionEngineFactory(timeProvider),
+                    TimeProvider = timeProvider
                 };
             });
 

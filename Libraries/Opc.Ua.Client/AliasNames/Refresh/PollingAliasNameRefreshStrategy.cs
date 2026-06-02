@@ -55,7 +55,11 @@ namespace Opc.Ua.Client.AliasNames.Refresh
         /// </summary>
         /// <param name="pollInterval">Time between successive
         /// <c>LastChange</c> reads. Must be at least 100 ms.</param>
-        public PollingAliasNameRefreshStrategy(TimeSpan pollInterval)
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// used to create the poll timer. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public PollingAliasNameRefreshStrategy(TimeSpan pollInterval,
+            TimeProvider? timeProvider = null)
         {
             if (pollInterval < TimeSpan.FromMilliseconds(100))
             {
@@ -63,6 +67,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                     nameof(pollInterval),
                     "Poll interval must be at least 100 ms.");
             }
+            m_timeProvider = timeProvider ??= TimeProvider.System;
             PollInterval = pollInterval;
         }
 
@@ -80,19 +85,18 @@ namespace Opc.Ua.Client.AliasNames.Refresh
             m_client = client ?? throw new ArgumentNullException(nameof(client));
             m_onInvalidate = onInvalidate ?? throw new ArgumentNullException(nameof(onInvalidate));
 
-            int periodMs = (int)PollInterval.TotalMilliseconds;
-            m_timer = new Timer(
+            m_timer = m_timeProvider.CreateTimer(
                 Tick,
                 state: null,
-                dueTime: periodMs,
-                period: periodMs);
+                dueTime: PollInterval,
+                period: PollInterval);
             return default;
         }
 
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
-            Timer? timer = m_timer;
+            ITimer? timer = m_timer;
             m_timer = null;
             timer?.Dispose();
             return default;
@@ -137,7 +141,8 @@ namespace Opc.Ua.Client.AliasNames.Refresh
 
         private AliasNameClient? m_client;
         private Action? m_onInvalidate;
-        private Timer? m_timer;
+        private ITimer? m_timer;
         private uint? m_lastSeen;
+        private readonly TimeProvider m_timeProvider;
     }
 }

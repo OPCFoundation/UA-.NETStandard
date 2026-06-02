@@ -112,6 +112,9 @@ namespace Opc.Ua.Client
         /// <param name="engineFactory">Optional subscription engine factory. When
         /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
         /// by default.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
+        /// session for keep-alive timers and elapsed-time calculations. When
+        /// <see langword="null"/>, <see cref="TimeProvider.System"/> is used.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -129,13 +132,15 @@ namespace Opc.Ua.Client
             CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default,
-            ISubscriptionEngineFactory? engineFactory = null)
+            ISubscriptionEngineFactory? engineFactory = null,
+            TimeProvider? timeProvider = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
                   channel.MessageContext ?? configuration.CreateMessageContext(),
-                  engineFactory)
+                  engineFactory,
+                  timeProvider)
         {
             m_instanceCertificate = clientCertificate;
             m_instanceCertificateChain = clientCertificateChain;
@@ -155,7 +160,8 @@ namespace Opc.Ua.Client
                   template.m_configuration,
                   template.ConfiguredEndpoint,
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
-                  template.SubscriptionEngineFactory)
+                  template.SubscriptionEngineFactory,
+                  template.m_timeProvider)
         {
             // AddRef so the clone has its own reference; the template
             // retains its existing one. Both Sessions independently
@@ -179,7 +185,7 @@ namespace Opc.Ua.Client
             m_keepAliveInterval = template.KeepAliveInterval;
 
             // Create timer for keep alive event triggering but in off state
-            m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
+            m_keepAliveTimer = m_timeProvider.CreateTimer(_ => m_keepAliveEvent.Set(), this, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             m_checkDomain = template.m_checkDomain;
             ContinuationPointPolicy = template.ContinuationPointPolicy;
@@ -219,7 +225,8 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             IServiceMessageContext messageContext,
-            ISubscriptionEngineFactory? engineFactory = null)
+            ISubscriptionEngineFactory? engineFactory = null,
+            TimeProvider? timeProvider = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -227,6 +234,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(messageContext));
             }
 
+            m_timeProvider = timeProvider ??= TimeProvider.System;
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
@@ -281,7 +289,7 @@ namespace Opc.Ua.Client
             m_nodeCache = new NodeCache(new NodeCacheContext(this), m_telemetry);
 
             // Create timer for keep alive event triggering but in off state
-            m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
+            m_keepAliveTimer = m_timeProvider.CreateTimer(_ => m_keepAliveEvent.Set(), this, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             // Create the subscription engine.
             SubscriptionEngineFactory = engineFactory
@@ -805,7 +813,7 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) ||
                     lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    int delta = HiResClock.TickCount - LastKeepAliveTickCount;
+                    int delta = m_timeProvider.GetTickCount() - LastKeepAliveTickCount;
 
                     // add a guard band to allow for network lag.
                     return ((m_keepAliveInterval * m_keepAliveIntervalFactor) +
@@ -830,7 +838,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the TickCount in ms of the last keep alive based on <see cref="HiResClock.TickCount"/>.
+        /// Gets the TickCount in ms of the last keep alive based on <see cref="TimeProvider"/>.
         /// Independent of system time changes.
         /// </summary>
         public int LastKeepAliveTickCount { get; private set; }
@@ -3278,8 +3286,10 @@ namespace Opc.Ua.Client
             int keepAliveInterval = m_keepAliveInterval;
 
             m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-            Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
-            LastKeepAliveTickCount = HiResClock.TickCount;
+            Interlocked.Exchange(
+                ref m_lastKeepAliveTime,
+                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+            LastKeepAliveTickCount = m_timeProvider.GetTickCount();
 
             m_serverState = ServerState.Unknown;
 
@@ -3314,7 +3324,7 @@ namespace Opc.Ua.Client
                 }
 
                 // send initial keep alive.
-                m_keepAliveTimer.Change(0, m_keepAliveInterval);
+                m_keepAliveTimer.Change(TimeSpan.Zero, TimeSpan.FromMilliseconds(m_keepAliveInterval));
             }
         }
 
@@ -3344,7 +3354,8 @@ namespace Opc.Ua.Client
             {
                 if (m_keepAliveWorker != null)
                 {
-                    m_keepAliveTimer.Change(m_keepAliveInterval, m_keepAliveInterval);
+                    m_keepAliveTimer.Change(TimeSpan.FromMilliseconds(m_keepAliveInterval),
+                        TimeSpan.FromMilliseconds(m_keepAliveInterval));
                 }
             }
         }
@@ -3367,7 +3378,7 @@ namespace Opc.Ua.Client
                 m_keepAliveWorker = null;
                 m_keepAliveCancellation = null;
 
-                m_keepAliveTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                m_keepAliveTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             }
 
             if (keepAliveWorker == null)
@@ -3433,7 +3444,7 @@ namespace Opc.Ua.Client
                     ? int.MaxValue
                     : PublishRequestCancelDelayOnCloseSession;
 
-                int startTime = HiResClock.TickCount;
+                int startTime = m_timeProvider.GetTickCount();
                 while (true)
                 {
                     // Check if all publish requests completed
@@ -3456,7 +3467,7 @@ namespace Opc.Ua.Client
                     }
 
                     // Check timeout
-                    int elapsed = HiResClock.TickCount - startTime;
+                    int elapsed = m_timeProvider.GetTickCount() - startTime;
                     if (elapsed >= waitTimeout)
                     {
                         m_logger.LogWarning(
@@ -3574,7 +3585,7 @@ namespace Opc.Ua.Client
                         RequestId = requestId,
                         RequestTypeId = typeId,
                         Result = result,
-                        TickCount = HiResClock.TickCount
+                        TickCount = m_timeProvider.GetTickCount()
                     };
 
                     m_outstandingRequests.AddLast(state);
@@ -3624,7 +3635,7 @@ namespace Opc.Ua.Client
                         RequestId = requestId,
                         RequestTypeId = typeId,
                         Result = result,
-                        TickCount = HiResClock.TickCount,
+                        TickCount = m_timeProvider.GetTickCount(),
                         Activity = null
                     };
 
@@ -3756,8 +3767,10 @@ namespace Opc.Ua.Client
                 }
 
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
-                LastKeepAliveTickCount = HiResClock.TickCount;
+                Interlocked.Exchange(
+                    ref m_lastKeepAliveTime,
+                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                LastKeepAliveTickCount = m_timeProvider.GetTickCount();
 
                 lock (m_outstandingRequests)
                 {
@@ -3777,8 +3790,10 @@ namespace Opc.Ua.Client
             else
             {
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
-                LastKeepAliveTickCount = HiResClock.TickCount;
+                Interlocked.Exchange(
+                    ref m_lastKeepAliveTime,
+                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                LastKeepAliveTickCount = m_timeProvider.GetTickCount();
             }
 
             // save server state.
@@ -3808,7 +3823,7 @@ namespace Opc.Ua.Client
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 //keep alive read timed out
-                int delta = HiResClock.TickCount - LastKeepAliveTickCount;
+                int delta = m_timeProvider.GetTickCount() - LastKeepAliveTickCount;
                 m_logger.LogInformation(
                     "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}, RequestCount={Good}/{Outstanding}",
                     delta,
@@ -3824,7 +3839,10 @@ namespace Opc.Ua.Client
                 try
                 {
                     m_inKeepAliveCallback = true;
-                    var args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
+                    var args = new KeepAliveEventArgs(
+                        result,
+                        ServerState.Unknown,
+                        m_timeProvider.GetUtcNow().UtcDateTime);
                     callback(this, args);
                     m_inKeepAliveCallback = false;
                     return !args.CancelKeepAlive;
@@ -4847,7 +4865,7 @@ namespace Opc.Ua.Client
         private ServerState m_serverState;
         private int m_keepAliveInterval;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
-        private readonly Timer m_keepAliveTimer;
+        private readonly ITimer m_keepAliveTimer;
 #pragma warning restore CA2213
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
@@ -4867,6 +4885,7 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly ISubscriptionEngine m_engine;
 #pragma warning restore CA2213

@@ -2127,7 +2127,7 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    await Task.Delay(TimeSpan.FromMilliseconds(timeToWait), m_timeProvider, cancellationToken).ConfigureAwait(false);
+                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(timeToWait), cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (ObjectDisposedException)

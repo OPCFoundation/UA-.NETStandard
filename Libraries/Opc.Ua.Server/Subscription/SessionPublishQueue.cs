@@ -588,7 +588,7 @@ namespace Opc.Ua.Server
                     : TimeSpan.Zero;
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
-                    m_cancellationTokenSource = new CancellationTokenSource(timeOut, timeProvider);
+                    m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
                     m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
                     () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
                 }
