@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 {
                     lock (s_lock)
                     {
-                        s_publishTicks.Add(HiResClock.Ticks);
+                        s_publishTicks.Add(TimeProvider.System.GetTimestamp());
                     }
                 });
 
@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 {
                     lock (s_lock)
                     {
-                        s_publishTicks.Add(HiResClock.Ticks);
+                        s_publishTicks.Add(TimeProvider.System.GetTimestamp());
                     }
                 });
 
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             for (int i = 1; i < publishTicks.Count; i++)
             {
                 double interval = (publishTicks[i] - publishTicks[i - 1]) /
-                    HiResClock.TicksPerMillisecond;
+                    (TimeProvider.System.TimestampFrequency / 1000.0);
                 if (interval != 0)
                 {
                     double deviation = -1;

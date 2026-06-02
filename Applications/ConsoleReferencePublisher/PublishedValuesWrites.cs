@@ -60,7 +60,8 @@ namespace Quickstarts.ConsoleReferencePublisher
         private readonly ILogger m_logger;
         private readonly ArrayOf<PublishedDataSetDataType> m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
-        private Timer m_updateValuesTimer = null!;
+        private readonly TimeProvider m_timeProvider;
+        private ITimer m_updateValuesTimer = null!;
 
         private readonly string[] m_aviationAlphabet =
         [
@@ -99,12 +100,20 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Constructor
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
-        public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication, ITelemetryContext telemetry)
+        /// <param name="telemetry"></param>
+        /// <param name="timeProvider">
+        /// Optional time provider. Defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
+        public PublishedValuesWrites(
+            UaPubSubApplication uaPubSubApplication,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<PublishedValuesWrites>();
             m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         public void Dispose()
@@ -149,7 +158,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                     "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field");
             }
 
-            m_updateValuesTimer = new Timer(UpdateValues, null, 1000, 1000);
+            m_updateValuesTimer = m_timeProvider.CreateTimer(
+                UpdateValues,
+                null,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1));
         }
 
         /// <summary>
