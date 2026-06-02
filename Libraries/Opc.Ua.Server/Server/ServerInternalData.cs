@@ -62,7 +62,8 @@ namespace Opc.Ua.Server
     public class ServerInternalData :
         IServerInternal,
         AliasNames.IAliasNameStoreRegistryProvider,
-        Historian.IHistorianRegistryProvider
+        Historian.IHistorianRegistryProvider,
+        ITimeProviderProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -74,7 +75,26 @@ namespace Opc.Ua.Server
             ServerProperties serverDescription,
             ApplicationConfiguration configuration,
             IServiceMessageContext messageContext)
+            : this(serverDescription, configuration, messageContext, null)
         {
+        }
+
+        /// <summary>
+        /// Initializes the datastore with the server configuration.
+        /// </summary>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="messageContext">The message context.</param>
+        /// <param name="timeProvider">The time provider used for all
+        /// time / duration calculations performed by the server, or
+        /// <c>null</c> to use <see cref="TimeProvider.System"/>.</param>
+        public ServerInternalData(
+            ServerProperties serverDescription,
+            ApplicationConfiguration configuration,
+            IServiceMessageContext messageContext,
+            TimeProvider? timeProvider)
+        {
+            m_timeProvider = timeProvider ??= TimeProvider.System;
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
@@ -156,6 +176,15 @@ namespace Opc.Ua.Server
         /// <see cref="IServerInternal"/>; never <c>null</c>.
         /// </summary>
         public Historian.IHistorianProviderRegistry HistorianRegistry { get; }
+
+        /// <summary>
+        /// The time provider used for all time / duration calculations
+        /// performed by the server. Surfaces through the optional
+        /// <see cref="ITimeProviderProvider"/> interface so consumers can
+        /// discover it without any change to <see cref="IServerInternal"/>;
+        /// never <c>null</c>.
+        /// </summary>
+        public TimeProvider TimeProvider => m_timeProvider;
 
         /// <summary>
         /// The session manager to use with the server.
@@ -828,10 +857,11 @@ namespace Opc.Ua.Server
             serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
             // initialize status.
+            DateTime nowUtc = m_timeProvider.GetUtcNow().UtcDateTime;
             var serverStatus = new ServerStatusDataType
             {
-                StartTime = DateTime.UtcNow,
-                CurrentTime = DateTime.UtcNow,
+                StartTime = nowUtc,
+                CurrentTime = nowUtc,
                 State = ServerState.Shutdown
             };
 
@@ -861,7 +891,7 @@ namespace Opc.Ua.Server
                 serverStatus,
                 DiagnosticsLock)
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = nowUtc,
                 OnBeforeRead = OnReadServerStatus
             };
 
@@ -934,7 +964,7 @@ namespace Opc.Ua.Server
         {
             lock (NonThreadSafeStatus.Lock)
             {
-                DateTime now = DateTime.UtcNow;
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 NonThreadSafeStatus.Timestamp = now;
                 NonThreadSafeStatus.Value.CurrentTime = now;
 
@@ -1062,6 +1092,7 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
+        private readonly TimeProvider m_timeProvider;
         private RoleStateBinding? m_roleStateBinding;
     }
 }
