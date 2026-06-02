@@ -56,18 +56,24 @@ namespace Opc.Ua.Lds.Server
 
         private readonly List<ServerOnNetworkRecord> m_records = [];
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private uint m_nextRecordId = 1;
         private DateTime m_lastCounterResetTime;
-        private Timer m_pruneTimer;
+        private ITimer m_pruneTimer;
         private bool m_disposed;
 
         /// <summary>
         /// Creates a new in-memory store.
         /// </summary>
-        public RegisteredServerStore(ILogger logger = null)
+        /// <param name="logger">Optional logger; defaults to a null logger.</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> used for the
+        /// background prune timer and registration timestamps. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public RegisteredServerStore(ILogger logger = null, TimeProvider timeProvider = null)
         {
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
-            m_lastCounterResetTime = DateTime.UtcNow;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_lastCounterResetTime = m_timeProvider.GetUtcNow().UtcDateTime;
         }
 
         /// <summary>
@@ -144,11 +150,11 @@ namespace Opc.Ua.Lds.Server
         {
             TimeSpan tick = interval ?? TimeSpan.FromSeconds(30);
             m_pruneTimer?.Dispose();
-            m_pruneTimer = new Timer(_ =>
+            m_pruneTimer = m_timeProvider.CreateTimer(_ =>
             {
                 try
                 {
-                    Prune(DateTime.UtcNow);
+                    Prune(m_timeProvider.GetUtcNow().UtcDateTime);
                 }
                 catch (Exception ex)
                 {
@@ -213,7 +219,7 @@ namespace Opc.Ua.Lds.Server
                     : server.DiscoveryUrls.ToList();
                 entry.SemaphoreFilePath = server.SemaphoreFilePath;
                 entry.IsOnline = true;
-                entry.LastSeenUtc = DateTime.UtcNow;
+                entry.LastSeenUtc = m_timeProvider.GetUtcNow().UtcDateTime;
 
                 if (mdnsConfig != null)
                 {
@@ -348,7 +354,7 @@ namespace Opc.Ua.Lds.Server
 
                 if (existing != null)
                 {
-                    existing.LastSeenUtc = DateTime.UtcNow;
+                    existing.LastSeenUtc = m_timeProvider.GetUtcNow().UtcDateTime;
                     existing.ServerName = serverName;
                     existing.ServerCapabilities = capabilities?.ToList() ?? [];
                     return;
@@ -361,7 +367,7 @@ namespace Opc.Ua.Lds.Server
                     ServerName = serverName,
                     DiscoveryUrl = discoveryUrl,
                     ServerCapabilities = capabilities?.ToList() ?? [],
-                    LastSeenUtc = DateTime.UtcNow,
+                    LastSeenUtc = m_timeProvider.GetUtcNow().UtcDateTime,
                     ObservedViaMulticast = true
                 });
             }
@@ -446,7 +452,7 @@ namespace Opc.Ua.Lds.Server
                 m_byUri.Clear();
                 m_records.Clear();
                 m_nextRecordId = 1;
-                m_lastCounterResetTime = DateTime.UtcNow;
+                m_lastCounterResetTime = m_timeProvider.GetUtcNow().UtcDateTime;
             }
             finally
             {
@@ -487,7 +493,7 @@ namespace Opc.Ua.Lds.Server
                     ServerName = entry.MdnsServerName ?? firstName.Text,
                     DiscoveryUrl = url,
                     ServerCapabilities = [.. entry.ServerCapabilities],
-                    LastSeenUtc = DateTime.UtcNow,
+                    LastSeenUtc = m_timeProvider.GetUtcNow().UtcDateTime,
                     ObservedViaMulticast = false
                 });
             }

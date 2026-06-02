@@ -52,13 +52,24 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private readonly List<ushort> m_metadataWriterIdsToSend;
 
+        private readonly TimeProvider m_timeProvider;
+
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoveryPublisher"/>
         /// </summary>
-        public UdpDiscoveryPublisher(UdpPubSubConnection udpConnection, ITelemetryContext telemetry)
+        /// <param name="udpConnection">The owning UDP PubSub connection.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used
+        /// for response throttling. Defaults to <see cref="TimeProvider.System"/>
+        /// when <c>null</c>.</param>
+        public UdpDiscoveryPublisher(
+            UdpPubSubConnection udpConnection,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
             : base(udpConnection, telemetry, telemetry.CreateLogger<UdpDiscoveryPublisher>())
         {
             m_metadataWriterIdsToSend = [];
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         /// <summary>
@@ -203,7 +214,8 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private async Task SendResponseDataSetMetaDataAsync()
         {
-            await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
+            await m_timeProvider.Delay(TimeSpan.FromMilliseconds(kMinimumResponseInterval))
+                .ConfigureAwait(false);
             ushort[] metadataWriterIdsToSend;
             UdpPubSubConnection connection = m_udpConnection;
             lock (Lock)
@@ -234,7 +246,8 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private async Task SendResponseDataSetWriterConfigurationAsync()
         {
-            await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
+            await m_timeProvider.Delay(TimeSpan.FromMilliseconds(kMinimumResponseInterval))
+                .ConfigureAwait(false);
             UdpPubSubConnection connection = m_udpConnection;
             ushort[] dataSetWriterIdsToSend;
             lock (Lock)
@@ -274,7 +287,8 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private async Task SendResponsePublisherEndpointsAsync()
         {
-            await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
+            await m_timeProvider.Delay(TimeSpan.FromMilliseconds(kMinimumResponseInterval))
+                .ConfigureAwait(false);
 
             UdpPubSubConnection connection = m_udpConnection;
             if (connection == null)

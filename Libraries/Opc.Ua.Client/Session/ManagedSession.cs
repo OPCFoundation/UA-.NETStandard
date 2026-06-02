@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
             m_poolNotifications = poolNotifications;
 
             StateMachine = new ConnectionStateMachine(
-                reconnectPolicy, logger);
+                reconnectPolicy, logger, m_timeProvider);
 
             WireStateMachineCallbacks();
         }

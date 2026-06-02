@@ -293,7 +293,9 @@ namespace Opc.Ua.Client
 
             // Create the subscription engine.
             SubscriptionEngineFactory = engineFactory
-                ?? ClassicSubscriptionEngineFactory.Instance;
+                ?? (ReferenceEquals(m_timeProvider, TimeProvider.System)
+                    ? ClassicSubscriptionEngineFactory.Instance
+                    : new ClassicSubscriptionEngineFactory(m_timeProvider));
             m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));
 
             // set the default preferred locales.
@@ -1631,7 +1633,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_reconnectLock.Release();
-                await Task.Delay(100, ct).ConfigureAwait(false);
+                await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
             }
         }
 
@@ -3486,7 +3488,7 @@ namespace Opc.Ua.Client
                     // Wait a bit before checking again
                     try
                     {
-                        await Task.Delay(100, ct).ConfigureAwait(false);
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {

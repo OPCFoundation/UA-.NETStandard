@@ -51,6 +51,7 @@ namespace Opc.Ua.Lds.Server
     public class LdsServer : DiscoveryServerBase
     {
         private readonly ITelemetryContext m_telemetry;
+        private readonly TimeProvider m_timeProvider;
         private ILogger m_log;
         private readonly SemaphoreSlim m_lock;
         private MulticastDiscovery m_multicast;
@@ -59,12 +60,16 @@ namespace Opc.Ua.Lds.Server
         /// Creates a new LDS server.
         /// </summary>
         /// <param name="telemetry">Telemetry context for logging.</param>
-        public LdsServer(ITelemetryContext telemetry = null)
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/> used by the
+        /// registered-server store for prune scheduling and registration timestamps.
+        /// Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public LdsServer(ITelemetryContext telemetry = null, TimeProvider timeProvider = null)
             : base(telemetry)
         {
             m_telemetry = telemetry;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
             m_lock = new SemaphoreSlim(1, 1);
-            Store = new RegisteredServerStore();
+            Store = new RegisteredServerStore(timeProvider: m_timeProvider);
         }
 
         /// <summary>

@@ -49,7 +49,12 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="context">The session context that provides
         /// access to session state and services.</param>
-        public ClassicSubscriptionEngine(ISubscriptionEngineContext context)
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// used for throttling and back-off delays. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public ClassicSubscriptionEngine(
+            ISubscriptionEngineContext context,
+            TimeProvider? timeProvider = null)
         {
             m_context = context
                 ?? throw new ArgumentNullException(nameof(context));
@@ -57,6 +62,7 @@ namespace Opc.Ua.Client
                 .CreateLogger<ClassicSubscriptionEngine>();
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -586,7 +592,7 @@ namespace Opc.Ua.Client
                     // server load
                     _ = Task.Run(async () =>
                     {
-                        await Task.Delay(100)
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100))
                             .ConfigureAwait(false);
                         QueueBeginPublish();
                     });
@@ -1032,6 +1038,7 @@ namespace Opc.Ua.Client
         private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
         private readonly ISubscriptionEngineContext m_context;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private readonly object m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;

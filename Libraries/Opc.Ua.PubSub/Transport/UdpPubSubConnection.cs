@@ -153,7 +153,8 @@ namespace Opc.Ua.PubSub.Transport
                         m_logger);
                 }
 
-                m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(this, Telemetry);
+                m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(
+                    this, Telemetry, Application.TimeProvider);
                 await m_udpDiscoveryPublisher.StartAsync(MessageContext).ConfigureAwait(false);
             }
 

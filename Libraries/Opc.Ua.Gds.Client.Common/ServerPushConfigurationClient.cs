@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Client
             ApplicationConfiguration configuration,
             ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
-            : this(configuration, options: null, sessionFactory, diagnosticsMasks)
+            : this(configuration, options: null, sessionFactory, diagnosticsMasks, timeProvider: null)
         {
         }
 
@@ -64,11 +64,15 @@ namespace Opc.Ua.Gds.Client
         /// <param name="options">Client options. Defaults are used when null.</param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used for
+        /// connect-retry backoff delays. Defaults to <see cref="TimeProvider.System"/>
+        /// when <c>null</c>.</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
             GdsClientOptions? options,
             ISessionFactory? sessionFactory = null,
-            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None,
+            TimeProvider? timeProvider = null)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             m_options = options ?? new GdsClientOptions();
@@ -79,6 +83,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     ReturnDiagnostics = diagnosticsMasks
                 };
+            m_timeProvider = timeProvider ??= TimeProvider.System;
         }
 
         public NodeId DefaultApplicationGroup { get; private set; }
@@ -284,7 +289,7 @@ namespace Opc.Ua.Gds.Client
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
-                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
                     }
                 }
             }
@@ -318,7 +323,7 @@ namespace Opc.Ua.Gds.Client
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
-                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
                     }
                 }
             }
@@ -966,6 +971,7 @@ namespace Opc.Ua.Gds.Client
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
         private readonly GdsClientOptions m_options;
+        private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
         private ConfiguredEndpoint? m_endpoint;
         private ServerConfigurationTypeClient? m_serverConfiguration;
