@@ -36,7 +36,9 @@ namespace Opc.Ua.Di.Server.Locking
     /// </summary>
     public static class LockStatus
     {
-        /// <summary>The operation completed successfully.</summary>
+        /// <summary>
+        /// The operation completed successfully.
+        /// </summary>
         public const int Ok = 0;
 
         /// <summary>

@@ -67,7 +67,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_logger = logger;
         }
 
-        /// <summary>Snapshot of currently registered asset names (test helper).</summary>
+        /// <summary>
+        /// Snapshot of currently registered asset names (test helper).
+        /// </summary>
         public IReadOnlyCollection<string> AssetNames
         {
             get
@@ -199,7 +201,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        /// <summary>Deletes the asset and removes all of its nodes.</summary>
+        /// <summary>
+        /// Deletes the asset and removes all of its nodes.
+        /// </summary>
         public async ValueTask<ServiceResult> DeleteAssetAsync(
             NodeId assetId,
             CancellationToken ct)

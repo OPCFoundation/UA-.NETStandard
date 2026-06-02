@@ -68,10 +68,6 @@ namespace Opc.Ua.Di.Client
             m_softwareUpdateProxy ??= new SoftwareUpdateTypeClient(
                 Session, SoftwareUpdateNodeId, Telemetry);
 
-        // ------------------------------------------------------------------
-        // PrepareForUpdate state machine
-        // ------------------------------------------------------------------
-
         /// <summary>
         /// Reads the current <c>PrepareForUpdate</c> state-machine
         /// snapshot. Returns <see langword="null"/> when the server
@@ -127,10 +123,6 @@ namespace Opc.Ua.Di.Client
                 await RequirePrepareProxyAsync(ct).ConfigureAwait(false);
             await proxy.AbortAsync(ct).ConfigureAwait(false);
         }
-
-        // ------------------------------------------------------------------
-        // Installation state machine
-        // ------------------------------------------------------------------
 
         /// <summary>
         /// Reads the current <c>Installation</c> state-machine
@@ -212,10 +204,6 @@ namespace Opc.Ua.Di.Client
             await proxy.ResumeAsync(ct).ConfigureAwait(false);
         }
 
-        // ------------------------------------------------------------------
-        // Confirmation state machine
-        // ------------------------------------------------------------------
-
         /// <summary>
         /// Reads the current <c>Confirmation</c> state-machine
         /// snapshot. Returns <see langword="null"/> when the server
@@ -263,10 +251,6 @@ namespace Opc.Ua.Di.Client
             await proxy.ConfirmAsync(ct).ConfigureAwait(false);
         }
 
-        // ------------------------------------------------------------------
-        // PowerCycle state machine
-        // ------------------------------------------------------------------
-
         /// <summary>
         /// Reads the current <c>PowerCycle</c> state-machine snapshot.
         /// Returns <see langword="null"/> when the server does not
@@ -305,10 +289,6 @@ namespace Opc.Ua.Di.Client
                 yield return snap;
             }
         }
-
-        // ------------------------------------------------------------------
-        // Lazy proxy resolution
-        // ------------------------------------------------------------------
 
         private async ValueTask<PrepareForUpdateStateMachineTypeClient?>
             ResolvePrepareProxyAsync(CancellationToken ct)

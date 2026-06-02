@@ -37,7 +37,7 @@ namespace Opc.Ua.Di.Client
     /// <summary>
     /// Client-side wrapper for the OPC 10000-100 §10.5 locking service.
     /// Composes (does <em>not</em> inherit) the generated
-    /// <see cref="global::Opc.Ua.Di.LockingServicesTypeClient"/> proxy
+    /// <see cref="Opc.Ua.Di.LockingServicesTypeClient"/> proxy
     /// when available, falling back to raw <c>Call</c> service
     /// invocations on a <c>LockingServicesType</c> NodeId.
     /// </summary>
@@ -74,13 +74,17 @@ namespace Opc.Ua.Di.Client
             Telemetry = telemetry;
         }
 
-        /// <summary>The owning session.</summary>
+        /// <summary>
+        /// The owning session.
+        /// </summary>
         public ISession Session { get; }
 
         /// <summary>The NodeId of the <c>Lock</c> instance.</summary>
         public NodeId LockNodeId { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>
@@ -91,7 +95,7 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ValueTask<int> InitLockAsync(string context, CancellationToken ct = default)
             => CallMethodAsync(
-                global::Opc.Ua.Di.Methods.LockingServicesType_InitLock,
+                Opc.Ua.Di.Methods.LockingServicesType_InitLock,
                 new Variant[] { new Variant(context ?? string.Empty) },
                 ct);
 
@@ -100,7 +104,7 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ValueTask<int> RenewLockAsync(CancellationToken ct = default)
             => CallMethodAsync(
-                global::Opc.Ua.Di.Methods.LockingServicesType_RenewLock,
+                Opc.Ua.Di.Methods.LockingServicesType_RenewLock,
                 Array.Empty<Variant>(),
                 ct);
 
@@ -109,7 +113,7 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ValueTask<int> ExitLockAsync(CancellationToken ct = default)
             => CallMethodAsync(
-                global::Opc.Ua.Di.Methods.LockingServicesType_ExitLock,
+                Opc.Ua.Di.Methods.LockingServicesType_ExitLock,
                 Array.Empty<Variant>(),
                 ct);
 
@@ -118,7 +122,7 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ValueTask<int> BreakLockAsync(CancellationToken ct = default)
             => CallMethodAsync(
-                global::Opc.Ua.Di.Methods.LockingServicesType_BreakLock,
+                Opc.Ua.Di.Methods.LockingServicesType_BreakLock,
                 Array.Empty<Variant>(),
                 ct);
 
@@ -129,7 +133,7 @@ namespace Opc.Ua.Di.Client
         {
             NodeId methodId = NodeId.Create(
                 methodTypeId,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
                 Session.NamespaceUris);
 
             CallMethodRequest request = new CallMethodRequest

@@ -43,7 +43,9 @@ namespace Opc.Ua.Di.Client
     /// </summary>
     public partial class SoftwareUpdateClient
     {
-        /// <summary>Default chunk size when the server does not advertise one.</summary>
+        /// <summary>
+        /// Default chunk size when the server does not advertise one.
+        /// </summary>
         public const int DefaultUploadChunkSizeBytes = 8 * 1024;
 
         /// <summary>OPC 10000-5 §11.3.3 — Open mode <c>Write|EraseExisting</c>.</summary>
@@ -190,10 +192,6 @@ namespace Opc.Ua.Di.Client
                 ct);
         }
 
-        // ------------------------------------------------------------------
-        // browse-path resolution
-        // ------------------------------------------------------------------
-
         private async ValueTask<(NodeId FileTransfer, NodeId GenerateForWrite, NodeId CloseAndCommit)>
             ResolveFileTransferMethodsAsync(CancellationToken ct)
         {
@@ -205,7 +203,7 @@ namespace Opc.Ua.Di.Client
             }
 
             ushort diNs = Session.NamespaceUris.GetIndexOrAppend(
-                global::Opc.Ua.Di.Namespaces.OpcUaDi);
+                Opc.Ua.Di.Namespaces.OpcUaDi);
 
             var paths = ArrayOf.Wrapped(new[]
             {
@@ -307,10 +305,6 @@ namespace Opc.Ua.Di.Client
                 ExpectSingleTarget(response.Results, 2, "FileState.Close")
             );
         }
-
-        // ------------------------------------------------------------------
-        // method-call helpers
-        // ------------------------------------------------------------------
 
         private async ValueTask<(NodeId FileNodeId, uint Handle)>
             CallGenerateFileForWriteAsync(
@@ -449,10 +443,6 @@ namespace Opc.Ua.Di.Client
             }
             return completion;
         }
-
-        // ------------------------------------------------------------------
-        // private helpers
-        // ------------------------------------------------------------------
 
         private BrowsePath BuildBrowsePath(params RelativePathElement[] elements)
         {

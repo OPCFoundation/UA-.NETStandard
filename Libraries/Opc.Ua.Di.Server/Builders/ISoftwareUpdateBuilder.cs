@@ -70,16 +70,24 @@ namespace Opc.Ua.Di.Server.Builders
     /// </summary>
     public enum SoftwareUpdatePhase
     {
-        /// <summary>The state-machine method invocation was accepted.</summary>
+        /// <summary>
+        /// The state-machine method invocation was accepted.
+        /// </summary>
         Started = 0,
 
-        /// <summary>The work is in progress.</summary>
+        /// <summary>
+        /// The work is in progress.
+        /// </summary>
         InProgress = 1,
 
-        /// <summary>The work completed successfully.</summary>
+        /// <summary>
+        /// The work completed successfully.
+        /// </summary>
         Completed = 2,
 
-        /// <summary>The work failed.</summary>
+        /// <summary>
+        /// The work failed.
+        /// </summary>
         Failed = 3,
     }
 
@@ -109,16 +117,24 @@ namespace Opc.Ua.Di.Server.Builders
     /// </summary>
     public interface ISoftwareUpdateContext
     {
-        /// <summary>The NodeId of the device that owns the SU facet.</summary>
+        /// <summary>
+        /// The NodeId of the device that owns the SU facet.
+        /// </summary>
         NodeId DeviceId { get; }
 
-        /// <summary>The server's system context.</summary>
+        /// <summary>
+        /// The server's system context.
+        /// </summary>
         ISystemContext SystemContext { get; }
 
-        /// <summary>The package store the SU facet is bound to.</summary>
+        /// <summary>
+        /// The package store the SU facet is bound to.
+        /// </summary>
         ISoftwarePackageStore PackageStore { get; }
 
-        /// <summary>The per-device software folder.</summary>
+        /// <summary>
+        /// The per-device software folder.
+        /// </summary>
         ISoftwareFolder SoftwareFolder { get; }
     }
 

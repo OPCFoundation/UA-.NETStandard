@@ -401,11 +401,6 @@ namespace Opc.Ua.Di.Server.Builders
             child.ModellingRuleId = NodeId.Null;
         }
 
-        // ---------------------------------------------------------------
-        // Method-handler shims — invoke the user-supplied (or default)
-        // callback and translate any exception into a ServiceResult.
-        // ---------------------------------------------------------------
-
         private static async ValueTask<ServiceResult> InvokePrepareAsync(
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext context,

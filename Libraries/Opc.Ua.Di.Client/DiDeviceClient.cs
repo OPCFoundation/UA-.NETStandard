@@ -39,7 +39,7 @@ namespace Opc.Ua.Di.Client
     /// <summary>
     /// High-level client for reading OPC UA DI (OPC 10000-100) device
     /// information. Composes (does <strong>not</strong> inherit) the
-    /// source-generated <see cref="global::Opc.Ua.Di.DeviceTypeClient"/> proxy
+    /// source-generated <see cref="Opc.Ua.Di.DeviceTypeClient"/> proxy
     /// and provides ergonomic helpers for reading identification
     /// properties and browsing functional groups.
     /// </summary>
@@ -80,20 +80,28 @@ namespace Opc.Ua.Di.Client
             Session = session;
             DeviceNodeId = deviceNodeId;
             Telemetry = telemetry;
-            Proxy = new global::Opc.Ua.Di.DeviceTypeClient(session, deviceNodeId, telemetry);
+            Proxy = new Opc.Ua.Di.DeviceTypeClient(session, deviceNodeId, telemetry);
         }
 
-        /// <summary>The OPC UA session.</summary>
+        /// <summary>
+        /// The OPC UA session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>The device object NodeId.</summary>
+        /// <summary>
+        /// The device object NodeId.
+        /// </summary>
         public NodeId DeviceNodeId { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
-        /// <summary>The underlying generated proxy.</summary>
-        public global::Opc.Ua.Di.DeviceTypeClient Proxy { get; }
+        /// <summary>
+        /// The underlying generated proxy.
+        /// </summary>
+        public Opc.Ua.Di.DeviceTypeClient Proxy { get; }
 
         /// <summary>
         /// Creates a <see cref="DiDeviceClient"/> for the device at
@@ -152,7 +160,7 @@ namespace Opc.Ua.Di.Client
             CancellationToken ct = default)
         {
             ushort diNs = Session.NamespaceUris
-                .GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
+                .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
             // Build browse paths for each identification property.
             BrowsePath[] paths = new BrowsePath[IdentificationBrowseNames.Length];
@@ -246,7 +254,7 @@ namespace Opc.Ua.Di.Client
             [EnumeratorCancellation] CancellationToken ct = default)
         {
             ExpandedNodeId functionalGroupTypeId =
-                global::Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType;
+                Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType;
             NodeId refTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
 
             (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
@@ -300,7 +308,7 @@ namespace Opc.Ua.Di.Client
             }
 
             ushort diNs = Session.NamespaceUris
-                .GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
+                .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
             BrowsePath path = new()
             {

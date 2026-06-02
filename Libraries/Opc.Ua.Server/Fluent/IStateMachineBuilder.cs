@@ -72,7 +72,9 @@ namespace Opc.Ua.Server.Fluent
     public interface IStateMachineBuilder<TState>
         where TState : FiniteStateMachineState
     {
-        /// <summary>The configured state machine.</summary>
+        /// <summary>
+        /// The configured state machine.
+        /// </summary>
         TState StateMachine { get; }
 
         /// <summary>

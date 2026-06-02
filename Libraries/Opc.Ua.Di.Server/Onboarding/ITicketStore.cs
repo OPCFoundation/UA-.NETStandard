@@ -125,7 +125,9 @@ namespace Opc.Ua.Di.Server.Onboarding
     /// </summary>
     public enum TicketKind
     {
-        /// <summary>Default — kind is not declared.</summary>
+        /// <summary>
+        /// Default — kind is not declared.
+        /// </summary>
         Unspecified = 0,
 
         /// <summary>

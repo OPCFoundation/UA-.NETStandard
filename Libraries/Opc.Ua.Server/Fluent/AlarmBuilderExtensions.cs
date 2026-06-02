@@ -53,10 +53,14 @@ namespace Opc.Ua.Server.Fluent
     /// </typeparam>
     public interface IAlarmBuilder<TState> where TState : ConditionState
     {
-        /// <summary>The underlying alarm state instance.</summary>
+        /// <summary>
+        /// The underlying alarm state instance.
+        /// </summary>
         TState Alarm { get; }
 
-        /// <summary>The owning node builder, for chain termination.</summary>
+        /// <summary>
+        /// The owning node builder, for chain termination.
+        /// </summary>
         INodeBuilder Builder { get; }
 
         /// <summary>

@@ -74,8 +74,8 @@ namespace Pumps
                   server,
                   configuration,
                   postSetupRunner,
-                  global::Opc.Ua.Pumps.Namespaces.Pumps,
-                  global::Opc.Ua.Machinery.Namespaces.Machinery)
+                  Opc.Ua.Pumps.Namespaces.Pumps,
+                  Opc.Ua.Machinery.Namespaces.Machinery)
         {
             // Base class constructor sets SystemContext.NodeIdFactory to
             // itself; our New() override takes over.
@@ -135,7 +135,7 @@ namespace Pumps
 
             // Build the fluent wiring surface and invoke Configure.
             ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
-                global::Opc.Ua.Pumps.Namespaces.Pumps);
+                Opc.Ua.Pumps.Namespaces.Pumps);
             NodeManagerBuilder builder = new NodeManagerBuilder(
                 SystemContext,
                 this,
@@ -182,11 +182,11 @@ namespace Pumps
             CancellationToken cancellationToken)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris
-                .GetIndex(global::Opc.Ua.Pumps.Namespaces.Pumps);
+                .GetIndex(Opc.Ua.Pumps.Namespaces.Pumps);
             var pumpBrowseName = new QualifiedName(browseNameText, pumpsNs);
 
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
-                global::Opc.Ua.Di.Objects.DeviceSet,
+                Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
                 Server.NamespaceUris));
             if (deviceSet == null)
@@ -206,7 +206,7 @@ namespace Pumps
                 return;
             }
 
-            global::Opc.Ua.Pumps.PumpState pump = SystemContext
+            Opc.Ua.Pumps.PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
@@ -244,11 +244,11 @@ namespace Pumps
         /// transparently.
         /// </summary>
         private void MaterialisePumpOptionalChildren(
-            global::Opc.Ua.Pumps.PumpState pump)
+            Opc.Ua.Pumps.PumpState pump)
         {
-            global::Opc.Ua.Pumps.OperationalGroupState operational =
+            Opc.Ua.Pumps.OperationalGroupState operational =
                 pump.AddOperational(SystemContext);
-            global::Opc.Ua.Pumps.MeasurementsState measurements =
+            Opc.Ua.Pumps.MeasurementsState measurements =
                 operational.AddMeasurements(SystemContext);
 
             // Analog measurements wired by Configure.WithMeasurements.
@@ -266,13 +266,13 @@ namespace Pumps
             // Supervision subtree wired by Configure.WithSupervision —
             // Cavitation under SupervisionProcessFluid, MotorOverheat
             // under SupervisionPumpOperation.
-            global::Opc.Ua.Pumps.SupervisionState events =
+            Opc.Ua.Pumps.SupervisionState events =
                 pump.AddEvents(SystemContext);
-            global::Opc.Ua.Pumps.SupervisionProcessFluidState processFluid =
+            Opc.Ua.Pumps.SupervisionProcessFluidState processFluid =
                 events.AddSupervisionProcessFluid(SystemContext);
             processFluid.AddCavitation(SystemContext);
 
-            global::Opc.Ua.Pumps.SupervisionPumpOperationState pumpOperation =
+            Opc.Ua.Pumps.SupervisionPumpOperationState pumpOperation =
                 events.AddSupervisionPumpOperation(SystemContext);
             pumpOperation.AddMotorOverheat(SystemContext);
 
@@ -307,10 +307,10 @@ namespace Pumps
         /// the simulated cavitation / motor-overheat flags. The
         /// companion-spec PumpType does not itself expose
         /// <c>DeviceHealth</c> (it inherits from
-        /// <see cref="global::Opc.Ua.Di.TopologyElementState"/>, not
-        /// <see cref="global::Opc.Ua.Di.DeviceState"/>); callers can
+        /// <see cref="Opc.Ua.Di.TopologyElementState"/>, not
+        /// <see cref="Opc.Ua.Di.DeviceState"/>); callers can
         /// attach <c>DeviceHealth</c> to a sibling
-        /// <see cref="global::Opc.Ua.Di.DeviceState"/> (e.g. the
+        /// <see cref="Opc.Ua.Di.DeviceState"/> (e.g. the
         /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
         /// and register it here to participate in the simulation loop.
         /// </summary>
@@ -318,12 +318,14 @@ namespace Pumps
         /// The variable to drive; pass <see langword="null"/> to detach.
         /// </param>
         public void RegisterSupervisedDeviceHealth(
-            BaseDataVariableState<global::Opc.Ua.Di.DeviceHealthEnumeration>? health)
+            BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>? health)
         {
             m_supervisedDeviceHealth = health;
         }
 
-        /// <summary>Partial wired by the Configure.cs sibling.</summary>
+        /// <summary>
+        /// Partial wired by the Configure.cs sibling.
+        /// </summary>
         partial void Configure(INodeManagerBuilder builder);
     }
 
@@ -359,9 +361,9 @@ namespace Pumps
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris => new string[]
         {
-            global::Opc.Ua.Pumps.Namespaces.Pumps,
-            global::Opc.Ua.Machinery.Namespaces.Machinery,
-            global::Opc.Ua.Di.Namespaces.OpcUaDi
+            Opc.Ua.Pumps.Namespaces.Pumps,
+            Opc.Ua.Machinery.Namespaces.Machinery,
+            Opc.Ua.Di.Namespaces.OpcUaDi
         };
 
         /// <inheritdoc/>

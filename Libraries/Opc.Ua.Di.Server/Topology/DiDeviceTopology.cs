@@ -53,15 +53,15 @@ namespace Opc.Ua.Di.Server.Topology
 
         /// <inheritdoc/>
         public BaseObjectState? DeviceSet
-            => ResolveWellKnown(global::Opc.Ua.Di.Objects.DeviceSet);
+            => ResolveWellKnown(Opc.Ua.Di.Objects.DeviceSet);
 
         /// <inheritdoc/>
         public BaseObjectState? NetworkSet
-            => ResolveWellKnown(global::Opc.Ua.Di.Objects.NetworkSet);
+            => ResolveWellKnown(Opc.Ua.Di.Objects.NetworkSet);
 
         /// <inheritdoc/>
         public BaseObjectState? DeviceTopology
-            => ResolveWellKnown(global::Opc.Ua.Di.Objects.DeviceTopology);
+            => ResolveWellKnown(Opc.Ua.Di.Objects.DeviceTopology);
 
         /// <inheritdoc/>
         public IEnumerable<ComponentState> Devices

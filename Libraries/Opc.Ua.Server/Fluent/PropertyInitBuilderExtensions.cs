@@ -129,82 +129,114 @@ namespace Opc.Ua.Server.Fluent
 
         // ── Typed overloads — pick the right Variant.From by overload ──
 
-        /// <summary>String value.</summary>
+        /// <summary>
+        /// String value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, string value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>Boolean value.</summary>
+        /// <summary>
+        /// Boolean value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, bool value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>Signed byte value.</summary>
+        /// <summary>
+        /// Signed byte value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, sbyte value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>Unsigned byte value.</summary>
+        /// <summary>
+        /// Unsigned byte value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, byte value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>16-bit signed integer value.</summary>
+        /// <summary>
+        /// 16-bit signed integer value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, short value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>16-bit unsigned integer value.</summary>
+        /// <summary>
+        /// 16-bit unsigned integer value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, ushort value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>32-bit signed integer value.</summary>
+        /// <summary>
+        /// 32-bit signed integer value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, int value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>32-bit unsigned integer value.</summary>
+        /// <summary>
+        /// 32-bit unsigned integer value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, uint value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>64-bit signed integer value.</summary>
+        /// <summary>
+        /// 64-bit signed integer value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, long value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>64-bit unsigned integer value.</summary>
+        /// <summary>
+        /// 64-bit unsigned integer value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, ulong value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>Single-precision floating point value.</summary>
+        /// <summary>
+        /// Single-precision floating point value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, float value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>Double-precision floating point value.</summary>
+        /// <summary>
+        /// Double-precision floating point value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, double value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>DateTimeUtc value.</summary>
+        /// <summary>
+        /// DateTimeUtc value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, DateTimeUtc value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>NodeId value.</summary>
+        /// <summary>
+        /// NodeId value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, NodeId value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>LocalizedText value.</summary>
+        /// <summary>
+        /// LocalizedText value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, LocalizedText value)
             => builder.WithProperty(browseName, Variant.From(value));
 
-        /// <summary>QualifiedName value.</summary>
+        /// <summary>
+        /// QualifiedName value.
+        /// </summary>
         public static INodeBuilder WithProperty(
             this INodeBuilder builder, string browseName, QualifiedName value)
             => builder.WithProperty(browseName, Variant.From(value));

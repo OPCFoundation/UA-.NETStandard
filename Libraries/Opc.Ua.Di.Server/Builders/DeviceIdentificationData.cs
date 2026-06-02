@@ -53,7 +53,9 @@ namespace Opc.Ua.Di.Server.Builders
         /// </summary>
         public LocalizedText Manufacturer { get; set; }
 
-        /// <summary>Globally unique manufacturer URI.</summary>
+        /// <summary>
+        /// Globally unique manufacturer URI.
+        /// </summary>
         public string? ManufacturerUri { get; set; }
 
         /// <summary>
@@ -62,31 +64,47 @@ namespace Opc.Ua.Di.Server.Builders
         /// </summary>
         public LocalizedText Model { get; set; }
 
-        /// <summary>Hardware revision level.</summary>
+        /// <summary>
+        /// Hardware revision level.
+        /// </summary>
         public string? HardwareRevision { get; set; }
 
-        /// <summary>Software revision level.</summary>
+        /// <summary>
+        /// Software revision level.
+        /// </summary>
         public string? SoftwareRevision { get; set; }
 
-        /// <summary>Overall device revision level.</summary>
+        /// <summary>
+        /// Overall device revision level.
+        /// </summary>
         public string? DeviceRevision { get; set; }
 
-        /// <summary>Manufacturer-defined product code.</summary>
+        /// <summary>
+        /// Manufacturer-defined product code.
+        /// </summary>
         public string? ProductCode { get; set; }
 
-        /// <summary>URI of the device manual.</summary>
+        /// <summary>
+        /// URI of the device manual.
+        /// </summary>
         public string? DeviceManual { get; set; }
 
         /// <summary>Device class — for example, <c>"Pump"</c> or <c>"Sensor"</c>.</summary>
         public string? DeviceClass { get; set; }
 
-        /// <summary>Manufacturer-assigned serial number.</summary>
+        /// <summary>
+        /// Manufacturer-assigned serial number.
+        /// </summary>
         public string? SerialNumber { get; set; }
 
-        /// <summary>Globally unique product-instance URI.</summary>
+        /// <summary>
+        /// Globally unique product-instance URI.
+        /// </summary>
         public string? ProductInstanceUri { get; set; }
 
-        /// <summary>Revision counter incremented by the device firmware.</summary>
+        /// <summary>
+        /// Revision counter incremented by the device firmware.
+        /// </summary>
         public int? RevisionCounter { get; set; }
     }
 }

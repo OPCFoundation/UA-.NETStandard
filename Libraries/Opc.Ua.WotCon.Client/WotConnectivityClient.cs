@@ -144,16 +144,24 @@ namespace Opc.Ua.WotCon.Client
             return new WotConnectivityClient(session, managementId, telemetry);
         }
 
-        /// <summary>The OPC UA session.</summary>
+        /// <summary>
+        /// The OPC UA session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
-        /// <summary>The management object NodeId.</summary>
+        /// <summary>
+        /// The management object NodeId.
+        /// </summary>
         public NodeId ManagementObjectId { get; }
 
-        /// <summary>The underlying generated proxy.</summary>
+        /// <summary>
+        /// The underlying generated proxy.
+        /// </summary>
         public WoTAssetConnectionManagementTypeClient Proxy { get; }
 
         /// <summary>

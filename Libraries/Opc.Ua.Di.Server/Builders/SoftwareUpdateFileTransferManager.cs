@@ -78,10 +78,14 @@ namespace Opc.Ua.Di.Server.Builders
     /// </remarks>
     internal sealed class SoftwareUpdateFileTransferManager : IDisposable
     {
-        /// <summary>Maximum concurrent upload handles per FileTransfer instance.</summary>
+        /// <summary>
+        /// Maximum concurrent upload handles per FileTransfer instance.
+        /// </summary>
         internal const int MaxConcurrentHandles = 8;
 
-        /// <summary>Maximum buffered upload size in bytes (64 MiB).</summary>
+        /// <summary>
+        /// Maximum buffered upload size in bytes (64 MiB).
+        /// </summary>
         internal const long MaxUploadSizeBytes = 64L * 1024 * 1024;
 
         /// <summary>OPC 10000-5 §11.3.3 — Open mode <c>Write|EraseExisting</c>.</summary>
@@ -134,9 +138,6 @@ namespace Opc.Ua.Di.Server.Builders
             }
         }
 
-        // ------------------------------------------------------------------
-        // TemporaryFileTransferType.GenerateFileForWrite handler
-        // ------------------------------------------------------------------
         private ServiceResult OnGenerateFileForWrite(
             ISystemContext context,
             MethodState method,
@@ -205,9 +206,6 @@ namespace Opc.Ua.Di.Server.Builders
             return ServiceResult.Good;
         }
 
-        // ------------------------------------------------------------------
-        // TemporaryFileTransferType.CloseAndCommit handler
-        // ------------------------------------------------------------------
         private ServiceResult OnCloseAndCommit(
             ISystemContext context,
             MethodState method,
@@ -271,9 +269,6 @@ namespace Opc.Ua.Di.Server.Builders
             return ServiceResult.Good;
         }
 
-        // ------------------------------------------------------------------
-        // Per-FileState method handlers (delegated by UploadSlot)
-        // ------------------------------------------------------------------
         private ServiceResult OpenSlot(
             ISystemContext context,
             MethodState method,
@@ -449,9 +444,6 @@ namespace Opc.Ua.Di.Server.Builders
             return ServiceResult.Good;
         }
 
-        // ------------------------------------------------------------------
-        // helpers
-        // ------------------------------------------------------------------
         private static NodeId? SessionIdOf(ISystemContext context)
         {
             return (context as ISessionSystemContext)?.SessionId;
@@ -517,9 +509,6 @@ namespace Opc.Ua.Di.Server.Builders
                 Hash: string.Empty);
         }
 
-        // ------------------------------------------------------------------
-        // Per-handle upload state
-        // ------------------------------------------------------------------
         private sealed class UploadSlot : IDisposable
         {
             private readonly Variant m_generateOptions;

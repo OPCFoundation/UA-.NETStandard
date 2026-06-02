@@ -54,7 +54,9 @@ namespace Opc.Ua.Di.Server.Builders
     /// </remarks>
     public interface IFunctionalGroupBuilder
     {
-        /// <summary>The functional-group state being configured.</summary>
+        /// <summary>
+        /// The functional-group state being configured.
+        /// </summary>
         FunctionalGroupState Group { get; }
 
         /// <summary>
@@ -63,7 +65,9 @@ namespace Opc.Ua.Di.Server.Builders
         /// </summary>
         INodeBuilder Node { get; }
 
-        /// <summary>The owning system context.</summary>
+        /// <summary>
+        /// The owning system context.
+        /// </summary>
         ISystemContext Context { get; }
 
         /// <summary>

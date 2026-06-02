@@ -3334,10 +3334,14 @@ namespace Opc.Ua.SourceGeneration
             NodeToGenerate InstanceOf = null,
             ModellingRule? TypeDefinitionModellingRule = null)
         {
-            /// <summary> Full inherited list of children </summary>
+            /// <summary>
+            /// Full inherited list of children
+            /// </summary>
             public List<NodeToGenerate> AllChildren { get; } = [];
 
-            /// <summary> Direclty defined </summary>
+            /// <summary>
+            /// Direclty defined
+            /// </summary>
             public Dictionary<string, NodeToGenerate> Children { get; } = [];
 
             public NodeToGenerate Instance { get; set; }

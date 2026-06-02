@@ -77,7 +77,7 @@ namespace Opc.Ua.Di.Server
         /// <summary>
         /// The DI namespace URI (<c>http://opcfoundation.org/UA/DI/</c>).
         /// </summary>
-        public const string DiNamespaceUri = global::Opc.Ua.Di.Namespaces.OpcUaDi;
+        public const string DiNamespaceUri = Opc.Ua.Di.Namespaces.OpcUaDi;
 
         private NodeManagerBuilder? m_builder;
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Di.Server
         public DiNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner)
+            Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner)
             : base(
                   server,
                   configuration,
@@ -144,7 +144,7 @@ namespace Opc.Ua.Di.Server
         protected DiNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner,
+            Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? postSetupRunner,
             params string[] additionalNamespaceUris)
             : base(
                   server,
@@ -165,7 +165,7 @@ namespace Opc.Ua.Di.Server
         /// manually. Read-only on subclasses; exposed mostly for
         /// diagnostic / test inspection.
         /// </summary>
-        protected global::Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
+        protected Opc.Ua.Di.Server.Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
 
         private static string[] CombineNamespaces(string[] additional)
         {
@@ -180,7 +180,9 @@ namespace Opc.Ua.Di.Server
             return combined;
         }
 
-        /// <summary>The namespace index of the DI model.</summary>
+        /// <summary>
+        /// The namespace index of the DI model.
+        /// </summary>
         public ushort DiNamespaceIndex =>
             (ushort)Server.NamespaceUris.GetIndex(DiNamespaceUri);
 
@@ -308,7 +310,7 @@ namespace Opc.Ua.Di.Server
         protected virtual NodeState? ResolveDefaultDeviceParent()
         {
             NodeId deviceSetId = NodeId.Create(
-                global::Opc.Ua.Di.Objects.DeviceSet,
+                Opc.Ua.Di.Objects.DeviceSet,
                 DiNamespaceUri,
                 Server.NamespaceUris);
 
@@ -338,7 +340,7 @@ namespace Opc.Ua.Di.Server
             return CreateDeviceAsync(
                 browseName,
                 NodeId.Create(
-                    global::Opc.Ua.Di.ObjectTypes.DeviceType,
+                    Opc.Ua.Di.ObjectTypes.DeviceType,
                     DiNamespaceUri,
                     Server.NamespaceUris),
                 static p => new DeviceState(p),

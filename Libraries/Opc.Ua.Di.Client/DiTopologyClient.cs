@@ -60,31 +60,35 @@ namespace Opc.Ua.Di.Client
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
-        /// <summary>The owning session.</summary>
+        /// <summary>
+        /// The owning session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>Returns the resolved NodeId of <c>DeviceSet</c>.</summary>
         public NodeId DeviceSetId
             => NodeId.Create(
-                global::Opc.Ua.Di.Objects.DeviceSet,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Di.Objects.DeviceSet,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
                 Session.NamespaceUris);
 
         /// <summary>Returns the resolved NodeId of <c>NetworkSet</c>.</summary>
         public NodeId NetworkSetId
             => NodeId.Create(
-                global::Opc.Ua.Di.Objects.NetworkSet,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Di.Objects.NetworkSet,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
                 Session.NamespaceUris);
 
         /// <summary>Returns the resolved NodeId of <c>DeviceTopology</c>.</summary>
         public NodeId DeviceTopologyId
             => NodeId.Create(
-                global::Opc.Ua.Di.Objects.DeviceTopology,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Di.Objects.DeviceTopology,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
                 Session.NamespaceUris);
 
         /// <summary>

@@ -65,13 +65,19 @@ namespace Opc.Ua.Di.Client
             Telemetry = telemetry;
         }
 
-        /// <summary>The owning session.</summary>
+        /// <summary>
+        /// The owning session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>The NodeId of the registrar instance.</summary>
+        /// <summary>
+        /// The NodeId of the registrar instance.
+        /// </summary>
         public NodeId RegistrarNodeId { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>
@@ -166,7 +172,7 @@ namespace Opc.Ua.Di.Client
                     {
                         new RelativePathElement
                         {
-                            ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent,
+                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
                             IsInverse = false,
                             IncludeSubtypes = true,
                             TargetName = new QualifiedName(browseName)

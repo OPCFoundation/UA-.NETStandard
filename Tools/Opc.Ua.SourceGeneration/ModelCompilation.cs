@@ -28,12 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Opc.Ua.SourceGeneration.Dependency;
 using ILogger = SGF.Diagnostics.ILogger;
 using SourceProductionContext = SGF.SgfSourceProductionContext;
 
@@ -124,9 +126,9 @@ namespace Opc.Ua.SourceGeneration
                 // Resolve [NodeManager] bindings: validate partial-ness and
                 // build the binding list to pass into both GenerateCode calls
                 // (nodeset-derived and design-file-derived).
-                var bindings = new System.Collections.Generic.List<NodeManagerAttributeBinding>();
+                var bindings = new List<NodeManagerAttributeBinding>();
                 var bindingByPayload =
-                    new System.Collections.Generic.Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
+                    new Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
                 foreach (NodeManagerAttributeDiscovery discovery in m_nodeManagerBindings)
                 {
                     if (discovery == null)
@@ -163,9 +165,9 @@ namespace Opc.Ua.SourceGeneration
                 // Reduce referenced model attributes to a single dictionary by
                 // model URI (with tie-break on highest version+publication date)
                 // so the downstream generators can apply override resolution.
-                System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
+                IReadOnlyDictionary<string, ModelDependencyReference>
                     referencedModels = BuildReferencedModelMap();
-                System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>
+                IReadOnlyDictionary<string, ModelDependencyV1>
                     referencedDependencies = BuildReferencedDependencyMap();
 
                 nodesets.GenerateCode(
@@ -240,14 +242,14 @@ namespace Opc.Ua.SourceGeneration
         /// the highest <c>(Version, PublicationDate)</c> lexicographic tuple
         /// per the contract on <see cref="ModelDependencyAttribute"/>.
         /// </summary>
-        private System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
+        private IReadOnlyDictionary<string, ModelDependencyReference>
             BuildReferencedModelMap()
         {
             if (m_referencedModels.IsDefaultOrEmpty)
             {
                 return ImmutableDictionary<string, ModelDependencyReference>.Empty;
             }
-            var map = new System.Collections.Generic.Dictionary<string, ModelDependencyReference>(
+            var map = new Dictionary<string, ModelDependencyReference>(
                 StringComparer.Ordinal);
             foreach (ModelDependencyReference candidate in m_referencedModels)
             {
@@ -297,18 +299,18 @@ namespace Opc.Ua.SourceGeneration
         /// Payloads with unknown versions or malformed encodings are
         /// silently dropped.
         /// </summary>
-        private System.Collections.Generic.IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>
+        private IReadOnlyDictionary<string, ModelDependencyV1>
             BuildReferencedDependencyMap()
         {
             if (m_referencedModels.IsDefaultOrEmpty)
             {
-                return ImmutableDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>.Empty;
+                return ImmutableDictionary<string, ModelDependencyV1>.Empty;
             }
-            var map = new System.Collections.Generic.Dictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1>(
+            var map = new Dictionary<string, ModelDependencyV1>(
                 StringComparer.Ordinal);
             foreach (ModelDependencyReference candidate in m_referencedModels)
             {
-                Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1 decoded = candidate.GetDependency();
+                ModelDependencyV1 decoded = candidate.GetDependency();
                 if (decoded == null)
                 {
                     continue;

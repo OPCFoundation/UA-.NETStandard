@@ -78,13 +78,17 @@ namespace Opc.Ua.Di.Client
             Telemetry = telemetry;
         }
 
-        /// <summary>The owning session.</summary>
+        /// <summary>
+        /// The owning session.
+        /// </summary>
         public ISession Session { get; }
 
         /// <summary>The <c>SoftwareUpdateType</c> instance NodeId.</summary>
         public NodeId SoftwareUpdateNodeId { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>
@@ -96,7 +100,7 @@ namespace Opc.Ua.Di.Client
             CancellationToken cancellationToken = default)
         {
             ushort diNs = Session.NamespaceUris
-                .GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
+                .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
             BrowsePath browsePath = new BrowsePath
             {

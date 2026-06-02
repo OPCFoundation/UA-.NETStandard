@@ -70,7 +70,7 @@ namespace Opc.Ua.Di.Client
             ISession session,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            ExpandedNodeId deviceTypeId = global::Opc.Ua.Di.ObjectTypeIds.DeviceType;
+            ExpandedNodeId deviceTypeId = Opc.Ua.Di.ObjectTypeIds.DeviceType;
 
             await foreach (DeviceEntry entry in BrowseForDevicesAsync(
                 session,
@@ -155,7 +155,7 @@ namespace Opc.Ua.Di.Client
             CancellationToken ct)
         {
             ushort diNs = session.NamespaceUris
-                .GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
+                .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
             BrowsePath path = new()
             {

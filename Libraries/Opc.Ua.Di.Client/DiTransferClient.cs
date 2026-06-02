@@ -70,7 +70,9 @@ namespace Opc.Ua.Di.Client
             Telemetry = telemetry;
         }
 
-        /// <summary>The owning session.</summary>
+        /// <summary>
+        /// The owning session.
+        /// </summary>
         public ISession Session { get; }
 
         /// <summary>
@@ -78,7 +80,9 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public NodeId TransferServicesNodeId { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>
@@ -87,7 +91,7 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ValueTask<int> TransferToDeviceAsync(CancellationToken ct = default)
             => InitiateTransferAsync(
-                global::Opc.Ua.Di.Methods.TransferServicesType_TransferToDevice, ct);
+                Opc.Ua.Di.Methods.TransferServicesType_TransferToDevice, ct);
 
         /// <summary>
         /// Invokes <c>TransferFromDevice</c>. Returns the transfer ID
@@ -95,7 +99,7 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ValueTask<int> TransferFromDeviceAsync(CancellationToken ct = default)
             => InitiateTransferAsync(
-                global::Opc.Ua.Di.Methods.TransferServicesType_TransferFromDevice, ct);
+                Opc.Ua.Di.Methods.TransferServicesType_TransferFromDevice, ct);
 
         /// <summary>
         /// Streams parameter entries from a previously-initiated
@@ -122,8 +126,8 @@ namespace Opc.Ua.Di.Client
             [EnumeratorCancellation] CancellationToken ct = default)
         {
             NodeId methodId = NodeId.Create(
-                global::Opc.Ua.Di.Methods.TransferServicesType_FetchTransferResultData,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Di.Methods.TransferServicesType_FetchTransferResultData,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
                 Session.NamespaceUris);
 
             int sequence = 0;
@@ -209,7 +213,7 @@ namespace Opc.Ua.Di.Client
         {
             NodeId methodId = NodeId.Create(
                 methodTypeId,
-                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
                 Session.NamespaceUris);
 
             CallMethodRequest request = new CallMethodRequest
@@ -279,18 +283,18 @@ namespace Opc.Ua.Di.Client
             // implement IEncodeable. We avoid the typed dependency
             // here by reflecting over the field names via a small
             // helper — the spec field layout is stable.
-            if (boxed is global::Opc.Ua.Di.TransferResultErrorDataType err)
+            if (boxed is Opc.Ua.Di.TransferResultErrorDataType err)
             {
                 return new FetchChunk(
                     IsError: true,
                     ErrorStatus: new StatusCode((uint)err.Status));
             }
-            if (boxed is global::Opc.Ua.Di.TransferResultDataDataType data)
+            if (boxed is Opc.Ua.Di.TransferResultDataDataType data)
             {
                 var entries = new List<ParameterFetchEntry>(data.ParameterDefs.Count);
                 for (int i = 0; i < data.ParameterDefs.Count; i++)
                 {
-                    global::Opc.Ua.Di.ParameterResultDataType p = data.ParameterDefs[i];
+                    Opc.Ua.Di.ParameterResultDataType p = data.ParameterDefs[i];
                     QualifiedName[] nodePath = p.NodePath.ToArray() ?? Array.Empty<QualifiedName>();
                     entries.Add(new ParameterFetchEntry(
                         NodePath: nodePath,

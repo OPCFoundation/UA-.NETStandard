@@ -165,7 +165,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString FieldProperty = TemplateString.Parse(
             $$"""
 
-            /// <summary>{{Tokens.Description}}</summary>
+            /// <summary>
+            /// {{Tokens.Description}}
+            /// </summary>
             public {{Tokens.DataType}} {{Tokens.PropertyName}} { get; init; }
             """);
 

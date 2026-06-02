@@ -45,28 +45,44 @@ namespace Opc.Ua.Di.Server.Builders
     /// </remarks>
     public static class WellKnownFunctionalGroups
     {
-        /// <summary>Spec-defined name for the Identification group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Identification group.
+        /// </summary>
         public const string Identification = "Identification";
 
-        /// <summary>Spec-defined name for the Configuration group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Configuration group.
+        /// </summary>
         public const string Configuration = "Configuration";
 
-        /// <summary>Spec-defined name for the Maintenance group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Maintenance group.
+        /// </summary>
         public const string Maintenance = "Maintenance";
 
-        /// <summary>Spec-defined name for the Diagnostics group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Diagnostics group.
+        /// </summary>
         public const string Diagnostics = "Diagnostics";
 
-        /// <summary>Spec-defined name for the Status group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Status group.
+        /// </summary>
         public const string Status = "Status";
 
-        /// <summary>Spec-defined name for the Operational group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Operational group.
+        /// </summary>
         public const string Operational = "Operational";
 
-        /// <summary>Spec-defined name for the Statistics group.</summary>
+        /// <summary>
+        /// Spec-defined name for the Statistics group.
+        /// </summary>
         public const string Statistics = "Statistics";
 
-        /// <summary>Spec-defined name for the OperationCounters group.</summary>
+        /// <summary>
+        /// Spec-defined name for the OperationCounters group.
+        /// </summary>
         public const string OperationCounters = "OperationCounters";
     }
 }

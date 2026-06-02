@@ -74,10 +74,14 @@ namespace Opc.Ua.WotCon.Server
             m_registry = new AssetRegistry(this, options, m_logger);
         }
 
-        /// <summary>The namespace index used for dynamically created asset nodes.</summary>
+        /// <summary>
+        /// The namespace index used for dynamically created asset nodes.
+        /// </summary>
         public ushort AssetNamespaceIndex { get; }
 
-        /// <summary>The namespace index of the WoT Connectivity model.</summary>
+        /// <summary>
+        /// The namespace index of the WoT Connectivity model.
+        /// </summary>
         public ushort WotConNamespaceIndex { get; }
 
         /// <inheritdoc/>
@@ -98,7 +102,9 @@ namespace Opc.Ua.WotCon.Server
             return new NodeId($"Assets/{assetName}/{category}/{childName}", AssetNamespaceIndex);
         }
 
-        /// <summary>Creates an asset object below the management node.</summary>
+        /// <summary>
+        /// Creates an asset object below the management node.
+        /// </summary>
         internal async ValueTask<AssetEntry> CreateAssetNodeAsync(
             string assetName,
             CancellationToken ct)
@@ -140,7 +146,9 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
-        /// <summary>Removes an asset object and all its children.</summary>
+        /// <summary>
+        /// Removes an asset object and all its children.
+        /// </summary>
         internal async ValueTask DeleteAssetNodeAsync(IWoTAssetState asset, CancellationToken ct)
         {
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);

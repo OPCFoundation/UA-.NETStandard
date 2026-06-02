@@ -69,22 +69,34 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     public sealed record HistorianEventReadRequest
     {
-        /// <summary>The notifier (or area) being read.</summary>
+        /// <summary>
+        /// The notifier (or area) being read.
+        /// </summary>
         public required NodeId NodeId { get; init; }
 
-        /// <summary>Effective start time.</summary>
+        /// <summary>
+        /// Effective start time.
+        /// </summary>
         public required DateTimeUtc StartTime { get; init; }
 
-        /// <summary>Effective end time.</summary>
+        /// <summary>
+        /// Effective end time.
+        /// </summary>
         public required DateTimeUtc EndTime { get; init; }
 
-        /// <summary>Maximum events per call. Zero = unbounded.</summary>
+        /// <summary>
+        /// Maximum events per call. Zero = unbounded.
+        /// </summary>
         public uint MaxValues { get; init; }
 
-        /// <summary>True for forward-in-time reads.</summary>
+        /// <summary>
+        /// True for forward-in-time reads.
+        /// </summary>
         public bool IsForward { get; init; }
 
-        /// <summary>The event filter from the client request.</summary>
+        /// <summary>
+        /// The event filter from the client request.
+        /// </summary>
         public required EventFilter Filter { get; init; }
     }
 }

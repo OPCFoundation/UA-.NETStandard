@@ -78,7 +78,9 @@ namespace Opc.Ua.Di.Server.Locking
             m_logger = logger;
         }
 
-        /// <summary>How long a lock is held before auto-expiring.</summary>
+        /// <summary>
+        /// How long a lock is held before auto-expiring.
+        /// </summary>
         public TimeSpan LockDuration { get; }
 
         /// <summary>

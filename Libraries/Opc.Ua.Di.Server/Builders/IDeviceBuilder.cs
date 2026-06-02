@@ -60,13 +60,19 @@ namespace Opc.Ua.Di.Server.Builders
     public interface IDeviceBuilder<TDevice>
         where TDevice : ComponentState
     {
-        /// <summary>The state instance being configured.</summary>
+        /// <summary>
+        /// The state instance being configured.
+        /// </summary>
         TDevice Device { get; }
 
-        /// <summary>Manager that owns the device's predefined-node registration.</summary>
+        /// <summary>
+        /// Manager that owns the device's predefined-node registration.
+        /// </summary>
         DiNodeManager Manager { get; }
 
-        /// <summary>The system context for property/reference resolution.</summary>
+        /// <summary>
+        /// The system context for property/reference resolution.
+        /// </summary>
         ISystemContext Context { get; }
 
         /// <summary>

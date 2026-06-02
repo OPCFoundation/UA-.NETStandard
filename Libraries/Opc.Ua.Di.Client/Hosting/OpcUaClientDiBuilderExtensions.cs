@@ -65,8 +65,23 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers DI client services:
         /// <list type="bullet">
-        ///   <item><description><see cref="IDiDiscoveryService"/> — enumerates DeviceType instances on the connected server.</description></item>
-        ///   <item><description><see cref="Func{T1, T2, TResult}"/> for (<see cref="NodeId"/>, <see cref="CancellationToken"/>) returning <see cref="ValueTask{TResult}"/> of <see cref="DiDeviceClient"/> — opens the lazy session and creates a verified DiDeviceClient rooted at the supplied NodeId.</description></item>
+        ///   <item>
+        ///     <description>
+        ///       <see cref="IDiDiscoveryService"/> — enumerates
+        ///       DeviceType instances on the connected server.
+        ///     </description>
+        ///   </item>
+        ///   <item>
+        ///     <description>
+        ///       <see cref="Func{T1, T2, TResult}"/> for
+        ///       (<see cref="NodeId"/>,
+        ///        <see cref="CancellationToken"/>) returning
+        ///       <see cref="ValueTask{TResult}"/> of
+        ///       <see cref="DiDeviceClient"/> — opens the lazy
+        ///       session and creates a verified DiDeviceClient
+        ///       rooted at the supplied NodeId.
+        ///     </description>
+        ///   </item>
         /// </list>
         /// </summary>
         /// <param name="builder">The client builder.</param>

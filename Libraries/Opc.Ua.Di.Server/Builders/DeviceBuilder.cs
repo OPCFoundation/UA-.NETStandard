@@ -158,7 +158,7 @@ namespace Opc.Ua.Di.Server.Builders
         private NodeId ResolveConnectsToRefType()
         {
             return NodeId.Create(
-                global::Opc.Ua.Di.ReferenceTypes.ConnectsTo,
+                Opc.Ua.Di.ReferenceTypes.ConnectsTo,
                 DiNodeManager.DiNamespaceUri,
                 Manager.Server.NamespaceUris);
         }
@@ -228,7 +228,7 @@ namespace Opc.Ua.Di.Server.Builders
             group.DisplayName = new LocalizedText(browseName.Name);
             group.NodeId = Context.NodeIdFactory.New(Context, group);
             group.TypeDefinitionId = NodeId.Create(
-                global::Opc.Ua.Di.ObjectTypes.FunctionalGroupType,
+                Opc.Ua.Di.ObjectTypes.FunctionalGroupType,
                 DiNodeManager.DiNamespaceUri,
                 Manager.Server.NamespaceUris);
             group.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;

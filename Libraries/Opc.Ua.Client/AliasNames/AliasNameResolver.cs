@@ -86,7 +86,9 @@ namespace Opc.Ua.Client.AliasNames
         /// <summary>The wrapped <see cref="AliasNameClient"/>.</summary>
         public AliasNameClient Client { get; }
 
-        /// <summary>The (cloned, immutable) configuration.</summary>
+        /// <summary>
+        /// The (cloned, immutable) configuration.
+        /// </summary>
         public AliasNameResolverOptions Options { get; }
 
         /// <summary>

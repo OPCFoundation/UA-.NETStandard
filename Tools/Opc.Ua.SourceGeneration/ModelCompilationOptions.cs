@@ -131,13 +131,13 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// When set to <c>true</c>, the per-ObjectType typed accessor
-        /// extension classes (FB-3 phase 3:
-        /// <c>{TypeName}StateComponents</c> +
-        /// <c>{TypeName}StateProperties</c>) are emitted alongside the
-        /// model output. Off by default because the emitted accessors
-        /// reference <c>Opc.Ua.Server.Fluent.IComponentAccessor</c>
-        /// (server-side assembly) — model-only libraries would fail to
-        /// compile. Set in projects that ship a server-side integration
+        /// extension classes (<c>{TypeName}StateComponents</c> +
+        /// <c>{TypeName}StateProperties</c>) are emitted alongside
+        /// the model output. Off by default because the emitted
+        /// accessors reference
+        /// <c>Opc.Ua.Server.Fluent.IComponentAccessor</c> (server-side
+        /// assembly) — model-only libraries would fail to compile.
+        /// Set in projects that ship a server-side integration
         /// (Applications/*, Libraries/Opc.Ua.*.Server/*) via the
         /// <c>ModelSourceGeneratorEmitFluentAccessors</c> MSBuild
         /// property.
@@ -204,11 +204,17 @@ namespace Opc.Ua.SourceGeneration
     /// </summary>
     internal enum EmitDependencyMetadataMode
     {
-        /// <summary>Emit only when building a library.</summary>
+        /// <summary>
+        /// Emit only when building a library.
+        /// </summary>
         Auto,
-        /// <summary>Always emit (override).</summary>
+        /// <summary>
+        /// Always emit (override).
+        /// </summary>
         Always,
-        /// <summary>Never emit (override).</summary>
+        /// <summary>
+        /// Never emit (override).
+        /// </summary>
         Never
     }
 }

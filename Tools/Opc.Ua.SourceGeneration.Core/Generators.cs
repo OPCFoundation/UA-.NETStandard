@@ -630,14 +630,14 @@ namespace Opc.Ua.SourceGeneration
                 }.Emit();
             }
 
-            // FluentBuilderGenerator always runs to emit per-ObjectType
-            // typed-accessor extension classes (FB-3 phase 3) when
-            // explicitly opted in via GeneratorOptions.EmitFluentAccessors
-            // OR when GenerateNodeManager=true (any server-side
-            // consumer that wires a node manager always references
-            // Opc.Ua.Server, so emitting the typed accessors there is
-            // safe and provides the typed builder pipeline alongside
-            // the manager + instance wrappers).
+            // FluentBuilderGenerator emits per-ObjectType typed-accessor
+            // extension classes whenever the consumer opted in via
+            // GeneratorOptions.EmitFluentAccessors OR when
+            // GenerateNodeManager=true (any server-side consumer that
+            // wires a node manager always references Opc.Ua.Server, so
+            // emitting the typed accessors there is safe and provides
+            // the typed builder pipeline alongside the manager +
+            // instance wrappers).
             bool emitTypedAccessors = context.Options?.EmitFluentAccessors == true
                 || designOptions?.GenerateNodeManager == true;
             if (emitTypedAccessors)

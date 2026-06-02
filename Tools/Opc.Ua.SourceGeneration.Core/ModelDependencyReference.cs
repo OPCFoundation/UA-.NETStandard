@@ -66,19 +66,29 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public bool IsValid => ModelUri.Length != 0 && Prefix.Length != 0;
 
-        /// <summary>The assembly the attribute was read from.</summary>
+        /// <summary>
+        /// The assembly the attribute was read from.
+        /// </summary>
         public string AssemblyName { get; }
 
-        /// <summary>The OPC UA model URI recorded in the attribute.</summary>
+        /// <summary>
+        /// The OPC UA model URI recorded in the attribute.
+        /// </summary>
         public string ModelUri { get; }
 
-        /// <summary>The C# namespace the assembly used for this model's generated types.</summary>
+        /// <summary>
+        /// The C# namespace the assembly used for this model's generated types.
+        /// </summary>
         public string Prefix { get; }
 
-        /// <summary>The model version string (may be empty).</summary>
+        /// <summary>
+        /// The model version string (may be empty).
+        /// </summary>
         public string Version { get; }
 
-        /// <summary>The model publication date (ISO-8601; may be empty).</summary>
+        /// <summary>
+        /// The model publication date (ISO-8601; may be empty).
+        /// </summary>
         public string PublicationDate { get; }
 
         /// <summary>The C# identifier used for the model's name constant inside

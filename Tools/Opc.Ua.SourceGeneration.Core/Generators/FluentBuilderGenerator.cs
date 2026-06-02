@@ -202,12 +202,13 @@ namespace Opc.Ua.SourceGeneration
                         }
                     }
 
-                    // FB-3 phase 3: emit per-ObjectType IComponentAccessor /
-                    // IPropertyAccessor extension classes so consumers can
-                    // walk a typed INodeBuilder<TState> tree without
-                    // spelling out browse paths or QualifiedNames. Always
-                    // runs (independent of GenerateManagerWrappers) so
-                    // NodeSet2-only consumers still get the typed accessors.
+                    // Emit per-ObjectType IComponentAccessor /
+                    // IPropertyAccessor extension classes so consumers
+                    // can walk a typed INodeBuilder<TState> tree
+                    // without spelling out browse paths or
+                    // QualifiedNames. Always runs (independent of
+                    // GenerateManagerWrappers) so NodeSet2-only
+                    // consumers still get the typed accessors.
                     // Suppressed when the consumer assembly does not
                     // reference Opc.Ua.Server (controlled by the
                     // EmitFluentAccessors flag).
@@ -845,7 +846,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         // ============================================================
-        // FB-3 phase 3 — per-ObjectType IComponentAccessor / IPropertyAccessor
+        // Per-ObjectType IComponentAccessor / IPropertyAccessor
         // ============================================================
 
         /// <summary>
@@ -1926,16 +1927,22 @@ namespace Opc.Ua.SourceGeneration
             public string BrowseNamespaceUri;
             public ChildKind Kind;
 
-            /// <summary>CLR type name of the variable's value.</summary>
+            /// <summary>
+            /// CLR type name of the variable's value.
+            /// </summary>
             public string ValueClrType;
 
-            /// <summary>Generated wrapper class name for a method or object child.</summary>
+            /// <summary>
+            /// Generated wrapper class name for a method or object child.
+            /// </summary>
             public string WrapperClassName;
 
             /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
             public string ChildKey;
 
-            /// <summary>Node state type for object children.</summary>
+            /// <summary>
+            /// Node state type for object children.
+            /// </summary>
             public string ChildStateType;
         }
 

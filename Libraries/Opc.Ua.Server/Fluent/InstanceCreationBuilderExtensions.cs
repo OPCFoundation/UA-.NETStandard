@@ -152,10 +152,14 @@ namespace Opc.Ua.Server.Fluent
     public interface IInstanceBuilder<TState>
         where TState : BaseInstanceState
     {
-        /// <summary>The newly created instance.</summary>
+        /// <summary>
+        /// The newly created instance.
+        /// </summary>
         TState Node { get; }
 
-        /// <summary>The owning parent builder.</summary>
+        /// <summary>
+        /// The owning parent builder.
+        /// </summary>
         INodeBuilder Parent { get; }
 
         /// <summary>

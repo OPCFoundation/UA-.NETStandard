@@ -42,7 +42,9 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     public sealed class HistorianProviderRegistry : IHistorianProviderRegistry, IDisposable
     {
-        /// <summary>Creates an empty registry.</summary>
+        /// <summary>
+        /// Creates an empty registry.
+        /// </summary>
         public HistorianProviderRegistry(NamespaceTable namespaceTable)
         {
             m_namespaceTable = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));

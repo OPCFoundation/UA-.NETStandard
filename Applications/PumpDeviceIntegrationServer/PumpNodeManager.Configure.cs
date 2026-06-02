@@ -56,14 +56,14 @@ namespace Pumps
         // Reference to the hand-rolled Pump #1 instance so the
         // simulation tick can mutate its DI properties in response to
         // supervision flags. Set by CreatePumpInstanceAsync.
-        private global::Opc.Ua.Pumps.PumpState? m_pump1;
+        private Opc.Ua.Pumps.PumpState? m_pump1;
 
         // Optional DI DeviceHealth variable supplied by a declarative
         // DeviceState device (e.g. Pump #2). Set via
         // RegisterSupervisedDeviceHealth and toggled by AdvanceSimulation
         // to reflect cavitation / motor-overheat states using the NAMUR
         // NE 107 enumeration.
-        private BaseDataVariableState<global::Opc.Ua.Di.DeviceHealthEnumeration>?
+        private BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>?
             m_supervisedDeviceHealth;
 
         // ── Latest simulated values, updated by the simulation tick. ──
@@ -189,10 +189,10 @@ namespace Pumps
         private void WithSupervision(INodeManagerBuilder builder)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
-                global::Opc.Ua.Pumps.Namespaces.Pumps);
+                Opc.Ua.Pumps.Namespaces.Pumps);
 
-            global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.Pumps.PumpState> pump =
-                builder.Node<global::Opc.Ua.Pumps.PumpState>("Pump #1");
+            Opc.Ua.Server.Fluent.INodeBuilder<Opc.Ua.Pumps.PumpState> pump =
+                builder.Node<Opc.Ua.Pumps.PumpState>("Pump #1");
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = pump
                 .Components().Events()
@@ -265,34 +265,34 @@ namespace Pumps
 
         /// <summary>
         /// Maps the simulated supervision flags onto the DI
-        /// <see cref="global::Opc.Ua.Di.DeviceHealthEnumeration"/>
+        /// <see cref="Opc.Ua.Di.DeviceHealthEnumeration"/>
         /// using the NAMUR NE 107 severity order: a motor overheat
         /// always wins over a cavitation event (FAILURE &gt;
         /// MAINTENANCE_REQUIRED); when neither flag is set the device
         /// reports NORMAL. Exposed as a pure function so tests can
         /// exercise the mapping without instantiating the manager.
         /// </summary>
-        public static global::Opc.Ua.Di.DeviceHealthEnumeration
+        public static Opc.Ua.Di.DeviceHealthEnumeration
             MapSupervisionToDeviceHealth(bool cavitation, bool motorOverheat)
         {
             if (motorOverheat)
             {
-                return global::Opc.Ua.Di.DeviceHealthEnumeration.FAILURE;
+                return Opc.Ua.Di.DeviceHealthEnumeration.FAILURE;
             }
             if (cavitation)
             {
-                return global::Opc.Ua.Di.DeviceHealthEnumeration.MAINTENANCE_REQUIRED;
+                return Opc.Ua.Di.DeviceHealthEnumeration.MAINTENANCE_REQUIRED;
             }
-            return global::Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
+            return Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
         }
 
         private void UpdateDeviceHealth()
         {
-            BaseDataVariableState<global::Opc.Ua.Di.DeviceHealthEnumeration>?
+            BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>?
                 health = m_supervisedDeviceHealth;
             if (health == null) { return; }
 
-            global::Opc.Ua.Di.DeviceHealthEnumeration desired =
+            Opc.Ua.Di.DeviceHealthEnumeration desired =
                 MapSupervisionToDeviceHealth(m_cavitation, m_motorOverheat);
 
             if (health.Value != desired)
