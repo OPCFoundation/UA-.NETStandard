@@ -38,9 +38,9 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.StateMachines;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Tests;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 // Local fake IStreamingSubscription test types are no-op IAsyncDisposable

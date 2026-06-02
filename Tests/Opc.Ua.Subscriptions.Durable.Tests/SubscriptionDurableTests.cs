@@ -31,9 +31,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Subscriptions.Durable.Tests
 {
@@ -68,7 +67,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubscriptionSurvivesSessionCloseAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -84,7 +83,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             session1.Dispose();
 
             // Reconnect and transfer
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -110,7 +109,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubscriptionTransferAfterReconnectAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -133,7 +132,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
             await Task.Delay(200).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -167,7 +166,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         {
             // Test the ignore path for servers that don't support
             // transfer (used as durable proxy)
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -177,7 +176,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -198,7 +197,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubscriptionDeleteBeforeReconnectAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -208,7 +207,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -231,7 +230,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubSetPublishingModeDisableAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -254,7 +253,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubSetPublishingModeReEnableAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -281,7 +280,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubPublishingModePreservedAfterTransferAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -300,7 +299,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -335,7 +334,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubDisabledNoNotificationsAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -373,7 +372,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubReEnableAfterTransferAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -391,7 +390,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -431,7 +430,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubModifyIntervalAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -458,7 +457,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubModifyKeepAliveCountAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -484,7 +483,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubModifyLifetimeCountAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -510,7 +509,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubModifyPriorityAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -536,7 +535,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubModifyMaxNotificationsAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -562,7 +561,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubWithMultipleMonitoredItemsAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(session1)
@@ -598,7 +597,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubTransferWithInitialTrueAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -612,7 +611,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -647,7 +646,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubTransferWithInitialFalseAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -667,7 +666,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -698,7 +697,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubCreateMultipleSubsAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             var subIds = new List<uint>();
@@ -720,7 +719,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [Test]
         public async Task DurableSubSeqNumbersPreservedAsync()
         {
-            Client.ISession session1 = await CreateSessionAsync()
+            ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
             CreateSubscriptionResponse resp = await CreateSubAsync(
@@ -741,7 +740,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             await session1.CloseAsync(5000, false).ConfigureAwait(false);
             session1.Dispose();
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -771,7 +770,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         private async Task<CreateSubscriptionResponse> CreateSubAsync(
-            Client.ISession session, double interval = DefaultInterval)
+            ISession session, double interval = DefaultInterval)
         {
             return await session.CreateSubscriptionAsync(
                 null, interval, DefaultLifetime, DefaultKeepAlive,
@@ -780,7 +779,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         private async Task<uint> AddItemAsync(
-            Client.ISession session, uint subId, NodeId nodeId,
+            ISession session, uint subId, NodeId nodeId,
             uint handle = 1, double sampling = 100)
         {
             var item = new MonitoredItemCreateRequest
@@ -812,13 +811,13 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             return resp.Results[0].MonitoredItemId;
         }
 
-        private Task<Client.ISession> CreateSessionAsync()
+        private Task<ISession> CreateSessionAsync()
         {
             return ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None);
         }
 
-        private async Task CloseSessionAsync(Client.ISession session)
+        private async Task CloseSessionAsync(ISession session)
         {
             await session.CloseAsync(5000, true).ConfigureAwait(false);
             session.Dispose();
@@ -830,7 +829,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
         private async Task<TransferSubscriptionsResponse>
             TransferOrIgnoreAsync(
-                Client.ISession target, uint subId, bool sendInitial)
+                ISession target, uint subId, bool sendInitial)
         {
             try
             {

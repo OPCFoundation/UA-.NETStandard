@@ -32,7 +32,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// Creates fresh <see cref="IApplicationInstance"/> objects for a given
     /// hosted OPC UA server. Registered as a singleton by
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaConfigurationServiceCollectionExtensions.AddApplicationInstance(Opc.Ua.IOpcUaBuilder)"/>.
+    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaConfigurationServiceCollectionExtensions.AddApplicationInstance(IOpcUaBuilder)"/>.
     /// </summary>
     /// <remarks>
     /// Each hosted server requires its own

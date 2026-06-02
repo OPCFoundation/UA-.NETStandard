@@ -269,206 +269,206 @@ namespace Alarms
                     discrepancyTargetSourceNodeName,
                     discrepancyTargetSourceName);
 
-                    AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
+                AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
 
-                    m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
+                m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
 
-                    AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(
-                        mandatoryNonExclusiveLevel.AlarmNodeName,
-                        mandatoryNonExclusiveLevel);
+                AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(
+                    mandatoryNonExclusiveLevel.AlarmNodeName,
+                    mandatoryNonExclusiveLevel);
 
-                    AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        booleanSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(offNormal.AlarmNodeName, offNormal);
+                AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    booleanSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(offNormal.AlarmNodeName, offNormal);
 
-                    AlarmHolder alarmCondition = new AlarmConditionHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(alarmCondition.AlarmNodeName, alarmCondition);
+                AlarmHolder alarmCondition = new AlarmConditionHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(alarmCondition.AlarmNodeName, alarmCondition);
 
-                    AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        discrepancyTargetSource.NodeId,
-                        optional: true);
-                    m_alarms.Add(discrepancyAlarm.AlarmNodeName, discrepancyAlarm);
+                AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    discrepancyTargetSource.NodeId,
+                    optional: true);
+                m_alarms.Add(discrepancyAlarm.AlarmNodeName, discrepancyAlarm);
 
-                    AlarmHolder limitAlarm = new LimitAlarmHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(limitAlarm.AlarmNodeName, limitAlarm);
+                AlarmHolder limitAlarm = new LimitAlarmHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(limitAlarm.AlarmNodeName, limitAlarm);
 
-                    AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(exclusiveLimitAlarm.AlarmNodeName, exclusiveLimitAlarm);
+                AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(exclusiveLimitAlarm.AlarmNodeName, exclusiveLimitAlarm);
 
-                    AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        setpointSource.NodeId,
-                        optional: true);
-                    m_alarms.Add(exclusiveDeviationAlarm.AlarmNodeName, exclusiveDeviationAlarm);
+                AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    setpointSource.NodeId,
+                    optional: true);
+                m_alarms.Add(exclusiveDeviationAlarm.AlarmNodeName, exclusiveDeviationAlarm);
 
-                    AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(exclusiveRateOfChangeAlarm.AlarmNodeName, exclusiveRateOfChangeAlarm);
+                AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(exclusiveRateOfChangeAlarm.AlarmNodeName, exclusiveRateOfChangeAlarm);
 
-                    AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(nonExclusiveLimitAlarm.AlarmNodeName, nonExclusiveLimitAlarm);
+                AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(nonExclusiveLimitAlarm.AlarmNodeName, nonExclusiveLimitAlarm);
 
-                    AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        setpointSource.NodeId,
-                        optional: true);
-                    m_alarms.Add(nonExclusiveDeviationAlarm.AlarmNodeName, nonExclusiveDeviationAlarm);
+                AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    setpointSource.NodeId,
+                    optional: true);
+                m_alarms.Add(nonExclusiveDeviationAlarm.AlarmNodeName, nonExclusiveDeviationAlarm);
 
-                    AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        analogSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(
-                        nonExclusiveRateOfChangeAlarm.AlarmNodeName,
-                        nonExclusiveRateOfChangeAlarm);
+                AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    analogSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(
+                    nonExclusiveRateOfChangeAlarm.AlarmNodeName,
+                    nonExclusiveRateOfChangeAlarm);
 
-                    AlarmHolder discreteAlarm = new DiscreteAlarmHolder(
-                        this,
-                        alarmsFolder,
-                        booleanSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(discreteAlarm.AlarmNodeName, discreteAlarm);
+                AlarmHolder discreteAlarm = new DiscreteAlarmHolder(
+                    this,
+                    alarmsFolder,
+                    booleanSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(discreteAlarm.AlarmNodeName, discreteAlarm);
 
-                    AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
-                        this,
-                        alarmsFolder,
-                        booleanSourceController,
-                        intervalString,
-                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
-                        alarmControllerType,
-                        interval,
-                        optional: true);
-                    m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
+                AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
+                    this,
+                    alarmsFolder,
+                    booleanSourceController,
+                    intervalString,
+                    GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                    alarmControllerType,
+                    interval,
+                    optional: true);
+                m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
 
-                    // Set up the alarm group + suppression engine demo. The
-                    // analog alarms are added to an AlarmGroupState and a
-                    // MaintenanceMode boolean is registered as the
-                    // suppression source. When the source flips true, the
-                    // engine suppresses every alarm member; when it flips
-                    // back to false the suppression clears automatically.
-                    m_analogGroup = CreateAlarmGroup(alarmsFolder, "AnalogGroup");
-                    foreach (AlarmHolder holder in m_alarms.Values)
+                // Set up the alarm group + suppression engine demo. The
+                // analog alarms are added to an AlarmGroupState and a
+                // MaintenanceMode boolean is registered as the
+                // suppression source. When the source flips true, the
+                // engine suppresses every alarm member; when it flips
+                // back to false the suppression clears automatically.
+                m_analogGroup = CreateAlarmGroup(alarmsFolder, "AnalogGroup");
+                foreach (AlarmHolder holder in m_alarms.Values)
+                {
+                    if (holder.Alarm is AlarmConditionState alarmState)
                     {
-                        if (holder.Alarm is AlarmConditionState alarmState)
-                        {
-                            m_analogGroup.AddMember(alarmState);
-                        }
+                        m_analogGroup.AddMember(alarmState);
                     }
+                }
 
-                    m_maintenanceMode = AlarmHelpers.CreateVariable(
-                        alarmsFolder,
-                        NamespaceIndex,
-                        alarmsNodeName + ".MaintenanceMode",
-                        "MaintenanceMode",
-                        boolValue: false);
-                    m_maintenanceMode.OnWriteValue = OnMaintenanceModeWritten;
+                m_maintenanceMode = AlarmHelpers.CreateVariable(
+                    alarmsFolder,
+                    NamespaceIndex,
+                    alarmsNodeName + ".MaintenanceMode",
+                    "MaintenanceMode",
+                    boolValue: false);
+                m_maintenanceMode.OnWriteValue = OnMaintenanceModeWritten;
 
-                    m_suppressionEngine = new AlarmSuppressionEngine();
-                    m_suppressionEngine.RegisterSuppressionGroup(
-                        m_analogGroup.State,
-                        () => m_maintenanceMode != null
-                              && m_maintenanceMode.Value.TryGetValue(out bool b)
-                              && b,
-                        [.. GetAlarmStates()]);
+                m_suppressionEngine = new AlarmSuppressionEngine();
+                m_suppressionEngine.RegisterSuppressionGroup(
+                    m_analogGroup.State,
+                    () => m_maintenanceMode != null
+                          && m_maintenanceMode.Value.TryGetValue(out bool b)
+                          && b,
+                    [.. GetAlarmStates()]);
 
-                    await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
+                await AddPredefinedNodeAsync(SystemContext, alarmsFolder, cancellationToken).ConfigureAwait(false);
 
-                    // ownership transferred to predefined nodes
-                    alarmsFolder = null;
-                    startMethod = null;
-                    startBranchMethod = null;
-                    endMethod = null;
+                // ownership transferred to predefined nodes
+                alarmsFolder = null;
+                startMethod = null;
+                startBranchMethod = null;
+                endMethod = null;
 
                 StartTimer();
                 m_allowEntry = true;

@@ -301,18 +301,13 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            using var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
             nodeManagerMock
                 .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(() =>
-                {
-                    firstValidationSignal.Set();
-                    return new ValueTask<ServiceResult>(ServiceResult.Good);
-                });
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
 
             // Set up a ConfigurationNodeManager mock that exposes the DefaultPermissionsChanged event
             var configNodeManagerMock = new Mock<IConfigurationNodeManager>();
@@ -325,7 +320,14 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Auditing).Returns(false);
             serverMock.Setup(s => s.ConfigurationNodeManager).Returns(configNodeManagerMock.Object);
 
+            // Signal when QueueValue is called — this guarantees the cache has been populated
+            // (QueueValue happens after the permission result is cached).
+            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            monitoredItemMock
+                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Callback(() => firstItemProcessed.Set());
+
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
 
@@ -334,8 +336,8 @@ namespace Opc.Ua.Server.Tests
             // First value change populates the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
-            // Wait until the consumer has processed the first notification and populated the cache.
-            firstValidationSignal.Wait(TimeSpan.FromSeconds(30));
+            // Wait until the consumer has fully processed the first notification (cache populated).
+            firstItemProcessed.Wait(TimeSpan.FromSeconds(30));
 
             // Simulate namespace DefaultPermissionsChanged event firing
             Assert.That(capturedHandler, Is.Not.Null, "DefaultPermissionsChanged handler should have been subscribed");
@@ -727,9 +729,7 @@ namespace Opc.Ua.Server.Tests
                 Times.Exactly(2));
         }
 
-        // =====================================================================
         // Event handling tests
-        // =====================================================================
 
         /// <summary>
         /// Verifies that a single event fired on a node is delivered to the registered
@@ -1196,24 +1196,24 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            using var firstValidationSignal = new System.Threading.ManualResetEventSlim(false);
             nodeManagerMock
                 .Setup(m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(() =>
-                {
-                    firstValidationSignal.Set();
-                    return new ValueTask<ServiceResult>(ServiceResult.Good);
-                });
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
+            // Signal when QueueValue is called — this guarantees the cache has been populated.
+            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
+            monitoredItemMock
+                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Callback(() => firstItemProcessed.Set());
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1223,8 +1223,8 @@ namespace Opc.Ua.Server.Tests
             // Populate the permission cache with the first value change
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
 
-            // Wait until the consumer has processed the first notification and populated the cache.
-            firstValidationSignal.Wait(TimeSpan.FromSeconds(30));
+            // Wait until the consumer has fully processed the first notification (cache populated).
+            firstItemProcessed.Wait(TimeSpan.FromSeconds(30));
 
             // Act – invalidate permission cache for the session (simulates identity change)
             monitoredNode.InvalidatePermissionCacheForSession(sessionId);
@@ -1271,9 +1271,15 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
+            // Signal when QueueValue is called — this guarantees the cache has been populated.
+            using var firstItemProcessed = new System.Threading.ManualResetEventSlim(false);
+
             // Monitored item belongs to sessionId, not otherSessionId
             Mock<IDataChangeMonitoredItem2> monitoredItemMock =
                 CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
+            monitoredItemMock
+                .Setup(m => m.QueueValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()))
+                .Callback(() => firstItemProcessed.Set());
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(monitoredItemMock.Object);
@@ -1282,6 +1288,9 @@ namespace Opc.Ua.Server.Tests
 
             // Populate the cache
             monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            // Wait until the consumer has fully processed the first notification (cache populated).
+            firstItemProcessed.Wait(TimeSpan.FromSeconds(30));
 
             // Act – invalidate for a DIFFERENT session
             monitoredNode.InvalidatePermissionCacheForSession(otherSessionId);
@@ -1442,6 +1451,207 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.Dispose();
 
             Assert.That(validationCalls, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Verifies that when the MonitoredNode2 is configured for the Server object
+        /// (ObjectIds.Server), consumer tasks scale up as event monitored items are added
+        /// and all events are delivered to all monitored items.
+        /// </summary>
+        [Test]
+        public void ServerNode_MultipleEventConsumers_AllEventsDelivered()
+        {
+            // Use ObjectIds.Server so the Server-node multi-consumer path is activated
+            var node = new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.Server,
+                BrowseName = new QualifiedName("Server", 0)
+            };
+
+            int validationCalls = 0;
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref validationCalls);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            // Create multiple event monitored items
+            Mock<IEventMonitoredItem> item1Mock = CreateEventMonitoredItemMock(1u);
+            Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
+            Mock<IEventMonitoredItem> item3Mock = CreateEventMonitoredItemMock(3u);
+
+            // Consumer tasks scale up as MIs are added (starts with 1, scales to 3)
+            var monitoredNode = new MonitoredNode2(
+                nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(item1Mock.Object);
+            monitoredNode.Add(item2Mock.Object);
+            monitoredNode.Add(item3Mock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectIds.Server };
+                return ev;
+            }
+
+            const int eventCount = 10;
+            for (int i = 0; i < eventCount; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            // Dispose drains the event channel
+            monitoredNode.Dispose();
+
+            // Each event should be delivered to all 3 monitored items
+            int item1Queued = item1Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item2Queued = item2Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item3Queued = item3Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.That(item1Queued + item2Queued + item3Queued, Is.EqualTo(eventCount * 3),
+                "Every event must be delivered to every monitored item.");
+            Assert.That(item1Queued, Is.EqualTo(eventCount));
+            Assert.That(item2Queued, Is.EqualTo(eventCount));
+            Assert.That(item3Queued, Is.EqualTo(eventCount));
+        }
+
+        /// <summary>
+        /// Verifies that a non-Server node can opt into multi-consumer handling
+        /// via the <c>enableMultipleEventConsumers</c> constructor parameter.
+        /// </summary>
+        [Test]
+        public void NonServerNode_OptInMultiConsumer_AllEventsDelivered()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("CustomNotifier", 2),
+                BrowseName = new QualifiedName("CustomNotifier", 2)
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IEventMonitoredItem> item1Mock = CreateEventMonitoredItemMock(1u);
+            Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
+
+            // Opt in via constructor parameter
+            var monitoredNode = new MonitoredNode2(
+                nodeManagerMock.Object, serverMock.Object, node,
+                enableMultipleEventConsumers: true);
+            monitoredNode.Add(item1Mock.Object);
+            monitoredNode.Add(item2Mock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = node.NodeId };
+                return ev;
+            }
+
+            const int eventCount = 10;
+            for (int i = 0; i < eventCount; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            monitoredNode.Dispose();
+
+            int item1Queued = item1Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item2Queued = item2Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.That(item1Queued + item2Queued, Is.EqualTo(eventCount * 2),
+                "Every event must be delivered to every monitored item.");
+            Assert.That(item1Queued, Is.EqualTo(eventCount));
+            Assert.That(item2Queued, Is.EqualTo(eventCount));
+        }
+
+        /// <summary>
+        /// Verifies that a non-Server node without opt-in does NOT create
+        /// additional consumer tasks (single-reader channel).
+        /// </summary>
+        [Test]
+        public void NonServerNode_NoOptIn_SingleConsumer()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("RegularNode", 2),
+                BrowseName = new QualifiedName("RegularNode", 2)
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<IFilterTarget>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IEventMonitoredItem> item1Mock = CreateEventMonitoredItemMock(1u);
+            Mock<IEventMonitoredItem> item2Mock = CreateEventMonitoredItemMock(2u);
+
+            // Default: no multi-consumer
+            var monitoredNode = new MonitoredNode2(
+                nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(item1Mock.Object);
+            monitoredNode.Add(item2Mock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            BaseEventState BuildEvent()
+            {
+                var ev = new BaseEventState(null);
+                ev.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = ObjectTypeIds.GeneralModelChangeEventType };
+                ev.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(ev) { Value = node.NodeId };
+                return ev;
+            }
+
+            const int eventCount = 10;
+            for (int i = 0; i < eventCount; i++)
+            {
+                monitoredNode.OnReportEvent(context, node, BuildEvent());
+            }
+
+            monitoredNode.Dispose();
+
+            // Events still delivered to all items (single consumer handles all)
+            int item1Queued = item1Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+            int item2Queued = item2Mock.Invocations
+                .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.That(item1Queued + item2Queued, Is.EqualTo(eventCount * 2),
+                "Every event must be delivered to every monitored item.");
         }
     }
 }

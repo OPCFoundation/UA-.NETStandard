@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         [Test]
-        public async Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
+        public Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -70,13 +70,13 @@ namespace Opc.Ua.Client.Tests.Historian
                     {
                         new()
                         {
-                            StatusCode = StatusCodes.BadHistoryOperationInvalid,
-                        },
-                    }.ToArrayOf(),
+                            StatusCode = StatusCodes.BadHistoryOperationInvalid
+                        }
+                    }.ToArrayOf()
                 }));
 
             var client = new HistoryClient(mockSession.Object);
-            NodeId nodeId = new NodeId("TestNode", 2);
+            var nodeId = new NodeId("TestNode", 2);
             DateTime start = DateTime.UtcNow.AddHours(-1);
             DateTime end = DateTime.UtcNow;
 
@@ -89,6 +89,7 @@ namespace Opc.Ua.Client.Tests.Historian
             });
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -105,7 +106,7 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistoryReadResponse>(new HistoryReadResponse
                 {
-                    Results = Array.Empty<HistoryReadResult>().ToArrayOf(),
+                    Results = Array.Empty<HistoryReadResult>().ToArrayOf()
                 }));
 
             var client = new HistoryClient(mockSession.Object);
@@ -124,7 +125,7 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         [Test]
-        public async Task ReadRawWithThreeEmptyPagesAndContinuationThrowsBadInternalErrorAsync()
+        public Task ReadRawWithThreeEmptyPagesAndContinuationThrowsBadInternalErrorAsync()
         {
             int callCount = 0;
             var mockSession = new Mock<ISession>();
@@ -146,9 +147,9 @@ namespace Opc.Ua.Client.Tests.Historian
                             new()
                             {
                                 StatusCode = StatusCodes.Good,
-                                ContinuationPoint = (ByteString)new byte[] { 0x01 },
-                            },
-                        }.ToArrayOf(),
+                                ContinuationPoint = (ByteString)new byte[] { 0x01 }
+                            }
+                        }.ToArrayOf()
                     });
                 });
 
@@ -168,6 +169,7 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
             Assert.That(callCount, Is.GreaterThanOrEqualTo(3),
                 "The guard should trigger after three consecutive empty pages.");
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -181,7 +183,7 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
                 {
-                    Results = Array.Empty<HistoryUpdateResult>().ToArrayOf(),
+                    Results = Array.Empty<HistoryUpdateResult>().ToArrayOf()
                 }));
 
             var client = new HistoryClient(mockSession.Object);
@@ -195,7 +197,7 @@ namespace Opc.Ua.Client.Tests.Historian
                         new Variant(1.0),
                         StatusCodes.Good,
                         sourceTimestamp: now,
-                        serverTimestamp: now),
+                        serverTimestamp: now)
                 }).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty,

@@ -27,11 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.InformationModel.Tests
@@ -77,7 +75,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
                 "RedundancySupport should be readable.");
 
-            int value = (int)dv.WrappedValue.GetInt32();
+            int value = dv.WrappedValue.GetInt32();
             // RedundancySupport enum: None=0, Cold=1, Warm=2,
             // Hot=3, Transparent=4, HotAndMirrored=5
             Assert.That(value, Is.InRange(0, 5),
@@ -91,7 +89,7 @@ namespace Opc.Ua.InformationModel.Tests
                 VariableIds.Server_ServerRedundancy_RedundancySupport)
                 .ConfigureAwait(false);
 
-            int redundancySupport = (int)dv.WrappedValue.GetInt32();
+            int redundancySupport = dv.WrappedValue.GetInt32();
 
             // ServerUriArray is only mandatory when redundancy != None
             if (redundancySupport == 0)
@@ -135,7 +133,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(
                 StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
-            var dataType = response.Results[0].WrappedValue.GetNodeId();
+            NodeId dataType = response.Results[0].WrappedValue.GetNodeId();
             // DataTypeId i=851 is the RedundancySupport enumeration
             Assert.That(dataType, Is.EqualTo(DataTypeIds.RedundancySupport),
                 "RedundancySupport DataType should be RedundancySupport enum.");
@@ -182,7 +180,7 @@ namespace Opc.Ua.InformationModel.Tests
                 VariableIds.Server_ServerRedundancy_RedundancySupport)
                 .ConfigureAwait(false);
 
-            int redundancySupport = (int)dv.WrappedValue.GetInt32();
+            int redundancySupport = dv.WrappedValue.GetInt32();
             if (redundancySupport == 0)
             {
                 Assert.Ignore(

@@ -978,7 +978,7 @@ namespace Opc.Ua
             DateTimeUtc serverTimestamp = ReadDateTime("ServerTimestamp");
             ushort serverPicoseconds = ReadUInt16("ServerPicoseconds");
 
-            DataValue value = new DataValue(
+            var value = new DataValue(
                 variant,
                 statusCode,
                 sourceTimestamp,
@@ -2217,7 +2217,7 @@ namespace Opc.Ua
                         case "ExtensionObject":
                             return ReadExtensionObject(typeName);
                         case "DataValue":
-return ReadDataValue(typeName);
+                            return ReadDataValue(typeName);
                         case "Matrix":
                             return ReadMatrix(typeName);
                         default:

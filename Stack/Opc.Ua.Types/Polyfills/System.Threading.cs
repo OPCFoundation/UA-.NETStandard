@@ -73,7 +73,7 @@ namespace System.Threading
         /// </remarks>
         public static Task CancelAsync(this CancellationTokenSource source)
         {
-            return Task.Run((Action)source.Cancel);
+            return Task.Run(source.Cancel);
         }
 #endif
     }

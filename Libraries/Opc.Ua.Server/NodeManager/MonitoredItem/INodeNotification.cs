@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
         /// its own <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
         /// <see cref="IDataChangeMonitoredItem2.DataEncoding"/> at queue time.
         /// </summary>
-        public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = new();
+        public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = [];
     }
 
     /// <summary>

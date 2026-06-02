@@ -33,7 +33,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Stress.Tests

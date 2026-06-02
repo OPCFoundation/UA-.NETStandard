@@ -104,10 +104,7 @@ namespace Opc.Ua.Server.Historian
             HistoricalDataConfigurationState config,
             HistorianNodeCapabilities capabilities)
         {
-            if (config.Stepped != null)
-            {
-                config.Stepped.Value = capabilities.Stepped;
-            }
+            config.Stepped?.Value = capabilities.Stepped;
 
             if (!string.IsNullOrEmpty(capabilities.Definition))
             {
@@ -155,10 +152,7 @@ namespace Opc.Ua.Server.Historian
             {
                 _ = config.AddServerTimestampSupported(context);
             }
-            if (config.ServerTimestampSupported != null)
-            {
-                config.ServerTimestampSupported.Value = capabilities.ServerTimestampSupported;
-            }
+            config.ServerTimestampSupported?.Value = capabilities.ServerTimestampSupported;
         }
 
         private static HistoricalDataConfigurationState? FindExistingConfiguration(

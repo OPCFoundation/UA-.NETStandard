@@ -66,6 +66,13 @@ namespace Opc.Ua.Server
         ValueTask<NamespaceMetadataState?> GetNamespaceMetadataStateAsync(ushort namespaceIndex, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Binds the standard KeyCredentialConfiguration folder to the supplied push subject.
+        /// </summary>
+        ValueTask BindKeyCredentialPushAsync(
+            KeyCredentialPushSubject subject,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>

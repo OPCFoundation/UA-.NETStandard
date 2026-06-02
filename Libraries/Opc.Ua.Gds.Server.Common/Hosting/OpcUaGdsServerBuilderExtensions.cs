@@ -30,14 +30,19 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
+using Opc.Ua.Gds.Server.Identity;
+using Opc.Ua.Identity;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
-
-#nullable enable
+using ServerAccessTokenProvider = Opc.Ua.Gds.Server.IAccessTokenProvider;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -178,6 +183,301 @@ namespace Microsoft.Extensions.DependencyInjection
             return new GdsServerBuilder(builder.Services);
         }
 
+        /// <summary>
+        /// Registers a GDS server-side identity authenticator and adds it to
+        /// the server registry on startup.
+        /// </summary>
+        /// <typeparam name="TAuth">The authenticator type.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddIdentityAuthenticator<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAuth>(
+                this IGdsServerBuilder gdsBuilder)
+            where TAuth : class, IUserTokenAuthenticator
+        {
+            ToServerBuilder(gdsBuilder).AddIdentityAuthenticator<TAuth>(
+);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a GDS server-side identity augmenter and adds it to the
+        /// server registry on startup.
+        /// </summary>
+        /// <typeparam name="TAugmenter">The augmenter type.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddIdentityAugmenter<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAugmenter>(
+                this IGdsServerBuilder gdsBuilder)
+            where TAugmenter : class, IIdentityAugmenter
+        {
+            ToServerBuilder(gdsBuilder).AddIdentityAugmenter<TAugmenter>(
+);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a GDS server-side identity augmenter factory and adds it
+        /// to the server registry on startup.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="factory">Factory that materialises the augmenter.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="factory"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddIdentityAugmenter(
+            this IGdsServerBuilder gdsBuilder,
+            Func<IServiceProvider, IIdentityAugmenter> factory)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (factory is null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            serverBuilder.AddIdentityAugmenter(factory);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers the default GDS ApplicationSelfAdmin identity augmenter.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddGdsApplicationSelfAdminProvider(
+            this IGdsServerBuilder gdsBuilder)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
+            serverBuilder.AddIdentityAugmenter(
+                sp => new GdsApplicationSelfAdminProvider(
+                    sp.GetRequiredService<IApplicationsDatabase>(),
+                    sp.GetRequiredService<ILogger<GdsApplicationSelfAdminProvider>>()));
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers the built-in GDS identity authenticators that can be
+        /// resolved from DI and server state.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="GdsDefaultIdentityAuthenticatorOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddDefaultIdentityAuthenticators(
+            this IGdsServerBuilder gdsBuilder,
+            Action<GdsDefaultIdentityAuthenticatorOptions> configure)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            var options = new GdsDefaultIdentityAuthenticatorOptions();
+            configure(options);
+            serverBuilder.AddDefaultIdentityAuthenticators(
+                serverOptions => CopyDefaultAuthenticatorOptions(serverOptions, options));
+            if (options.EnableGdsApplicationSelfAdminProvider)
+            {
+                AddGdsApplicationSelfAdminProvider(gdsBuilder);
+            }
+            else
+            {
+                SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
+            }
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Configures the default role manager used by the hosted GDS server
+        /// using configuration binding.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="section">Configuration section bound to
+        /// <see cref="RoleConfigurationOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder ConfigureRoles(
+            this IGdsServerBuilder gdsBuilder,
+            IConfiguration section)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            serverBuilder.ConfigureRoles(section);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers the default identity authenticators without the GDS ApplicationSelfAdmin identity augmenter.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder DisableGdsApplicationSelfAdminProvider(
+            this IGdsServerBuilder gdsBuilder)
+        {
+            return AddDefaultIdentityAuthenticators(
+                gdsBuilder,
+                options => options.EnableGdsApplicationSelfAdminProvider = false);
+        }
+
+        /// <summary>
+        /// Registers the built-in GDS identity authenticators with options
+        /// bound from a configuration section.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="section">Configuration section bound to
+        /// <see cref="GdsDefaultIdentityAuthenticatorOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddDefaultIdentityAuthenticators(
+            this IGdsServerBuilder gdsBuilder,
+            IConfiguration section)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            serverBuilder.AddDefaultIdentityAuthenticators(
+                section);
+            if (GetBoolean(
+                section,
+                nameof(GdsDefaultIdentityAuthenticatorOptions.EnableGdsApplicationSelfAdminProvider),
+                defaultValue: true))
+            {
+                AddGdsApplicationSelfAdminProvider(gdsBuilder);
+            }
+            else
+            {
+                SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
+            }
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a trusted JWT issuer with the GDS server from code.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="JwtIssuerOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddJwtIssuer(
+            this IGdsServerBuilder gdsBuilder,
+            Action<JwtIssuerOptions> configure)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            serverBuilder.AddJwtIssuer(configure);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a trusted JWT issuer with the GDS server from a
+        /// configuration section.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="section">Configuration section bound to
+        /// <see cref="JwtIssuerOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddJwtIssuer(
+            this IGdsServerBuilder gdsBuilder,
+            IConfiguration section)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            serverBuilder.AddJwtIssuer(section);
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Enables the default GDS AuthorizationService backed by an
+        /// ECDSA/RSA JWT issuer.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="AuthorizationServiceOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        public static IGdsServerBuilder WithAuthorizationService(
+            this IGdsServerBuilder gdsBuilder,
+            Action<AuthorizationServiceOptions> configure)
+        {
+            return WithAuthorizationService<CertificateJwtIssuer>(gdsBuilder, configure);
+        }
+
+        /// <summary>
+        /// Enables the GDS AuthorizationService with a custom token issuer.
+        /// </summary>
+        /// <typeparam name="TIssuer">The issuer implementation.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="configure">Callback used to populate
+        /// <see cref="AuthorizationServiceOptions"/>.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        public static IGdsServerBuilder WithAuthorizationService<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TIssuer>(
+                this IGdsServerBuilder gdsBuilder,
+                Action<AuthorizationServiceOptions> configure)
+            where TIssuer : class, ITokenIssuer
+        {
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            gdsBuilder.Services.AddOptions<AuthorizationServiceOptions>().Configure(configure);
+            gdsBuilder.Services.TryAddSingleton<TIssuer>();
+            gdsBuilder.Services.TryAddSingleton<ITokenIssuer>(sp => sp.GetRequiredService<TIssuer>());
+            gdsBuilder.Services.TryAddSingleton<InMemoryAccessTokenProvider>();
+            gdsBuilder.Services.TryAddSingleton<AuthorizationServiceManager>();
+            gdsBuilder.Services.TryAddSingleton<ServerAccessTokenProvider>(
+                sp => sp.GetRequiredService<AuthorizationServiceManager>());
+            return gdsBuilder;
+        }
+
+        private static ForwardingServerBuilder ToServerBuilder(IGdsServerBuilder gdsBuilder)
+        {
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
+
+            return new ForwardingServerBuilder(gdsBuilder.Services);
+        }
+
         private static void EnsureFirstRegistration(IServiceCollection services)
         {
             foreach (ServiceDescriptor d in services)
@@ -198,9 +498,68 @@ namespace Microsoft.Extensions.DependencyInjection
             // idempotent: TryAddSingleton). Mirrors the
             // OpcUaServerBuilderExtensions pattern so the GDS feature
             // can be added independently of AddServer.
-            OpcUaServiceCollectionExtensions.AddOpcUa(services).AddApplicationInstance();
+            services.AddOpcUa().AddApplicationInstance();
+            services.AddOptions<GdsDefaultIdentityAuthenticatorOptions>();
 
             services.AddHostedService<GdsServerHostedService>();
+        }
+
+        private static void SuppressBuiltInGdsApplicationSelfAdminProvider(IServiceCollection services)
+        {
+            services.PostConfigure<GdsDefaultIdentityAuthenticatorOptions>(
+                options => options.EnableGdsApplicationSelfAdminProvider = false);
+        }
+
+        private static void CopyDefaultAuthenticatorOptions(
+            DefaultAuthenticatorOptions target,
+            GdsDefaultIdentityAuthenticatorOptions source)
+        {
+            target.EnableAnonymous = source.EnableAnonymous;
+            target.EnableUserNamePassword = source.EnableUserNamePassword;
+            target.EnableX509 = source.EnableX509;
+            target.EnableJwt = source.EnableJwt;
+            target.UserDatabase = source.UserDatabase;
+            target.UserManagement = source.UserManagement;
+            target.UserCertificateTrustList = source.UserCertificateTrustList;
+            target.IssuerKeyResolver = source.IssuerKeyResolver;
+            target.ExpectedAudience = source.ExpectedAudience;
+            target.ClockSkewTolerance = source.ClockSkewTolerance;
+        }
+
+        private static bool GetBoolean(IConfiguration section, string key, bool defaultValue)
+        {
+            string? value = section[key];
+            return string.IsNullOrEmpty(value) ? defaultValue : bool.Parse(value);
+        }
+
+        private sealed class ForwardingServerBuilder : IOpcUaServerBuilder
+        {
+            public ForwardingServerBuilder(IServiceCollection services)
+            {
+                Services = services;
+            }
+
+            public IServiceCollection Services { get; }
+
+            public IOpcUaServerBuilder AddNodeManager<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
+                where TFactory : class, IAsyncNodeManagerFactory
+            {
+                Services.AddSingleton<TFactory>();
+                Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
+                    sp.GetRequiredService<TFactory>()));
+                return this;
+            }
+
+            public IOpcUaServerBuilder AddSyncNodeManager<
+                [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
+                where TFactory : class, INodeManagerFactory
+            {
+                Services.AddSingleton<TFactory>();
+                Services.AddSingleton(sp => new OpcUaServerNodeManagerRegistration(
+                    sp.GetRequiredService<TFactory>()));
+                return this;
+            }
         }
 
         private sealed class GdsServerBuilder : IGdsServerBuilder
@@ -274,10 +633,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public IGdsServerBuilder AddAccessTokenProvider<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
-                where T : class, IAccessTokenProvider
+                where T : class, ServerAccessTokenProvider
             {
                 Services.AddSingleton<T>();
-                Services.AddSingleton<IAccessTokenProvider>(
+                Services.AddSingleton<ServerAccessTokenProvider>(
                     sp => sp.GetRequiredService<T>());
                 return this;
             }
@@ -303,8 +662,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private sealed class GdsServerRegistrationMarker
-        {
-        }
+        private sealed class GdsServerRegistrationMarker;
     }
 }

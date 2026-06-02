@@ -29,8 +29,6 @@
 
 using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.Client.ComplexTypes;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {

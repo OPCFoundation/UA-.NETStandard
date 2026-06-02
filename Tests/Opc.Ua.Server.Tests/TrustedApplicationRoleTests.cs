@@ -33,9 +33,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Tests;
-
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -296,6 +295,24 @@ namespace Opc.Ua.Server.Tests
         public void PublicReevaluateIdentityIfStale(ISession session, SecureChannelContext channelContext)
         {
             ReevaluateIdentityIfStale(session, channelContext);
+        }
+
+        public ValueTask<(
+            IUserIdentity? Identity,
+            IUserIdentity? EffectiveIdentity,
+            ServiceResult? Error)> PublicAuthenticateUserIdentityAsync(
+                ISession session,
+                IUserIdentityTokenHandler newIdentity,
+                UserTokenPolicy? userTokenPolicy,
+                EndpointDescription endpointDescription,
+                System.Threading.CancellationToken cancellationToken = default)
+        {
+            return AuthenticateUserIdentityAsync(
+                session,
+                newIdentity,
+                userTokenPolicy,
+                endpointDescription,
+                cancellationToken);
         }
 
         public void PublicOnRoleConfigurationChanged(object? sender, RoleConfigurationChangedEventArgs e)

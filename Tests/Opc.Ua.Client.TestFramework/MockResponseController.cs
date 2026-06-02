@@ -185,10 +185,7 @@ namespace Opc.Ua.Client.TestFramework
                 }
             }
 
-            if (matched != null)
-            {
-                matched.Mutator(request, response);
-            }
+            matched?.Mutator(request, response);
 
             return new ValueTask<IServiceResponse>(response);
         }

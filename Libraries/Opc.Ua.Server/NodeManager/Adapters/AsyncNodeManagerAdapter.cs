@@ -762,6 +762,12 @@ namespace Opc.Ua.Server
             return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
+        /// <inheritdoc/>
+        public bool IsMultipleEventConsumerNode(NodeId nodeId)
+        {
+            return false;
+        }
+
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>

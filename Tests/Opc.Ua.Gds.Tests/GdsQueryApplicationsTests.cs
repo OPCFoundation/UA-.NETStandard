@@ -33,7 +33,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Gds;
 
 // Conformance tests use inline literal arrays as expected-value
 // assertions; the per-call allocation cost is irrelevant for tests
@@ -55,7 +54,7 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         public async Task QueryApplicationsSetUp()
         {
-            m_directoryNodeId = ToNodeId(Gds.ObjectIds.Directory);
+            m_directoryNodeId = ToNodeId(ObjectIds.Directory);
 
             // Register several test applications for query tests
             for (int i = 1; i <= 5; i++)
@@ -338,7 +337,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType appRecord,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_RegisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -363,7 +362,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_UnregisterApplication);
+            NodeId methodId = ToNodeId(MethodIds.Directory_UnregisterApplication);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -397,7 +396,7 @@ namespace Opc.Ua.Gds.Tests
             ArrayOf<string>? serverCapabilities,
             CancellationToken ct = default)
         {
-            NodeId methodId = ToNodeId(Gds.MethodIds.Directory_QueryApplications);
+            NodeId methodId = ToNodeId(MethodIds.Directory_QueryApplications);
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {

@@ -108,7 +108,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             }
 
             int firstVariadicIndex = methodName == "Call" ? 2 : 3;
-            IReadOnlyList<ArgumentSyntax> args = invocation.ArgumentList.Arguments;
+            SeparatedSyntaxList<ArgumentSyntax> args = invocation.ArgumentList.Arguments;
             if (args.Count <= firstVariadicIndex)
             {
                 return;

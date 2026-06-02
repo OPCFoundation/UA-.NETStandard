@@ -99,6 +99,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CheckAdmin_AccessTokenRoleClaimWithoutGrantedNodeId_ReturnsBadUserAccessDenied()
+        {
+            var identity = new ClaimsTestIdentity(
+                tokenType: UserTokenType.IssuedToken,
+                roles: new[] { BrowseNames.WellKnownRole_SecurityAdmin });
+            ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, identity);
+
+            ServiceResult result = RoleAuthorizationGate.CheckAdmin(ctx);
+
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                "RoleAuthorizationGate consumes resolved GrantedRoleIds; RoleManager maps access-token claims first.");
+        }
+
+        [Test]
         public void CheckAdmin_SecurityAdminOverSignAndEncrypt_ReturnsGood()
         {
             ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt,

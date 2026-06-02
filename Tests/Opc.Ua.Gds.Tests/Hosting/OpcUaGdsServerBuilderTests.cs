@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             // Both server features published an options registration.
             Assert.That(
-                sp.GetRequiredService<IOptions<Opc.Ua.Server.Hosting.OpcUaServerOptions>>().Value.ApplicationName,
+                sp.GetRequiredService<IOptions<Ua.Server.Hosting.OpcUaServerOptions>>().Value.ApplicationName,
                 Is.EqualTo("RegularServer"));
             Assert.That(
                 sp.GetRequiredService<IOptions<GdsServerOptions>>().Value.ApplicationName,
@@ -170,7 +170,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             int hostedCount = services.Count(s =>
                 s.ServiceType == typeof(IHostedService) &&
                 (s.ImplementationType == typeof(GdsServerHostedService) ||
-                 s.ImplementationType?.Name == "OpcUaServerHostedService"));
+                    s.ImplementationType?.Name == "OpcUaServerHostedService"));
             Assert.That(hostedCount, Is.EqualTo(2));
         }
     }

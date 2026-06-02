@@ -219,7 +219,7 @@ public class EstCertificateGroup : ICertificateGroup
 
 Extend `IUserDatabase` to support the `ApplicationAdmin` role
 (OPC 10000-12 §7.2). The GDS sample server automatically detects
-`IGdsUserDatabase` at impersonation time:
+`IGdsUserDatabase` during username authentication:
 
 ```csharp
 public class MyGdsUserDatabase : LinqUserDatabase, IGdsUserDatabase
@@ -287,6 +287,29 @@ public class FileConfigurationDataStore : IConfigurationDataStore
 | `ApplicationSelfAdmin` | Manage own application's registration |
 | `ApplicationAdmin` | Manage a configured set of applications |
 
+### ApplicationSelfAdmin Privilege
+
+`GdsApplicationSelfAdminProvider` grants `GdsRole.ApplicationSelfAdmin`
+when the secure-channel client certificate matches a certificate stored
+for the registered `ApplicationRecordDataType` found by the channel
+ApplicationUri. The provider is an `IIdentityAugmenter`, so it layers
+SelfAdmin on top of any accepted identity instead of using a custom
+`ImpersonateUser` callback.
+
+For dependency-injection-hosted GDS servers the provider is registered with the symmetric
+builder extension:
+
+```csharp
+services.AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddDefaultIdentityAuthenticators(opt => opt.EnableJwt = false)
+    .AddGdsApplicationSelfAdminProvider();
+```
+
+`AddDefaultIdentityAuthenticators(...)` on `IGdsServerBuilder` also
+adds this provider so standard GDS hosts get OPC 10000-12 §7.2
+SelfAdmin behavior automatically.
+
 ### ApplicationAdmin Privilege
 
 The `ApplicationAdmin` role allows a user to administer a specific
@@ -298,7 +321,7 @@ set of applications (not all applications like `DiscoveryAdmin`).
    `IUserDatabase.CreateUser()`
 2. Implement `IGdsUserDatabase.GetAdministeredApplicationIds()` to
    return the `ApplicationId`s the user may administer
-3. During impersonation, `GlobalDiscoverySampleServer` constructs a
+3. During username authentication, `GlobalDiscoverySampleServer` constructs a
    `GdsRoleBasedIdentity` with `AdministeredApplicationIds` populated
 4. `AuthorizationHelper.CheckApplicationAdminPrivilege()` verifies
    the target application is in the user's administered set
@@ -493,18 +516,40 @@ Status key: ✅ Implemented | ⚠️ Partial | ❌ Not implemented | N/A Not app
 | Revoke | ✅ | `OnKeyCredentialRevoke` |
 | InMemoryKeyCredentialRequestStore | ✅ | `IKeyCredentialRequestStore.cs` |
 | Client proxy | ✅ | `KeyCredentialServiceClient.cs` |
+| KeyCredential Push binding | ✅ | `WithKeyCredentialPush` / `KeyCredentialPushSubject` |
 
 ## AuthorizationService (§9)
 
 | Feature | Status | Source |
 |---------|--------|--------|
 | GetServiceDescription | ✅ | `OnGetServiceDescription` |
-| RequestAccessToken | ⚠️ | Dispatches to `IAccessTokenProvider` when injected; returns Bad_NotSupported otherwise |
-| StartRequestToken (RC) | ⚠️ | `IAccessTokenProvider.StartRequestTokenAsync` interface defined; dispatched when provider is injected |
-| FinishRequestToken (RC) | ⚠️ | `IAccessTokenProvider.FinishRequestTokenAsync` interface defined; dispatched when provider is injected |
-| RefreshToken (RC) | ⚠️ | `IAccessTokenProvider.RefreshTokenAsync` interface defined; dispatched when provider is injected |
+| RequestAccessToken | ✅ | Legacy compatibility path via `IAccessTokenProvider.RequestAccessTokenAsync` |
+| StartRequestToken (RC) | ✅ | `OnStartRequestToken` / `AuthorizationServiceManager` |
+| FinishRequestToken (RC) | ✅ | `OnFinishRequestToken` / `AuthorizationServiceManager` |
+| RefreshToken (RC) | ✅ | `OnRefreshTokenAsync` / `AuthorizationServiceManager` |
 | SupportedRoles (RC) | ✅ | Model property exposed |
 | Client proxy | ✅ | `AuthorizationServiceClient.cs` |
+
+### Refresh tokens
+
+The default in-memory AuthorizationService provider issues a refresh token from
+`FinishRequestToken` and accepts it through `RefreshToken` (OPC 10000-12 §9.7). Refresh
+tokens are opaque, single-use secrets: each successful refresh consumes the current token,
+issues a new access token, and rotates to a new refresh token. The refresh-token lifetime
+slides by `AuthorizationServiceOptions.DefaultRefreshTokenLifetime` (7 days by default).
+Set `AuthorizationServiceOptions.EnableRefreshTokens = false` to preserve the legacy
+behavior where `FinishRequestToken` returns no refresh token and `RefreshToken` returns
+`Bad_NotSupported`.
+
+```csharp
+var (newJwt, newJwtExpiresAt, newRefreshToken, newRefreshExpiresAt) =
+    await authClient.RefreshTokenAsync(resourceId, refreshToken);
+
+refreshToken = newRefreshToken;
+```
+
+Refresh-token audit events include only the `resourceId` input and the outcome. The
+refresh token itself is a secret and is never placed in audit payloads.
 
 ## LDS / LDS-ME (§4–5)
 

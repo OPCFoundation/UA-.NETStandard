@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 // Conformance tests use inline literal arrays as expected-value
@@ -166,7 +165,7 @@ namespace Opc.Ua.InformationModel.Tests
             await BrowseRequiresMandatoryMethodsAsync(
                 folderNodeId: new NodeId(15443),
                 folderName: "SecurityGroups (i=15443)",
-                expectedMethods: new[] { "AddSecurityGroup", "RemoveSecurityGroup" })
+                expectedMethods: ["AddSecurityGroup", "RemoveSecurityGroup"])
                 .ConfigureAwait(false);
         }
 
@@ -179,7 +178,7 @@ namespace Opc.Ua.InformationModel.Tests
             await BrowseRequiresMandatoryMethodsAsync(
                 folderNodeId: new NodeId(25440),
                 folderName: "KeyPushTargets (i=25440)",
-                expectedMethods: new[] { "AddPushTarget", "RemovePushTarget" })
+                expectedMethods: ["AddPushTarget", "RemovePushTarget"])
                 .ConfigureAwait(false);
         }
 
@@ -209,7 +208,8 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore(
                     folderName +
                     " is not present in the address space (Bad status: " +
-                    response.Results[0].StatusCode + ").");
+                    response.Results[0].StatusCode +
+                    ").");
             }
 
             var methodNames = new System.Collections.Generic.HashSet<string>(
@@ -230,8 +230,11 @@ namespace Opc.Ua.InformationModel.Tests
                 if (!methodNames.Contains(expected))
                 {
                     Assert.Ignore(
-                        "Mandatory method '" + expected + "' is missing from " +
-                        folderName + " — issue #3719 still open.");
+                        "Mandatory method '" +
+                        expected +
+                        "' is missing from " +
+                        folderName +
+                        " — issue #3719 still open.");
                 }
             }
         }
