@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Pumps;
 using Opc.Ua.Server.Fluent;
 
 namespace Pumps
@@ -176,30 +177,38 @@ namespace Pumps
         }
 
         // ── Supervision flags wired to NAMUR alarms ─────────────────
-        // Cavitation / MotorOverheat are TwoStateDiscreteState nodes
-        // under PumpType.Events.SupervisionProcessFluid and .Supervision-
-        // PumpOperation respectively. TwoStateDiscreteState inherits
-        // BaseDataVariableState<bool> so the fluent Variable<bool>(path)
-        // lookup picks them up. The alarm attached to the Events
-        // container flips Active in lockstep with the cavitation flag.
+        // Demonstrates the FB-3 phase 3 typed accessor API: starting
+        // from a typed INodeBuilder<PumpState> root, the generator-
+        // emitted PumpStateComponents.Events extension walks to
+        // SupervisionState (the type of PumpType.Events), and from
+        // there the typed SupervisionStateComponents accessor walks
+        // to SupervisionProcessFluid and SupervisionPumpOperation —
+        // each step is compile-time checked against the model and
+        // namespace-aware without forcing the author to spell out
+        // browse-paths or QualifiedNames.
         private void WithSupervision(INodeManagerBuilder builder)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
                 global::Opc.Ua.Pumps.Namespaces.Pumps);
 
-            IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = builder
-                .Node("Pump #1/Events")
+            global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.Pumps.PumpState> pump =
+                builder.Node<global::Opc.Ua.Pumps.PumpState>("Pump #1");
+
+            IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = pump
+                .Components().Events()
                 .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
                 .WithLimits(highHigh: 373.15, high: 363.15, low: 283.15, lowLow: 273.15)
                 .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
-            builder.Variable<bool>(
-                "Pump #1/Events/SupervisionProcessFluid/Cavitation")
+            pump.Components().Events()
+                .Components().SupervisionProcessFluid()
+                .Components().Cavitation()
                 .OnRead(() => m_cavitation)
                 .ActivatesAlarm(tempAlarm);
 
-            builder.Variable<bool>(
-                "Pump #1/Events/SupervisionPumpOperation/MotorOverheat")
+            pump.Components().Events()
+                .Components().SupervisionPumpOperation()
+                .Components().MotorOverheat()
                 .OnRead(() => m_motorOverheat);
         }
 

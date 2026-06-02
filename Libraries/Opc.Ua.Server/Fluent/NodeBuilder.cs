@@ -282,13 +282,58 @@ namespace Opc.Ua.Server.Fluent
                     StatusCodes.BadBrowseNameInvalid,
                     "Browse name is null or empty.");
             }
-            return Node.FindChild(m_parent.Context, browseName) ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdUnknown,
-                    "Child '{0}' not found under '{1}' (id '{2}').",
-                    browseName,
-                    Node.BrowseName,
-                    Node.NodeId);
+
+            // Try exact-namespace match first.
+            BaseInstanceState? child =
+                Node.FindChild(m_parent.Context, browseName) as BaseInstanceState;
+            if (child != null)
+            {
+                return child;
+            }
+
+            // Cross-namespace fallback: when no exact-namespace match,
+            // scan children by local name only. Required so generator-
+            // emitted typed accessors can pass an unqualified
+            // QualifiedName(name) and have it resolve through namespace
+            // transitions induced by inherited type children (e.g.
+            // PumpType inheriting Operational from MachineComponentType).
+            // Ambiguity (more than one child with the same local name
+            // in different namespaces) is reported as
+            // BadBrowseNameDuplicated so the caller is forced to pass
+            // the disambiguating namespace index explicitly.
+            var siblings = new System.Collections.Generic.List<BaseInstanceState>();
+            Node.GetChildren(m_parent.Context, siblings);
+            BaseInstanceState? match = null;
+            for (int i = 0; i < siblings.Count; i++)
+            {
+                BaseInstanceState sibling = siblings[i];
+                if (sibling.BrowseName.IsNull || !string.Equals(
+                        sibling.BrowseName.Name, browseName.Name,
+                        System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (match != null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "Child '{0}' under '{1}' is ambiguous (matches " +
+                        "multiple namespaces; supply the namespace index explicitly).",
+                        browseName, Node.BrowseName);
+                }
+                match = sibling;
+            }
+            if (match != null)
+            {
+                return match;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadNodeIdUnknown,
+                "Child '{0}' not found under '{1}' (id '{2}').",
+                browseName,
+                Node.BrowseName,
+                Node.NodeId);
         }
 
         private BaseVariableState RequireVariable(string what)

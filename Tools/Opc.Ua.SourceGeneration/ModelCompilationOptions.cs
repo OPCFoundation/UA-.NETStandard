@@ -130,6 +130,21 @@ namespace Opc.Ua.SourceGeneration
             = EmitDependencyMetadataMode.Auto;
 
         /// <summary>
+        /// When set to <c>true</c>, the per-ObjectType typed accessor
+        /// extension classes (FB-3 phase 3:
+        /// <c>{TypeName}StateComponents</c> +
+        /// <c>{TypeName}StateProperties</c>) are emitted alongside the
+        /// model output. Off by default because the emitted accessors
+        /// reference <c>Opc.Ua.Server.Fluent.IComponentAccessor</c>
+        /// (server-side assembly) — model-only libraries would fail to
+        /// compile. Set in projects that ship a server-side integration
+        /// (Applications/*, Libraries/Opc.Ua.*.Server/*) via the
+        /// <c>ModelSourceGeneratorEmitFluentAccessors</c> MSBuild
+        /// property.
+        /// </summary>
+        public bool EmitFluentAccessors { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         public static ModelCompilationOptions From(AnalyzerConfigOptionsProvider provider)
@@ -161,7 +176,9 @@ namespace Opc.Ua.SourceGeneration
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
                     nameof(UseTypeDefinitionModellingRules)),
                 EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
-                    nameof(EmitDependencyMetadata)))
+                    nameof(EmitDependencyMetadata))),
+                EmitFluentAccessors = provider.GlobalOptions.GetBool(
+                    nameof(EmitFluentAccessors))
             };
         }
 

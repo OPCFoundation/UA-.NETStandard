@@ -112,7 +112,8 @@ namespace Opc.Ua.SourceGeneration
                             : m_options.ObjectTypeProxyNamespace,
                     UseTypeDefinitionModellingRules =
                         m_options.UseTypeDefinitionModellingRules,
-                    EmitDependencyMetadata = ResolveEmitDependencyMetadata()
+                    EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
+                    EmitFluentAccessors = m_options.EmitFluentAccessors
                 };
 
                 // Load all available nodeset files from the input

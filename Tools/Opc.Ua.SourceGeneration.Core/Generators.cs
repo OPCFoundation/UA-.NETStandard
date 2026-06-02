@@ -628,11 +628,26 @@ namespace Opc.Ua.SourceGeneration
                     OverrideClassName = designOptions.NodeManagerClassName,
                     EmitFactory = designOptions.EmitNodeManagerFactory
                 }.Emit();
+            }
 
+            // FluentBuilderGenerator always runs to emit per-ObjectType
+            // typed-accessor extension classes (FB-3 phase 3) when
+            // explicitly opted in via GeneratorOptions.EmitFluentAccessors
+            // OR when GenerateNodeManager=true (any server-side
+            // consumer that wires a node manager always references
+            // Opc.Ua.Server, so emitting the typed accessors there is
+            // safe and provides the typed builder pipeline alongside
+            // the manager + instance wrappers).
+            bool emitTypedAccessors = context.Options?.EmitFluentAccessors == true
+                || designOptions?.GenerateNodeManager == true;
+            if (emitTypedAccessors)
+            {
                 new FluentBuilderGenerator(context)
                 {
-                    OverrideManagerNamespace = designOptions.NodeManagerNamespace,
-                    OverrideManagerClassName = designOptions.NodeManagerClassName
+                    OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
+                    OverrideManagerClassName = designOptions?.NodeManagerClassName,
+                    GenerateManagerWrappers = designOptions?.GenerateNodeManager == true,
+                    EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
             }
 

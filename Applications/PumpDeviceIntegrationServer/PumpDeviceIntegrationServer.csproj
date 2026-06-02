@@ -55,5 +55,13 @@
   <PropertyGroup>
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Opt into FB-3 phase 3 typed-accessor emission. The
+         generator emits per-ObjectType IComponentAccessor /
+         IPropertyAccessor extension classes into
+         {Prefix}.FluentBuilders.g.cs. The emitted code references
+         Opc.Ua.Server.Fluent.IComponentAccessor so this project
+         needs an Opc.Ua.Server reference (already present via the
+         Opc.Ua.Di.Server project reference). -->
+    <ModelSourceGeneratorEmitFluentAccessors>true</ModelSourceGeneratorEmitFluentAccessors>
   </PropertyGroup>
 </Project>

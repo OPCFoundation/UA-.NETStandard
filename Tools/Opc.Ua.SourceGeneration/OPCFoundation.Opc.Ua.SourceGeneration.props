@@ -13,6 +13,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorUseTypeDefinitionModellingRules" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorGenerateNodeManager" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorEmitDependencyMetadata" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorEmitFluentAccessors" />
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />

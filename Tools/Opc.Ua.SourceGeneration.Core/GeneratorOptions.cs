@@ -78,6 +78,21 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitStateMachineIds { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the per-ObjectType
+        /// <c>IComponentAccessor&lt;TState&gt;</c> /
+        /// <c>IPropertyAccessor&lt;TState&gt;</c> extension classes
+        /// emitted by <see cref="FluentBuilderGenerator"/> (FB-3 phase 3)
+        /// are emitted. Off by default because the emitted accessors
+        /// reference <c>Opc.Ua.Server.Fluent.IComponentAccessor</c>
+        /// (server-side assembly) — model-only libraries that do not
+        /// reference <c>Opc.Ua.Server</c> would fail to compile. Set
+        /// this in consumer projects that ship a server-side
+        /// integration (typically Applications/* and
+        /// Libraries/Opc.Ua.*.Server/*).
+        /// </summary>
+        public bool EmitFluentAccessors { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.
