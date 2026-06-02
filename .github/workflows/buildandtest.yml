@@ -14,7 +14,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  discover:
+    name: Discover test projects
+    runs-on: ubuntu-latest
+    outputs:
+      csprojs: ${{ steps.list.outputs.csprojs }}
+    steps:
+    - uses: actions/checkout@v6
+    - name: Enumerate Tests/Opc.Ua.*.Tests projects
+      id: list
+      shell: pwsh
+      run: |
+        # Discover test projects from the filesystem so this matrix does
+        # not have to be hand-maintained as projects are added/renamed.
+        # Projects whose name is in EXCLUDE are run by other workflows
+        # (AOT has its own workflow; Stress + Fuzz are opt-in haul/fuzz
+        # runs).
+        $exclude = @('Aot', 'Stress')
+        $projects = Get-ChildItem -Path Tests -Directory -Filter 'Opc.Ua.*.Tests' |
+            Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") } |
+            ForEach-Object { $_.Name -replace '^Opc\.Ua\.', '' -replace '\.Tests$', '' } |
+            Where-Object { $exclude -notcontains $_ } |
+            Sort-Object
+        $json = ConvertTo-Json -InputObject @($projects) -Compress
+        Write-Host "Discovered $(@($projects).Count) project(s): $json"
+        "csprojs=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
   build-and-test:
+    needs: discover
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -22,7 +49,7 @@ jobs:
       matrix:
         # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
         os: [ubuntu-latest, windows-latest]
-        csproj: [Security.Certificates, Types, Core, Core.Encoders, Core.Security, Server, Client, Client.ComplexTypes, History, InformationModel, Lds, PubSub, Sessions, Subscriptions, Subscriptions.Classic, Configuration, Gds, SourceGeneration.Stack, SourceGeneration, SourceGeneration.Core, WotCon]
+        csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
           - framework: 'net10.0'
             dotnet-version: '10.0.x'

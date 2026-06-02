@@ -240,8 +240,8 @@ namespace Opc.Ua.Client.TestFramework
             ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry);
 
             // If a derived fixture pinned the engine factory, propagate
-            // it. Default = null = use Session default (V2 after the
-            // Phase E flip in Session.cs).
+            // it. Default = null = use Session default (currently the
+            // classic engine; see Session.cs).
             if (ClientFixtureSubscriptionEngineFactory != null)
             {
                 ClientFixture.UseSubscriptionEngineFactory(

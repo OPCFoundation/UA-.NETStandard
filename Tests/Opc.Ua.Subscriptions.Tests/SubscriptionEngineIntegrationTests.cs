@@ -37,7 +37,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-using V2 = Opc.Ua.Client.Subscriptions;
 
 using Opc.Ua.Client.TestFramework;
 
@@ -58,7 +57,7 @@ namespace Opc.Ua.Subscriptions.Tests
     [Category("V2")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class SubscriptionEngineV2IntegrationTests : ClientTestFramework
+    public class SubscriptionEngineIntegrationTests : ClientTestFramework
     {
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
@@ -120,7 +119,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(
                     handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -193,7 +192,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 {
                     handlers[i] = new RecordingSubscriptionHandler();
                     subscriptions[i] = session.AddSubscription(handlers[i],
-                        new V2.SubscriptionOptions
+                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                         {
                             PublishingInterval = TimeSpan.FromMilliseconds(1000),
                             KeepAliveCount = 10,
@@ -245,7 +244,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription subscription = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 1,

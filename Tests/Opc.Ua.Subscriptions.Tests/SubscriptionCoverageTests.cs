@@ -41,8 +41,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using V2 = Opc.Ua.Client.Subscriptions;
-using V2Items = Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 using Opc.Ua.Client.TestFramework;
 
@@ -59,7 +57,7 @@ namespace Opc.Ua.Subscriptions.Tests
     [Category("FollowUp")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class V2FollowUpCoverageTests : ClientTestFramework
+    public class SubscriptionCoverageTests : ClientTestFramework
     {
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
@@ -102,7 +100,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -129,9 +127,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 bool sawCreated = false;
                 foreach (RecordedStateChange c in snap)
                 {
-                    if (c.State == V2.SubscriptionState.Created ||
-                        c.State == V2.SubscriptionState.Modified ||
-                        c.State == V2.SubscriptionState.Opened)
+                    if (c.State == Opc.Ua.Client.Subscriptions.SubscriptionState.Created ||
+                        c.State == Opc.Ua.Client.Subscriptions.SubscriptionState.Modified ||
+                        c.State == Opc.Ua.Client.Subscriptions.SubscriptionState.Opened)
                     {
                         sawCreated = true;
                     }
@@ -165,7 +163,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription origin = originSession.AddSubscription(originHandler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -247,7 +245,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription origin = originSession.AddSubscription(originHandler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -266,7 +264,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Snapshot includes the SendInitialValuesOnTransfer
                 // option through SubscriptionStateSnapshot.ToOptions().
-                SubscriptionStateSnapshot snap = ((V2.Subscription)origin).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)origin).Snapshot();
                 Assert.That(snap.SendInitialValuesOnTransfer, Is.True,
                     "SendInitialValuesOnTransfer option must round-trip through Snapshot");
 
@@ -326,7 +324,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -337,13 +335,13 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
                 Assert.That(sub.MonitoredItems.Count, Is.Zero);
 
-                SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.Zero);
 
                 target = await ConnectV2Async(
                     nameof(SnapshotEmptySubscriptionRoundTripV2Async) + "_target", ct)
                     .ConfigureAwait(false);
-                ISubscription restored = await ((V2.SubscriptionManager)target.SubscriptionManager)
+                ISubscription restored = await ((Opc.Ua.Client.Subscriptions.SubscriptionManager)target.SubscriptionManager)
                     .RestoreAsync(
                         new RecordingSubscriptionHandler(),
                         snap,
@@ -387,7 +385,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -410,11 +408,11 @@ namespace Opc.Ua.Subscriptions.Tests
                         SamplingInterval = TimeSpan.FromMilliseconds(250),
                         Filter = dataChangeFilter
                     },
-                    out V2Items.IMonitoredItem? item), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false), Is.True);
 
-                SubscriptionStateSnapshot snap = ((V2.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
                 Assert.That(snap.MonitoredItems.Count, Is.EqualTo(1));
                 MonitoredItemStateSnapshot itemSnap = snap.MonitoredItems[0];
                 Assert.That(itemSnap.Filter, Is.Not.Null);
@@ -429,7 +427,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 target = await ConnectV2Async(
                     nameof(SnapshotWithDataChangeFilterRoundTripV2Async) + "_target", ct)
                     .ConfigureAwait(false);
-                ISubscription restored = await ((V2.SubscriptionManager)target.SubscriptionManager)
+                ISubscription restored = await ((Opc.Ua.Client.Subscriptions.SubscriptionManager)target.SubscriptionManager)
                     .RestoreAsync(
                         new RecordingSubscriptionHandler(),
                         snap,
@@ -472,7 +470,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -498,7 +496,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         o => o with { SamplingInterval = TimeSpan.Zero },
                         out _), ct);
                 }
-                var subConcrete = (V2.Subscription)sub;
+                var subConcrete = (Opc.Ua.Client.Subscriptions.Subscription)sub;
                 var snapTasks = new Task<SubscriptionStateSnapshot>[5];
                 for (int i = 0; i < snapTasks.Length; i++)
                 {

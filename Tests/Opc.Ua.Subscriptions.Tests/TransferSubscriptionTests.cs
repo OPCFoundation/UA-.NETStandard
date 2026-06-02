@@ -40,8 +40,6 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using V2 = Opc.Ua.Client.Subscriptions;
-using V2Items = Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 using Opc.Ua.Client.TestFramework;
 
@@ -73,7 +71,7 @@ namespace Opc.Ua.Subscriptions.Tests
     [Category("TransferSubscription")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class TransferSubscriptionV2Tests : ClientTestFramework
+    public class TransferSubscriptionTests : ClientTestFramework
     {
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
@@ -119,7 +117,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription originSub = originSession.AddSubscription(
-                    originHandler, new V2.SubscriptionOptions
+                    originHandler, new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -134,13 +132,13 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(originSub.TryAddMonitoredItem(
                     "CurrentTime", timeNode,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(100) },
-                    out V2Items.IMonitoredItem? originItem), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? originItem), Is.True);
 
                 bool firstData = await originHandler.WaitForFirstDataAsync(
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(firstData, Is.True);
 
-                uint originSubscriptionServerId = ((V2.Subscription)originSub).Id;
+                uint originSubscriptionServerId = ((Opc.Ua.Client.Subscriptions.Subscription)originSub).Id;
                 uint originItemServerId = originItem!.ServerId;
                 uint originItemClientHandle = originItem.ClientHandle;
 
@@ -181,13 +179,13 @@ namespace Opc.Ua.Subscriptions.Tests
                 // the target session. Distinguish via the preserved id; assert the
                 // outcome is internally consistent.
                 bool transferActuallyTookOver =
-                    ((V2.Subscription)transferred).Id == originSubscriptionServerId;
+                    ((Opc.Ua.Client.Subscriptions.Subscription)transferred).Id == originSubscriptionServerId;
                 TestContext.Out.WriteLine(transferActuallyTookOver
                     ? $"Transfer preserved server id {originSubscriptionServerId}"
-                    : $"Transfer denied → fallback recreate (origin Id={originSubscriptionServerId}, new Id={((V2.Subscription)transferred).Id})");
+                    : $"Transfer denied → fallback recreate (origin Id={originSubscriptionServerId}, new Id={((Opc.Ua.Client.Subscriptions.Subscription)transferred).Id})");
 
                 Assert.That(transferred.MonitoredItems.TryGetMonitoredItemByName(
-                    "CurrentTime", out V2Items.IMonitoredItem? transferredItem),
+                    "CurrentTime", out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? transferredItem),
                     Is.True);
                 Assert.That(transferredItem, Is.Not.Null);
                 if (transferActuallyTookOver)
@@ -243,7 +241,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription originSub = originSession.AddSubscription(
-                    originHandler, new V2.SubscriptionOptions
+                    originHandler, new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -263,7 +261,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(gotData, Is.True);
 
-                uint originSubServerId = ((V2.Subscription)originSub).Id;
+                uint originSubServerId = ((Opc.Ua.Client.Subscriptions.Subscription)originSub).Id;
 
                 using (var output = File.Create(saveFile))
                 {
@@ -297,7 +295,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // With transferSubscriptions=false, the V2 manager
                 // creates a fresh server subscription with a new id
                 // rather than taking over the saved id.
-                uint newSubServerId = ((V2.Subscription)recreated).Id;
+                uint newSubServerId = ((Opc.Ua.Client.Subscriptions.Subscription)recreated).Id;
                 Assert.That(newSubServerId, Is.Not.Zero);
                 Assert.That(newSubServerId, Is.Not.EqualTo(originSubServerId),
                     "Recreated subscription should have a fresh server id");
@@ -359,7 +357,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // when that runs end-to-end.
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -398,7 +396,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -415,15 +413,15 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(sub.TryAddMonitoredItem("Time",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(250) },
-                    out V2Items.IMonitoredItem? timeItem), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? timeItem), Is.True);
                 Assert.That(sub.TryAddMonitoredItem("State",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(500) },
-                    out V2Items.IMonitoredItem? stateItem), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? stateItem), Is.True);
                 Assert.That(sub.TryAddMonitoredItem("Build",
                     VariableIds.Server_ServerStatus_BuildInfo,
                     o => o with { SamplingInterval = TimeSpan.Zero },
-                    out V2Items.IMonitoredItem? buildItem), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? buildItem), Is.True);
 
                 bool allCreated = await WaitForAsync(
                     () => timeItem!.Created && stateItem!.Created && buildItem!.Created,

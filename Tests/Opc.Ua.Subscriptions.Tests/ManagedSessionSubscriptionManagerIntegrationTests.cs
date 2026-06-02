@@ -43,7 +43,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
-using V2 = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
@@ -150,7 +149,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 ISubscription subscription = session.AddSubscription(
                     handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,

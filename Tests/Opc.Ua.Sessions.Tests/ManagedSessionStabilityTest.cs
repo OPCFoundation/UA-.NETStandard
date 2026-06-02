@@ -41,8 +41,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-using V2 = Opc.Ua.Client.Subscriptions;
-using V2Items = Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 using Opc.Ua.Client.TestFramework;
 
@@ -277,7 +275,7 @@ namespace Opc.Ua.Sessions.Tests
                 var monotonicityHandler = new MonotonicCounterHandler();
                 ISubscription subscription = subscriber.AddSubscription(
                     monotonicityHandler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(publishingIntervalMs),
                         KeepAliveCount = 10,
@@ -300,7 +298,7 @@ namespace Opc.Ua.Sessions.Tests
                         DiscardOldest = false,
                         MonitoringMode = MonitoringMode.Reporting
                     },
-                    out V2Items.IMonitoredItem? item), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(item, Is.Not.Null);
 
                 bool itemCreated = await WaitForAsync(() => item!.Created,
@@ -675,7 +673,7 @@ namespace Opc.Ua.Sessions.Tests
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                V2.SubscriptionState state,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
             {

@@ -38,8 +38,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-using V2 = Opc.Ua.Client.Subscriptions;
-using V2Items = Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 using Opc.Ua.Client.TestFramework;
 
@@ -48,7 +46,7 @@ namespace Opc.Ua.Subscriptions.Tests
     /// <summary>
     /// V2 live <c>ConditionRefresh</c> against the reference server.
     /// Subscribes to events on the <c>Server</c> object, invokes
-    /// <see cref="V2Items.IMonitoredItem.ConditionRefreshAsync"/>, and
+    /// <see cref="Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem.ConditionRefreshAsync"/>, and
     /// asserts the standard
     /// <c>RefreshStartEventType</c> / <c>RefreshEndEventType</c>
     /// boundary events flow through the V2 handler. Per OPC UA Part 9
@@ -62,7 +60,7 @@ namespace Opc.Ua.Subscriptions.Tests
     [Category("LiveAlarms")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class MonitoredItemConditionRefreshLiveV2Tests : ClientTestFramework
+    public class MonitoredItemConditionRefreshLiveTests : ClientTestFramework
     {
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
@@ -106,7 +104,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 // EventType NodeId so the test can match RefreshStart/End.
                 var handler = new RefreshEventHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -146,7 +144,7 @@ namespace Opc.Ua.Subscriptions.Tests
                         QueueSize = 200,
                         Filter = eventFilter
                     },
-                    out V2Items.IMonitoredItem? item), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(item, Is.Not.Null);
                 bool itemCreated = await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
@@ -249,7 +247,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                V2.SubscriptionState state, PublishState publishStateMask,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state, PublishState publishStateMask,
                 CancellationToken ct = default)
             {
                 return default;

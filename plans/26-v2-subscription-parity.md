@@ -108,7 +108,7 @@ caller conventions; the V2 tests use a stable per-item `Name` string.
 | `item.DequeueValues()` / `item.LastValue` | n/a — values flow through `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync(...)` | Direct (handler-side) |
 | `item.Notification += ...` (event) | per-item dispatch through `OnDataChangeNotificationAsync` with `DataValueChange.MonitoredItem` | Direct |
 | `item.GetEventTypeAsync` / `GetFieldValue` / `GetEventTime` / `GetFieldName` | n/a on V2 `IMonitoredItem` | **Deliberately not ported** (event-field helpers are caller-side; tests carry them when needed — see `MonitoredItemConditionRefreshLiveV2Tests.RefreshEventHandler` for the in-test pattern) |
-| `item.TriggeringItemId` / `item.TriggeredItems` | added on V2 `MonitoredItem` (Phase C step 5 of the previous round) | **Added** |
+| `item.TriggeringItemId` / `item.TriggeredItems` | V2 `IMonitoredItem.TriggeringItem` (lazy lookup via context) | **Added** (reverse "items I trigger" is on-demand via the context — no eagerly-maintained list) |
 
 ## 3. `Session` engine wiring
 

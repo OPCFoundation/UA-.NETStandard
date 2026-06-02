@@ -77,7 +77,7 @@ namespace Opc.Ua.Subscriptions.Tests
     [Explicit("Documents the classic-API-on-V2-engine bridge wiring gap.")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class ClassicOnV2EngineBridgeGapTests : ClientTestFramework
+    public class ClassicOnEngineBridgeGapTests : ClientTestFramework
     {
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()

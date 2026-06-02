@@ -37,8 +37,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-using V2 = Opc.Ua.Client.Subscriptions;
-using V2Items = Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 using Opc.Ua.Client.TestFramework;
 
@@ -46,7 +44,7 @@ namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
     /// Per-item <c>ConditionRefresh2</c> tests for V2
-    /// <see cref="V2Items.IMonitoredItem.ConditionRefreshAsync"/>.
+    /// <see cref="Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem.ConditionRefreshAsync"/>.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -54,7 +52,7 @@ namespace Opc.Ua.Subscriptions.Tests
     [Category("ConditionRefresh")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class MonitoredItemConditionRefreshV2Test : ClientTestFramework
+    public class MonitoredItemConditionRefreshTest : ClientTestFramework
     {
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
@@ -97,7 +95,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -120,7 +118,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     "PendingItem",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.Zero },
-                    out V2Items.IMonitoredItem? item), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(item, Is.Not.Null);
                 ServiceResultException? caught = null;
                 try
@@ -175,7 +173,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -190,7 +188,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     "Time",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.Zero },
-                    out V2Items.IMonitoredItem? item), Is.True);
+                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 bool itemCreated = await WaitForAsync(() => item!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(itemCreated, Is.True);
