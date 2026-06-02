@@ -406,7 +406,142 @@ namespace Opc.Ua.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUa(context));
+            var nodes = new NodeStateCollection().AddOpcUa(context);
+
+            // The generator emits factory bodies that respect each child's
+            // type-definition modelling rule for direct children of top-level
+            // singleton instances (Server, HistoryServerCapabilities), so
+            // Optional children that StandardTypes.xml promotes to Mandatory
+            // on the singleton level are no longer auto-emitted as
+            // null-valued nodes (issue #3768). Programmatically add the
+            // Optional children that this SDK actually implements, with
+            // their well-known instance-level NodeIds. The recursive
+            // AddPredefinedNodeAsync the base class invokes on each entry
+            // walks newly-added children automatically, so they end up in
+            // PredefinedNodes (and propagate to CoreNodeManager via
+            // ImportNodesAsync).
+            //
+            // Scope: this fix targets the depth-1 Optional children of
+            // top-level singletons. Deeper descendants (e.g. the Optional
+            // properties of ServerCapabilities) are still emitted by the
+            // singleton-specific factories with the correct instance-level
+            // NodeIds; the SDK populates the ones it cares about via
+            // ServerInternalData.CreateServerObjectAsync. Extending the
+            // suppression deeper requires an audit of every SDK consumer
+            // because non-trivial infrastructure (e.g.
+            // ServerConfiguration.CertificateGroups.&lt;group&gt;.CertificateTypes)
+            // is wired directly to deeper nodes.
+            AddSdkImplementedOptionalChildren(context, nodes);
+
+            return new ValueTask<NodeStateCollection>(nodes);
+        }
+
+        /// <summary>
+        /// Programmatically adds Optional children of the well-known
+        /// singletons that this SDK implements. Hook for subclasses that
+        /// override <see cref="LoadPredefinedNodesAsync"/> — call after the
+        /// base collection is built to preserve SDK-visible behaviour.
+        /// </summary>
+        protected virtual void AddSdkImplementedOptionalChildren(
+            ISystemContext context,
+            NodeStateCollection nodes)
+        {
+            foreach (NodeState node in nodes)
+            {
+                switch (node)
+                {
+                    case ServerObjectState serverObject:
+                        AddServerSdkOptionalChildren(context, serverObject);
+                        break;
+                    case HistoryServerCapabilitiesState historyCaps:
+                        AddHistoryCapabilitiesSdkOptionalChildren(context, historyCaps);
+                        break;
+                }
+            }
+        }
+
+        private void AddServerSdkOptionalChildren(
+            ISystemContext context,
+            ServerObjectState serverObject)
+        {
+            // The generated Add{Child}(context) extensions build the child via
+            // the TYPE-level factory (e.g. CreateServerType_Namespaces), which
+            // assigns the TYPE-level NodeId (ServerType.Namespaces) rather
+            // than the instance-level NodeId (Server.Namespaces). The
+            // singleton-instance factories that use the correct NodeIds are
+            // internal to Opc.Ua.Core.Types, so we override the NodeId
+            // post-construction to the well-known instance identifier.
+            //
+            // Standard Server methods this SDK wires (DiagnosticsNodeManager).
+            // GetMonitoredItems / ResendData are wired unconditionally;
+            // SetSubscriptionDurable only when durable subscriptions are
+            // enabled (otherwise the existing path explicitly removes it).
+            if (serverObject.GetMonitoredItems == null)
+            {
+                GetMonitoredItemsMethodState method = serverObject.AddGetMonitoredItems(context);
+                method.NodeId = MethodIds.Server_GetMonitoredItems;
+                if (method.InputArguments != null)
+                {
+                    method.InputArguments.NodeId
+                        = VariableIds.Server_GetMonitoredItems_InputArguments;
+                }
+                if (method.OutputArguments != null)
+                {
+                    method.OutputArguments.NodeId
+                        = VariableIds.Server_GetMonitoredItems_OutputArguments;
+                }
+            }
+            if (serverObject.ResendData == null)
+            {
+                ResendDataMethodState method = serverObject.AddResendData(context);
+                method.NodeId = MethodIds.Server_ResendData;
+                if (method.InputArguments != null)
+                {
+                    method.InputArguments.NodeId
+                        = VariableIds.Server_ResendData_InputArguments;
+                }
+            }
+            if (m_durableSubscriptionsEnabled && serverObject.SetSubscriptionDurable == null)
+            {
+                SetSubscriptionDurableMethodState method = serverObject.AddSetSubscriptionDurable(context);
+                method.NodeId = MethodIds.Server_SetSubscriptionDurable;
+                if (method.InputArguments != null)
+                {
+                    method.InputArguments.NodeId
+                        = VariableIds.Server_SetSubscriptionDurable_InputArguments;
+                }
+                if (method.OutputArguments != null)
+                {
+                    method.OutputArguments.NodeId
+                        = VariableIds.Server_SetSubscriptionDurable_OutputArguments;
+                }
+            }
+
+            // Server.Namespaces is consumed by ConfigurationNodeManager to
+            // register per-namespace NamespaceMetadata children; without it
+            // CreateNamespaceMetadataStateAsync logs an error and namespace
+            // metadata cannot be exposed.
+            if (serverObject.Namespaces == null)
+            {
+                serverObject.AddNamespaces(context).NodeId
+                    = ObjectIds.Server_Namespaces;
+            }
+        }
+
+        private static void AddHistoryCapabilitiesSdkOptionalChildren(
+            ISystemContext context,
+            HistoryServerCapabilitiesState historyCaps)
+        {
+            // ServerTimestampSupported is Optional on HistoryServerCapabilitiesType
+            // but is written by GetDefaultHistoryCapabilitiesAsync from the
+            // rolled-up historian capabilities — without lazy-add the write
+            // would NRE. See AddServerSdkOptionalChildren for the NodeId-patch
+            // rationale (type-level Add* extension assigns the type NodeId).
+            if (historyCaps.ServerTimestampSupported == null)
+            {
+                historyCaps.AddServerTimestampSupported(context).NodeId
+                    = VariableIds.HistoryServerCapabilities_ServerTimestampSupported;
+            }
         }
 
         /// <summary>

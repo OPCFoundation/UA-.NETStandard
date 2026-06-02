@@ -158,5 +158,95 @@ namespace Opc.Ua.Server.Tests
 
             await fixture.StopAsync().ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Issue #3768: ServerConfiguration's Optional children that the SDK does not
+        /// implement (ApplicationUri, ProductUri, ApplicationType, HasSecureElement,
+        /// CancelChanges, ResetToServerDefaults) must not be exposed as null-valued
+        /// nodes in the address space.
+        /// Also asserts that the SDK-added Optional children at the well-known
+        /// singleton-instance NodeIds (Server.GetMonitoredItems / ResendData /
+        /// Namespaces, and HistoryServerCapabilities.ServerTimestampSupported,
+        /// plus their Method InputArguments / OutputArguments where applicable)
+        /// resolve to the correct instance-level NodeIds — guarding against the
+        /// "Add{Child} uses the type-level factory" footgun described in
+        /// DiagnosticsNodeManager.AddServerSdkOptionalChildren.
+        /// </summary>
+        [Test]
+        public async Task ServerConfiguration_OptionalUnimplementedChildren_NotInAddressSpaceAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+            try
+            {
+                IServerInternal serverInternal = server.CurrentInstance;
+
+                NodeId[] suppressedNodeIds =
+                [
+                    VariableIds.ServerConfiguration_ApplicationUri,
+                    VariableIds.ServerConfiguration_ProductUri,
+                    VariableIds.ServerConfiguration_ApplicationType,
+                    VariableIds.ServerConfiguration_HasSecureElement,
+                    MethodIds.ServerConfiguration_CancelChanges,
+                    MethodIds.ServerConfiguration_ResetToServerDefaults
+                ];
+
+                foreach (NodeId suppressedNodeId in suppressedNodeIds)
+                {
+                    NodeState node = await serverInternal.NodeManager
+                        .FindNodeInAddressSpaceAsync(suppressedNodeId)
+                        .ConfigureAwait(false);
+                    Assert.That(node, Is.Null,
+                        $"NodeId {suppressedNodeId} should not be exposed as an SDK does not " +
+                        "implement it. See issue #3768.");
+                }
+
+                // ServerConfiguration itself must exist.
+                NodeState serverConfigurationNode = await serverInternal.NodeManager
+                    .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
+                    .ConfigureAwait(false);
+                Assert.That(serverConfigurationNode, Is.Not.Null,
+                    "ServerConfiguration itself must exist in the address space.");
+
+                // Optional children that the SDK programmatically adds back must
+                // resolve at the well-known singleton-instance NodeIds. The
+                // generator-emitted Add{Child} extension uses the type-level
+                // factory which assigns the type-level NodeId; the SDK overrides
+                // the NodeId after Add{Child}. A missing NodeId override would
+                // silently leave the type-level id in place (e.g. 11489 instead
+                // of 11492 for GetMonitoredItems), which is invisible at startup
+                // but breaks any client that browses by well-known id.
+                NodeId[] sdkAddedNodeIds =
+                [
+                    ObjectIds.Server_Namespaces,
+                    MethodIds.Server_GetMonitoredItems,
+                    VariableIds.Server_GetMonitoredItems_InputArguments,
+                    VariableIds.Server_GetMonitoredItems_OutputArguments,
+                    MethodIds.Server_ResendData,
+                    VariableIds.Server_ResendData_InputArguments,
+                    VariableIds.HistoryServerCapabilities_ServerTimestampSupported
+                ];
+
+                foreach (NodeId sdkAddedNodeId in sdkAddedNodeIds)
+                {
+                    NodeState node = await serverInternal.NodeManager
+                        .FindNodeInAddressSpaceAsync(sdkAddedNodeId)
+                        .ConfigureAwait(false);
+                    Assert.That(node, Is.Not.Null,
+                        $"NodeId {sdkAddedNodeId} must be exposed at its " +
+                        "well-known instance-level NodeId by the SDK.");
+                    Assert.That(node!.NodeId, Is.EqualTo(sdkAddedNodeId),
+                        $"Resolved NodeId {node.NodeId} does not match the " +
+                        $"well-known instance-level NodeId {sdkAddedNodeId} - " +
+                        "AddServerSdkOptionalChildren may be missing a NodeId " +
+                        "patch (see #3768).");
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
     }
 }

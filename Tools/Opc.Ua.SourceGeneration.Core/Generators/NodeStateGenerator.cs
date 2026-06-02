@@ -1486,31 +1486,81 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            // Factory methods use the instance's own modelling rule for the
-            // mandatory/optional list classification so that children the
-            // instance explicitly marks Mandatory are always created.  The
-            // effective (type-definition) rule is used elsewhere for the
-            // type-class structure (fields, properties, optional init).
+            // Determine which modelling rule drives factory-method emission.
+            //
+            // For SINGLETON instance overrides (a top-level <opc:Object> in
+            // StandardTypes.xml whose parent has no type def), an override of
+            // a type-def Optional child to Mandatory must NOT force emission
+            // of the child when UseTypeDefinitionModellingRules is on - the
+            // SDK is responsible for adding only those children it actually
+            // implements (fixes issue #3768).
+            //
+            // The gate is intentionally restricted to DIRECT children of a
+            // top-level singleton (depth-1). Transitively extending it to
+            // deeper descendants would also suppress Optional children that
+            // the SDK depends on as infrastructure (e.g.
+            // ServerConfiguration.CertificateGroups.&lt;group&gt;.CertificateTypes),
+            // which currently breaks ConfigurationNodeManager. Depth-2+
+            // Optional descendants of a singleton (e.g.
+            // Server.ServerCapabilities.MaxArrayLength) are still emitted by
+            // the singleton-specific factory with the correct instance-level
+            // NodeId; they are not affected by the bug because the SDK
+            // already overwrites the slot's value.
+            //
+            // For TYPE-LEVEL promotions (e.g. AnalogItemType promoting EURange
+            // from Optional on BaseAnalogType to Mandatory), the type-def
+            // tree itself is being captured and the promotion is part of the
+            // declared type definition, so the instance's Mandatory rule
+            // must be honoured even when the option is on. The synthetic
+            // type-instance NodeToGenerate (root.InstanceOf != null) and the
+            // type-def NodeToGenerate (root.RootIsTypeDefinition) are both
+            // excluded by the predicate.
+            bool isSingletonInstanceContext =
+                m_context.Options.UseTypeDefinitionModellingRules &&
+                node.Parent != null &&
+                node.Parent.Parent == null &&
+                node.Parent.InstanceOf == null;
+
+            ModellingRule effectiveRule = isSingletonInstanceContext
+                ? GetEffectiveModellingRule(node, instance)
+                : instance.ModellingRule;
+
+            // The "top-level non-typed parent" exception below forces children
+            // of an explicitly-declared singleton instance (e.g.
+            // <opc:Object SymbolicName="ServerConfiguration" ...> in
+            // StandardTypes.xml) into the always-emitted mandatory list so
+            // declared overrides materialize on the actual node.  This
+            // exception must be suppressed when
+            // <see cref="GeneratorOptions.UseTypeDefinitionModellingRules"/>
+            // is on; otherwise singleton instance overrides could re-introduce
+            // the very Optional/unimplemented children we are trying to
+            // exclude from the actual instance.
+            bool topLevelInstanceException =
+                !m_context.Options.UseTypeDefinitionModellingRules &&
+                node.Parent != null &&
+                node.Parent.Parent == null &&
+                node.Parent.InstanceOf == null;
+
             if (context.Token == Tokens.ListOfOptionalChildNodeStates)
             {
-                if (instance.ModellingRule == ModellingRule.Mandatory)
+                if (effectiveRule == ModellingRule.Mandatory)
                 {
                     return null;
                 }
                 // Real instance children of a top-level (non-typed) parent belong in
                 // the always-emitted list so they materialize for the actual instance,
                 // not only when the node is treated as a type template.
-                if (node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null)
+                if (topLevelInstanceException)
                 {
                     return null;
                 }
             }
 
             // Otherwise only add mandatory children - all others are created on demand
-            else if (instance.ModellingRule != ModellingRule.Mandatory)
+            else if (effectiveRule != ModellingRule.Mandatory)
             {
                 // Exception: real instance children of a top-level (non-typed) parent.
-                if (!(node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null))
+                if (!topLevelInstanceException)
                 {
                     return null;
                 }
@@ -1533,7 +1583,7 @@ namespace Opc.Ua.SourceGeneration
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
-                            switch (instance.ModellingRule)
+                            switch (effectiveRule)
                             {
                                 case ModellingRule.Mandatory:
                                 case ModellingRule.Optional:

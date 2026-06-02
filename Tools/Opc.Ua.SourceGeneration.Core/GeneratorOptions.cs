@@ -78,7 +78,9 @@ namespace Opc.Ua.SourceGeneration
         /// uses the modelling rules from the referenced type definition
         /// unconditionally, rather than the overridden rules on instance
         /// definitions, for all structural code generation decisions
-        /// (child inclusion, optional vs mandatory classification) and
+        /// (child inclusion, optional vs mandatory classification),
+        /// for factory-method child emission (mandatory list versus
+        /// on-demand <c>CreateOrReplace*</c> initialisation) and for
         /// the emitted runtime <c>ModellingRuleId</c>.
         /// <para>
         /// Off by default.  When off, the generator still enforces OPC UA

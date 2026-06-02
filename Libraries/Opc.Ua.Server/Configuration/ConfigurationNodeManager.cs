@@ -174,7 +174,15 @@ namespace Opc.Ua.Server
                         {
                             var activeNode = new ServerConfigurationState(passiveNode.Parent);
 
+                            // Optional ServerConfigurationType methods this
+                            // SDK wires in CreateServerConfiguration but that
+                            // are no longer emitted by the singleton factory
+                            // (Optional per Part 12). Assign before Create so
+                            // the active node initialises them with the
+                            // correct NodeId / BrowseName / arguments.
                             activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
+                            activeNode.CreateSelfSignedCertificate =
+                                new CreateSelfSignedCertificateMethodState(activeNode);
 
                             activeNode.Create(context, passiveNode);
 
