@@ -50,7 +50,8 @@ namespace Opc.Ua.Server
             : this(
                   server,
                   configuration,
-                  server.Telemetry.CreateLogger<DiagnosticsNodeManager>())
+                  server.Telemetry.CreateLogger<DiagnosticsNodeManager>(),
+                  timeProvider: null)
         {
         }
 
@@ -61,8 +62,34 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             ILogger logger)
+            : this(server, configuration, logger, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager with an explicit
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="logger">The logger.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used by the diagnostics-scan
+        /// and sampling timers and for the scan-throttle wall-clock checks.
+        /// When <c>null</c>, the time provider exposed by the server
+        /// (via <see cref="ITimeProviderProvider"/>) is used, falling back
+        /// to <see cref="TimeProvider.System"/>.
+        /// </param>
+        public DiagnosticsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger,
+            TimeProvider? timeProvider)
             : base(server, configuration, logger)
         {
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             AliasRoot = "Core";
 
             string[] namespaceUris =
@@ -1639,7 +1666,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                if (HiResClock.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
+                if (m_timeProvider.GetUtcNow().UtcDateTime < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
                     return;
                 }
@@ -1663,7 +1690,7 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadOutOfService;
                 }
 
-                if (HiResClock.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
+                if (m_timeProvider.GetUtcNow().UtcDateTime < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
                     // diagnostic nodes already scanned.
                     return ServiceResult.Good;
@@ -1760,7 +1787,7 @@ namespace Opc.Ua.Server
                     {
                         m_doScanBusy = true;
 
-                        m_lastDiagnosticsScanTime = HiResClock.UtcNow;
+                        m_lastDiagnosticsScanTime = m_timeProvider.GetUtcNow().UtcDateTime;
 
                         // update server diagnostics.
                         UpdateServerDiagnosticsSummary();
@@ -1954,7 +1981,11 @@ namespace Opc.Ua.Server
                 {
                     Interlocked.Increment(ref m_diagnosticsMonitoringCount);
 
-                    m_diagnosticsScanTimer ??= new Timer(DoScan, null, 1000, 1000);
+                    m_diagnosticsScanTimer ??= m_timeProvider.CreateTimer(
+                        DoScan,
+                        null,
+                        TimeSpan.FromMilliseconds(1000),
+                        TimeSpan.FromMilliseconds(1000));
 
                     DoScan(true);
                 }
@@ -2037,7 +2068,11 @@ namespace Opc.Ua.Server
             }
             else if (m_diagnosticsScanTimer != null)
             {
-                m_diagnosticsScanTimer = new Timer(DoScan, null, 1000, 1000);
+                m_diagnosticsScanTimer = m_timeProvider.CreateTimer(
+                    DoScan,
+                    null,
+                    TimeSpan.FromMilliseconds(1000),
+                    TimeSpan.FromMilliseconds(1000));
             }
             return default;
         }
@@ -2094,11 +2129,11 @@ namespace Opc.Ua.Server
         {
             m_sampledItems.TryAdd(monitoredItem.Id, monitoredItem);
 
-            m_samplingTimer ??= new Timer(
+            m_samplingTimer ??= m_timeProvider.CreateTimer(
                 DoSample,
                 null,
-                (int)m_minimumSamplingInterval,
-                (int)m_minimumSamplingInterval);
+                TimeSpan.FromMilliseconds(m_minimumSamplingInterval),
+                TimeSpan.FromMilliseconds(m_minimumSamplingInterval));
         }
 
         /// <summary>
@@ -2170,9 +2205,10 @@ namespace Opc.Ua.Server
 
         private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
         private readonly object m_diagnosticsLock = new();
+        private readonly TimeProvider m_timeProvider;
         private readonly ushort m_namespaceIndex;
         private uint m_lastUsedId;
-        private Timer? m_diagnosticsScanTimer;
+        private ITimer? m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
         private bool m_doScanBusy;
         private readonly bool m_durableSubscriptionsEnabled;
@@ -2182,7 +2218,7 @@ namespace Opc.Ua.Server
         private readonly List<SessionDiagnosticsData> m_sessions;
         private readonly List<SubscriptionDiagnosticsData> m_subscriptions;
         private NodeId m_serverLockHolder;
-        private Timer? m_samplingTimer;
+        private ITimer? m_samplingTimer;
         private readonly ConcurrentDictionary<uint, ISampledDataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState? m_historyCapabilities;

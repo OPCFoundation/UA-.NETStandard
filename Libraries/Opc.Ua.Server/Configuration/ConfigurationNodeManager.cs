@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
         public ConfigurationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : this(server, configuration, server.Telemetry.CreateLogger<ConfigurationNodeManager>())
+            : this(server, configuration, server.Telemetry.CreateLogger<ConfigurationNodeManager>(), timeProvider: null)
         {
         }
 
@@ -65,8 +65,33 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             ILogger logger)
-            : base(server, configuration, logger)
+            : this(server, configuration, logger, timeProvider: null)
         {
+        }
+
+        /// <summary>
+        /// Initializes the configuration and diagnostics manager with an
+        /// explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="logger">The logger.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used by the certificate-alarm
+        /// timer and by the "apply changes" delay. When <c>null</c>, the time
+        /// provider exposed by the server (via <see cref="ITimeProviderProvider"/>)
+        /// is used, falling back to <see cref="TimeProvider.System"/>.
+        /// </param>
+        public ConfigurationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger,
+            TimeProvider? timeProvider)
+            : base(server, configuration, logger, timeProvider)
+        {
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             string? rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
             if (!string.IsNullOrEmpty(rejectedStorePath))
@@ -1442,7 +1467,7 @@ namespace Opc.Ua.Server
 
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
-                    await Task.Delay(1000).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(1000), m_timeProvider).ConfigureAwait(false);
 
                     try
                     {
@@ -1775,7 +1800,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_alarmTimer = new Timer(
+            m_alarmTimer = m_timeProvider.CreateTimer(
                 _ =>
                 {
                     try
@@ -1891,9 +1916,10 @@ namespace Opc.Ua.Server
         private UserManagement.UserManagementBinding? m_userManagementBinding;
 #pragma warning restore CA2213
         private readonly ApplicationConfiguration m_configuration;
+        private readonly TimeProvider m_timeProvider;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;
-        private Timer? m_alarmTimer;
+        private ITimer? m_alarmTimer;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();
