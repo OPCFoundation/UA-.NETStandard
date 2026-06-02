@@ -47,6 +47,17 @@ namespace Opc.Ua.Server
         /// Initializes the manager with its configuration.
         /// </summary>
         public SubscriptionManager(IServerInternal server, ApplicationConfiguration configuration)
+            : this(server, configuration, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with its configuration.
+        /// </summary>
+        public SubscriptionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            TimeProvider? timeProvider)
         {
             if (configuration == null)
             {
@@ -55,6 +66,9 @@ namespace Opc.Ua.Server
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SubscriptionManager>();
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
 
             m_minPublishingInterval = configuration.ServerConfiguration!.MinPublishingInterval;
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
@@ -873,7 +887,8 @@ namespace Opc.Ua.Server
                         var queue = new SessionPublishQueue(
                             m_server,
                             session,
-                            m_maxPublishRequestCount);
+                            m_maxPublishRequestCount,
+                            m_timeProvider);
 
                         queue.Add(subscription);
                         return queue;
@@ -1465,7 +1480,8 @@ namespace Opc.Ua.Server
                                 = publishQueue = new SessionPublishQueue(
                                 m_server,
                                 context.Session,
-                                m_maxPublishRequestCount);
+                                m_maxPublishRequestCount,
+                                m_timeProvider);
                         }
                         publishQueue.Add(subscription);
                     }
@@ -2111,7 +2127,7 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    await Task.Delay(timeToWait, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(timeToWait), m_timeProvider, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (ObjectDisposedException)
@@ -2281,6 +2297,7 @@ namespace Opc.Ua.Server
         private uint m_lastSubscriptionId;
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly double m_minPublishingInterval;
         private readonly double m_maxPublishingInterval;
         private readonly int m_publishingResolution;
