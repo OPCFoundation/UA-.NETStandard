@@ -915,6 +915,13 @@ namespace Opc.Ua.Server
            NodeId nodeId,
            PermissionType requestedPermission,
            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns <c>true</c> if the specified node has opted into
+        /// multiple event consumer task handling.
+        /// </summary>
+        /// <param name="nodeId">The <see cref="NodeId"/> to check.</param>
+        bool IsMultipleEventConsumerNode(NodeId nodeId);
     }
 
     /// <summary>
