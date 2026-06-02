@@ -3657,7 +3657,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new SessionManager(server, configuration);
+            return new SessionManager(server, configuration, m_timeProvider);
         }
 
         /// <summary>
