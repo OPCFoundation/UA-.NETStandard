@@ -37,11 +37,11 @@ namespace Opc.Ua
     /// and for bridging legacy public APIs that expose <see cref="int"/> tick counts.
     /// </summary>
     /// <remarks>
-    /// These helpers are intentionally <c>internal</c> because they exist purely to
-    /// support the migration off <see cref="HiResClock"/>; new public APIs should
-    /// consume <see cref="TimeProvider"/> directly via constructor injection.
+    /// These helpers exist primarily to support the migration off
+    /// <see cref="HiResClock"/>; new public APIs should consume
+    /// <see cref="TimeProvider"/> directly via constructor injection.
     /// </remarks>
-    internal static class TimeProviderExtensions
+    public static class TimeProviderExtensions
     {
         /// <summary>
         /// Returns the current monotonic timestamp normalised to milliseconds.
