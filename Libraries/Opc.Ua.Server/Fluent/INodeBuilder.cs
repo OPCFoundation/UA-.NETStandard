@@ -176,6 +176,19 @@ namespace Opc.Ua.Server.Fluent
         INodeBuilder OnEvent(EventNotificationHandler handler);
 
         /// <summary>
+        /// Opts the resolved node into (or out of) dynamic scaling of event
+        /// consumer tasks. When enabled, the <see cref="MonitoredNode2"/>
+        /// for this node scales consumer tasks with the number of event
+        /// monitored items, improving throughput under high event loads.
+        /// The Server node (<see cref="ObjectIds.Server"/>) is always
+        /// auto-opted-in regardless of this call.
+        /// </summary>
+        /// <param name="enable">
+        /// <c>true</c> to opt in (default); <c>false</c> to opt out.
+        /// </param>
+        INodeBuilder AllowMultipleEventConsumers(bool enable = true);
+
+        /// <summary>
         /// Resolves a child of the current node by browse name. Used by
         /// source-generated typed traversal wrappers to walk one segment
         /// at a time without re-resolving from the root.

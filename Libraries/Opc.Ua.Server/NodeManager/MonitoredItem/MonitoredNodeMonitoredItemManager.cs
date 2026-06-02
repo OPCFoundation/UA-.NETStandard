@@ -81,7 +81,8 @@ namespace Opc.Ua.Server
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode,
+                        IsMultiConsumerNode(cachedNode.NodeId));
             }
 
             handle.Node = monitoredNode!.Node;
@@ -224,7 +225,8 @@ namespace Opc.Ua.Server
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode,
+                        IsMultiConsumerNode(cachedNode.NodeId));
             }
 
             handle.Node = monitoredNode!.Node;
@@ -315,7 +317,8 @@ namespace Opc.Ua.Server
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode!))
             {
                 MonitoredNodes[source.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source,
+                        IsMultiConsumerNode(source.NodeId));
             }
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
@@ -331,6 +334,11 @@ namespace Opc.Ua.Server
             }
 
             return (monitoredNode, ServiceResult.Good);
+        }
+
+        private bool IsMultiConsumerNode(NodeId nodeId)
+        {
+            return m_nodeManager.IsMultipleEventConsumerNode(nodeId);
         }
 
         private readonly IAsyncNodeManager m_nodeManager;

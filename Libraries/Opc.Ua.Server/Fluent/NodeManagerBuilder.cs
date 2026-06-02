@@ -491,6 +491,27 @@ namespace Opc.Ua.Server.Fluent
             m_nodeRemoved[node.NodeId] = handler;
         }
 
+        internal void RegisterMultiConsumerNode(NodeState node, bool enable)
+        {
+            if (NodeManager is not AsyncCustomNodeManager acnm)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "AllowMultipleEventConsumers requires the node manager to derive from AsyncCustomNodeManager. " +
+                    "Manager type '{0}' does not qualify.",
+                    NodeManager?.GetType().FullName ?? "(unknown)");
+            }
+
+            if (enable)
+            {
+                acnm.MultiConsumerNodeIds[node.NodeId] = true;
+            }
+            else
+            {
+                acnm.MultiConsumerNodeIds.Remove(node.NodeId);
+            }
+        }
+
         private NodeState ResolveNodeId(NodeId nodeId)
         {
             if (nodeId.IsNull)
