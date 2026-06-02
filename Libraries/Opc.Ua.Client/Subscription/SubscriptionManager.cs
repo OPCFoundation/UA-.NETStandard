@@ -498,6 +498,26 @@ namespace Opc.Ua.Client.Subscriptions
             if (!transferred && subscription is Subscription loaded)
             {
                 await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                // Await re-creation under a bounded timeout so LoadAsync
+                // only returns after the server has assigned a fresh
+                // SubscriptionId. Items still need ApplyChangesAsync to
+                // round-trip but that runs in the same state-manager
+                // iteration as CreateAsync.
+                using var timeoutCts = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+                try
+                {
+                    await loaded.WaitForCreatedAsync(timeoutCts.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    m_logger.LogWarning(
+                        "{Subscription}: re-creation did not complete " +
+                        "within 15s after failed transfer; returning anyway.",
+                        subscription);
+                }
             }
 
             m_publishControl.Set();

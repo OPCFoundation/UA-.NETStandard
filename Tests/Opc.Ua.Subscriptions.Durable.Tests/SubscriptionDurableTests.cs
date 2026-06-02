@@ -326,7 +326,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
         [Test]
         [Order(500)]
-        [CancelAfter(60_000)]
+        [CancelAfter(90_000)]
         public async Task DurableSubscriptionSurvivesSessionCloseV2Async(
             CancellationToken ct)
         {
@@ -400,7 +400,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                         .ConfigureAwait(false);
                     Assert.That(loaded, Has.Count.EqualTo(1));
                     bool dataAfter = await targetHandler.WaitForFirstDataAsync(
-                        TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+                        TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
                     Assert.That(dataAfter, Is.True,
                         "Restored durable subscription should publish on target");
                 }

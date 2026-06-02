@@ -150,6 +150,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // machine sees a coherent "loaded" snapshot when it
                 // first wakes.
                 Id = loadState.ServerId;
+                m_createdEvent.Set();
                 Options = options.CurrentValue;
                 foreach (MonitoredItemLoadState item in loadState.MonitoredItems)
                 {
@@ -493,6 +494,7 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 Id = 0;
+                m_createdEvent.Reset();
                 CurrentPublishingInterval = TimeSpan.Zero;
                 CurrentKeepAliveCount = 0;
                 CurrentLifetimeCount = 0;
@@ -520,6 +522,20 @@ namespace Opc.Ua.Client.Subscriptions
             // Wake the state manager so the next pass observes
             // !Created and runs CreateAsync.
             m_stateControl.Set();
+        }
+
+        /// <summary>
+        /// Wait until the subscription becomes <see cref="Created"/>
+        /// (the server has assigned an Id and
+        /// <see cref="OnSubscriptionUpdateComplete"/> has run).
+        /// Used by <see cref="SubscriptionManager.RestoreTransferAsync"/>
+        /// to await the recreate-fallback before returning to the
+        /// caller of <see cref="SubscriptionManager.LoadAsync"/>.
+        /// </summary>
+        /// <param name="ct"></param>
+        internal Task WaitForCreatedAsync(CancellationToken ct)
+        {
+            return m_createdEvent.WaitAsync(ct);
         }
 
         /// <inheritdoc/>
@@ -1008,6 +1024,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Id = subscriptionId;
                 StartKeepAliveTimer();
                 NotifyManagerOfCreation();
+                m_createdEvent.Set();
             }
 
             // Notify all monitored items of the changes
@@ -1027,6 +1044,7 @@ namespace Opc.Ua.Client.Subscriptions
             LastNotificationTimestamp = 0;
 
             Id = 0;
+            m_createdEvent.Reset();
             CurrentPublishingInterval = TimeSpan.Zero;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;
@@ -1170,6 +1188,7 @@ namespace Opc.Ua.Client.Subscriptions
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
         private readonly AsyncAutoResetEvent m_stateControl = new();
+        private readonly AsyncManualResetEvent m_createdEvent = new();
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_stateManagement;
         private readonly SemaphoreSlim m_stateLock = new(1, 1);
