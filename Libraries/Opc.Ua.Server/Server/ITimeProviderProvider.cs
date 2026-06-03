@@ -29,49 +29,32 @@
 
 using System;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Factory that creates <see cref="ClassicSubscriptionEngine"/>
-    /// instances. This is the default factory used when no custom
-    /// factory is provided at session creation time.
+    /// Optional opt-in interface that exposes a server's
+    /// <see cref="TimeProvider"/> so subordinate components can resolve
+    /// the server-wide clock without any change to
+    /// <see cref="IServerInternal"/>; external/mocked
+    /// <see cref="IServerInternal"/> implementations remain unaffected
+    /// and can fall back to <see cref="TimeProvider.System"/> when this
+    /// interface is not implemented.
     /// </summary>
-    public sealed class ClassicSubscriptionEngineFactory
-        : ISubscriptionEngineFactory
+    /// <remarks>
+    /// Consumers should resolve the time provider in a null-safe manner,
+    /// e.g.:
+    /// <code>
+    /// var tp = (server as ITimeProviderProvider)?.TimeProvider
+    ///          ?? TimeProvider.System;
+    /// </code>
+    /// </remarks>
+    public interface ITimeProviderProvider
     {
         /// <summary>
-        /// Gets the singleton instance of the factory.
+        /// Gets the server's <see cref="TimeProvider"/>; never
+        /// <c>null</c>. Defaults to <see cref="TimeProvider.System"/>
+        /// when the server was constructed without an explicit provider.
         /// </summary>
-        public static ClassicSubscriptionEngineFactory Instance { get; } = new();
-
-        /// <summary>
-        /// Initializes a new instance of the
-        /// <see cref="ClassicSubscriptionEngineFactory"/> class bound to
-        /// <see cref="TimeProvider.System"/>.
-        /// </summary>
-        public ClassicSubscriptionEngineFactory()
-            : this(null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the
-        /// <see cref="ClassicSubscriptionEngineFactory"/> class.
-        /// </summary>
-        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
-        /// forwarded to the engines created by this factory. Defaults to
-        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
-        public ClassicSubscriptionEngineFactory(TimeProvider? timeProvider = null)
-        {
-            m_timeProvider = timeProvider ?? TimeProvider.System;
-        }
-
-        /// <inheritdoc/>
-        public ISubscriptionEngine Create(ISubscriptionEngineContext context)
-        {
-            return new ClassicSubscriptionEngine(context, m_timeProvider);
-        }
-
-        private readonly TimeProvider m_timeProvider;
+        TimeProvider TimeProvider { get; }
     }
 }

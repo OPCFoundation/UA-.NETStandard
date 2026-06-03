@@ -51,6 +51,27 @@ namespace Opc.Ua.Server
         /// Initializes the manager with its configuration.
         /// </summary>
         public SessionManager(IServerInternal server, ApplicationConfiguration configuration)
+            : this(server, configuration, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with its configuration and an explicit
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="server">The server instance.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for monotonic timeout
+        /// calculations and client-lockout windows. When <c>null</c>, the
+        /// time provider exposed by the server (via
+        /// <see cref="ITimeProviderProvider"/>) is used, falling back to
+        /// <see cref="TimeProvider.System"/>.
+        /// </param>
+        public SessionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            TimeProvider? timeProvider)
         {
             if (configuration == null)
             {
@@ -58,6 +79,9 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<SessionManager>();
 
             m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
@@ -68,6 +92,12 @@ namespace Opc.Ua.Server
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
                 .MaxHistoryContinuationPoints;
+
+            // Lockout duration / failure expiration are stored in TimestampFrequency
+            // ticks so they can be compared directly against TimeProvider.GetTimestamp().
+            long ticksPerSecond = m_timeProvider.TimestampFrequency;
+            m_lockoutDurationTicks = ticksPerSecond * 5 * 60;
+            m_failureExpirationTicks = ticksPerSecond * 1 * 60;
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
             m_lastSessionId = BitConverter.ToUInt32(Nonce.CreateRandomNonceData(sizeof(uint)), 0);
@@ -338,7 +368,7 @@ namespace Opc.Ua.Server
                     // check if client is locked out due to too many failed authentication attempts.
                     if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
                     {
-                        long remainingSeconds = remainingLockoutTicks / HiResClock.Frequency;
+                        long remainingSeconds = remainingLockoutTicks / m_timeProvider.TimestampFrequency;
                         m_logger.LogWarning(
                             "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
                             clientKey,
@@ -1006,7 +1036,8 @@ namespace Opc.Ua.Server
                 clientCertificateChain,
                 sessionTimeout,
                 m_maxBrowseContinuationPoints,
-                m_maxHistoryContinuationPoints);
+                m_maxHistoryContinuationPoints,
+                m_timeProvider);
         }
 
         /// <inheritdoc />
@@ -1100,7 +1131,7 @@ namespace Opc.Ua.Server
                                 .ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
-                        else if (HiResClock.TickCount64 - session.LastContactTickCount > m_minSessionTimeout)
+                        else if (m_timeProvider.GetTimestampMilliseconds() - session.LastContactTickCount > m_minSessionTimeout)
                         {
                             // signal the channel that the session is still active.
                             RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);
@@ -1122,6 +1153,7 @@ namespace Opc.Ua.Server
 
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private uint m_lastSessionId;
@@ -1137,8 +1169,8 @@ namespace Opc.Ua.Server
 
         private readonly ConcurrentDictionary<string, ClientLockoutInfo> m_clientLockouts = new();
         private const int kMaxFailedAuthenticationAttempts = 5;
-        private static readonly long s_lockoutDurationTicks = HiResClock.Frequency * 5 * 60;
-        private static readonly long s_failureExpirationTicks = HiResClock.Frequency * 1 * 60;
+        private readonly long m_lockoutDurationTicks;
+        private readonly long m_failureExpirationTicks;
 
         private readonly Lock m_eventLock = new();
         private event SessionEventHandler? m_SessionCreated;
@@ -1343,14 +1375,14 @@ namespace Opc.Ua.Server
 
             if (m_clientLockouts.TryGetValue(clientKey, out ClientLockoutInfo? lockoutInfo))
             {
-                long currentTicks = HiResClock.Ticks;
+                long currentTicks = m_timeProvider.GetTimestamp();
                 if (lockoutInfo.IsLockedOut(currentTicks))
                 {
                     remainingLockoutTicks = lockoutInfo.LockoutEndTicks - currentTicks;
                     return true;
                 }
 
-                if (lockoutInfo.IsExpired(currentTicks, s_failureExpirationTicks))
+                if (lockoutInfo.IsExpired(currentTicks, m_failureExpirationTicks))
                 {
                     m_clientLockouts.TryRemove(clientKey, out _);
                 }
@@ -1369,16 +1401,16 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            long currentTicks = HiResClock.Ticks;
+            long currentTicks = m_timeProvider.GetTimestamp();
             ClientLockoutInfo lockoutInfo = m_clientLockouts.AddOrUpdate(
                 clientKey,
-                _ => new ClientLockoutInfo(1, currentTicks, s_lockoutDurationTicks, kMaxFailedAuthenticationAttempts),
+                _ => new ClientLockoutInfo(1, currentTicks, m_lockoutDurationTicks, kMaxFailedAuthenticationAttempts),
                 (_, existing) => existing.IncrementFailures(
-                    currentTicks, s_lockoutDurationTicks, s_failureExpirationTicks, kMaxFailedAuthenticationAttempts));
+                    currentTicks, m_lockoutDurationTicks, m_failureExpirationTicks, kMaxFailedAuthenticationAttempts));
 
             if (lockoutInfo.IsLockedOut(currentTicks))
             {
-                long remainingSeconds = (lockoutInfo.LockoutEndTicks - currentTicks) / HiResClock.Frequency;
+                long remainingSeconds = (lockoutInfo.LockoutEndTicks - currentTicks) / m_timeProvider.TimestampFrequency;
                 m_logger.LogWarning(
                     "Client {ClientKey} has been locked out after {FailedAttempts} failed authentication attempts. Lockout expires in {RemainingSeconds} seconds.",
                     clientKey,

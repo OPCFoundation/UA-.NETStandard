@@ -30,8 +30,10 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -262,6 +264,94 @@ namespace Opc.Ua.PubSub.Tests
                 42, 100, () => true, () => Task.CompletedTask, m_telemetry);
 
             Assert.That(runner.Id, Is.EqualTo(42));
+        }
+
+        [Test]
+        public async Task FakeTimeProviderDrivesDeterministicSchedulingAsync()
+        {
+            var fake = new FakeTimeProvider();
+            int executionCount = 0;
+            using var runner = new IntervalRunner(
+                "fake-runner",
+                100,
+                () => true,
+                () =>
+                {
+                    Interlocked.Increment(ref executionCount);
+                    return Task.CompletedTask;
+                },
+                m_telemetry,
+                fake);
+
+            runner.Start();
+
+            // The first loop iteration runs synchronously (sleepCycle == 0)
+            // and queues the action on the thread pool.
+            await WaitForAsync(() => Volatile.Read(ref executionCount) >= 1)
+                .ConfigureAwait(false);
+            int afterStart = Volatile.Read(ref executionCount);
+
+            // Advance the fake clock by one interval; the awaited Delay completes
+            // deterministically and the next action fires.
+            fake.Advance(TimeSpan.FromMilliseconds(100));
+            await WaitForAsync(() => Volatile.Read(ref executionCount) >= afterStart + 1)
+                .ConfigureAwait(false);
+
+            // Advance three intervals at once; expect three more actions.
+            int afterFirstAdvance = Volatile.Read(ref executionCount);
+            fake.Advance(TimeSpan.FromMilliseconds(300));
+            await WaitForAsync(
+                () => Volatile.Read(ref executionCount) >= afterFirstAdvance + 3)
+                .ConfigureAwait(false);
+
+            runner.Stop();
+        }
+
+        [Test]
+        public async Task FakeTimeProviderWithoutAdvanceDoesNotExecuteRepeatedlyAsync()
+        {
+            var fake = new FakeTimeProvider();
+            int executionCount = 0;
+            using var runner = new IntervalRunner(
+                "fake-runner-no-advance",
+                100,
+                () => true,
+                () =>
+                {
+                    Interlocked.Increment(ref executionCount);
+                    return Task.CompletedTask;
+                },
+                m_telemetry,
+                fake);
+
+            runner.Start();
+
+            // The first iteration runs immediately (sleepCycle == 0) and queues an action.
+            await WaitForAsync(() => Volatile.Read(ref executionCount) >= 1)
+                .ConfigureAwait(false);
+
+            // Without advancing the fake clock, subsequent iterations stay parked in
+            // Delay; assert the count stays at 1 for a long real-time window.
+            await Task.Delay(200).ConfigureAwait(false);
+
+            runner.Stop();
+            Assert.That(Volatile.Read(ref executionCount), Is.EqualTo(1));
+        }
+
+        private static async Task WaitForAsync(
+            Func<bool> condition,
+            TimeSpan? timeout = null)
+        {
+            TimeSpan deadline = timeout ?? TimeSpan.FromSeconds(5);
+            DateTime end = DateTime.UtcNow + deadline;
+            while (!condition())
+            {
+                if (DateTime.UtcNow > end)
+                {
+                    Assert.Fail($"Condition not satisfied within {deadline.TotalMilliseconds}ms.");
+                }
+                await Task.Delay(5).ConfigureAwait(false);
+            }
         }
     }
 }

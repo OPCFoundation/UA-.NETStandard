@@ -94,9 +94,26 @@ namespace Opc.Ua.Server
             IMonitoredItemQueueFactory queueFactory,
             ITelemetryContext telemetry,
             Action? discardedValueHandler = null)
+            : this(monitoredItemId, createDurable, queueFactory, telemetry, discardedValueHandler, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new Queue with an explicit <see cref="TimeProvider"/> so
+        /// the per-sample timestamp used for sampling-interval throttling can
+        /// be mocked in tests.
+        /// </summary>
+        public DataChangeQueueHandler(
+            uint monitoredItemId,
+            bool createDurable,
+            IMonitoredItemQueueFactory queueFactory,
+            ITelemetryContext telemetry,
+            Action? discardedValueHandler,
+            TimeProvider? timeProvider)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             m_discardedValueHandler = discardedValueHandler!;
             m_monitoredItemId = monitoredItemId;
@@ -117,6 +134,21 @@ namespace Opc.Ua.Server
             double samplingInterval,
             ITelemetryContext telemetry,
             Action? discardedValueHandler = null)
+            : this(dataValueQueue, discardOldest, samplingInterval, telemetry, discardedValueHandler, null)
+        {
+        }
+
+        /// <summary>
+        /// Create a DatachangeQueueHandler from an existing queue with an
+        /// explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        public DataChangeQueueHandler(
+            IDataChangeMonitoredItemQueue dataValueQueue,
+            bool discardOldest,
+            double samplingInterval,
+            ITelemetryContext telemetry,
+            Action? discardedValueHandler,
+            TimeProvider? timeProvider)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
 
@@ -127,6 +159,7 @@ namespace Opc.Ua.Server
             m_nextSampleTime = 0;
             m_overflow = default;
             m_overflowPending = false;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             SetSamplingInterval(samplingInterval);
         }
 
@@ -214,7 +247,7 @@ namespace Opc.Ua.Server
         /// <returns>true of overflow occured</returns>
         public bool QueueValue(in DataValue value, ServiceResult error)
         {
-            long now = HiResClock.TickCount64;
+            long now = m_timeProvider.GetTimestampMilliseconds();
 
             if (m_dataValueQueue.ItemsInQueue > 0)
             {
@@ -422,6 +455,7 @@ namespace Opc.Ua.Server
 
         private readonly IDataChangeMonitoredItemQueue m_dataValueQueue;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private readonly uint m_monitoredItemId;
         private bool m_discardOldest;
         private long m_nextSampleTime;

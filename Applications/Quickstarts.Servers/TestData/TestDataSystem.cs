@@ -65,13 +65,15 @@ namespace TestData
             ITestDataSystemCallback callback,
             NamespaceTable namespaceUris,
             StringTable serverUris,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_callback = callback;
             m_logger = telemetry.CreateLogger<TestDataSystem>();
             m_minimumSamplingInterval = int.MaxValue;
             m_monitoredNodes = [];
             m_samplingNodes = null;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             Generator = new Opc.Ua.Test.DataGenerator(null, telemetry)
             {
                 NamespaceUris = namespaceUris,
@@ -824,11 +826,11 @@ namespace TestData
                     m_timer?.Dispose();
                     m_timer = null;
 
-                    m_timer = new Timer(
+                    m_timer = m_timeProvider.CreateTimer(
                         DoSample,
                         null,
-                        m_minimumSamplingInterval,
-                        m_minimumSamplingInterval);
+                        TimeSpan.FromMilliseconds(m_minimumSamplingInterval),
+                        TimeSpan.FromMilliseconds(m_minimumSamplingInterval));
                 }
             }
         }
@@ -837,7 +839,7 @@ namespace TestData
         {
             m_logger.LogTrace(
                 "DoSample HiRes={HiRes:ss.ffff} Now={CurrentTime:ss.ffff}",
-                HiResClock.UtcNow,
+                m_timeProvider.GetUtcNow().UtcDateTime,
                 DateTime.UtcNow);
 
             var samples = new Queue<Sample>();
@@ -934,7 +936,8 @@ namespace TestData
         private int m_minimumSamplingInterval;
         private Dictionary<uint, BaseVariableState>? m_monitoredNodes;
         private IList<BaseVariableState>? m_samplingNodes;
-        private Timer? m_timer;
+        private ITimer? m_timer;
+        private readonly TimeProvider m_timeProvider;
         private StatusCode m_systemStatus;
     }
 }

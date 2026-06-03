@@ -74,6 +74,66 @@ namespace Opc.Ua.Server
             double sessionTimeout,
             int maxBrowseContinuationPoints,
             int maxHistoryContinuationPoints)
+            : this(
+                context,
+                server,
+                serverCertificate,
+                authenticationToken,
+                clientNonce,
+                serverNonce,
+                sessionName,
+                clientDescription,
+                endpointUrl,
+                clientCertificate,
+                clientCertificateChain,
+                sessionTimeout,
+                maxBrowseContinuationPoints,
+                maxHistoryContinuationPoints,
+                timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Session"/> class with an
+        /// explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="server">The Server object.</param>
+        /// <param name="serverCertificate">The server certificate.</param>
+        /// <param name="authenticationToken">The unique private identifier assigned to the Session.</param>
+        /// <param name="clientNonce">The client nonce.</param>
+        /// <param name="serverNonce">The server nonce.</param>
+        /// <param name="sessionName">The name assigned to the Session.</param>
+        /// <param name="clientDescription">Application description for the client application.</param>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certifiate chain</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
+        /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for monotonic timeout
+        /// calculations and last-contact diagnostics. When <c>null</c>, the
+        /// time provider exposed by the server (via
+        /// <see cref="ITimeProviderProvider"/>) is used, falling back to
+        /// <see cref="TimeProvider.System"/>.
+        /// </param>
+        public Session(
+            OperationContext context,
+            IServerInternal server,
+            Certificate serverCertificate,
+            NodeId authenticationToken,
+            ByteString clientNonce,
+            Nonce serverNonce,
+            string sessionName,
+            ApplicationDescription clientDescription,
+            string endpointUrl,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
+            double sessionTimeout,
+            int maxBrowseContinuationPoints,
+            int maxHistoryContinuationPoints,
+            TimeProvider? timeProvider)
         {
             if (context == null)
             {
@@ -87,6 +147,9 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<Session>();
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
@@ -105,8 +168,8 @@ namespace Opc.Ua.Server
             Identity = new UserIdentity();
 
             // initialize diagnostics.
-            DateTime now = DateTime.UtcNow;
-            m_lastContactTickCount = HiResClock.TickCount64;
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+            m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
             SessionDiagnostics = new SessionDiagnosticsDataType
             {
                 SessionId = default,
@@ -298,7 +361,7 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    return HiResClock.TickCount64 - m_lastContactTickCount >
+                    return m_timeProvider.GetTimestampMilliseconds() - m_lastContactTickCount >
                         (long)SessionDiagnostics.ActualSessionTimeout;
                 }
             }
@@ -319,7 +382,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The monotonic tick count (HiResClock.TickCount64) at the last client contact.
+        /// The monotonic tick count (milliseconds) at the last client contact.
         /// Used for timeout calculations that are immune to system time changes.
         /// </summary>
         public long LastContactTickCount
@@ -657,8 +720,8 @@ namespace Opc.Ua.Server
                 // update the contact time.
                 lock (DiagnosticsLock)
                 {
-                    SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
-                    m_lastContactTickCount = HiResClock.TickCount64;
+                    SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
+                    m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
                 }
 
                 // indicate whether the user context has changed.
@@ -1207,8 +1270,8 @@ namespace Opc.Ua.Server
             {
                 if (!error)
                 {
-                    SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
-                    m_lastContactTickCount = HiResClock.TickCount64;
+                    SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
+                    m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
                 }
 
                 SessionDiagnostics.TotalRequestCount.TotalCount++;
@@ -1342,6 +1405,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly string m_sessionName;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;

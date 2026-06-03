@@ -154,11 +154,21 @@ namespace Opc.Ua.Client.StateMachines
         /// (matched by localized name) or the timeout/cancellation
         /// fires.
         /// </summary>
+        /// <param name="client">The proxy client.</param>
+        /// <param name="streaming">The streaming subscription used to observe transitions.</param>
+        /// <param name="targetState">The state to wait for.</param>
+        /// <param name="timeout">Optional timeout; <c>null</c> waits indefinitely.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for the timeout
+        /// scheduler; defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
         public static async ValueTask WaitForStateAsync(
             this StateMachineTypeClient client,
             IStreamingSubscription streaming,
             LocalizedText targetState,
             TimeSpan? timeout = null,
+            TimeProvider? timeProvider = null,
             CancellationToken ct = default)
         {
             if (client == null)
@@ -177,11 +187,14 @@ namespace Opc.Ua.Client.StateMachines
                 return;
             }
 
+            TimeProvider tp = timeProvider ?? TimeProvider.System;
             using CancellationTokenSource? timeoutCts = timeout.HasValue
-                ? CancellationTokenSource.CreateLinkedTokenSource(ct)
+                ? tp.CreateCancellationTokenSource(timeout.Value)
                 : null;
-            timeoutCts?.CancelAfter(timeout!.Value);
-            CancellationToken effective = timeoutCts?.Token ?? ct;
+            using CancellationTokenSource? linkedCts = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
+                : null;
+            CancellationToken effective = linkedCts?.Token ?? ct;
 
             await foreach (StateMachineSnapshot snap in client
                 .ObserveStateChangesAsync(streaming, options: null, effective)

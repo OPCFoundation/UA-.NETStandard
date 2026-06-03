@@ -65,10 +65,41 @@ namespace Opc.Ua.Server
             IServerInternal server,
             NodeState node,
             bool enableMultipleEventConsumers = false)
+            : this(nodeManager, server, node, enableMultipleEventConsumers, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MonitoredNode2"/> class
+        /// with an explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="nodeManager">The node manager.</param>
+        /// <param name="server">The server.</param>
+        /// <param name="node">The node.</param>
+        /// <param name="enableMultipleEventConsumers">
+        /// When <c>true</c>, enables dynamic scaling of consumer tasks.
+        /// </param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for the operation-context
+        /// cache lifetime and for wall-clock <c>SourceTimestamp</c> /
+        /// <c>ServerTimestamp</c> values produced inside this node. When
+        /// <c>null</c>, the time provider exposed by the server (via
+        /// <see cref="ITimeProviderProvider"/>) is used, falling back to
+        /// <see cref="TimeProvider.System"/>.
+        /// </param>
+        public MonitoredNode2(
+            IAsyncNodeManager nodeManager,
+            IServerInternal server,
+            NodeState node,
+            bool enableMultipleEventConsumers,
+            TimeProvider? timeProvider)
         {
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             Node = node ?? throw new ArgumentNullException(nameof(node));
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_logger = server.Telemetry?.CreateLogger<MonitoredNode2>();
             m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
@@ -308,7 +339,7 @@ namespace Opc.Ua.Server
                 var dataValue = new DataValue(
                     default,
                     StatusCodes.Good,
-                    DateTime.UtcNow,
+                    m_timeProvider.GetUtcNow().UtcDateTime,
                     DateTime.MinValue);
 
                 (ServiceResult readError, attributeSnapshots[attributeId]) = node.ReadAttributeAsync(
@@ -582,7 +613,7 @@ namespace Opc.Ua.Server
                 Variant.Null,
                 StatusCodes.Good,
                 DateTime.MinValue,
-                DateTime.UtcNow);
+                m_timeProvider.GetUtcNow().UtcDateTime);
             (ServiceResult error, value) = await node.ReadAttributeAsync(
                 context,
                 monitoredItem.AttributeId,
@@ -638,26 +669,26 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem)
         {
             uint monitoredItemId = monitoredItem.Id;
-            int currentTicks = HiResClock.TickCount;
+            long currentTimestamp = m_timeProvider.GetTimestamp();
             OperationContext operationContext;
 
             // Check if the context already exists in the cache
             if (m_contextCache.TryGetValue(
                     monitoredItemId,
-                    out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
+                    out (ServerSystemContext Context, long CreatedAtTimestamp) cachedEntry))
             {
                 // Refresh context if the owning session changed (e.g. after subscription transfer)
                 // or if the cache entry has expired.
                 // Note: identity-based invalidation is handled proactively by
                 // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
                 if (cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
-                    (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
+                    m_timeProvider.GetElapsedTime(cachedEntry.CreatedAtTimestamp) > m_cacheLifetime)
                 {
                     operationContext = new OperationContext(monitoredItem);
 
                     ServerSystemContext updatedContext = context.Copy(
                         operationContext);
-                    m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
+                    m_contextCache[monitoredItemId] = (updatedContext, currentTimestamp);
 
                     // Invalidate the permission cache since the session context has changed.
                     m_permissionCache.TryRemove(monitoredItemId, out _);
@@ -671,7 +702,7 @@ namespace Opc.Ua.Server
             // Create a new context and add it to the cache
             operationContext = new OperationContext(monitoredItem);
             ServerSystemContext newContext = context.Copy(operationContext);
-            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
+            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTimestamp));
 
             return newContext;
         }
@@ -776,7 +807,7 @@ namespace Opc.Ua.Server
             public CancellationTokenSource Cts { get; }
         }
 
-        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache =
             new();
 
         private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
@@ -785,9 +816,10 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<EventPermissionCacheKey, ServiceResult> m_eventPermissionCache =
             new();
 
-        private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
+        private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
         private readonly Channel<INodeNotification> m_channel;
         private readonly CancellationTokenSource m_consumerCts;

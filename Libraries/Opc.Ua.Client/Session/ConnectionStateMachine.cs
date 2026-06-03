@@ -44,6 +44,7 @@ namespace Opc.Ua.Client
         private volatile ConnectionState m_state = ConnectionState.Disconnected;
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_cts = new();
         private readonly AsyncAutoResetEvent m_trigger = new(false);
         private readonly AsyncManualResetEvent m_connected = new(false);
@@ -91,14 +92,19 @@ namespace Opc.Ua.Client
         /// <param name="reconnectPolicy">The reconnect policy that
         /// controls backoff and retry limits.</param>
         /// <param name="logger">Logger instance.</param>
+        /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/>
+        /// used for reconnect delay timing. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public ConnectionStateMachine(
             IReconnectPolicy reconnectPolicy,
-            ILogger logger)
+            ILogger logger,
+            TimeProvider? timeProvider = null)
         {
             m_reconnectPolicy = reconnectPolicy
                 ?? throw new ArgumentNullException(nameof(reconnectPolicy));
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>Current connection state.</summary>
@@ -384,7 +390,7 @@ namespace Opc.Ua.Client
                     "ConnectionStateMachine:Reconnect attempt {Attempt}, delay {DelayMs} ms.",
                     attempt, (int)delay.Value.TotalMilliseconds);
 
-                await Task.Delay(delay.Value, ct)
+                await m_timeProvider.Delay(delay.Value, ct)
                     .ConfigureAwait(false);
 
                 ServiceResult result = await InvokeReconnectAsync(ct)

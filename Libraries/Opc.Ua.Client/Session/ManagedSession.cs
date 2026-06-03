@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
             m_poolNotifications = poolNotifications;
 
             StateMachine = new ConnectionStateMachine(
-                reconnectPolicy, logger);
+                reconnectPolicy, logger, m_timeProvider);
 
             WireStateMachineCallbacks();
         }
@@ -178,14 +178,17 @@ namespace Opc.Ua.Client
             // factory is a DefaultSessionFactory and no engine factory is
             // already configured on it, propagate this choice so the inner
             // Session is constructed with the V2 engine.
-            engineFactory ??= DefaultSubscriptionEngineFactory.Instance;
+            engineFactory ??= timeProvider == null
+                ? DefaultSubscriptionEngineFactory.Instance
+                : new DefaultSubscriptionEngineFactory(timeProvider);
             if (sessionFactory is DefaultSessionFactory dsf &&
                 dsf.SubscriptionEngineFactory is null)
             {
                 sessionFactory = new DefaultSessionFactory(dsf.Telemetry)
                 {
                     ReturnDiagnostics = dsf.ReturnDiagnostics,
-                    SubscriptionEngineFactory = engineFactory
+                    SubscriptionEngineFactory = engineFactory,
+                    TimeProvider = timeProvider ?? dsf.TimeProvider
                 };
             }
 
@@ -389,8 +392,8 @@ namespace Opc.Ua.Client
             => m_session?.LastKeepAliveTime ?? DateTime.MinValue;
 
         /// <inheritdoc/>
-        public int LastKeepAliveTickCount
-            => m_session?.LastKeepAliveTickCount ?? 0;
+        public long LastKeepAliveTimestamp
+            => m_session?.LastKeepAliveTimestamp ?? 0L;
 
         /// <inheritdoc/>
         public int OutstandingRequestCount

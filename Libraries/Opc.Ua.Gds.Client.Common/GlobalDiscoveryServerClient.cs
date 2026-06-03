@@ -53,7 +53,13 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity? adminUserIdentity = null,
             ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
-            : this(configuration, options: null, adminUserIdentity, sessionFactory, diagnosticsMasks)
+            : this(
+                  configuration,
+                  options: null,
+                  adminUserIdentity,
+                  sessionFactory,
+                  diagnosticsMasks,
+                  timeProvider: null)
         {
         }
 
@@ -66,12 +72,16 @@ namespace Opc.Ua.Gds.Client
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         /// <param name="sessionFactory">Used to create session to the server.</param>
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used for
+        /// connect-retry backoff delays. Defaults to <see cref="TimeProvider.System"/>
+        /// when <c>null</c>.</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             GdsClientOptions? options,
             IUserIdentity? adminUserIdentity = null,
             ISessionFactory? sessionFactory = null,
-            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None,
+            TimeProvider? timeProvider = null)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             m_options = options ?? new GdsClientOptions();
@@ -83,6 +93,7 @@ namespace Opc.Ua.Gds.Client
                     ReturnDiagnostics = diagnosticsMasks
                 };
             AdminCredentials = adminUserIdentity;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -349,7 +360,7 @@ namespace Opc.Ua.Gds.Client
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
-                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
                     }
                 }
             }
@@ -384,7 +395,7 @@ namespace Opc.Ua.Gds.Client
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying...", attempt + 1);
                     if (attempt + 1 < maxAttempts)
                     {
-                        await Task.Delay(backoffMs, ct).ConfigureAwait(false);
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(backoffMs), ct).ConfigureAwait(false);
                     }
                 }
             }
@@ -852,6 +863,7 @@ namespace Opc.Ua.Gds.Client
         private readonly ISessionFactory m_sessionFactory;
         private readonly ILogger m_logger;
         private readonly GdsClientOptions m_options;
+        private readonly TimeProvider m_timeProvider;
         private readonly CancellationTokenSource m_disposeCts = new();
         private DirectoryTypeClient? m_directory;
         private CertificateDirectoryTypeClient? m_certificateDirectory;

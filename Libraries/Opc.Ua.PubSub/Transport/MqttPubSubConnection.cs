@@ -437,7 +437,8 @@ namespace Opc.Ua.PubSub.Transport
                                 writerGroup,
                                 dataSetWriter,
                                 transport.MetaDataUpdateTime,
-                                Telemetry));
+                                Telemetry,
+                                Application.TimeProvider));
                     }
                 }
 
@@ -478,6 +479,7 @@ namespace Opc.Ua.PubSub.Transport
                             m_publisherMqttClientOptions,
                             null!,
                             m_logger,
+                            timeProvider: Application.TimeProvider,
                             ct: stopToken)
                         .ConfigureAwait(false);
             }
@@ -527,6 +529,7 @@ namespace Opc.Ua.PubSub.Transport
                             ProcessMqttMessage,
                             m_logger,
                             topics,
+                            Application.TimeProvider,
                             stopToken)
                         .ConfigureAwait(false);
             }

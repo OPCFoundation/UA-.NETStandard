@@ -53,6 +53,7 @@ namespace Opc.Ua.Server.Alarms
     {
         private readonly object m_lock = new();
         private readonly Queue<DateTime> m_activations = new();
+        private readonly TimeProvider m_timeProvider;
         private long m_maximumRate;
 
         /// <summary>
@@ -65,8 +66,24 @@ namespace Opc.Ua.Server.Alarms
         /// </summary>
         /// <param name="windowDuration">Window duration; default 1 minute.</param>
         public AlarmRateTracker(TimeSpan? windowDuration = null)
+            : this(windowDuration, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new tracker with the given window duration and an
+        /// explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="windowDuration">Window duration; default 1 minute.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used to time-stamp activations
+        /// and to trim the sliding window. Falls back to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.
+        /// </param>
+        public AlarmRateTracker(TimeSpan? windowDuration, TimeProvider? timeProvider)
         {
             WindowDuration = windowDuration ?? TimeSpan.FromMinutes(1);
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>
@@ -74,7 +91,7 @@ namespace Opc.Ua.Server.Alarms
         /// </summary>
         public void RecordActivation()
         {
-            RecordActivation(DateTime.UtcNow);
+            RecordActivation(m_timeProvider.GetUtcNow().UtcDateTime);
         }
 
         /// <summary>
@@ -103,7 +120,7 @@ namespace Opc.Ua.Server.Alarms
             {
                 lock (m_lock)
                 {
-                    TrimOldEntries(DateTime.UtcNow);
+                    TrimOldEntries(m_timeProvider.GetUtcNow().UtcDateTime);
                     return m_activations.Count;
                 }
             }
@@ -143,7 +160,7 @@ namespace Opc.Ua.Server.Alarms
         {
             lock (m_lock)
             {
-                TrimOldEntries(DateTime.UtcNow);
+                TrimOldEntries(m_timeProvider.GetUtcNow().UtcDateTime);
                 return m_activations.ToArray();
             }
         }
