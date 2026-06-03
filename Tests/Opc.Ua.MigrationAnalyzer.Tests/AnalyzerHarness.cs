@@ -61,11 +61,40 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
 
         private static ImmutableArray<MetadataReference> BuildBaseReferences()
         {
+            // On .NET Core / .NET 5+, the runtime exposes the full set of trusted
+            // platform assemblies via AppContext, which is exactly the closure of
+            // reference assemblies we need to compile arbitrary test snippets.
             string trustedAssemblies = (string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? string.Empty;
-            return [.. trustedAssemblies
+            string[] tpaList = trustedAssemblies
                 .Split(Path.PathSeparator)
                 .Where(p => !string.IsNullOrEmpty(p))
+                .ToArray();
+            if (tpaList.Length > 0)
+            {
+                return [.. tpaList.Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))];
+            }
+            // On .NET Framework, TPA is not exposed. Fall back to scanning the
+            // runtime directory for the BCL assemblies — that's where mscorlib /
+            // System / System.Core etc. live at runtime, and they are sufficient
+            // for our small test snippets (the analyzer doesn't need full .NET
+            // surface area to bind types from the OpcUaStubs source).
+            string runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+            if (string.IsNullOrEmpty(runtimeDir) || !Directory.Exists(runtimeDir))
+            {
+                return [];
+            }
+            return [.. Directory.EnumerateFiles(runtimeDir, "*.dll")
+                .Where(IsBclAssembly)
                 .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))];
+        }
+
+        private static bool IsBclAssembly(string path)
+        {
+            string name = Path.GetFileNameWithoutExtension(path);
+            return name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("netstandard", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("System", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("Microsoft.CSharp", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
