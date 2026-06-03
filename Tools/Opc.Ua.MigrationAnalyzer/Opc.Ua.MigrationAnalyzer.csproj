@@ -55,9 +55,15 @@
   </ItemGroup>
   <!-- A ProjectReference is the simplest way to make NuGet restore the shim's
        assets file. We mark it as a build-only dependency (no compile reference,
-       no transitive flow). The actual multi-TFM build happens in the target below. -->
+       no transitive flow). The actual multi-TFM build happens in the target below.
+       SkipGetTargetFrameworkProperties is required because Core is multi-TFM and
+       this csproj is netstandard2.0 — on Linux without net48/472 SDKs, the TFM
+       compatibility check would otherwise fail with NETSDK1xxx. The
+       _BuildShimAllTfmsBeforePack target invokes the actual build via the
+       MSBuild task, bypassing the compatibility check entirely. -->
   <ItemGroup>
-    <ProjectReference Include="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj">
+    <ProjectReference Include="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
+                      SkipGetTargetFrameworkProperties="true">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
