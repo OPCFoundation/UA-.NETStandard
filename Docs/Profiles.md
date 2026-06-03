@@ -262,7 +262,7 @@ See the [Reference Server configuration file](../Applications/ConsoleReferenceSe
 - [PubSub](PubSub.md) - Publisher-Subscriber pattern implementation
 - [Async Server Support](AsyncServerSupport.md) - Asynchronous node manager implementation
 - [Alias Names](AliasNames.md) - OPC UA Part 17 alias-name model and address space naming
-- [Alarms and Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
+- [Alarms & Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
 - [Model Change Tracking](ModelChangeTracking.md) - Address space change notifications and client-side cache management
 - [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 Web of Things connectivity integration
 - [Streaming Subscriptions](StreamingSubscription.md) - Async enumerable subscription API for state machines and short-lived monitoring
