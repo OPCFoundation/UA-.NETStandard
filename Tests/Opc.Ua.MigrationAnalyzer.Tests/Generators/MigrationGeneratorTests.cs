@@ -53,11 +53,37 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
         private static ImmutableArray<MetadataReference> BuildBaseReferences()
         {
+            // On .NET Core / .NET 5+, the runtime exposes the full set of trusted
+            // platform assemblies via AppContext.
             string trustedAssemblies = (string?)System.AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? string.Empty;
-            return [.. trustedAssemblies
+            string[] tpaList = trustedAssemblies
                 .Split(Path.PathSeparator)
                 .Where(p => !string.IsNullOrEmpty(p))
+                .ToArray();
+            if (tpaList.Length > 0)
+            {
+                return [.. tpaList.Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))];
+            }
+            // On .NET Framework, TPA is not exposed. Fall back to scanning the
+            // runtime directory for BCL assemblies (mscorlib, System.*) so that
+            // System.Int32 et al. are available for generator semantic lookups.
+            string runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+            if (string.IsNullOrEmpty(runtimeDir) || !Directory.Exists(runtimeDir))
+            {
+                return [];
+            }
+            return [.. Directory.EnumerateFiles(runtimeDir, "*.dll")
+                .Where(IsBclAssembly)
                 .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))];
+        }
+
+        private static bool IsBclAssembly(string path)
+        {
+            string name = Path.GetFileNameWithoutExtension(path);
+            return name.Equals("mscorlib", System.StringComparison.OrdinalIgnoreCase)
+                || name.Equals("netstandard", System.StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("System", System.StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("Microsoft.CSharp", System.StringComparison.OrdinalIgnoreCase);
         }
 
         private static GeneratorDriverRunResult Run(string userSource, string? extraSource = null)
