@@ -1541,17 +1541,27 @@ namespace Opc.Ua.SourceGeneration
             // of an explicitly-declared singleton instance (e.g.
             // <opc:Object SymbolicName="ServerConfiguration" ...> in
             // StandardTypes.xml) into the always-emitted mandatory list so
-            // declared overrides materialize on the actual node.  This
-            // exception must be suppressed when
+            // declared overrides materialize on the actual node. This
+            // exception must be suppressed for SINGLETON-INSTANCE roots when
             // <see cref="GeneratorOptions.UseTypeDefinitionModellingRules"/>
             // is on; otherwise singleton instance overrides could re-introduce
             // the very Optional/unimplemented children we are trying to
             // exclude from the actual instance.
+            //
+            // TYPE-DEFINITION roots (ObjectTypeDesign, VariableTypeDesign,
+            // MethodTypeDesign) must still emit their Optional children
+            // unconditionally — the type-def factory is called from many
+            // places (instance.Create, ConfigurationNodeManager.
+            // CreateNamespaceMetadataStateAsync, etc.) with
+            // forInstance=true, and removing them breaks deep code paths
+            // that rely on the type-def factory shape. Only suppress when
+            // the parent is itself an InstanceDesign singleton.
             bool topLevelInstanceException =
-                !m_context.Options.UseTypeDefinitionModellingRules &&
                 node.Parent != null &&
                 node.Parent.Parent == null &&
-                node.Parent.InstanceOf == null;
+                node.Parent.InstanceOf == null &&
+                (node.Parent.Design is not InstanceDesign ||
+                    !m_context.Options.UseTypeDefinitionModellingRules);
 
             if (context.Token == Tokens.ListOfOptionalChildNodeStates)
             {

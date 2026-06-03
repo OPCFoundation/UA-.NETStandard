@@ -212,11 +212,6 @@ namespace Opc.Ua.Server.Tests
                     VariableIds.ServerConfiguration_HasSecureElement,
                     MethodIds.ServerConfiguration_CancelChanges,
                     MethodIds.ServerConfiguration_ResetToServerDefaults,
-                    // Server Optional Variables - SDK does not implement
-                    // these (no value source / no consumer).
-                    VariableIds.Server_UrisVersion,
-                    VariableIds.Server_EstimatedReturnTime,
-                    VariableIds.Server_LocalTime,
                     // PublishSubscribe Optional Methods - SDK does not
                     // implement these (no PubSub configuration provider).
                     MethodIds.PublishSubscribe_AddConnection,
@@ -257,6 +252,14 @@ namespace Opc.Ua.Server.Tests
                     MethodIds.Server_ResendData,
                     VariableIds.Server_ResendData_InputArguments,
                     VariableIds.HistoryServerCapabilities_ServerTimestampSupported,
+
+                    // Server Optional Variables - re-added by
+                    // DiagnosticsNodeManager.AddServerSdkOptionalChildren
+                    // (no SDK value source but expected by clients that
+                    // browse the standard browse paths).
+                    VariableIds.Server_UrisVersion,
+                    VariableIds.Server_EstimatedReturnTime,
+                    VariableIds.Server_LocalTime,
 
                     // ServerCapabilities Optional Properties - re-added by
                     // DiagnosticsNodeManager.AddServerCapabilitiesSdkOptionalChildren
@@ -301,7 +304,26 @@ namespace Opc.Ua.Server.Tests
                     // ConfigurationNodeManager bind against).
                     VariableIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateTypes,
                     ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
-                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
+
+                    // WellKnownRole regression guard: the StandardTypes.xml
+                    // declarations promote RoleType's Optional children to
+                    // Mandatory on each modifiable well-known role
+                    // (Observer, Operator, Engineer, Supervisor,
+                    // ConfigureAdmin, SecurityAdmin). The transitive gate
+                    // suppresses them at the generator level;
+                    // DiagnosticsNodeManager.AddWellKnownRoleSdkOptionalChildren
+                    // re-adds them so RoleStateBinding finds them and so
+                    // standard Role-based access tests pass (one sample per
+                    // role child for fast feedback).
+                    MethodIds.WellKnownRole_Observer_AddIdentity,
+                    VariableIds.WellKnownRole_Observer_ApplicationsExclude,
+                    MethodIds.WellKnownRole_Observer_AddApplication,
+                    MethodIds.WellKnownRole_Operator_AddEndpoint,
+                    MethodIds.WellKnownRole_Engineer_RemoveIdentity,
+                    MethodIds.WellKnownRole_Supervisor_RemoveApplication,
+                    MethodIds.WellKnownRole_ConfigureAdmin_RemoveEndpoint,
+                    MethodIds.WellKnownRole_SecurityAdmin_AddIdentity
                 ];
 
                 foreach (NodeId sdkAddedNodeId in sdkAddedNodeIds)

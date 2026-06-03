@@ -446,6 +446,15 @@ namespace Opc.Ua.Server
                     case HistoryServerCapabilitiesState historyCaps:
                         AddHistoryCapabilitiesSdkOptionalChildren(context, historyCaps);
                         break;
+                    case RoleState roleState:
+                        AddWellKnownRoleSdkOptionalChildren(context, roleState);
+                        break;
+                    case NamespaceMetadataState metadataState:
+                        AddOpcUaNamespaceMetadataSdkOptionalChildren(context, metadataState);
+                        break;
+                    case AliasNameCategoryState aliasCategory:
+                        AddAliasNameCategorySdkOptionalChildren(context, aliasCategory);
+                        break;
                 }
             }
         }
@@ -515,6 +524,31 @@ namespace Opc.Ua.Server
             {
                 serverObject.AddNamespaces(context).NodeId
                     = ObjectIds.Server_Namespaces;
+            }
+
+            // Server.UrisVersion / EstimatedReturnTime / LocalTime are Optional
+            // Variables on ServerType that the SDK does not actively populate
+            // but were emitted on master at the well-known instance NodeIds.
+            // Re-add at startup so clients that browse the standard browse
+            // paths keep working (e.g. InformationModel.BaseInfoServerTests.
+            // ReadEstimatedReturnTimeValueAsync). Values stay at the typed
+            // default (UInt32 0 for UrisVersion, default DateTimeUtc for
+            // EstimatedReturnTime, default TimeZoneDataType for LocalTime)
+            // until a server implementation overrides them.
+            if (serverObject.UrisVersion == null)
+            {
+                serverObject.AddUrisVersion(context).NodeId
+                    = VariableIds.Server_UrisVersion;
+            }
+            if (serverObject.EstimatedReturnTime == null)
+            {
+                serverObject.AddEstimatedReturnTime(context).NodeId
+                    = VariableIds.Server_EstimatedReturnTime;
+            }
+            if (serverObject.LocalTime == null)
+            {
+                serverObject.AddLocalTime(context).NodeId
+                    = VariableIds.Server_LocalTime;
             }
 
             // The transitive generator gate (issue #3768) stops emitting
@@ -735,6 +769,339 @@ namespace Opc.Ua.Server
             {
                 historyCaps.AddServerTimestampSupported(context).NodeId
                     = VariableIds.HistoryServerCapabilities_ServerTimestampSupported;
+            }
+        }
+
+        /// <summary>
+        /// Re-adds the Optional NamespaceMetadataType properties that the
+        /// standard OPCUANamespaceMetadata singleton (Server.Namespaces.
+        /// "http://opcfoundation.org/UA/") declares in
+        /// <c>Opc.Ua.NodeSet2.xml</c>. The transitive singleton-instance
+        /// gate (issue #3768) suppresses them at the generator level;
+        /// without lazy-add, role-based access conformance tests that
+        /// browse the metadata for DefaultRolePermissions /
+        /// DefaultUserRolePermissions / DefaultAccessRestrictions fail.
+        /// </summary>
+        private static void AddOpcUaNamespaceMetadataSdkOptionalChildren(
+            ISystemContext context,
+            NamespaceMetadataState metadataState)
+        {
+            if (metadataState.NodeId.IdType != IdType.Numeric ||
+                metadataState.NodeId.NamespaceIndex != 0 ||
+                !metadataState.NodeId.TryGetValue(out uint numericId) ||
+                numericId != Objects.OPCUANamespaceMetadata)
+            {
+                return;
+            }
+            if (metadataState.DefaultRolePermissions == null)
+            {
+                metadataState.AddDefaultRolePermissions(context).NodeId
+                    = VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions;
+            }
+            if (metadataState.DefaultUserRolePermissions == null)
+            {
+                metadataState.AddDefaultUserRolePermissions(context).NodeId
+                    = VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions;
+            }
+            if (metadataState.DefaultAccessRestrictions == null)
+            {
+                metadataState.AddDefaultAccessRestrictions(context).NodeId
+                    = VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions;
+            }
+        }
+
+        /// <summary>
+        /// Re-adds the Optional LastChange property on the standard Part 17
+        /// <c>Aliases</c> singleton (i=23470). The transitive
+        /// singleton-instance gate (issue #3768) suppresses it at the
+        /// generator level; without lazy-add, monitored-item-based cache
+        /// invalidation (see
+        /// <c>AliasNameResolverRefreshMode.AutoOnLastChangeMonitoredItem</c>
+        /// in <c>Opc.Ua.Client</c>) cannot subscribe to LastChange and
+        /// the test
+        /// <c>MonitoredItemAliasNameRefreshStrategyTests.
+        /// MonitoredItemStrategyInvalidatesCacheAsync</c> fails.
+        /// Only the standard <c>Aliases</c> category exposes LastChange in
+        /// the shipped NodeSet; <c>TagVariables</c> and <c>Topics</c> do not.
+        /// </summary>
+        private static void AddAliasNameCategorySdkOptionalChildren(
+            ISystemContext context,
+            AliasNameCategoryState category)
+        {
+            if (category.NodeId.IdType != IdType.Numeric ||
+                category.NodeId.NamespaceIndex != 0 ||
+                !category.NodeId.TryGetValue(out uint numericId) ||
+                numericId != Objects.Aliases)
+            {
+                return;
+            }
+            if (category.LastChange == null)
+            {
+                category.AddLastChange(context).NodeId
+                    = VariableIds.Aliases_LastChange;
+            }
+        }
+
+        /// <summary>
+        /// Programmatically re-adds the Optional RoleType children that the
+        /// six modifiable well-known roles (Observer, Operator, Engineer,
+        /// Supervisor, ConfigureAdmin, SecurityAdmin) explicitly promote to
+        /// Mandatory in StandardTypes.xml. The transitive singleton-instance
+        /// gate (issue #3768) stops the generator from emitting these
+        /// Variable/Method descendants under their well-known instance
+        /// NodeIds; lazy-add restores the standard well-known address space
+        /// so <see cref="Opc.Ua.Server.RoleStateBinding"/> finds them and
+        /// can wire OnCallAsync delegates and OnWriteValue handlers.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The three immutable roles (Anonymous, AuthenticatedUser,
+        /// TrustedApplication) do not have well-known instance NodeIds for
+        /// the Optional methods/properties (only Identities and a few
+        /// InputArguments NodeIds are reserved by the spec); they are
+        /// intentionally left untouched here.
+        /// </para>
+        /// </remarks>
+        private static void AddWellKnownRoleSdkOptionalChildren(
+            ISystemContext context,
+            RoleState roleState)
+        {
+            if (roleState.NodeId.IdType != IdType.Numeric ||
+                roleState.NodeId.NamespaceIndex != 0 ||
+                !roleState.NodeId.TryGetValue(out uint numericId))
+            {
+                return;
+            }
+            switch (numericId)
+            {
+                case Objects.WellKnownRole_Observer:
+                    AddWellKnownRoleChildren(context, roleState,
+                        applications: Variables.WellKnownRole_Observer_Applications,
+                        applicationsExclude: Variables.WellKnownRole_Observer_ApplicationsExclude,
+                        endpoints: Variables.WellKnownRole_Observer_Endpoints,
+                        endpointsExclude: Variables.WellKnownRole_Observer_EndpointsExclude,
+                        customConfiguration: Variables.WellKnownRole_Observer_CustomConfiguration,
+                        addIdentityMethod: Methods.WellKnownRole_Observer_AddIdentity,
+                        addIdentityArgs: Variables.WellKnownRole_Observer_AddIdentity_InputArguments,
+                        removeIdentityMethod: Methods.WellKnownRole_Observer_RemoveIdentity,
+                        removeIdentityArgs: Variables.WellKnownRole_Observer_RemoveIdentity_InputArguments,
+                        addApplicationMethod: Methods.WellKnownRole_Observer_AddApplication,
+                        addApplicationArgs: Variables.WellKnownRole_Observer_AddApplication_InputArguments,
+                        removeApplicationMethod: Methods.WellKnownRole_Observer_RemoveApplication,
+                        removeApplicationArgs: Variables.WellKnownRole_Observer_RemoveApplication_InputArguments,
+                        addEndpointMethod: Methods.WellKnownRole_Observer_AddEndpoint,
+                        addEndpointArgs: Variables.WellKnownRole_Observer_AddEndpoint_InputArguments,
+                        removeEndpointMethod: Methods.WellKnownRole_Observer_RemoveEndpoint,
+                        removeEndpointArgs: Variables.WellKnownRole_Observer_RemoveEndpoint_InputArguments);
+                    break;
+                case Objects.WellKnownRole_Operator:
+                    AddWellKnownRoleChildren(context, roleState,
+                        applications: Variables.WellKnownRole_Operator_Applications,
+                        applicationsExclude: Variables.WellKnownRole_Operator_ApplicationsExclude,
+                        endpoints: Variables.WellKnownRole_Operator_Endpoints,
+                        endpointsExclude: Variables.WellKnownRole_Operator_EndpointsExclude,
+                        customConfiguration: Variables.WellKnownRole_Operator_CustomConfiguration,
+                        addIdentityMethod: Methods.WellKnownRole_Operator_AddIdentity,
+                        addIdentityArgs: Variables.WellKnownRole_Operator_AddIdentity_InputArguments,
+                        removeIdentityMethod: Methods.WellKnownRole_Operator_RemoveIdentity,
+                        removeIdentityArgs: Variables.WellKnownRole_Operator_RemoveIdentity_InputArguments,
+                        addApplicationMethod: Methods.WellKnownRole_Operator_AddApplication,
+                        addApplicationArgs: Variables.WellKnownRole_Operator_AddApplication_InputArguments,
+                        removeApplicationMethod: Methods.WellKnownRole_Operator_RemoveApplication,
+                        removeApplicationArgs: Variables.WellKnownRole_Operator_RemoveApplication_InputArguments,
+                        addEndpointMethod: Methods.WellKnownRole_Operator_AddEndpoint,
+                        addEndpointArgs: Variables.WellKnownRole_Operator_AddEndpoint_InputArguments,
+                        removeEndpointMethod: Methods.WellKnownRole_Operator_RemoveEndpoint,
+                        removeEndpointArgs: Variables.WellKnownRole_Operator_RemoveEndpoint_InputArguments);
+                    break;
+                case Objects.WellKnownRole_Engineer:
+                    AddWellKnownRoleChildren(context, roleState,
+                        applications: Variables.WellKnownRole_Engineer_Applications,
+                        applicationsExclude: Variables.WellKnownRole_Engineer_ApplicationsExclude,
+                        endpoints: Variables.WellKnownRole_Engineer_Endpoints,
+                        endpointsExclude: Variables.WellKnownRole_Engineer_EndpointsExclude,
+                        customConfiguration: Variables.WellKnownRole_Engineer_CustomConfiguration,
+                        addIdentityMethod: Methods.WellKnownRole_Engineer_AddIdentity,
+                        addIdentityArgs: Variables.WellKnownRole_Engineer_AddIdentity_InputArguments,
+                        removeIdentityMethod: Methods.WellKnownRole_Engineer_RemoveIdentity,
+                        removeIdentityArgs: Variables.WellKnownRole_Engineer_RemoveIdentity_InputArguments,
+                        addApplicationMethod: Methods.WellKnownRole_Engineer_AddApplication,
+                        addApplicationArgs: Variables.WellKnownRole_Engineer_AddApplication_InputArguments,
+                        removeApplicationMethod: Methods.WellKnownRole_Engineer_RemoveApplication,
+                        removeApplicationArgs: Variables.WellKnownRole_Engineer_RemoveApplication_InputArguments,
+                        addEndpointMethod: Methods.WellKnownRole_Engineer_AddEndpoint,
+                        addEndpointArgs: Variables.WellKnownRole_Engineer_AddEndpoint_InputArguments,
+                        removeEndpointMethod: Methods.WellKnownRole_Engineer_RemoveEndpoint,
+                        removeEndpointArgs: Variables.WellKnownRole_Engineer_RemoveEndpoint_InputArguments);
+                    break;
+                case Objects.WellKnownRole_Supervisor:
+                    AddWellKnownRoleChildren(context, roleState,
+                        applications: Variables.WellKnownRole_Supervisor_Applications,
+                        applicationsExclude: Variables.WellKnownRole_Supervisor_ApplicationsExclude,
+                        endpoints: Variables.WellKnownRole_Supervisor_Endpoints,
+                        endpointsExclude: Variables.WellKnownRole_Supervisor_EndpointsExclude,
+                        customConfiguration: Variables.WellKnownRole_Supervisor_CustomConfiguration,
+                        addIdentityMethod: Methods.WellKnownRole_Supervisor_AddIdentity,
+                        addIdentityArgs: Variables.WellKnownRole_Supervisor_AddIdentity_InputArguments,
+                        removeIdentityMethod: Methods.WellKnownRole_Supervisor_RemoveIdentity,
+                        removeIdentityArgs: Variables.WellKnownRole_Supervisor_RemoveIdentity_InputArguments,
+                        addApplicationMethod: Methods.WellKnownRole_Supervisor_AddApplication,
+                        addApplicationArgs: Variables.WellKnownRole_Supervisor_AddApplication_InputArguments,
+                        removeApplicationMethod: Methods.WellKnownRole_Supervisor_RemoveApplication,
+                        removeApplicationArgs: Variables.WellKnownRole_Supervisor_RemoveApplication_InputArguments,
+                        addEndpointMethod: Methods.WellKnownRole_Supervisor_AddEndpoint,
+                        addEndpointArgs: Variables.WellKnownRole_Supervisor_AddEndpoint_InputArguments,
+                        removeEndpointMethod: Methods.WellKnownRole_Supervisor_RemoveEndpoint,
+                        removeEndpointArgs: Variables.WellKnownRole_Supervisor_RemoveEndpoint_InputArguments);
+                    break;
+                case Objects.WellKnownRole_ConfigureAdmin:
+                    AddWellKnownRoleChildren(context, roleState,
+                        applications: Variables.WellKnownRole_ConfigureAdmin_Applications,
+                        applicationsExclude: Variables.WellKnownRole_ConfigureAdmin_ApplicationsExclude,
+                        endpoints: Variables.WellKnownRole_ConfigureAdmin_Endpoints,
+                        endpointsExclude: Variables.WellKnownRole_ConfigureAdmin_EndpointsExclude,
+                        customConfiguration: Variables.WellKnownRole_ConfigureAdmin_CustomConfiguration,
+                        addIdentityMethod: Methods.WellKnownRole_ConfigureAdmin_AddIdentity,
+                        addIdentityArgs: Variables.WellKnownRole_ConfigureAdmin_AddIdentity_InputArguments,
+                        removeIdentityMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveIdentity,
+                        removeIdentityArgs: Variables.WellKnownRole_ConfigureAdmin_RemoveIdentity_InputArguments,
+                        addApplicationMethod: Methods.WellKnownRole_ConfigureAdmin_AddApplication,
+                        addApplicationArgs: Variables.WellKnownRole_ConfigureAdmin_AddApplication_InputArguments,
+                        removeApplicationMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveApplication,
+                        removeApplicationArgs: Variables.WellKnownRole_ConfigureAdmin_RemoveApplication_InputArguments,
+                        addEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_AddEndpoint,
+                        addEndpointArgs: Variables.WellKnownRole_ConfigureAdmin_AddEndpoint_InputArguments,
+                        removeEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveEndpoint,
+                        removeEndpointArgs: Variables.WellKnownRole_ConfigureAdmin_RemoveEndpoint_InputArguments);
+                    break;
+                case Objects.WellKnownRole_SecurityAdmin:
+                    AddWellKnownRoleChildren(context, roleState,
+                        applications: Variables.WellKnownRole_SecurityAdmin_Applications,
+                        applicationsExclude: Variables.WellKnownRole_SecurityAdmin_ApplicationsExclude,
+                        endpoints: Variables.WellKnownRole_SecurityAdmin_Endpoints,
+                        endpointsExclude: Variables.WellKnownRole_SecurityAdmin_EndpointsExclude,
+                        customConfiguration: Variables.WellKnownRole_SecurityAdmin_CustomConfiguration,
+                        addIdentityMethod: Methods.WellKnownRole_SecurityAdmin_AddIdentity,
+                        addIdentityArgs: Variables.WellKnownRole_SecurityAdmin_AddIdentity_InputArguments,
+                        removeIdentityMethod: Methods.WellKnownRole_SecurityAdmin_RemoveIdentity,
+                        removeIdentityArgs: Variables.WellKnownRole_SecurityAdmin_RemoveIdentity_InputArguments,
+                        addApplicationMethod: Methods.WellKnownRole_SecurityAdmin_AddApplication,
+                        addApplicationArgs: Variables.WellKnownRole_SecurityAdmin_AddApplication_InputArguments,
+                        removeApplicationMethod: Methods.WellKnownRole_SecurityAdmin_RemoveApplication,
+                        removeApplicationArgs: Variables.WellKnownRole_SecurityAdmin_RemoveApplication_InputArguments,
+                        addEndpointMethod: Methods.WellKnownRole_SecurityAdmin_AddEndpoint,
+                        addEndpointArgs: Variables.WellKnownRole_SecurityAdmin_AddEndpoint_InputArguments,
+                        removeEndpointMethod: Methods.WellKnownRole_SecurityAdmin_RemoveEndpoint,
+                        removeEndpointArgs: Variables.WellKnownRole_SecurityAdmin_RemoveEndpoint_InputArguments);
+                    break;
+            }
+        }
+
+        private static void AddWellKnownRoleChildren(
+            ISystemContext context,
+            RoleState role,
+            uint applications,
+            uint applicationsExclude,
+            uint endpoints,
+            uint endpointsExclude,
+            uint customConfiguration,
+            uint addIdentityMethod,
+            uint addIdentityArgs,
+            uint removeIdentityMethod,
+            uint removeIdentityArgs,
+            uint addApplicationMethod,
+            uint addApplicationArgs,
+            uint removeApplicationMethod,
+            uint removeApplicationArgs,
+            uint addEndpointMethod,
+            uint addEndpointArgs,
+            uint removeEndpointMethod,
+            uint removeEndpointArgs)
+        {
+            // Identities is Mandatory@RoleType so the singleton factory always
+            // emits it with the correct well-known instance NodeId; no add-back
+            // needed. All other RoleType children are Optional@type but the
+            // StandardTypes.xml well-known-role declarations promote them to
+            // Mandatory at the singleton-instance level (see
+            // StandardTypes.xml lines 2293-2316 for Observer and the parallel
+            // declarations for Operator, Engineer, Supervisor, ConfigureAdmin,
+            // SecurityAdmin). The transitive gate (issue #3768) uses the
+            // type-def rule rather than the singleton override, so the
+            // generator now suppresses every other child under forInstance=true.
+            // Re-add them here so RoleStateBinding finds them.
+            if (role.Applications == null)
+            {
+                role.AddApplications(context).NodeId = new NodeId(applications);
+            }
+            if (role.ApplicationsExclude == null)
+            {
+                role.AddApplicationsExclude(context).NodeId = new NodeId(applicationsExclude);
+            }
+            if (role.Endpoints == null)
+            {
+                role.AddEndpoints(context).NodeId = new NodeId(endpoints);
+            }
+            if (role.EndpointsExclude == null)
+            {
+                role.AddEndpointsExclude(context).NodeId = new NodeId(endpointsExclude);
+            }
+            if (role.CustomConfiguration == null)
+            {
+                role.AddCustomConfiguration(context).NodeId = new NodeId(customConfiguration);
+            }
+            if (role.AddIdentity == null)
+            {
+                AddIdentityMethodState m = role.AddAddIdentity(context);
+                m.NodeId = new NodeId(addIdentityMethod);
+                if (m.InputArguments != null)
+                {
+                    m.InputArguments.NodeId = new NodeId(addIdentityArgs);
+                }
+            }
+            if (role.RemoveIdentity == null)
+            {
+                RemoveIdentityMethodState m = role.AddRemoveIdentity(context);
+                m.NodeId = new NodeId(removeIdentityMethod);
+                if (m.InputArguments != null)
+                {
+                    m.InputArguments.NodeId = new NodeId(removeIdentityArgs);
+                }
+            }
+            if (role.AddApplication == null)
+            {
+                AddApplicationMethodState m = role.AddAddApplication(context);
+                m.NodeId = new NodeId(addApplicationMethod);
+                if (m.InputArguments != null)
+                {
+                    m.InputArguments.NodeId = new NodeId(addApplicationArgs);
+                }
+            }
+            if (role.RemoveApplication == null)
+            {
+                RemoveApplicationMethodState m = role.AddRemoveApplication(context);
+                m.NodeId = new NodeId(removeApplicationMethod);
+                if (m.InputArguments != null)
+                {
+                    m.InputArguments.NodeId = new NodeId(removeApplicationArgs);
+                }
+            }
+            if (role.AddEndpoint == null)
+            {
+                AddEndpointMethodState m = role.AddAddEndpoint(context);
+                m.NodeId = new NodeId(addEndpointMethod);
+                if (m.InputArguments != null)
+                {
+                    m.InputArguments.NodeId = new NodeId(addEndpointArgs);
+                }
+            }
+            if (role.RemoveEndpoint == null)
+            {
+                RemoveEndpointMethodState m = role.AddRemoveEndpoint(context);
+                m.NodeId = new NodeId(removeEndpointMethod);
+                if (m.InputArguments != null)
+                {
+                    m.InputArguments.NodeId = new NodeId(removeEndpointArgs);
+                }
             }
         }
 
