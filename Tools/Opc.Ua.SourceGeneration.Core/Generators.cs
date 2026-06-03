@@ -631,15 +631,15 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // FluentBuilderGenerator emits per-ObjectType typed-accessor
-            // extension classes whenever the consumer opted in via
-            // GeneratorOptions.EmitFluentAccessors OR when
-            // GenerateNodeManager=true (any server-side consumer that
-            // wires a node manager always references Opc.Ua.Server, so
-            // emitting the typed accessors there is safe and provides
-            // the typed builder pipeline alongside the manager +
-            // instance wrappers).
-            bool emitTypedAccessors = context.Options?.EmitFluentAccessors == true
-                || designOptions?.GenerateNodeManager == true;
+            // extension classes by default. Model-only assemblies that
+            // don't reference Opc.Ua.Server can opt out via
+            // GeneratorOptions.OmitFluentApi (or the MSBuild property
+            // ModelSourceGeneratorOmitFluentApi=true). When
+            // GenerateNodeManager=true we ALWAYS emit (any consumer
+            // that wires a node manager already references
+            // Opc.Ua.Server, so suppression is unnecessary).
+            bool emitTypedAccessors = designOptions?.GenerateNodeManager == true
+                || context.Options?.OmitFluentApi != true;
             if (emitTypedAccessors)
             {
                 new FluentBuilderGenerator(context)

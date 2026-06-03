@@ -391,8 +391,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "Per-ObjectType component-accessor class must be emitted");
 
             Assert.That(fb, Does.Match(
-                @"this\s+global::Opc\.Ua\.Server\.Fluent\.IComponentAccessor<global::[\w\.]+\.RestrictedObjectState>"),
-                "Accessor extensions must hang off IComponentAccessor<TState>");
+                @"this\s+global::Opc\.Ua\.IComponentAccessor<global::[\w\.]+\.RestrictedObjectState>"),
+                "Accessor extensions must hang off Opc.Ua.IComponentAccessor<TState> (Core marker)");
 
             Assert.That(fb, Does.Contain(
                 "new global::Opc.Ua.QualifiedName(\"Red\")"),
@@ -424,16 +424,34 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_OptInAccessorsWithoutNodeManager_StillProducesFluentBuildersFile()
+        public void Emit_OmitFluentApi_SuppressesAccessorEmission()
         {
-            // FB-3 phase 3: NodeSet2-only consumers can opt in to typed
-            // accessors via the EmitFluentAccessors GeneratorOptions
-            // even when they don't generate a NodeManager. In that
-            // case the file should contain the per-type accessors but
-            // skip the manager interface / instance wrappers.
+            // After the FB-R3-8 relocation, accessors emit by default
+            // (when GenerateNodeManager=true OR OmitFluentApi=false).
+            // Model-only consumers that don't reference Opc.Ua.Server
+            // explicitly opt OUT via the OmitFluentApi flag.
             Dictionary<string, string> files = GenerateForTestModel(
                 generateNodeManager: false,
-                emitFluentAccessors: true);
+                omitFluentApi: true);
+
+            KeyValuePair<string, string>? fb = files
+                .Where(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Cast<KeyValuePair<string, string>?>()
+                .FirstOrDefault();
+            Assert.That(fb, Is.Null,
+                "FluentBuilders file must be suppressed when OmitFluentApi=true and GenerateNodeManager=false");
+        }
+
+        [Test]
+        public void Emit_DefaultOmitFluentApiFalse_EmitsAccessorsWithoutNodeManager()
+        {
+            // Default opt-out semantics: accessors emit even without a
+            // node manager opt-in. NodeSet2-only consumers that don't
+            // override OmitFluentApi=true get the typed accessors for
+            // free (provided they reference Opc.Ua.Server).
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                omitFluentApi: false);
 
             KeyValuePair<string, string> fb = files
                 .Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal));
@@ -442,12 +460,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "Manager interface must be skipped when GenerateNodeManager=false");
             Assert.That(fb.Value, Does.Match(
                 @"public\s+static\s+partial\s+class\s+RestrictedObjectStateComponents"),
-                "Per-type accessor must still be emitted when EmitFluentAccessors=true");
+                "Per-type accessor must be emitted by default (OmitFluentApi=false)");
         }
 
         private static Dictionary<string, string> GenerateForTestModel(
             bool generateNodeManager,
-            bool emitFluentAccessors = false)
+            bool omitFluentApi = true)
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -471,7 +489,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 telemetry,
                 options: new GeneratorOptions
                 {
-                    EmitFluentAccessors = emitFluentAccessors
+                    OmitFluentApi = omitFluentApi
                 });
 
             return fileSystem.CreatedFiles

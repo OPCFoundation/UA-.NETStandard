@@ -251,7 +251,18 @@ namespace Opc.Ua.Server.Fluent
 
         public TState Node { get; }
         NodeState INodeBuilder.Node => Node;
+        NodeState INodeStateBuilder.Node => Node;
         public INodeManagerBuilder Builder { get; }
+
+        INodeStateBuilder INodeStateBuilder.Child(QualifiedName browseName)
+        {
+            return Child(browseName);
+        }
+
+        INodeStateBuilder<TChild> INodeStateBuilder.Child<TChild>(QualifiedName browseName)
+        {
+            return Child<TChild>(browseName);
+        }
 
         public INodeBuilder<TOther> As<TOther>() where TOther : NodeState
         {

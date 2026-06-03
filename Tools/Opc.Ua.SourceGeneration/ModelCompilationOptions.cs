@@ -130,19 +130,22 @@ namespace Opc.Ua.SourceGeneration
             = EmitDependencyMetadataMode.Auto;
 
         /// <summary>
-        /// When set to <c>true</c>, the per-ObjectType typed accessor
-        /// extension classes (<c>{TypeName}StateComponents</c> +
-        /// <c>{TypeName}StateProperties</c>) are emitted alongside
-        /// the model output. Off by default because the emitted
-        /// accessors reference
-        /// <c>Opc.Ua.Server.Fluent.IComponentAccessor</c> (server-side
-        /// assembly) — model-only libraries would fail to compile.
-        /// Set in projects that ship a server-side integration
-        /// (Applications/*, Libraries/Opc.Ua.*.Server/*) via the
-        /// <c>ModelSourceGeneratorEmitFluentAccessors</c> MSBuild
-        /// property.
+        /// When set to <c>true</c>, suppresses emission of the
+        /// per-ObjectType typed accessor extension classes
+        /// (<c>{TypeName}StateComponents</c> +
+        /// <c>{TypeName}StateProperties</c>) by the model generator.
+        /// Defaults to <c>false</c> — accessors are emitted unless
+        /// explicitly suppressed. Model-only libraries that don't
+        /// reference <c>Opc.Ua.Server</c> must set this to <c>true</c>
+        /// via the
+        /// <c>ModelSourceGeneratorOmitFluentApi</c> MSBuild property,
+        /// because the emitted accessor method bodies call into
+        /// server-side fluent builders even though the
+        /// <c>Opc.Ua.IComponentAccessor&lt;TState&gt;</c> /
+        /// <c>Opc.Ua.IPropertyAccessor&lt;TState&gt;</c> marker
+        /// interfaces themselves live in <c>Opc.Ua.Types</c>.
         /// </summary>
-        public bool EmitFluentAccessors { get; set; }
+        public bool OmitFluentApi { get; set; }
 
         /// <summary>
         /// Get options from options provider
@@ -177,8 +180,8 @@ namespace Opc.Ua.SourceGeneration
                     nameof(UseTypeDefinitionModellingRules)),
                 EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
                     nameof(EmitDependencyMetadata))),
-                EmitFluentAccessors = provider.GlobalOptions.GetBool(
-                    nameof(EmitFluentAccessors))
+                OmitFluentApi = provider.GlobalOptions.GetBool(
+                    nameof(OmitFluentApi))
             };
         }
 

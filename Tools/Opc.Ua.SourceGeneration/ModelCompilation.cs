@@ -115,7 +115,7 @@ namespace Opc.Ua.SourceGeneration
                     UseTypeDefinitionModellingRules =
                         m_options.UseTypeDefinitionModellingRules,
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
-                    EmitFluentAccessors = m_options.EmitFluentAccessors
+                    OmitFluentApi = m_options.OmitFluentApi
                 };
 
                 // Load all available nodeset files from the input

@@ -79,15 +79,27 @@ namespace Opc.Ua.Server.Fluent
         private sealed class ComponentAccessor<TState> : IComponentAccessor<TState>
             where TState : NodeState
         {
-            public ComponentAccessor(INodeBuilder<TState> builder) { Builder = builder; }
-            public INodeBuilder<TState> Builder { get; }
+            public ComponentAccessor(INodeBuilder<TState> builder)
+            {
+                m_builder = builder;
+            }
+
+            public INodeStateBuilder<TState> Builder => m_builder;
+
+            private readonly INodeBuilder<TState> m_builder;
         }
 
         private sealed class PropertyAccessor<TState> : IPropertyAccessor<TState>
             where TState : NodeState
         {
-            public PropertyAccessor(INodeBuilder<TState> builder) { Builder = builder; }
-            public INodeBuilder<TState> Builder { get; }
+            public PropertyAccessor(INodeBuilder<TState> builder)
+            {
+                m_builder = builder;
+            }
+
+            public INodeStateBuilder<TState> Builder => m_builder;
+
+            private readonly INodeBuilder<TState> m_builder;
         }
     }
 }

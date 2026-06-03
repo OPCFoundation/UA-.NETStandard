@@ -78,19 +78,20 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitStateMachineIds { get; set; }
 
         /// <summary>
-        /// When set to <c>true</c>, the per-ObjectType
-        /// <c>IComponentAccessor&lt;TState&gt;</c> /
-        /// <c>IPropertyAccessor&lt;TState&gt;</c> extension classes
-        /// emitted by <see cref="FluentBuilderGenerator"/> are
-        /// emitted. Off by default because the emitted accessors
-        /// reference <c>Opc.Ua.Server.Fluent.IComponentAccessor</c>
-        /// (server-side assembly) — model-only libraries that do not
-        /// reference <c>Opc.Ua.Server</c> would fail to compile. Set
-        /// this in consumer projects that ship a server-side
-        /// integration (typically Applications/* and
-        /// Libraries/Opc.Ua.*.Server/*).
+        /// When set to <c>true</c>, suppresses emission of the
+        /// per-ObjectType <c>IComponentAccessor&lt;TState&gt;</c> /
+        /// <c>IPropertyAccessor&lt;TState&gt;</c> typed-accessor
+        /// extension classes by <see cref="FluentBuilderGenerator"/>.
+        /// Defaults to <c>false</c> — accessors are emitted unless
+        /// explicitly suppressed. Model-only assemblies that don't
+        /// reference <c>Opc.Ua.Server</c> must set this to <c>true</c>
+        /// because the emitted method bodies call into server-side
+        /// fluent builders even though the
+        /// <see cref="IComponentAccessor{TState}"/> /
+        /// <see cref="IPropertyAccessor{TState}"/> marker interfaces
+        /// themselves now live in <c>Opc.Ua.Types</c>.
         /// </summary>
-        public bool EmitFluentAccessors { get; set; }
+        public bool OmitFluentApi { get; set; }
 
         /// <summary>
         /// Optional override for the C# namespace used by classes emitted

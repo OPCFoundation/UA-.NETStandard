@@ -33,6 +33,10 @@
   <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <!-- Model-only assembly: opt out of typed-accessor emission since
+         the emitted code references Opc.Ua.Server.Fluent.* which this
+         project does not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>

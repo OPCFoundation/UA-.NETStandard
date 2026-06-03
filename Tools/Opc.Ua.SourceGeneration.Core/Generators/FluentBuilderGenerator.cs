@@ -101,7 +101,10 @@ namespace Opc.Ua.SourceGeneration
         /// <c>IPropertyAccessor&lt;TState&gt;</c> extension classes.
         /// Set to <see langword="false"/> when the consumer assembly
         /// does not reference <c>Opc.Ua.Server</c> (the emitted
-        /// accessors reference <c>Opc.Ua.Server.Fluent.IComponentAccessor</c>
+        /// emitted by <see cref="FluentBuilderGenerator"/> is allowed.
+        /// The marker interfaces themselves live in
+        /// <c>Opc.Ua.Types</c> (Core); the emitted method bodies
+        /// reference <c>Opc.Ua.Server.Fluent.INodeBuilder&lt;T&gt;</c>
         /// and would fail to compile there).
         /// </summary>
         public bool EmitFluentAccessors { get; init; } = true;
@@ -841,9 +844,10 @@ namespace Opc.Ua.SourceGeneration
         /// Emits one pair of static partial extension classes per
         /// concrete (non-abstract) ObjectType in the model. The
         /// extensions hang off
-        /// <c>Opc.Ua.Server.Fluent.IComponentAccessor&lt;TState&gt;</c>
-        /// and <c>Opc.Ua.Server.Fluent.IPropertyAccessor&lt;TState&gt;</c>
-        /// so authors can walk a typed <c>INodeBuilder&lt;TState&gt;</c>
+        /// <c>Opc.Ua.IComponentAccessor&lt;TState&gt;</c>
+        /// and <c>Opc.Ua.IPropertyAccessor&lt;TState&gt;</c>
+        /// (Core-side markers, available to model-only assemblies)
+        /// so authors can walk a typed <c>INodeStateBuilder&lt;TState&gt;</c>
         /// tree via chained <c>.Components()</c> / <c>.Properties()</c>
         /// pivots without spelling out browse-paths or QualifiedNames.
         /// </summary>
@@ -932,7 +936,7 @@ namespace Opc.Ua.SourceGeneration
                     EmitTypeAccessorClass(
                         writer,
                         accessorKind: "Component",
-                        accessorIface: "global::Opc.Ua.Server.Fluent.IComponentAccessor",
+                        accessorIface: "global::Opc.Ua.IComponentAccessor",
                         className: typeStem + "StateComponents",
                         parentClr: parentClr,
                         children: components);
@@ -942,7 +946,7 @@ namespace Opc.Ua.SourceGeneration
                     EmitTypeAccessorClass(
                         writer,
                         accessorKind: "Property",
-                        accessorIface: "global::Opc.Ua.Server.Fluent.IPropertyAccessor",
+                        accessorIface: "global::Opc.Ua.IPropertyAccessor",
                         className: typeStem + "StateProperties",
                         parentClr: parentClr,
                         children: properties);
@@ -1006,8 +1010,8 @@ namespace Opc.Ua.SourceGeneration
                     "{0}    this {1}<{2}> accessor)",
                     indent, accessorIface, parentClr);
                 writer.WriteLine(
-                    "{0}    => accessor.Builder.Variable<{1}>(",
-                    indent, valueType);
+                    "{0}    => ((global::Opc.Ua.Server.Fluent.INodeBuilder<{1}>)accessor.Builder).Variable<{2}>(",
+                    indent, parentClr, valueType);
                 writer.WriteLine(
                     "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
                     indent, EscapeStringLiteral(browseName));
@@ -1027,8 +1031,8 @@ namespace Opc.Ua.SourceGeneration
                     "{0}    this {1}<{2}> accessor)",
                     indent, accessorIface, parentClr);
                 writer.WriteLine(
-                    "{0}    => accessor.Builder.Variable<{1}>(",
-                    indent, valueType);
+                    "{0}    => ((global::Opc.Ua.Server.Fluent.INodeBuilder<{1}>)accessor.Builder).Variable<{2}>(",
+                    indent, parentClr, valueType);
                 writer.WriteLine(
                     "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
                     indent, EscapeStringLiteral(browseName));
@@ -1047,8 +1051,8 @@ namespace Opc.Ua.SourceGeneration
                 "{0}    this {1}<{2}> accessor)",
                 indent, accessorIface, parentClr);
             writer.WriteLine(
-                "{0}    => accessor.Builder.Child<{1}>(",
-                indent, childStateClr);
+                "{0}    => ((global::Opc.Ua.Server.Fluent.INodeBuilder<{1}>)accessor.Builder).Child<{2}>(",
+                indent, parentClr, childStateClr);
             writer.WriteLine(
                 "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
                 indent, EscapeStringLiteral(browseName));

@@ -52,6 +52,21 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public INodeManagerBuilder Builder => m_parent;
 
+        // Explicit INodeStateBuilder bridging: the Core marker uses
+        // INodeStateBuilder return types; the server-side INodeBuilder
+        // narrows those to INodeBuilder. Forward the marker methods to
+        // the typed implementations so the same builder satisfies both
+        // shapes without forcing every caller through a cast.
+        INodeStateBuilder INodeStateBuilder.Child(QualifiedName browseName)
+        {
+            return Child(browseName);
+        }
+
+        INodeStateBuilder<TState> INodeStateBuilder.Child<TState>(QualifiedName browseName)
+        {
+            return Child<TState>(browseName);
+        }
+
         /// <inheritdoc/>
         public INodeBuilder<TState> As<TState>() where TState : NodeState
         {
