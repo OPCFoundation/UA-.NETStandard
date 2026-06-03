@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 new byte[] { 1, 2 },
                 new byte[] { 3, 4 }
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Length.EqualTo(2));
             Assert.That(statuses[0], Is.EqualTo((int)(uint)StatusCodes.Good));
@@ -183,7 +183,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             int[] statuses = await client.UnregisterTicketsAsync(new[]
             {
                 new byte[] { 9 }
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Length.EqualTo(1));
             Assert.That(statuses[0], Is.EqualTo((int)(uint)StatusCodes.Good));
@@ -217,7 +217,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 async () => await client.RegisterTicketsAsync(new[]
                 {
                     new byte[] { 1 }
-                }));
+                }).ConfigureAwait(false));
         }
 
         [Test]
@@ -228,7 +228,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 session.Object, kRegistrarId, NullTelemetry());
 
             Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await client.RegisterTicketsAsync(null!));
+                async () => await client.RegisterTicketsAsync(null!).ConfigureAwait(false));
         }
     }
 }

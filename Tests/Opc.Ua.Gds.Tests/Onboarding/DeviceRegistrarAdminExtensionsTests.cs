@@ -150,7 +150,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 registerInputs, registerOutputs);
 
             int count = 0;
-            await foreach (TicketRecord _ in store.ListAsync())
+            await foreach (TicketRecord _ in store.ListAsync().ConfigureAwait(false))
             {
                 count++;
             }
@@ -168,7 +168,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(statuses[0], Is.EqualTo((int)(uint)StatusCodes.Good));
 
             count = 0;
-            await foreach (TicketRecord _ in store.ListAsync())
+            await foreach (TicketRecord _ in store.ListAsync().ConfigureAwait(false))
             {
                 count++;
             }
