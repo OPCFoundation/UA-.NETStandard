@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Opc.Ua.Di.Server.Onboarding
+namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
     /// Convenience extensions that wire an

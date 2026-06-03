@@ -33,11 +33,11 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Di.Client;
+using Opc.Ua.Gds.Client;
 
 #nullable enable
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Gds.Tests.Onboarding
 {
     /// <summary>
     /// Tests for <see cref="OnboardingClient"/>.
@@ -53,7 +53,12 @@ namespace Opc.Ua.Di.Tests
         {
             var mock = new Mock<ISession>();
             var nsTable = new NamespaceTable();
-            nsTable.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
+            // Seed with the GDS namespace (which carries the Onboarding
+            // ObjectTypes after the model relocation). OnboardingClient
+            // resolves method NodeIds via browse-path translation, not
+            // by namespace-constant lookup, so this is only here to
+            // give the mocked session a non-empty namespace table.
+            nsTable.GetIndexOrAppend(global::Opc.Ua.Gds.Namespaces.OpcUaGds);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
             return mock;
         }

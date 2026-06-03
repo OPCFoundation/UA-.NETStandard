@@ -32,7 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 
-namespace Opc.Ua.Di.Client
+namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// Client-side wrapper for the OPC 10000-100 Part 21

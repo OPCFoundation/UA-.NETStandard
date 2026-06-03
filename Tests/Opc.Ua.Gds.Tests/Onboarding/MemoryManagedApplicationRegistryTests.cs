@@ -31,11 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Di.Server.Onboarding;
+using Opc.Ua.Gds.Server.Onboarding;
 
 #nullable enable
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Gds.Tests.Onboarding
 {
     /// <summary>
     /// Tests for <see cref="MemoryManagedApplicationRegistry"/>.

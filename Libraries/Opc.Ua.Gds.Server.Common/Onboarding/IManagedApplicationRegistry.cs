@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Di.Server.Onboarding
+namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
     /// Tracks the OPC UA applications that have been onboarded onto

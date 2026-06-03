@@ -34,7 +34,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Di.Server.Onboarding
+namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
     /// In-memory <see cref="IManagedApplicationRegistry"/> backed by

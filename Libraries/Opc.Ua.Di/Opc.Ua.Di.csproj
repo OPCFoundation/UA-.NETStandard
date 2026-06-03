@@ -6,7 +6,7 @@
     <RootNamespace>Opc.Ua.Di</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>OPC UA Device Integration (DI, OPC 10000-100), Package Metadata, and Onboarding information models</Description>
+    <Description>OPC UA Device Integration (DI, OPC 10000-100) and Package Metadata information models</Description>
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
@@ -45,15 +45,11 @@
     <None Remove="Design\OpcUaDiModel.xml" />
     <None Remove="Design\OpcUaDiPackageMetadataModel.csv" />
     <None Remove="Design\OpcUaDiPackageMetadataModel.xml" />
-    <None Remove="Design\OpcUaOnboardingModel.csv" />
-    <None Remove="Design\OpcUaOnboardingModel.xml" />
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="Design\OpcUaDiModel.csv" />
     <AdditionalFiles Include="Design\OpcUaDiModel.xml" />
     <AdditionalFiles Include="Design\OpcUaDiPackageMetadataModel.csv" />
     <AdditionalFiles Include="Design\OpcUaDiPackageMetadataModel.xml" />
-    <AdditionalFiles Include="Design\OpcUaOnboardingModel.csv" />
-    <AdditionalFiles Include="Design\OpcUaOnboardingModel.xml" />
   </ItemGroup>
 </Project>
