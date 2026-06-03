@@ -32,8 +32,6 @@
 using System;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using V2MonitoredItem = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItem;
-using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Subscriptions.Fakes
 {
@@ -55,8 +53,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// Required factory for <see cref="CreateMonitoredItem"/>. Tests must
         /// assign this before invoking the manager.
         /// </summary>
-        public Func<string, IOptionsMonitor<V2MonitoredItemOptions>,
-            IMonitoredItemContext, V2MonitoredItem> CreateMonitoredItemFactory
+        public Func<string, IOptionsMonitor<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions>,
+            IMonitoredItemContext, Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItem> CreateMonitoredItemFactory
         { get; set; }
             = (_, _, _) => throw new InvalidOperationException(
                 "CreateMonitoredItemFactory not set on FakeMonitoredItemManagerContext.");
@@ -64,8 +62,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <summary>Number of times <see cref="Update"/> was invoked.</summary>
         public int UpdateCalls { get; private set; }
 
-        public V2MonitoredItem CreateMonitoredItem(string name,
-            IOptionsMonitor<V2MonitoredItemOptions> options,
+        public Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
+            IOptionsMonitor<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions> options,
             IMonitoredItemContext context)
         {
             return CreateMonitoredItemFactory(name, options, context);

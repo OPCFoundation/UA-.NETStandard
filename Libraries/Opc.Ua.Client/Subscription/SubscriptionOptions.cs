@@ -77,5 +77,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// Set min lifetime interval
         /// </summary>
         public TimeSpan MinLifetimeInterval { get; init; }
+
+        /// <summary>
+        /// When the V2 manager restores this subscription via
+        /// <see cref="ISubscriptionManager.LoadAsync"/> with
+        /// <c>transferSubscriptions: true</c>, request the server to
+        /// send the latest cached value of every monitored item as
+        /// part of the take-over (OPC UA Part 4 §5.13.7
+        /// <c>TransferSubscriptions</c>'s <c>sendInitialValues</c>
+        /// argument). Defaults to <c>false</c>: the server only sends
+        /// values that arrived after the subscription was suspended,
+        /// matching the post-disconnect semantics that the V2 manager
+        /// expects for failover-on-recreate.
+        /// </summary>
+        public bool SendInitialValuesOnTransfer { get; init; }
     }
 }

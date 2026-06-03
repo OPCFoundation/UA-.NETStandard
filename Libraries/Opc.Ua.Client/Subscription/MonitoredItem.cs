@@ -29,9 +29,11 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -73,6 +75,89 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <inheritdoc/>
         public uint ClientHandle { get; private set; }
+
+        /// <summary>
+        /// Client handle of the item that triggers this item, or
+        /// <c>0</c> if no triggering relationship has been set. Used
+        /// by the snapshot path and by the <see cref="TriggeringItem"/>
+        /// public projection which resolves the handle to the live
+        /// sibling via <see cref="IMonitoredItemContext"/>.
+        /// </summary>
+        internal uint TriggeringItemClientHandle { get; set; }
+
+        /// <inheritdoc/>
+        public IMonitoredItem? TriggeringItem
+        {
+            get
+            {
+                uint handle = TriggeringItemClientHandle;
+                if (handle == 0)
+                {
+                    return null;
+                }
+                return Context.TryGetMonitoredItemByClientHandle(
+                    handle, out IMonitoredItem? item) ? item : null;
+            }
+        }
+
+        /// <summary>
+        /// Apply server-side identifiers from a saved snapshot to this
+        /// freshly-created monitored item. Used by
+        /// <see cref="ISubscriptionManager.LoadAsync"/> when the caller
+        /// requests <c>transferSubscriptions</c> so the loaded item can
+        /// be matched to its server-side state via
+        /// <c>TransferSubscriptions</c>.
+        /// </summary>
+        /// <remarks>
+        /// Re-assigning <see cref="ClientHandle"/> after construction
+        /// matters because the V2 publish loop dispatches notifications
+        /// by client handle. The snapshot's client handle is the one the
+        /// server still uses; the post-construction one is freshly
+        /// generated and would never match an incoming notification.
+        /// </remarks>
+        internal void ApplyTransferState(uint clientHandle, uint serverId)
+        {
+            ClientHandle = clientHandle;
+            ServerId = serverId;
+        }
+
+        /// <summary>
+        /// Install fully-loaded state from a snapshot during V2
+        /// transfer-on-load (<see cref="ISubscriptionManager.LoadAsync"/>
+        /// with <c>transferSubscriptions: true</c>). Unlike
+        /// <see cref="ApplyTransferState"/>, this also:
+        /// <list type="bullet">
+        /// <item><description>Abandons the create-or-modify
+        /// <see cref="Change"/> the ctor's <see cref="QueuePendingChanges"/>
+        /// just queued, so the V2 state machine does not issue a
+        /// redundant <c>CreateMonitoredItems</c> request whose
+        /// <c>ClientHandle</c> would mismatch the snapshot's
+        /// (the source of the <c>Debug.Assert</c> failure that
+        /// motivated this work).</description></item>
+        /// <item><description>Re-installs the saved triggering links
+        /// so a subsequent <c>SetTriggering</c> replay reflects the
+        /// snapshot.</description></item>
+        /// </list>
+        /// The caller is responsible for binding the (possibly
+        /// freshly-revised) server-side state via the
+        /// <c>TransferSubscriptions</c> / <c>GetMonitoredItems</c> path
+        /// that runs in <see cref="MonitoredItemManager.TrySynchronizeHandlesAsync"/>.
+        /// </summary>
+        internal void ApplyLoadState(MonitoredItemLoadState state)
+        {
+            // Abandon any pending changes queued during the ctor.
+            while (TryGetPendingChange(out Change? change))
+            {
+                change.Abandon();
+            }
+            // Snapshot the current options so the V2 state machine
+            // treats the item as "configured to the loaded values" and
+            // skips the create path until a real change arrives.
+            m_currentOptions = m_options.CurrentValue;
+            ClientHandle = state.ClientHandle;
+            ServerId = state.ServerId;
+            TriggeringItemClientHandle = state.TriggeringItemClientHandle;
+        }
 
         /// <summary>
         /// The subscription that owns the monitored item.
@@ -123,6 +208,32 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             GC.SuppressFinalize(this);
             return DisposeAsync(disposing: true);
+        }
+
+        /// <summary>
+        /// Capture an immutable snapshot of this item's configuration
+        /// + identifiers + triggering state.
+        /// </summary>
+        public MonitoredItemStateSnapshot Snapshot()
+        {
+            return MonitoredItemStateSnapshot.AsOptions(
+                Name,
+                m_options.CurrentValue,
+                ClientHandle,
+                ServerId,
+                TriggeringItemClientHandle);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
+        {
+            if (!Created)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadMonitoredItemIdInvalid,
+                    "Monitored item has not been created on the server.");
+            }
+            return Context.ConditionRefreshAsync(ServerId, ct);
         }
 
         /// <inheritdoc/>

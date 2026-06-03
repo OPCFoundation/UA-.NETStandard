@@ -118,6 +118,39 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             return true;
         }
 
+        /// <summary>
+        /// Construct + register a monitored item that was loaded from a
+        /// snapshot (see <see cref="MonitoredItemLoadState"/>). The
+        /// freshly-constructed item is bound to the saved
+        /// <see cref="MonitoredItem.ClientHandle"/> / <see cref="MonitoredItem.ServerId"/>
+        /// via <see cref="MonitoredItem.ApplyLoadState"/> and any pending
+        /// create-request queued during construction is abandoned, so
+        /// the V2 state machine does not issue a redundant
+        /// <c>CreateMonitoredItems</c>. The owning subscription drives
+        /// the take-over via the standard transfer flow
+        /// (<see cref="Subscription.TryCompleteTransferAsync"/>).
+        /// </summary>
+        internal bool AddLoaded(MonitoredItemLoadState state)
+        {
+            lock (m_monitoredItemsLock)
+            {
+                if (m_monitoredItemsByName.ContainsKey(state.Name))
+                {
+                    return false;
+                }
+                MonitoredItem item = m_context.CreateMonitoredItem(
+                    state.Name, state.Options, this);
+                item.ApplyLoadState(state);
+                m_monitoredItems.Add(item.ClientHandle, item);
+                m_monitoredItemsByName.Add(state.Name, item);
+                return true;
+            }
+            // Intentionally NOT calling m_context.Update() — Update()
+            // signals the subscription's state-control auto-reset event
+            // which would prematurely wake StateManagerAsync and have it
+            // try to create what we just loaded.
+        }
+
         /// <inheritdoc/>
         public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
             [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
@@ -211,11 +244,47 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <inheritdoc/>
-        public bool NotifyItemChangeResult(MonitoredItem monitoredItem,
-            int retryCount, MonitoredItemOptions source, ServiceResult serviceResult,
-            bool final, MonitoringFilterResult? filterResult)
+        public bool NotifyItemChangeResult(
+            MonitoredItem monitoredItem,
+            int retryCount,
+            MonitoredItemOptions source,
+            ServiceResult serviceResult,
+            bool final,
+            MonitoringFilterResult? filterResult)
         {
             return final || retryCount > 5; // TODO: Resiliency policy
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ConditionRefreshAsync(
+            uint monitoredItemServerId,
+            CancellationToken ct = default)
+        {
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                    InputArguments =
+                    [
+                        new Variant(m_context.Id),
+                        new Variant(monitoredItemServerId)
+                    ]
+                }
+            ];
+            CallResponse response = await m_context.MethodServiceSet
+                .CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            ArrayOf<CallMethodResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
+            ClientBase.ValidateResponse(results, methodsToCall);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, methodsToCall);
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                throw new ServiceResultException(ClientBase.GetResult(
+                    results[0].StatusCode, 0, diagnosticInfos,
+                    response.ResponseHeader));
+            }
         }
 
         /// <summary>
@@ -660,14 +729,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ArrayOf<Variant> outputArguments = results[0].OutputArguments;
                 if (outputArguments.Count != 2 ||
-                    outputArguments[0].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint[] serverHandles ||
-                    outputArguments[1].AsBoxedObject(Variant.BoxingBehavior.Legacy) is not uint[] clientHandles ||
-                    clientHandles.Length != serverHandles.Length)
+                    !outputArguments[0].TryGetValue(out ArrayOf<uint> serverHandles) ||
+                    !outputArguments[1].TryGetValue(out ArrayOf<uint> clientHandles) ||
+                    serverHandles.IsNull ||
+                    clientHandles.IsNull ||
+                    serverHandles.Count != clientHandles.Count)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
                         "Output arguments incorrect");
                 }
-                return new MonitoredItemsHandles(true, serverHandles.Zip(clientHandles).ToList());
+                return new MonitoredItemsHandles(
+                    true,
+                    serverHandles.ToList().Zip(clientHandles.ToList()).ToList());
             }
             catch (ServiceResultException sre)
             {

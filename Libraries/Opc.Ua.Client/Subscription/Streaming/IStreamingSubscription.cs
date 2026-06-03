@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -68,7 +67,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// </summary>
         IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             NodeId nodeId,
-            MonitoringOptions? options = null,
+            MonitoredItems.MonitoredItemOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -77,7 +76,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// </summary>
         IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             IReadOnlyList<NodeId> nodeIds,
-            MonitoringOptions? options = null,
+            MonitoredItems.MonitoredItemOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -87,7 +86,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
             NodeId notifierId,
             EventFilter filter,
-            MonitoringOptions? options = null,
+            MonitoredItems.MonitoredItemOptions? options = null,
             CancellationToken ct = default);
     }
 }
