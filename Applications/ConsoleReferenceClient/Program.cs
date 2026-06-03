@@ -295,19 +295,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             StringComparison.Ordinal
                         );
                         config.TraceConfiguration.DeleteOnLoad = true;
-#pragma warning disable CS0618 // Type or member is obsolete
-                        {
-                            TraceConfiguration traceConfiguration = config.TraceConfiguration;
-                            if (traceConfiguration.OutputFilePath != null)
-                            {
-                                Utils.SetTraceLog(traceConfiguration.OutputFilePath, traceConfiguration.DeleteOnLoad);
-                            }
-                            Utils.SetTraceMask(traceConfiguration.TraceMasks);
-                            Utils.SetTraceOutput(traceConfiguration.TraceMasks == 0
-                                ? Utils.TraceOutput.Off
-                                : Utils.TraceOutput.DebugAndFile);
-                        }
-#pragma warning restore CS0618 // Type or member is obsolete
+                        config.TraceConfiguration.ApplySettings();
                     }
 
                     // setup the logging

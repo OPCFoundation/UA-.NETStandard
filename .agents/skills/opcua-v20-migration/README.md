@@ -58,52 +58,6 @@ the skill, also update them (and vice versa) so the views stay in sync:
 - [`Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](../../../Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
   — the package's own NuGet README.
 
-## Loading the skill
-
-### Microsoft Agent Framework (C#)
-
-```csharp
-using Microsoft.Agents.AI;
-
-var skillsProvider = new AgentSkillsProvider(
-    Path.Combine(repoRoot, ".agents/skills"));
-
-AIAgent agent = client.AsAIAgent(new ChatClientAgentOptions
-{
-    AIContextProviders = [skillsProvider],
-});
-```
-
-### Microsoft Agent Framework (Python)
-
-```python
-from pathlib import Path
-from agent_framework import SkillsProvider
-
-skills_provider = SkillsProvider.from_paths(
-    skill_paths=Path(repo_root) / ".agents/skills",
-)
-```
-
-### Anthropic Claude Code / Claude API
-
-The skill is also loadable directly via the
-[Anthropic Skills spec](https://agentskills.io/specification) — point the host
-at `.agents/skills/opcua-v20-migration/`.
-
-## Progressive disclosure
-
-Per the William Zujkowski skill-authoring guide and the Agent Skills spec:
-
-1. **Advertise** (~100 tokens): name + description from `SKILL.md` frontmatter
-   are injected into the system prompt at session start.
-2. **Load** (< 5K tokens): the `SKILL.md` body provides Level 1 quick-start
-   + Level 2 implementation guidance.
-3. **Read resources** (on demand): the `references/` files (each < ~5K tokens)
-   are loaded via `read_skill_resource` only when the conversation needs them.
-4. **Run scripts** (on demand): `scripts/apply-codefixes.ps1` invoked via
-   `run_skill_script` to apply the analyzer auto-fix batch in one shot.
-
 ## License
 
 MIT — same as the parent OPC UA .NET Standard repo
