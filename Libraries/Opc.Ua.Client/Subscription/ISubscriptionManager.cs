@@ -27,7 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 namespace Opc.Ua.Client.Subscriptions
@@ -128,5 +132,52 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         ISubscription Add(ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options);
+
+        /// <summary>
+        /// Snapshot all subscriptions managed by this instance and write
+        /// them to <paramref name="stream"/> in OPC UA binary encoding.
+        /// The format starts with the session's namespace and server URI
+        /// tables so the snapshot is portable across sessions whose
+        /// tables index the same URIs in different positions.
+        /// </summary>
+        /// <param name="stream">The destination stream. Must be writable.</param>
+        /// <param name="messageContext">The message context that supplies
+        /// the namespace + server URI tables used by the on-wire encoding.
+        /// Pass <c>session.MessageContext</c>.</param>
+        /// <param name="subscriptions">Optional subset of subscriptions to
+        /// snapshot. When <c>null</c> all managed subscriptions are saved.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask SaveAsync(
+            Stream stream,
+            IServiceMessageContext messageContext,
+            IEnumerable<ISubscription>? subscriptions = null,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Restore subscriptions from a stream previously produced by
+        /// <see cref="SaveAsync"/>. Each restored subscription is added to the
+        /// manager via the same path used by <see cref="Add"/>.
+        /// </summary>
+        /// <param name="stream">The source stream. Must be readable.</param>
+        /// <param name="messageContext">Message context that supplies the
+        /// active session's namespace + server URI tables. Indexes in the
+        /// saved snapshot are remapped onto these tables.</param>
+        /// <param name="handlerFactory">Factory invoked once per restored
+        /// subscription to construct the application's
+        /// <see cref="ISubscriptionNotificationHandler"/>. The factory
+        /// receives the per-subscription <c>Name</c> from the snapshot.</param>
+        /// <param name="transferSubscriptions">When <c>true</c> the
+        /// server-side subscription and monitored item ids are preserved
+        /// so the caller can issue a TransferSubscriptions call to take
+        /// over the existing server-side state. When <c>false</c> the ids
+        /// are cleared so the V2 manager recreates the subscriptions from
+        /// scratch on the new session — matching classic
+        /// <see cref="Session.Load(System.IO.Stream, bool, IEnumerable{System.Type})"/>.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask<IReadOnlyList<ISubscription>> LoadAsync(Stream stream,
+            IServiceMessageContext messageContext,
+            System.Func<string, ISubscriptionNotificationHandler> handlerFactory,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default);
     }
 }

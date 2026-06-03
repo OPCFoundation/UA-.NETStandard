@@ -198,6 +198,21 @@ namespace Opc.Ua.Client.Subscriptions.Engine
             return default;
         }
 
+        /// <inheritdoc/>
+        public ValueTask OnSubscriptionStateChangedAsync(
+            ISubscription subscription,
+            SubscriptionState state,
+            PublishState publishStateMask,
+            System.Threading.CancellationToken ct = default)
+        {
+            // The bridge translates V2 notifications into V1 cache
+            // updates; the V1 subscription class drives its own
+            // state-change events via its existing PublishStateChanged /
+            // StateChanged event pipeline, so we have nothing to forward
+            // here.
+            return default;
+        }
+
         /// <summary>
         /// Builds a <see cref="NotificationMessage"/> containing a
         /// single notification data extension object.

@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -155,14 +156,15 @@ namespace Opc.Ua.Client.Subscriptions
 
             ms1.Created = true;
             sut.Update();
-            await Task.Delay(100).ConfigureAwait(false);
+            // Wait for the worker controller to spin up workers. CreatedCount=1
+            // but MinPublishWorkerCount defaults to 2, so the desired count is 2.
+            await WaitForPublishWorkerCountAsync(sut, 2).ConfigureAwait(false);
 
             await sut.CompleteAsync(2, default).ConfigureAwait(false); // Remove s2
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Not.Contain(s2));
 
-            await Task.Delay(1000).ConfigureAwait(false); // Give time to workers to start
-
+            // Workers stay at 2 because MinPublishWorkerCount=2 (default).
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
             Assert.That(sut.PublishControlCycles, Is.GreaterThan(0));
 
@@ -170,8 +172,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.Count, Is.Zero);
             Assert.That(sut.Items, Does.Not.Contain(s1));
 
-            await Task.Delay(100).ConfigureAwait(false);
-            Assert.That(sut.PublishWorkerCount, Is.Zero);
+            await WaitForPublishWorkerCountAsync(sut, 0).ConfigureAwait(false);
 
             await sut.DisposeAsync().ConfigureAwait(false);
             Assert.That(sut.Count, Is.Zero);
@@ -216,30 +217,25 @@ namespace Opc.Ua.Client.Subscriptions
             sut.MinPublishWorkerCount = 0;
             ms1.Created = true;
             sut.Update();
-            await Task.Delay(100).ConfigureAwait(false);
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
+            await WaitForPublishWorkerCountAsync(sut, 1).ConfigureAwait(false);
 
             sut.MinPublishWorkerCount = 8;
             ms2.Created = true;
             sut.Update();
-            await Task.Delay(100).ConfigureAwait(false);
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(8));
+            await WaitForPublishWorkerCountAsync(sut, 8).ConfigureAwait(false);
 
             sut.MinPublishWorkerCount = 4;
             sut.Update();
-            await Task.Delay(100).ConfigureAwait(false);
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(4));
+            await WaitForPublishWorkerCountAsync(sut, 4).ConfigureAwait(false);
 
             sut.MinPublishWorkerCount = 0;
             sut.Update();
-            await Task.Delay(100).ConfigureAwait(false);
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
+            await WaitForPublishWorkerCountAsync(sut, 2).ConfigureAwait(false);
 
             sut.MinPublishWorkerCount = 0;
             sut.MaxPublishWorkerCount = 1;
             sut.Update();
-            await Task.Delay(100).ConfigureAwait(false);
-            Assert.That(sut.PublishWorkerCount, Is.EqualTo(1));
+            await WaitForPublishWorkerCountAsync(sut, 1).ConfigureAwait(false);
 
             await sut.DisposeAsync().ConfigureAwait(false);
             Assert.That(sut.Count, Is.Zero);
@@ -561,6 +557,27 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await sut.DisposeAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Polls <see cref="SubscriptionManager.PublishWorkerCount"/> until it
+        /// matches the expected value or the timeout elapses. Replaces fixed
+        /// <c>Task.Delay</c>-based waits, which are flaky on slow CI runners.
+        /// </summary>
+        private static async Task WaitForPublishWorkerCountAsync(
+            SubscriptionManager sut,
+            int expected,
+            TimeSpan? timeout = null)
+        {
+            timeout ??= TimeSpan.FromSeconds(5);
+            Stopwatch sw = Stopwatch.StartNew();
+            while (sw.Elapsed < timeout.Value && sut.PublishWorkerCount != expected)
+            {
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+            Assert.That(sut.PublishWorkerCount, Is.EqualTo(expected),
+                $"Expected PublishWorkerCount={expected} within {timeout.Value}; " +
+                $"got {sut.PublishWorkerCount} after {sw.ElapsedMilliseconds} ms.");
         }
 
         private FakeSubscriptionManagerContext m_session;

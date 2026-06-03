@@ -111,7 +111,9 @@ namespace Opc.Ua.Client
         /// GetEndpoints() request.</param>
         /// <param name="engineFactory">Optional subscription engine factory. When
         /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
-        /// by default.</param>
+        /// (the classic engine) by default. Pass
+        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> explicitly
+        /// to opt into the V2 engine.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -283,7 +285,10 @@ namespace Opc.Ua.Client
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
-            // Create the subscription engine.
+            // Create the subscription engine. Session defaults to the
+            // classic engine (legacy applications + classic Subscription
+            // API). ManagedSession explicitly opts in to the V2 engine
+            // via its builder.
             SubscriptionEngineFactory = engineFactory
                 ?? ClassicSubscriptionEngineFactory.Instance;
             m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));

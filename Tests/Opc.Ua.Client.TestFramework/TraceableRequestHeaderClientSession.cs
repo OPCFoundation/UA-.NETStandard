@@ -45,7 +45,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
+            ArrayOf<string> discoveryProfileUris = default,
+            ISubscriptionEngineFactory? engineFactory = null)
             : base(
                 channel,
                 configuration,
@@ -53,7 +54,8 @@ namespace Opc.Ua.Client
                 clientCertificate,
                 null,
                 availableEndpoints,
-                discoveryProfileUris)
+                discoveryProfileUris,
+                engineFactory)
         {
         }
 
