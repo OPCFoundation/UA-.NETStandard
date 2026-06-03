@@ -4,7 +4,7 @@ This document describes which [OPC UA Profiles and Facets](https://profiles.opcf
 
 ## Overview
 
-The OPC UA .NET Standard Stack v2 is a reference implementation that targets OPC UA specification version 1.05. It has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
+The OPC UA .NET Standard Stack v2 is a reference implementation that targets OPC UA specification version 1.05.07. It has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
 Version 2.0 includes significant improvements and new features for address space management, security, and integration scenarios, including Alias Names (Part 17), WoT Connectivity (OPC 10100-1), Key Credential Service and Authorization Service (Part 12), Model Change Tracking, and enhanced client APIs for streaming subscriptions and file system operations.
 
@@ -55,9 +55,9 @@ The server implementation also provides support for:
 
 The following server profiles/facets have limited or incomplete support:
 
-- **Alarms & Conditions** - Comprehensive support for core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. Coverage of all OPC UA Part 9 event types may be limited (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Alarms & Conditions** - Comprehensive support for core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. Some specialized OPC UA Part 9 event types have limited coverage (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
 - **Historical Access** - Support for historical data access is available with configurable aggregation and retention policies. Advanced historical aggregates may have limited functionality (see [Historical Access documentation](HistoricalAccess.md))
-- **Events** - The general event notification mechanism is fully supported including system events, alarms, conditions, and model change notifications. Coverage of specialized event types from specific companion specifications may vary.
+- **Events** - The general event notification mechanism is fully supported including system events, alarms, conditions, and model change notifications. Event type implementations from specific companion specifications may have incomplete coverage or require custom implementation.
 - **Aggregates Server Facet** - Historical data aggregation
 - **Query Server Facet** - Advanced query capabilities
 
