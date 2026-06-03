@@ -172,30 +172,30 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            if (passiveNode is not ServerConfigurationState activeNode)
-                            {
-                                activeNode = context.CreateInstanceOfServerConfigurationType(passiveNode.Parent!);
+                            var activeNode = new ServerConfigurationState(passiveNode.Parent);
 
-                                if (passiveNode.Parent != null)
-                                {
-                                    passiveNode.Parent.ReplaceChild(context, activeNode);
-                                }
-                                else
-                                {
-                                    NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                        .ConfigureAwait(false);
-                                    serverNode?.ReplaceChild(context, activeNode);
-                                }
-                                // remove the reference to server node because it is set as parent
-                                activeNode.RemoveReference(
-                                    ReferenceTypeIds.HasComponent,
-                                    true,
-                                    ObjectIds.Server);
-                            }
+                            activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
 
-                            activeNode.AddGetCertificates(context);
+                            activeNode.Create(context, passiveNode);
 
                             m_serverConfigurationNode = activeNode;
+
+                            // replace the node in the parent.
+                            if (passiveNode.Parent != null)
+                            {
+                                passiveNode.Parent.ReplaceChild(context, activeNode);
+                            }
+                            else
+                            {
+                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
+                                    .ConfigureAwait(false);
+                                serverNode?.ReplaceChild(context, activeNode);
+                            }
+                            // remove the reference to server node because it is set as parent
+                            activeNode.RemoveReference(
+                                ReferenceTypeIds.HasComponent,
+                                true,
+                                ObjectIds.Server);
                             return activeNode;
                         }
                         case ObjectTypes.CertificateGroupFolderType:
