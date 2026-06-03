@@ -109,8 +109,10 @@ namespace Opc.Ua.Di.Server.Locking
         /// <inheritdoc/>
         public LockState GetState(NodeId elementId)
         {
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             if (m_records.TryGetValue(elementId, out Record? record))
             {
                 DateTimeOffset now = m_timeProvider.GetUtcNow();
@@ -136,8 +138,14 @@ namespace Opc.Ua.Di.Server.Locking
             NodeId elementId,
             string clientContext)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             clientContext ??= string.Empty;
 
             (NodeId sessionId, string user) = ResolveCallerIdentity(context);
@@ -169,9 +177,14 @@ namespace Opc.Ua.Di.Server.Locking
         /// <inheritdoc/>
         public int RenewLock(ISystemContext context, NodeId elementId)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             (NodeId sessionId, _) = ResolveCallerIdentity(context);
             DateTimeOffset now = m_timeProvider.GetUtcNow();
 
@@ -194,9 +207,14 @@ namespace Opc.Ua.Di.Server.Locking
         /// <inheritdoc/>
         public int ExitLock(ISystemContext context, NodeId elementId)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             (NodeId sessionId, _) = ResolveCallerIdentity(context);
             DateTimeOffset now = m_timeProvider.GetUtcNow();
 
@@ -219,9 +237,14 @@ namespace Opc.Ua.Di.Server.Locking
         /// <inheritdoc/>
         public int BreakLock(ISystemContext context, NodeId elementId)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             DateTimeOffset now = m_timeProvider.GetUtcNow();
             if (!m_records.TryGetValue(elementId, out Record? existing) ||
                 existing.ExpiresAt <= now)

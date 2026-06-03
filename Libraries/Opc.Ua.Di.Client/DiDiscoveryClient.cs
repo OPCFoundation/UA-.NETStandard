@@ -60,9 +60,14 @@ namespace Opc.Ua.Di.Client
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             return EnumerateDevicesAsyncCore(session, ct);
         }
 
@@ -96,7 +101,6 @@ namespace Opc.Ua.Di.Client
             {
                 yield break;
             }
-
             (_, _, ArrayOf<ReferenceDescription> references) = await session.BrowseAsync(
                 requestHeader: null,
                 view: null,
@@ -219,7 +223,6 @@ namespace Opc.Ua.Di.Client
             {
                 return s;
             }
-
             return raw?.ToString() ?? string.Empty;
         }
     }

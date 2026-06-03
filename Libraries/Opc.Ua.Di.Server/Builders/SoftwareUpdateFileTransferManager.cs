@@ -112,8 +112,11 @@ namespace Opc.Ua.Di.Server.Builders
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             if (m_fileTransfer.GenerateFileForWrite != null)
+
             {
+
                 m_fileTransfer.GenerateFileForWrite.OnCall = OnGenerateFileForWrite;
+
             }
             if (m_fileTransfer.CloseAndCommit != null)
             {
@@ -564,8 +567,11 @@ namespace Opc.Ua.Di.Server.Builders
                 file.ModellingRuleId = NodeId.Null;
 
                 if (file.Writable != null)
+
                 {
+
                     file.Writable.Value = true;
+
                 }
                 if (file.UserWritable != null)
                 {
@@ -583,10 +589,12 @@ namespace Opc.Ua.Di.Server.Builders
                 {
                     file.MimeType.Value = "application/octet-stream";
                 }
-
                 if (file.Open != null)
+
                 {
+
                     file.Open.OnCall = openHandler;
+
                 }
                 if (file.Write != null)
                 {
@@ -608,7 +616,6 @@ namespace Opc.Ua.Di.Server.Builders
                 {
                     file.SetPosition.OnCall = setPositionHandler;
                 }
-
                 parent.AddChild(file);
                 manager.AddPredefinedNodeAsync(file, CancellationToken.None)
                     .AsTask()

@@ -66,7 +66,10 @@ namespace Opc.Ua.Di.Server.Transfer
         /// </summary>
         public ParameterSet(NodeId elementId)
         {
-            if (elementId.IsNull) { throw new System.ArgumentNullException(nameof(elementId)); }
+            if (elementId.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(elementId));
+            }
             ElementId = elementId;
             Entries = new List<ParameterEntry>();
         }
@@ -76,7 +79,10 @@ namespace Opc.Ua.Di.Server.Transfer
         /// </summary>
         public ParameterSet(NodeId elementId, IList<ParameterEntry> entries)
         {
-            if (elementId.IsNull) { throw new System.ArgumentNullException(nameof(elementId)); }
+            if (elementId.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(elementId));
+            }
             ElementId = elementId;
             Entries = entries ?? throw new System.ArgumentNullException(nameof(entries));
         }

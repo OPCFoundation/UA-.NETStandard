@@ -108,12 +108,14 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browseName,
             Variant value)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-
             NodeState? child = builder.Node.FindChild(builder.Builder.Context, browseName);
             if (child == null)
             {
@@ -327,13 +329,18 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (variable != null)
-            {
-                return variable;
-            }
 
-            if (mismatchKind != null)
             {
+
+                return variable;
+
+            }
+            if (mismatchKind != null)
+
+            {
+
                 throw NotVariable(browseName, parent.BrowseName, mismatchKind);
+
             }
             throw NotFound(browseName, parent.BrowseName);
         }

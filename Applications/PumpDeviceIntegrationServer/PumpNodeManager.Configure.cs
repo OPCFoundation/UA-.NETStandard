@@ -290,8 +290,10 @@ namespace Pumps
         {
             BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>?
                 health = m_supervisedDeviceHealth;
-            if (health == null) { return; }
-
+            if (health == null)
+            {
+                return;
+            }
             Opc.Ua.Di.DeviceHealthEnumeration desired =
                 MapSupervisionToDeviceHealth(m_cavitation, m_motorOverheat);
 

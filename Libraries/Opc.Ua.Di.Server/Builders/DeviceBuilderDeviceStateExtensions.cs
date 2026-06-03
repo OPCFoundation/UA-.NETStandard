@@ -58,8 +58,10 @@ namespace Opc.Ua.Di.Server.Builders
             DeviceHealthEnumeration health)
             where TDevice : DeviceState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
-
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             BaseDataVariableState<DeviceHealthEnumeration>? deviceHealth =
                 builder.Device.DeviceHealth;
 

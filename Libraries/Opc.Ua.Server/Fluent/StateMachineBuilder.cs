@@ -60,8 +60,10 @@ namespace Opc.Ua.Server.Fluent
     {
         public StateMachineBuilder(INodeBuilder<TState> nodeBuilder)
         {
-            if (nodeBuilder == null) { throw new ArgumentNullException(nameof(nodeBuilder)); }
-
+            if (nodeBuilder == null)
+            {
+                throw new ArgumentNullException(nameof(nodeBuilder));
+            }
             m_nodeBuilder = nodeBuilder;
             StateMachine = nodeBuilder.Node;
 
@@ -100,8 +102,10 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentOutOfRangeException(
                     nameof(stateId), stateId, "State ID must be non-zero.");
             }
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
-
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             if (!m_onEnter.TryGetValue(stateId, out List<Action<ISystemContext, TState>>? list))
             {
                 list = new List<Action<ISystemContext, TState>>();
@@ -120,8 +124,10 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentOutOfRangeException(
                     nameof(stateId), stateId, "State ID must be non-zero.");
             }
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
-
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             if (!m_onExit.TryGetValue(stateId, out List<Action<ISystemContext, TState>>? list))
             {
                 list = new List<Action<ISystemContext, TState>>();
@@ -134,7 +140,10 @@ namespace Opc.Ua.Server.Fluent
         public IStateMachineBuilder<TState> OnTransition(
             Action<ISystemContext, TState, uint, uint> handler)
         {
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             m_onTransition.Add(handler);
             return this;
         }
@@ -142,7 +151,10 @@ namespace Opc.Ua.Server.Fluent
         public IStateMachineBuilder<TState> OnBeforeTransition(
             Func<ISystemContext, TState, uint, ServiceResult> guard)
         {
-            if (guard == null) { throw new ArgumentNullException(nameof(guard)); }
+            if (guard == null)
+            {
+                throw new ArgumentNullException(nameof(guard));
+            }
             m_guards.Add(guard);
             return this;
         }
@@ -237,7 +249,10 @@ namespace Opc.Ua.Server.Fluent
 
         public IStateMachineBuilder<TState> ConfigureStateMachine(Action<TState> configure)
         {
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             configure(StateMachine);
             return this;
         }
@@ -387,7 +402,6 @@ namespace Opc.Ua.Server.Fluent
                 {
                     continue;
                 }
-
                 // Re-check the current state right before firing the
                 // cause; an interleaving server-driven transition may
                 // have moved us off the armed state.

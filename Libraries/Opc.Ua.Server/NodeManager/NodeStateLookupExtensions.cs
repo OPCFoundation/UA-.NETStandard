@@ -62,8 +62,10 @@ namespace Opc.Ua.Server.NodeManager
             this IEnumerable<NodeState> nodes,
             QualifiedName browseName)
         {
-            if (nodes == null) { throw new ArgumentNullException(nameof(nodes)); }
-
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
             foreach (NodeState node in nodes)
             {
                 if (node.BrowseName == browseName)
@@ -93,8 +95,10 @@ namespace Opc.Ua.Server.NodeManager
             this IDictionary<NodeId, NodeState> nodes,
             NodeId nodeId)
         {
-            if (nodes == null) { throw new ArgumentNullException(nameof(nodes)); }
-
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
             return nodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
         }
 
@@ -118,8 +122,10 @@ namespace Opc.Ua.Server.NodeManager
             this IEnumerable<NodeState> nodes,
             NodeId typeDefinitionId)
         {
-            if (nodes == null) { throw new ArgumentNullException(nameof(nodes)); }
-
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
             var results = new List<NodeState>();
             foreach (NodeState node in nodes)
             {

@@ -65,9 +65,14 @@ namespace Opc.Ua.Di.Server.Onboarding
             this BaseObjectState registrar,
             ITicketStore store)
         {
-            if (registrar == null) { throw new ArgumentNullException(nameof(registrar)); }
-            if (store == null) { throw new ArgumentNullException(nameof(store)); }
-
+            if (registrar == null)
+            {
+                throw new ArgumentNullException(nameof(registrar));
+            }
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
             MethodState? register = FindMethodChild(registrar, "RegisterTickets");
             MethodState? unregister = FindMethodChild(registrar, "UnregisterTickets");
 
@@ -99,7 +104,6 @@ namespace Opc.Ua.Di.Server.Onboarding
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-
             byte[][] tickets = ExtractTicketArray(inputs[0]);
             int[] results = new int[tickets.Length];
 
@@ -140,7 +144,6 @@ namespace Opc.Ua.Di.Server.Onboarding
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-
             byte[][] tickets = ExtractTicketArray(inputs[0]);
             int[] results = new int[tickets.Length];
 

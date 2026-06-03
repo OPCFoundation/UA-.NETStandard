@@ -83,9 +83,14 @@ namespace Opc.Ua.Server.Fluent
             this IVariableBuilder<TValue> builder,
             EUInformation units)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
-            if (units == null) { throw new ArgumentNullException(nameof(units)); }
-
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (units == null)
+            {
+                throw new ArgumentNullException(nameof(units));
+            }
             BaseAnalogState analog = RequireAnalog(builder);
             EnsureEngineeringUnitsProperty(analog, builder.Builder.Context);
             analog.EngineeringUnits!.Value = units;
@@ -116,7 +121,10 @@ namespace Opc.Ua.Server.Fluent
             double min,
             double max)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             if (min > max)
             {
                 throw new ArgumentException(

@@ -88,7 +88,10 @@ namespace Opc.Ua.Di.Client
             int? chunkSizeBytes = null,
             CancellationToken ct = default)
         {
-            if (payload is null) { throw new ArgumentNullException(nameof(payload)); }
+            if (payload is null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
             if (!payload.CanRead)
             {
                 throw new ArgumentException("Payload stream must be readable.", nameof(payload));
@@ -184,7 +187,10 @@ namespace Opc.Ua.Di.Client
             int? chunkSizeBytes = null,
             CancellationToken ct = default)
         {
-            if (payload is null) { throw new ArgumentNullException(nameof(payload)); }
+            if (payload is null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
             return UploadPackageAsync(
                 new MemoryStream(payload, writable: false),
                 suggestedPackageId,

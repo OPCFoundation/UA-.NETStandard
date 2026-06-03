@@ -73,7 +73,6 @@ namespace Opc.Ua.Di.Server.Topology
                 {
                     yield break;
                 }
-
                 var children = new List<BaseInstanceState>();
                 deviceSet.GetChildren(m_manager.SystemContext, children);
                 foreach (BaseInstanceState child in children)
@@ -93,13 +92,11 @@ namespace Opc.Ua.Di.Server.Topology
             {
                 return null;
             }
-
             BaseObjectState? deviceSet = DeviceSet;
             if (deviceSet == null)
             {
                 return null;
             }
-
             return deviceSet.FindChild(m_manager.SystemContext, browseName)
                 as ComponentState;
         }

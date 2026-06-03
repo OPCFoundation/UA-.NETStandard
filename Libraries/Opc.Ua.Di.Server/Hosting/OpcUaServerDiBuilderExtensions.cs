@@ -86,8 +86,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </exception>
         public static IOpcUaServerBuilder AddOpcUaDi(this IOpcUaServerBuilder builder)
         {
-            if (builder is null) { throw new ArgumentNullException(nameof(builder)); }
-
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             // Add the shared runner exactly once. Multiple calls to
             // ConfigureDevicesFor share the same runner.
             EnsureRunnerRegistered(builder);
@@ -128,9 +130,14 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<IDiPostSetupContext> configure)
             where TNodeManager : DiNodeManager
         {
-            if (builder is null) { throw new ArgumentNullException(nameof(builder)); }
-            if (configure is null) { throw new ArgumentNullException(nameof(configure)); }
-
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             return builder.ConfigureDevicesFor<TNodeManager>((Func<IDiPostSetupContext, ValueTask>)(ctx =>
             {
                 configure(ctx);
@@ -150,9 +157,14 @@ namespace Microsoft.Extensions.DependencyInjection
             Func<IDiPostSetupContext, ValueTask> configure)
             where TNodeManager : DiNodeManager
         {
-            if (builder is null) { throw new ArgumentNullException(nameof(builder)); }
-            if (configure is null) { throw new ArgumentNullException(nameof(configure)); }
-
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             EnsureRunnerRegistered(builder);
 
             builder.Services.AddSingleton<IDiPostSetupConfigurator>(

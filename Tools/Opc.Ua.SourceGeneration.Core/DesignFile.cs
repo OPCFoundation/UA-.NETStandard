@@ -236,7 +236,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 foreach (KeyValuePair<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> entry in referencedDependencies)
                 {
-                    if (entry.Value == null) { continue; }
+                    if (entry.Value == null)
+                    {
+                        continue;
+                    }
                     validator.ImportDependency(entry.Value, prefix: null, name: null);
                 }
             }

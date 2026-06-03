@@ -68,9 +68,14 @@ namespace Opc.Ua.Di.Server.Builders
             Action<ISupportInfoState> configure)
             where TDevice : ComponentState
         {
-            if (device == null) { throw new ArgumentNullException(nameof(device)); }
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
-
+            if (device == null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             ISupportInfoState? existing = FindExistingSupportInfo(device.Device);
             if (existing == null)
             {

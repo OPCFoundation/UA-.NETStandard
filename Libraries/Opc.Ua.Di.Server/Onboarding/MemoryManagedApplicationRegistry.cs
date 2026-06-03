@@ -67,9 +67,14 @@ namespace Opc.Ua.Di.Server.Onboarding
                     "ProductInstanceUri must be non-empty.",
                     nameof(productInstanceUri));
             }
-            if (certificate == null) { throw new ArgumentNullException(nameof(certificate)); }
-            if (ticket == null) { throw new ArgumentNullException(nameof(ticket)); }
-
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            if (ticket == null)
+            {
+                throw new ArgumentNullException(nameof(ticket));
+            }
             ManagedApplication record = m_apps.AddOrUpdate(
                 productInstanceUri,
                 key => new ManagedApplication(
@@ -95,7 +100,6 @@ namespace Opc.Ua.Di.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(applicationNodeId));
             }
-
             foreach (KeyValuePair<string, ManagedApplication> kvp in m_apps)
             {
                 if (kvp.Value.NodeId == applicationNodeId)

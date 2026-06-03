@@ -297,7 +297,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 return child;
             }
-
             // Cross-namespace fallback: when no exact-namespace match,
             // scan children by local name only. Required so generator-
             // emitted typed accessors can pass an unqualified
@@ -334,7 +333,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 return match;
             }
-
             throw ServiceResultException.Create(
                 StatusCodes.BadNodeIdUnknown,
                 "Child '{0}' not found under '{1}' (id '{2}').",

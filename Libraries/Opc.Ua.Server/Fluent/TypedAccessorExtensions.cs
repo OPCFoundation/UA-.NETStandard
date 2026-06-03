@@ -52,7 +52,10 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder<TState> builder)
             where TState : NodeState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             return new ComponentAccessor<TState>(builder);
         }
 
@@ -66,7 +69,10 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder<TState> builder)
             where TState : NodeState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             return new PropertyAccessor<TState>(builder);
         }
 

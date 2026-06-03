@@ -96,7 +96,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string fileName = Path.Combine(m_context.OutputFolder,
                 CoreUtils.Format("{0}.StateMachineIds.g.cs", namespacePrefix));
@@ -123,7 +122,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
 
             context.Template.AddReplacement(Tokens.TypeName, machine.TypeName);
@@ -215,7 +213,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.Name, entry.Name);
             if (entry.Number.HasValue)
             {
@@ -301,7 +298,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             var info = new FsmTypeInfo(objectType.SymbolicName?.Name);
 
             foreach (InstanceDesign child in children)
@@ -331,10 +327,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (info.States.Count == 0 && info.Transitions.Count == 0)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             info.States.Sort(static (a, b) => string.CompareOrdinal(a.Name, b.Name));
             info.Transitions.Sort(static (a, b) => string.CompareOrdinal(a.Name, b.Name));
             return info;

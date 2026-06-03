@@ -73,7 +73,6 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-
             Session = session;
             Telemetry = telemetry;
             ManagementObjectId = managementObjectId;
@@ -107,7 +106,6 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-
             ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             BrowsePath path = new()
             {
@@ -230,7 +228,6 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentException("Asset NodeId is required.", nameof(assetId));
             }
-
             ushort wotConNs = Session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             ArrayOf<BrowsePath> paths = new[]
             {

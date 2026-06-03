@@ -107,7 +107,6 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-
             EnsureFirstRegistration(builder.Services);
 
             builder.Services.AddOptions<WotConnectivityServerOptions>().Configure(configure);
@@ -170,7 +169,6 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(section));
             }
-
             EnsureFirstRegistration(builder.Services);
 
             builder.Services.AddOptions<WotConnectivityServerOptions>().Bind(section);

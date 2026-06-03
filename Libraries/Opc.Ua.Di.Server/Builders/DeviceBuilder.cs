@@ -61,8 +61,10 @@ namespace Opc.Ua.Di.Server.Builders
         public IDeviceBuilder<TDevice> WithIdentification(
             Action<DeviceIdentificationData> configure)
         {
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
-
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             var data = new DeviceIdentificationData();
             configure(data);
 
@@ -184,7 +186,10 @@ namespace Opc.Ua.Di.Server.Builders
         public IDeviceBuilder<TDevice> Configure(
             Action<TDevice, ISystemContext> configure)
         {
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             configure(Device, Context);
             return this;
         }
@@ -194,8 +199,10 @@ namespace Opc.Ua.Di.Server.Builders
             bool useIdentificationSlot,
             Action<IFunctionalGroupBuilder> configure)
         {
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
-
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             FunctionalGroupState group = GetOrCreateFunctionalGroup(
                 browseName,
                 useIdentificationSlot);
@@ -218,7 +225,6 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 return reusable;
             }
-
             FunctionalGroupState group;
             if (Device is TopologyElementState topology)
             {
@@ -273,7 +279,6 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 return;
             }
-
             if (!data.Manufacturer.IsNull)
             {
                 WriteLocalizedText(

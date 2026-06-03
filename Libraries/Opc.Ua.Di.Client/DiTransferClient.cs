@@ -56,15 +56,20 @@ namespace Opc.Ua.Di.Client
             NodeId transferServicesNodeId,
             ITelemetryContext telemetry)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (transferServicesNodeId.IsNull)
             {
                 throw new ArgumentException(
                     "TransferServices NodeId is required.",
                     nameof(transferServicesNodeId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             Session = session;
             TransferServicesNodeId = transferServicesNodeId;
             Telemetry = telemetry;
@@ -175,10 +180,12 @@ namespace Opc.Ua.Di.Client
                 }
 
                 if (result.OutputArguments.Count == 0)
-                {
-                    yield break;
-                }
 
+                {
+
+                    yield break;
+
+                }
                 // The output is a FetchResultDataType ExtensionObject
                 // (TransferResultDataDataType or TransferResultErrorDataType).
                 // We decode generically: an error subtype carries Status +
@@ -203,10 +210,12 @@ namespace Opc.Ua.Di.Client
                 }
 
                 if (chunk.EndOfResults)
-                {
-                    yield break;
-                }
 
+                {
+
+                    yield break;
+
+                }
                 sequence = chunk.NextSequenceNumber;
             }
         }
@@ -281,7 +290,6 @@ namespace Opc.Ua.Di.Client
             {
                 return new FetchChunk(EndOfResults: true);
             }
-
             // The generated proxies for TransferResultDataDataType
             // and TransferResultErrorDataType live in Opc.Ua.Di and
             // implement IEncodeable. We avoid the typed dependency

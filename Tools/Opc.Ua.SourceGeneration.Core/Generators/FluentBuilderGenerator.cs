@@ -216,7 +216,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         EmitObjectTypeAccessors(ctx.Out);
                     }
-
                     return null;
                 });
 
@@ -224,10 +223,7 @@ namespace Opc.Ua.SourceGeneration
             return [fileName.AsTextFileResource()];
         }
 
-        // ============================================================
         // Discovery
-        // ============================================================
-
         /// <summary>
         /// Returns the model's top-level instance designs — those whose
         /// <see cref="NodeDesign.Parent"/> is null and which sit in the
@@ -281,7 +277,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
-
             // Build a parent-path → list of direct children mapping. The
             // hierarchy keys are constructed by joining segments with
             // <see cref="NodeDesign.PathChar"/>; segment names themselves
@@ -482,10 +477,7 @@ namespace Opc.Ua.SourceGeneration
             };
         }
 
-        // ============================================================
         // Validation
-        // ============================================================
-
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
@@ -552,10 +544,7 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        // ============================================================
         // Emission
-        // ============================================================
-
         /// <summary>
         /// Emits the typed manager interface declaration with one accessor
         /// per top-level predefined instance.
@@ -820,10 +809,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (wrapper.SupportsPublish)
-            {
-                EmitPublishOverloads(writer, wrapper, memberIndent);
-            }
 
+            {
+
+                EmitPublishOverloads(writer, wrapper, memberIndent);
+
+            }
             // Emit the nested method wrappers, then the nested object
             // wrappers. Sibling order is leaf-name ordinal (set up by
             // LinkChildWrappers) so generation is deterministic.
@@ -845,10 +836,7 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine("{0}}}", indent);
         }
 
-        // ============================================================
         // Per-ObjectType IComponentAccessor / IPropertyAccessor
-        // ============================================================
-
         /// <summary>
         /// Emits one pair of static partial extension classes per
         /// concrete (non-abstract) ObjectType in the model. The
@@ -909,7 +897,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 string parentClr = ResolveObjectTypeStateClr(objectType);
                 if (string.IsNullOrEmpty(parentClr))
                 {
@@ -1651,10 +1638,7 @@ namespace Opc.Ua.SourceGeneration
             return sb.ToString();
         }
 
-        // ============================================================
         // Helpers
-        // ============================================================
-
         /// <summary>
         /// Returns the wrapper-key string used to deduplicate wrappers and
         /// to compose CLR class names. Combines the root's symbolic id
@@ -1786,13 +1770,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return true;
             }
-
             Reference[] references = node?.References;
             if (references == null || references.Length == 0)
             {
                 return false;
             }
-
             foreach (Reference reference in references)
             {
                 if (reference == null || reference.IsInverse)
@@ -1878,10 +1860,7 @@ namespace Opc.Ua.SourceGeneration
                 .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
-        // ============================================================
         // State
-        // ============================================================
-
         private readonly IGeneratorContext m_context;
         private Dictionary<string, InstanceWrapper> m_wrappers = [];
         private Dictionary<string, MethodWrapper> m_methodWrappers = [];

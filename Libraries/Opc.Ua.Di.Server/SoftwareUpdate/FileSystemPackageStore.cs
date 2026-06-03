@@ -124,7 +124,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 yield break;
             }
-
             await foreach (FileSystemEntry child in m_provider
                 .EnumerateAsync(m_rootPath, cancellationToken)
                 .ConfigureAwait(false))
@@ -176,9 +175,15 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             Stream payload,
             CancellationToken cancellationToken = default)
         {
-            if (metadata == null) { throw new ArgumentNullException(nameof(metadata)); }
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
             ValidateId(metadata.Id);
-            if (payload == null) { throw new ArgumentNullException(nameof(payload)); }
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
             if (!m_provider.IsWritable)
             {
                 throw new InvalidOperationException(
@@ -265,7 +270,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 return null;
             }
-
             using Stream stream = await m_provider
                 .OpenReadAsync(path, cancellationToken).ConfigureAwait(false);
             return await JsonSerializer

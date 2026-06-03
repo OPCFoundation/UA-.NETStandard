@@ -249,7 +249,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return effective;
             }
-
             string uri = modelDesign?.TargetNamespace?.Value;
             string designName = model.Targets.Count == 1
                 ? System.IO.Path.GetFileNameWithoutExtension(model.Targets[0])
@@ -280,10 +279,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (match == null)
-            {
-                return effective;
-            }
 
+            {
+
+                return effective;
+
+            }
             // Detect ambiguity: multiple designs but binding has no selector.
             if (totalDesigns > 1 &&
                 string.IsNullOrEmpty(match.NamespaceUri) &&
@@ -388,7 +389,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 // Override resolution: if a referenced assembly already
                 // provides this model under the same C# prefix, silently
                 // skip local generation to avoid duplicate type emission.

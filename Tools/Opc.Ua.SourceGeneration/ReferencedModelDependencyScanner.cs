@@ -62,7 +62,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             ImmutableArray<ModelDependencyReference>.Builder results =
                 ImmutableArray.CreateBuilder<ModelDependencyReference>();
             foreach (IAssemblySymbol assembly in

@@ -100,14 +100,19 @@ namespace Opc.Ua.Di.Server.Builders
             where TDevice : ComponentState
             where T : BaseObjectState
         {
-            if (device == null) { throw new ArgumentNullException(nameof(device)); }
+            if (device == null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentException(
                     "browseName must be non-null.", nameof(browseName));
             }
-            if (factory == null) { throw new ArgumentNullException(nameof(factory)); }
-
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
             T child = factory(device.Device);
             child.SymbolicName = browseName.Name ?? string.Empty;
             child.BrowseName = browseName;

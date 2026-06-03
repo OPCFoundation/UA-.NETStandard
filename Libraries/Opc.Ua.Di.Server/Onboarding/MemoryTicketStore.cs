@@ -67,9 +67,14 @@ namespace Opc.Ua.Di.Server.Onboarding
                 throw new ArgumentException(
                     "Ticket id must be non-empty.", nameof(ticketId));
             }
-            if (encodedTicket == null) { throw new ArgumentNullException(nameof(encodedTicket)); }
-            if (metadata == null) { throw new ArgumentNullException(nameof(metadata)); }
-
+            if (encodedTicket == null)
+            {
+                throw new ArgumentNullException(nameof(encodedTicket));
+            }
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
             var record = new TicketRecord(
                 ticketId,
                 (byte[])encodedTicket.Clone(),
@@ -85,7 +90,10 @@ namespace Opc.Ua.Di.Server.Onboarding
             string ticketId,
             CancellationToken cancellationToken = default)
         {
-            if (ticketId == null) { throw new ArgumentNullException(nameof(ticketId)); }
+            if (ticketId == null)
+            {
+                throw new ArgumentNullException(nameof(ticketId));
+            }
             bool removed = m_tickets.TryRemove(ticketId, out _);
             return new ValueTask<bool>(removed);
         }
@@ -95,7 +103,10 @@ namespace Opc.Ua.Di.Server.Onboarding
             string ticketId,
             CancellationToken cancellationToken = default)
         {
-            if (ticketId == null) { throw new ArgumentNullException(nameof(ticketId)); }
+            if (ticketId == null)
+            {
+                throw new ArgumentNullException(nameof(ticketId));
+            }
             return new ValueTask<TicketRecord?>(
                 m_tickets.TryGetValue(ticketId, out TicketRecord? r) ? r : null);
         }
@@ -121,7 +132,6 @@ namespace Opc.Ua.Di.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(productInstanceUri));
             }
-
             foreach (KeyValuePair<string, TicketRecord> kvp in m_tickets)
             {
                 if (string.Equals(

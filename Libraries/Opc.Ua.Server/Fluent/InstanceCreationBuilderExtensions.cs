@@ -107,13 +107,18 @@ namespace Opc.Ua.Server.Fluent
             Func<NodeState, TState> factory)
             where TState : BaseInstanceState
         {
-            if (parent == null) { throw new ArgumentNullException(nameof(parent)); }
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-            if (factory == null) { throw new ArgumentNullException(nameof(factory)); }
-
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
             string symbolicName = browseName.Name ?? string.Empty;
             TState instance = factory(parent.Node);
             if (instance == null)
@@ -134,10 +139,12 @@ namespace Opc.Ua.Server.Fluent
                 parent.Node.NodeId.NamespaceIndex);
 
             if (!typeDefinitionId.IsNull)
-            {
-                instance.TypeDefinitionId = typeDefinitionId;
-            }
 
+            {
+
+                instance.TypeDefinitionId = typeDefinitionId;
+
+            }
             parent.Node.AddChild(instance);
 
             return new InstanceBuilder<TState>(parent, instance);
@@ -212,7 +219,10 @@ namespace Opc.Ua.Server.Fluent
 
         public IInstanceBuilder<TState> Configure(Action<INodeBuilder<TState>> configure)
         {
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             configure(AsNode());
             return this;
         }

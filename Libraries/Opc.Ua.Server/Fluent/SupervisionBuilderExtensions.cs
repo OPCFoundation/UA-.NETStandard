@@ -66,8 +66,14 @@ namespace Opc.Ua.Server.Fluent
             this IVariableBuilder<bool> builder,
             Action<ISystemContext> handler)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             AttachEdgeTracker(builder.Node).RisingEdge += handler;
             return builder;
         }
@@ -82,8 +88,14 @@ namespace Opc.Ua.Server.Fluent
             this IVariableBuilder<bool> builder,
             Action<ISystemContext> handler)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             AttachEdgeTracker(builder.Node).FallingEdge += handler;
             return builder;
         }
@@ -109,8 +121,14 @@ namespace Opc.Ua.Server.Fluent
             IAlarmBuilder<TAlarm> alarm)
             where TAlarm : ConditionState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
-            if (alarm == null) { throw new ArgumentNullException(nameof(alarm)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (alarm == null)
+            {
+                throw new ArgumentNullException(nameof(alarm));
+            }
             if (alarm.Alarm is not AlarmConditionState ac)
             {
                 throw ServiceResultException.Create(
@@ -153,7 +171,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 return existing;
             }
-
             var tracker = new EdgeTracker();
 
             // Seed the tracker with the current value so the very next
@@ -209,8 +226,11 @@ namespace Opc.Ua.Server.Fluent
                 m_last = current;
 
                 if (current && !previous)
+
                 {
+
                     RisingEdge?.Invoke(context);
+
                 }
                 else if (!current && previous)
                 {

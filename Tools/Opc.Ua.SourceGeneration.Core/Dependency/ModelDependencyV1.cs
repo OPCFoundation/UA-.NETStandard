@@ -317,11 +317,22 @@ namespace Opc.Ua.SourceGeneration.Dependency
             {
                 return null;
             }
-            if (bytes.Length < 4) { return null; }
-            if (bytes[0] != Magic[0] || bytes[1] != Magic[1]) { return null; }
-            if (bytes[2] != Version) { return null; }
-            if (bytes[3] != CompressionDeflate) { return null; }
-
+            if (bytes.Length < 4)
+            {
+                return null;
+            }
+            if (bytes[0] != Magic[0] || bytes[1] != Magic[1])
+            {
+                return null;
+            }
+            if (bytes[2] != Version)
+            {
+                return null;
+            }
+            if (bytes[3] != CompressionDeflate)
+            {
+                return null;
+            }
             using var input = new MemoryStream(bytes, index: 4, count: bytes.Length - 4, writable: false);
             using var deflate = new DeflateStream(input, CompressionMode.Decompress, leaveOpen: false);
             using var inflated = new MemoryStream();
@@ -349,8 +360,14 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 writer.Write(node.NumericId);
                 WriteNullableString(writer, node.StringId);
                 byte flags = 0;
-                if (node.IsAbstract) { flags |= 0x01; }
-                if (node.IsEnumeration) { flags |= 0x02; }
+                if (node.IsAbstract)
+                {
+                    flags |= 0x01;
+                }
+                if (node.IsEnumeration)
+                {
+                    flags |= 0x02;
+                }
                 writer.Write(flags);
                 writer.Write(node.Fields.Count);
                 foreach (DependencyDataField field in node.Fields)

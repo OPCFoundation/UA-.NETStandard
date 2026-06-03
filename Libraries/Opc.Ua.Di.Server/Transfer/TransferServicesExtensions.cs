@@ -76,9 +76,14 @@ namespace Opc.Ua.Di.Server.Transfer
             {
                 throw new ArgumentNullException(nameof(transferServices));
             }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-            if (service == null) { throw new ArgumentNullException(nameof(service)); }
-
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+            if (service == null)
+            {
+                throw new ArgumentNullException(nameof(service));
+            }
             MethodState? transferTo = FindMethodChild(transferServices,
                 BrowseNames.TransferToDevice);
             MethodState? transferFrom = FindMethodChild(transferServices,
@@ -155,7 +160,6 @@ namespace Opc.Ua.Di.Server.Transfer
             {
                 return StatusCodes.BadArgumentsMissing;
             }
-
             int transferId = Convert.ToInt32(
                 inputs[0].AsBoxedObject(), System.Globalization.CultureInfo.InvariantCulture);
             int sequenceNumber = Convert.ToInt32(

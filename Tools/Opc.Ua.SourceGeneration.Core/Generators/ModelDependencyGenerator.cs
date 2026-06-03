@@ -69,7 +69,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string fileName = Path.Combine(
                 m_context.OutputFolder,
                 CoreUtils.Format("{0}.ModelDependencies.g.cs", target.Prefix));
@@ -223,7 +222,10 @@ namespace Opc.Ua.SourceGeneration
                         var fields = new List<DependencyDataField>(dataType.Fields.Length);
                         foreach (Parameter field in dataType.Fields)
                         {
-                            if (field == null) { continue; }
+                            if (field == null)
+                            {
+                                continue;
+                            }
                             fields.Add(new DependencyDataField(
                                 name: field.Name ?? string.Empty,
                                 dataTypeName: field.DataType?.Name ?? string.Empty,
@@ -244,7 +246,10 @@ namespace Opc.Ua.SourceGeneration
                         var children = new List<DependencyChild>(type.Children.Items.Length);
                         foreach (InstanceDesign child in type.Children.Items)
                         {
-                            if (child == null) { continue; }
+                            if (child == null)
+                            {
+                                continue;
+                            }
                             byte instanceKind = child switch
                             {
                                 PropertyDesign => (byte)3,
@@ -309,7 +314,10 @@ namespace Opc.Ua.SourceGeneration
             var result = new List<DependencyMethodArg>(args.Length);
             foreach (Parameter a in args)
             {
-                if (a == null) { continue; }
+                if (a == null)
+                {
+                    continue;
+                }
                 result.Add(new DependencyMethodArg(
                     name: a.Name ?? string.Empty,
                     dataTypeName: a.DataType?.Name ?? string.Empty,
@@ -325,7 +333,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.ModelUri, EscapeForString(entry.ModelUri));
             context.Template.AddReplacement(Tokens.Prefix, EscapeForString(entry.Prefix));
             context.Template.AddReplacement(Tokens.ModelVersion, FormatNullableLiteral(entry.Version));

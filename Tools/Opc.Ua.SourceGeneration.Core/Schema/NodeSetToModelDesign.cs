@@ -108,7 +108,6 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(filePath));
             }
-
             m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             m_fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             m_telemetry = telemetry;
@@ -168,12 +167,13 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(fileSystem));
             }
-
             if (filePath == null)
-            {
-                throw new ArgumentNullException(nameof(filePath));
-            }
 
+            {
+
+                throw new ArgumentNullException(nameof(filePath));
+
+            }
             using TextReader reader = fileSystem.CreateTextReader(filePath);
             for (int ii = 0; ii < 40; ii++)
             {
@@ -195,10 +195,12 @@ namespace Opc.Ua.Schema.Model
                 string[] fields = line.Split();
 
                 if (fields.Length == 0)
-                {
-                    break;
-                }
 
+                {
+
+                    break;
+
+                }
                 return fields[0].Contains("UANodeSet", StringComparison.Ordinal);
             }
             return false;
@@ -236,7 +238,6 @@ namespace Opc.Ua.Schema.Model
                     {
                         models[ii] = model;
                     }
-
                     return;
                 }
             }
@@ -314,12 +315,13 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(fileSystem));
             }
-
             if (filePath == null)
-            {
-                throw new ArgumentNullException(nameof(filePath));
-            }
 
+            {
+
+                throw new ArgumentNullException(nameof(filePath));
+
+            }
             UANodeSet nodeset = Load<UANodeSet>(fileSystem, filePath);
 
             List<ModelTableEntry> models = [];
@@ -341,10 +343,12 @@ namespace Opc.Ua.Schema.Model
                     .FirstOrDefault(x => x.ModelUri == model.ModelUri);
 
                 if (topLevelModel != null)
-                {
-                    ns.FilePath = filePath;
-                }
 
+                {
+
+                    ns.FilePath = filePath;
+
+                }
                 namespaces.Add(ns);
             }
 
@@ -358,7 +362,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             ns = CreateNamespace(model);
             namespaces.Add(ns);
 
@@ -393,7 +396,6 @@ namespace Opc.Ua.Schema.Model
                     {
                         return true;
                     }
-
                     if (!m_settings.NodesByQName.TryGetValue(parentId, out NodeDesign parent))
                     {
                         return false;
@@ -402,10 +404,12 @@ namespace Opc.Ua.Schema.Model
                     td1 = parent as TypeDesign;
 
                     if (td1?.BaseType == null)
-                    {
-                        return false;
-                    }
 
+                    {
+
+                        return false;
+
+                    }
                     parentId = td1.BaseType;
                 }
             }
@@ -462,7 +466,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return default;
             }
-
             if (m_settings.NodesById.TryGetValue((NodeId)targetId, out NodeDesign design))
             {
                 return design as T;
@@ -485,17 +488,21 @@ namespace Opc.Ua.Schema.Model
                     NodeId rtid = ImportNodeId(reference.ReferenceType);
 
                     if (rtid.IsNull || ReferenceTypeIds.HasSubtype != rtid || reference.IsForward)
-                    {
-                        continue;
-                    }
 
+                    {
+
+                        continue;
+
+                    }
                     NodeId targetId = ImportNodeId(reference.Value);
 
                     if (targetId.IsNull)
-                    {
-                        return default;
-                    }
 
+                    {
+
+                        return default;
+
+                    }
                     return FindNode<T>(targetId);
                 }
             }
@@ -514,7 +521,6 @@ namespace Opc.Ua.Schema.Model
                 {
                     return rt;
                 }
-
                 throw new InvalidDataException(
                     $"Node exists and it is not a ReferenceType: {existing.SymbolicId}'.");
             }
@@ -578,42 +584,55 @@ namespace Opc.Ua.Schema.Model
             {
                 return new ObjectTypeDesign();
             }
-
             if (input is UAVariableType)
+
             {
+
                 return new VariableTypeDesign();
-            }
 
+            }
             if (input is UADataType)
+
             {
+
                 return new DataTypeDesign();
-            }
 
+            }
             if (input is UAReferenceType)
+
             {
+
                 return new ReferenceTypeDesign();
-            }
 
+            }
             if (input is UAObject)
+
             {
+
                 return new ObjectDesign();
-            }
 
+            }
             if (input is UAVariable)
+
             {
+
                 return new VariableDesign();
-            }
 
+            }
             if (input is UAMethod)
+
             {
+
                 return new MethodDesign();
-            }
 
+            }
             if (input is UAView)
-            {
-                return new ViewDesign();
-            }
 
+            {
+
+                return new ViewDesign();
+
+            }
             throw new InvalidDataException(
                 $"Object is not a valid NodeClass: '{input.BrowseName}/{input.GetType().Name}'.");
         }
@@ -624,7 +643,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             output.ClassName = output.SymbolicName.Name;
             if (output.ClassName.EndsWith("Type", StringComparison.Ordinal))
             {
@@ -664,7 +682,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             UpdateTypeDesign(input, output);
 
             output.DefaultValue = input.Value;
@@ -693,7 +710,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             UpdateTypeDesign(input, output);
         }
 
@@ -703,7 +719,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             UpdateTypeDesign(input, output);
 
             output.InverseName = ImportLocalizedText(input.InverseName);
@@ -725,15 +740,19 @@ namespace Opc.Ua.Schema.Model
             NodeId nodeId = ImportNodeId(subtype.NodeId);
 
             if (nodeId.IsNull)
+
             {
+
                 return false;
-            }
 
+            }
             if (nodeId == superTypeId)
-            {
-                return true;
-            }
 
+            {
+
+                return true;
+
+            }
             TypeDesign parent = FindSuperType<TypeDesign>(subtype);
 
             while (parent != null)
@@ -744,15 +763,19 @@ namespace Opc.Ua.Schema.Model
                         parent.SymbolicId.Namespace));
 
                 if (parentId == superTypeId)
+
                 {
+
                     return true;
-                }
 
+                }
                 if (parent.BaseTypeNode == null)
-                {
-                    return false;
-                }
 
+                {
+
+                    return false;
+
+                }
                 parent = parent.BaseTypeNode;
             }
 
@@ -765,17 +788,20 @@ namespace Opc.Ua.Schema.Model
             {
                 return true;
             }
-
             if (ch is >= 'A' and <= 'Z')
-            {
-                return true;
-            }
 
+            {
+
+                return true;
+
+            }
             if (ch is >= 'a' and <= 'z')
-            {
-                return true;
-            }
 
+            {
+
+                return true;
+
+            }
             return false;
         }
 
@@ -785,7 +811,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             UpdateTypeDesign(input, output);
 
             output.IsStructure = false;
@@ -892,7 +917,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             output.ModellingRule = ModellingRule.None;
             output.ModellingRuleSpecified = false;
 
@@ -930,7 +954,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             UpdateInstanceDesign(input, output);
 
             output.SupportsEvents = (input.EventNotifier & EventNotifiers.SubscribeToEvents) != 0;
@@ -943,7 +966,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             output.SupportsEvents = (input.EventNotifier & EventNotifiers.SubscribeToEvents) != 0;
         }
 
@@ -953,7 +975,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             UpdateInstanceDesign(input, output);
 
             output.DefaultValue = input.Value;
@@ -1033,7 +1054,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-
             output.ModellingRule = ModellingRule.None;
             output.ModellingRuleSpecified = false;
 
@@ -1097,10 +1117,12 @@ namespace Opc.Ua.Schema.Model
             NodeId parentId = ImportNodeId(input.ParentNodeId);
 
             if (nodeId.NamespaceIndex != parentId.NamespaceIndex)
-            {
-                return;
-            }
 
+            {
+
+                return;
+
+            }
             NodeDesign referenceType = null;
             bool nonHierarchical = false;
 
@@ -1206,10 +1228,12 @@ namespace Opc.Ua.Schema.Model
             List<InstanceDesign> children = [];
 
             if (parent.Children?.Items != null)
-            {
-                children.AddRange(parent.Children?.Items);
-            }
 
+            {
+
+                children.AddRange(parent.Children?.Items);
+
+            }
             child.Parent = parent;
             child.ReferenceType = referenceTypeId;
             children.Add(child);
@@ -1307,14 +1331,16 @@ namespace Opc.Ua.Schema.Model
             {
                 return null;
             }
-
             foreach (UANode ii in nodeset.Items)
             {
                 NodeId id = ImportNodeId(ii.NodeId, true);
 
                 if (id == targetId)
+
                 {
+
                     return ii;
+
                 }
             }
 
@@ -1331,7 +1357,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return default;
             }
-
             foreach (Export.Reference ii in source.References)
             {
                 ReferenceNode reference = ImportReference(ii);
@@ -1342,7 +1367,6 @@ namespace Opc.Ua.Schema.Model
                     {
                         continue;
                     }
-
                     return ExpandedNodeId.ToNodeId(reference.TargetId, m_settings.NamespaceUris);
                 }
             }
@@ -1414,10 +1438,12 @@ namespace Opc.Ua.Schema.Model
             var references = new List<Reference>();
 
             if (existing.References != null)
-            {
-                references.AddRange(existing.References);
-            }
 
+            {
+
+                references.AddRange(existing.References);
+
+            }
             if (input.References != null)
             {
                 foreach (Export.Reference ii in input.References)
@@ -1426,18 +1452,22 @@ namespace Opc.Ua.Schema.Model
                     NodeDesign referenceType = FindNode<NodeDesign>(referenceTypeId);
 
                     if (referenceType == null)
-                    {
-                        continue;
-                    }
 
+                    {
+
+                        continue;
+
+                    }
                     NodeId targetId = ImportNodeId(ii.Value);
                     NodeDesign target = FindNode<NodeDesign>(targetId);
 
                     if (target == null)
-                    {
-                        continue;
-                    }
 
+                    {
+
+                        continue;
+
+                    }
                     if (referenceTypeId == ReferenceTypeIds.HasTypeDefinition ||
                         referenceTypeId == ReferenceTypeIds.HasSubtype ||
                         referenceTypeId == ReferenceTypeIds.HasModellingRule)
@@ -1596,7 +1626,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return null;
             }
-
             var permissions = new List<RolePermission>();
 
             foreach (Export.RolePermission ii in input)
@@ -1605,10 +1634,12 @@ namespace Opc.Ua.Schema.Model
                 NodeDesign role = FindNode<NodeDesign>(roleId);
 
                 if (role == null)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 permissions.Add(new RolePermission
                 {
                     Role = role.SymbolicId,
@@ -1617,10 +1648,12 @@ namespace Opc.Ua.Schema.Model
             }
 
             if (permissions.Count == 0)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             return new RolePermissionSet
             {
                 RolePermission = [.. permissions]
@@ -1763,13 +1796,18 @@ namespace Opc.Ua.Schema.Model
                 Namespace targetNamespace = namespaces[0];
 
                 if (name != null)
-                {
-                    targetNamespace.Name = name;
-                }
 
-                if (prefix != null)
                 {
+
+                    targetNamespace.Name = name;
+
+                }
+                if (prefix != null)
+
+                {
+
                     targetNamespace.XmlPrefix = targetNamespace.Prefix = prefix;
+
                 }
             }
 
@@ -1805,8 +1843,11 @@ namespace Opc.Ua.Schema.Model
                         NodeId childId = ImportNodeId(instance.NodeId);
 
                         if (parentId.NamespaceIndex != childId.NamespaceIndex)
+
                         {
+
                             instance.ParentNodeId = null;
+
                         }
                     }
 
@@ -1871,10 +1912,12 @@ namespace Opc.Ua.Schema.Model
                 UANode node = m_nodeset.Items[ii];
 
                 if (node is UAInstance instance && instance.ParentNodeId != null)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 NodeId nodeId = ImportNodeId(node.NodeId);
 
                 if (!nodeId.IsNull &&
@@ -1945,7 +1988,6 @@ namespace Opc.Ua.Schema.Model
                     {
                         continue;
                     }
-
                     if (method.HasArguments && method.MethodDeclarationNode == null)
                     {
                         var name = new XmlQualifiedName(
@@ -2111,27 +2153,34 @@ namespace Opc.Ua.Schema.Model
             {
                 return ModellingRule.Mandatory;
             }
-
             if (input == ObjectIds.ModellingRule_Optional)
+
             {
+
                 return ModellingRule.Optional;
-            }
 
+            }
             if (input == ObjectIds.ModellingRule_MandatoryPlaceholder)
+
             {
+
                 return ModellingRule.MandatoryPlaceholder;
-            }
 
+            }
             if (input == ObjectIds.ModellingRule_OptionalPlaceholder)
+
             {
+
                 return ModellingRule.OptionalPlaceholder;
-            }
 
+            }
             if (input == ObjectIds.ModellingRule_ExposesItsArray)
-            {
-                return ModellingRule.ExposesItsArray;
-            }
 
+            {
+
+                return ModellingRule.ExposesItsArray;
+
+            }
             return ModellingRule.None;
         }
 
@@ -2147,7 +2196,6 @@ namespace Opc.Ua.Schema.Model
                     {
                         output.Append(',');
                     }
-
                     output.Append(ii);
                 }
 
@@ -2177,7 +2225,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return null;
             }
-
             NodeId referenceTypeId = ImportNodeId(source.ReferenceType, true);
             if (referenceTypeId.IsNull)
             {
@@ -2336,7 +2383,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return null;
             }
-
             StringBuilder output = new();
 
             foreach (uint ii in arrayDimensions)
@@ -2345,7 +2391,6 @@ namespace Opc.Ua.Schema.Model
                 {
                     output.Append(',');
                 }
-
                 output.Append(ii);
             }
 
@@ -2362,7 +2407,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return namespaceIndex;
             }
-
             // return a bad value if parameters are bad.
             if (namespaceUris == null ||
                 m_nodeset.NamespaceUris == null ||
@@ -2385,7 +2429,6 @@ namespace Opc.Ua.Schema.Model
             {
                 return serverIndex;
             }
-
             // return a bad value if parameters are bad.
             if (serverUris == null ||
                 m_nodeset.ServerUris == null ||
@@ -2425,10 +2468,12 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 if (output.Length == 0 && ch >= '0' && ch <= '9')
-                {
-                    output.Append('n');
-                }
 
+                {
+
+                    output.Append('n');
+
+                }
                 output.Append(ch);
             }
 

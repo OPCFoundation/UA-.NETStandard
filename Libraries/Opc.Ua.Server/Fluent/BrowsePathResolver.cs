@@ -90,7 +90,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(rootResolver));
             }
-
             List<QualifiedName> segments = ParseSegments(browsePath, defaultNamespaceIndex);
 
             NodeState current = rootResolver(segments[0]) ??

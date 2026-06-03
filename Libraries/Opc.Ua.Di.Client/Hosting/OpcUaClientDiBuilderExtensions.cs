@@ -91,8 +91,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </exception>
         public static IOpcUaClientBuilder AddOpcUaDi(this IOpcUaClientBuilder builder)
         {
-            if (builder is null) { throw new ArgumentNullException(nameof(builder)); }
-
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             builder.Services.TryAddSingleton<IDiDiscoveryService>(sp =>
             {
                 var accessor = sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()

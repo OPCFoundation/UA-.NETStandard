@@ -77,12 +77,14 @@ namespace Opc.Ua.Di.Server.Builders
             Action<ISoftwareUpdateBuilder>? configure = null)
             where TDevice : ComponentState
         {
-            if (device is null) { throw new ArgumentNullException(nameof(device)); }
+            if (device is null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
             if (packageStore is null)
             {
                 throw new ArgumentNullException(nameof(packageStore));
             }
-
             var config = new SoftwareUpdateBuilder();
             configure?.Invoke(config);
 

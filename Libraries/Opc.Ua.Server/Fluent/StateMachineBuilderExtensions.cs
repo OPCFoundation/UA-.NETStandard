@@ -57,7 +57,10 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder<TState> nodeBuilder)
             where TState : FiniteStateMachineState
         {
-            if (nodeBuilder == null) { throw new ArgumentNullException(nameof(nodeBuilder)); }
+            if (nodeBuilder == null)
+            {
+                throw new ArgumentNullException(nameof(nodeBuilder));
+            }
             return new StateMachineBuilder<TState>(nodeBuilder);
         }
 
@@ -69,7 +72,10 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder Done<TState>(this IStateMachineBuilder<TState> builder)
             where TState : FiniteStateMachineState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             return builder.Builder;
         }
 
@@ -129,10 +135,18 @@ namespace Opc.Ua.Server.Fluent
             Func<NodeState, TState> factory)
             where TState : FiniteStateMachineState
         {
-            if (parent == null) { throw new ArgumentNullException(nameof(parent)); }
-            if (browseName.IsNull) { throw new ArgumentNullException(nameof(browseName)); }
-            if (factory == null) { throw new ArgumentNullException(nameof(factory)); }
-
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+            if (browseName.IsNull)
+            {
+                throw new ArgumentNullException(nameof(browseName));
+            }
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
             string symbolicName = browseName.Name ?? string.Empty;
             TState machine = factory(parent.Node);
             machine.SymbolicName = symbolicName;

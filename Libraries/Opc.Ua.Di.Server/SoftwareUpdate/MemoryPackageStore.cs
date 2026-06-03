@@ -108,10 +108,15 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             Stream payload,
             CancellationToken cancellationToken = default)
         {
-            if (metadata == null) { throw new ArgumentNullException(nameof(metadata)); }
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
             ValidateId(metadata.Id);
-            if (payload == null) { throw new ArgumentNullException(nameof(payload)); }
-
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
             using var buffer = new MemoryStream();
 #if NETFRAMEWORK
             await payload.CopyToAsync(buffer, 81920, cancellationToken).ConfigureAwait(false);

@@ -313,7 +313,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return base.Call(_context, _objectId, _inputArguments, _outputArguments);
                     }
-
                     global::Opc.Ua.ServiceResult? _result = null;
                     {{Tokens.ListOfInputArguments}}
                     {{Tokens.ListOfOutputDeclarations}}
@@ -992,7 +991,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-
                 global::Opc.Ua.BaseInstanceState? instance = null;
 
                 switch (browseName.Name)
@@ -1001,10 +999,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-                {
-                    return instance;
-                }
 
+                {
+
+                    return instance;
+
+                }
                 return base.FindChild(context, browseName, createOrReplace, replacement);
             }
 

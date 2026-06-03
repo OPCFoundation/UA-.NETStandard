@@ -157,8 +157,14 @@ namespace Opc.Ua.Server.Fluent
             Action<TState> configure)
             where TState : ConditionState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             configure(builder.Alarm);
             return builder;
         }
@@ -172,7 +178,10 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder Done<TState>(this IAlarmBuilder<TState> builder)
             where TState : ConditionState
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             return builder.Builder;
         }
 
@@ -182,13 +191,18 @@ namespace Opc.Ua.Server.Fluent
             Func<NodeState, TState> factory)
             where TState : ConditionState
         {
-            if (parent == null) { throw new ArgumentNullException(nameof(parent)); }
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-            if (factory == null) { throw new ArgumentNullException(nameof(factory)); }
-
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
             string symbolicName = browseName.Name ?? string.Empty;
             TState alarm = factory(parent.Node);
             alarm.SymbolicName = symbolicName;
@@ -275,8 +289,10 @@ namespace Opc.Ua.Server.Fluent
 
         public IAlarmBuilder<TState> MonitorVariable(NodeState source)
         {
-            if (source == null) { throw new ArgumentNullException(nameof(source)); }
-
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
             Alarm.SourceNode!.Value = source.NodeId;
             QualifiedName srcName = source.BrowseName;
             Alarm.SourceName!.Value = srcName.IsNull ? string.Empty : (srcName.Name ?? string.Empty);
@@ -285,7 +301,10 @@ namespace Opc.Ua.Server.Fluent
 
         public IAlarmBuilder<TState> OnAcknowledge(ConditionAddCommentEventHandler handler)
         {
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             if (Alarm is not AcknowledgeableConditionState ack)
             {
                 throw ServiceResultException.Create(
@@ -300,7 +319,10 @@ namespace Opc.Ua.Server.Fluent
 
         public IAlarmBuilder<TState> OnConfirm(ConditionAddCommentEventHandler handler)
         {
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             if (Alarm is not AcknowledgeableConditionState ack)
             {
                 throw ServiceResultException.Create(

@@ -85,8 +85,14 @@ namespace Opc.Ua.Di.Server.Transfer
             NodeId elementId,
             Func<ISystemContext, CancellationToken, ValueTask<ParameterSet>> exporter)
         {
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-            if (exporter == null) { throw new ArgumentNullException(nameof(exporter)); }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+            if (exporter == null)
+            {
+                throw new ArgumentNullException(nameof(exporter));
+            }
             m_exporters[elementId] = exporter;
         }
 
@@ -102,8 +108,14 @@ namespace Opc.Ua.Di.Server.Transfer
             NodeId elementId,
             Func<ISystemContext, ParameterSet, CancellationToken, ValueTask<StatusCode[]>> importer)
         {
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-            if (importer == null) { throw new ArgumentNullException(nameof(importer)); }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+            if (importer == null)
+            {
+                throw new ArgumentNullException(nameof(importer));
+            }
             m_importers[elementId] = importer;
         }
 
@@ -114,10 +126,18 @@ namespace Opc.Ua.Di.Server.Transfer
             ParameterSet parameters,
             CancellationToken ct = default)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-            if (parameters == null) { throw new ArgumentNullException(nameof(parameters)); }
-
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+            if (parameters == null)
+            {
+                throw new ArgumentNullException(nameof(parameters));
+            }
             int transferId = Interlocked.Increment(ref m_nextTransferId);
 
             ParameterEntry[] resultEntries;
@@ -169,9 +189,14 @@ namespace Opc.Ua.Di.Server.Transfer
             NodeId elementId,
             CancellationToken ct = default)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             int transferId = Interlocked.Increment(ref m_nextTransferId);
             ParameterEntry[] entries;
             StatusCode error = StatusCodes.Good;
@@ -214,7 +239,10 @@ namespace Opc.Ua.Di.Server.Transfer
             bool omitGoodResults,
             CancellationToken ct = default)
         {
-            if (context == null) { throw new ArgumentNullException(nameof(context)); }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (sequenceNumber < 0)
             {
                 throw new ArgumentOutOfRangeException(
@@ -281,7 +309,6 @@ namespace Opc.Ua.Di.Server.Transfer
             {
                 m_transfers.TryRemove(transferId, out _);
             }
-
             return new ValueTask<FetchResult>(new FetchResult(
                 nextOffset,
                 endOfResults,

@@ -57,7 +57,10 @@ namespace Opc.Ua.Di.Server.Builders
 
         public IFunctionalGroupBuilder Organizes(NodeState target)
         {
-            if (target == null) { throw new ArgumentNullException(nameof(target)); }
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
             Group.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, target.NodeId);
             target.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, Group.NodeId);
             return this;
@@ -75,7 +78,10 @@ namespace Opc.Ua.Di.Server.Builders
 
         public IFunctionalGroupBuilder Configure(Action<INodeBuilder> configure)
         {
-            if (configure == null) { throw new ArgumentNullException(nameof(configure)); }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             configure(m_node);
             return this;
         }

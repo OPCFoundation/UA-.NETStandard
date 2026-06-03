@@ -64,15 +64,20 @@ namespace Opc.Ua.Di.Client
             NodeId softwareUpdateNodeId,
             ITelemetryContext telemetry)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (softwareUpdateNodeId.IsNull)
             {
                 throw new ArgumentException(
                     "SoftwareUpdate NodeId is required.",
                     nameof(softwareUpdateNodeId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             Session = session;
             SoftwareUpdateNodeId = softwareUpdateNodeId;
             Telemetry = telemetry;
@@ -128,8 +133,11 @@ namespace Opc.Ua.Di.Client
                 .ConfigureAwait(false);
 
             if (translateResponse.Results.Count == 0)
+
             {
+
                 return string.Empty;
+
             }
             BrowsePathResult result = translateResponse.Results[0];
             if (!StatusCode.IsGood(result.StatusCode) || result.Targets.Count == 0)
@@ -154,8 +162,11 @@ namespace Opc.Ua.Di.Client
                 ct: cancellationToken).ConfigureAwait(false);
 
             if (readResponse.Results.Count == 0)
+
             {
+
                 return string.Empty;
+
             }
             DataValue dv = readResponse.Results[0];
             if (!StatusCode.IsGood(dv.StatusCode))

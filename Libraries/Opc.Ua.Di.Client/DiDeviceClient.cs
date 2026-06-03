@@ -69,14 +69,19 @@ namespace Opc.Ua.Di.Client
             NodeId deviceNodeId,
             ITelemetryContext telemetry)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (deviceNodeId.IsNull)
             {
                 throw new ArgumentException(
                     "Device NodeId is required.", nameof(deviceNodeId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             Session = session;
             DeviceNodeId = deviceNodeId;
             Telemetry = telemetry;
@@ -114,14 +119,19 @@ namespace Opc.Ua.Di.Client
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (deviceNodeId.IsNull)
             {
                 throw new ArgumentException(
                     "Device NodeId is required.", nameof(deviceNodeId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             // Verify the node exists by reading the NodeClass attribute.
             ArrayOf<ReadValueId> nodesToRead = new[]
             {
@@ -306,7 +316,6 @@ namespace Opc.Ua.Di.Client
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-
             ushort diNs = Session.NamespaceUris
                 .GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
 
@@ -372,7 +381,6 @@ namespace Opc.Ua.Di.Client
             {
                 return typed;
             }
-
             if (typeof(T) == typeof(string) &&
                 wrapped.TryGetValue(out LocalizedText lt))
             {
@@ -401,7 +409,6 @@ namespace Opc.Ua.Di.Client
             {
                 return s;
             }
-
             return raw?.ToString();
         }
     }

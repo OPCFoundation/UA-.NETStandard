@@ -52,7 +52,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
         /// </summary>
         public MemorySoftwareFolder(NodeId elementId)
         {
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             ElementId = elementId;
         }
 
@@ -89,7 +92,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             string version,
             CancellationToken cancellationToken = default)
         {
-            if (version == null) { throw new ArgumentNullException(nameof(version)); }
+            if (version == null)
+            {
+                throw new ArgumentNullException(nameof(version));
+            }
             return new ValueTask<SoftwarePackage?>(
                 m_versions.TryGetValue(version, out VersionRecord? r) ? r.Metadata : null);
         }
@@ -99,7 +105,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             string version,
             CancellationToken cancellationToken = default)
         {
-            if (version == null) { throw new ArgumentNullException(nameof(version)); }
+            if (version == null)
+            {
+                throw new ArgumentNullException(nameof(version));
+            }
             if (!m_versions.TryGetValue(version, out VersionRecord? r))
             {
                 throw new FileNotFoundException(
@@ -115,8 +124,14 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             Stream payload,
             CancellationToken cancellationToken = default)
         {
-            if (metadata == null) { throw new ArgumentNullException(nameof(metadata)); }
-            if (payload == null) { throw new ArgumentNullException(nameof(payload)); }
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
             if (string.IsNullOrWhiteSpace(metadata.Version))
             {
                 throw new ArgumentException(
@@ -144,7 +159,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             string version,
             CancellationToken cancellationToken = default)
         {
-            if (version == null) { throw new ArgumentNullException(nameof(version)); }
+            if (version == null)
+            {
+                throw new ArgumentNullException(nameof(version));
+            }
             bool removed = m_versions.TryRemove(version, out _);
             if (removed && string.Equals(m_currentVersion, version, StringComparison.Ordinal))
             {
@@ -158,7 +176,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             string version,
             CancellationToken cancellationToken = default)
         {
-            if (version == null) { throw new ArgumentNullException(nameof(version)); }
+            if (version == null)
+            {
+                throw new ArgumentNullException(nameof(version));
+            }
             if (!m_versions.ContainsKey(version))
             {
                 throw new ArgumentException(

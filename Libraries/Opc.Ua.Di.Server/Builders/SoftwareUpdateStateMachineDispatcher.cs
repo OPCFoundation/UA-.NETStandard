@@ -182,21 +182,24 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 return;
             }
-
             (uint _, uint number, string name) = Lookup(s_states, stateId, "Unknown");
 
             sm.CurrentState.Value = new LocalizedText(name);
 
             if (sm.CurrentState.Id is { } idVar)
+
             {
+
                 idVar.Value = new NodeId(stateId, diNamespaceIndex);
-            }
 
+            }
             if (sm.CurrentState.Number is { } numberVar)
-            {
-                numberVar.Value = number;
-            }
 
+            {
+
+                numberVar.Value = number;
+
+            }
             sm.CurrentState.ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -216,33 +219,40 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 return;
             }
-
             EnsureLastTransition(sm, context);
 
             if (sm.LastTransition is null)
-            {
-                return;
-            }
 
+            {
+
+                return;
+
+            }
             (uint _, uint number, string name) = Lookup(s_transitions, transitionId, "Unknown");
 
             sm.LastTransition.Value = new LocalizedText(name);
 
             if (sm.LastTransition.Id is { } idVar)
+
             {
+
                 idVar.Value = new NodeId(transitionId, diNamespaceIndex);
-            }
 
+            }
             if (sm.LastTransition.Number is { } numberVar)
+
             {
+
                 numberVar.Value = number;
-            }
 
+            }
             if (sm.LastTransition.TransitionTime is { } ttVar)
-            {
-                ttVar.Value = DateTime.UtcNow;
-            }
 
+            {
+
+                ttVar.Value = DateTime.UtcNow;
+
+            }
             sm.LastTransition.ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -295,7 +305,6 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 return;
             }
-
             cancellationToken.ThrowIfCancellationRequested();
 
             try
@@ -321,22 +330,28 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 return;
             }
-
             sm.LastTransition.Value = default;
 
             if (sm.LastTransition.Id is { } idVar)
+
             {
+
                 idVar.Value = default;
-            }
 
+            }
             if (sm.LastTransition.Number is { } numberVar)
-            {
-                numberVar.Value = 0;
-            }
 
-            if (sm.LastTransition.TransitionTime is { } ttVar)
             {
+
+                numberVar.Value = 0;
+
+            }
+            if (sm.LastTransition.TransitionTime is { } ttVar)
+
+            {
+
                 ttVar.Value = DateTime.MinValue;
+
             }
         }
 

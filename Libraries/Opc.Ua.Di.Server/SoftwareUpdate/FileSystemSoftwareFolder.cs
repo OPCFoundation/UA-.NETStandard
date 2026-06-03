@@ -71,8 +71,14 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             string rootPath = "/Software",
             TimeProvider? timeProvider = null)
         {
-            if (provider == null) { throw new ArgumentNullException(nameof(provider)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
             if (string.IsNullOrWhiteSpace(rootPath))
             {
                 throw new ArgumentException(
@@ -99,7 +105,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 yield break;
             }
-
             await foreach (FileSystemEntry child in m_provider
                 .EnumerateAsync(m_rootPath, cancellationToken)
                 .ConfigureAwait(false))
@@ -129,7 +134,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 return null;
             }
-
             string version;
             using (Stream stream = await m_provider
                 .OpenReadAsync(markerPath, cancellationToken)
@@ -168,9 +172,15 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             Stream payload,
             CancellationToken cancellationToken = default)
         {
-            if (metadata == null) { throw new ArgumentNullException(nameof(metadata)); }
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
             ValidateVersion(metadata.Version);
-            if (payload == null) { throw new ArgumentNullException(nameof(payload)); }
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload));
+            }
             if (!m_provider.IsWritable)
             {
                 throw new InvalidOperationException(
@@ -241,7 +251,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 return false;
             }
-
             await DeleteEntryRecursivelyAsync(
                 BuildPath(version), cancellationToken).ConfigureAwait(false);
 
@@ -316,7 +325,6 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
             {
                 return null;
             }
-
             using Stream stream = await m_provider
                 .OpenReadAsync(metadataPath, cancellationToken)
                 .ConfigureAwait(false);

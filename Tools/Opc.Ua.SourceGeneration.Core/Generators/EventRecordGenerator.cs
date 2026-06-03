@@ -75,7 +75,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string outputNamespace = GetOutputNamespace();
             // Use the namespace Name (identifier-safe) rather than
             // Prefix (which may contain dots like "Opc.Ua") for the
@@ -182,7 +181,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             string typeName = objectType.SymbolicName.Name;
             string className = CoreUtils.Format("{0}Record", typeName);
             string baseClassName = ResolveBaseRecordName(objectType);
@@ -310,7 +308,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.PropertyName, field.PropertyName);
             context.Template.AddReplacement(Tokens.DataType, field.DotNetType);
             context.Template.AddReplacement(
@@ -387,7 +384,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return fields;
             }
-
             foreach (InstanceDesign child in children)
             {
                 if (m_context.ModelDesign.IsExcluded(child))
@@ -396,10 +392,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (child is MethodDesign)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 string browseName = child.SymbolicName?.Name;
                 if (string.IsNullOrEmpty(browseName))
                 {
@@ -517,7 +515,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return "global::Opc.Ua.Variant";
             }
-
             string baseType = MapScalarDataType(dataType);
             if (rank == ValueRank.Array)
             {
@@ -635,12 +632,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseRecord;
             }
-
             if (objectType.BaseTypeNode is not ObjectTypeDesign parent)
-            {
-                return kRootBaseRecord;
-            }
 
+            {
+
+                return kRootBaseRecord;
+
+            }
             string parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {

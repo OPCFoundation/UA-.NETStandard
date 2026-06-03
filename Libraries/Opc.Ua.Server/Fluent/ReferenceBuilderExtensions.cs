@@ -88,7 +88,10 @@ namespace Opc.Ua.Server.Fluent
             this INodeBuilder builder,
             NodeState target)
         {
-            if (target == null) { throw new ArgumentNullException(nameof(target)); }
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
             return builder.Organizes(target.NodeId);
         }
 
@@ -133,7 +136,10 @@ namespace Opc.Ua.Server.Fluent
             bool isInverse,
             NodeId targetId)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
@@ -142,7 +148,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(targetId));
             }
-
             builder.Node.AddReference(referenceTypeId, isInverse, targetId);
             return builder;
         }
@@ -176,12 +181,14 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browseName,
             NodeId typeDefinitionId = default)
         {
-            if (parent == null) { throw new ArgumentNullException(nameof(parent)); }
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-
             NodeId typeDef = typeDefinitionId.IsNull ? ObjectTypeIds.BaseObjectType : typeDefinitionId;
 
             string symbolicName = browseName.Name ?? string.Empty;

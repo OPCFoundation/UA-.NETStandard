@@ -52,7 +52,10 @@ namespace Opc.Ua.Di.Server.Builders
             Action<LifetimeVariableState>? configure = null)
             where TDevice : ComponentState
         {
-            if (device == null) { throw new ArgumentNullException(nameof(device)); }
+            if (device == null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
             if (browseName.IsNull)
             {
                 throw new ArgumentException(
@@ -91,7 +94,10 @@ namespace Opc.Ua.Di.Server.Builders
             LifetimeIndicationKind kind,
             NamespaceTable namespaceUris)
         {
-            if (namespaceUris == null) { throw new ArgumentNullException(nameof(namespaceUris)); }
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
             uint id = kind switch
             {
                 LifetimeIndicationKind.Time => ObjectTypes.TimeIndicationType,

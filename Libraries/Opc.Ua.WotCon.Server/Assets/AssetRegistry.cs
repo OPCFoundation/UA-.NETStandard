@@ -390,7 +390,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 throw new ArgumentNullException(nameof(td));
             }
-
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
             {
@@ -462,8 +461,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
 
                 if (persistOnSuccess)
+
                 {
+
                     PersistTdToDisk(entry.Name, td);
+
                 }
             }
             finally
@@ -690,7 +692,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return StatusCodes.BadNotConnected;
             }
-
             var inputCopy = new Variant[inputArguments.Count];
             for (int i = 0; i < inputArguments.Count; i++)
             {

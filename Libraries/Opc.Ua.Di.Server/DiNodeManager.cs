@@ -390,7 +390,6 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(factory));
             }
-
             NodeState effectiveParent = parent ?? ResolveDefaultDeviceParent()
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -443,7 +442,6 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(device));
             }
-
             return new DeviceBuilder<TDevice>(this, device, GetOrCreateBuilder());
         }
 
@@ -461,7 +459,6 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(nodeId));
             }
-
             if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? state))
             {
                 throw ServiceResultException.Create(
@@ -498,7 +495,6 @@ namespace Opc.Ua.Di.Server
             {
                 throw new System.ArgumentNullException(nameof(browseName));
             }
-
             NodeState effectiveParent = parent ?? ResolveDefaultDeviceParent()
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -548,7 +544,6 @@ namespace Opc.Ua.Di.Server
             {
                 return m_builder;
             }
-
             m_builder = new NodeManagerBuilder(
                 SystemContext,
                 this,

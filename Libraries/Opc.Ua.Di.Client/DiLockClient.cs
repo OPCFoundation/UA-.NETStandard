@@ -61,14 +61,19 @@ namespace Opc.Ua.Di.Client
             NodeId lockNodeId,
             ITelemetryContext telemetry)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (lockNodeId.IsNull)
             {
                 throw new ArgumentException(
                     "Lock NodeId is required.", nameof(lockNodeId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             Session = session;
             LockNodeId = lockNodeId;
             Telemetry = telemetry;

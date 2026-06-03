@@ -106,7 +106,10 @@ namespace Opc.Ua.Server.Fluent
             this INodeManagerBuilder builder,
             TimeSpan interval)
         {
-            if (builder == null) { throw new ArgumentNullException(nameof(builder)); }
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             if (interval <= TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(

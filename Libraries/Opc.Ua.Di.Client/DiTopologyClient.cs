@@ -151,10 +151,12 @@ namespace Opc.Ua.Di.Client
                 .ConfigureAwait(false);
 
             if (response.Results.Count == 0)
-            {
-                yield break;
-            }
 
+            {
+
+                yield break;
+
+            }
             BrowseResult result = response.Results[0];
             if (StatusCode.IsBad(result.StatusCode))
             {

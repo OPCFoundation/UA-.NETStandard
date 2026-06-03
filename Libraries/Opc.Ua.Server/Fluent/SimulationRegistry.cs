@@ -135,10 +135,12 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (cts == null)
-            {
-                return;
-            }
 
+            {
+
+                return;
+
+            }
             try
             {
                 cts.Cancel();
@@ -193,7 +195,10 @@ namespace Opc.Ua.Server.Fluent
 
         public ISimulationBuilder OnTick(Action<ISystemContext, TimeSpan> handler)
         {
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             m_handlers.Add((ctx, dt, _) =>
             {
                 handler(ctx, dt);
@@ -205,7 +210,10 @@ namespace Opc.Ua.Server.Fluent
         public ISimulationBuilder OnTick(
             Func<ISystemContext, TimeSpan, CancellationToken, ValueTask> handler)
         {
-            if (handler == null) { throw new ArgumentNullException(nameof(handler)); }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
             m_handlers.Add(handler);
             return this;
         }

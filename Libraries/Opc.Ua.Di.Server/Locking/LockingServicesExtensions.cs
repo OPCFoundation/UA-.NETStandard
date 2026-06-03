@@ -62,10 +62,18 @@ namespace Opc.Ua.Di.Server.Locking
             NodeId elementId,
             ILockService service)
         {
-            if (lockState == null) { throw new ArgumentNullException(nameof(lockState)); }
-            if (elementId.IsNull) { throw new ArgumentNullException(nameof(elementId)); }
-            if (service == null) { throw new ArgumentNullException(nameof(service)); }
-
+            if (lockState == null)
+            {
+                throw new ArgumentNullException(nameof(lockState));
+            }
+            if (elementId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(elementId));
+            }
+            if (service == null)
+            {
+                throw new ArgumentNullException(nameof(service));
+            }
             if (lockState.InitLock != null)
             {
                 lockState.InitLock.OnCall = (ISystemContext ctx, MethodState _method,

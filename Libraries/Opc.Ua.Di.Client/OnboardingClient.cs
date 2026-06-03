@@ -52,14 +52,19 @@ namespace Opc.Ua.Di.Client
             NodeId registrarNodeId,
             ITelemetryContext telemetry)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
             if (registrarNodeId.IsNull)
             {
                 throw new ArgumentException(
                     "Registrar NodeId is required.", nameof(registrarNodeId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
-
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             Session = session;
             RegistrarNodeId = registrarNodeId;
             Telemetry = telemetry;
@@ -87,7 +92,10 @@ namespace Opc.Ua.Di.Client
         public ValueTask<int[]> RegisterTicketsAsync(
             byte[][] tickets, CancellationToken ct = default)
         {
-            if (tickets == null) { throw new ArgumentNullException(nameof(tickets)); }
+            if (tickets == null)
+            {
+                throw new ArgumentNullException(nameof(tickets));
+            }
             return CallTicketArrayMethodAsync("RegisterTickets", tickets, ct);
         }
 
@@ -98,7 +106,10 @@ namespace Opc.Ua.Di.Client
         public ValueTask<int[]> UnregisterTicketsAsync(
             byte[][] tickets, CancellationToken ct = default)
         {
-            if (tickets == null) { throw new ArgumentNullException(nameof(tickets)); }
+            if (tickets == null)
+            {
+                throw new ArgumentNullException(nameof(tickets));
+            }
             return CallTicketArrayMethodAsync("UnregisterTickets", tickets, ct);
         }
 
@@ -147,10 +158,12 @@ namespace Opc.Ua.Di.Client
             }
 
             if (result.OutputArguments.Count == 0)
-            {
-                return Array.Empty<int>();
-            }
 
+            {
+
+                return Array.Empty<int>();
+
+            }
             object? boxed = result.OutputArguments[0].AsBoxedObject();
             return boxed switch
             {

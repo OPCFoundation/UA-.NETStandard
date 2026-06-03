@@ -503,8 +503,11 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (enable)
+
             {
+
                 acnm.MultiConsumerNodeIds[node.NodeId] = true;
+
             }
             else
             {

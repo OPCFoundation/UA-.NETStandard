@@ -61,8 +61,10 @@ namespace Opc.Ua.Di.Server.Hosting
             DiNodeManager manager,
             CancellationToken cancellationToken)
         {
-            if (manager == null) { throw new ArgumentNullException(nameof(manager)); }
-
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
             var context = new DiPostSetupContext(manager, m_services, cancellationToken);
             Type managerType = manager.GetType();
             int index = 0;
