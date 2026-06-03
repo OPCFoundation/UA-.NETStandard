@@ -27,41 +27,48 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
-namespace Opc.Ua.Client.TestFramework
+namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
+    /// Assembly-level setup/teardown that verifies no Certificate
+    /// instances are leaked during the test run.
     /// </summary>
-    public class TestableSessionFactory : DefaultSessionFactory
+    [SetUpFixture]
+    public class LeakDetectionSetup
     {
-        /// <summary>
-        /// Force use of the default instance.
-        /// </summary>
-        public TestableSessionFactory(ITelemetryContext telemetry)
-            : base(telemetry)
+        [OneTimeSetUp]
+        public void GlobalSetup()
         {
+            Certificate.ResetLeakCounters();
         }
 
-        /// <inheritdoc/>
-        public override ISession Create(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            Certificate clientCertificate,
-            CertificateCollection clientCertificateChain,
-            ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
+        [OneTimeTearDown]
+        public void GlobalTeardown()
         {
-            return new TestableSession(
-                channel,
-                configuration,
-                endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris,
-                SubscriptionEngineFactory);
+            // Force GC to finalize any abandoned certificates. Multiple
+            // cycles ensure that finalizable objects whose finalizer
+            // creates new garbage are themselves collected. The sweep is
+            // bounded by a watchdog so a stuck finalizer cannot hang the
+            // test host indefinitely during assembly teardown.
+            if (!LeakDetectionHelpers.TryRunFinalizerSweep())
+            {
+                Assert.Warn(
+                    $"Finalizer sweep exceeded {LeakDetectionHelpers.DefaultFinalizerSweepTimeout.TotalSeconds:0}s " +
+                    "watchdog; at least one finalizer is stuck. Leak counts below may be inaccurate.");
+            }
+
+            long leaked = Certificate.InstancesLeaked;
+            if (leaked > 0)
+            {
+                Assert.Warn(
+                    $"Certificate leak detected: {leaked} instance(s) created " +
+                    $"but not disposed (created={Certificate.InstancesCreated}, " +
+                    $"disposed={Certificate.InstancesDisposed}).");
+            }
         }
     }
 }

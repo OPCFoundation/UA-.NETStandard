@@ -27,41 +27,34 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Security.Certificates;
+using System.Collections.Generic;
+using Microsoft.Extensions.Options;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
-namespace Opc.Ua.Client.TestFramework
+namespace Opc.Ua.Client.Subscriptions
 {
     /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
+    /// Internal contract between
+    /// <see cref="ISubscriptionManager.LoadAsync"/> and the V2
+    /// <see cref="Subscription"/> constructor that pre-installs
+    /// server-assigned identifiers + per-item state so the V2 state
+    /// machine can take over an existing server-side subscription via
+    /// <c>TransferSubscriptions</c> instead of issuing a fresh
+    /// <c>CreateSubscription</c>. This struct deliberately does NOT
+    /// surface the public <see cref="SubscriptionStateSnapshot"/> shape
+    /// to the engine so the engine has no DTO coupling.
     /// </summary>
-    public class TestableSessionFactory : DefaultSessionFactory
-    {
-        /// <summary>
-        /// Force use of the default instance.
-        /// </summary>
-        public TestableSessionFactory(ITelemetryContext telemetry)
-            : base(telemetry)
-        {
-        }
+    internal sealed record SubscriptionLoadState(
+        uint ServerId,
+        IReadOnlyList<MonitoredItemLoadState> MonitoredItems);
 
-        /// <inheritdoc/>
-        public override ISession Create(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            Certificate clientCertificate,
-            CertificateCollection clientCertificateChain,
-            ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
-        {
-            return new TestableSession(
-                channel,
-                configuration,
-                endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris,
-                SubscriptionEngineFactory);
-        }
-    }
+    /// <summary>
+    /// Per-item version of <see cref="SubscriptionLoadState"/>.
+    /// </summary>
+    internal sealed record MonitoredItemLoadState(
+        string Name,
+        IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options,
+        uint ClientHandle,
+        uint ServerId,
+        uint TriggeringItemClientHandle);
 }

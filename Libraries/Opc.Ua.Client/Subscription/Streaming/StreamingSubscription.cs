@@ -37,7 +37,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -77,7 +76,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// <inheritdoc/>
         public IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             NodeId nodeId,
-            MonitoringOptions? options = null,
+            MonitoredItems.MonitoredItemOptions? options = null,
             CancellationToken ct = default)
         {
             if (nodeId.IsNull)
@@ -90,7 +89,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// <inheritdoc/>
         public IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
             IReadOnlyList<NodeId> nodeIds,
-            MonitoringOptions? options = null,
+            MonitoredItems.MonitoredItemOptions? options = null,
             CancellationToken ct = default)
         {
             if (nodeIds == null)
@@ -102,7 +101,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
         private async IAsyncEnumerable<DataValueChange> SubscribeDataChangesImpl(
             IReadOnlyList<NodeId> nodeIds,
-            MonitoringOptions? options,
+            MonitoredItems.MonitoredItemOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
@@ -123,14 +122,14 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 foreach (NodeId nodeId in nodeIds)
                 {
-                    MonitoringOptions itemOptions = (options ?? new MonitoringOptions())
+                    MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
                         with { StartNodeId = nodeId };
 
                     string name = $"stream_data_{handle}_{nodeId}";
 
                     if (m_subscription!.MonitoredItems.TryAdd(
                             name,
-                            new OptionsMonitor<MonitoringOptions>(itemOptions),
+                            new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
                             out IMonitoredItem? item) && item != null)
                     {
                         monitoredItems.Add(item);
@@ -166,7 +165,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         public IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
             NodeId notifierId,
             EventFilter filter,
-            MonitoringOptions? options = null,
+            MonitoredItems.MonitoredItemOptions? options = null,
             CancellationToken ct = default)
         {
             if (notifierId.IsNull)
@@ -183,12 +182,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         private async IAsyncEnumerable<EventNotification> SubscribeEventsImpl(
             NodeId notifierId,
             EventFilter filter,
-            MonitoringOptions? options,
+            MonitoredItems.MonitoredItemOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
-            MonitoringOptions itemOptions = (options ?? new MonitoringOptions())
+            MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
                 with
                 {
                     StartNodeId = notifierId,
@@ -215,7 +214,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 if (m_subscription!.MonitoredItems.TryAdd(
                         name,
-                        new OptionsMonitor<MonitoringOptions>(itemOptions),
+                        new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
                         out item) && item != null)
                 {
                     subscriber.AddClientHandle(item.ClientHandle);
@@ -391,6 +390,19 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 DateTime publishTime,
                 PublishState publishStateMask)
             {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                SubscriptionState state,
+                PublishState publishStateMask,
+                System.Threading.CancellationToken ct = default)
+            {
+                // Streaming subscription only cares about data/event
+                // notification streams; lifecycle transitions are
+                // observed by the streaming consumer via the channel
+                // completion (DisposeAsync).
                 return default;
             }
         }

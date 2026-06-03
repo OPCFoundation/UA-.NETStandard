@@ -69,19 +69,63 @@ namespace Opc.Ua.Client.TestFramework
         public ISessionFactory SessionFactory { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
+        /// <summary>
+        /// Subscription engine factory to inject into every session
+        /// created via <see cref="SessionFactory"/>. <c>null</c> means
+        /// the session uses the <see cref="DefaultSessionFactory"/>
+        /// default (which is the V2
+        /// <see cref="DefaultSubscriptionEngineFactory"/> after the
+        /// flip in <c>Session.cs</c>). Test projects that rely on the
+        /// classic subscription engine (e.g. classic
+        /// <c>Session.AddSubscription</c> with classic
+        /// <c>Subscription</c>) should set this to
+        /// <c>ClassicSubscriptionEngineFactory.Instance</c> in their
+        /// fixture setup.
+        /// </summary>
+        /// <remarks>
+        /// Setting this property after <see cref="SessionFactory"/> is
+        /// constructed has no effect on already-created sessions. To
+        /// switch engines, set this property and then call
+        /// <see cref="UseSubscriptionEngineFactory"/> to rebuild the
+        /// factory.
+        /// </remarks>
+        public ISubscriptionEngineFactory SubscriptionEngineFactory { get; private set; }
+
+        /// <summary>
+        /// Configure the engine factory used by this fixture's
+        /// <see cref="SessionFactory"/>. Replaces the current
+        /// <see cref="SessionFactory"/> with a fresh
+        /// <see cref="DefaultSessionFactory"/> that uses the supplied
+        /// engine.
+        /// </summary>
+        public void UseSubscriptionEngineFactory(ISubscriptionEngineFactory engineFactory)
+        {
+            SubscriptionEngineFactory = engineFactory
+                ?? throw new ArgumentNullException(nameof(engineFactory));
+            SessionFactory = new DefaultSessionFactory(m_telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText,
+                SubscriptionEngineFactory = engineFactory
+            };
+        }
+
         public ClientFixture(bool useTracing, bool disableActivityLogging, ITelemetryContext telemetry)
             : this(telemetry)
         {
             if (useTracing)
             {
-                SessionFactory = new TraceableRequestHeaderClientSessionFactory(telemetry);
+                SessionFactory = new TraceableRequestHeaderClientSessionFactory(telemetry)
+                {
+                    SubscriptionEngineFactory = SubscriptionEngineFactory
+                };
                 StartActivityListenerInternal(disableActivityLogging);
             }
             else
             {
                 SessionFactory = new DefaultSessionFactory(telemetry)
                 {
-                    ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+                    ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText,
+                    SubscriptionEngineFactory = SubscriptionEngineFactory
                 };
             }
         }
@@ -92,7 +136,8 @@ namespace Opc.Ua.Client.TestFramework
             m_logger = telemetry.CreateLogger<ClientFixture>();
             SessionFactory = new DefaultSessionFactory(telemetry)
             {
-                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText,
+                SubscriptionEngineFactory = SubscriptionEngineFactory
             };
         }
 

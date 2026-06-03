@@ -27,6 +27,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Classic.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Durable.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Features.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Stress.Tests" />
