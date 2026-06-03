@@ -55,7 +55,7 @@ The server implementation also provides support for:
 
 The following server profiles/facets have limited or incomplete support:
 
-- **Alarms & Conditions** - Full implementation of core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. However, some specialized event types defined in OPC UA Part 9 are not yet implemented (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Alarms and Conditions** - Full implementation of core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. However, some specialized event types defined in OPC UA Part 9 are not yet implemented (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
 - **Historical Access** - Basic historical data access is supported with configurable retention and read operations. Advanced features such as server-side aggregates (Average, Total, Minimum, Maximum, etc.) are not fully implemented (see [Historical Access documentation](HistoricalAccess.md))
 - **Events** - The event notification infrastructure is fully implemented. However, event type definitions from specific companion specifications may require custom implementation or have incomplete state management
 - **Aggregates Server Facet** - Historical data aggregation
@@ -262,7 +262,7 @@ See the [Reference Server configuration file](../Applications/ConsoleReferenceSe
 - [PubSub](PubSub.md) - Publisher-Subscriber pattern implementation
 - [Async Server Support](AsyncServerSupport.md) - Asynchronous node manager implementation
 - [Alias Names](AliasNames.md) - OPC UA Part 17 alias-name model and address space naming
-- [Alarms & Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
+- [Alarms and Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
 - [Model Change Tracking](ModelChangeTracking.md) - Address space change notifications and client-side cache management
 - [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 Web of Things connectivity integration
 - [Streaming Subscriptions](StreamingSubscription.md) - Async enumerable subscription API for state machines and short-lived monitoring
