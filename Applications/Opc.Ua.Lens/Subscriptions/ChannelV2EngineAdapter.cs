@@ -450,6 +450,18 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask OnSubscriptionStateChangedAsync(ISubscription subscription,
+            Opc.Ua.Client.Subscriptions.SubscriptionState state,
+            PublishState publishStateMask,
+            CancellationToken ct = default)
+        {
+            // The adapter tracks publish-side health (gaps, republishes, recovers)
+            // exclusively via the data/event/keep-alive PublishState masks; the
+            // dedicated lifecycle/publish-state callback is intentionally ignored
+            // here so we don't double-count anything on the chart.
+            return ValueTask.CompletedTask;
+        }
+
         private int ResolveItemId(IMonitoredItem? mi)
         {
             if (mi is null)

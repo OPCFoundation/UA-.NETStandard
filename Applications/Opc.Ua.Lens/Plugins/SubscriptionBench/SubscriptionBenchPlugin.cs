@@ -1325,6 +1325,17 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             // carry data; bench throughput maths intentionally ignores them.
             return ValueTask.CompletedTask;
         }
+
+        public ValueTask OnSubscriptionStateChangedAsync(
+            ISubscription subscription,
+            Opc.Ua.Client.Subscriptions.SubscriptionState state,
+            PublishState publishStateMask,
+            CancellationToken ct = default)
+        {
+            // The bench focuses on raw value throughput; subscription
+            // lifecycle transitions don't contribute to its counters.
+            return ValueTask.CompletedTask;
+        }
     }
 
     private Window? TopLevelWindow()

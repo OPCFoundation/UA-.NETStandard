@@ -144,6 +144,7 @@
     <Project Path="Tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Subscriptions.Classic.Tests/Opc.Ua.Subscriptions.Classic.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />

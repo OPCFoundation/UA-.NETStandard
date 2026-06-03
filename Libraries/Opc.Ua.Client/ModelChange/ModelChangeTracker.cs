@@ -81,7 +81,10 @@ namespace Opc.Ua.Client.ModelChange
             }
 
             m_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            m_pumpTask = Task.Run(() => PumpAsync(m_cts.Token), m_cts.Token);
+            // Capture the token before launching the pump task so a racing
+            // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
+            CancellationToken pumpToken = m_cts.Token;
+            m_pumpTask = Task.Run(() => PumpAsync(pumpToken), pumpToken);
             IsTracking = true;
 
             return default;
