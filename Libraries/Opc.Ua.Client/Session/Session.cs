@@ -3570,7 +3570,17 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                if (m_subscriptions.Count == 0)
+                // Safely access subscriptions collection to avoid InvalidOperationException
+                // when collection is modified during enumeration (e.g., during reconnection).
+                bool hasActiveCreatedSubscriptions;
+                int subscriptionsCount;
+                lock (m_lock)
+                {
+                    subscriptionsCount = m_subscriptions.Count;
+                    hasActiveCreatedSubscriptions = m_subscriptions.Any(s => s.Created);
+                }
+
+                if (subscriptionsCount == 0)
                 {
                     // Publish responses with error should occur after deleting the last subscription.
                     m_logger.LogWarning(
@@ -3591,7 +3601,7 @@ namespace Opc.Ua.Client
                 var error = new ServiceResult(e);
 
                 // raise publish error even for BadNoSubscription if there are active subscriptions.
-                if (error.Code != StatusCodes.BadNoSubscription || m_subscriptions.Any(s => s.Created))
+                if (error.Code != StatusCodes.BadNoSubscription || hasActiveCreatedSubscriptions)
                 {
                     PublishErrorEventHandler? callback = m_PublishError;
 
