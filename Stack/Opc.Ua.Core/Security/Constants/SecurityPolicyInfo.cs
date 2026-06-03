@@ -204,6 +204,18 @@ namespace Opc.Ua
         {
             if (SecureChannelEnhancements)
             {
+                #if OPCUA_CryptoTrace
+                CryptoTrace.Start(ConsoleColor.Yellow, "UserTokenSignatureData");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientCertificate={CryptoTrace.KeyToString(clientCertificate)}");
+                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+                CryptoTrace.Finish("UserTokenSignatureData");
+                #endif
+
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
                 {
                     CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
@@ -230,6 +242,13 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     clientNonce);
             }
+            
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Yellow, "UserTokenSignatureData");
+            CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+            CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+            CryptoTrace.Finish("UserTokenSignatureData");
+            #endif
 
             return Utils.Append(
                 serverCertificate,
@@ -250,6 +269,16 @@ namespace Opc.Ua
         {
             if (SecureChannelEnhancements)
             {
+                #if OPCUA_CryptoTrace
+                CryptoTrace.Start(ConsoleColor.Yellow, "ServerSignatureData");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+                CryptoTrace.Finish("ServerSignatureData");
+                #endif
+
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
                 {
                     CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
@@ -271,6 +300,13 @@ namespace Opc.Ua
                     serverNonce);
             }
 
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Yellow, "ServerSignatureData");
+            CryptoTrace.WriteLine($"ClientCertificate={CryptoTrace.KeyToString(clientCertificate)}");
+            CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+            CryptoTrace.Finish("ServerSignatureData");
+            #endif
+
             return Utils.Append(
                 clientCertificate,
                 clientNonce);
@@ -290,6 +326,17 @@ namespace Opc.Ua
         {
             if (SecureChannelEnhancements)
             {
+                #if OPCUA_CryptoTrace
+                CryptoTrace.Start(ConsoleColor.Yellow, "ClientSignatureData");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+                CryptoTrace.Finish("ClientSignatureData");
+                #endif
+
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
                 {
                     CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
@@ -310,6 +357,13 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     clientNonce);
             }
+            
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Yellow, "ClientSignatureData");
+            CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+            CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+            CryptoTrace.Finish("ClientSignatureData");
+            #endif
 
             return Utils.Append(
                 serverCertificate,

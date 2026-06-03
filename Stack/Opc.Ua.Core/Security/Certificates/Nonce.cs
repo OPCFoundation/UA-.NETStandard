@@ -76,6 +76,11 @@ namespace Opc.Ua
             byte[]? previousSecret)
         {
             byte[]? ikm = null;
+
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Cyan, $"GenerateSecret");
+            #endif
+
 #if NET8_0_OR_GREATER
             if (m_ecdh != null)
             {
@@ -96,6 +101,11 @@ namespace Opc.Ua
                 ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
             }
 #endif
+            #if OPCUA_CryptoTrace
+            CryptoTrace.WriteLine($"IKM-Raw={CryptoTrace.KeyToString(ikm)}");
+            CryptoTrace.WriteLine($"Previous-IKM={CryptoTrace.KeyToString(previousSecret)}");
+            #endif
+
             if (ikm != null && previousSecret != null)
             {
                 for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
@@ -103,6 +113,12 @@ namespace Opc.Ua
                     ikm[ii] ^= previousSecret[ii];
                 }
             }
+            
+            #if OPCUA_CryptoTrace
+            CryptoTrace.WriteLine($"IKM-XOR={CryptoTrace.KeyToString(ikm)}");
+            CryptoTrace.Finish("GenerateSecret");
+            #endif
+
             return ikm;
         }
 
@@ -121,6 +137,13 @@ namespace Opc.Ua
             KeyDerivationAlgorithm algorithm,
             int length)
         {
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.DarkCyan, $"DeriveKeyData");
+            CryptoTrace.WriteLine($"Secret={CryptoTrace.KeyToString(secret)}");
+            CryptoTrace.WriteLine($"Salt={CryptoTrace.KeyToString(salt)}");
+            #endif
+
+
             using HMAC extract = algorithm switch
             {
                 KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(salt),
@@ -129,6 +152,11 @@ namespace Opc.Ua
             };
 
             byte[] prk = extract.ComputeHash(secret);
+
+            #if OPCUA_CryptoTrace
+            CryptoTrace.WriteLine($"PRK={CryptoTrace.KeyToString(prk)}");
+            #endif
+
             using HMAC expand = algorithm switch
             {
                 KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(prk),
@@ -146,6 +174,10 @@ namespace Opc.Ua
             // computer T(1)
             byte[] hash = expand.ComputeHash(info, 0, salt.Length + 1);
 
+            #if OPCUA_CryptoTrace
+            CryptoTrace.WriteLine($"T(1)={CryptoTrace.KeyToString(hash)}");
+            #endif
+
             int pos = 0;
 
             for (int ii = 0; ii < hash.Length && pos < length; ii++)
@@ -160,11 +192,21 @@ namespace Opc.Ua
                 info[^1] = counter++;
 
                 hash = expand.ComputeHash(info, 0, info.Length);
+
+                #if OPCUA_CryptoTrace
+                CryptoTrace.WriteLine($"T({counter - 1})={CryptoTrace.KeyToString(hash)}");
+                #endif
+
                 for (int ii = 0; ii < hash.Length && pos < length; ii++)
                 {
                     output[pos++] = hash[ii];
                 }
             }
+            
+            #if OPCUA_CryptoTrace
+            CryptoTrace.WriteLine($"KeyData={CryptoTrace.KeyToString(output)}");
+            CryptoTrace.Finish("DeriveKeyData");
+            #endif
 
             return output;
         }

@@ -610,6 +610,15 @@ namespace Opc.Ua.Bindings
 
                 // don't keep signature if secure channel enhancements are not used.
                 m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
+                
+                #if OPCUA_CryptoTrace
+                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelRequest ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
+                CryptoTrace.WriteLine($"ClientCertificate={clientCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+                CryptoTrace.Finish("ProcessOpenSecureChannelRequest");
+                #endif
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -717,6 +726,14 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
+
+                #if OPCUA_CryptoTrace
+                CryptoTrace.Start(ConsoleColor.Red, $"PreviousSecret");
+                CryptoTrace.WriteLine($"PreviousSecret={CryptoTrace.KeyToString(token.PreviousSecret)}");
+                CryptoTrace.WriteLine($"CurrentSecret={CryptoTrace.KeyToString(CurrentToken?.Secret)}");
+                CryptoTrace.Finish($"PreviousSecret");
+                #endif
+
                 token.PreviousSecret = CurrentToken?.Secret;
 
                 // check the client nonce.
@@ -1016,6 +1033,16 @@ namespace Opc.Ua.Bindings
             {
                 ChannelThumbprint = signature;
             }
+
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelResponse ({(renew ? "RENEW" : "OPEN")})");
+            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
+            CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
+            CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+            CryptoTrace.Finish("SendOpenSecureChannelResponse");
+            #endif
 
             // write the response to the client.
             BufferCollection? chunksToRelease = chunksToSend;

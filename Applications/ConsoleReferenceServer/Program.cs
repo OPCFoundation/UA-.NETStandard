@@ -187,7 +187,7 @@ namespace Quickstarts.ReferenceServer
                         logConsole,
                         fileLog,
                         appLog,
-                        LogLevel.Information);
+                        LogLevel.Warning);
 
                     // check or renew the certificate
                     Console.WriteLine("Check the certificate.");

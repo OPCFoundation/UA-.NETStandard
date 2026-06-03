@@ -172,6 +172,13 @@ namespace Opc.Ua
             out byte[] encryptingKey,
             out byte[] iv)
         {
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Blue, $"EncryptedSecret {((forDecryption) ? "DECRYPT" : "ENCRYPT")}");
+            CryptoTrace.WriteLine($"SecurityPolicy={securityPolicy.Name}");
+            CryptoTrace.WriteLine($"LocalNonce={CryptoTrace.KeyToString(localNonce.Data ?? [])}");
+            CryptoTrace.WriteLine($"RemoteNonce={CryptoTrace.KeyToString(remoteNonce.Data ?? [])}");
+            #endif
+
             int encryptingKeySize = securityPolicy.SymmetricEncryptionKeyLength;
             int blockSize = securityPolicy.InitializationVectorLength;
 
@@ -195,6 +202,13 @@ namespace Opc.Ua
 
             Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
             Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+
+            #if OPCUA_CryptoTrace
+            Console.ForegroundColor = ConsoleColor.Blue;
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.Finish("EncryptedSecret");
+            #endif
         }
 
         /// <summary>

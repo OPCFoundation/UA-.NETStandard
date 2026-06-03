@@ -1,0 +1,10 @@
+{
+  "ServerUrl": "opc.tcp://whitecat:62541/Quickstarts/ReferenceServer",
+  "UserName": "sysadmin",
+  "Password": "demo",
+  "SupportsX509": true,
+  "ReconnectPeriod": 1000,
+  "ReconnectPeriodExponentialBackoff": 15000,
+  "UserCertificatePath": "../../pki/trustedUser/private",
+  "UserCertificatePassword": "password"
+}

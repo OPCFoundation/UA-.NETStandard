@@ -618,6 +618,14 @@ namespace Opc.Ua.Bindings
             // don't keep signature if secure channel enhancements are not used.
             m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
 
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelRequest ({(renew ? "RENEW" : "OPEN")})");
+            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
+            CryptoTrace.Finish("SendOpenSecureChannelRequest");
+            #endif
+
             // save token.
             m_requestedToken = token;
 
@@ -683,6 +691,18 @@ namespace Opc.Ua.Bindings
                 {
                     ChannelThumbprint = signature;
                 }
+
+                #if OPCUA_CryptoTrace
+                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelResponse ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
+                CryptoTrace.WriteLine($"messageBody={CryptoTrace.KeyToString(messageBody)}");
+                CryptoTrace.WriteLine($"messageBody.Offset={messageBody.Offset}");
+                CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
+                CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+                CryptoTrace.Finish("ProcessOpenSecureChannelResponse");
+                #endif
             }
             catch (Exception e)
             {

@@ -35,6 +35,7 @@ using System.Linq;
 #endif
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -80,60 +81,72 @@ namespace Quickstarts
         /// <exception cref="InvalidOperationException"></exception>
         public async Task RunAsync(CancellationToken ct)
         {
+            m_reconnectHandler = new SessionReconnectHandler(
+                m_telemetry,
+                true,
+                s_settings.ReconnectPeriodExponentialBackoff);
+
+            m_logger.LogInformation("OPC UA Security Test Client");
+
+            // The application name and config file names
+            const string applicationName = "ConsoleReferenceClient";
+            const string configSectionName = "Quickstarts.ReferenceClient";
+
+            // Define the UA Client application
+            var passwordProvider = new CertificatePasswordProvider([]);
+
+            var application = new ApplicationInstance(m_telemetry)
+            {
+                ApplicationName = applicationName,
+                ApplicationType = ApplicationType.Client,
+                ConfigSectionName = configSectionName,
+                CertificatePasswordProvider = passwordProvider
+            };
+
             try
             {
-                m_reconnectHandler = new SessionReconnectHandler(
-                    m_telemetry,
-                    true,
-                    kReconnectPeriodExponentialBackoff);
+                application.ConfigureAwait(false);
 
-                m_logger.LogInformation("OPC UA Security Test Client");
+                // load the application configuration.
+                m_configuration = await application
+                    .LoadApplicationConfigurationAsync(silent: false, ct: ct)
+                    .ConfigureAwait(false);
 
-                // The application name and config file names
-                const string applicationName = "ConsoleReferenceClient";
-                const string configSectionName = "Quickstarts.ReferenceClient";
+                m_configuration.CertificateManager.AcceptError = AcceptCertificate;
 
-                // Define the UA Client application
-                var passwordProvider = new CertificatePasswordProvider([]);
+                // check the application certificate.
+                bool haveAppCertificate = await application
+                    .CheckApplicationInstanceCertificatesAsync(false, ct: ct)
+                    .ConfigureAwait(false);
 
-                var application = new ApplicationInstance(m_telemetry)
+                if (!haveAppCertificate)
                 {
-                    ApplicationName = applicationName,
-                    ApplicationType = ApplicationType.Client,
-                    ConfigSectionName = configSectionName,
-                    CertificatePasswordProvider = passwordProvider
-                };
-                await using (application.ConfigureAwait(false))
-                {
-                    // load the application configuration.
-                    m_configuration = await application
-                        .LoadApplicationConfigurationAsync(silent: false, ct: ct)
-                        .ConfigureAwait(false);
-
-                    m_configuration.CertificateManager.AcceptError = AcceptCertificate;
-
-                    // check the application certificate.
-                    bool haveAppCertificate = await application
-                        .CheckApplicationInstanceCertificatesAsync(false, ct: ct)
-                        .ConfigureAwait(false);
-
-                    if (!haveAppCertificate)
-                    {
-                        throw new InvalidOperationException("Application instance certificate invalid!");
-                    }
+                    throw new InvalidOperationException("Application instance certificate invalid!");
                 }
 
-                m_logger.LogInformation("Connecting to... {ServerUrl}", kServerUrl);
+                m_logger.LogInformation("Connecting to... {ServerUrl}", s_settings.ServerUrl);
 
                 ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync(
                     m_configuration,
-                    kServerUrl,
+                    s_settings.ServerUrl,
                     ct).ConfigureAwait(false);
+
+                if (!String.IsNullOrEmpty(s_settings.SecurityPolicyFilter))
+                {
+                    endpoints = endpoints
+                        .Filter(x => x != null &&
+                        (x.SecurityPolicyUri?.Contains(s_settings.SecurityPolicyFilter, StringComparison.OrdinalIgnoreCase) ?? false)
+                    );
+                }
+
+                if (endpoints.IsEmpty)
+                {
+                    throw new InvalidOperationException("No endpoints selected!");
+                }
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
-                IClientIdentityProvider userNameProvider = await CreateUserNameProviderAsync(ct)
-                    .ConfigureAwait(false);
+                var userNameidentity = new UserIdentity(s_settings.UserName, new UTF8Encoding(false).GetBytes(s_settings.Password));
 
                 foreach (EndpointDescription ii in endpoints.ToArray()!)
                 {
@@ -141,15 +154,14 @@ namespace Quickstarts
                     string userCertificateFile = GetUserCertificateFile(securityPolicyUri);
 
                     X509Certificate2 x509 = X509CertificateLoader.LoadPkcs12FromFile(
-                        Path.Combine("..\\..\\pki\\trustedUser\\private",
-                        userCertificateFile),
-                        "password");
+                        Path.Combine(s_settings.UserCertificatePath, userCertificateFile),
+                        s_settings.UserCertificatePassword);
 
                     string thumbprint = x509.Thumbprint!;
 
                     IClientIdentityProvider certificateProvider = await LoadUserCertificateProviderAsync(
                         thumbprint,
-                        "password",
+                        s_settings.UserCertificatePassword,
                         ct).ConfigureAwait(false);
 
                     var identityProviders = new List<IClientIdentityProvider>
@@ -157,11 +169,11 @@ namespace Quickstarts
                         new AnonymousIdentityProvider()
                     };
 
-                    if (!string.IsNullOrEmpty(kUserName))
+                    if (!string.IsNullOrEmpty(s_settings.UserName))
                     {
                         identityProviders.Add(userNameProvider);
                     }
-                    if (kSupportsX509)
+                    if (s_settings.SupportsX509)
                     {
                         identityProviders.Add(certificateProvider);
                     }
@@ -258,6 +270,10 @@ namespace Quickstarts
                 m_logger.LogError("Exception: {Message}", e.Message);
                 m_logger.LogTrace("StackTrace: {StackTrace}", e.StackTrace);
             }
+            finally
+            {
+                await application.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         internal async Task<SessionWrapper> RunTestAsync(
@@ -300,7 +316,7 @@ namespace Quickstarts
                 // Assign the created session
                 if (!wrapper.Session.Connected)
                 {
-                    throw new InvalidOperationException("Could not connect to server at " + kServerUrl);
+                    throw new InvalidOperationException("Could not connect to server at " + s_settings.ServerUrl);
                 }
 
                 wrapper.Session.KeepAliveInterval = 10000;
@@ -444,7 +460,7 @@ namespace Quickstarts
                         .BeginReconnect(
                             m_wrapper.Session,
                             null,
-                            kReconnectPeriod,
+                            s_settings.ReconnectPeriod,
                             Client_ReconnectComplete
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
@@ -453,7 +469,7 @@ namespace Quickstarts
                             "KeepAlive status {StatusCode}, reconnect status {State}, reconnect period {ReconnectPeriod}ms.",
                             e.Status,
                             state,
-                            kReconnectPeriod
+                            s_settings.ReconnectPeriod
                         );
                     }
                     else
@@ -546,12 +562,9 @@ namespace Quickstarts
         private readonly ITelemetryContext m_telemetry;
         private readonly ManualResetEvent? m_quitEvent;
 
-        private const string kServerUrl = "opc.tcp://localhost:62541";
-        private const string kUserName = "sysadmin";
-        private const string kPassword = "demo";
-        private const bool kSupportsX509 = true;
-
-        private const int kReconnectPeriod = 1000;
-        private const int kReconnectPeriodExponentialBackoff = 15000;
+        // Defaults are baked in; an optional external "ConnectTester.Settings.json"
+        // next to the executable can override any field. The path of that file can be
+        // changed with the REFCLIENT_CONNECTTESTER_SETTINGS_FILE environment variable.
+        private static readonly ConnectTesterSettings s_settings = ConnectTesterSettings.Load();
     }
 }

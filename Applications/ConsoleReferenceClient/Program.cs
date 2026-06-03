@@ -307,13 +307,58 @@ namespace Quickstarts.ConsoleReferenceClient
                         logConsole,
                         fileLog,
                         appLog,
-                        LogLevel.Information);
+                        LogLevel.Warning);
 
                     // delete old certificate
                     if (renewCertificate)
                     {
                         await application.DeleteApplicationInstanceCertificateAsync(ct: cancellationToken)
                             .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // If the stored application certificate was generated under a
+                        // different hostname, its SAN URN no longer matches the runtime
+                        // ApplicationUri (the stack substitutes "localhost" with the
+                        // current hostname). LoadPrivateKeyAsync then filters the cert
+                        // out and CheckApplicationInstanceCertificatesAsync throws
+                        // "Cannot access private key" instead of regenerating. Pre-delete
+                        // stale certs so the regeneration path runs transparently.
+                        ArrayOf<CertificateIdentifier> applicationCerts
+                            = appConfig.SecurityConfiguration.ApplicationCertificates;
+                        for (int idx = 0; idx < applicationCerts.Count; idx++)
+                        {
+                            CertificateIdentifier certId = applicationCerts[idx];
+                            Certificate? existing = await CertificateIdentifierResolver
+                                .ResolveAsync(
+                                    certId,
+                                    registry: null,
+                                    needPrivateKey: false,
+                                    applicationUri: null,
+                                    telemetry,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                            if (existing == null)
+                            {
+                                continue;
+                            }
+                            bool uriMatches;
+                            using (existing)
+                            {
+                                uriMatches = X509Utils.CompareApplicationUriWithCertificate(
+                                    existing, appConfig.ApplicationUri!);
+                            }
+                            if (!uriMatches)
+                            {
+                                logger?.LogInformation(
+                                    "Stored application certificate's SAN URN does not match the configured ApplicationUri ({Uri}); regenerating.",
+                                    appConfig.ApplicationUri);
+                                await application
+                                    .DeleteApplicationInstanceCertificateAsync(ct: cancellationToken)
+                                    .ConfigureAwait(false);
+                                break;
+                            }
+                        }
                     }
 
                     // check the application certificate.

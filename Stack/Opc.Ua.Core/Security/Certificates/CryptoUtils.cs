@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
@@ -764,6 +765,18 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "EncryptWithChaCha20Poly1305");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(ciphertext)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("EncryptWithChaCha20Poly1305");
+            #endif
+
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
@@ -836,6 +849,18 @@ namespace Opc.Ua
                 tag,
                 signOnly ? [] : plaintext,
                 extraData);
+                
+#if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithChaCha20Poly1305");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kChaChaPolyTagLength}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(encryptedData)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("DecryptWithChaCha20Poly1305");
+#endif
 
             // Return layout: [associated data | plaintext]
             if (!signOnly)
@@ -887,6 +912,18 @@ namespace Opc.Ua
                 ciphertext,
                 tag,
                 extraData);
+
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "EncryptWithAesGcm");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(ciphertext)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("DecryptWithAesGcm");
+            #endif
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -958,6 +995,18 @@ namespace Opc.Ua
                 tag,
                 signOnly ? [] : plaintext,
                 extraData);
+
+            #if OPCUA_CryptoTrace
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithAesGcm");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kAesGcmTagLength}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(encryptedData)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("DecryptWithAesGcm");
+            #endif
 
             // Return layout: [associated data | plaintext]
             if (!signOnly)
@@ -1075,4 +1124,137 @@ namespace Opc.Ua
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
     }
+
+#if OPCUA_CryptoTrace
+    /// <summary>
+    /// A class to assist with tracing crypto operations.
+    /// </summary>
+    public static class CryptoTrace
+    {
+        /// <summary>
+        /// Enabled crypto traces to stdout.
+        /// </summary>
+        public static bool Enabled { get; set; } = true;
+
+        /// <summary>
+        /// Starts a trace block.
+        /// </summary>
+        public static void Start(ConsoleColor color, string format, params object[] args)
+        {
+#if DEBUG
+            if (Enabled)
+            {
+                Console.ForegroundColor = color;
+                Console.Write("============ ");
+                Console.Write(format, args);
+                Console.WriteLine(" ============");
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Finishes a trace block.
+        /// </summary>
+        public static void Finish(string format, params object[] args)
+        {
+#if DEBUG
+            if (Enabled)
+            {
+                Console.Write("============ ");
+                Console.Write(format, args);
+                Console.WriteLine(" Finished ============");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Writes a trace message.
+        /// </summary>
+        public static void Write(string format, params object[] args)
+        {
+#if DEBUG
+            if (Enabled)
+            {
+                Console.Write(format, args);
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Writes a trace message.
+        /// </summary>
+        public static void WriteLine(string format, params object[] args)
+        {
+#if DEBUG
+            if (Enabled)
+            {
+                Console.WriteLine(format, args);
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Returns a debug string for a key.
+        /// </summary>
+        public static string KeyToString(ArraySegment<byte> key)
+        {
+#if DEBUG
+            if (Enabled)
+            {
+                byte[] bytes = new byte[key.Count];
+                Buffer.BlockCopy(key.Array ?? [], key.Offset, bytes, 0, key.Count);
+                return KeyToString(bytes);
+            }
+            else
+            {
+                return String.Empty;
+            }
+#else
+            return String.Empty;
+#endif
+        }
+
+        /// <summary>
+        /// Returns a debug string for a key.
+        /// </summary>
+        public static string KeyToString(byte[]? key)
+        {
+#if DEBUG
+            if (Enabled)
+            {
+                if (key == null || key.Length == 0)
+                {
+                    return "Len=0:---";
+                }
+
+                byte checksum = 0;
+
+                foreach (var item in key)
+                {
+                    checksum ^= item;
+                }
+
+                if (key.Length <= 16)
+                {
+                    return "Len=" + key.Length.ToString(CultureInfo.InvariantCulture) +
+                        ":" +
+                        Utils.ToHexString(key) +
+                        "=>XOR=" +
+                        checksum.ToString(CultureInfo.InvariantCulture);
+                }
+
+                var text = Utils.ToHexString(key);
+                return $"Len={key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length - 8, 8)}=>XOR={checksum}";
+            }
+            else
+            {
+                return String.Empty;
+            }
+#else
+            return String.Empty;
+#endif
+        }
+    }
+#endif
 }

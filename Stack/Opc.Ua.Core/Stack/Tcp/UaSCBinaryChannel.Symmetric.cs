@@ -213,6 +213,10 @@ namespace Opc.Ua.Bindings
             bool isServer,
             int length)
         {
+            #if OPCUA_CryptoTrace
+            CryptoTrace.WriteLine($"DeriveKeys for {((isServer) ? "SERVER" : "CLIENT")}");
+            #endif
+
             SecurityPolicyInfo tokenPolicy = token.SecurityPolicy!;
             byte[] keyData = m_localNonce!.DeriveKeyData(
                 token.Secret!,
@@ -282,6 +286,20 @@ namespace Opc.Ua.Bindings
                         clientSecret);
 
                     DeriveKeysWithHKDF(token, serverSalt, true, tokenPolicy.ServerKeyDataLength);
+
+                    #if OPCUA_CryptoTrace
+                    CryptoTrace.Start(ConsoleColor.Green, $"ComputeKeys (TokenId={token.TokenId})");
+                    CryptoTrace.WriteLine($"IKM={CryptoTrace.KeyToString(token.Secret)}");
+                    CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverSecret)}");
+                    CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientSecret)}");
+                    CryptoTrace.WriteLine($"ServerSalt={CryptoTrace.KeyToString(serverSalt)}");
+                    CryptoTrace.WriteLine($"ServerEncryptingKey={CryptoTrace.KeyToString(token.ServerEncryptingKey)}");
+                    CryptoTrace.WriteLine($"ServerInitializationVector={CryptoTrace.KeyToString(token.ServerInitializationVector)}");
+                    CryptoTrace.WriteLine($"ClientEncryptingKey={CryptoTrace.KeyToString(token.ClientEncryptingKey)}");
+                    CryptoTrace.WriteLine($"ClientInitializationVector={CryptoTrace.KeyToString(token.ClientInitializationVector)}");
+                    CryptoTrace.Finish("ComputeKeys");
+                    #endif
+
                     break;
                 default:
                     HashAlgorithmName algorithmName = tokenPolicy.GetKeyDerivationHashAlgorithmName();
