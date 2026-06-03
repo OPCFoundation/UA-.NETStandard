@@ -73,7 +73,13 @@ namespace Opc.Ua.SourceGeneration
                 {
                     ["build_property.ModelSourceGeneratorVersion"] = "v105",
                     ["build_property.ModelSourceGeneratorExclude"] = "Draft",
-                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true"
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    // The test compilation includes Core stubs via
+                    // WithOpcUaGeneratedStack() but no Server reference.
+                    // Suppress fluent-builder emission so the generated
+                    // code compiles standalone (matches model-only
+                    // production csprojs).
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -102,7 +108,11 @@ namespace Opc.Ua.SourceGeneration
             var options = new AnalyzerOptionsProvider(
                 new Dictionary<string, string>
                 {
-                    ["build_property.ModelSourceGeneratorStartId"] = "1000"
+                    ["build_property.ModelSourceGeneratorStartId"] = "1000",
+                    // The test compilation includes Core stubs but no
+                    // Server reference. Suppress fluent-builder
+                    // emission so the generated code compiles standalone.
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -141,7 +151,11 @@ namespace Opc.Ua.SourceGeneration
                 {
                     ["build_property.ModelSourceGeneratorVersion"] = "v105",
                     ["build_property.ModelSourceGeneratorExclude"] = "Draft",
-                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true"
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    // The test compilation includes Core stubs but no
+                    // Server reference. Suppress fluent-builder
+                    // emission so the generated code compiles standalone.
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
                 });
 
             // Create the driver that executes the generator
