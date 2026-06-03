@@ -13,11 +13,12 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
   emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`
   shims for every `<Type>Collection` wrapper the consumer references but that
   2.0 removed — **including** model-compiled `<UserType>Collection` patterns,
-  not just the 30 well-known built-in ones. Element types renamed across the
-  1.5.378 → 2.0 boundary (e.g. `DateTime`→`DateTimeUtc`, `Guid`→`Uuid`,
+  not just the built-in ones. Element types renamed across the
+  1.5.378 → 2.0 boundary (`DateTime`→`DateTimeUtc`, `Guid`→`Uuid`,
   `byte[]`→`ByteString`, `XmlElement`→`Opc.Ua.XmlElement`) are pinned through
-  a 30-entry override table; everything else falls back to semantic lookup in
-  the consumer's compilation; and
+  a small override table; everything else (primitives, built-in
+  unrenamed types, model-compiled user types) falls back to semantic lookup
+  in the consumer's compilation; and
 - a **compatibility shim** assembly (`Opc.Ua.MigrationAnalyzer.Core.dll`) that
   re-supplies the obsolete extension surface 2.0 moved or removed, so most
   consumer projects still compile after the upgrade.

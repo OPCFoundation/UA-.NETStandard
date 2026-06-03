@@ -11,7 +11,7 @@ removed.
 The 1.5.378 model compiler historically emitted `<UserType>Collection` for
 **every** user-defined complex type a consumer compiled into their own DLL —
 `BoilerStateCollection`, `WaterPumpEventCollection`, vendor-specific
-structures, etc. A shipped runtime shim could cover the 30 well-known built-in
+structures, etc. A shipped runtime shim could cover the small set of built-in
 names, but **not** arbitrary user-compiled element types.
 
 The generator pattern lets the package cover the full open-ended catalog: it
@@ -35,7 +35,7 @@ the names the consumer actually uses.
                                   │                          │
                                   │ if symbol binds → skip   │
                                   │ else:                    │
-                                  │   1. catalog override?   │  (Int32, DataValue, NodeId, …)
+                                  │   1. catalog override?   │  (rename cases only)
                                   │   2. semantic lookup?    │  (Compilation.GetSymbolsWithName)
                                   │   3. else MIG01          │
                                   └────────┬─────────────────┘
@@ -48,34 +48,36 @@ the names the consumer actually uses.
                                   └──────────────────────────┘
 ```
 
-### 1. Catalog override (30 well-known entries)
+### 1. Catalog override (rename cases only)
 
-The 30-entry built-in catalog pins element types that **renamed** across the
-1.5.378 → 2.0 boundary so the emitted shim bridges naturally to `ArrayOf<TElement>`:
+The catalog only contains entries where semantic lookup would resolve to the
+**wrong** type (because the underlying element type was renamed across the
+1.5.378 → 2.0 boundary) or where it would resolve **ambiguously**:
 
-| Legacy short name | 2.0 element type |
-|---|---|
-| `DateTimeCollection` | `Opc.Ua.DateTimeUtc` (NOT `System.DateTime`) |
-| `GuidCollection` | `Opc.Ua.Uuid` (NOT `System.Guid`) |
-| `ByteStringCollection` | `Opc.Ua.ByteString` (NOT `byte[]`) |
-| `XmlElementCollection` | `System.Xml.XmlElement` |
-| `BooleanCollection` | `bool` |
-| `Int32Collection` | `int` |
-| `StringCollection` | `string` |
-| `NodeIdCollection` | `Opc.Ua.NodeId` |
-| `VariantCollection` | `Opc.Ua.Variant` |
-| `DataValueCollection` | `Opc.Ua.DataValue` |
-| `ExtensionObjectCollection` | `Opc.Ua.ExtensionObject` |
-| `StatusCodeCollection` | `Opc.Ua.StatusCode` |
-| `QualifiedNameCollection` | `Opc.Ua.QualifiedName` |
-| `LocalizedTextCollection` | `Opc.Ua.LocalizedText` |
-| `DiagnosticInfoCollection` | `Opc.Ua.DiagnosticInfo` |
-| `ArgumentCollection` | `Opc.Ua.Argument` |
-| `ServerSecurityPolicyCollection` | `Opc.Ua.ServerSecurityPolicy` |
-| `TransportConfigurationCollection` | `Opc.Ua.TransportConfiguration` |
-| `ReverseConnectClientCollection` | `Opc.Ua.ReverseConnectClient` |
-| `ExpandedNodeIdCollection` | `Opc.Ua.ExpandedNodeId` |
-| `SByteCollection` / `ByteCollection` / `Int16Collection` / `UInt16Collection` / `UInt32Collection` / `Int64Collection` / `UInt64Collection` / `FloatCollection` / `DoubleCollection` | primitive (`sbyte`, `byte`, etc.) |
+| Legacy short name | Pinned 2.0 element type | Why |
+|---|---|---|
+| `DateTimeCollection` | `Opc.Ua.DateTimeUtc` | 1.5.378 element was `System.DateTime`; 2.0 needs `DateTimeUtc`. Semantic lookup of `DateTime` finds `System.DateTime` (wrong). |
+| `GuidCollection` | `Opc.Ua.Uuid` | 1.5.378 element was `System.Guid`; 2.0 needs `Uuid`. Semantic lookup of `Guid` finds `System.Guid` (wrong). |
+| `ByteStringCollection` | `Opc.Ua.ByteString` | 1.5.378 element was `byte[]`; 2.0 needs `Opc.Ua.ByteString` (now a value type). |
+| `XmlElementCollection` | `System.Xml.XmlElement` | 2.0 introduced a value-typed `Opc.Ua.XmlElement` alongside the BCL `System.Xml.XmlElement` → the bare short name "XmlElement" resolves ambiguously. Pin the legacy interpretation so 1.5.378 callers drop in unchanged. |
+
+Everything else falls through to semantic lookup. This covers:
+
+- **Primitive-typed wrappers** (`Int32Collection`, `BooleanCollection`,
+  `StringCollection`, …) — semantic lookup resolves to `System.Int32`,
+  `System.Boolean`, `System.String`, etc., which behave identically to the C#
+  aliases.
+- **Built-in OPC UA-typed wrappers whose element name didn't change**
+  (`NodeIdCollection`, `VariantCollection`, `DataValueCollection`,
+  `ExtensionObjectCollection`, `EndpointDescriptionCollection`,
+  `ReferenceDescriptionCollection`, `BrowsePathCollection`,
+  `ReadValueIdCollection`, `WriteValueCollection`,
+  `MonitoredItemCreateRequestCollection`, …) — semantic lookup resolves
+  uniquely to the matching `Opc.Ua.*` type.
+- **Model-compiled `<UserType>Collection`** patterns — the historical
+  model-compiler convention emitted `Foo.BarCollection` for any complex type
+  `Foo.Bar`. Semantic lookup of `Bar` resolves uniquely in the consumer's
+  compilation.
 
 ### 2. Semantic lookup (arbitrary user types)
 

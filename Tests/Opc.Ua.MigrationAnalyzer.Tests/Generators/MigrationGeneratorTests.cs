@@ -92,7 +92,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
         private static IEnumerable<TestCaseData> WellKnownOverridesCases()
         {
-            // 30 known overrides; element type comes from CollectionShimCatalog.
+            // Catalog override entries: each one is an element-type RENAME the
+            // semantic-lookup fallback couldn't infer correctly. Everything else
+            // (primitives, built-in unrenamed types, model-compiled user types)
+            // resolves via semantic lookup, exercised by separate test cases below.
             foreach (KeyValuePair<string, string> entry in CollectionShimCatalog.WellKnownOverrides)
             {
                 yield return new TestCaseData(entry.Key, entry.Value).SetName($"WellKnown_{entry.Key}");
@@ -152,6 +155,57 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(generated, Is.Not.Null);
             string text = generated!.Value.SourceText.ToString();
             Assert.That(text, Does.Contain("internal sealed class WaterPumpCollection : global::System.Collections.Generic.List<global::Acme.WaterPump>"));
+        }
+
+        [Test]
+        public void BuiltInUnrenamedTypeResolvesViaSemanticLookup()
+        {
+            // NodeIdCollection is NOT in CollectionShimCatalog any more because
+            // the bare short name 'NodeId' resolves uniquely to Opc.Ua.NodeId via
+            // semantic lookup. Verify the fall-through path emits the right shim.
+            string user = """
+                using Opc.Ua;
+                public static class Use
+                {
+                    public static NodeIdCollection BuildNodes() => new NodeIdCollection();
+                }
+                """;
+
+            GeneratorDriverRunResult result = Run(user);
+            GeneratedSourceResult? generated = result.Results
+                .SelectMany(r => r.GeneratedSources)
+                .Cast<GeneratedSourceResult?>()
+                .FirstOrDefault(s => s!.Value.HintName == "NodeIdCollection.g.cs");
+
+            Assert.That(generated, Is.Not.Null, "Semantic-lookup fallback must emit NodeIdCollection");
+            string text = generated!.Value.SourceText.ToString();
+            Assert.That(text, Does.Contain("internal sealed class NodeIdCollection : global::System.Collections.Generic.List<global::Opc.Ua.NodeId>"));
+        }
+
+        [Test]
+        public void PrimitiveTypedCollectionResolvesViaSemanticLookup()
+        {
+            // Int32Collection is NOT in CollectionShimCatalog any more because
+            // the bare short name 'Int32' resolves uniquely to System.Int32 via
+            // semantic lookup. The generated element type is global::System.Int32
+            // (equivalent to 'int', just more verbose) — confirm the path works.
+            string user = """
+                using Opc.Ua;
+                public static class Use
+                {
+                    public static Int32Collection BuildInts() => new Int32Collection { 1, 2, 3 };
+                }
+                """;
+
+            GeneratorDriverRunResult result = Run(user);
+            GeneratedSourceResult? generated = result.Results
+                .SelectMany(r => r.GeneratedSources)
+                .Cast<GeneratedSourceResult?>()
+                .FirstOrDefault(s => s!.Value.HintName == "Int32Collection.g.cs");
+
+            Assert.That(generated, Is.Not.Null, "Semantic-lookup fallback must emit Int32Collection");
+            string text = generated!.Value.SourceText.ToString();
+            Assert.That(text, Does.Contain("internal sealed class Int32Collection : global::System.Collections.Generic.List<global::System.Int32>"));
         }
 
         [Test]

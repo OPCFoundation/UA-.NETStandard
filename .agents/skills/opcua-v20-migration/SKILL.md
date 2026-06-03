@@ -182,11 +182,12 @@ generator (`MigrationGenerator`) closes this gap: for every short name ending in
 `Collection` that doesn't bind, it emits an `internal sealed [Obsolete] class
 <Name>Collection : List<TElement>` into the consumer's compilation.
 
-- **Built-in catalog (30 entries)** pins element-type renames across the 2.0
-  boundary: `DateTime`→`DateTimeUtc`, `Guid`→`Uuid`, `byte[]`→`ByteString`,
-  `XmlElement`→`Opc.Ua.XmlElement`. The generator uses these *over* whatever
-  the consumer's compilation resolves so the emitted shim bridges naturally to
-  `ArrayOf<TElement>` etc.
+- **Built-in catalog (rename overrides)** pins element types that **renamed**
+  across the 1.5.378 → 2.0 boundary, where semantic lookup would resolve to
+  the wrong type or fail with ambiguity: `DateTime→DateTimeUtc`, `Guid→Uuid`,
+  `byte[]→ByteString`, `XmlElement→System.Xml.XmlElement` (the latter
+  disambiguates against the new `Opc.Ua.XmlElement`). The generator uses these
+  *over* whatever the consumer's compilation resolves.
 - **Arbitrary `<UserType>Collection`** patterns (model-compiler output, vendor
   structures, etc.) are resolved by stripping the `Collection` suffix and
   looking up the resulting short name in the consumer's compilation via
