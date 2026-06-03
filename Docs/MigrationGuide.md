@@ -1901,15 +1901,13 @@ parameter types on `Change` differ (`TimeSpan` instead of `int`/`uint`/`long`).
 suffer from the 32-bit wraparound of `Environment.TickCount` / `HiResClock.TickCount`
 nor the system-clock drift of `DateTime.UtcNow`. All internal duration math in the
 stack now uses `GetTimestamp()` + `GetElapsedTime(start)` instead of `int`-tick
-subtraction. Several public read-only properties were added or marked `[Obsolete]`
-as part of the migration:
+subtraction. The following public surface changes were made:
 
-| Old (`[Obsolete]`)                                                       | New                                                                                  |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `ISession.LastKeepAliveTickCount: int` (wraps every ~49.7 days)          | `ISession.LastKeepAliveTimestamp: long` + `timeProvider.GetElapsedTime(timestamp)`   |
-| `ChannelToken.Expired`, `ChannelToken.ActivationRequired` (read HiResClock) | `ChannelToken.IsExpired(TimeProvider)`, `ChannelToken.IsActivationRequired(TimeProvider)` |
-| `ChannelToken.CreatedAtTickCount: int`                                   | New internal `ChannelToken.CreatedAtTimestamp: long` (set automatically; new behaviour) |
-| `UaSCUaBinaryChannel.LastActiveTickCount: int` (protected)               | `UaSCUaBinaryChannel.GetElapsedSinceLastActive(): TimeSpan` (internal)               |
+| Old (removed or `[Obsolete]`)                                            | New                                                                                                  |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `ISession.LastKeepAliveTickCount: int` (was on the interface)            | `ISession.LastKeepAliveTimestamp: long` + `timeProvider.GetElapsedTime(timestamp)` (legacy int now an `[Obsolete]` extension property in `SessionObsolete`) |
+| `ChannelToken.Expired`, `ChannelToken.ActivationRequired`, `ChannelToken.CreatedAtTickCount` | Removed. Use `ChannelToken.IsExpired(TimeProvider)` / `ChannelToken.IsActivationRequired(TimeProvider)` (internal). |
+| `UaSCUaBinaryChannel.LastActiveTickCount: int` (protected)               | Removed. Use `UaSCUaBinaryChannel.GetElapsedSinceLastActive(): TimeSpan` (internal).                 |
 
 Pattern for new code computing an internal duration:
 
@@ -1924,14 +1922,6 @@ long startTimestamp = m_timeProvider.GetTimestamp();
 // ... do work ...
 TimeSpan elapsed = m_timeProvider.GetElapsedTime(startTimestamp);
 ```
-
-`SessionReconnectHandler` and the classic `Subscription` republish-window logic
-were both migrated. Consumers who previously read
-`current.LastKeepAliveTickCount` from a reactivation-timeout estimate should
-switch to `m_timeProvider.GetElapsedTime(current.LastKeepAliveTimestamp)`.
-The `Obsolete` int property remains in place for back-compat and is still
-populated by the stack — but new code should not depend on its non-wrapping
-behaviour.
 
 ### Subscriptions and Transports
 

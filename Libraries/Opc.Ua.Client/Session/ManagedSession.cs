@@ -392,14 +392,6 @@ namespace Opc.Ua.Client
             => m_session?.LastKeepAliveTime ?? DateTime.MinValue;
 
         /// <inheritdoc/>
-        [Obsolete("Use LastKeepAliveTimestamp + TimeProvider.GetElapsedTime. " +
-            "LastKeepAliveTickCount is a 32-bit value that wraps every ~49.7 days.")]
-        public int LastKeepAliveTickCount
-#pragma warning disable CS0618 // Back-compat surface.
-            => m_session?.LastKeepAliveTickCount ?? 0;
-#pragma warning restore CS0618
-
-        /// <inheritdoc/>
         public long LastKeepAliveTimestamp
             => m_session?.LastKeepAliveTimestamp ?? 0L;
 

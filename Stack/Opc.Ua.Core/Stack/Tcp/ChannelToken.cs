@@ -98,18 +98,9 @@ namespace Opc.Ua.Bindings
         public DateTime CreatedAt { get; set; }
 
         /// <summary>
-        /// When the token was created (refers to the local tick count).
-        /// Used for calculation of renewals. Uses <c>HiResClock.TickCount</c>.
-        /// </summary>
-        [Obsolete("Use CreatedAtTimestamp via IsExpired(TimeProvider) / " +
-            "IsActivationRequired(TimeProvider) for monotonic, non-wrapping duration math.")]
-        public int CreatedAtTickCount { get; set; }
-
-        /// <summary>
         /// When the token was created (monotonic timestamp from
         /// <see cref="TimeProvider.GetTimestamp"/>).
-        /// Used internally for renewal calculations to avoid the 32-bit wrap of
-        /// <see cref="CreatedAtTickCount"/>.
+        /// Used internally for renewal calculations.
         /// </summary>
         internal long CreatedAtTimestamp { get; set; }
 
@@ -117,24 +108,6 @@ namespace Opc.Ua.Bindings
         /// The lifetime of the token in milliseconds.
         /// </summary>
         public int Lifetime { get; set; }
-
-#pragma warning disable CS0618 // Back-compat surface; new code uses IsExpired(TimeProvider).
-        /// <summary>
-        /// Whether the token has expired.
-        /// </summary>
-        [Obsolete("Use IsExpired(TimeProvider) instead — the supplied TimeProvider " +
-            "participates in mocking and avoids the 32-bit tick wrap.")]
-        public bool Expired => (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
-
-        /// <summary>
-        /// Whether the token should be activated in case a new one is already created.
-        /// </summary>
-        [Obsolete("Use IsActivationRequired(TimeProvider) instead — the supplied " +
-            "TimeProvider participates in mocking and avoids the 32-bit tick wrap.")]
-        public bool ActivationRequired =>
-            (HiResClock.TickCount - CreatedAtTickCount) >
-            (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
-#pragma warning restore CS0618
 
         /// <summary>
         /// Whether the token has expired according to the supplied

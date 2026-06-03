@@ -1180,10 +1180,6 @@ namespace Opc.Ua.Sessions.Tests
             TestContext.Out.WriteLine("SubscriptionCount: {0}", Session.SubscriptionCount);
             TestContext.Out.WriteLine("DefaultSubscription: {0}", Session.DefaultSubscription);
             TestContext.Out.WriteLine("LastKeepAliveTime: {0}", Session.LastKeepAliveTime);
-#pragma warning disable CS0618 // Verify legacy LastKeepAliveTickCount still exposed.
-            TestContext.Out
-                .WriteLine("LastKeepAliveTickCount: {0}", Session.LastKeepAliveTickCount);
-#pragma warning restore CS0618
             TestContext.Out
                 .WriteLine("LastKeepAliveTimestamp: {0}", Session.LastKeepAliveTimestamp);
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);

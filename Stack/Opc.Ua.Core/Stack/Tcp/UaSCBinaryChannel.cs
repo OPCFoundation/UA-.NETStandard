@@ -336,13 +336,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// The tickcount in milliseconds when the channel received/sent the last message.
-        /// </summary>
-        [Obsolete("Use the TimeProvider-based monotonic equivalent via GetElapsedSinceLastActive(). " +
-            "Sourcing HiResClock.TickCount directly defeats TimeProvider mocking.")]
-        protected int LastActiveTickCount { get; private set; } = HiResClock.TickCount;
-
-        /// <summary>
         /// Returns the monotonic elapsed time since the channel last
         /// received or sent a message, measured against the channel's
         /// <see cref="TimeProvider"/>.
@@ -1056,9 +1049,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void UpdateLastActiveTime()
         {
-#pragma warning disable CS0618 // Back-compat: keep populating LastActiveTickCount for derived classes.
-            LastActiveTickCount = TimeProvider.GetTickCount();
-#pragma warning restore CS0618
             m_lastActiveTimestamp = TimeProvider.GetTimestamp();
         }
 

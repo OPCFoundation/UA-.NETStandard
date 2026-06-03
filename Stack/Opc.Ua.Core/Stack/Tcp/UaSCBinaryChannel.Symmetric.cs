@@ -67,21 +67,16 @@ namespace Opc.Ua.Bindings
                 ChannelId = Id,
                 TokenId = 0,
                 CreatedAt = TimeProvider.GetUtcNow().UtcDateTime,
-#pragma warning disable CS0618 // Back-compat: keep populating CreatedAtTickCount for callers
-                CreatedAtTickCount = TimeProvider.GetTickCount(),
-#pragma warning restore CS0618
                 CreatedAtTimestamp = TimeProvider.GetTimestamp(),
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
-#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
             m_logger.LogInformation(
-                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
+                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.CreatedAt,
-                token.CreatedAtTickCount,
+                token.CreatedAtTimestamp,
                 token.Lifetime);
-#pragma warning restore CS0618
 
             return token;
         }
@@ -101,15 +96,13 @@ namespace Opc.Ua.Bindings
 
             OnTokenActivated?.Invoke(token, PreviousToken);
 
-#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
             m_logger.LogInformation(
-                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
+                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
                 token.CreatedAt,
-                token.CreatedAtTickCount,
+                token.CreatedAtTimestamp,
                 token.Lifetime);
-#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -119,15 +112,13 @@ namespace Opc.Ua.Bindings
         {
             RenewedToken?.Dispose();
             RenewedToken = token;
-#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
             m_logger.LogInformation(
-                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
+                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
                 token.CreatedAt,
-                token.CreatedAtTickCount,
+                token.CreatedAtTimestamp,
                 token.Lifetime);
-#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -574,14 +565,14 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken is { } currentTokenForLog &&
-                currentTokenForLog.IsActivationRequired(TimeProvider))
+            else if (RenewedToken != null && CurrentToken != null &&
+                CurrentToken.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);
                 m_logger.LogInformation(
                     "ChannelId {Id}: Token #{TokenId} activated forced.",
                     Id,
-                    currentTokenForLog.TokenId);
+                    CurrentToken.TokenId);
             }
 
             // check for valid token.
@@ -616,15 +607,13 @@ namespace Opc.Ua.Bindings
             // check if token has expired.
             if (token.IsExpired(TimeProvider))
             {
-#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
                     "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}-{3}",
                     Id,
                     token.TokenId,
                     token.CreatedAt,
-                    token.CreatedAtTickCount);
-#pragma warning restore CS0618
+                    token.CreatedAtTimestamp);
             }
 
             int headerSize = decoder.Position;

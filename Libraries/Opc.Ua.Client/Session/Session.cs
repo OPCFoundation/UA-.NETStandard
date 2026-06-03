@@ -854,14 +854,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the TickCount in ms of the last keep alive based on <see cref="TimeProvider"/>.
-        /// Independent of system time changes.
-        /// </summary>
-        [Obsolete("Use LastKeepAliveTimestamp + TimeProvider.GetElapsedTime. " +
-            "LastKeepAliveTickCount is a 32-bit value that wraps every ~49.7 days.")]
-        public int LastKeepAliveTickCount { get; private set; }
-
-        /// <summary>
         /// Gets the monotonic timestamp (from <see cref="TimeProvider.GetTimestamp"/>) of the
         /// last keep alive. Use together with <see cref="TimeProvider.GetElapsedTime(long)"/>
         /// to compute the elapsed time since the last keep alive without DateTime drift or
@@ -3318,9 +3310,6 @@ namespace Opc.Ua.Client
                 ref m_lastKeepAliveTime,
                 m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
             m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
-#pragma warning disable CS0618 // Back-compat: keep populating LastKeepAliveTickCount.
-            LastKeepAliveTickCount = m_timeProvider.GetTickCount();
-#pragma warning restore CS0618
 
             m_serverState = ServerState.Unknown;
 
@@ -3804,9 +3793,6 @@ namespace Opc.Ua.Client
                     ref m_lastKeepAliveTime,
                     m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
                 m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
-#pragma warning disable CS0618 // Back-compat: keep populating LastKeepAliveTickCount.
-                LastKeepAliveTickCount = m_timeProvider.GetTickCount();
-#pragma warning restore CS0618
 
                 lock (m_outstandingRequests)
                 {
@@ -3830,9 +3816,6 @@ namespace Opc.Ua.Client
                     ref m_lastKeepAliveTime,
                     m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
                 m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
-#pragma warning disable CS0618 // Back-compat: keep populating LastKeepAliveTickCount.
-                LastKeepAliveTickCount = m_timeProvider.GetTickCount();
-#pragma warning restore CS0618
             }
 
             // save server state.
