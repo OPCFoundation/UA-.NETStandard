@@ -27,11 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Lds.Tests
@@ -71,8 +69,8 @@ namespace Opc.Ua.Lds.Tests
             bool foundOpcTcp = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.EndpointUrl != null
-                    && ep.EndpointUrl.StartsWith("opc.tcp://", System.StringComparison.Ordinal))
+                if (ep.EndpointUrl != null &&
+                    ep.EndpointUrl.StartsWith("opc.tcp://", System.StringComparison.Ordinal))
                 {
                     foundOpcTcp = true;
                     break;
@@ -96,7 +94,7 @@ namespace Opc.Ua.Lds.Tests
 
         private Task<DiscoveryClient> CreateDiscoveryClientAsync()
         {
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
+            var endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
             return DiscoveryClient.CreateAsync(
                 ServerUrl,
                 endpointConfiguration,
@@ -105,4 +103,3 @@ namespace Opc.Ua.Lds.Tests
         }
     }
 }
-

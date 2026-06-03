@@ -44,9 +44,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="handler"></param>
         /// <param name="options">The subscription options to pass</param>
         /// <param name="queue">The completion queue</param>
+        /// <param name="loadState">Optional pre-loaded server-side
+        /// state used by <see cref="SubscriptionManager.RestoreAsync"/>
+        /// with <c>transferSubscriptions: true</c>. When non-null the
+        /// subscription is constructed already bound to the saved
+        /// server-side identifiers and pre-populated with the saved
+        /// monitored items; the caller is responsible for issuing the
+        /// take-over via <c>TransferSubscriptions</c>.</param>
         /// <returns></returns>
-        IManagedSubscription CreateSubscription(ISubscriptionNotificationHandler handler,
-            IOptionsMonitor<SubscriptionOptions> options, IMessageAckQueue queue);
+        IManagedSubscription CreateSubscription(
+            ISubscriptionNotificationHandler handler,
+            IOptionsMonitor<SubscriptionOptions> options,
+            IMessageAckQueue queue,
+            SubscriptionLoadState? loadState = null);
 
         /// <summary>
         /// Publish service
@@ -55,7 +65,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="subscriptionAcknowledgements"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask<PublishResponse> PublishAsync(RequestHeader? requestHeader,
+        ValueTask<PublishResponse> PublishAsync(
+            RequestHeader? requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct = default);
 
@@ -68,8 +79,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="ct"></param>
         /// <returns></returns>
         ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-            RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds,
-            bool sendInitialValues, CancellationToken ct = default);
+            RequestHeader? requestHeader,
+            ArrayOf<uint> subscriptionIds,
+            bool sendInitialValues,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Delete subscriptions on server when we get publish
@@ -80,7 +93,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="ct"></param>
         /// <returns></returns>
         ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-            RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds,
+            RequestHeader? requestHeader,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default);
     }
 }

@@ -5,12 +5,13 @@ surface for the OPC UA .NET Standard libraries. The surface is rooted in
 a single `services.AddOpcUa()` call that returns an `IOpcUaBuilder` on
 which every feature library hangs its own fluent `.AddXxx(...)` extension.
 
-The DI surface is consistent across:
+The dependency injection surface is consistent across:
 
 - The OPC UA Core stack (`Stack/Opc.Ua.Core`)
 - Application configuration (`Libraries/Opc.Ua.Configuration`)
 - The client (`Libraries/Opc.Ua.Client`)
 - The complex types client (`Libraries/Opc.Ua.Client.ComplexTypes`)
+- Alarms and conditions client (`Libraries/Opc.Ua.Client.Alarms`)
 - The server (`Libraries/Opc.Ua.Server`)
 - The GDS client (`Libraries/Opc.Ua.Gds.Client.Common`)
 - The GDS server (`Libraries/Opc.Ua.Gds.Server.Common`)
@@ -18,12 +19,12 @@ The DI surface is consistent across:
 - The WoT Connectivity server (`Libraries/Opc.Ua.WotCon.Server`)
 - The WoT Connectivity client (`Libraries/Opc.Ua.WotCon.Client`)
 
-PubSub is **not** part of the DI surface.
+PubSub is **not** part of the dependency injection surface.
 
-The non-DI public constructors and factories of every library
+The non-dependency-injection public constructors and factories of every library
 (`new ApplicationInstance(telemetry)`, `new StandardServer(telemetry)`,
 `new LdsServer(telemetry)`, `new ManagedSession(...)` etc.) remain
-unchanged. Use DI when you want the .NET Generic Host to own application
+unchanged. Use dependency injection when you want the .NET Generic Host to own application
 lifetime, logging, and configuration; use the manual constructors when
 you need finer control.
 
@@ -35,12 +36,34 @@ you need finer control.
 | `Opc.Ua.Configuration`         | `builder.AddApplicationInstance()`       | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client`                | `builder.AddClient(opt => …)`            | `IOpcUaClientBuilder`    | —       | `OpcUa:Client`           |
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Client.Alarms` (within `Opc.Ua.Client`) | `builder.AddAlarms()`        | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
 | `Opc.Ua.WotCon.Server`         | `builder.AddWotConServer(opt => …)`      | `IWotConServerBuilder`   | yes (via `AddServer`) | `OpcUa:WotCon:Server` |
 | `Opc.Ua.WotCon.Client`         | `builder.AddWotConClient(opt => …)`      | `IOpcUaBuilder`          | —       | `OpcUa:WotCon:Client`    |
+
+Identity-provider extensions hang off `IOpcUaServerBuilder`,
+`IOpcUaClientBuilder`, and `IGdsServerBuilder`:
+
+| Extension                                     | Builder                  | Section                          |
+|-----------------------------------------------|--------------------------|----------------------------------|
+| `AddDefaultIdentityAuthenticators(...)`       | server, gds              | `OpcUa:Server:Identity:Defaults` |
+| `AddIdentityAuthenticator<T>()`               | server, gds              | —                                |
+| `AddIdentityAugmenter<T>()`                   | server, gds              | —                                |
+| `AddGdsApplicationSelfAdminProvider()`        | gds                      | —                                |
+| `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
+| `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
+| `WithKeyCredentialPush(...)`                  | server                   | —                                |
+| `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
+| `AddIdentityProvider(...)` / `<T>()`          | client                   | `OpcUa:Client:Identity`          |
+| `AddAccessTokenProvider(...)` / `<T>()`       | client                   | —                                |
+
+See the [Identity (server)](#identity-server),
+[Identity (client)](#identity-client), and
+[Identity (GDS server)](#identity-gds-server) sections below and the
+full [Identity Providers](IdentityProviders.md) guide.
 
 Server features marked **Hosted? = yes** register an `IHostedService` so
 the .NET Generic Host (`Host.CreateApplicationBuilder(args)`) owns their
@@ -105,14 +128,14 @@ The default section names are:
 | WoT Connectivity Client        | `OpcUa:WotCon:Client`    |
 
 The `IConfiguration` / `IConfigurationSection` overloads are
-**AOT-safe** on every library. Each DI-emitting library opts into the
+**AOT-safe** on every library. Each dependency-injection-emitting library opts into the
 .NET 8+ [Configuration Binding Source Generator](https://learn.microsoft.com/dotnet/core/extensions/configuration-generator)
 (`<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>`),
 which replaces the reflection-based binder with statically-generated
 [C# 12 interceptors](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-12#interceptors).
 The `Tests/Opc.Ua.Aot.Tests` project verifies that `dotnet publish`
 under `PublishAot=true` produces zero `IL2026` / `IL3050` warnings
-from the DI surface.
+from the dependency injection surface.
 
 ## Server feature
 
@@ -258,6 +281,68 @@ services.AddOpcUa().AddServer(o =>
 Bindable from `OpcUa:Server:UserTokenPolicies`. When the list is empty
 the hosted service falls back to a single `Anonymous` policy.
 
+### Identity (server)
+
+> Full identity surface is documented in
+> [Identity Providers](IdentityProviders.md). This section covers only
+> the dependency injection bindings.
+
+`builder.AddServer(...)` exposes identity-related extension methods on
+`IOpcUaServerBuilder`:
+
+| Extension | Purpose |
+|---|---|
+| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
+| `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
+| `AddIdentityAugmenter<TAugmenter>()` | Registers a single custom `IIdentityAugmenter` implementation. The hosted service runs it after accepted authentications. |
+| `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
+| `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
+| `WithKeyCredentialPush(Action<KeyCredentialPushOptions>?)` | Enables the Part 12 §8 resource-server Push binding and registers an `IKeyCredentialStore` if none is supplied. |
+
+Configuration binding under `OpcUa:Server:Identity`:
+
+```json
+{
+  "OpcUa": {
+    "Server": {
+      "Identity": {
+        "Defaults": {
+          "EnableAnonymous": true,
+          "EnableUserNamePassword": true,
+          "EnableX509": true,
+          "EnableJwt": true,
+          "ExpectedAudience": "urn:my-server",
+          "ClockSkewTolerance": "00:01:00",
+          "UserCertificateTrustList": "Users"
+        },
+        "Issuers": [
+          {
+            "IssuerUri": "https://login.microsoftonline.com/{tenant}/v2.0",
+            "JwksUri":   "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys",
+            "Algorithms": [ "RS256" ]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+The `AddServer(IConfiguration)` overload walks this layout and (in
+addition to binding `OpcUaServerOptions.Identity`) registers each
+`Issuers[]` entry through `AddJwtIssuer(...)`, binds the `Roles`
+sub-section into `RoleConfigurationOptions`, and enables the bridge
+that creates the four default authenticators from the bound
+`Identity:Defaults` flags. The `AddServer(Action<OpcUaServerOptions>)`
+code-only overload does NOT auto-wire any of these — call the fluent
+extensions explicitly when configuring from code.
+
+The `IUserDatabase` / `IUserManagement` services needed by the
+UserNamePassword authenticator must be registered separately — the
+hosted service skips that authenticator if neither is in dependency injection. See
+[Role-Based Security](RoleBasedUserManagement.md) for the role-mapping
+layer.
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -292,6 +377,80 @@ ManagedSession session = await sessionFactory(ct);
 `DefaultSessionFactory` configured with the V2 subscription engine),
 `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
 
+### Identity (client)
+
+> Full identity surface is documented in
+> [Identity Providers](IdentityProviders.md). This section covers only
+> the dependency injection bindings.
+
+`builder.AddClient(...)` exposes:
+
+| Extension | Purpose |
+|---|---|
+| `AddIdentityProvider<TProvider>()` | Registers a custom `IClientIdentityProvider` type. All registered providers are composed into a single resolver by the session builder. |
+| `AddIdentityProvider(Action<CompositeClientIdentityProviderBuilder>)` | Fluent composite-builder with shortcuts: `.AddAnonymous()`, `.AddUserName(...)`, `.AddX509(...)`, `.AddIssuedToken(...)`. |
+| `AddIdentityProvider(IConfiguration section)` | Binds `OpcUaClientIdentityOptions` and rolls a `CompositeClientIdentityProvider` from the bound entries. |
+| `AddAccessTokenProvider<T>()` / `(instance)` / `(factory)` | Registers an `IAccessTokenProvider` keyed by `AuthorityUri`. Issued-token identity providers select the matching provider at runtime via the URI. |
+
+Configuration binding under `OpcUa:Client:Identity`:
+
+```json
+{
+  "OpcUa": {
+    "Client": {
+      "Identity": {
+        "EnableAnonymous": true,
+        "UserName": {
+          "UserName":        "alice",
+          "SecretName":      "alice-password",
+          "SecretStoreType": "InMemory"
+        },
+        "X509": {
+          "StoreType":   "X509Store",
+          "StorePath":   "CurrentUser/My",
+          "SubjectName": "CN=Alice"
+        },
+        "IssuedToken": {
+          "ProfileUri":   "http://opcfoundation.org/UA/UserToken#JWT",
+          "AuthorityUri": "https://issuer.example"
+        },
+        "Order": [ "IssuedToken", "UserName", "X509", "Anonymous" ]
+      }
+    }
+  }
+}
+```
+
+When `Order` is non-empty the composite presents providers in that
+preference; otherwise registration order is preserved. The `IssuedToken`
+entry resolves the registered `IAccessTokenProvider` whose
+`AuthorityUri` matches.
+
+> **How the section is consumed.** `AddClient(IConfiguration)` binds
+> `OpcUa:Client:Identity` into `OpcUaClientOptions.Identity`. At
+> session-factory resolution time, if no `IClientIdentityProvider`
+> service is explicitly registered, the factory builds a composite
+> from the bound options provided at least one non-default field is
+> set (any of `UserName`, `X509`, `IssuedToken`, `Order`, or
+> `EnableAnonymous = false`). Setting only `EnableAnonymous = true`
+> (the default) does NOT register any provider — call
+> `.AddIdentityProvider(configuration.GetSection("OpcUa:Client:Identity"))`
+> if you want an explicit eager registration regardless of the option
+> values, or use the
+> `AddIdentityProvider(Action<CompositeClientIdentityProviderBuilder>)`
+> overload for code-only configuration. The composite-builder
+> shortcuts (`.AddUserName(configure, registry)`,
+> `.AddX509(configure, provider, passwords)`, and
+> `.AddIssuedToken(configure, provider)`) each take the supporting
+> service (an `ISecretRegistry`, `ICertificateProvider` +
+> `ICertificatePasswordProvider`, or `IAccessTokenProvider`) as a
+> second positional argument.
+
+`ManagedSessionOptions.Identity` (eager) is `[Obsolete]` — set
+`ManagedSessionOptions.IdentityProvider` instead for lazy / refreshable
+identities. The `ManagedSession` proactive-refresh scheduler keys off
+`IClientIdentityProvider.ExpiresAt`.
+
 ## Complex types
 
 ```csharp
@@ -307,9 +466,49 @@ ComplexTypeSystem cts = factory.Create(session);
 await cts.LoadAsync(...);
 ```
 
+## Alarms and conditions
+
+```csharp
+services.AddOpcUa().AddClient(/* … */).AddAlarms();
+```
+
+Registers a singleton `AlarmClientFactory` so dependency-injection-hosted client
+applications can obtain a Part 9 `AlarmClient` per connected session
+without `new`-ing one manually. Source-generated event records
+(`ConditionTypeRecord`, `AlarmConditionTypeRecord`,
+`DialogConditionTypeRecord`, all subtypes including vendor extensions)
+and the streaming extensions (`SubscribeAlarmsAsync`,
+`SubscribeConditionsAsync`, `SubscribeDialogsAsync`) require no
+registration — they compose naturally with the
+`ManagedSession.DefaultStreaming` surface that `AddClient(...)`
+already wires up.
+
+```csharp
+ManagedSession session = await sessionFactory(ct);
+var factory = sp.GetRequiredService<AlarmClientFactory>();
+AlarmClient alarms = factory.Create(session);
+
+// Acknowledge an alarm:
+await alarms.AcknowledgeAsync(conditionId, eventId,
+    new LocalizedText("en", "Acknowledged"), ct);
+
+// Stream typed records via the session's default streaming subscription:
+await foreach (ConditionTypeRecord record in session.DefaultStreaming
+    .SubscribeAlarmsAsync(ObjectIds.Server, ct: ct))
+{
+    /* … */
+}
+```
+
+The non-dependency-injection path (`session.GetAlarmClient()` extension and the public
+`AlarmClient` constructor) remains available for callers that do not
+use the dependency injection infrastructure. See
+[Alarms and Conditions](AlarmsAndConditions.md) for the full
+developer guide.
+
 ### Client-side reverse connect
 
-When `OpcUaClientOptions.ReverseConnect` is set, the DI container
+When `OpcUaClientOptions.ReverseConnect` is set, the dependency injection container
 registers a singleton `ReverseConnectManager` that opens the configured
 listener endpoints on first resolution. Inbound reverse-hello messages
 are surfaced via
@@ -406,6 +605,7 @@ services
     .AddCertificateRequest<MyCertificateRequest>()
     .AddUserDatabase<MyUserDatabase>();
     // Optionally:
+    // .WithAuthorizationService<MyTokenIssuer>(o => o.IssuerUri = "urn:my-gds")
     // .AddAccessTokenProvider<MyAccessTokenProvider>()
     // .AddKeyCredentialRequestStore<MyKeyCredentialRequestStore>()
     // .AddConfigurationDataStore<MyConfigurationDataStore>();
@@ -416,6 +616,44 @@ Throws on a second `.AddGdsServer(...)`. Auto-registers an internal
 `ApplicationsNodeManager`. The pluggable services (`IApplicationsDatabase`,
 `ICertificateGroup`, `ICertificateRequest`, etc.) are resolved from the
 container at startup.
+
+### Identity (GDS server)
+
+`IGdsServerBuilder` forwards every identity-related extension to the
+underlying server builder so a GDS host configures identity the same
+way as a regular server:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddDefaultIdentityAuthenticators(opt =>
+    {
+        opt.EnableAnonymous = false;
+        opt.EnableUserNamePassword = true;
+    })
+    .AddJwtIssuer(opt =>
+    {
+        opt.IssuerUri = "https://login.microsoftonline.com/{tenant}/v2.0";
+        opt.JwksUri   = "https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys";
+    });
+```
+
+`Action<>` and `IConfiguration` overloads are available for
+`ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+`AddIdentityAugmenter<T>()` registers post-authentication identity
+augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
+OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
+`AddDefaultIdentityAuthenticators(...)` helper.
+`WithAuthorizationService(...)` enables the default `CertificateJwtIssuer`;
+`WithAuthorizationService<TIssuer>(...)` registers a custom `ITokenIssuer`
+for cloud KMS, HSM, or external token-service signing.
+
+`GdsServerHostedService` consumes these forwarded registrations during
+startup and adds them to the same identity registry used by regular OPC
+UA hosted servers.
+
+See [Identity Providers](IdentityProviders.md) for the full reference.
 
 ## LDS Server
 
@@ -467,7 +705,7 @@ services
 `AddWotConServer` registers the WoT `WotConnectivityNodeManagerFactory`
 as an `OpcUaServerNodeManagerRegistration` so it attaches to the regular
 server feature. `IWotAssetProviderFactory` and `IWotAssetDiscoveryProvider`
-services registered in DI are picked up automatically.
+services registered in dependency injection are picked up automatically.
 
 ## WoT Connectivity Client
 
@@ -551,7 +789,7 @@ Notes:
   diagnostics in their csproj.
 - The `Tests/Opc.Ua.Aot.Tests` project verifies the end-to-end AOT
   path: build + AOT publish produce **zero** `IL2026` / `IL3050`
-  warnings from any DI extension.
+  warnings from any dependency injection extension.
 
 For AOT consumers, configure options through code or configuration —
 both are supported:

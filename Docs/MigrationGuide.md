@@ -63,6 +63,11 @@
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
     - [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
+    - [Alarms and Conditions](#alarms-and-conditions)
+      - [`AlarmConditionState` state-transition behavior](#alarmconditionstate-state-transition-behavior)
+      - [Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`](#auto-emit-generalmodelchangeevent-from-customnodemanager)
+    - [Address-space model change tracking](#address-space-model-change-tracking)
+      - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
     - [Subscriptions and Transports](#subscriptions-and-transports)
       - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
       - [PubSub](#pubsub)
@@ -171,7 +176,7 @@ Generated code produced by the model compiler contained a bug because it inverte
 | `DataSetReaderDataType` | `Enabled` | `true` | `false` |
 | `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
 
-Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as
 some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
 
 **Migration**: Add explicit initialization where your code depends on `true` as the default:
@@ -232,7 +237,7 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `Microsoft.CodeAnalysis.Analyzers` 4.14.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` (runtime source-generation surface) |
 | `Microsoft.CodeAnalysis.Common` 4.14.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` |
 | `Microsoft.CodeAnalysis.CSharp` 5.3.0 | Added | `Stack/Opc.Ua.Core/Opc.Ua.Core.csproj` |
-| `Microsoft.Extensions.Configuration.Abstractions` 10.0.8 | Added (pinned) | Used by DI integration |
+| `Microsoft.Extensions.Configuration.Abstractions` 10.0.8 | Added (pinned) | Used by dependency injection integration |
 | `Microsoft.Extensions.Diagnostics` 10.0.8 | Added (pinned) | Centralised pin |
 | `Microsoft.Extensions.Hosting` 10.0.8 | Added (pinned) | Centralised pin |
 | `Microsoft.Extensions.Hosting.Abstractions` 10.0.8 | Added (pinned) | Centralised pin |
@@ -496,7 +501,7 @@ Previously the `XmlElement` built in type was represented by the `System.Xml.Xml
 
 `EnumValue` bundles a symbol with a integer value (same as `StatusCode`). While most API works with standard .net `enum` types, these do not work in scenarios where the enum value is the result of a `EnumDefinition`. For these
 cases the `EnumValue` overloads provide a similar experience to using `enum`. In addition, the `EnumValue` type
-allows more efficient storage inside `Variant`. For this case, `Variant(Enum)` constructor, `IEquatable<Enum>`, and `operator ==/!=(Variant, Enum)` do not exist anymore. 
+allows more efficient storage inside `Variant`. For this case, `Variant(Enum)` constructor, `IEquatable<Enum>`, and `operator ==/!=(Variant, Enum)` do not exist anymore.
 
 Change code as follows:
 
@@ -550,6 +555,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `Variant.Value` -> use `Variant.TryGetValue`, cast, or `AsBoxedObject` if absolutely necessary.
 - `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGetValue`)
 - `new DataValue(StatusCode)` and `new DataValue(StatusCode, DateTimeUtc)` -> use `DataValue.FromStatusCode(StatusCode)` and `DataValue.FromStatusCode(StatusCode, DateTimeUtc)`. The constructors suffered from a C# overload resolution bug where `new DataValue(42)` silently resolved to `DataValue(StatusCode)` instead of `DataValue(Variant)`, losing the value.
+- `SessionManager.ImpersonateUser` -> register `IUserTokenAuthenticator` instances via `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. The event remains functional as a fallback, but is now `[Obsolete]`; the in-box ReferenceServer, GlobalDiscoverySampleServer, and ConsoleReferenceClient samples use the provider model.
 
 #### APIs permanently removed
 
@@ -700,7 +706,7 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
 
 Node states do not manage resources, they access resources. Therefore the management of resources must be done in a node manager.
 If you are overriding Dispose() on a NodeState to manage the node state, make the method public instead of protected, and maintain
-a list of node states on which you must call the Dispose() method when the Node Manager is disposed.  Better, associated node states 
+a list of node states on which you must call the Dispose() method when the Node Manager is disposed.  Better, associated node states
 only via an identifier with a backend "system" that manages all state centrally and in your control.
 
 ##### Clone() replaced with CreateCopy()
@@ -847,6 +853,120 @@ fields until GC. A follow-up revision will route inbound decrypted
 secrets through the new `ISecretStore` abstraction (see *Secrets*
 below) so secure clearing becomes the store's responsibility, with no
 public surface change.
+
+### User Identity Providers
+
+The identity-provider redesign is a source-level migration only. The OPC UA
+wire token types and `ActivateSession` service behavior are unchanged, so
+servers and clients can roll forward independently. Obsolete members remain
+functional while you migrate to the provider model.
+
+| Obsolete API | Replacement |
+|---|---|
+| `ISessionManager.ImpersonateUser` | Implement `IUserTokenAuthenticator` and register it with `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. |
+| `SessionManager.ImpersonateUser` | Same replacement; the event remains a fallback after the registry declines a token. SelfAdmin elevation logic should move to `IIdentityAugmenter`. |
+| SelfAdmin logic in an `ImpersonateUser` subscriber | Implement `IIdentityAugmenter` and register it with `services.AddIdentityAugmenter<T>()` or `IdentityRegistry.RegisterAugmenter(...)`. GDS hosts can use `AddGdsApplicationSelfAdminProvider()`. |
+| `ManagedSessionOptions.Identity` | Set `ManagedSessionOptions.IdentityProvider` so long-lived sessions can reacquire expiring identities. |
+| `AuthorizationServiceClient.RequestAccessTokenAsync` | Use `StartRequestTokenAsync` followed by `FinishRequestTokenAsync`. |
+| `Opc.Ua.Gds.Server.IAccessTokenProvider.RequestAccessTokenAsync` | Implement `StartRequestTokenAsync` and `FinishRequestTokenAsync`; keep the legacy method as a compatibility shim if you serve v1.04 clients. |
+
+- Custom `IAccessTokenProvider` implementations now have a default `EnableRefreshTokens = true`
+  behavior on the in-memory provider. Implementers who do not support refresh tokens can override
+  `RefreshTokenAsync` to throw `Bad_NotSupported` or set
+  `AuthorizationServiceOptions.EnableRefreshTokens = false`.
+
+#### `SessionManager.ImpersonateUser` → registry authenticators
+
+Legacy event wiring:
+
+```csharp
+server.CurrentInstance.SessionManager.ImpersonateUser +=
+    SessionManager_ImpersonateUser;
+
+private void SessionManager_ImpersonateUser(
+    Session session, ImpersonateEventArgs args)
+{
+    if (args.NewIdentity is UserNameIdentityToken token &&
+        ValidatePassword(token.UserName, token.DecryptedPassword))
+    {
+        args.Identity = new UserIdentity(token);
+    }
+}
+```
+
+Modern authenticator plus dependency injection registration:
+
+```csharp
+public sealed class MyUserNameAuthenticator : IUserTokenAuthenticator
+{
+    public UserTokenType TokenType => UserTokenType.UserName;
+    public string? IssuedTokenProfileUri => null;
+
+    public ValueTask<AuthenticationResult> AuthenticateAsync(
+        AuthenticationContext context, CancellationToken ct = default)
+    {
+        if (context.TokenHandler is not UserNameIdentityTokenHandler userName)
+        {
+            return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+        }
+
+        return new ValueTask<AuthenticationResult>(
+            ValidatePassword(userName.UserName, userName.DecryptedPassword)
+                ? AuthenticationResult.Accept(new UserIdentity(userName))
+                : AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied)));
+    }
+}
+
+services.AddOpcUa()
+    .AddServer(o => o.ApplicationUri = "urn:example:server")
+    .AddIdentityAuthenticator<MyUserNameAuthenticator>();
+
+// Manual host alternative:
+server.CurrentInstance.IdentityRegistry.Register(new MyUserNameAuthenticator());
+```
+
+Repeat the pattern per token type: `UserTokenType.UserName`,
+`UserTokenType.Certificate`, `UserTokenType.IssuedToken` with
+`IssuedTokenProfileUri = Profiles.JwtUserToken`, or a vendor profile such
+as the experimental KeyCredential bridge.
+
+- SelfAdmin elevation now runs through `IIdentityAugmenter` after an authenticator accepts. Register an
+  augmenter via `services.AddIdentityAugmenter<T>()` or `IdentityRegistry.RegisterAugmenter(...)`.
+- GDS hosts get `GdsApplicationSelfAdminProvider` automatically via `AddDefaultIdentityAuthenticators(...)`
+  on the GDS builder — opt out with `DisableGdsApplicationSelfAdminProvider()` (see GDS docs).
+- Legacy `ImpersonateUser` subscribers that only layered SelfAdmin should drop the subscription; the
+  augmenter sees the secure-channel `ChannelCertificate` + `ChannelApplicationUri` through
+  `AuthenticationContext`.
+
+#### `ManagedSessionOptions.Identity` → `IdentityProvider`
+
+Before, an eager identity was fixed for the lifetime of the managed session:
+
+```csharp
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    Identity = new UserIdentity("alice", passwordBytes)
+};
+```
+
+After, use a lazy provider. `ManagedSession` refreshes by calling
+`Session.UpdateIdentityAsync` before `provider.ExpiresAt` where possible:
+
+```csharp
+IClientIdentityProvider provider = new CompositeClientIdentityProvider(
+    new UserNamePasswordIdentityProvider(
+        "alice",
+        secretRegistry,
+        new SecretIdentifier("alice-password", "InMemory")),
+    new IssuedTokenIdentityProvider(accessTokenProvider));
+
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    IdentityProvider = provider
+};
+```
 
 ### Secrets — caller-supplied passwords go through a secret registry
 
@@ -1129,7 +1249,7 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `CertificateFactory.RevokeCertificate(...)` | `DefaultCertificateIssuer.Instance.RevokeCertificates(...)` |
 | `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
 | `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
-| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to the `CertificateManager` constructor |
+| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via dependency injection or pass to the `CertificateManager` constructor |
 | `CertificateValidator` (class) | `ICertificateManager` (composed of `ICertificateValidatorEx` for validation, `ICertificateRegistry` for app certs, `ICertificateTrustListManager` for trust lists, `ICertificateLifecycle` for change events). Construct via `CertificateManagerFactory.Create(securityConfiguration, telemetry, ...)` |
 | `ICertificateValidator` (interface) | `ICertificateValidatorEx` from `ICertificateManager`. The new interface returns a structured `CertificateValidationResult` (`IsValid`, `StatusCode`, `Errors`, `IsBeingTrustedTransiently`) instead of throwing. Per-error accept logic moves from the `CertificateValidation` event to the new `CertificateValidationOptions.AcceptError` callback. |
 | `CertificateTypesProvider` (class) | `ICertificateRegistry` (composed in `ICertificateManager`). Use `manager.GetInstanceCertificate(securityPolicyUri)` and `manager.LoadCertificateChainAsync(...)`. |
@@ -1329,7 +1449,7 @@ ISession session = await factory.CreateAsync(...);
 
 #### Configuring Reconnection Policy
 
-Two related types ship side-by-side and are not interchangeable. `ReconnectPolicyOptions` is a `public sealed record` with init-only properties - the DTO consumed by DI / `ManagedSessionOptions`. `ReconnectPolicy` is a `public class` (implementing `IReconnectPolicy`) - the runtime policy passed to `ManagedSession.CreateAsync` and `SessionReconnectHandler`. Construct the runtime policy from the options snapshot with `new ReconnectPolicy(options)`; `ManagedSessionBuilder.ConnectAsync` performs this conversion internally.
+Two related types ship side-by-side and are not interchangeable. `ReconnectPolicyOptions` is a `public sealed record` with init-only properties - the DTO consumed by dependency injection / `ManagedSessionOptions`. `ReconnectPolicy` is a `public class` (implementing `IReconnectPolicy`) - the runtime policy passed to `ManagedSession.CreateAsync` and `SessionReconnectHandler`. Construct the runtime policy from the options snapshot with `new ReconnectPolicy(options)`; `ManagedSessionBuilder.ConnectAsync` performs this conversion internally.
 
 ```csharp
 var policy = new ReconnectPolicy
@@ -1503,9 +1623,9 @@ var sessionFactory = serviceProvider
 ManagedSession session = await sessionFactory(ct);
 ```
 
-The factory caches the connected session — subsequent awaits return the same instance. The registered delegate type is `Func<CancellationToken, Task<ManagedSession>>` (the OPC UA client APIs use `Task` here, not `ValueTask`), so resolving it from DI and `await`-ing the result returns the connected `ManagedSession`. The DI registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+The factory caches the connected session — subsequent awaits return the same instance. The registered delegate type is `Func<CancellationToken, Task<ManagedSession>>` (the OPC UA client APIs use `Task` here, not `ValueTask`), so resolving it from dependency injection and `await`-ing the result returns the connected `ManagedSession`. The dependency injection registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
 
-This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
+This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options dependency injection is deferred to a future iteration.
 
 ### `INodeCache` changes
 
@@ -1564,6 +1684,117 @@ ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
 bool isType = await cache.IsTypeOfAsync(sub, super);
 ```
 
+### Alarms and Conditions
+
+Two changes require attention.
+
+#### `AlarmConditionState` state-transition behavior
+
+The state-machine setters on `AlarmConditionState` previously did not
+implement several cross-state spec requirements. 1.6 makes them
+compliant:
+
+| Behavior | Spec | Was (≤ 1.5.378) | Is (1.6) |
+|---|---|---|---|
+| Activating an alarm with `LatchedState` populated | §4.8 | `LatchedState` untouched | `LatchedState.Id = true` automatically |
+| Activating an alarm with `SilenceState` populated and silenced | §4.8 | `SilenceState` stayed silenced | `SilenceState.Id = false` (audible again) |
+| `SuppressedOrShelved` flag computation | §5.8.2 | considered Suppressed + Shelved only | also considers `OutOfServiceState` |
+| `GetRetainState` for latched alarms | §5.5.2 | did not include LatchedState | latched alarms are retained while `LatchedState.Id = true` |
+| `EffectiveDisplayName` composition | §5.8.2 | Active + Suppressed + Shelved + Acked + Confirmed | additionally includes OutOfService and Latched |
+
+**Migration:** If you have alarms with `LatchedState`,
+`SilenceState`, or `OutOfServiceState` populated and you relied on
+the prior behavior, the spec-compliant behavior is what your
+operators expected anyway. To restore the old behavior, do not
+populate those optional state nodes (leave them `null`).
+
+The quickstart reference server (`Applications/Quickstarts.Servers/
+Alarms/AlarmHolders/AlarmConditionTypeHolder.cs`) now creates the
+`SilenceState`, `OutOfServiceState`, and `LatchedState` nodes by
+default — so the conformance tests exercise the new compliant
+behavior end-to-end.
+
+The quickstart `AlarmNodeManager` itself was also modernized:
+
+* it now derives from `AsyncCustomNodeManager` (was
+  `CustomNodeManager2`) and uses the async lifecycle overrides
+  (`CreateAddressSpaceAsync`, `CallAsync`, `ConditionRefreshAsync`),
+  matching the stack-wide pattern used by `WotConnectivityNodeManager`,
+  `FluentNodeManagerBase`, etc.;
+* it demonstrates the new `AlarmGroup` + `AlarmSuppressionEngine`
+  helpers end-to-end with an `/Alarms/AnalogGroup` group and a
+  writable `/Alarms/MaintenanceMode` boolean — clients can flip
+  MaintenanceMode and watch every member alarm transition into
+  `SuppressedState`. See
+  [Alarms and Conditions](AlarmsAndConditions.md#alarm-groups-and-first-in-group)
+  for the developer guide.
+
+Neither change is breaking for stack consumers — they only affect
+the quickstart demo project that ships with the reference server.
+
+#### Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`
+
+`CustomNodeManager.CreateNode(...)` and `DeleteNode(...)` (and the
+async equivalents on `AsyncCustomNodeManager`) now record the change
+in a per-instance `ModelChangeAggregator` and emit a
+`GeneralModelChangeEvent` at the end of the call. This was required
+by Part 5 §6.4.32 but was previously left to derived classes.
+
+If clients were already subscribed to `BaseEventType` on the server
+notifier, they will start receiving `GeneralModelChangeEvent`. Existing
+clients that filter events by `EventTypeId` (the common case) keep
+receiving only the types they asked for. Clients that subscribe to
+the broad `BaseEventType` and want to skip model-change traffic should
+add a `not OfType GeneralModelChangeEventType` clause to their
+`EventFilter`.
+
+```csharp
+// To opt out of auto-emit in a derived node manager:
+public MyNodeManager(...)
+{
+    ModelChangeEmissionEnabled = false;
+}
+```
+
+The aggregator API (`ModelChangeAggregator.RecordNodeAdded/Deleted/
+ReferenceAdded/ReferenceDeleted/DataTypeChanged`, `Drain`,
+`HasPending`) is also available for manual control — see
+[Model Change Tracking](ModelChangeTracking.md).
+
+### Address-space model change tracking
+
+#### New `INodeCache.InvalidateNode` member
+
+`INodeCache` gains a new abstract member in 1.6:
+
+```csharp
+void InvalidateNode(NodeId nodeId);
+```
+
+The stack's built-in `NodeCache` implements this with true per-node
+eviction. The `ModelChangeTracker` uses it to keep the cache in sync
+with server-reported address-space changes — see
+[Model Change Tracking](ModelChangeTracking.md).
+
+**Migration:** Custom `INodeCache` implementations must add an
+implementation. The simplest is to delegate to `Clear()`:
+
+```csharp
+public sealed class MyNodeCache : INodeCache
+{
+    public void Clear() { /* ... */ }
+
+    // Add this:
+    public void InvalidateNode(NodeId nodeId) => Clear();
+
+    // ... rest of INodeCache ...
+}
+```
+
+Implementations that can perform per-node eviction should do so —
+the tracker is most efficient when targeted invalidation is
+available.
+
 ### Subscriptions and Transports
 
 #### Durable subscriptions and reshaped Subscription tree
@@ -1590,7 +1821,7 @@ version and make it sync by appending `GetAwaiter().GetResult()` to it.
 
 ### Observability
 
-[Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better DI support. See documentation for breaking changes.
+[Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better dependency injection support. See documentation for breaking changes.
 
 ## Migrating from 1.04 to 1.05
 

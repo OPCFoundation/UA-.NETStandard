@@ -92,4 +92,3 @@ namespace Opc.Ua.Server.Historian
             CancellationToken ct);
     }
 }
-

@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 list.Add(new DataValue(
                     new Variant(i * 1.0),
-                    (StatusCode)StatusCodes.Good,
+                    StatusCodes.Good,
                     ts,
                     ts));
             }
@@ -208,7 +208,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 DataValue a = values[i];
                 DataValue b = values[i].Copy();
-                if (a.Equals(b)) { equal++; }
+                if (a.Equals(b))
+                {
+                    equal++;
+                }
             }
             return equal;
         }
@@ -271,28 +274,45 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             };
         }
 
-        // 5-frame dispatch chain so the JIT must materialise the
-        // DataValue between calls — keeps the per-call copy visible
-        // in the disassembly.
+        /// <summary>
+        /// 5-frame dispatch chain so the JIT must materialise the
+        /// DataValue between calls — keeps the per-call copy visible
+        /// in the disassembly.
+        /// </summary>
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame1(DataValue value) => DispatchFrame2(value) ^ 0xA;
+        private static uint DispatchFrame1(DataValue value)
+        {
+            return DispatchFrame2(value) ^ 0xA;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame2(DataValue value) => DispatchFrame3(value) ^ 0xB;
+        private static uint DispatchFrame2(DataValue value)
+        {
+            return DispatchFrame3(value) ^ 0xB;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame3(DataValue value) => DispatchFrame4(value) ^ 0xC;
+        private static uint DispatchFrame3(DataValue value)
+        {
+            return DispatchFrame4(value) ^ 0xC;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame4(DataValue value) => DispatchFrame5(value) ^ 0xD;
+        private static uint DispatchFrame4(DataValue value)
+        {
+            return DispatchFrame5(value) ^ 0xD;
+        }
 
         [System.Runtime.CompilerServices.MethodImpl(
             System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static uint DispatchFrame5(DataValue value) => value.StatusCode.Code;
+        private static uint DispatchFrame5(DataValue value)
+        {
+            return value.StatusCode.Code;
+        }
 
         private ITelemetryContext? m_telemetry;
         private IServiceMessageContext? m_context;

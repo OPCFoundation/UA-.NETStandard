@@ -27,31 +27,38 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+#nullable enable
+
+#pragma warning disable CA2016
+
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions;
 
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
-    /// Integration tests for the pluggable subscription engine.
-    /// Verifies that the <see cref="ClassicSubscriptionEngine"/> works
-    /// end-to-end against a real in-process OPC UA server.
+    /// V2-engine counterparts to the four classic-engine integration
+    /// tests in <c>SubscriptionEngineIntegrationTests</c> (Classic
+    /// project). Each test creates its own <see cref="ManagedSession"/>
+    /// via <see cref="ManagedSessionBuilder"/> (which defaults to the
+    /// V2 engine) so the test does not depend on the inherited
+    /// <see cref="ClientTestFramework.Session"/> (whose engine factory
+    /// is still classic in the base fixture default for back-compat).
     /// </summary>
     [TestFixture]
     [Category("Client")]
     [Category("SubscriptionEngine")]
+    [Category("V2")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public class SubscriptionEngineIntegrationTests : ClientTestFramework
     {
-        /// <summary>
-        /// Set up a Server and a Client instance.
-        /// </summary>
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
         {
@@ -60,27 +67,18 @@ namespace Opc.Ua.Subscriptions.Tests
             return OneTimeSetUpCoreAsync(securityNone: true);
         }
 
-        /// <summary>
-        /// Tear down the Server and the Client.
-        /// </summary>
         [OneTimeTearDown]
         public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
 
-        /// <summary>
-        /// Test setup.
-        /// </summary>
         [SetUp]
         public override Task SetUpAsync()
         {
             return base.SetUpAsync();
         }
 
-        /// <summary>
-        /// Test teardown.
-        /// </summary>
         [TearDown]
         public override Task TearDownAsync()
         {
@@ -89,225 +87,223 @@ namespace Opc.Ua.Subscriptions.Tests
 
         [Test]
         [Order(100)]
-        public void ClassicEngineSessionHasSubscriptionEngine()
+        [CancelAfter(60_000)]
+        public async Task V2EngineSessionHasV2EngineAsync(CancellationToken ct)
         {
-            var session = (Session)Session;
-
-            ISubscriptionEngineFactory factory = session.SubscriptionEngineFactory;
-            Assert.That(factory, Is.Not.Null);
-            Assert.That(
-                factory,
-                Is.InstanceOf<ClassicSubscriptionEngineFactory>(),
-                "Default engine factory should be ClassicSubscriptionEngineFactory");
-
-            TestContext.Out.WriteLine(
-                "SubscriptionEngineFactory type: {0}",
-                factory.GetType().Name);
+            ManagedSession session = await ConnectV2Async(nameof(V2EngineSessionHasV2EngineAsync), ct)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(session.Connected, Is.True);
+                ISubscriptionManager manager = session.SubscriptionManager;
+                Assert.That(manager, Is.Not.Null,
+                    "V2 session must expose ISubscriptionManager");
+                Assert.That(manager.Count, Is.Zero);
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
         [Order(200)]
-        [CancelAfter(30_000)]
-        public async Task ClassicEngineCreateAndDeleteSubscription()
+        [CancelAfter(60_000)]
+        public async Task V2EngineCreateAndDeleteSubscriptionAsync(CancellationToken ct)
         {
-            using var notificationReceived = new ManualResetEventSlim(false);
-            int dataChangeCount = 0;
-
-            using var subscription = new TestableSubscription(Session.DefaultSubscription)
+            ManagedSession session = await ConnectV2Async(
+                nameof(V2EngineCreateAndDeleteSubscriptionAsync), ct).ConfigureAwait(false);
+            try
             {
-                PublishingInterval = 500,
-                KeepAliveCount = 10,
-                LifetimeCount = 100,
-                MaxNotificationsPerPublish = 0,
-                PublishingEnabled = true,
-                Priority = 0
-            };
+                var handler = new RecordingSubscriptionHandler();
+                ISubscription subscription = session.AddSubscription(
+                    handler,
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromMilliseconds(500),
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100,
+                        PublishingEnabled = true,
+                        Priority = 0
+                    });
 
-            bool added = Session.AddSubscription(subscription);
-            Assert.That(added, Is.True);
+                Assert.That(session.SubscriptionManager.Count, Is.EqualTo(1));
 
-            await subscription.CreateAsync().ConfigureAwait(false);
-            Assert.That(subscription.Created, Is.True);
+                bool created = await WaitForAsync(
+                    () => subscription.Created,
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(created, Is.True,
+                    "Subscription should be created on the server");
 
-            TestContext.Out.WriteLine(
-                "Subscription Id: {0}, PublishingInterval: {1}",
-                subscription.Id,
-                subscription.CurrentPublishingInterval);
+                TestContext.Out.WriteLine(
+                    "V2 subscription PublishingInterval={0}, KeepAliveCount={1}, LifetimeCount={2}",
+                    subscription.CurrentPublishingInterval,
+                    subscription.CurrentKeepAliveCount,
+                    subscription.CurrentLifetimeCount);
 
-            var monitoredItem = new TestableMonitoredItem(subscription.DefaultItem)
+                NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
+                bool added = subscription.TryAddMonitoredItem(
+                    "ServerStatusCurrentTime",
+                    nodeId,
+                    o => o with
+                    {
+                        SamplingInterval = TimeSpan.FromMilliseconds(250)
+                    },
+                    out _);
+                Assert.That(added, Is.True);
+
+                bool firstData = await handler.WaitForFirstDataAsync(
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(firstData, Is.True,
+                    "V2 handler should have received at least one data change");
+                Assert.That(handler.DataChangeCount, Is.GreaterThanOrEqualTo(1));
+
+                TestContext.Out.WriteLine("Total V2 data changes received: {0}",
+                    handler.DataChangeCount);
+
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
             {
-                DisplayName = "ServerStatusCurrentTime",
-                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                SamplingInterval = 250
-            };
-
-            monitoredItem.Notification += (item, _) =>
-            {
-                foreach (DataValue value in item.DequeueValues())
-                {
-                    Interlocked.Increment(ref dataChangeCount);
-                    TestContext.Out.WriteLine(
-                        "{0}: {1}, {2}, {3}",
-                        item.DisplayName,
-                        value.WrappedValue,
-                        value.SourceTimestamp,
-                        value.StatusCode);
-                    notificationReceived.Set();
-                }
-            };
-
-            subscription.AddItem(monitoredItem);
-            await subscription.ApplyChangesAsync().ConfigureAwait(false);
-
-            Assert.That(monitoredItem.Status.Error, Is.Null.Or.Property("StatusCode").EqualTo(StatusCodes.Good));
-
-            bool received = notificationReceived.Wait(10_000);
-            Assert.That(received, Is.True, "Should have received at least one data change notification");
-            Assert.That(dataChangeCount, Is.GreaterThanOrEqualTo(1));
-
-            OutputSubscriptionInfo(TestContext.Out, subscription);
-
-            bool removed = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.That(removed, Is.True);
-
-            TestContext.Out.WriteLine("Total data changes received: {0}", dataChangeCount);
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
         [Order(300)]
-        [CancelAfter(30_000)]
-        public async Task ClassicEnginePublishRequestCountScales()
+        [CancelAfter(60_000)]
+        public async Task V2EnginePublishRequestCountScalesAsync(CancellationToken ct)
         {
             const int subscriptionCount = 3;
-            var subscriptions = new List<Subscription>();
-
+            ManagedSession session = await ConnectV2Async(
+                nameof(V2EnginePublishRequestCountScalesAsync), ct).ConfigureAwait(false);
             try
             {
-                int initialGoodCount = Session.GoodPublishRequestCount;
-                TestContext.Out.WriteLine(
-                    "Initial GoodPublishRequestCount: {0}",
-                    initialGoodCount);
+                ISubscriptionManager manager = session.SubscriptionManager;
+                int initial = manager.GoodPublishRequestCount;
+                TestContext.Out.WriteLine("Initial V2 GoodPublishRequestCount: {0}",
+                    initial);
+
+                var subscriptions = new ISubscription[subscriptionCount];
+                var handlers = new RecordingSubscriptionHandler[subscriptionCount];
+                for (int i = 0; i < subscriptionCount; i++)
+                {
+                    handlers[i] = new RecordingSubscriptionHandler();
+                    subscriptions[i] = session.AddSubscription(handlers[i],
+                        new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                        {
+                            PublishingInterval = TimeSpan.FromMilliseconds(1000),
+                            KeepAliveCount = 10,
+                            LifetimeCount = 100,
+                            PublishingEnabled = true
+                        });
+                }
 
                 for (int i = 0; i < subscriptionCount; i++)
                 {
-                    var subscription = new TestableSubscription(Session.DefaultSubscription)
-                    {
-                        PublishingInterval = 1000,
-                        KeepAliveCount = 10,
-                        LifetimeCount = 100,
-                        PublishingEnabled = true
-                    };
-
-                    bool added = Session.AddSubscription(subscription);
-                    Assert.That(added, Is.True);
-
-                    await subscription.CreateAsync().ConfigureAwait(false);
-                    Assert.That(subscription.Created, Is.True);
-                    subscriptions.Add(subscription);
-
-                    TestContext.Out.WriteLine(
-                        "Created subscription {0}, Id: {1}",
-                        i + 1,
-                        subscription.Id);
+                    int index = i;
+                    bool created = await WaitForAsync(
+                        () => subscriptions[index].Created,
+                        TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                    Assert.That(created, Is.True,
+                        $"Subscription {i} should be created");
                 }
 
-                // allow publish requests to be sent
-                await Task.Delay(3000).ConfigureAwait(false);
+                // allow publish requests to flow for a couple of cycles
+                await Task.Delay(3000, ct).ConfigureAwait(false);
 
-                int currentGoodCount = Session.GoodPublishRequestCount;
+                int current = manager.GoodPublishRequestCount;
                 TestContext.Out.WriteLine(
-                    "GoodPublishRequestCount after {0} subscriptions: {1}",
-                    subscriptionCount,
-                    currentGoodCount);
+                    "V2 GoodPublishRequestCount after {0} subscriptions: {1}",
+                    subscriptionCount, current);
+                Assert.That(current, Is.GreaterThan(0),
+                    "V2 manager should be issuing publish requests");
 
-                Assert.That(
-                    currentGoodCount,
-                    Is.GreaterThan(0),
-                    "GoodPublishRequestCount should be positive with active subscriptions");
+                for (int i = 0; i < subscriptionCount; i++)
+                {
+                    await subscriptions[i].DisposeAsync().ConfigureAwait(false);
+                }
             }
             finally
             {
-                foreach (Subscription subscription in subscriptions)
-                {
-                    bool removed = await Session.RemoveSubscriptionAsync(subscription)
-                        .ConfigureAwait(false);
-                    Assert.That(removed, Is.True);
-                    subscription.Dispose();
-                }
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
             }
         }
 
         [Test]
         [Order(400)]
-        [CancelAfter(30_000)]
-        public async Task ClassicEngineSubscriptionReceivesKeepAlive()
+        [CancelAfter(60_000)]
+        public async Task V2EngineSubscriptionReceivesKeepAliveAsync(CancellationToken ct)
         {
-            int keepAliveCount = 0;
-
-            using var subscription = new TestableSubscription(Session.DefaultSubscription)
+            ManagedSession session = await ConnectV2Async(
+                nameof(V2EngineSubscriptionReceivesKeepAliveAsync), ct).ConfigureAwait(false);
+            try
             {
-                PublishingInterval = 500,
-                KeepAliveCount = 1,
-                LifetimeCount = 100,
-                PublishingEnabled = true
-            };
+                var handler = new RecordingSubscriptionHandler();
+                ISubscription subscription = session.AddSubscription(handler,
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingInterval = TimeSpan.FromMilliseconds(500),
+                        KeepAliveCount = 1,
+                        LifetimeCount = 100,
+                        PublishingEnabled = true
+                    });
 
-            subscription.FastKeepAliveCallback = (_, notification) =>
+                bool created = await WaitForAsync(
+                    () => subscription.Created,
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(created, Is.True);
+
+                bool firstKA = await handler.WaitForFirstKeepAliveAsync(
+                    TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                Assert.That(firstKA, Is.True,
+                    "Should have received at least one V2 keep-alive notification");
+                Assert.That(handler.KeepAliveCount, Is.GreaterThanOrEqualTo(1));
+
+                TestContext.Out.WriteLine("Total V2 keep-alives: {0}",
+                    handler.KeepAliveCount);
+
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
             {
-                int n = Interlocked.Increment(ref keepAliveCount);
-                TestContext.Out.WriteLine(
-                    "KeepAlive {0}, SequenceNumber: {1}, PublishTime: {2}",
-                    n,
-                    notification.SequenceNumber,
-                    notification.PublishTime);
-            };
-
-            bool added = Session.AddSubscription(subscription);
-            Assert.That(added, Is.True);
-
-            await subscription.CreateAsync().ConfigureAwait(false);
-            Assert.That(subscription.Created, Is.True);
-
-            TestContext.Out.WriteLine(
-                "Subscription Id: {0}, PublishingInterval: {1}, KeepAliveCount: {2}",
-                subscription.Id,
-                subscription.CurrentPublishingInterval,
-                subscription.CurrentKeepAliveCount);
-
-            // Wait for keep-alive. With publishing interval 500ms and
-            // keep-alive count of 1, a keep-alive should arrive every ~500ms.
-            await Task.Delay(5000).ConfigureAwait(false);
-
-            TestContext.Out.WriteLine("Total keep-alives received: {0}", keepAliveCount);
-            Assert.That(
-                keepAliveCount,
-                Is.GreaterThanOrEqualTo(1),
-                "Should have received at least one keep-alive notification");
-
-            OutputSubscriptionInfo(TestContext.Out, subscription);
-
-            bool removed = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
-            Assert.That(removed, Is.True);
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
-        [Test]
-        [Order(500)]
-        public void EngineFactoryIsAccessibleOnSession()
+        private async Task<ManagedSession> ConnectV2Async(
+            string sessionName, CancellationToken ct)
         {
-            var session = (Session)Session;
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
 
-            ISubscriptionEngineFactory factory = session.SubscriptionEngineFactory;
-            Assert.That(factory, Is.Not.Null);
-            Assert.That(factory, Is.SameAs(ClassicSubscriptionEngineFactory.Instance));
+            return await new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(sessionName)
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+        }
 
-            TestContext.Out.WriteLine("Factory: {0}", factory.GetType().FullName);
-
-            // Verify the factory can create an engine when given
-            // a context (validates the factory contract).
-            Assert.That(
-                factory,
-                Is.InstanceOf<ISubscriptionEngineFactory>(),
-                "Factory must implement ISubscriptionEngineFactory");
+        private static async Task<bool> WaitForAsync(
+            Func<bool> predicate, TimeSpan timeout, CancellationToken ct)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (predicate())
+                {
+                    return true;
+                }
+                await Task.Delay(50, ct).ConfigureAwait(false);
+            }
+            return predicate();
         }
     }
 }

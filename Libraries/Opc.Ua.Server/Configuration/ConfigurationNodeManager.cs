@@ -329,12 +329,9 @@ namespace Opc.Ua.Server
                 UpdateCertificateAsync);
             configNode.CreateSigningRequest!.OnCallAsync =
                 new CreateSigningRequestMethodStateMethodAsyncCallHandler(CreateSigningRequestAsync);
-            if (configNode.CreateSelfSignedCertificate != null)
-            {
-                configNode.CreateSelfSignedCertificate.OnCallAsync =
+            configNode.CreateSelfSignedCertificate?.OnCallAsync =
                     new CreateSelfSignedCertificateMethodStateMethodAsyncCallHandler(
                         CreateSelfSignedCertificateAsync);
-            }
             configNode.ApplyChanges!.OnCallMethod2
                 = new GenericMethodCalledEventHandler2(ApplyChanges);
             configNode.GetRejectedList!.OnCall
@@ -510,6 +507,46 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public async ValueTask BindKeyCredentialPushAsync(
+            KeyCredentialPushSubject subject,
+            CancellationToken cancellationToken = default)
+        {
+            if (subject == null)
+            {
+                throw new ArgumentNullException(nameof(subject));
+            }
+
+            NodeState? node = FindPredefinedNode<NodeState>(
+                KeyCredentialPushSubject.StandardConfigurationFolderNodeId) ?? await Server.NodeManager
+                    .FindNodeInAddressSpaceAsync(KeyCredentialPushSubject.StandardConfigurationFolderNodeId, cancellationToken)
+                    .ConfigureAwait(false);
+
+            if (node is not KeyCredentialConfigurationFolderState folder)
+            {
+                if (node is not BaseObjectState passiveNode)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdUnknown,
+                        "The standard KeyCredentialConfiguration folder is not present.");
+                }
+
+                folder = new KeyCredentialConfigurationFolderState(passiveNode.Parent);
+                folder.Create(SystemContext, passiveNode);
+                passiveNode.Parent?.ReplaceChild(SystemContext, folder);
+                await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await subject.BindAsync(
+                    folder,
+                    SystemContext,
+                    (state, ct) => AddPredefinedNodeAsync(SystemContext, state, ct),
+                    async (state, ct) => await DeleteNodeAsync(SystemContext, state.NodeId, ct).ConfigureAwait(false),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             HasApplicationSecureAdminAccess(context, null!);
@@ -570,7 +607,7 @@ namespace Opc.Ua.Server
                 certificate,
                 issuerCertificates,
                 privateKeyFormat!,
-                Opc.Ua.Server.AuditEvents.RedactedPrivateKey
+                AuditEvents.RedactedPrivateKey
             ];
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
@@ -1213,10 +1250,7 @@ namespace Opc.Ua.Server
                 .ToList()
                 .FirstOrDefault(c => c.CertificateType == certificateTypeId);
 
-            if (existingIdent != null)
-            {
-                existingIdent.RawData = certificate.RawData;
-            }
+            existingIdent?.RawData = certificate.RawData;
 
             m_logger.LogInformation(
                 Utils.TraceMasks.Security,
@@ -1225,7 +1259,7 @@ namespace Opc.Ua.Server
                 certificateGroupId,
                 certificateTypeId);
 
-            var certBytes = certificate.RawData.ToByteString();
+            ByteString certBytes = certificate.RawData.ToByteString();
             return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
                 new CreateSelfSignedCertificateMethodStateResult
                 {
@@ -1824,12 +1858,9 @@ namespace Opc.Ua.Server
                         node.TrustListOutOfDate.TrustListId.Value =
                             node.TrustList?.NodeId ?? default;
 
-                        if (node.TrustListOutOfDate.LastUpdateTime != null)
-                        {
-                            node.TrustListOutOfDate.LastUpdateTime.Value =
+                        node.TrustListOutOfDate.LastUpdateTime?.Value =
                                 (DateTime)(node.TrustList?.LastUpdateTime?.Value
                                     ?? (DateTimeUtc)DateTime.MinValue);
-                        }
                     }
                 }
                 catch (Exception ex)

@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.InformationModel.Tests
@@ -769,6 +768,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid),
                 "Invalid subscription should return BadSubscriptionIdInvalid.");
         }
+
         [Test]
         public async Task GetMonitoredItemsErr003CrossSessionReturnsBadStatusAsync()
         {
@@ -799,7 +799,13 @@ namespace Opc.Ua.InformationModel.Tests
                 }
                 finally
                 {
-                    try { await otherSession.CloseAsync(5000, true).ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        await otherSession.CloseAsync(5000, true).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                    }
                     otherSession.Dispose();
                 }
             }
@@ -808,6 +814,7 @@ namespace Opc.Ua.InformationModel.Tests
                 await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
             }
         }
+
         [Test]
         public async Task ResendData000BrowseMethodAsync()
         {
@@ -1217,6 +1224,7 @@ namespace Opc.Ua.InformationModel.Tests
                 }
             }
         }
+
         [Test]
         public async Task DeviceFailure000BrowseSubtypesAsync()
         {
@@ -1229,6 +1237,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
                 "DeviceFailureEventType should exist.");
         }
+
         [Test]
         public async Task EventQueueOverflow001TypeExistsAsync()
         {
@@ -1264,6 +1273,7 @@ namespace Opc.Ua.InformationModel.Tests
                 EventQueueOverflowEventTypeId).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True);
         }
+
         [Test]
         public async Task ProgressEvents001TypeExistsAsync()
         {
@@ -1457,7 +1467,7 @@ namespace Opc.Ua.InformationModel.Tests
             }
 
             ReferenceDescription parent = browseResp.Results[0].References[0];
-            NodeId parentId = ExpandedNodeId.ToNodeId(
+            var parentId = ExpandedNodeId.ToNodeId(
                 parent.NodeId, Session.NamespaceUris);
             Assert.That(parentId, Is.EqualTo(VariableTypeIds.BaseDataVariableType),
                 "SelectionListType should be a subtype of BaseDataVariableType.");
@@ -1484,7 +1494,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore("SelectionDescriptions optional property not exposed.");
             }
 
-            NodeId selDescId = ExpandedNodeId.ToNodeId(
+            var selDescId = ExpandedNodeId.ToNodeId(
                 selDesc.NodeId, Session.NamespaceUris);
             DataValue dt = await ReadAttributeAsync(
                 selDescId, Attributes.DataType).ConfigureAwait(false);
@@ -1515,7 +1525,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.Ignore("RestrictToList optional property not exposed.");
             }
 
-            NodeId restrictId = ExpandedNodeId.ToNodeId(
+            var restrictId = ExpandedNodeId.ToNodeId(
                 restrict.NodeId, Session.NamespaceUris);
             DataValue dt = await ReadAttributeAsync(
                 restrictId, Attributes.DataType).ConfigureAwait(false);
@@ -1763,7 +1773,7 @@ namespace Opc.Ua.InformationModel.Tests
                 case BuiltInType.UInt32:
                     if (variant.TryGetValue(out uint single))
                     {
-                        return new[] { single };
+                        return [single];
                     }
                     break;
             }

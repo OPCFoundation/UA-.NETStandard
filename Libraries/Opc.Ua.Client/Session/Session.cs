@@ -36,6 +36,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -110,7 +111,9 @@ namespace Opc.Ua.Client
         /// GetEndpoints() request.</param>
         /// <param name="engineFactory">Optional subscription engine factory. When
         /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
-        /// by default.</param>
+        /// (the classic engine) by default. Pass
+        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> explicitly
+        /// to opt into the V2 engine.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -282,7 +285,10 @@ namespace Opc.Ua.Client
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
-            // Create the subscription engine.
+            // Create the subscription engine. Session defaults to the
+            // classic engine (legacy applications + classic Subscription
+            // API). ManagedSession explicitly opts in to the V2 engine
+            // via its builder.
             SubscriptionEngineFactory = engineFactory
                 ?? ClassicSubscriptionEngineFactory.Instance;
             m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));
@@ -1541,6 +1547,89 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             return UpdateSessionAsync(Identity, preferredLocales, ct);
+        }
+
+        /// <summary>
+        /// Refreshes the current user identity by asking a provider for a
+        /// fresh token and reactivating the existing session with the
+        /// current server nonce.
+        /// </summary>
+        /// <param name="provider">The provider that materializes the new identity.</param>
+        /// <param name="ct">A cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadIdentityTokenRejected</c> when no offered policy can be
+        /// satisfied by the provider, or <c>BadIdentityChangeNotSupported</c>
+        /// when the server refuses user-identity changes on an active
+        /// session.
+        /// </exception>
+        public async ValueTask UpdateIdentityAsync(
+            IClientIdentityProvider provider,
+            CancellationToken ct = default)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            ThrowIfDisposed();
+            using Activity? activity = m_telemetry.StartActivity();
+
+            await AcquireIdentityUpdateLockAsync(ct).ConfigureAwait(false);
+            try
+            {
+                IdentitySelectionContext context;
+                lock (m_lock)
+                {
+                    if (!Connected)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            "Not connected to server.");
+                    }
+
+                    context = new IdentitySelectionContext(
+                        m_endpoint.Description,
+                        m_endpoint.Description.UserIdentityTokens.ToArray() ??
+                        [],
+                        MessageContext);
+                }
+
+                IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
+                    .ConfigureAwait(false);
+
+                await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadIdentityChangeNotSupported)
+            {
+                m_logger.LogInformation(
+                    ex,
+                    "Server rejected an in-session identity change for {SessionId}.",
+                    SessionId);
+                throw;
+            }
+            finally
+            {
+                Reconnecting = false;
+                m_reconnectLock.Release();
+            }
+        }
+
+        private async Task AcquireIdentityUpdateLockAsync(CancellationToken ct)
+        {
+            while (true)
+            {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                if (!Reconnecting)
+                {
+                    Reconnecting = true;
+                    return;
+                }
+
+                m_reconnectLock.Release();
+                await Task.Delay(100, ct).ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>

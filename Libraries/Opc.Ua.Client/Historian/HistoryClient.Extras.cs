@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Historian
             return new ExtensionObject(new ReadAtTimeDetails
             {
                 ReqTimes = typed,
-                UseSimpleBounds = useSimpleBounds,
+                UseSimpleBounds = useSimpleBounds
             });
         }
 
@@ -112,10 +112,11 @@ namespace Opc.Ua.Client.Historian
                 EndTime = endTime,
                 ProcessingInterval = processingInterval,
                 AggregateType = new NodeId[] { aggregateFunctionId },
-                AggregateConfiguration = configuration ?? new AggregateConfiguration
-                {
-                    UseServerCapabilitiesDefaults = true,
-                },
+                AggregateConfiguration = configuration ??
+                    new AggregateConfiguration
+                        {
+                            UseServerCapabilitiesDefaults = true
+                        }
             };
 
             await foreach (DataValue v in ReadDetailsAsync(
@@ -152,16 +153,16 @@ namespace Opc.Ua.Client.Historian
                 StartTime = startTime,
                 EndTime = endTime,
                 NumValuesPerNode = maxValuesPerNode,
-                ReturnBounds = false,
+                ReturnBounds = false
             };
 
             await foreach (DataValue v in ReadDetailsAsync(
                 annotationsNode, new ExtensionObject(details),
                 TimestampsToReturn.Source, cancellationToken).ConfigureAwait(false))
             {
-                if (v.WrappedValue.TryGetValue(out ExtensionObject ext)
-                    && !ext.IsNull
-                    && ext.TryGetValue<Annotation>(out Annotation? annotation))
+                if (v.WrappedValue.TryGetValue(out ExtensionObject ext) &&
+                    !ext.IsNull &&
+                    ext.TryGetValue(out Annotation? annotation))
                 {
                     yield return annotation;
                 }
@@ -191,7 +192,7 @@ namespace Opc.Ua.Client.Historian
             {
                 Message = message,
                 UserName = userName,
-                AnnotationTime = annotationTime,
+                AnnotationTime = annotationTime
             };
 
             var dataValue = new DataValue(
@@ -204,7 +205,7 @@ namespace Opc.Ua.Client.Historian
             {
                 NodeId = annotationsNode,
                 PerformInsertReplace = performUpdate,
-                UpdateValues = new DataValue[] { dataValue },
+                UpdateValues = new DataValue[] { dataValue }
             };
 
             HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
@@ -260,7 +261,7 @@ namespace Opc.Ua.Client.Historian
                 VariableIds.HistoryServerCapabilities_DeleteRawCapability,
                 VariableIds.HistoryServerCapabilities_DeleteAtTimeCapability,
                 VariableIds.HistoryServerCapabilities_InsertAnnotationCapability,
-                VariableIds.HistoryServerCapabilities_ServerTimestampSupported,
+                VariableIds.HistoryServerCapabilities_ServerTimestampSupported
             };
 
             DataValue[] values = await BatchReadValueAsync(nodes, cancellationToken)
@@ -278,7 +279,7 @@ namespace Opc.Ua.Client.Historian
                 DeleteRaw = ReadBool(values[7]),
                 DeleteAtTime = ReadBool(values[8]),
                 InsertAnnotation = ReadBool(values[9]),
-                ServerTimestampSupported = ReadBool(values[10]),
+                ServerTimestampSupported = ReadBool(values[10])
             };
         }
 
@@ -311,7 +312,7 @@ namespace Opc.Ua.Client.Historian
                 BrowseNames.MinTimeInterval,
                 BrowseNames.ExceptionDeviation,
                 BrowseNames.StartOfArchive,
-                BrowseNames.StartOfOnlineArchive,
+                BrowseNames.StartOfOnlineArchive
             ];
             var childNodes = new NodeId[childNames.Length];
             for (int i = 0; i < childNames.Length; i++)
@@ -327,17 +328,17 @@ namespace Opc.Ua.Client.Historian
             return new HistoricalDataConfigurationInfo
             {
                 HasConfiguration = true,
-                Stepped = !childNodes[0].IsNull ? (bool?)ReadBool(values[0]) : null,
+                Stepped = !childNodes[0].IsNull ? ReadBool(values[0]) : null,
                 Definition = !childNodes[1].IsNull ? ReadString(values[1]) : null,
-                MaxTimeInterval = !childNodes[2].IsNull ? (double?)ReadDouble(values[2]) : null,
-                MinTimeInterval = !childNodes[3].IsNull ? (double?)ReadDouble(values[3]) : null,
-                ExceptionDeviation = !childNodes[4].IsNull ? (double?)ReadDouble(values[4]) : null,
+                MaxTimeInterval = !childNodes[2].IsNull ? ReadDouble(values[2]) : null,
+                MinTimeInterval = !childNodes[3].IsNull ? ReadDouble(values[3]) : null,
+                ExceptionDeviation = !childNodes[4].IsNull ? ReadDouble(values[4]) : null,
                 StartOfArchive = !childNodes[5].IsNull
-                    ? (DateTime?)ReadDateTimeUtc(values[5]).ToDateTime()
+                    ? ReadDateTimeUtc(values[5]).ToDateTime()
                     : null,
                 StartOfOnlineArchive = !childNodes[6].IsNull
-                    ? (DateTime?)ReadDateTimeUtc(values[6]).ToDateTime()
-                    : null,
+                    ? ReadDateTimeUtc(values[6]).ToDateTime()
+                    : null
             };
         }
 
@@ -362,7 +363,7 @@ namespace Opc.Ua.Client.Historian
                 {
                     var nodesToRead = new HistoryReadValueId[]
                     {
-                        new() { NodeId = nodeId, ContinuationPoint = continuationPoint },
+                        new() { NodeId = nodeId, ContinuationPoint = continuationPoint }
                     };
 
                     HistoryReadResponse response = await Session.HistoryReadAsync(
@@ -389,8 +390,8 @@ namespace Opc.Ua.Client.Historian
                     liveContinuationPoint = result.ContinuationPoint;
 
                     bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull
-                        && result.HistoryData.TryGetValue<HistoryData>(out HistoryData? hd))
+                    if (!result.HistoryData.IsNull &&
+                        result.HistoryData.TryGetValue(out HistoryData? hd))
                     {
                         DataValue[]? values = hd.DataValues.ToArray();
                         if (values != null && values.Length > 0)
@@ -440,7 +441,7 @@ namespace Opc.Ua.Client.Historian
                     {
                         var releaseNodes = new HistoryReadValueId[]
                         {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint },
+                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
                         };
                         _ = await Session.HistoryReadAsync(
                             null,
@@ -454,11 +455,11 @@ namespace Opc.Ua.Client.Historian
                     {
                         // ignore — best-effort cleanup
                     }
-                    catch (System.Threading.Tasks.TaskCanceledException)
+                    catch (TaskCanceledException)
                     {
                         // ignore — best-effort cleanup
                     }
-                    catch (System.OperationCanceledException)
+                    catch (OperationCanceledException)
                     {
                         // ignore — best-effort cleanup
                     }
@@ -491,10 +492,10 @@ namespace Opc.Ua.Client.Historian
                             ReferenceTypeId = referenceType,
                             IsInverse = false,
                             IncludeSubtypes = true,
-                            TargetName = new QualifiedName(browseName),
-                        },
-                    },
-                },
+                            TargetName = new QualifiedName(browseName)
+                        }
+                    }
+                }
             };
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
@@ -514,7 +515,7 @@ namespace Opc.Ua.Client.Historian
             {
                 return NodeId.Null;
             }
-            NodeId resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
+            var resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
             return resolved.IsNull ? NodeId.Null : resolved;
         }
 
@@ -522,11 +523,11 @@ namespace Opc.Ua.Client.Historian
             IReadOnlyList<NodeId> nodes,
             CancellationToken cancellationToken)
         {
-            ReadValueId[] requests = nodes.Select(n => new ReadValueId
+            ReadValueId[] requests = [.. nodes.Select(n => new ReadValueId
             {
                 NodeId = n,
-                AttributeId = Attributes.Value,
-            }).ToArray();
+                AttributeId = Attributes.Value
+            })];
 
             ReadResponse response = await Session.ReadAsync(
                 null,

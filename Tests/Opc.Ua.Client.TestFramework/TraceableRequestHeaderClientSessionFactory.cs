@@ -60,7 +60,8 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris);
+                discoveryProfileUris,
+                SubscriptionEngineFactory);
         }
     }
 }

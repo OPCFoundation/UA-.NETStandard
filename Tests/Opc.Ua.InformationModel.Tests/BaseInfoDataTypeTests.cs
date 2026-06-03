@@ -32,7 +32,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.InformationModel.Tests
@@ -468,8 +467,8 @@ namespace Opc.Ua.InformationModel.Tests
                     $"DataTypeDefinition not exposed for {nodeId}: {dv.StatusCode}");
                 return;
             }
-            if (!dv.WrappedValue.TryGetValue(out ExtensionObject ext)
-                || !ext.TryGetValue(out StructureDefinition definition))
+            if (!dv.WrappedValue.TryGetValue(out ExtensionObject ext) ||
+                !ext.TryGetValue(out StructureDefinition definition))
             {
                 Assert.Ignore(
                     $"DataTypeDefinition for {nodeId} is not a StructureDefinition.");

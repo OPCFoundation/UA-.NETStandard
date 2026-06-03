@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -46,7 +46,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
 using OpcUa = Opc.Ua;
-
 
 namespace Opc.Ua.Gds.Tests
 {

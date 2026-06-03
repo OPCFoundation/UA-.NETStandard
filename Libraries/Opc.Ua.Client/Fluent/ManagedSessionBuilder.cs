@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
 {
@@ -118,7 +119,37 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(identity));
             }
+#pragma warning disable CS0618 // Legacy eager identity remains supported for compatibility.
             m_options = m_options with { Identity = identity };
+#pragma warning restore CS0618
+            return this;
+        }
+
+        /// <summary>
+        /// Set the lazy identity provider used to refresh identities after connect.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithIdentityProvider(IClientIdentityProvider provider)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            m_options = m_options with { IdentityProvider = provider };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the time provider used by proactive identity refresh.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithTimeProvider(TimeProvider timeProvider)
+        {
+            if (timeProvider == null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+            m_options = m_options with { TimeProvider = timeProvider };
             return this;
         }
 
@@ -296,6 +327,23 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Enables address-space model change tracking. The session
+        /// auto-starts a <see cref="ModelChange.IModelChangeTracker"/>
+        /// after connect that invalidates the node cache and exposes
+        /// changes via <see cref="ManagedSession.ModelChange"/>.
+        /// Disabled by default.
+        /// </summary>
+        public ManagedSessionBuilder WithModelChangeTracking(
+            bool enabled = true)
+        {
+            m_options = m_options with
+            {
+                ModelChangeTracking = enabled
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific session factory. By default, the builder
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
@@ -321,7 +369,7 @@ namespace Opc.Ua.Client
         /// accumulated options.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
+        public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
             if (opts.Endpoint == null)
@@ -358,11 +406,14 @@ namespace Opc.Ua.Client
                 preferredLocales = new ArrayOf<string>(arr);
             }
 
-            return ManagedSession.CreateAsync(
+#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
+            IUserIdentity? identity = opts.Identity;
+#pragma warning restore CS0618
+            ManagedSession session = await ManagedSession.CreateAsync(
                 m_configuration,
                 opts.Endpoint,
                 sessionFactory,
-                opts.Identity,
+                identity,
                 reconnect,
                 redundancy,
                 m_telemetry,
@@ -373,7 +424,16 @@ namespace Opc.Ua.Client
                 engineFactory,
                 opts.TransferSubscriptionsOnRecreate,
                 opts.PoolNotifications,
-                ct);
+                opts.IdentityProvider,
+                opts.TimeProvider,
+                ct).ConfigureAwait(false);
+
+            if (opts.ModelChangeTracking)
+            {
+                await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+            }
+
+            return session;
         }
     }
 }

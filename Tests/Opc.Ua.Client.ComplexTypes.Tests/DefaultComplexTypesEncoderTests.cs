@@ -29,13 +29,10 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Core.Encoders.Tests;
-using Opc.Ua.Tests;
-
-using ComplexStructure = Opc.Ua.Encoders.Structure;
-
 using Opc.Ua.Core.TestFramework;
+using Opc.Ua.Tests;
+using ComplexStructure = Opc.Ua.Encoders.Structure;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {

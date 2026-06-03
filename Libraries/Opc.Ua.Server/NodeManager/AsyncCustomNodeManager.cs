@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.Historian;
+using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server
 {
@@ -303,6 +304,39 @@ namespace Opc.Ua.Server
         public INodeManager SyncNodeManager => m_syncNodeManager;
 
         /// <summary>
+        /// Marks a node for dynamic scaling of event consumer tasks. When a
+        /// monitored node is created for a node in this set, the
+        /// <see cref="MonitoredNode2"/> will scale its consumer tasks with
+        /// the number of event monitored items. The Server node
+        /// (<see cref="ObjectIds.Server"/>) is always auto-opted-in.
+        /// </summary>
+        /// <param name="nodeId">The <see cref="NodeId"/> of the node to opt in.</param>
+        /// <param name="enable">
+        /// <c>true</c> to opt in (default); <c>false</c> to opt out.
+        /// </param>
+        protected void AllowMultipleEventConsumers(NodeId nodeId, bool enable = true)
+        {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            if (enable)
+            {
+                MultiConsumerNodeIds[nodeId] = true;
+            }
+            else
+            {
+                MultiConsumerNodeIds.Remove(nodeId);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool IsMultipleEventConsumerNode(NodeId nodeId)
+        {
+            return MultiConsumerNodeIds.ContainsKey(nodeId);
+        }
+
+        /// <summary>
         /// Sets the namespaces supported by the NodeManager.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
@@ -433,7 +467,19 @@ namespace Opc.Ua.Server
             instance.Create(contextToUse, default, browseName, default, true);
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
-            return instance.NodeId;
+            NodeId resultId = instance.NodeId;
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeAdded(resultId, instance.TypeDefinitionId);
+                if (!parentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceAdded(parentId);
+                }
+                EmitModelChange(contextToUse);
+            }
+
+            return resultId;
         }
 
         /// <summary>
@@ -472,7 +518,19 @@ namespace Opc.Ua.Server
 
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
-            return instance.NodeId;
+            NodeId resultId = instance.NodeId;
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeAdded(resultId, instance.TypeDefinitionId);
+                if (!parentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceAdded(parentId);
+                }
+                EmitModelChange(contextToUse);
+            }
+
+            return resultId;
         }
 
         /// <summary>
@@ -552,12 +610,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+
             await RemovePredefinedNodeAsync(contextToUse, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
             await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
 
             if (referencesToRemove.Count > 0)
             {
                 await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                EmitModelChange(contextToUse);
             }
 
             return true;
@@ -2398,6 +2464,199 @@ namespace Opc.Ua.Server
                             }.ToArrayOf();
 
             Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// Raises a GeneralModelChangeEvent to notify clients that nodes or references
+        /// have been added or removed in the address space.
+        /// </summary>
+        /// <remarks>
+        /// Per Part 5 §9.32.2 only nodes that carry a <c>NodeVersion</c>
+        /// property may trigger a <c>ModelChangeEvent</c>. When
+        /// <see cref="RequireNodeVersionForModelChange"/> is <c>true</c>
+        /// (the default), entries whose Affected node is owned by this
+        /// node manager and lacks a <c>NodeVersion</c> are dropped. The
+        /// affected nodes that survive the filter have their NodeVersion
+        /// bumped. Set <see cref="RequireNodeVersionForModelChange"/> to
+        /// <c>false</c> to opt back into the legacy unconditional
+        /// behaviour.
+        /// </remarks>
+        protected void RaiseGeneralModelChangeEvent(
+            ISystemContext systemContext,
+            ArrayOf<ModelChangeStructureDataType> changes)
+        {
+            if (changes.Count == 0)
+            {
+                return;
+            }
+
+            if (RequireNodeVersionForModelChange)
+            {
+                changes = FilterChangesByNodeVersion(systemContext, changes);
+                if (changes.Count == 0)
+                {
+                    return;
+                }
+            }
+
+            var e = new GeneralModelChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "GeneralModelChangeEvent",
+                "en-US",
+                "Address space model changed.");
+
+            e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null!);
+            e!.Changes!.Value = changes;
+
+            Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// Raises a <c>BaseModelChangeEvent</c> for the supplied source
+        /// node — used when something about the address space changed
+        /// but the framework cannot describe the change as a list of
+        /// <c>ModelChangeStructureDataType</c> entries (Part 5 §9.32.5).
+        /// </summary>
+        /// <remarks>
+        /// The default source is <see cref="ObjectIds.Server"/> per
+        /// Part 5 §9.32.3, which models the whole address space as the
+        /// default View.
+        /// </remarks>
+        protected void RaiseBaseModelChangeEvent(
+            ISystemContext systemContext,
+            NodeId sourceNode = default)
+        {
+            NodeId effectiveSource = sourceNode.IsNull ? ObjectIds.Server : sourceNode;
+
+            var e = new BaseModelChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "BaseModelChangeEvent",
+                "en-US",
+                "Address space model changed.");
+
+            e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+            e.SetChildValue(systemContext, BrowseNames.SourceNode, effectiveSource, false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            Server.ReportEvent(e);
+        }
+
+        /// <summary>
+        /// Returns a new <see cref="ArrayOf{T}"/> containing only those
+        /// <see cref="ModelChangeStructureDataType"/> entries whose
+        /// Affected node carries a <c>NodeVersion</c> property — when
+        /// the node is owned by this node manager. Affected nodes that
+        /// belong to a different node manager (or that cannot be
+        /// resolved) pass through unchanged. Bumps the NodeVersion of
+        /// every entry that is kept.
+        /// </summary>
+        private ArrayOf<ModelChangeStructureDataType> FilterChangesByNodeVersion(
+            ISystemContext systemContext,
+            ArrayOf<ModelChangeStructureDataType> changes)
+        {
+            var kept = new List<ModelChangeStructureDataType>(changes.Count);
+            for (int ii = 0; ii < changes.Count; ii++)
+            {
+                ModelChangeStructureDataType entry = changes[ii];
+                NodeId affected = entry.Affected;
+
+                if (affected.IsNull)
+                {
+                    continue;
+                }
+
+                if (!PredefinedNodes.TryGetValue(affected, out NodeState? affectedNode))
+                {
+                    // Not owned by this manager — pass through unchanged.
+                    kept.Add(entry);
+                    continue;
+                }
+
+                if (!affectedNode.HasNodeVersion())
+                {
+                    continue;
+                }
+
+                affectedNode.BumpNodeVersion(systemContext);
+                kept.Add(entry);
+            }
+
+            return new ArrayOf<ModelChangeStructureDataType>(kept.ToArray());
+        }
+
+        /// <summary>
+        /// The model change aggregator used by <see cref="CreateNodeAsync"/> /
+        /// <see cref="DeleteNodeAsync"/> to batch address-space changes
+        /// per publish cycle.
+        /// </summary>
+        protected Opc.Ua.Server.NodeManager.ModelChangeAggregator ModelChangeAggregator { get; }
+            = new Opc.Ua.Server.NodeManager.ModelChangeAggregator();
+
+        /// <summary>
+        /// Gets or sets whether the framework automatically emits
+        /// <c>GeneralModelChangeEventType</c> from <see cref="CreateNodeAsync"/>
+        /// / <see cref="DeleteNodeAsync"/>. Default: <c>true</c>.
+        /// </summary>
+        public bool ModelChangeEmissionEnabled { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether <see cref="RaiseGeneralModelChangeEvent"/>
+        /// and the auto-emit paths require the affected node to carry a
+        /// <c>NodeVersion</c> property (per Part 5 §9.32.2). When
+        /// <c>true</c> (the default) nodes without a NodeVersion neither
+        /// appear in the emitted <c>Changes[]</c> array nor cause a
+        /// <c>GeneralModelChangeEvent</c> to be raised on their own.
+        /// Set to <c>false</c> to opt back into the legacy
+        /// unconditional behaviour.
+        /// </summary>
+        public bool RequireNodeVersionForModelChange { get; set; } = true;
+
+        /// <summary>
+        /// Marks <paramref name="node"/> as eligible to trigger
+        /// <c>ModelChangeEvents</c> by attaching a <c>NodeVersion</c>
+        /// property in this manager's primary namespace if none is
+        /// present, and wiring an <c>OnWriteValue</c> handler that
+        /// posts a <c>BaseModelChangeEvent</c> whenever the property is
+        /// written by an external client (Part 5 §9.32.2). Idempotent.
+        /// </summary>
+        /// <param name="node">The node to enable tracking on.</param>
+        /// <param name="namespaceIndex">
+        /// Optional namespace index for the new NodeVersion property.
+        /// Defaults to this manager's <see cref="NamespaceIndex"/>.
+        /// </param>
+        /// <returns>The existing or newly attached NodeVersion property.</returns>
+        public PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null)
+        {
+            return node.EnableModelChangeTracking(
+                namespaceIndex ?? NamespaceIndex,
+                (ctx, owner) => RaiseBaseModelChangeEvent(ctx, owner.NodeId));
+        }
+
+        /// <summary>
+        /// Drains the <see cref="ModelChangeAggregator"/> and emits a
+        /// single <c>GeneralModelChangeEvent</c>. No-op when no changes
+        /// are pending.
+        /// </summary>
+        protected void EmitModelChange(ISystemContext systemContext)
+        {
+            if (!ModelChangeAggregator.HasPending)
+            {
+                return;
+            }
+            ArrayOf<ModelChangeStructureDataType> changes = ModelChangeAggregator.Drain();
+            RaiseGeneralModelChangeEvent(systemContext, changes);
         }
 
         /// <summary>
@@ -4547,7 +4806,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates if the specified event monitored item has enough permissions to receive the specified event
         /// </summary>
-        public async ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             CancellationToken cancellationToken = default)
@@ -4570,6 +4829,30 @@ namespace Opc.Ua.Server
 
             var operationContext = new OperationContext(monitoredItem);
 
+            return ValidateEventReceivePermissionsAsync(
+                operationContext,
+                eventTypeId,
+                sourceNodeId,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates <see cref="PermissionType.ReceiveEvents"/> on both the
+        /// event type node and the source node of an event. Spec reference
+        /// Part 3 §8.55 (PermissionType bit 11): "A Client only receives an
+        /// Event if this bit is set on the Node identified by the
+        /// EventTypeId field and on the Node identified by the SourceNode
+        /// field." Exposed so callers that have already extracted the two
+        /// NodeIds (for example a per-monitored-item cache) can avoid the
+        /// extra event-state inspection that
+        /// <see cref="ValidateEventRolePermissionsAsync"/> performs.
+        /// </summary>
+        public async ValueTask<ServiceResult> ValidateEventReceivePermissionsAsync(
+            OperationContext operationContext,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken = default)
+        {
             // validate the event type id permissions as specified
             ServiceResult result = await ValidateRolePermissionsAsync(
                 operationContext,
@@ -5757,6 +6040,13 @@ namespace Opc.Ua.Server
         /// The synchronaization primitive used to protect access to operations affecting the MonitoredItems owned by the NodeManager.
         /// </summary>
         protected SemaphoreSlim m_monitoredItemSemaphore = new(1, 1);
+
+        /// <summary>
+        /// Set of <see cref="NodeId"/>s that opt into multiple event consumer
+        /// task handling. Nodes in this set will use dynamic scaling of
+        /// consumer tasks based on the number of event monitored items.
+        /// </summary>
+        internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = new();
 
         /// <summary>
         /// Counter for the NodeIdFactory.New Method

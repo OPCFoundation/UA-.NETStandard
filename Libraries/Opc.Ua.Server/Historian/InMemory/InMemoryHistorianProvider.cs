@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                             continue;
                         }
 
-                        DateTime key = value.SourceTimestamp.ToDateTime();
+                        var key = value.SourceTimestamp.ToDateTime();
                         if (archive.Raw.ContainsKey(key))
                         {
                             statuses[i] = StatusCodes.BadEntryExists;
@@ -349,11 +349,11 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 if (!m_archives.TryGetValue(nodeId, out NodeArchive? archive))
                 {
-                    return new ValueTask<StatusCode>((StatusCode)StatusCodes.GoodNoData);
+                    return new ValueTask<StatusCode>(StatusCodes.GoodNoData);
                 }
 
-                DateTime start = startTime.ToDateTime();
-                DateTime end = endTime.ToDateTime();
+                var start = startTime.ToDateTime();
+                var end = endTime.ToDateTime();
                 if (start > end)
                 {
                     (start, end) = (end, start);
@@ -368,7 +368,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
                 else
                 {
-                    List<DateTime> toRemove = archive.Raw.Keys.Where(k => k >= start && k < end).ToList();
+                    List<DateTime> toRemove = [.. archive.Raw.Keys.Where(k => k >= start && k < end)];
                     foreach (DateTime key in toRemove)
                     {
                         DataValue prior = archive.Raw[key];
@@ -378,9 +378,9 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                 }
 
-                return new ValueTask<StatusCode>((StatusCode)(removed > 0
+                return new ValueTask<StatusCode>(removed > 0
                     ? StatusCodes.Good
-                    : StatusCodes.GoodNoData));
+                    : StatusCodes.GoodNoData);
             }
         }
 
@@ -414,7 +414,7 @@ namespace Opc.Ua.Server.Historian.InMemory
 
                 for (int i = 0; i < timestamps.Count; i++)
                 {
-                    DateTime key = timestamps[i].ToDateTime();
+                    var key = timestamps[i].ToDateTime();
                     if (archive.Raw.TryGetValue(key, out DataValue prior))
                     {
                         archive.Raw.Remove(key);
@@ -587,8 +587,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                 snapshot = [.. list];
             }
 
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 
@@ -600,7 +600,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < snapshot.Length && page.Count < cap; i++)
                 {
                     HistorianEventRecord rec = snapshot[i];
-                    DateTime ts = rec.SourceTimestamp.ToDateTime();
+                    var ts = rec.SourceTimestamp.ToDateTime();
                     if (ts < lo || ts >= hi)
                     {
                         continue;
@@ -613,7 +613,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = snapshot.Length - 1; i >= 0 && page.Count < cap; i--)
                 {
                     HistorianEventRecord rec = snapshot[i];
-                    DateTime ts = rec.SourceTimestamp.ToDateTime();
+                    var ts = rec.SourceTimestamp.ToDateTime();
                     if (ts < lo || ts >= hi)
                     {
                         continue;
@@ -799,7 +799,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         continue;
                     }
 
-                    DateTime key = value.SourceTimestamp.ToDateTime();
+                    var key = value.SourceTimestamp.ToDateTime();
                     bool exists = archive.Raw.TryGetValue(key, out DataValue prior);
 
                     switch (updateType)
@@ -887,7 +887,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         return statuses;
                     }
 
-                    DateTime key = value.SourceTimestamp.ToDateTime();
+                    var key = value.SourceTimestamp.ToDateTime();
                     bool exists = archive.Raw.ContainsKey(key);
 
                     StatusCode preflightResult = updateType switch
@@ -901,7 +901,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         HistoryUpdateType.Update => exists
                             ? StatusCodes.GoodEntryReplaced
                             : StatusCodes.GoodEntryInserted,
-                        _ => StatusCodes.BadInvalidArgument,
+                        _ => StatusCodes.BadInvalidArgument
                     };
 
                     if (StatusCode.IsBad(preflightResult))
@@ -921,7 +921,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 for (int i = 0; i < values.Count; i++)
                 {
                     DataValue value = values[i];
-                    DateTime key = value.SourceTimestamp.ToDateTime();
+                    var key = value.SourceTimestamp.ToDateTime();
                     if (archive.Raw.TryGetValue(key, out DataValue prior))
                     {
                         LogModification(archive, prior, updateType, context.DefaultModificationInfo);
@@ -972,7 +972,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         continue;
                     }
 
-                    DateTime key = annotation.AnnotationTime.ToDateTime();
+                    var key = annotation.AnnotationTime.ToDateTime();
                     bool exists = archive.Annotations.ContainsKey(key);
 
                     switch (updateType)
@@ -1024,8 +1024,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianRawReadRequest request,
             DateTime resumeAt)
         {
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = request.IsForward ? start : end;
             DateTime hi = request.IsForward ? end : start;
             if (lo > hi)
@@ -1053,7 +1053,6 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
             }
 
-            DateTime lastEmitted = DateTime.MinValue;
             DateTime resumeLocal = resumeAt;
             foreach (KeyValuePair<DateTime, DataValue> entry in source)
             {
@@ -1089,7 +1088,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
 
                 output.Add(new HistoricalDataValue(CloneValue(entry.Value)));
-                lastEmitted = entry.Key;
+                DateTime lastEmitted = entry.Key;
 
                 if (output.Count >= cap)
                 {
@@ -1139,8 +1138,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianModifiedReadRequest request,
             DateTime resumeAt)
         {
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 
@@ -1149,14 +1148,12 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             IEnumerable<ModificationEntry> source = request.IsForward
                 ? archive.ModifiedLog
-                : System.Linq.Enumerable.Reverse(archive.ModifiedLog);
-
-            DateTime lastEmittedKey = DateTime.MinValue;
+                : Enumerable.Reverse(archive.ModifiedLog);
             int lastEmittedSequence = -1;
 
             foreach (ModificationEntry entry in source)
             {
-                DateTime sourceTs = entry.Value.SourceTimestamp.ToDateTime();
+                var sourceTs = entry.Value.SourceTimestamp.ToDateTime();
                 if (sourceTs < lo || sourceTs >= hi)
                 {
                     continue;
@@ -1174,7 +1171,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
 
                 output.Add(new ModifiedDataValue(CloneValue(entry.Value), CloneInfo(entry.Info)));
-                lastEmittedKey = sourceTs;
+                DateTime lastEmittedKey = sourceTs;
                 lastEmittedSequence = entry.Sequence;
 
                 if (output.Count >= cap)
@@ -1192,8 +1189,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianAnnotationReadRequest request,
             DateTime resumeAt)
         {
-            DateTime start = request.StartTime.ToDateTime();
-            DateTime end = request.EndTime.ToDateTime();
+            var start = request.StartTime.ToDateTime();
+            var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 
@@ -1203,8 +1200,6 @@ namespace Opc.Ua.Server.Historian.InMemory
             IEnumerable<KeyValuePair<DateTime, Annotation>> source = request.IsForward
                 ? archive.Annotations
                 : archive.Annotations.Reverse();
-
-            DateTime lastEmittedKey = DateTime.MinValue;
             foreach (KeyValuePair<DateTime, Annotation> entry in source)
             {
                 if (entry.Key < lo || entry.Key >= hi)
@@ -1224,7 +1219,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
 
                 output.Add(CloneAnnotation(entry.Value));
-                lastEmittedKey = entry.Key;
+                DateTime lastEmittedKey = entry.Key;
 
                 if (output.Count >= cap)
                 {
@@ -1283,7 +1278,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 ModificationTime = defaultInfo.ModificationTime,
                 UpdateType = updateType,
-                UserName = defaultInfo.UserName,
+                UserName = defaultInfo.UserName
             };
             archive.ModifiedLog.Add(new ModificationEntry(CloneValue(prior), info, ++archive.SequenceCounter));
 
@@ -1306,7 +1301,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 Message = source.Message,
                 UserName = source.UserName,
-                AnnotationTime = source.AnnotationTime,
+                AnnotationTime = source.AnnotationTime
             };
         }
 
@@ -1316,7 +1311,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 ModificationTime = source.ModificationTime,
                 UpdateType = source.UpdateType,
-                UserName = source.UserName,
+                UserName = source.UserName
             };
         }
 

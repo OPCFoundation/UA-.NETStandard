@@ -66,7 +66,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(builder.Services);
+            builder.Services.AddOpcUa();
             builder.Services.TryAddSingleton<ComplexTypeSystemFactory>();
             return builder;
         }

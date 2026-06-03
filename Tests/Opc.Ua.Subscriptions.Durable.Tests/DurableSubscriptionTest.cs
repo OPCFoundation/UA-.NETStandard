@@ -34,11 +34,9 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
-
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Subscriptions.Durable.Tests
 {

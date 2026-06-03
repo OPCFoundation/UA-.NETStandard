@@ -243,7 +243,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 new OpcUaServerNodeManagerRegistration(
                     sp.GetRequiredService<WotConnectivityNodeManagerFactory>()));
 
-            OpcUaServiceCollectionExtensions.AddOpcUa(services);
+            services.AddOpcUa();
         }
 
         private sealed class WotConServerBuilder : IWotConServerBuilder
@@ -285,8 +285,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private sealed class WotConServerRegistrationMarker
-        {
-        }
+        private sealed class WotConServerRegistrationMarker;
     }
 }

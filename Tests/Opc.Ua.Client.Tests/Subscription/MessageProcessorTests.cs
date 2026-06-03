@@ -556,12 +556,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// <remarks>
         /// Mirrors the classic test's exact arrival order — <c>[3]</c>,
         /// <c>[2]</c>, <c>[4]</c>, <c>[1]</c>, <c>[5]</c> — but queues all five
-        /// while the worker is blocked. The new <see cref="MessageProcessor"/>
-        /// uses <see cref="System.Threading.Channels.Channel.CreateUnboundedPrioritized"/>
-        /// keyed by <see cref="NotificationMessage.SequenceNumber"/>, so the
-        /// burst is transparently re-ordered and drained as
-        /// <c>[1, 2, 3, 4, 5]</c> with no republishes — the reliability
-        /// guarantee the classic engine fails to provide.
+        /// while the worker is parked inside a sentinel keep-alive dispatch.
+        /// The new <see cref="MessageProcessor"/> uses
+        /// <see cref="System.Threading.Channels.Channel.CreateUnboundedPrioritized"/>
+        /// keyed by <see cref="NotificationMessage.SequenceNumber"/>, so any
+        /// items present in the channel at a single read are sorted by
+        /// sequence number. With the consumer held, the five data messages
+        /// land together and drain as <c>[1, 2, 3, 4, 5]</c> with no
+        /// republishes — the reliability guarantee the classic engine fails
+        /// to provide. (Without the sentinel, a fast consumer could read the
+        /// first arrival before the rest queue, which is what the priority
+        /// channel cannot recover from on its own.)
         /// </remarks>
         [Test]
         public async Task OutOfOrderArrivalsReorderedByPriorityChannelAsync()
@@ -576,10 +581,19 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-                // Arrange: pin the worker on the first delivery so all five
-                // messages queue up under the priority channel before any
-                // are drained.
+                // Arrange: drain the gate, then park the worker inside a
+                // sentinel keep-alive dispatch so all five data messages
+                // queue up in the priority channel before any are read.
+                // The keep-alive does not advance the data dedup gate
+                // (LastDataSequenceNumberProcessed) so the burst is still
+                // processed as a fresh sequence starting at 1.
                 sut.Block.Wait();
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 1u },
+                    availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
                 foreach (uint seq in new uint[] { 3, 2, 4, 1, 5 })
                 {
                     await sut.OnPublishReceivedAsync(BuildDataChangeMessage(seq),
@@ -590,8 +604,14 @@ namespace Opc.Ua.Client.Subscriptions
                 // Act
                 await WaitForLastSeqNumberAsync(sut, 5).ConfigureAwait(false);
 
-                // Assert
+                // Assert: the first entry is the sentinel keep-alive; the
+                // remaining entries must be the data burst in strict
+                // sequence-number order.
                 Assert.That(sut.ReceivedSequenceNumbers,
+                    Has.Count.EqualTo(6));
+                Assert.That(sut.ReceivedSequenceNumbers[0], Is.EqualTo(1u),
+                    "first entry should be the sentinel keep-alive");
+                Assert.That(sut.ReceivedSequenceNumbers.Skip(1),
                     Is.EqualTo(new uint[] { 1, 2, 3, 4, 5 }));
                 Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
                 Assert.That(sut.MissingMessageCount, Is.Zero);

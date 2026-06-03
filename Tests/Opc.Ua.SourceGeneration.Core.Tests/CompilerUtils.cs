@@ -531,10 +531,72 @@ namespace Opc.Ua.SourceGeneration
                         CancellationToken ct,
                         params Variant[] args)
                         => default;
+                    protected ValueTask<NodeId> ResolveChildNodeIdAsync(
+                        string namespaceUri,
+                        string browseName,
+                        CancellationToken ct = default)
+                        => default;
                 }
                 public class FolderState : BaseObjectState
                 {
                     public FolderState(NodeState? parent) : base(parent) { }
+                }
+                // Stubs required so the generated Opc.Ua.EventRecords.g.cs
+                // file compiles. The generator emits records deriving
+                // from EventRecord, a registration extension over
+                // EventRecordDecoderRegistry, and a per-record
+                // EventFilters.Build factory that delegates to
+                // EventFilterFactory.Create.
+                public abstract record EventRecord
+                {
+                }
+                public sealed class EventRecordDecoderRegistry
+                {
+                    public static EventRecordDecoderRegistry Default
+                        => throw new NotSupportedException();
+                    public bool TryRegister(
+                        NodeId eventTypeId,
+                        QualifiedName[][] standardFields,
+                        Func<System.Collections.Generic.IReadOnlyList<Variant>, EventRecord?> decode)
+                        => throw new NotSupportedException();
+                }
+                public static class EventFilterFactory
+                {
+                    public static EventFilter Create(
+                        NodeId eventTypeId,
+                        EventRecordDecoderRegistry? registry = null)
+                        => throw new NotSupportedException();
+                }
+                public static class EventRecordFieldReaders
+                {
+                    public static ByteString GetByteString(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static string? GetString(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static DateTime GetDateTime(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static LocalizedText GetLocalizedText(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static ushort GetUInt16(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static bool GetBool(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static StatusCode GetStatusCode(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static bool? GetNullableBool(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static double? GetNullableDouble(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static DateTime? GetNullableDateTime(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static LocalizedText[]? GetLocalizedTextArray(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static NodeId GetNodeId(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static ushort? GetNullableUInt16(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
+                    public static NodeId? GetNullableNodeId(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                        => default;
                 }
             }
             """;
@@ -929,6 +991,13 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return default;
                     }
+                    protected System.Threading.Tasks.ValueTask<NodeId> ResolveChildNodeIdAsync(
+                        string namespaceUri,
+                        string browseName,
+                        System.Threading.CancellationToken ct = default)
+                    {
+                        return default;
+                    }
                 }
                 public partial class BaseObjectTypeClient : ObjectTypeClient
                 {
@@ -969,6 +1038,58 @@ namespace Opc.Ua.SourceGeneration
                 public partial class InstrumentDiagnosticAlarmTypeClient : BaseObjectTypeClient
                 {
                     public InstrumentDiagnosticAlarmTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                // Stubs required so the Phase B Object-child accessors
+                // emitted by ObjectTypeProxyGenerator (which reference
+                // sibling proxies by full name) compile against the
+                // standard NodeSet types in the demo / model tests.
+                public partial class StateTypeClient : BaseObjectTypeClient
+                {
+                    public StateTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class InitialStateTypeClient : StateTypeClient
+                {
+                    public InitialStateTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class TransitionTypeClient : BaseObjectTypeClient
+                {
+                    public TransitionTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class TemporaryFileTransferTypeClient : BaseObjectTypeClient
+                {
+                    public TemporaryFileTransferTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FileDirectoryTypeClient : BaseObjectTypeClient
+                {
+                    public FileDirectoryTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class FileTypeClient : BaseObjectTypeClient
+                {
+                    public FileTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class StateMachineTypeClient : BaseObjectTypeClient
+                {
+                    public StateMachineTypeClient(
+                        ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
+                        : base(session, objectId, telemetry) { }
+                }
+                public partial class AcknowledgeableConditionTypeClient : ConditionTypeClient
+                {
+                    public AcknowledgeableConditionTypeClient(
                         ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
                         : base(session, objectId, telemetry) { }
                 }

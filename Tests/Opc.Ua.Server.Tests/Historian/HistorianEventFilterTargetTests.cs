@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
                 new Dictionary<string, Variant>(System.StringComparer.Ordinal)
                 {
-                    [BrowseNames.Severity] = new Variant((ushort)500),
+                    [BrowseNames.Severity] = new Variant((ushort)500)
                 });
 
             var target = new HistorianEventFilterTarget(record);

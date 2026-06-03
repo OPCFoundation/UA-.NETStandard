@@ -56,7 +56,7 @@ namespace Opc.Ua.Gds.Tests
 
             Assert.That(
                 client.ApplicationCertificateType,
-                Is.EqualTo(Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
         }
 
         [Test]
@@ -69,12 +69,12 @@ namespace Opc.Ua.Gds.Tests
                 new ApplicationConfiguration())
             {
                 ApplicationCertificateType =
-                    Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType
+                    Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType
             };
 
             Assert.That(
                 client.ApplicationCertificateType,
-                Is.EqualTo(Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType));
+                Is.EqualTo(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType));
         }
     }
 }

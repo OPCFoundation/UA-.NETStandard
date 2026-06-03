@@ -58,7 +58,7 @@ namespace Opc.Ua
     /// </code>
     /// </example>
     /// </remarks>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd, Name = "DataValue")]
+    [DataContract(Namespace = Namespaces.OpcUaXsd, Name = "DataValue")]
     public sealed class SerializableDataValue
     {
         /// <summary>
@@ -144,7 +144,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Type GetSurrogateType(Type type)
         {
-            if (type == null) { throw new ArgumentNullException(nameof(type)); }
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
             return type == typeof(DataValue) ? typeof(SerializableDataValue) : type;
         }
 
@@ -152,7 +155,10 @@ namespace Opc.Ua
         public object GetObjectToSerialize(object obj, Type targetType)
         {
             // Convert DataValue → SerializableDataValue on the way out.
-            if (obj is DataValue dv) { return new SerializableDataValue(dv); }
+            if (obj is DataValue dv)
+            {
+                return new SerializableDataValue(dv);
+            }
             return obj;
         }
 

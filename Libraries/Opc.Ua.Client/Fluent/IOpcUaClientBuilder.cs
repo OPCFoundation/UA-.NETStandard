@@ -33,7 +33,7 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Builder returned by
-    /// <see cref="Microsoft.Extensions.DependencyInjection.OpcUaClientBuilderExtensions.AddClient(Opc.Ua.IOpcUaBuilder, System.Action{OpcUaClientOptions})"/>
+    /// <see cref="OpcUaClientBuilderExtensions.AddClient(IOpcUaBuilder, System.Action{OpcUaClientOptions})"/>
     /// for further configuration of the OPC UA client services.
     /// </summary>
     public interface IOpcUaClientBuilder

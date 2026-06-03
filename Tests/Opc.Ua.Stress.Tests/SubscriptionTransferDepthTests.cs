@@ -32,9 +32,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Stress.Tests
 {
@@ -61,8 +60,13 @@ namespace Opc.Ua.Stress.Tests
         {
             if (Session != null)
             {
-                try { await Session.CloseAsync(5000, true).ConfigureAwait(false); }
-                catch { }
+                try
+                {
+                    await Session.CloseAsync(5000, true).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
                 Session.Dispose();
             }
             Session = await ClientFixture
@@ -70,6 +74,7 @@ namespace Opc.Ua.Stress.Tests
                 .ConfigureAwait(false);
             Assert.That(Session, Is.Not.Null, "Failed to create signed transfer session");
         }
+
         [Test]
         public async Task TransferSubscriptionToNewSessionSucceedsAsync()
         {
@@ -81,7 +86,7 @@ namespace Opc.Ua.Stress.Tests
                 VariableIds.Server_ServerStatus_CurrentTime)
                 .ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -120,7 +125,7 @@ namespace Opc.Ua.Stress.Tests
                 VariableIds.Server_ServerStatus_CurrentTime)
                 .ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -167,7 +172,7 @@ namespace Opc.Ua.Stress.Tests
                 VariableIds.Server_ServerStatus_CurrentTime,
                 sampling: 50).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -210,7 +215,7 @@ namespace Opc.Ua.Stress.Tests
                 ToNodeId(Constants.ScalarStaticInt32),
                 handle: 2).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -248,7 +253,7 @@ namespace Opc.Ua.Stress.Tests
                 Session, interval: 200).ConfigureAwait(false);
             uint subId = resp.SubscriptionId;
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -295,7 +300,7 @@ namespace Opc.Ua.Stress.Tests
             // Publish to generate seq numbers
             await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -331,7 +336,7 @@ namespace Opc.Ua.Stress.Tests
                 VariableIds.Server_ServerStatus_CurrentTime,
                 sampling: 50).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -378,7 +383,7 @@ namespace Opc.Ua.Stress.Tests
             await Task.Delay(300).ConfigureAwait(false);
             await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -422,7 +427,7 @@ namespace Opc.Ua.Stress.Tests
                     handle: h, sampling: 50).ConfigureAwait(false);
             }
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -468,7 +473,7 @@ namespace Opc.Ua.Stress.Tests
             await Task.Delay(300).ConfigureAwait(false);
             await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -527,7 +532,7 @@ namespace Opc.Ua.Stress.Tests
                 new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -562,7 +567,7 @@ namespace Opc.Ua.Stress.Tests
         [Test]
         public async Task TransferNonExistentSubscriptionReturnsBadAsync()
         {
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -588,7 +593,7 @@ namespace Opc.Ua.Stress.Tests
                 Session, interval: 200).ConfigureAwait(false);
             uint subId = resp.SubscriptionId;
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -637,7 +642,7 @@ namespace Opc.Ua.Stress.Tests
                 Session, interval: 200).ConfigureAwait(false);
             uint subId = resp.SubscriptionId;
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -728,7 +733,7 @@ namespace Opc.Ua.Stress.Tests
         [Test]
         public async Task TransferEmptyListBehaviorAsync()
         {
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -765,7 +770,7 @@ namespace Opc.Ua.Stress.Tests
                 null, new uint[] { subId }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -798,7 +803,7 @@ namespace Opc.Ua.Stress.Tests
                     handle: h).ConfigureAwait(false);
             }
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -859,7 +864,7 @@ namespace Opc.Ua.Stress.Tests
                 new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -921,7 +926,7 @@ namespace Opc.Ua.Stress.Tests
                 new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -964,7 +969,7 @@ namespace Opc.Ua.Stress.Tests
                     handle: h, sampling: 50).ConfigureAwait(false);
             }
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1041,7 +1046,7 @@ namespace Opc.Ua.Stress.Tests
                 new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1083,7 +1088,7 @@ namespace Opc.Ua.Stress.Tests
             // Let some data queue up
             await Task.Delay(500).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1122,7 +1127,7 @@ namespace Opc.Ua.Stress.Tests
                 VariableIds.Server_ServerStatus_CurrentTime,
                 sampling: 50).ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1167,7 +1172,7 @@ namespace Opc.Ua.Stress.Tests
             await AddItemAsync(Session, subId, nodeId)
                 .ConfigureAwait(false);
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1227,7 +1232,7 @@ namespace Opc.Ua.Stress.Tests
             uint subId = resp.SubscriptionId;
 
             // No monitored items
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1277,7 +1282,7 @@ namespace Opc.Ua.Stress.Tests
             uint seqBefore =
                 pubBefore.NotificationMessage.SequenceNumber;
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1321,7 +1326,7 @@ namespace Opc.Ua.Stress.Tests
                     .ConfigureAwait(false);
             }
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1368,7 +1373,7 @@ namespace Opc.Ua.Stress.Tests
                 Session, interval: 200).ConfigureAwait(false);
             uint subId = resp.SubscriptionId;
 
-            Client.ISession session2 = await CreateSessionAsync()
+            ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
             try
             {
@@ -1389,7 +1394,7 @@ namespace Opc.Ua.Stress.Tests
         }
 
         private async Task<CreateSubscriptionResponse> CreateSubAsync(
-            Client.ISession session,
+            ISession session,
             double interval = DefaultInterval)
         {
             return await session.CreateSubscriptionAsync(
@@ -1399,7 +1404,7 @@ namespace Opc.Ua.Stress.Tests
         }
 
         private async Task<uint> AddItemAsync(
-            Client.ISession session, uint subId, NodeId nodeId,
+            ISession session, uint subId, NodeId nodeId,
             uint handle = 1, double sampling = 100)
         {
             var item = new MonitoredItemCreateRequest
@@ -1432,20 +1437,17 @@ namespace Opc.Ua.Stress.Tests
         }
 
         private async Task<TransferSubscriptionsResponse> TransferOrIgnoreAsync(
-            Client.ISession target, uint subId, bool sendInitial)
+            ISession target, uint subId, bool sendInitial)
         {
             try
             {
-                TransferSubscriptionsResponse resp =
-                    await target.TransferSubscriptionsAsync(
-                        null,
-                        new uint[] { subId }.ToArrayOf(),
-                        sendInitial,
-                        CancellationToken.None).ConfigureAwait(false);
-
                 // Per-result Bad statuses are expected outcomes for negative
                 // tests; do not treat them as "service not supported".
-                return resp;
+                return await target.TransferSubscriptionsAsync(
+                    null,
+                    new uint[] { subId }.ToArrayOf(),
+                    sendInitial,
+                    CancellationToken.None).ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
                 when (sre.StatusCode == StatusCodes.BadServiceUnsupported ||
@@ -1459,13 +1461,13 @@ namespace Opc.Ua.Stress.Tests
             }
         }
 
-        private Task<Client.ISession> CreateSessionAsync()
+        private Task<ISession> CreateSessionAsync()
         {
             return ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256);
         }
 
-        private async Task CloseSessionAsync(Client.ISession session)
+        private async Task CloseSessionAsync(ISession session)
         {
             await session.CloseAsync(5000, true).ConfigureAwait(false);
             session.Dispose();

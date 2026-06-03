@@ -34,16 +34,14 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using ISession = Opc.Ua.Client.ISession;
-using Subscription = Opc.Ua.Client.Subscription;
 using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.AliasNames.Refresh;
-using Opc.Ua.Server.Tests;
-using Opc.Ua.Tests;
-using Quickstarts.ReferenceServer;
-
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
+using Quickstarts.ReferenceServer;
+using ISession = Opc.Ua.Client.ISession;
+using Subscription = Opc.Ua.Client.Subscription;
 
 namespace Opc.Ua.Features.Tests
 {

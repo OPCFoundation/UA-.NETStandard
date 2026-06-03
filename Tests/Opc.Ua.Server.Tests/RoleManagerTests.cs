@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -774,16 +774,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         // ----------------------------------------------------------------
-        // Gap 5: GroupId rule path
+        // Identity claims: GroupId and Role rule paths
         // ----------------------------------------------------------------
 
         [Test]
-        public void ResolveGrantedRoles_GroupIdRule_DoesNotGrantRole()
+        public void ResolveGrantedRoles_GroupIdRuleWithoutClaims_DoesNotGrantRole()
         {
             using var manager = new RoleManager();
-            // The default RoleManager cannot resolve external group claims —
-            // GroupId rules must always return false to avoid silently
-            // granting roles when no external auth service is wired up.
             Assert.That(ServiceResult.IsGood(
                 manager.AddIdentity(ObjectIds.WellKnownRole_Operator,
                     new IdentityMappingRuleType
@@ -799,7 +796,28 @@ namespace Opc.Ua.Server.Tests
 
             IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
             Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
-                "GroupId rule must never grant a role in the default in-memory implementation.");
+                "GroupId rules require an IIdentityClaims.Groups value on the identity.");
+        }
+
+        [Test]
+        public void ResolveGrantedRoles_RoleCriteriaMatchesAccessTokenRolesOnly()
+        {
+            string grantedRoleCriteria = ObjectIds.WellKnownRole_AuthenticatedUser.ToString();
+            var identity = new ClaimsTestIdentity(
+                tokenType: UserTokenType.UserName,
+                roles: new[] { "Operator" });
+
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.Role,
+                        Criteria = grantedRoleCriteria
+                    })), Is.True);
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity, null, null);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
+                "Role criteria must read access-token role claims (Part 18 §4.4.4), not already-granted role NodeIds.");
         }
 
         // ----------------------------------------------------------------

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
 {
@@ -46,9 +47,26 @@ namespace Opc.Ua.Client
         public ConfiguredEndpoint? Endpoint { get; init; }
 
         /// <summary>
-        /// Optional user identity. If null, the session uses anonymous.
+        /// Optional lazy identity provider. When both <see cref="IdentityProvider"/>
+        /// and <see cref="Identity"/> are set, the provider takes precedence
+        /// and can refresh identities after the session is connected.
         /// </summary>
+        public IClientIdentityProvider? IdentityProvider { get; init; }
+
+        /// <summary>
+        /// Optional eager user identity. If null, the session uses anonymous.
+        /// When both <see cref="IdentityProvider"/> and <see cref="Identity"/>
+        /// are set, <see cref="IdentityProvider"/> takes precedence.
+        /// </summary>
+        [Obsolete(
+            "Use IdentityProvider for lazy/refresh-capable identities; the eager Identity setter " +
+            "cannot refresh on token expiry. See Docs/IdentityProviders.md.")]
         public IUserIdentity? Identity { get; init; }
+
+        /// <summary>
+        /// Optional time provider for proactive identity refresh scheduling.
+        /// </summary>
+        public TimeProvider? TimeProvider { get; init; }
 
         /// <summary>
         /// Session display name.
@@ -133,5 +151,23 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool PoolNotifications { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// When <c>true</c>, the <see cref="ManagedSession"/> automatically
+        /// enables address-space model change tracking once connected.
+        /// It subscribes to <c>GeneralModelChangeEventType</c> on the
+        /// server's notifier (and to <c>SemanticChangeEventType</c>),
+        /// invalidates the session's <see cref="INodeCache"/> when changes
+        /// are reported, and exposes the changes via
+        /// <see cref="ManagedSession.ModelChange"/>.
+        /// </para>
+        /// <para>
+        /// Default: <c>false</c>. Enable for applications that cache
+        /// browse results long-term and need to react to dynamic
+        /// address-space changes (devices joining/leaving, type updates).
+        /// </para>
+        /// </summary>
+        public bool ModelChangeTracking { get; init; }
     }
 }

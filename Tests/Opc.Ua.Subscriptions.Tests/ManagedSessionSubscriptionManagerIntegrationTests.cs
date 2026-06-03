@@ -41,10 +41,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
-using ManagedSessionType = Opc.Ua.Client.ManagedSession;
-using V2 = Opc.Ua.Client.Subscriptions;
-
 using Opc.Ua.Client.TestFramework;
+using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
@@ -53,7 +51,7 @@ namespace Opc.Ua.Subscriptions.Tests
     /// + <see cref="ManagedSessionExtensions"/> against the
     /// in-process reference fixture server. Verifies that the V2
     /// subscription engine, exposed through the new
-    /// <see cref="ManagedSession.SubscriptionManager"/> property, can
+    /// <see cref="ManagedSessionType.SubscriptionManager"/> property, can
     /// drive subscriptions and deliver data change notifications.
     /// </summary>
     [TestFixture]
@@ -151,7 +149,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 ISubscription subscription = session.AddSubscription(
                     handler,
-                    new V2.SubscriptionOptions
+                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -281,6 +279,15 @@ namespace Opc.Ua.Subscriptions.Tests
                 PublishState publishStateMask)
             {
                 Interlocked.Increment(ref KeepAliveCount);
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
                 return default;
             }
 

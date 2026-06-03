@@ -57,7 +57,7 @@ namespace Opc.Ua.Gds.Tests
             // unique NodeId rather than colliding on NodeId.Null with the
             // namespace-less ApplicationSelfAdmin/ApplicationAdmin
             // privileges.
-            m_namespaceTable.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            m_namespaceTable.Append(Namespaces.OpcUaGds);
         }
 
         [Test]

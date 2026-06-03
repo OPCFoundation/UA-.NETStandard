@@ -670,9 +670,7 @@ namespace Opc.Ua
             {
                 _ = ReadUInt16(null);
             }
-            value = value.WithServerPicoseconds(serverPicoseconds);
-
-            return value;
+            return value.WithServerPicoseconds(serverPicoseconds);
         }
 
         /// <inheritdoc/>
@@ -1668,7 +1666,7 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return Variant.From(ReadExtensionObject(null));
                     case BuiltInType.DataValue:
-return Variant.From(ReadDataValue(null));
+                        return Variant.From(ReadDataValue(null));
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
