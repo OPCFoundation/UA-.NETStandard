@@ -267,7 +267,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the TickCount in ms of the last keep alive based on <see cref="TimeProvider"/>.
         /// </summary>
+        [Obsolete("Use LastKeepAliveTimestamp + TimeProvider.GetElapsedTime. " +
+            "LastKeepAliveTickCount is a 32-bit value that wraps every ~49.7 days.")]
         int LastKeepAliveTickCount { get; }
+
+        /// <summary>
+        /// Gets the monotonic timestamp (from <see cref="TimeProvider.GetTimestamp"/>) of the
+        /// last keep alive. Use together with <see cref="TimeProvider.GetElapsedTime(long)"/>
+        /// to compute the elapsed time since the last keep alive without DateTime drift or
+        /// 32-bit tick wrap.
+        /// </summary>
+        long LastKeepAliveTimestamp { get; }
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.

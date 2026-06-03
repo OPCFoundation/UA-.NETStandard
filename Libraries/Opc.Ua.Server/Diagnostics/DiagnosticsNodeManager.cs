@@ -667,7 +667,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void ForceDiagnosticsScan()
         {
-            m_lastDiagnosticsScanTime = DateTime.MinValue;
+            m_forceDiagnosticsScan = true;
         }
 
         /// <inheritdoc/>
@@ -1666,7 +1666,9 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                if (m_timeProvider.GetUtcNow().UtcDateTime < m_lastDiagnosticsScanTime.AddSeconds(1))
+                if (!m_forceDiagnosticsScan &&
+                    m_timeProvider.GetElapsedTime(m_lastDiagnosticsScanTimestamp) <
+                        TimeSpan.FromSeconds(1))
                 {
                     return;
                 }
@@ -1690,7 +1692,9 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadOutOfService;
                 }
 
-                if (m_timeProvider.GetUtcNow().UtcDateTime < m_lastDiagnosticsScanTime.AddSeconds(1))
+                if (!m_forceDiagnosticsScan &&
+                    m_timeProvider.GetElapsedTime(m_lastDiagnosticsScanTimestamp) <
+                        TimeSpan.FromSeconds(1))
                 {
                     // diagnostic nodes already scanned.
                     return ServiceResult.Good;
@@ -1787,7 +1791,8 @@ namespace Opc.Ua.Server
                     {
                         m_doScanBusy = true;
 
-                        m_lastDiagnosticsScanTime = m_timeProvider.GetUtcNow().UtcDateTime;
+                        m_lastDiagnosticsScanTimestamp = m_timeProvider.GetTimestamp();
+                        m_forceDiagnosticsScan = false;
 
                         // update server diagnostics.
                         UpdateServerDiagnosticsSummary();
@@ -2212,7 +2217,8 @@ namespace Opc.Ua.Server
         private int m_diagnosticsMonitoringCount;
         private bool m_doScanBusy;
         private readonly bool m_durableSubscriptionsEnabled;
-        private DateTime m_lastDiagnosticsScanTime;
+        private long m_lastDiagnosticsScanTimestamp;
+        private bool m_forceDiagnosticsScan = true;
         private ServerDiagnosticsSummaryValue? m_serverDiagnostics;
         private NodeValueSimpleEventHandler? m_serverDiagnosticsCallback;
         private readonly List<SessionDiagnosticsData> m_sessions;

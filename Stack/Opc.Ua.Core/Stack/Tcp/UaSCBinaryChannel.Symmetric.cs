@@ -67,16 +67,21 @@ namespace Opc.Ua.Bindings
                 ChannelId = Id,
                 TokenId = 0,
                 CreatedAt = TimeProvider.GetUtcNow().UtcDateTime,
+#pragma warning disable CS0618 // Back-compat: keep populating CreatedAtTickCount for callers
                 CreatedAtTickCount = TimeProvider.GetTickCount(),
+#pragma warning restore CS0618
+                CreatedAtTimestamp = TimeProvider.GetTimestamp(),
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
+#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
             m_logger.LogInformation(
                 "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
                 Id,
                 token.CreatedAt,
                 token.CreatedAtTickCount,
                 token.Lifetime);
+#pragma warning restore CS0618
 
             return token;
         }
@@ -96,6 +101,7 @@ namespace Opc.Ua.Bindings
 
             OnTokenActivated?.Invoke(token, PreviousToken);
 
+#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
             m_logger.LogInformation(
                 "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
                 Id,
@@ -103,6 +109,7 @@ namespace Opc.Ua.Bindings
                 token.CreatedAt,
                 token.CreatedAtTickCount,
                 token.Lifetime);
+#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -112,6 +119,7 @@ namespace Opc.Ua.Bindings
         {
             RenewedToken?.Dispose();
             RenewedToken = token;
+#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
             m_logger.LogInformation(
                 "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
                 Id,
@@ -119,6 +127,7 @@ namespace Opc.Ua.Bindings
                 token.CreatedAt,
                 token.CreatedAtTickCount,
                 token.Lifetime);
+#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -565,7 +574,8 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken is { ActivationRequired: true } currentTokenForLog)
+            else if (RenewedToken != null && CurrentToken is { } currentTokenForLog &&
+                currentTokenForLog.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);
                 m_logger.LogInformation(
@@ -606,6 +616,7 @@ namespace Opc.Ua.Bindings
             // check if token has expired.
             if (token.IsExpired(TimeProvider))
             {
+#pragma warning disable CS0618 // Back-compat: log CreatedAtTickCount for diagnostic parity.
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
                     "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}-{3}",
@@ -613,6 +624,7 @@ namespace Opc.Ua.Bindings
                     token.TokenId,
                     token.CreatedAt,
                     token.CreatedAtTickCount);
+#pragma warning restore CS0618
             }
 
             int headerSize = decoder.Position;

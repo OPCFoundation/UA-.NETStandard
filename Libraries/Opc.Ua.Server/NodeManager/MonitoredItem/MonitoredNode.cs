@@ -669,26 +669,26 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem)
         {
             uint monitoredItemId = monitoredItem.Id;
-            int currentTicks = m_timeProvider.GetTickCount();
+            long currentTimestamp = m_timeProvider.GetTimestamp();
             OperationContext operationContext;
 
             // Check if the context already exists in the cache
             if (m_contextCache.TryGetValue(
                     monitoredItemId,
-                    out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
+                    out (ServerSystemContext Context, long CreatedAtTimestamp) cachedEntry))
             {
                 // Refresh context if the owning session changed (e.g. after subscription transfer)
                 // or if the cache entry has expired.
                 // Note: identity-based invalidation is handled proactively by
                 // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
                 if (cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
-                    (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
+                    m_timeProvider.GetElapsedTime(cachedEntry.CreatedAtTimestamp) > m_cacheLifetime)
                 {
                     operationContext = new OperationContext(monitoredItem);
 
                     ServerSystemContext updatedContext = context.Copy(
                         operationContext);
-                    m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
+                    m_contextCache[monitoredItemId] = (updatedContext, currentTimestamp);
 
                     // Invalidate the permission cache since the session context has changed.
                     m_permissionCache.TryRemove(monitoredItemId, out _);
@@ -702,7 +702,7 @@ namespace Opc.Ua.Server
             // Create a new context and add it to the cache
             operationContext = new OperationContext(monitoredItem);
             ServerSystemContext newContext = context.Copy(operationContext);
-            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
+            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTimestamp));
 
             return newContext;
         }
@@ -807,7 +807,7 @@ namespace Opc.Ua.Server
             public CancellationTokenSource Cts { get; }
         }
 
-        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache =
             new();
 
         private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
@@ -816,7 +816,7 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<EventPermissionCacheKey, ServiceResult> m_eventPermissionCache =
             new();
 
-        private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
+        private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;

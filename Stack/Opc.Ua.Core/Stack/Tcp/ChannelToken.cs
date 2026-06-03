@@ -101,7 +101,17 @@ namespace Opc.Ua.Bindings
         /// When the token was created (refers to the local tick count).
         /// Used for calculation of renewals. Uses <c>HiResClock.TickCount</c>.
         /// </summary>
+        [Obsolete("Use CreatedAtTimestamp via IsExpired(TimeProvider) / " +
+            "IsActivationRequired(TimeProvider) for monotonic, non-wrapping duration math.")]
         public int CreatedAtTickCount { get; set; }
+
+        /// <summary>
+        /// When the token was created (monotonic timestamp from
+        /// <see cref="TimeProvider.GetTimestamp"/>).
+        /// Used internally for renewal calculations to avoid the 32-bit wrap of
+        /// <see cref="CreatedAtTickCount"/>.
+        /// </summary>
+        internal long CreatedAtTimestamp { get; set; }
 
         /// <summary>
         /// The lifetime of the token in milliseconds.
@@ -112,11 +122,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Whether the token has expired.
         /// </summary>
+        [Obsolete("Use IsExpired(TimeProvider) instead — the supplied TimeProvider " +
+            "participates in mocking and avoids the 32-bit tick wrap.")]
         public bool Expired => (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
 
         /// <summary>
         /// Whether the token should be activated in case a new one is already created.
         /// </summary>
+        [Obsolete("Use IsActivationRequired(TimeProvider) instead — the supplied " +
+            "TimeProvider participates in mocking and avoids the 32-bit tick wrap.")]
         public bool ActivationRequired =>
             (HiResClock.TickCount - CreatedAtTickCount) >
             (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
@@ -128,7 +142,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal bool IsExpired(TimeProvider timeProvider)
         {
-            return unchecked(timeProvider.GetTickCount() - CreatedAtTickCount) > Lifetime;
+            return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds > Lifetime;
         }
 
         /// <summary>
@@ -137,8 +151,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal bool IsActivationRequired(TimeProvider timeProvider)
         {
-            return unchecked(timeProvider.GetTickCount() - CreatedAtTickCount) >
-                (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+            return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds >
+                Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
         }
 
         /// <summary>

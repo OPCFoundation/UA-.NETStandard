@@ -712,8 +712,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs e)
         {
-            int startTime = m_timeProvider.GetTickCount();
-            int endTime = startTime + (m_configuration?.HoldTime ?? 15000);
+            long startTimestamp = m_timeProvider.GetTimestamp();
+            TimeSpan holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
 
             bool matched = MatchRegistration(sender, e);
             while (!matched)
@@ -724,10 +724,10 @@ namespace Opc.Ua.Client
                 {
                     ct = m_cts.Token;
                 }
-                int delay = endTime - m_timeProvider.GetTickCount();
-                if (delay > 0)
+                TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
+                if (delay > TimeSpan.Zero)
                 {
-                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(delay), ct)
+                    await m_timeProvider.Delay(delay, ct)
                         .ContinueWith(tsk =>
                         {
                             if (tsk.IsCanceled)
@@ -739,7 +739,7 @@ namespace Opc.Ua.Client
                                         "Matched reverse connection {ServerUri} {EndpointUrl} after {Duration}ms",
                                         e.ServerUri,
                                         e.EndpointUrl,
-                                        m_timeProvider.GetTickCount() - startTime);
+                                        (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
                                 }
                             }
                         },
@@ -756,7 +756,7 @@ namespace Opc.Ua.Client
                 e.Accepted ? "Accepted" : "Rejected",
                 e.ServerUri,
                 e.EndpointUrl,
-                m_timeProvider.GetTickCount() - startTime);
+                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
         }
 
         /// <summary>

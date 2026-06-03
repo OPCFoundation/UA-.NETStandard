@@ -390,7 +390,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async void OnReconnectAsync(object? state)
         {
-            int reconnectStart = m_timeProvider.GetTickCount();
+            long reconnectStartTimestamp = m_timeProvider.GetTimestamp();
             try
             {
                 // check for exit.
@@ -459,7 +459,8 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int elapsed = m_timeProvider.GetTickCount() - reconnectStart;
+                        int elapsed = (int)m_timeProvider
+                            .GetElapsedTime(reconnectStartTimestamp).TotalMilliseconds;
                         m_logger.LogInformation(
                             "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.",
                             m_reconnectPeriod,
@@ -534,7 +535,8 @@ namespace Opc.Ua.Client
                             // check if reactivating is still an option.
                             int timeout =
                                 Convert.ToInt32(current.SessionTimeout) -
-                                (m_timeProvider.GetTickCount() - current.LastKeepAliveTickCount);
+                                (int)m_timeProvider.GetElapsedTime(
+                                    current.LastKeepAliveTimestamp).TotalMilliseconds;
                             if (timeout > 0)
                             {
                                 m_logger.LogInformation(

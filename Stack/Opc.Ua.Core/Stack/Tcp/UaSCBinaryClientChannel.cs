@@ -1447,7 +1447,7 @@ namespace Opc.Ua.Bindings
             int timeToRenewal =
                 (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalPeriod) +
                 jitter -
-                unchecked(TimeProvider.GetTickCount() - token.CreatedAtTickCount);
+                (int)TimeProvider.GetElapsedTime(token.CreatedAtTimestamp).TotalMilliseconds;
             if (timeToRenewal < 0)
             {
                 timeToRenewal = 0;

@@ -857,7 +857,17 @@ namespace Opc.Ua.Client
         /// Gets the TickCount in ms of the last keep alive based on <see cref="TimeProvider"/>.
         /// Independent of system time changes.
         /// </summary>
+        [Obsolete("Use LastKeepAliveTimestamp + TimeProvider.GetElapsedTime. " +
+            "LastKeepAliveTickCount is a 32-bit value that wraps every ~49.7 days.")]
         public int LastKeepAliveTickCount { get; private set; }
+
+        /// <summary>
+        /// Gets the monotonic timestamp (from <see cref="TimeProvider.GetTimestamp"/>) of the
+        /// last keep alive. Use together with <see cref="TimeProvider.GetElapsedTime(long)"/>
+        /// to compute the elapsed time since the last keep alive without DateTime drift or
+        /// 32-bit tick wrap.
+        /// </summary>
+        public long LastKeepAliveTimestamp => m_lastKeepAliveTimestamp;
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
@@ -3308,7 +3318,9 @@ namespace Opc.Ua.Client
                 ref m_lastKeepAliveTime,
                 m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
             m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+#pragma warning disable CS0618 // Back-compat: keep populating LastKeepAliveTickCount.
             LastKeepAliveTickCount = m_timeProvider.GetTickCount();
+#pragma warning restore CS0618
 
             m_serverState = ServerState.Unknown;
 
@@ -3463,7 +3475,7 @@ namespace Opc.Ua.Client
                     ? int.MaxValue
                     : PublishRequestCancelDelayOnCloseSession;
 
-                int startTime = m_timeProvider.GetTickCount();
+                long startTimestamp = m_timeProvider.GetTimestamp();
                 while (true)
                 {
                     // Check if all publish requests completed
@@ -3486,7 +3498,7 @@ namespace Opc.Ua.Client
                     }
 
                     // Check timeout
-                    int elapsed = m_timeProvider.GetTickCount() - startTime;
+                    int elapsed = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
                     if (elapsed >= waitTimeout)
                     {
                         m_logger.LogWarning(
@@ -3604,7 +3616,7 @@ namespace Opc.Ua.Client
                         RequestId = requestId,
                         RequestTypeId = typeId,
                         Result = result,
-                        TickCount = m_timeProvider.GetTickCount()
+                        Timestamp = m_timeProvider.GetTimestamp()
                     };
 
                     m_outstandingRequests.AddLast(state);
@@ -3629,14 +3641,16 @@ namespace Opc.Ua.Client
                 if (state != null)
                 {
                     // mark any old requests as defunct (i.e. the should have returned before this request).
-                    const int maxAge = 1000;
+                    TimeSpan maxAge = TimeSpan.FromMilliseconds(1000);
 
                     for (LinkedListNode<AsyncRequestState>? ii = m_outstandingRequests.First;
                         ii != null;
                         ii = ii.Next)
                     {
                         if (ii.Value.RequestTypeId == typeId &&
-                            (state.TickCount - ii.Value.TickCount) > maxAge)
+                            m_timeProvider.GetElapsedTime(
+                                ii.Value.Timestamp,
+                                state.Timestamp) > maxAge)
                         {
                             ii.Value.Defunct = true;
                         }
@@ -3654,7 +3668,7 @@ namespace Opc.Ua.Client
                         RequestId = requestId,
                         RequestTypeId = typeId,
                         Result = result,
-                        TickCount = m_timeProvider.GetTickCount(),
+                        Timestamp = m_timeProvider.GetTimestamp(),
                         Activity = null
                     };
 
@@ -3790,7 +3804,9 @@ namespace Opc.Ua.Client
                     ref m_lastKeepAliveTime,
                     m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
                 m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+#pragma warning disable CS0618 // Back-compat: keep populating LastKeepAliveTickCount.
                 LastKeepAliveTickCount = m_timeProvider.GetTickCount();
+#pragma warning restore CS0618
 
                 lock (m_outstandingRequests)
                 {
@@ -3814,7 +3830,9 @@ namespace Opc.Ua.Client
                     ref m_lastKeepAliveTime,
                     m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
                 m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+#pragma warning disable CS0618 // Back-compat: keep populating LastKeepAliveTickCount.
                 LastKeepAliveTickCount = m_timeProvider.GetTickCount();
+#pragma warning restore CS0618
             }
 
             // save server state.
@@ -4916,7 +4934,7 @@ namespace Opc.Ua.Client
         {
             public uint RequestTypeId { get; init; }
             public uint RequestId { get; init; }
-            public int TickCount { get; init; }
+            public long Timestamp { get; init; }
             public required Task Result { get; set; }
             public bool Defunct { get; set; }
             public required Activity? Activity { get; init; }
