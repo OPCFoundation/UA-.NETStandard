@@ -55,9 +55,9 @@ The server implementation also provides support for:
 
 The following server profiles/facets have limited or incomplete support:
 
-- **Alarms & Conditions** - Support for latched/silenced alarms, alarm groups, and suppression engine is available. Coverage of all OPC UA Part 9 alarm types and advanced features may be limited (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Alarms & Conditions** - Comprehensive support for core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. Coverage of all OPC UA Part 9 event types may be limited (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
 - **Historical Access** - Support for historical data access is available with configurable aggregation and retention policies. Advanced historical aggregates may have limited functionality (see [Historical Access documentation](HistoricalAccess.md))
-- **Events** - The general event mechanism is supported including alarms, conditions, and model change notifications. Individual event type implementations may be incomplete.
+- **Events** - The general event notification mechanism is fully supported including system events, alarms, conditions, and model change notifications. Coverage of specialized event types from specific companion specifications may vary.
 - **Aggregates Server Facet** - Historical data aggregation
 - **Query Server Facet** - Advanced query capabilities
 
