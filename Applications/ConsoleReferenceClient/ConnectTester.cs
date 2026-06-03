@@ -146,7 +146,7 @@ namespace Quickstarts
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
-                var userNameidentity = new UserIdentity(s_settings.UserName, new UTF8Encoding(false).GetBytes(s_settings.Password));
+                var userNameProvider = await CreateUserNameProviderAsync(ct).ConfigureAwait(false);
 
                 foreach (EndpointDescription ii in endpoints.ToArray()!)
                 {
@@ -348,10 +348,10 @@ namespace Quickstarts
                 "connect-tester-password",
                 passwordStore.StoreType);
             await passwordStore
-                .SetAsync(passwordId, new UTF8Encoding(false).GetBytes(kPassword), ct)
+                .SetAsync(passwordId, new UTF8Encoding(false).GetBytes(s_settings.Password), ct)
                 .ConfigureAwait(false);
             return new UserNamePasswordIdentityProvider(
-                kUserName,
+                s_settings.UserName,
                 new SecretRegistry(passwordStore),
                 passwordId);
         }
