@@ -96,7 +96,7 @@ namespace Opc.Ua
             m_cache = new CertificateCache(telemetry);
             m_noSubDirs = noSubDirs;
             m_certificates = [];
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

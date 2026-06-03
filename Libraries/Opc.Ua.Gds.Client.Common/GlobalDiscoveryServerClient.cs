@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Client
                     ReturnDiagnostics = diagnosticsMasks
                 };
             AdminCredentials = adminUserIdentity;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>

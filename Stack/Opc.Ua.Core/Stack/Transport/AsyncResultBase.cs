@@ -92,7 +92,7 @@ namespace Opc.Ua
             m_startTimestamp = 0;
             m_logger = logger ?? LoggerUtils.Null.Logger;
             m_cts = cts;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             if (timeout > 0)
             {

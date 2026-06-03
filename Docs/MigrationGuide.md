@@ -1833,7 +1833,7 @@ public sealed class Foo
     public Foo(/* existing args */, TimeProvider? timeProvider = null)
     {
         // existing initialisation…
-        m_timeProvider = timeProvider ??= TimeProvider.System;
+        m_timeProvider = timeProvider ?? TimeProvider.System;
     }
 }
 ```

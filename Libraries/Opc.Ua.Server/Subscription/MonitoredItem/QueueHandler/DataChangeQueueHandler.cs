@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             m_discardedValueHandler = discardedValueHandler!;
             m_monitoredItemId = monitoredItemId;
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server
             m_nextSampleTime = 0;
             m_overflow = default;
             m_overflowPending = false;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             SetSamplingInterval(samplingInterval);
         }
 

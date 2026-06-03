@@ -77,7 +77,7 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_manager = new SubscriptionManager(
                 new EngineContextAdapter(context, m_timeProvider),
                 context.Telemetry.LoggerFactory,

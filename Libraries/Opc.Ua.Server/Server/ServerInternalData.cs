@@ -94,7 +94,7 @@ namespace Opc.Ua.Server
             IServiceMessageContext messageContext,
             TimeProvider? timeProvider)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;

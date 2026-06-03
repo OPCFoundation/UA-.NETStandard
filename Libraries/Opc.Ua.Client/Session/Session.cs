@@ -187,7 +187,11 @@ namespace Opc.Ua.Client
             m_keepAliveInterval = template.KeepAliveInterval;
 
             // Create timer for keep alive event triggering but in off state
-            m_keepAliveTimer = m_timeProvider.CreateTimer(_ => m_keepAliveEvent.Set(), this, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            m_keepAliveTimer = m_timeProvider.CreateTimer(
+                _ => m_keepAliveEvent.Set(),
+                this,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
 
             m_checkDomain = template.m_checkDomain;
             ContinuationPointPolicy = template.ContinuationPointPolicy;
@@ -236,7 +240,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(messageContext));
             }
 
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
@@ -291,7 +295,11 @@ namespace Opc.Ua.Client
             m_nodeCache = new NodeCache(new NodeCacheContext(this), m_telemetry);
 
             // Create timer for keep alive event triggering but in off state
-            m_keepAliveTimer = m_timeProvider.CreateTimer(_ => m_keepAliveEvent.Set(), this, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            m_keepAliveTimer = m_timeProvider.CreateTimer(
+                _ => m_keepAliveEvent.Set(),
+                this,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
 
             // Create the subscription engine. Session defaults to the
             // classic engine (legacy applications + classic Subscription
@@ -820,11 +828,12 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) ||
                     lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    int delta = m_timeProvider.GetTickCount() - LastKeepAliveTickCount;
+                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
 
                     // add a guard band to allow for network lag.
-                    return ((m_keepAliveInterval * m_keepAliveIntervalFactor) +
-                        m_keepAliveGuardBand) <= delta;
+                    return TimeSpan.FromMilliseconds(
+                        (m_keepAliveInterval * m_keepAliveIntervalFactor) +
+                        m_keepAliveGuardBand) <= elapsed;
                 }
 
                 // another error was reported which caused keep alive to stop.
@@ -3032,8 +3041,10 @@ namespace Opc.Ua.Client
 
                 header.TimeoutHint = kReconnectTimeout;
 
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeout.CancelAfter(TimeSpan.FromMilliseconds(kReconnectTimeout / 2));
+                using CancellationTokenSource timeoutCts = m_timeProvider
+                    .CreateCancellationTokenSource(TimeSpan.FromMilliseconds(kReconnectTimeout / 2));
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+                    ct, timeoutCts.Token);
                 try
                 {
                     // reactivate session.
@@ -3296,6 +3307,7 @@ namespace Opc.Ua.Client
             Interlocked.Exchange(
                 ref m_lastKeepAliveTime,
                 m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+            m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
             LastKeepAliveTickCount = m_timeProvider.GetTickCount();
 
             m_serverState = ServerState.Unknown;
@@ -3777,6 +3789,7 @@ namespace Opc.Ua.Client
                 Interlocked.Exchange(
                     ref m_lastKeepAliveTime,
                     m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
                 LastKeepAliveTickCount = m_timeProvider.GetTickCount();
 
                 lock (m_outstandingRequests)
@@ -3800,6 +3813,7 @@ namespace Opc.Ua.Client
                 Interlocked.Exchange(
                     ref m_lastKeepAliveTime,
                     m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
                 LastKeepAliveTickCount = m_timeProvider.GetTickCount();
             }
 
@@ -3830,10 +3844,10 @@ namespace Opc.Ua.Client
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 //keep alive read timed out
-                int delta = m_timeProvider.GetTickCount() - LastKeepAliveTickCount;
+                TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
                 m_logger.LogInformation(
                     "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}, RequestCount={Good}/{Outstanding}",
-                    delta,
+                    elapsed.TotalMilliseconds,
                     Endpoint?.EndpointUrl,
                     GoodPublishRequestCount,
                     OutstandingRequestCount);
@@ -4868,6 +4882,7 @@ namespace Opc.Ua.Client
         private Certificate? m_serverCertificate;
 #pragma warning restore CA2213
         private long m_lastKeepAliveTime;
+        private long m_lastKeepAliveTimestamp;
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;

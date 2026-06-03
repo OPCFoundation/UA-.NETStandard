@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Tests.Streaming
             Assert.That(async () =>
             {
                 await foreach (int _ in InfiniteWithDelay(10)
-                    .WithTimeoutAsync(TimeSpan.FromSeconds(5), cts.Token))
+                    .WithTimeoutAsync(TimeSpan.FromSeconds(5), ct: cts.Token))
                 {
                     // Drains until the outer CT cancels — should throw OCE,
                     // not silently complete the way the internal timeout

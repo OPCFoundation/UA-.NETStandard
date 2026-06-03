@@ -104,7 +104,7 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(reconnectPolicy));
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>Current connection state.</summary>

@@ -80,7 +80,7 @@ namespace Opc.Ua.Client
         public Subscription(ITelemetryContext telemetry, SubscriptionOptions? options,
             TimeProvider? timeProvider)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             Telemetry = telemetry ?? AmbientMessageContext.Telemetry;
             m_logger = Telemetry.CreateLogger<Subscription>();
             State = options ?? new SubscriptionOptions();

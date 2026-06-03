@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client
 {
-    using System;
-
     /// <summary>
     /// Factory that creates <see cref="ClassicSubscriptionEngine"/>
     /// instances. This is the default factory used when no custom
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public ClassicSubscriptionEngineFactory(TimeProvider? timeProvider = null)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>

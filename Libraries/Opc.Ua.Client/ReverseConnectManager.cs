@@ -215,7 +215,7 @@ namespace Opc.Ua.Client
         /// async timeouts. Defaults to <see cref="TimeProvider.System"/>.</param>
         public ReverseConnectManager(ITelemetryContext telemetry, TimeProvider? timeProvider)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ReverseConnectManager>();
             m_state = ReverseConnectManagerState.New;

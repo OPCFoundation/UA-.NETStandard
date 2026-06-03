@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub
 
             m_telemetry = telemetry;
             DataStore = dataStore ?? new UaPubSubDataStore();
-            TimeProvider = timeProvider ??= TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
 
             if (!string.IsNullOrEmpty(applicationId))
             {

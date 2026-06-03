@@ -67,7 +67,7 @@ namespace Opc.Ua.Lds.Server
             : base(telemetry)
         {
             m_telemetry = telemetry;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_lock = new SemaphoreSlim(1, 1);
             Store = new RegisteredServerStore(timeProvider: m_timeProvider);
         }

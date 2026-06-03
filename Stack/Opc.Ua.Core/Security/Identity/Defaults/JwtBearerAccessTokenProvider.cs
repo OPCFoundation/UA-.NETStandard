@@ -73,7 +73,7 @@ namespace Opc.Ua.Identity
             m_tokenBytes = (byte[])tokenBytes.Clone();
             m_expiresAt = expiresAt;
             m_displayName = displayName ?? string.Empty;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

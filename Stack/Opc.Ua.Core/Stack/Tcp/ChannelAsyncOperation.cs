@@ -65,7 +65,7 @@ namespace Opc.Ua.Bindings
             m_synchronous = false;
             m_completed = false;
             m_logger = logger;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             if (timeout is > 0 and not int.MaxValue)
             {
@@ -269,7 +269,7 @@ namespace Opc.Ua.Bindings
                     if (timeout != int.MaxValue)
                     {
                         awaitableTask = m_tcs.Task
-                            .WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
+                            .WaitAsync(TimeSpan.FromMilliseconds(timeout), m_timeProvider, ct);
                     }
                     else if (ct != default)
                     {

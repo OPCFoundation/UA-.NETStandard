@@ -113,7 +113,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public void Dispose()

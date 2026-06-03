@@ -91,7 +91,7 @@ namespace Opc.Ua
                     new DirectoryStoreProvider(),
                     new X509StoreProvider()
                 ];
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(

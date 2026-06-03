@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client
 {
-    using System;
-
     /// <summary>
     /// Factory that creates <see cref="DefaultSubscriptionEngine"/>
     /// instances backed by the V2 channel-based publish pipeline.
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
         /// used.</param>
         public DefaultSubscriptionEngineFactory(TimeProvider? timeProvider = null)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>

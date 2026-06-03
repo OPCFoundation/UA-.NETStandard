@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub
             Interval = interval;
             CanExecuteFunc = canExecuteFunc;
             IntervalActionAsync = intervalActionAsync;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

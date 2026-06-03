@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Hosting
                 throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

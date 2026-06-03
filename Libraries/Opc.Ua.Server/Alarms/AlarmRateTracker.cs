@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Alarms
         public AlarmRateTracker(TimeSpan? windowDuration, TimeProvider? timeProvider)
         {
             WindowDuration = windowDuration ?? TimeSpan.FromMinutes(1);
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

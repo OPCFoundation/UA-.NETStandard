@@ -89,7 +89,7 @@ namespace Opc.Ua.Client.Subscriptions
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             Observability = telemetry;
             AvailableInRetransmissionQueue = [];
             Logger = Observability.LoggerFactory.CreateLogger<Subscription>();

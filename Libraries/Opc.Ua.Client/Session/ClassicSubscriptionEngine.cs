@@ -62,7 +62,7 @@ namespace Opc.Ua.Client
                 .CreateLogger<ClassicSubscriptionEngine>();
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>

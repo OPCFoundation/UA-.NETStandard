@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Subscriptions
             ILoggerFactory loggerFactory, DiagnosticsMasks returnDiagnostics,
             TimeProvider? timeProvider = null)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_session = session;
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
@@ -508,12 +508,13 @@ namespace Opc.Ua.Client.Subscriptions
                 // SubscriptionId. Items still need ApplyChangesAsync to
                 // round-trip but that runs in the same state-manager
                 // iteration as CreateAsync.
-                using var timeoutCts = CancellationTokenSource
-                    .CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+                using CancellationTokenSource timeoutCts = m_timeProvider
+                    .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
+                using var linkedCts = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct, timeoutCts.Token);
                 try
                 {
-                    await loaded.WaitForCreatedAsync(timeoutCts.Token)
+                    await loaded.WaitForCreatedAsync(linkedCts.Token)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -1132,8 +1133,10 @@ namespace Opc.Ua.Client.Subscriptions
                 CancellationToken ct)
             {
                 Debug.Assert(maxWaitTime != 0, "Checked before entering");
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 long swStart = m_outer.m_timeProvider.GetTimestamp();
+                CancellationTokenSource? timeoutCts = null;
+                CancellationTokenSource? linkedCts = null;
+                CancellationToken waitToken;
                 if (maxWaitTime != Timeout.Infinite)
                 {
 #if FALSE
@@ -1148,18 +1151,23 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Waiting max {Time}ms for acks to arrive.",
                         Index, maxWaitTime);
-                    cts.CancelAfter(maxWaitTime);
+                    timeoutCts = m_outer.m_timeProvider
+                        .CreateCancellationTokenSource(TimeSpan.FromMilliseconds(maxWaitTime));
+                    linkedCts = CancellationTokenSource
+                        .CreateLinkedTokenSource(ct, timeoutCts.Token);
+                    waitToken = linkedCts.Token;
                 }
                 else
                 {
                     m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Waiting for acks to arrive.",
                         Index);
+                    waitToken = ct;
                 }
                 try
                 {
                     SubscriptionAcknowledgement firstAck = await m_outer.m_acks.Reader.ReadAsync(
-                        cts.Token).ConfigureAwait(false);
+                        waitToken).ConfigureAwait(false);
                     ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
@@ -1178,6 +1186,11 @@ namespace Opc.Ua.Client.Subscriptions
                         Index,
                         m_outer.m_timeProvider.GetElapsedTime(swStart));
                     return [];
+                }
+                finally
+                {
+                    linkedCts?.Dispose();
+                    timeoutCts?.Dispose();
                 }
             }
 

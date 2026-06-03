@@ -62,7 +62,7 @@ namespace Opc.Ua.Server
         public StandardServer(ITelemetryContext telemetry, TimeProvider? timeProvider)
             : base(telemetry)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

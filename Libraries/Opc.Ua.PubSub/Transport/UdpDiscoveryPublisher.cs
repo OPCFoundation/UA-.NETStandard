@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Transport
             : base(udpConnection, telemetry, telemetry.CreateLogger<UdpDiscoveryPublisher>())
         {
             m_metadataWriterIdsToSend = [];
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

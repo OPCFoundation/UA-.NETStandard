@@ -125,8 +125,8 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
         /// <param name="maxReconnectPeriod">
-        ///     The upper limit for the reconnect period after exponential backoff.
-        ///     -1 (default) indicates that no exponential backoff should be used.
+        /// The upper limit for the reconnect period after exponential backoff.
+        /// -1 (default) indicates that no exponential backoff should be used.
         /// </param>
         public SessionReconnectHandler(
             ITelemetryContext telemetry,
@@ -142,8 +142,8 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
         /// <param name="maxReconnectPeriod">
-        ///     The upper limit for the reconnect period after exponential backoff.
-        ///     -1 (default) indicates that no exponential backoff should be used.
+        /// The upper limit for the reconnect period after exponential backoff.
+        /// -1 (default) indicates that no exponential backoff should be used.
         /// </param>
         /// <param name="timeProvider">Optional time provider used for timers and elapsed-time
         /// calculations. Defaults to <see cref="TimeProvider.System"/>.</param>
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client
             int maxReconnectPeriod,
             TimeProvider? timeProvider)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<SessionReconnectHandler>();
             m_reconnectAbort = reconnectAbort;

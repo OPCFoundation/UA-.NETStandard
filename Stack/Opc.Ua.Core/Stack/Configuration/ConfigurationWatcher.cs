@@ -64,7 +64,7 @@ namespace Opc.Ua
             }
 
             m_logger = telemetry.CreateLogger<ConfigurationWatcher>();
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             var fileInfo = new FileInfo(configuration.SourceFilePath!);
 

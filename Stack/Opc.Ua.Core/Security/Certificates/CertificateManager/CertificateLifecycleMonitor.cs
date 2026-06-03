@@ -76,7 +76,7 @@ namespace Opc.Ua
             m_getCertificates = getCertificates ?? throw new ArgumentNullException(nameof(getCertificates));
             m_expiryThreshold = expiryThreshold;
             m_logger = telemetry.CreateLogger<CertificateLifecycleMonitor>();
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             m_timer = m_timeProvider.CreateTimer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
         }

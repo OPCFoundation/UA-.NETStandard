@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null)
         {
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_session = session;
             m_nodeCache = nodeCache;
             m_logger = telemetry.CreateLogger<NodeCacheResolver>();

@@ -62,7 +62,7 @@ namespace Opc.Ua
             : this(parent)
         {
             m_logger = telemetry.CreateLogger<AlarmConditionState>();
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>

@@ -100,7 +100,7 @@ namespace Opc.Ua.Client
             m_acquireCredential = acquireCredential ?? throw new ArgumentNullException(nameof(acquireCredential));
             AuthorityUri = authorityUri ?? throw new ArgumentNullException(nameof(authorityUri));
             CacheLifetime = cacheLifetime ?? s_defaultCacheLifetime;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>

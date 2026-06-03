@@ -58,7 +58,8 @@ namespace Opc.Ua.Client.AliasNames.Refresh
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
         /// used to create the poll timer. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
-        public PollingAliasNameRefreshStrategy(TimeSpan pollInterval,
+        public PollingAliasNameRefreshStrategy(
+            TimeSpan pollInterval,
             TimeProvider? timeProvider = null)
         {
             if (pollInterval < TimeSpan.FromMilliseconds(100))
@@ -67,7 +68,7 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                     nameof(pollInterval),
                     "Poll interval must be at least 100 ms.");
             }
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             PollInterval = pollInterval;
         }
 

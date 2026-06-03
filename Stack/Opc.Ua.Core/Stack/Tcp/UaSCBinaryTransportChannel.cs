@@ -71,7 +71,7 @@ namespace Opc.Ua.Bindings
             m_messageSocketFactory = messageSocketFactory;
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

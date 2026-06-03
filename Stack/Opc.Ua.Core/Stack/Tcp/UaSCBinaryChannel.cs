@@ -169,7 +169,7 @@ namespace Opc.Ua.Bindings
             m_contextId = contextId;
             Telemetry = telemetry;
             m_logger = telemetry.CreateLogger<UaSCUaBinaryChannel>();
-            TimeProvider = timeProvider ??= TimeProvider.System;
+            TimeProvider = timeProvider ?? TimeProvider.System;
             m_lastActiveTimestamp = TimeProvider.GetTimestamp();
 
             if (string.IsNullOrEmpty(m_contextId))

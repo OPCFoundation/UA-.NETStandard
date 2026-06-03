@@ -278,7 +278,7 @@ namespace Opc.Ua.Bindings
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<TcpTransportListener>();
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>

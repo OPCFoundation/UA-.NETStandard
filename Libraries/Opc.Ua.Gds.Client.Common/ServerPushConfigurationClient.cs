@@ -83,7 +83,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     ReturnDiagnostics = diagnosticsMasks
                 };
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public NodeId DefaultApplicationGroup { get; private set; }

@@ -72,7 +72,7 @@ namespace Opc.Ua.Lds.Server
         public RegisteredServerStore(ILogger logger = null, TimeProvider timeProvider = null)
         {
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
-            m_timeProvider = timeProvider ??= TimeProvider.System;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_lastCounterResetTime = m_timeProvider.GetUtcNow().UtcDateTime;
         }
 
