@@ -205,7 +205,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
             Assert.That(generated, Is.Not.Null, "Semantic-lookup fallback must emit Int32Collection");
             string text = generated!.Value.SourceText.ToString();
-            Assert.That(text, Does.Contain("internal sealed class Int32Collection : global::System.Collections.Generic.List<global::System.Int32>"));
+            // FullyQualifiedFormat uses C# keyword aliases for primitives, so
+            // System.Int32 is rendered as `int` — that's intentional, the emitted
+            // shim is consumer-facing and reads more naturally with the alias.
+            Assert.That(text, Does.Contain("internal sealed class Int32Collection : global::System.Collections.Generic.List<int>"));
         }
 
         [Test]

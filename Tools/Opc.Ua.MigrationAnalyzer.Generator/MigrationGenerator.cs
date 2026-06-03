@@ -57,10 +57,17 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
     /// </item>
     /// <item>
     ///   Semantic transform: skip if the symbol resolves (the type still exists);
-    ///   otherwise consult <see cref="CollectionShimCatalog.WellKnownOverrides"/>
-    ///   first, then fall back to <c>Compilation.GetSymbolsWithName</c> for
-    ///   model-compiled <c>&lt;UserType&gt;</c>. On zero / ambiguous matches,
-    ///   report <c>MIG01</c> instead of emitting.
+    ///   otherwise resolve the element type in priority order:
+    ///   <list type="bullet">
+    ///   <item><see cref="CollectionShimCatalog.WellKnownOverrides"/> — element-type
+    ///   renames across the 1.5.378 → 2.0 boundary (only 4 entries).</item>
+    ///   <item><c>Compilation.GetSymbolsWithName</c> — model-compiled
+    ///   <c>&lt;UserType&gt;</c>s declared in the consumer's source.</item>
+    ///   <item><c>Compilation.GetTypeByMetadataName</c> against <c>System.*</c> and
+    ///   <c>Opc.Ua.*</c> — primitive aliases (Int32, Boolean, ...) and built-in
+    ///   OPC UA element types (NodeId, Variant, DataValue, ...).</item>
+    ///   </list>
+    ///   On zero / ambiguous matches, report <c>MIG01</c> instead of emitting.
     /// </item>
     /// <item>
     ///   Collect &amp; deduplicate by <c>(shortName, elementFqn)</c>; emit one
@@ -169,7 +176,9 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
                     location: location);
             }
 
-            // (b) Semantic lookup for model-compiled element types.
+            // (b) Semantic lookup for model-compiled element types (declared in the
+            // consumer's source — captures the legacy model-compiler pattern where
+            // Foo.BarCollection sat next to Foo.Bar in the same source tree).
             ImmutableArray<INamedTypeSymbol> matches = ctx.SemanticModel.Compilation
                 .GetSymbolsWithName(elementShortName, SymbolFilter.Type, ct)
                 .OfType<INamedTypeSymbol>()
@@ -184,7 +193,28 @@ namespace Opc.Ua.MigrationAnalyzer.Generator
                     location: location);
             }
 
-            // (c) Unresolvable - propagate the location so we can emit MIG01.
+            // (c) Metadata-reference lookup for primitives + standard OPC UA types.
+            // GetSymbolsWithName above only inspects source declarations, so types
+            // like System.Int32 (from mscorlib) or Opc.Ua.NodeId (from the
+            // Opc.Ua.Types reference) won't be found there. We try the well-known
+            // namespaces a 1.5.378 <Type>Collection might wrap, in priority order:
+            //   1. System.*       — covers primitive aliases (Int32, Boolean, ...).
+            //   2. Opc.Ua.*       — covers all built-in OPC UA element types
+            //                        (NodeId, Variant, DataValue, ExpandedNodeId,
+            //                         EndpointDescription, ReadValueId, ...).
+            INamedTypeSymbol? metadataType =
+                ctx.SemanticModel.Compilation.GetTypeByMetadataName("System." + elementShortName)
+                ?? ctx.SemanticModel.Compilation.GetTypeByMetadataName("Opc.Ua." + elementShortName);
+            if (metadataType is not null)
+            {
+                return new CandidateSite(
+                    shortName: shortName,
+                    elementDisplay: metadataType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    resolved: true,
+                    location: location);
+            }
+
+            // (d) Unresolvable - propagate the location so we can emit MIG01.
             return new CandidateSite(
                 shortName: shortName,
                 elementDisplay: elementShortName,
