@@ -4,7 +4,9 @@ This document describes which [OPC UA Profiles and Facets](https://profiles.opcf
 
 ## Overview
 
-The OPC UA .NET Standard Stack is a reference implementation that targets OPC UA specification version 1.05. It has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
+The OPC UA .NET Standard Stack v2 is a reference implementation that targets OPC UA specification version 1.05.07. The stack has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
+
+Version 2.0 includes significant improvements and new features for address space management, security, and integration scenarios, including Alias Names (Part 17), WoT Connectivity (OPC 10100-1), Key Credential Service and Authorization Service (Part 12), Model Change Tracking, and enhanced client APIs for streaming subscriptions and file system operations.
 
 For a complete list of all OPC UA profiles, visit the [OPC Foundation Profile Reporting](https://profiles.opcfoundation.org/profile/) website.
 
@@ -45,25 +47,23 @@ The server implementation also provides support for:
 - **Complex Types** - Custom structures and enumerations (see [Complex Types documentation](ComplexTypes.md))
 - **Role-Based Access Control** - WellKnownRoles and RoleBasedUserManagement (see [Role-Based User Management documentation](RoleBasedUserManagement.md))
 - **Async Server Support** - Asynchronous node managers using Task-based Asynchronous Pattern (TAP) (see [Async Server Support documentation](AsyncServerSupport.md))
+- **Alias Names (Part 17)** - Human-readable name hierarchies for address space navigation with wildcard search and non-hierarchical references (see [Alias Names documentation](AliasNames.md))
+- **WoT Connectivity (OPC 10100-1)** - Integration with Web of Things assets and Thing Descriptions for IoT connectivity (see [WoT Connectivity documentation](WoTConnectivity.md))
+- **Model Change Tracking** - Address space change notifications and client-side cache invalidation (see [Model Change Tracking documentation](ModelChangeTracking.md))
 
-### Currently Not Supported (Server)
-
-The following server profiles/facets are **not yet fully supported**:
-
-- **Alarms & Conditions** - Only a limited set of alarms is currently implemented (`ExclusiveLevel`, `NonExclusiveLevel`, `OffNormal`)
-- **Historical Access** - Limited support for historical data access
-- **Events** - Limited event support
-- **Aggregates Server Facet** - Historical data aggregation
-- **Query Server Facet** - Advanced query capabilities
+These features are configured and registered using the fluent API and dependency injection patterns (see individual feature documentation for examples).
 
 ## Client Profiles
 
 The Client implementation supports:
 
 - **Standard UA Client Profile** - Full client functionality for connecting to OPC UA servers
-- **Subscription management** - Creating and managing subscriptions and monitored items
+- **Subscription management** - Creating and managing subscriptions and monitored items, including streaming subscriptions with async enumerable-based API for state-machine waits and short-lived monitoring (see [Streaming Subscriptions documentation](StreamingSubscription.md))
 - **Transfer Subscriptions** - Support for transferring subscriptions between servers (see [Transfer Subscriptions documentation](TransferSubscription.md))
 - **Reverse Connect** - Client can accept connections initiated by servers (see [Reverse Connect documentation](ReverseConnect.md))
+- **Model Change Tracking** - Track address space changes and invalidate cached nodes (see [Model Change Tracking documentation](ModelChangeTracking.md))
+- **File System Operations** - Ergonomic async API for remote OPC UA file system operations, mirroring System.IO semantics (see [FileSystemClient documentation](FileSystemClient.md))
+- **Alarms and Conditions** - Client-side support for subscribing to and processing OPC UA alarms and condition events provided by the server, with typed event records and filtering (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
 
 ## Transport Profiles
 
@@ -119,12 +119,30 @@ The stack supports the following OPC UA security profiles for secure communicati
 
 Support for Elliptic Curve Cryptography (ECC) security policies (see [ECC Profiles documentation](EccProfiles.md)):
 
-- **[ECC_nistP256](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256)** - NIST P-256 curve
-- **[ECC_nistP384](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384)** - NIST P-384 curve
-- **[ECC_brainpoolP256r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1)** - Brainpool P-256r1 curve
-- **[ECC_brainpoolP384r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1)** - Brainpool P-384r1 curve
+#### Traditional ECC Curves
+- **[ECC_nistP256](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256)** - NIST P-256 curve with SHA-256 signatures
+- **[ECC_nistP384](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384)** - NIST P-384 curve with SHA-384 signatures
+- **[ECC_brainpoolP256r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1)** - Brainpool P-256r1 curve with SHA-256 signatures
+- **[ECC_brainpoolP384r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1)** - Brainpool P-384r1 curve with SHA-384 signatures
 
-**Platform Requirements for ECC:** ECC support is available on .NET Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Not all curves are supported by all OS platforms and .NET implementations.
+#### Modern ECC Curves (v2.0)
+- **[ECC_curve25519](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519)** - Curve25519 with ChaCha20-Poly1305
+- **[ECC_curve25519_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519_AesGcm)** - Curve25519 with AES-GCM
+- **[ECC_curve448](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448)** - Curve448 with ChaCha20-Poly1305
+- **[ECC_curve448_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448_AesGcm)** - Curve448 with AES-GCM
+
+#### AES-GCM and ChaCha20-Poly1305 Variants (v2.0)
+Modern AEAD cipher alternatives for traditional ECC curves:
+- **ECC_nistP256_AesGcm**, **ECC_nistP256_ChaChaPoly**
+- **ECC_nistP384_AesGcm**, **ECC_nistP384_ChaChaPoly**
+- **ECC_brainpoolP256r1_AesGcm**, **ECC_brainpoolP256r1_ChaChaPoly**
+- **ECC_brainpoolP384r1_AesGcm**, **ECC_brainpoolP384r1_ChaChaPoly**
+
+#### RSA Diffie-Hellman (v2.0)
+- **RSA_DH_AesGcm** - RSA Diffie-Hellman key agreement with AES-GCM
+- **RSA_DH_ChaChaPoly** - RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
+
+**Platform Requirements for ECC:** ECC support is available on .NET Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Modern curves (Curve25519, Curve448) and AEAD ciphers (AES-GCM, ChaCha20-Poly1305) require .NET 5.0 or later. Not all curves are supported by all OS platforms and .NET implementations.
 
 ### Deprecated Security Policies
 
@@ -181,6 +199,8 @@ The stack includes a Global Discovery Server implementation that supports:
 - Pull and Push certificate management models
 - Support for both RSA and ECC certificate types
 - Certificate revocation lists (CRL)
+- **Authorization Service (OPC 10000-12 Part 12 §9)** - OAuth2-style access token issuance and management (see [AuthorizationService documentation](AuthorizationService.md))
+- **Key Credential Service (OPC 10000-12 Part 12 §8)** - Credential issuance for non-OPC UA services such as MQTT brokers and REST APIs (see [KeyCredentialService documentation](KeyCredentialService.md))
 
 ## Message Encoding
 
@@ -250,6 +270,15 @@ See the [Reference Server configuration file](../Applications/ConsoleReferenceSe
 - [Role-Based User Management](RoleBasedUserManagement.md) - Role-based access control
 - [PubSub](PubSub.md) - Publisher-Subscriber pattern implementation
 - [Async Server Support](AsyncServerSupport.md) - Asynchronous node manager implementation
+- [Alias Names](AliasNames.md) - OPC UA Part 17 alias-name model and address space naming
+- [Alarms and Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
+- [Model Change Tracking](ModelChangeTracking.md) - Address space change notifications and client-side cache management
+- [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 Web of Things connectivity integration
+- [Streaming Subscriptions](StreamingSubscription.md) - Async enumerable subscription API for state machines and short-lived monitoring
+- [FileSystemClient](FileSystemClient.md) - System.IO-style async client for OPC UA file systems
+- [AuthorizationService](AuthorizationService.md) - OAuth2-style access token issuance (OPC 10000-12 Part 12 §9)
+- [KeyCredentialService](KeyCredentialService.md) - Credential issuance for non-OPC UA services (OPC 10000-12 Part 12 §8)
+- [GDS Developer Guide](GDS.md) - Global Discovery Server implementation and configuration
 
 ## References
 
