@@ -55,9 +55,9 @@ The server implementation also provides support for:
 
 The following server profiles/facets have limited or incomplete support:
 
-- **Alarms & Conditions** - Support for latched/silenced alarms, alarm groups, and suppression engine is available. Additional alarm types and advanced features may be limited (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Alarms & Conditions** - Support for latched/silenced alarms, alarm groups, and suppression engine is available. Coverage of all OPC UA Part 9 alarm types and advanced features may be limited (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
 - **Historical Access** - Support for historical data access is available with configurable aggregation and retention policies. Advanced historical aggregates may have limited functionality (see [Historical Access documentation](HistoricalAccess.md))
-- **Events** - Extensive event support including alarms, conditions, and model change notifications
+- **Events** - The general event mechanism is supported including alarms, conditions, and model change notifications. Individual event type implementations may be incomplete.
 - **Aggregates Server Facet** - Historical data aggregation
 - **Query Server Facet** - Advanced query capabilities
 
@@ -72,7 +72,7 @@ The Client implementation supports:
 - **Streaming Subscriptions** - Async enumerable-based subscription API for state-machine waits and short-lived monitoring (see [Streaming Subscriptions documentation](StreamingSubscription.md))
 - **Model Change Tracking** - Track address space changes and invalidate cached nodes (see [Model Change Tracking documentation](ModelChangeTracking.md))
 - **File System Operations** - Ergonomic async API for remote OPC UA file system operations, mirroring System.IO semantics (see [FileSystemClient documentation](FileSystemClient.md))
-- **Alarms and Conditions** - Full support for subscribing to and processing OPC UA alarms with typed event records (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Alarms and Conditions** - Client-side support for subscribing to and processing OPC UA alarms and condition events provided by the server, with typed event records and filtering (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
 
 ## Transport Profiles
 
