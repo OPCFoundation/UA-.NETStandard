@@ -329,6 +329,73 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0], Is.EqualTo((StatusCode)StatusCodes.BadReferenceTypeIdInvalid));
         }
 
+        [Test]
+        public async Task AddNodesAsync_EmptyBatch_ReturnsEmptyResultsAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext();
+
+            (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) = await sut.AddNodesAsync(
+                ctx,
+                System.Array.Empty<AddNodesItem>().ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results.Count, Is.Zero);
+            Assert.That(diagnostics.IsNull || diagnostics.Count == 0, Is.True);
+        }
+
+        [Test]
+        public void AddNodesAsync_NullContext_ThrowsArgumentNullException()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+
+            Assert.That(
+                async () => await sut.AddNodesAsync(
+                    null!,
+                    System.Array.Empty<AddNodesItem>().ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        [Test]
+        public void DeleteNodesAsync_NullContext_ThrowsArgumentNullException()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+
+            Assert.That(
+                async () => await sut.DeleteNodesAsync(
+                    null!,
+                    System.Array.Empty<DeleteNodesItem>().ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        [Test]
+        public void AddReferencesAsync_NullContext_ThrowsArgumentNullException()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+
+            Assert.That(
+                async () => await sut.AddReferencesAsync(
+                    null!,
+                    System.Array.Empty<AddReferencesItem>().ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        [Test]
+        public void DeleteReferencesAsync_NullContext_ThrowsArgumentNullException()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+
+            Assert.That(
+                async () => await sut.DeleteReferencesAsync(
+                    null!,
+                    System.Array.Empty<DeleteReferencesItem>().ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
         private MasterNodeManager CreateMasterNodeManager(params INodeManager[] additional)
         {
             var nodeManagers = new List<INodeManager>(additional);
