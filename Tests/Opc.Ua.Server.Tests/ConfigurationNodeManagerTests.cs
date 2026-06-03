@@ -160,17 +160,37 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Issue #3768: ServerConfiguration's Optional children that the SDK does not
-        /// implement (ApplicationUri, ProductUri, ApplicationType, HasSecureElement,
-        /// CancelChanges, ResetToServerDefaults) must not be exposed as null-valued
-        /// nodes in the address space.
-        /// Also asserts that the SDK-added Optional children at the well-known
-        /// singleton-instance NodeIds (Server.GetMonitoredItems / ResendData /
-        /// Namespaces, and HistoryServerCapabilities.ServerTimestampSupported,
-        /// plus their Method InputArguments / OutputArguments where applicable)
-        /// resolve to the correct instance-level NodeIds — guarding against the
-        /// "Add{Child} uses the type-level factory" footgun described in
-        /// DiagnosticsNodeManager.AddServerSdkOptionalChildren.
+        /// Issue #3768: Optional descendants of top-level singletons (Server,
+        /// ServerConfiguration, HistoryServerCapabilities) that the SDK does
+        /// not implement must not be exposed as null-valued nodes in the
+        /// address space.
+        ///
+        /// The generator now applies the suppression TRANSITIVELY to
+        /// Variable/Method descendants. Optional Object instances are
+        /// intentionally exempt: their subtrees use well-known instance
+        /// NodeIds that the SDK / ConfigurationNodeManager bind against, so
+        /// they are still emitted by the singleton-specific factory.
+        ///
+        /// This test asserts:
+        ///   - Optional Variables/Methods that the SDK does NOT implement
+        ///     are absent (ServerConfiguration.ApplicationUri /
+        ///     ProductUri / ApplicationType / HasSecureElement, the
+        ///     CancelChanges / ResetToServerDefaults methods, Server's
+        ///     UrisVersion / EstimatedReturnTime / LocalTime, the unimplemented
+        ///     PublishSubscribe.AddConnection / RemoveConnection methods);
+        ///   - Optional Variables/Methods that the SDK DOES implement are
+        ///     re-added at the well-known singleton-instance NodeIds
+        ///     (Server.Namespaces / GetMonitoredItems / ResendData incl.
+        ///     their argument variables; HistoryServerCapabilities.
+        ///     ServerTimestampSupported; the ServerCapabilities and
+        ///     OperationLimits Optional Property surface area; ServerRedundancy.
+        ///     RedundantServerArray);
+        ///   - The CertificateGroups Optional Object exemption keeps the
+        ///     DefaultHttpsGroup / DefaultUserTokenGroup subtrees emitted at
+        ///     their well-known NodeIds, and the DefaultApplicationGroup
+        ///     CertificateTypes Variable is resolvable (regression guard
+        ///     for the failure described in DiagnosticsNodeManager and
+        ///     ConfigurationNodeManager).
         /// </summary>
         [Test]
         public async Task ServerConfiguration_OptionalUnimplementedChildren_NotInAddressSpaceAsync()
@@ -184,12 +204,23 @@ namespace Opc.Ua.Server.Tests
 
                 NodeId[] suppressedNodeIds =
                 [
+                    // ServerConfiguration Optional Variables/Methods - SDK
+                    // does not implement these.
                     VariableIds.ServerConfiguration_ApplicationUri,
                     VariableIds.ServerConfiguration_ProductUri,
                     VariableIds.ServerConfiguration_ApplicationType,
                     VariableIds.ServerConfiguration_HasSecureElement,
                     MethodIds.ServerConfiguration_CancelChanges,
-                    MethodIds.ServerConfiguration_ResetToServerDefaults
+                    MethodIds.ServerConfiguration_ResetToServerDefaults,
+                    // Server Optional Variables - SDK does not implement
+                    // these (no value source / no consumer).
+                    VariableIds.Server_UrisVersion,
+                    VariableIds.Server_EstimatedReturnTime,
+                    VariableIds.Server_LocalTime,
+                    // PublishSubscribe Optional Methods - SDK does not
+                    // implement these (no PubSub configuration provider).
+                    MethodIds.PublishSubscribe_AddConnection,
+                    MethodIds.PublishSubscribe_RemoveConnection
                 ];
 
                 foreach (NodeId suppressedNodeId in suppressedNodeIds)
@@ -225,7 +256,52 @@ namespace Opc.Ua.Server.Tests
                     VariableIds.Server_GetMonitoredItems_OutputArguments,
                     MethodIds.Server_ResendData,
                     VariableIds.Server_ResendData_InputArguments,
-                    VariableIds.HistoryServerCapabilities_ServerTimestampSupported
+                    VariableIds.HistoryServerCapabilities_ServerTimestampSupported,
+
+                    // ServerCapabilities Optional Properties - re-added by
+                    // DiagnosticsNodeManager.AddServerCapabilitiesSdkOptionalChildren
+                    // (the transitive gate stops the generator from emitting them).
+                    VariableIds.Server_ServerCapabilities_MaxArrayLength,
+                    VariableIds.Server_ServerCapabilities_MaxStringLength,
+                    VariableIds.Server_ServerCapabilities_MaxByteStringLength,
+                    VariableIds.Server_ServerCapabilities_MaxSessions,
+                    VariableIds.Server_ServerCapabilities_MaxSubscriptions,
+                    VariableIds.Server_ServerCapabilities_MaxMonitoredItems,
+                    VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession,
+                    VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription,
+                    VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters,
+                    VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters,
+                    VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize,
+                    VariableIds.Server_ServerCapabilities_ConformanceUnits,
+
+                    // OperationLimits Optional Properties - re-added by
+                    // DiagnosticsNodeManager.AddOperationLimitsSdkOptionalChildren.
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall,
+
+                    // ServerRedundancy Optional Property - re-added by
+                    // DiagnosticsNodeManager.AddServerRedundancySdkOptionalChildren.
+                    VariableIds.Server_ServerRedundancy_RedundantServerArray,
+
+                    // CertificateGroups regression guard: Optional Object
+                    // instances and their Mandatory CertificateTypes children
+                    // are emitted by the singleton factory (the gate exempts
+                    // ObjectDesign children to preserve their subtrees'
+                    // well-known instance NodeIds, which the SDK and
+                    // ConfigurationNodeManager bind against).
+                    VariableIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateTypes,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup
                 ];
 
                 foreach (NodeId sdkAddedNodeId in sdkAddedNodeIds)

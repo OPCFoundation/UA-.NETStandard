@@ -83,6 +83,7 @@ namespace Opc.Ua.Server
             m_durableSubscriptionsEnabled = configuration.ServerConfiguration?
                 .DurableSubscriptionsEnabled ??
                 false;
+            m_configuration = configuration;
         }
 
         /// <summary>
@@ -409,28 +410,17 @@ namespace Opc.Ua.Server
             var nodes = new NodeStateCollection().AddOpcUa(context);
 
             // The generator emits factory bodies that respect each child's
-            // type-definition modelling rule for direct children of top-level
-            // singleton instances (Server, HistoryServerCapabilities), so
-            // Optional children that StandardTypes.xml promotes to Mandatory
-            // on the singleton level are no longer auto-emitted as
-            // null-valued nodes (issue #3768). Programmatically add the
-            // Optional children that this SDK actually implements, with
-            // their well-known instance-level NodeIds. The recursive
-            // AddPredefinedNodeAsync the base class invokes on each entry
-            // walks newly-added children automatically, so they end up in
-            // PredefinedNodes (and propagate to CoreNodeManager via
-            // ImportNodesAsync).
-            //
-            // Scope: this fix targets the depth-1 Optional children of
-            // top-level singletons. Deeper descendants (e.g. the Optional
-            // properties of ServerCapabilities) are still emitted by the
-            // singleton-specific factories with the correct instance-level
-            // NodeIds; the SDK populates the ones it cares about via
-            // ServerInternalData.CreateServerObjectAsync. Extending the
-            // suppression deeper requires an audit of every SDK consumer
-            // because non-trivial infrastructure (e.g.
-            // ServerConfiguration.CertificateGroups.&lt;group&gt;.CertificateTypes)
-            // is wired directly to deeper nodes.
+            // type-definition modelling rule transitively for every descendant
+            // of a top-level singleton instance (Server, ServerConfiguration,
+            // HistoryServerCapabilities). Optional children that
+            // StandardTypes.xml promotes to Mandatory on the singleton level
+            // are no longer auto-emitted as null-valued nodes (issue #3768).
+            // Programmatically add the Optional children that this SDK
+            // actually implements, with their well-known instance-level
+            // NodeIds. The recursive AddPredefinedNodeAsync the base class
+            // invokes on each entry walks newly-added children automatically,
+            // so they end up in PredefinedNodes (and propagate to
+            // CoreNodeManager via ImportNodesAsync).
             AddSdkImplementedOptionalChildren(context, nodes);
 
             return new ValueTask<NodeStateCollection>(nodes);
@@ -525,6 +515,210 @@ namespace Opc.Ua.Server
             {
                 serverObject.AddNamespaces(context).NodeId
                     = ObjectIds.Server_Namespaces;
+            }
+
+            // The transitive generator gate (issue #3768) stops emitting
+            // Optional Variable/Method descendants of Server (e.g.
+            // ServerCapabilities child properties, OperationLimits child
+            // properties, and ServerRedundancy.RedundantServerArray). These
+            // were emitted on master at well-known instance NodeIds; the
+            // SDK consumes a number of them directly (e.g.
+            // ServerInternalData populates MaxArrayLength / MaxStringLength
+            // / MaxByteStringLength with non-null assertion, and clients
+            // read every ServerCapabilities Optional via
+            // Session.FetchOperationLimitsAsync). Add them back here so the
+            // observable address-space remains compatible. Optional Objects
+            // such as ServerCapabilities.OperationLimits and
+            // ServerCapabilities.RoleSet are intentionally exempt from the
+            // gate (their subtrees rely on well-known descendant NodeIds),
+            // so the null-guards below treat the pre-existing Object as the
+            // common case and only lazy-add the missing Variable/Method
+            // children.
+            if (serverObject.ServerCapabilities != null)
+            {
+                AddServerCapabilitiesSdkOptionalChildren(
+                    context, serverObject.ServerCapabilities);
+            }
+            if (serverObject.ServerRedundancy != null)
+            {
+                AddServerRedundancySdkOptionalChildren(
+                    context, serverObject.ServerRedundancy);
+            }
+        }
+
+        private void AddServerCapabilitiesSdkOptionalChildren(
+            ISystemContext context,
+            ServerCapabilitiesState serverCapabilities)
+        {
+            // Add{Child} extension methods build the child via the TYPE-level
+            // factory which assigns the type-level NodeId; patch each to the
+            // well-known singleton-instance NodeId after construction (see
+            // AddServerSdkOptionalChildren above for the rationale).
+            if (serverCapabilities.MaxArrayLength == null)
+            {
+                serverCapabilities.AddMaxArrayLength(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxArrayLength;
+            }
+            if (serverCapabilities.MaxStringLength == null)
+            {
+                serverCapabilities.AddMaxStringLength(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxStringLength;
+            }
+            if (serverCapabilities.MaxByteStringLength == null)
+            {
+                serverCapabilities.AddMaxByteStringLength(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxByteStringLength;
+            }
+            if (serverCapabilities.MaxSessions == null)
+            {
+                serverCapabilities.AddMaxSessions(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxSessions;
+            }
+            if (serverCapabilities.MaxSubscriptions == null)
+            {
+                serverCapabilities.AddMaxSubscriptions(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxSubscriptions;
+            }
+            if (serverCapabilities.MaxMonitoredItems == null)
+            {
+                serverCapabilities.AddMaxMonitoredItems(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxMonitoredItems;
+            }
+            if (serverCapabilities.MaxSubscriptionsPerSession == null)
+            {
+                serverCapabilities.AddMaxSubscriptionsPerSession(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession;
+            }
+            if (serverCapabilities.MaxMonitoredItemsPerSubscription == null)
+            {
+                serverCapabilities.AddMaxMonitoredItemsPerSubscription(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription;
+            }
+            if (serverCapabilities.MaxSelectClauseParameters == null)
+            {
+                serverCapabilities.AddMaxSelectClauseParameters(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters;
+            }
+            if (serverCapabilities.MaxWhereClauseParameters == null)
+            {
+                serverCapabilities.AddMaxWhereClauseParameters(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters;
+            }
+            if (serverCapabilities.MaxMonitoredItemsQueueSize == null)
+            {
+                serverCapabilities.AddMaxMonitoredItemsQueueSize(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize;
+            }
+            if (serverCapabilities.ConformanceUnits == null)
+            {
+                serverCapabilities.AddConformanceUnits(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_ConformanceUnits;
+            }
+            if (serverCapabilities.RoleSet == null)
+            {
+                serverCapabilities.AddRoleSet(context).NodeId
+                    = ObjectIds.Server_ServerCapabilities_RoleSet;
+            }
+            if (serverCapabilities.OperationLimits == null)
+            {
+                OperationLimitsState operationLimits = serverCapabilities.AddOperationLimits(context);
+                operationLimits.NodeId
+                    = ObjectIds.Server_ServerCapabilities_OperationLimits;
+                AddOperationLimitsSdkOptionalChildren(context, operationLimits);
+            }
+            else
+            {
+                AddOperationLimitsSdkOptionalChildren(context, serverCapabilities.OperationLimits);
+            }
+        }
+
+        private static void AddOperationLimitsSdkOptionalChildren(
+            ISystemContext context,
+            OperationLimitsState operationLimits)
+        {
+            // All OperationLimits children are Optional per Part 5 §6.3.4 and
+            // were emitted on master with their well-known instance NodeIds.
+            // The SDK assigns values to whichever children exist (see
+            // ServerInternalData.CreateServerObjectAsync) - re-add every
+            // child unconditionally and patch to the well-known NodeId so
+            // the observable address-space matches master.
+            if (operationLimits.MaxNodesPerRead == null)
+            {
+                operationLimits.AddMaxNodesPerRead(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead;
+            }
+            if (operationLimits.MaxNodesPerHistoryReadData == null)
+            {
+                operationLimits.AddMaxNodesPerHistoryReadData(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData;
+            }
+            if (operationLimits.MaxNodesPerHistoryReadEvents == null)
+            {
+                operationLimits.AddMaxNodesPerHistoryReadEvents(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents;
+            }
+            if (operationLimits.MaxNodesPerWrite == null)
+            {
+                operationLimits.AddMaxNodesPerWrite(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite;
+            }
+            if (operationLimits.MaxNodesPerHistoryUpdateData == null)
+            {
+                operationLimits.AddMaxNodesPerHistoryUpdateData(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData;
+            }
+            if (operationLimits.MaxNodesPerHistoryUpdateEvents == null)
+            {
+                operationLimits.AddMaxNodesPerHistoryUpdateEvents(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents;
+            }
+            if (operationLimits.MaxNodesPerMethodCall == null)
+            {
+                operationLimits.AddMaxNodesPerMethodCall(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall;
+            }
+            if (operationLimits.MaxNodesPerBrowse == null)
+            {
+                operationLimits.AddMaxNodesPerBrowse(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse;
+            }
+            if (operationLimits.MaxNodesPerRegisterNodes == null)
+            {
+                operationLimits.AddMaxNodesPerRegisterNodes(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes;
+            }
+            if (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == null)
+            {
+                operationLimits.AddMaxNodesPerTranslateBrowsePathsToNodeIds(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds;
+            }
+            if (operationLimits.MaxNodesPerNodeManagement == null)
+            {
+                operationLimits.AddMaxNodesPerNodeManagement(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement;
+            }
+            if (operationLimits.MaxMonitoredItemsPerCall == null)
+            {
+                operationLimits.AddMaxMonitoredItemsPerCall(context).NodeId
+                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall;
+            }
+        }
+
+        private static void AddServerRedundancySdkOptionalChildren(
+            ISystemContext context,
+            ServerRedundancyState serverRedundancy)
+        {
+            // RedundantServerArray is Optional on ServerRedundancyType per
+            // Part 5 §6.3.10 but was emitted on master at the well-known
+            // instance NodeId. Re-add at startup so clients that rely on
+            // the standard browse path (Server.ServerRedundancy.
+            // RedundantServerArray, see DefaultServerRedundancyHandler in
+            // Opc.Ua.Client) keep working even when no redundancy provider
+            // populates it.
+            if (serverRedundancy.RedundantServerArray == null)
+            {
+                serverRedundancy.AddRedundantServerArray(context).NodeId
+                    = VariableIds.Server_ServerRedundancy_RedundantServerArray;
             }
         }
 
@@ -2311,6 +2505,7 @@ namespace Opc.Ua.Server
         private int m_diagnosticsMonitoringCount;
         private bool m_doScanBusy;
         private readonly bool m_durableSubscriptionsEnabled;
+        private readonly ApplicationConfiguration m_configuration;
         private DateTime m_lastDiagnosticsScanTime;
         private ServerDiagnosticsSummaryValue? m_serverDiagnostics;
         private NodeValueSimpleEventHandler? m_serverDiagnosticsCallback;

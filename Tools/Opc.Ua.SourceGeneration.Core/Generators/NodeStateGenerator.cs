@@ -1495,17 +1495,28 @@ namespace Opc.Ua.SourceGeneration
             // SDK is responsible for adding only those children it actually
             // implements (fixes issue #3768).
             //
-            // The gate is intentionally restricted to DIRECT children of a
-            // top-level singleton (depth-1). Transitively extending it to
-            // deeper descendants would also suppress Optional children that
-            // the SDK depends on as infrastructure (e.g.
-            // ServerConfiguration.CertificateGroups.&lt;group&gt;.CertificateTypes),
-            // which currently breaks ConfigurationNodeManager. Depth-2+
-            // Optional descendants of a singleton (e.g.
-            // Server.ServerCapabilities.MaxArrayLength) are still emitted by
-            // the singleton-specific factory with the correct instance-level
-            // NodeId; they are not affected by the bug because the SDK
-            // already overwrites the slot's value.
+            // The gate applies TRANSITIVELY to every Variable/Method descendant
+            // of a top-level singleton instance (e.g. Server,
+            // ServerConfiguration, HistoryServerCapabilities). Optional
+            // Object instances are intentionally exempt: they are still
+            // emitted by the singleton-specific factory with their correct
+            // instance-level NodeIds, because their subtrees use well-known
+            // descendant NodeIds (e.g.
+            // ServerConfiguration.CertificateGroups.DefaultHttpsGroup.
+            // TrustList.Open at NodeId 14095) and the SDK binds against
+            // them directly (e.g. ConfigurationNodeManager pairs
+            // CertificateGroupState by NodeId in
+            // <see cref="Opc.Ua.Server.ConfigurationNodeManager"/>,
+            // RoleStateBinding looks up
+            // <see cref="Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet"/>).
+            // Patching every descendant NodeId from the SDK after a
+            // type-level factory call would require hard-coded mapping of
+            // dozens of well-known NodeIds per Object root and is brittle.
+            // Optional Object descendants' own Variable/Method children are
+            // still gated transitively (e.g. OperationLimits.MaxNodesPerRead
+            // is suppressed and the SDK programmatically adds it back via
+            // <see cref="Opc.Ua.Server.Diagnostics.DiagnosticsNodeManager.
+            // AddOperationLimitsSdkOptionalChildren"/>).
             //
             // For TYPE-LEVEL promotions (e.g. AnalogItemType promoting EURange
             // from Optional on BaseAnalogType to Mandatory), the type-def
@@ -1514,12 +1525,13 @@ namespace Opc.Ua.SourceGeneration
             // must be honoured even when the option is on. The synthetic
             // type-instance NodeToGenerate (root.InstanceOf != null) and the
             // type-def NodeToGenerate (root.RootIsTypeDefinition) are both
-            // excluded by the predicate.
+            // excluded because IsUnderSingletonInstance is propagated only
+            // through the singleton-instance subtree.
             bool isSingletonInstanceContext =
                 m_context.Options.UseTypeDefinitionModellingRules &&
+                node.IsUnderSingletonInstance &&
                 node.Parent != null &&
-                node.Parent.Parent == null &&
-                node.Parent.InstanceOf == null;
+                instance is VariableDesign or MethodDesign;
 
             ModellingRule effectiveRule = isSingletonInstanceContext
                 ? GetEffectiveModellingRule(node, instance)
@@ -2320,7 +2332,8 @@ namespace Opc.Ua.SourceGeneration
                         Design: node,
                         IsNotExplicitlyDefined: false,
                         RootIsTypeDefinition: true,
-                        InstanceOf: null);
+                        InstanceOf: null,
+                        IsUnderSingletonInstance: false);
                 }
                 else
                 {
@@ -2331,7 +2344,8 @@ namespace Opc.Ua.SourceGeneration
                         Design: node.Hierarchy.NodeList[0].Instance,
                         IsNotExplicitlyDefined: false,
                         RootIsTypeDefinition: false,
-                        InstanceOf: null);
+                        InstanceOf: null,
+                        IsUnderSingletonInstance: true);
                 }
                 if (!m_nodes.TryAdd(entry.Design.SymbolicId, entry))
                 {
@@ -2381,7 +2395,8 @@ namespace Opc.Ua.SourceGeneration
                     Design: hierarchyNode.Instance,
                     IsNotExplicitlyDefined: false,
                     RootIsTypeDefinition: false,
-                    InstanceOf: entry); // Mark as instance of a type design
+                    InstanceOf: entry, // Mark as instance of a type design
+                    IsUnderSingletonInstance: false);
                 entry.Instance = instanceToGenerate;
                 if (!m_instances.TryAdd(instanceToGenerate.Design.SymbolicId, instanceToGenerate))
                 {
@@ -2896,7 +2911,8 @@ namespace Opc.Ua.SourceGeneration
                         RootIsTypeDefinition: node.RootIsTypeDefinition,
                         InstanceOf: null,
                         TypeDefinitionModellingRule:
-                            current.TypeDefinitionModellingRule);
+                            current.TypeDefinitionModellingRule,
+                        IsUnderSingletonInstance: node.IsUnderSingletonInstance);
                     if (!children.TryAdd(symbolicId, childNodeToGenerate))
                     {
                         m_logger.LogInformation(
@@ -3361,7 +3377,8 @@ namespace Opc.Ua.SourceGeneration
             bool IsNotExplicitlyDefined = false,
             bool RootIsTypeDefinition = false,
             NodeToGenerate InstanceOf = null,
-            ModellingRule? TypeDefinitionModellingRule = null)
+            ModellingRule? TypeDefinitionModellingRule = null,
+            bool IsUnderSingletonInstance = false)
         {
             /// <summary> Full inherited list of children </summary>
             public List<NodeToGenerate> AllChildren { get; } = [];
