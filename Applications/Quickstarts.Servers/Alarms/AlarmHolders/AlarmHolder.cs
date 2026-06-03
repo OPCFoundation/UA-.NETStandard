@@ -39,7 +39,7 @@ namespace Alarms
         protected AlarmHolder(
             ILogger logger,
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             Type controllerType,
             int interval)
@@ -369,7 +369,7 @@ namespace Alarms
         protected int m_interval;
         protected uint m_branchCounter;
         protected bool m_supportsBranching;
-        protected FolderState m_parent;
+        protected BaseInstanceState m_parent;
         protected uint m_alarmTypeIdentifier;
         protected string m_alarmTypeName = string.Empty;
         protected SupportedAlarmConditionType m_alarmConditionType = null!;
