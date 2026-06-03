@@ -56,9 +56,8 @@ The server implementation also provides support for:
 The following server profiles/facets have limited or incomplete support:
 
 - **Alarms and Conditions** - Comprehensive implementation of core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. Some specialized event types defined in OPC UA Part 9 are not yet implemented (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
-- **Historical Access** - Basic historical data access is supported with configurable retention and read operations. Server-side aggregates (Average, Total, Minimum, Maximum, etc.) are not implemented (see [Historical Access documentation](HistoricalAccess.md))
+- **Historical Access** - Comprehensive historical data access is supported with configurable retention, read/write operations, annotations, and server-side aggregates (Average, Total, Minimum, Maximum, and many more) via streaming fallback or provider push-down (see [Historical Access documentation](HistoricalAccess.md))
 - **Events** - The event notification infrastructure is fully implemented. However, event type definitions from specific companion specifications may require custom implementation or have incomplete state management
-- **Aggregates Server Facet** - Historical data aggregation
 - **Query Server Facet** - Advanced query capabilities
 
 ## Client Profiles
