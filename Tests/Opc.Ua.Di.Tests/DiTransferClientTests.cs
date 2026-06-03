@@ -58,6 +58,13 @@ namespace Opc.Ua.Di.Tests
             var nsTable = new NamespaceTable();
             nsTable.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
+            // The source-generated TransferServicesTypeClient proxy
+            // reads Session.MessageContext.NamespaceUris (not
+            // Session.NamespaceUris) to resolve method ExpandedNodeIds;
+            // supply a stub context backed by the same table.
+            var ctxMock = new Mock<IServiceMessageContext>();
+            ctxMock.SetupGet(c => c.NamespaceUris).Returns(nsTable);
+            mock.SetupGet(s => s.MessageContext).Returns(ctxMock.Object);
             return mock;
         }
 
@@ -253,8 +260,16 @@ namespace Opc.Ua.Di.Tests
                         new CallMethodResult
                         {
                             StatusCode = StatusCodes.Good,
+                            // TransferToDevice / TransferFromDevice in OPC
+                            // 10000-100 §10.4 return two output arguments:
+                            // (transferID, initTransferStatus). The
+                            // generated proxy method materialises both.
                             OutputArguments =
-                                new Variant[] { new Variant(transferId) }.ToArrayOf()
+                                new Variant[]
+                                {
+                                    new Variant(transferId),
+                                    new Variant((int)0)
+                                }.ToArrayOf()
                         }
                     }.ToArrayOf()
                 });

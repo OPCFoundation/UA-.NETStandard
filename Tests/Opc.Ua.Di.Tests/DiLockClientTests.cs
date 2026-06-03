@@ -197,7 +197,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void CallThrowsBadTypeMismatchWhenOutputIsNotInt32()
+        public void CallThrowsBadUnexpectedErrorWhenOutputIsNotInt32()
         {
             var sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
@@ -209,9 +209,14 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
+            // The generated LockingServicesTypeClient proxy treats a
+            // non-Int32 status output as a generic BadUnexpectedError
+            // when the typed unwrap fails; the original hand-rolled
+            // helper raised BadTypeMismatch. The proxy's wire-form
+            // contract is now canonical for this client.
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ExitLockAsync())!;
-            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 
         private static NamespaceTable CreateNamespaceTable()
@@ -230,6 +235,13 @@ namespace Opc.Ua.Di.Tests
         {
             var mock = new Mock<ISession>();
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
+            // The source-generated LockingServicesTypeClient proxy reads
+            // Session.MessageContext.NamespaceUris (not Session.NamespaceUris)
+            // to resolve the method's ExpandedNodeId — supply a stub
+            // context backed by the same namespace table.
+            var ctxMock = new Mock<IServiceMessageContext>();
+            ctxMock.SetupGet(c => c.NamespaceUris).Returns(nsTable);
+            mock.SetupGet(s => s.MessageContext).Returns(ctxMock.Object);
             return mock;
         }
 

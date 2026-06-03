@@ -38,15 +38,18 @@ namespace Opc.Ua.Di.Client
 {
     /// <summary>
     /// Client-side wrapper for the OPC 10000-100 §10.4
-    /// <c>TransferServicesType</c> facet. Invokes the
-    /// <c>TransferToDevice</c> / <c>TransferFromDevice</c> methods to
-    /// kick off an asynchronous transfer, then polls
-    /// <c>FetchTransferResultData</c> in a loop, decoding each chunk
-    /// and yielding parameter entries until the server flags
+    /// <c>TransferServicesType</c> facet. Composes (does <em>not</em>
+    /// inherit) the source-generated
+    /// <see cref="Opc.Ua.Di.TransferServicesTypeClient"/> proxy to
+    /// invoke <c>TransferToDevice</c> / <c>TransferFromDevice</c> and
+    /// poll <c>FetchTransferResultData</c>, decoding each chunk and
+    /// yielding parameter entries until the server flags
     /// <c>EndOfResults</c>.
     /// </summary>
     public sealed class DiTransferClient
     {
+        private TransferServicesTypeClient? m_proxy;
+
         /// <summary>
         /// Creates a new transfer client rooted at the supplied
         /// <c>TransferServicesType</c> instance.
@@ -70,6 +73,7 @@ namespace Opc.Ua.Di.Client
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
+
             Session = session;
             TransferServicesNodeId = transferServicesNodeId;
             Telemetry = telemetry;
@@ -90,24 +94,47 @@ namespace Opc.Ua.Di.Client
         /// </summary>
         public ITelemetryContext Telemetry { get; }
 
+        private TransferServicesTypeClient Proxy
+        {
+            get
+            {
+                return m_proxy ??= new TransferServicesTypeClient(
+                    Session, TransferServicesNodeId, Telemetry);
+            }
+        }
+
         /// <summary>
         /// Invokes <c>TransferToDevice</c>. Returns the transfer ID
         /// that subsequent <see cref="StreamAsync"/> calls poll on.
+        /// The generated proxy returns the tuple
+        /// <c>(transferID, initTransferStatus)</c>; this wrapper
+        /// surfaces only the transfer ID for caller convenience and
+        /// raises on bad initialisation status.
         /// </summary>
-        public ValueTask<int> TransferToDeviceAsync(CancellationToken ct = default)
+        public async ValueTask<int> TransferToDeviceAsync(CancellationToken ct = default)
         {
-            return InitiateTransferAsync(
-                Opc.Ua.Di.Methods.TransferServicesType_TransferToDevice, ct);
+            (int transferId, int initStatus) = await Proxy
+                .TransferToDeviceAsync(ct)
+                .ConfigureAwait(false);
+            ThrowOnInitFailure(initStatus, "TransferToDevice");
+            return transferId;
         }
 
         /// <summary>
         /// Invokes <c>TransferFromDevice</c>. Returns the transfer ID
         /// that subsequent <see cref="StreamAsync"/> calls poll on.
+        /// The generated proxy returns the tuple
+        /// <c>(transferID, initTransferStatus)</c>; this wrapper
+        /// surfaces only the transfer ID for caller convenience and
+        /// raises on bad initialisation status.
         /// </summary>
-        public ValueTask<int> TransferFromDeviceAsync(CancellationToken ct = default)
+        public async ValueTask<int> TransferFromDeviceAsync(CancellationToken ct = default)
         {
-            return InitiateTransferAsync(
-                Opc.Ua.Di.Methods.TransferServicesType_TransferFromDevice, ct);
+            (int transferId, int initStatus) = await Proxy
+                .TransferFromDeviceAsync(ct)
+                .ConfigureAwait(false);
+            ThrowOnInitFailure(initStatus, "TransferFromDevice");
+            return transferId;
         }
 
         /// <summary>
@@ -134,65 +161,21 @@ namespace Opc.Ua.Di.Client
             bool omitGoodResults = false,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            NodeId methodId = NodeId.Create(
-                Opc.Ua.Di.Methods.TransferServicesType_FetchTransferResultData,
-                Opc.Ua.Di.Namespaces.OpcUaDi,
-                Session.NamespaceUris);
-
             int sequence = 0;
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
 
-                CallMethodRequest request = new CallMethodRequest
-                {
-                    ObjectId = TransferServicesNodeId,
-                    MethodId = methodId,
-                    InputArguments = new Variant[]
-                    {
-                        new Variant(transferId),
-                        new Variant(sequence),
-                        new Variant(maxResultsPerChunk),
-                        new Variant(omitGoodResults)
-                    }.ToArrayOf()
-                };
-
-                CallResponse response = await Session
-                    .CallAsync(
-                        requestHeader: null,
-                        methodsToCall: new[] { request }.ToArrayOf(),
-                        ct: ct)
+                ExtensionObject chunkPayload = await Proxy
+                    .FetchTransferResultDataAsync(
+                        transferId,
+                        sequence,
+                        maxResultsPerChunk,
+                        omitGoodResults,
+                        ct)
                     .ConfigureAwait(false);
 
-                if (response.Results.Count == 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        "FetchTransferResultData returned no results.");
-                }
-
-                CallMethodResult result = response.Results[0];
-                if (StatusCode.IsBad(result.StatusCode))
-                {
-                    throw new ServiceResultException(
-                        result.StatusCode,
-                        $"FetchTransferResultData failed with status {result.StatusCode}.");
-                }
-
-                if (result.OutputArguments.Count == 0)
-
-                {
-
-                    yield break;
-
-                }
-                // The output is a FetchResultDataType ExtensionObject
-                // (TransferResultDataDataType or TransferResultErrorDataType).
-                // We decode generically: an error subtype carries Status +
-                // Diagnostics, a data subtype carries SequenceNumber +
-                // EndOfResults + ParameterDefs.
-                Variant payload = result.OutputArguments[0];
-                FetchChunk chunk = DecodeChunk(payload);
+                FetchChunk chunk = DecodeChunk(chunkPayload);
 
                 if (chunk.IsError)
                 {
@@ -210,98 +193,43 @@ namespace Opc.Ua.Di.Client
                 }
 
                 if (chunk.EndOfResults)
-
                 {
-
                     yield break;
-
                 }
+
                 sequence = chunk.NextSequenceNumber;
             }
         }
 
-        private async ValueTask<int> InitiateTransferAsync(
-            uint methodTypeId,
-            CancellationToken ct)
+        private static void ThrowOnInitFailure(int initStatus, string method)
         {
-            NodeId methodId = NodeId.Create(
-                methodTypeId,
-                Opc.Ua.Di.Namespaces.OpcUaDi,
-                Session.NamespaceUris);
-
-            CallMethodRequest request = new CallMethodRequest
-            {
-                ObjectId = TransferServicesNodeId,
-                MethodId = methodId,
-                InputArguments = Array.Empty<Variant>().ToArrayOf()
-            };
-
-            CallResponse response = await Session
-                .CallAsync(
-                    requestHeader: null,
-                    methodsToCall: new[] { request }.ToArrayOf(),
-                    ct: ct)
-                .ConfigureAwait(false);
-
-            if (response.Results.Count == 0)
+            if (initStatus != 0)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
-                    "Initiate-transfer call returned no results.");
+                    StatusCodes.BadInvalidArgument,
+                    $"{method} initialisation failed (status {initStatus}).");
             }
-
-            CallMethodResult result = response.Results[0];
-            if (StatusCode.IsBad(result.StatusCode))
-            {
-                throw new ServiceResultException(
-                    result.StatusCode,
-                    $"Initiate-transfer call returned bad status {result.StatusCode}.");
-            }
-
-            if (result.OutputArguments.Count == 0)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
-                    "Initiate-transfer returned no output arguments.");
-            }
-
-            if (!result.OutputArguments[0].TryGetValue(out int transferId))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadTypeMismatch,
-                    "Initiate-transfer transferId output was not an Int32.");
-            }
-            return transferId;
         }
 
-        private static FetchChunk DecodeChunk(Variant payload)
+        private static FetchChunk DecodeChunk(ExtensionObject payload)
         {
-            object? boxed = payload.AsBoxedObject();
-            // The wire form is an ExtensionObject carrying the concrete
-            // subtype's IEncodeable body; unwrap before pattern matching.
-            if (boxed is ExtensionObject ext)
-            {
-                if (ext.TryGetValue(out IEncodeable? encodable))
-                {
-                    boxed = encodable;
-                }
-            }
-            if (boxed is null)
+            // The generated FetchTransferResultData proxy returns an
+            // ExtensionObject wrapping either TransferResultDataDataType
+            // or TransferResultErrorDataType per OPC 10000-100 §10.4;
+            // unwrap and dispatch on the subtype.
+            if (payload.IsNull ||
+                !payload.TryGetValue(out IEncodeable? body) ||
+                body is null)
             {
                 return new FetchChunk(EndOfResults: true);
             }
-            // The generated proxies for TransferResultDataDataType
-            // and TransferResultErrorDataType live in Opc.Ua.Di and
-            // implement IEncodeable. We avoid the typed dependency
-            // here by reflecting over the field names via a small
-            // helper — the spec field layout is stable.
-            if (boxed is Opc.Ua.Di.TransferResultErrorDataType err)
+            if (body is Opc.Ua.Di.TransferResultErrorDataType err)
             {
                 return new FetchChunk(
                     IsError: true,
                     ErrorStatus: new StatusCode((uint)err.Status));
             }
-            if (boxed is Opc.Ua.Di.TransferResultDataDataType data)
+            if (body is Opc.Ua.Di.TransferResultDataDataType data)
             {
                 var entries = new List<ParameterFetchEntry>(data.ParameterDefs.Count);
                 for (int i = 0; i < data.ParameterDefs.Count; i++)
@@ -313,12 +241,10 @@ namespace Opc.Ua.Di.Client
                         StatusCode: p.StatusCode));
                 }
                 return new FetchChunk(
-                    Entries: entries,
+                    NextSequenceNumber: data.SequenceNumber + 1,
                     EndOfResults: data.EndOfResults,
-                    NextSequenceNumber: data.SequenceNumber);
+                    Entries: entries);
             }
-
-            // Unknown subtype: treat as end-of-results.
             return new FetchChunk(EndOfResults: true);
         }
 
