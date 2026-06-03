@@ -172,37 +172,42 @@ namespace Opc.Ua.Server
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
-                            var activeNode = new ServerConfigurationState(passiveNode.Parent);
+                            if (passiveNode is not ServerConfigurationState activeNode)
+                            {
+                                activeNode = context.CreateInstanceOfServerConfigurationType(passiveNode.Parent!);
 
-                            activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
+                                if (passiveNode.Parent != null)
+                                {
+                                    passiveNode.Parent.ReplaceChild(context, activeNode);
+                                }
+                                else
+                                {
+                                    NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
+                                        .ConfigureAwait(false);
+                                    serverNode?.ReplaceChild(context, activeNode);
+                                }
+                                // remove the reference to server node because it is set as parent
+                                activeNode.RemoveReference(
+                                    ReferenceTypeIds.HasComponent,
+                                    true,
+                                    ObjectIds.Server);
+                            }
 
-                            activeNode.Create(context, passiveNode);
+                            activeNode.AddGetCertificates(context);
 
                             m_serverConfigurationNode = activeNode;
-
-                            // replace the node in the parent.
-                            if (passiveNode.Parent != null)
-                            {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
-                            else
-                            {
-                                NodeState? serverNode = await Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server, cancellationToken)
-                                    .ConfigureAwait(false);
-                                serverNode?.ReplaceChild(context, activeNode);
-                            }
-                            // remove the reference to server node because it is set as parent
-                            activeNode.RemoveReference(
-                                ReferenceTypeIds.HasComponent,
-                                true,
-                                ObjectIds.Server);
-
                             return activeNode;
                         }
                         case ObjectTypes.CertificateGroupFolderType:
                         {
-                            var activeNode = new CertificateGroupFolderState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
+                            if (passiveNode is not CertificateGroupFolderState activeNode)
+                            {
+                                activeNode =
+                                    context.CreateInstanceOfCertificateGroupFolderType(passiveNode.Parent!);
+
+                                // replace the node in the parent.
+                                passiveNode.Parent?.ReplaceChild(context, activeNode);
+                            }
 
                             // delete unsupported groups
                             if (m_certificateGroups.All(group =>
@@ -224,8 +229,6 @@ namespace Opc.Ua.Server
                                 activeNode.DefaultApplicationGroup = null;
                             }
 
-                            // replace the node in the parent.
-                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                             return activeNode;
                         }
                         case ObjectTypes.CertificateGroupType:
@@ -236,26 +239,29 @@ namespace Opc.Ua.Server
 
                             if (result != null)
                             {
-                                var activeNode = new CertificateGroupState(passiveNode.Parent);
-                                activeNode.Create(context, passiveNode);
+                                if (passiveNode is not CertificateGroupState activeNode)
+                                {
+                                    activeNode =
+                                        context.CreateInstanceOfCertificateGroupType(passiveNode.Parent!);
+
+                                    // replace the node in the parent.
+                                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                                }
 
                                 result.NodeId = activeNode.NodeId;
                                 result.Node = activeNode;
 
-                                // replace the node in the parent.
-                                passiveNode.Parent?.ReplaceChild(context, activeNode);
                                 return activeNode;
                             }
+                            break;
                         }
-                        break;
                         case ObjectTypes.UserManagementType:
                         {
                             if (passiveNode is UserManagementState)
                             {
                                 break;
                             }
-                            var activeNode = new UserManagementState(passiveNode.Parent);
-                            activeNode.Create(context, passiveNode);
+                            UserManagementState activeNode = context.CreateInstanceOfUserManagementType(passiveNode.Parent!);
                             passiveNode.Parent?.ReplaceChild(context, activeNode);
                             return activeNode;
                         }
@@ -476,16 +482,10 @@ namespace Opc.Ua.Server
                 }
 
                 // create the NamespaceMetadata node
-                namespaceMetadataState = new NamespaceMetadataState(serverNamespacesNode)
-                {
-                    BrowseName = new QualifiedName(namespaceUri, NamespaceIndex)
-                };
-                namespaceMetadataState.Create(
-                    SystemContext,
-                    default,
-                    namespaceMetadataState.BrowseName,
-                    default,
-                    true);
+                namespaceMetadataState = SystemContext.CreateInstanceOfNamespaceMetadataType(
+                    serverNamespacesNode,
+                    new QualifiedName(namespaceUri, NamespaceIndex));
+                namespaceMetadataState.NodeId = SystemContext.NodeIdFactory.New(SystemContext, namespaceMetadataState);
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState!.NamespaceUri!.Value = namespaceUri;

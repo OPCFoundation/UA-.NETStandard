@@ -428,8 +428,8 @@ namespace Opc.Ua.Server
                             return predefinedNode;
                         }
 
-                        var activeNode = new BuildInfoVariableState(passiveVariable.Parent);
-                        activeNode.Create(context, passiveVariable);
+                        BuildInfoVariableState activeNode =
+                            context.CreateInstanceOfBuildInfoType(passiveVariable.Parent!);
 
                         // replace the node in the parent.
                         passiveVariable.Parent?.ReplaceChild(context, activeNode);
@@ -446,11 +446,14 @@ namespace Opc.Ua.Server
 
                 if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh)
                 {
-                    var activeNode = new ConditionRefreshMethodState(passiveMethod.Parent);
-                    activeNode.Create(context, passiveMethod);
+                    if (passiveMethod is not ConditionRefreshMethodState activeNode)
+                    {
+                        activeNode =
+                            context.CreateInstanceOfConditionRefreshMethodType(passiveMethod.Parent!);
 
-                    // replace the node in the parent.
-                    passiveMethod.Parent?.ReplaceChild(context, activeNode);
+                        // replace the node in the parent.
+                        passiveMethod.Parent?.ReplaceChild(context, activeNode);
+                    }
 
                     activeNode.OnCall = OnConditionRefresh;
 
@@ -458,11 +461,14 @@ namespace Opc.Ua.Server
                 }
                 else if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh2)
                 {
-                    var activeNode = new ConditionRefresh2MethodState(passiveMethod.Parent);
-                    activeNode.Create(context, passiveMethod);
+                    if (passiveMethod is not ConditionRefresh2MethodState activeNode)
+                    {
+                        activeNode =
+                           context.CreateInstanceOfConditionRefresh2MethodType(passiveMethod.Parent!);
 
-                    // replace the node in the parent.
-                    passiveMethod.Parent?.ReplaceChild(context, activeNode);
+                        // replace the node in the parent.
+                        passiveMethod.Parent?.ReplaceChild(context, activeNode);
+                    }
 
                     activeNode.OnCall = OnConditionRefresh2;
 
@@ -483,20 +489,16 @@ namespace Opc.Ua.Server
             {
                 case ObjectTypes.ServerType:
                 {
-                    if (passiveNode is ServerObjectState)
+                    if (passiveNode is not ServerObjectState activeNode)
                     {
-                        // add the server object as the root notifier.
-                        await AddRootNotifierAsync(passiveNode, cancellationToken).ConfigureAwait(false);
-                        break;
+                        activeNode = context.CreateInstanceOfServerType(passiveNode.Parent!);
+
+                        // replace the node in the parent.
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
                     }
-                    var activeNode = new ServerObjectState(passiveNode.Parent);
-                    activeNode.Create(context, passiveNode);
 
                     // add the server object as the root notifier.
                     await AddRootNotifierAsync(activeNode, cancellationToken).ConfigureAwait(false);
-
-                    // replace the node in the parent.
-                    passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     return activeNode;
                 }
@@ -507,8 +509,8 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    var activeNode = new HistoryServerCapabilitiesState(passiveNode.Parent);
-                    activeNode.Create(context, passiveNode);
+                    HistoryServerCapabilitiesState activeNode =
+                        context.CreateInstanceOfHistoryServerCapabilitiesType(passiveNode.Parent!);
 
                     // replace the node in the parent.
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -521,8 +523,7 @@ namespace Opc.Ua.Server
                     {
                         break;
                     }
-                    var activeNode = new RoleSetState(passiveNode.Parent);
-                    activeNode.Create(context, passiveNode);
+                    RoleSetState activeNode = context.CreateInstanceOfRoleSetType(passiveNode.Parent!);
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
                     return activeNode;
                 }
@@ -532,8 +533,7 @@ namespace Opc.Ua.Server
                     {
                         break;
                     }
-                    var activeNode = new RoleState(passiveNode.Parent);
-                    activeNode.Create(context, passiveNode);
+                    RoleState activeNode = context.CreateInstanceOfRoleType(passiveNode.Parent!);
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
                     return activeNode;
                 }
