@@ -684,6 +684,91 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Optional opt-in interface implemented by node managers that allow clients to
+    /// add/delete nodes and add/delete references at runtime via the OPC UA
+    /// NodeManagement service set (Part 4 §5.8).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This interface is intentionally not added to the <see cref="IAsyncNodeManager"/>
+    /// composite interface so downstream node-manager implementations remain binary
+    /// compatible. <see cref="MasterNodeManager"/> discovers an implementation via
+    /// <c>as INodeManagementAsyncNodeManager</c> when dispatching service requests.
+    /// </para>
+    /// <para>
+    /// Node managers must set <see cref="AllowNodeManagement"/> to <c>true</c> to opt
+    /// in. The default <see cref="AsyncCustomNodeManager"/> implementation returns
+    /// <c>false</c>, so the service set returns <see cref="StatusCodes.BadUserAccessDenied"/>
+    /// when targeting nodes owned by managers that have not opted in.
+    /// </para>
+    /// </remarks>
+    public interface INodeManagementAsyncNodeManager
+    {
+        /// <summary>
+        /// Indicates whether this node manager accepts NodeManagement service
+        /// requests. When <c>false</c> the master dispatcher rejects per-item
+        /// requests routed to this manager with <see cref="StatusCodes.BadUserAccessDenied"/>.
+        /// </summary>
+        bool AllowNodeManagement { get; }
+
+        /// <summary>
+        /// Adds a single node defined by <paramref name="item"/>. The implementation
+        /// owns the parent node identified by <see cref="AddNodesItem.ParentNodeId"/>.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="item">The AddNodesItem to process.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>A tuple containing the service result and the assigned NodeId
+        /// (NodeId.Null on failure).</returns>
+        ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes a single node defined by <paramref name="item"/>. The implementation
+        /// owns the node identified by <see cref="DeleteNodesItem.NodeId"/>.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="item">The DeleteNodesItem to process.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The service result. When <see cref="DeleteNodesItem.DeleteTargetReferences"/>
+        /// is <c>true</c>, inverse references targeting the deleted node in other node
+        /// managers are removed by the master dispatcher.</returns>
+        ValueTask<ServiceResult> DeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a single forward reference whose source is owned by this node
+        /// manager. The master dispatcher routes the complementary inverse edge
+        /// to the target's owning node manager when the target is local.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="item">The AddReferencesItem describing the edge to add.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes a single reference whose source is owned by this node manager.
+        /// When <see cref="DeleteReferencesItem.DeleteBidirectional"/> is <c>true</c>
+        /// the master dispatcher removes the complementary inverse edge from the
+        /// target's owning node manager when the target is local.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="item">The DeleteReferencesItem describing the edge to remove.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An interface to an object that creates a IAsyncNodeManager object.
     /// </summary>
     public interface IAsyncNodeManagerFactory

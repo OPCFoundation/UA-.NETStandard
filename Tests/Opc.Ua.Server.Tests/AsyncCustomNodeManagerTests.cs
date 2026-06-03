@@ -409,6 +409,86 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DeleteAddressSpaceAsync_InvokesNodeStateDeleteCallbacksAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            bool deletedMaskRaised = false;
+
+            var node = new BaseObjectState(null);
+            node.CreateAsPredefinedNode(context);
+            node.NodeId = new NodeId("DeletableRoot", nsIdx);
+            node.BrowseName = new QualifiedName("DeletableRoot", nsIdx);
+            node.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    deletedMaskRaised = true;
+                }
+            };
+
+            await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
+            Assert.That(manager.PredefinedNodes.ContainsKey(node.NodeId), Is.True);
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(deletedMaskRaised, Is.True,
+                "NodeStateChangeMasks.Deleted must be raised on shutdown so subscribers can react (#3762).");
+            Assert.That(manager.PredefinedNodes, Is.Empty);
+        }
+
+        [Test]
+        public async Task DeleteAddressSpaceAsync_DoesNotDoubleFireOnChildrenAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            int parentDeleted = 0;
+            int childDeleted = 0;
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("Parent", nsIdx);
+            parent.BrowseName = new QualifiedName("Parent", nsIdx);
+            parent.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    parentDeleted++;
+                }
+            };
+
+            var child = new BaseObjectState(parent);
+            child.CreateAsPredefinedNode(context);
+            child.NodeId = new NodeId("Child", nsIdx);
+            child.BrowseName = new QualifiedName("Child", nsIdx);
+            child.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    childDeleted++;
+                }
+            };
+            parent.AddChild(child);
+
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+            await manager.AddPredefinedNodeAsync(context, child).ConfigureAwait(false);
+
+            Assume.That(manager.PredefinedNodes.ContainsKey(parent.NodeId), Is.True);
+            Assume.That(manager.PredefinedNodes.ContainsKey(child.NodeId), Is.True);
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(parentDeleted, Is.EqualTo(1));
+            Assert.That(childDeleted, Is.EqualTo(1),
+                "Children must be deleted exactly once even if also present in PredefinedNodes (#3762).");
+            Assert.That(manager.PredefinedNodes, Is.Empty);
+        }
+
+        [Test]
         public async Task GetManagerHandleAsync_ReturnsHandleForExistingNodeAsync()
         {
             using ITestNodeManager manager = CreateManager();

@@ -167,7 +167,7 @@ namespace Opc.Ua.Server.FileSystem
                 m_handles.Clear();
             }
 
-            return default;
+            return base.DeleteAddressSpaceAsync(cancellationToken);
         }
 
         /// <inheritdoc/>

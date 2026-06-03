@@ -49,7 +49,11 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class AsyncCustomNodeManager : IAsyncNodeManager, INodeIdFactory, IDisposable
+    public class AsyncCustomNodeManager :
+        IAsyncNodeManager,
+        INodeIdFactory,
+        INodeManagementAsyncNodeManager,
+        IDisposable
     {
         /// <summary>
         /// Initializes the node manager.
@@ -542,8 +546,9 @@ namespace Opc.Ua.Server
         /// <para>
         /// Use this when a node is materialized dynamically at runtime and the
         /// caller has already allocated NodeIds for the root and every child
-        /// (e.g. via <see cref="IRoleManager.AddRole"/>). Unlike
-        /// <see cref="AddNodeAsync"/>, this method does <strong>not</strong>
+        /// (e.g. via <see cref="IRoleManager.AddRole"/>). Unlike the
+        /// <see cref="AddNodeAsync(ServerSystemContext, NodeId, BaseInstanceState, CancellationToken)"/>
+        /// overload, this method does <strong>not</strong>
         /// run <c>AssignNodeIds</c> — the NodeIds set on the instance and its
         /// children are kept verbatim and used as PredefinedNodes keys.
         /// </para>
@@ -627,6 +632,407 @@ namespace Opc.Ua.Server
             }
 
             return true;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Defaults to <c>false</c> so that existing node managers do not
+        /// accept NodeManagement service requests. Sub-classes override this
+        /// property to opt in.
+        /// </remarks>
+        public virtual bool AllowNodeManagement => false;
+
+        /// <inheritdoc/>
+        public virtual async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (item == null)
+            {
+                return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
+            }
+
+            if (item.BrowseName.IsNull)
+            {
+                return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
+            }
+
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+
+            var parentNodeId = ExpandedNodeId.ToNodeId(item.ParentNodeId, Server.NamespaceUris);
+            if (parentNodeId.IsNull)
+            {
+                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+            }
+
+            var typeDefinitionId = ExpandedNodeId.ToNodeId(item.TypeDefinition, Server.NamespaceUris);
+
+            BaseInstanceState instance;
+            try
+            {
+                instance = CreateInstanceForAddNodes(item, typeDefinitionId);
+            }
+            catch (ServiceResultException ex)
+            {
+                return (new ServiceResult(ex), NodeId.Null);
+            }
+
+            instance.ReferenceTypeId = item.ReferenceTypeId;
+            instance.BrowseName = item.BrowseName;
+            if (instance.DisplayName.IsNull)
+            {
+                instance.DisplayName = new LocalizedText(item.BrowseName.Name);
+            }
+
+            // Resolve target NodeId: honour caller-supplied NodeId when present and
+            // valid, otherwise allocate a fresh one from this manager's namespace.
+            // Some derived classes override `New(...)` to produce hierarchical
+            // child identifiers from a parent; for service-set AddNodes the
+            // instance has no parent yet, so we fall back to the base
+            // identifier allocator to guarantee a non-null NodeId.
+            NodeId newNodeId;
+            if (item.RequestedNewNodeId.IsNull)
+            {
+                newNodeId = New(systemContext, instance);
+                if (newNodeId.IsNull)
+                {
+                    newNodeId = new NodeId(
+                        Utils.IncrementIdentifier(ref m_lastUsedNodeId),
+                        NamespaceIndex);
+                }
+            }
+            else
+            {
+                newNodeId = ExpandedNodeId.ToNodeId(item.RequestedNewNodeId, Server.NamespaceUris);
+                if (newNodeId.IsNull || !IsNodeIdInNamespace(newNodeId))
+                {
+                    return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+                }
+                if (PredefinedNodes.ContainsKey(newNodeId))
+                {
+                    return (new ServiceResult(StatusCodes.BadNodeIdExists), NodeId.Null);
+                }
+            }
+            instance.NodeId = newNodeId;
+
+            // Detect duplicate browse name beneath the parent. For local
+            // parents we use the in-memory child list. For cross-NodeManager
+            // parents we scan THIS manager's PredefinedNodes for siblings
+            // that hold an inverse reference to the same parent — this
+            // catches duplicates among nodes created via the SDK in this
+            // NodeManager.
+            if (PredefinedNodes.TryGetValue(parentNodeId, out NodeState? parentNode))
+            {
+                var existingChildren = new List<BaseInstanceState>();
+                parentNode.GetChildren(systemContext, existingChildren);
+                foreach (BaseInstanceState child in existingChildren)
+                {
+                    if (child.BrowseName == item.BrowseName)
+                    {
+                        return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
+                    }
+                }
+                parentNode.AddChild(instance);
+            }
+            else
+            {
+                foreach (NodeState existing in PredefinedNodes.Values)
+                {
+                    if (existing is BaseInstanceState sibling &&
+                        sibling.BrowseName == item.BrowseName &&
+                        existing.ReferenceExists(item.ReferenceTypeId, true, parentNodeId))
+                    {
+                        return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
+                    }
+                }
+
+                // Cross-NodeManager parent: write the inverse edge so Browse from
+                // the child still resolves the parent. The forward edge from
+                // parent to child is written below via Server.NodeManager.
+                instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
+            }
+
+            try
+            {
+                await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return (new ServiceResult(ex), NodeId.Null);
+            }
+
+            // Always add the forward edge from parent → child via the master so
+            // the parent's owning NodeManager records it (works whether parent
+            // is local or remote).
+            try
+            {
+                var forward = new List<IReference>
+                {
+                    new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
+                };
+                await Server.NodeManager.AddReferencesAsync(
+                    parentNodeId, forward, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return (new ServiceResult(ex), NodeId.Null);
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeAdded(instance.NodeId, instance.TypeDefinitionId);
+                ModelChangeAggregator.RecordReferenceAdded(parentNodeId);
+                EmitModelChange(systemContext);
+            }
+
+            return (ServiceResult.Good, instance.NodeId);
+        }
+
+        /// <inheritdoc/>
+        public virtual async ValueTask<ServiceResult> DeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (item == null)
+            {
+                return new ServiceResult(StatusCodes.BadNothingToDo);
+            }
+
+            if (item.NodeId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdInvalid);
+            }
+
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+
+            if (!PredefinedNodes.TryGetValue(item.NodeId, out NodeState? node))
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+
+            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+
+            var referencesToRemove = new List<LocalReference>();
+            await RemovePredefinedNodeAsync(systemContext, node!, referencesToRemove, cancellationToken)
+                .ConfigureAwait(false);
+            await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+            if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
+            {
+                await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordNodeDeleted(item.NodeId, deletedTypeDefinition);
+                EmitModelChange(systemContext);
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <inheritdoc/>
+        public virtual ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (item == null)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadNothingToDo));
+            }
+
+            if (item.SourceNodeId.IsNull)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadSourceNodeIdInvalid));
+            }
+
+            if (item.ReferenceTypeId.IsNull)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid));
+            }
+
+            if (item.TargetNodeId.IsNull)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadTargetNodeIdInvalid));
+            }
+
+            if (!PredefinedNodes.TryGetValue(item.SourceNodeId, out NodeState? source))
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadSourceNodeIdInvalid));
+            }
+
+            bool isInverse = !item.IsForward;
+
+            if (source.ReferenceExists(item.ReferenceTypeId, isInverse, item.TargetNodeId))
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed));
+            }
+
+            source.AddReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
+        }
+
+        /// <inheritdoc/>
+        public virtual ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (item == null)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadNothingToDo));
+            }
+
+            if (item.SourceNodeId.IsNull)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadSourceNodeIdInvalid));
+            }
+
+            if (item.ReferenceTypeId.IsNull)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid));
+            }
+
+            if (!PredefinedNodes.TryGetValue(item.SourceNodeId, out NodeState? source))
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadSourceNodeIdInvalid));
+            }
+
+            bool isInverse = !item.IsForward;
+            bool removed = source.RemoveReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
+            if (!removed)
+            {
+                return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadNoMatch));
+            }
+
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
+        }
+
+        /// <summary>
+        /// Creates a NodeState for an <see cref="AddNodesItem"/> based on the
+        /// requested node class and any node attributes the caller provided.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the supplied attributes are not valid for the node class
+        /// or when the node class is not supported.
+        /// </exception>
+        private static BaseInstanceState CreateInstanceForAddNodes(
+            AddNodesItem item,
+            NodeId typeDefinitionId)
+        {
+            switch (item.NodeClass)
+            {
+                case NodeClass.Variable:
+                {
+                    var variable = new BaseDataVariableState(null)
+                    {
+                        TypeDefinitionId = typeDefinitionId.IsNull
+                            ? VariableTypeIds.BaseDataVariableType
+                            : typeDefinitionId,
+                        AccessLevel = AccessLevels.CurrentReadOrWrite,
+                        UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                        DataType = DataTypeIds.BaseDataType,
+                        ValueRank = ValueRanks.Scalar
+                    };
+                    if (!item.NodeAttributes.IsNull)
+                    {
+                        if (!item.NodeAttributes.TryGetValue(out VariableAttributes? attrs) || attrs == null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadNodeAttributesInvalid);
+                        }
+                        ApplyVariableAttributes(variable, attrs);
+                    }
+                    return variable;
+                }
+
+                case NodeClass.Object:
+                {
+                    var instance = new BaseObjectState(null)
+                    {
+                        TypeDefinitionId = typeDefinitionId.IsNull
+                            ? ObjectTypeIds.BaseObjectType
+                            : typeDefinitionId
+                    };
+                    if (!item.NodeAttributes.IsNull)
+                    {
+                        if (!item.NodeAttributes.TryGetValue(out ObjectAttributes? attrs) || attrs == null)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadNodeAttributesInvalid);
+                        }
+                        ApplyObjectAttributes(instance, attrs);
+                    }
+                    return instance;
+                }
+
+                default:
+                    throw new ServiceResultException(StatusCodes.BadNodeClassInvalid);
+            }
+        }
+
+        private static void ApplyVariableAttributes(
+            BaseDataVariableState variable,
+            VariableAttributes attributes)
+        {
+            uint mask = attributes.SpecifiedAttributes;
+            if ((mask & (uint)NodeAttributesMask.DisplayName) != 0 && !attributes.DisplayName.IsNull)
+            {
+                variable.DisplayName = attributes.DisplayName;
+            }
+            if ((mask & (uint)NodeAttributesMask.Description) != 0 && !attributes.Description.IsNull)
+            {
+                variable.Description = attributes.Description;
+            }
+            if ((mask & (uint)NodeAttributesMask.DataType) != 0 && !attributes.DataType.IsNull)
+            {
+                variable.DataType = attributes.DataType;
+            }
+            if ((mask & (uint)NodeAttributesMask.ValueRank) != 0)
+            {
+                variable.ValueRank = attributes.ValueRank;
+            }
+            if ((mask & (uint)NodeAttributesMask.AccessLevel) != 0)
+            {
+                variable.AccessLevel = attributes.AccessLevel;
+            }
+            if ((mask & (uint)NodeAttributesMask.UserAccessLevel) != 0)
+            {
+                variable.UserAccessLevel = attributes.UserAccessLevel;
+            }
+            if ((mask & (uint)NodeAttributesMask.Historizing) != 0)
+            {
+                variable.Historizing = attributes.Historizing;
+            }
+            if ((mask & (uint)NodeAttributesMask.MinimumSamplingInterval) != 0)
+            {
+                variable.MinimumSamplingInterval = attributes.MinimumSamplingInterval;
+            }
+            if ((mask & (uint)NodeAttributesMask.Value) != 0)
+            {
+                variable.Value = attributes.Value;
+            }
+        }
+
+        private static void ApplyObjectAttributes(
+            BaseObjectState instance,
+            ObjectAttributes attributes)
+        {
+            uint mask = attributes.SpecifiedAttributes;
+            if ((mask & (uint)NodeAttributesMask.DisplayName) != 0 && !attributes.DisplayName.IsNull)
+            {
+                instance.DisplayName = attributes.DisplayName;
+            }
+            if ((mask & (uint)NodeAttributesMask.Description) != 0 && !attributes.Description.IsNull)
+            {
+                instance.Description = attributes.Description;
+            }
+            if ((mask & (uint)NodeAttributesMask.EventNotifier) != 0)
+            {
+                instance.EventNotifier = attributes.EventNotifier;
+            }
         }
 
         /// <summary>
@@ -1097,14 +1503,30 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
+        /// <remarks>
+        /// Iterates the predefined nodes and invokes <see cref="NodeState.Delete"/> on each
+        /// root node so the <see cref="NodeState.OnBeforeDelete"/> and
+        /// <see cref="NodeState.OnAfterDelete"/> callbacks fire and
+        /// <see cref="NodeStateChangeMasks.Deleted"/> is reported to subscribers. Nodes that
+        /// are children of another predefined node are skipped because they are deleted
+        /// recursively by their parent (avoiding duplicate callbacks).
+        /// </remarks>
         public virtual ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            // NodeState[] nodes = [.. PredefinedNodes.Values];
+            NodeState[] nodes = [.. PredefinedNodes.Values];
+            ISystemContext context = SystemContext;
+            foreach (NodeState node in nodes)
+            {
+                if (node is BaseInstanceState instance &&
+                    instance.Parent != null &&
+                    !instance.Parent.NodeId.IsNull &&
+                    PredefinedNodes.ContainsKey(instance.Parent.NodeId))
+                {
+                    continue;
+                }
+                node.Delete(context);
+            }
             PredefinedNodes.Clear();
-            // foreach (var node in nodes)
-            // {
-            //     node.Delete();
-            // }
             return default;
         }
 
@@ -2598,8 +3020,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// The model change aggregator used by <see cref="CreateNodeAsync"/> /
-        /// <see cref="DeleteNodeAsync"/> to batch address-space changes
-        /// per publish cycle.
+        /// <see cref="DeleteNodeAsync(ServerSystemContext, NodeId, CancellationToken)"/>
+        /// to batch address-space changes per publish cycle.
         /// </summary>
         protected Opc.Ua.Server.NodeManager.ModelChangeAggregator ModelChangeAggregator { get; }
             = new Opc.Ua.Server.NodeManager.ModelChangeAggregator();
@@ -2607,7 +3029,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets whether the framework automatically emits
         /// <c>GeneralModelChangeEventType</c> from <see cref="CreateNodeAsync"/>
-        /// / <see cref="DeleteNodeAsync"/>. Default: <c>true</c>.
+        /// / <see cref="DeleteNodeAsync(ServerSystemContext, NodeId, CancellationToken)"/>.
+        /// Default: <c>true</c>.
         /// </summary>
         public bool ModelChangeEmissionEnabled { get; set; } = true;
 

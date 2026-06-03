@@ -68,6 +68,8 @@
       - [Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`](#auto-emit-generalmodelchangeevent-from-customnodemanager)
     - [Address-space model change tracking](#address-space-model-change-tracking)
       - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
+    - [NodeManagement service set](#nodemanagement-service-set)
+    - [`DeleteAddressSpace` invokes `NodeState.Delete` (#3762)](#deleteaddressspace-invokes-nodestatedelete-3762)
     - [Subscriptions and Transports](#subscriptions-and-transports)
       - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
       - [PubSub](#pubsub)
@@ -1794,6 +1796,60 @@ public sealed class MyNodeCache : INodeCache
 Implementations that can perform per-node eviction should do so —
 the tracker is most efficient when targeted invalidation is
 available.
+
+### NodeManagement service set
+
+The OPC UA `NodeManagement` service set (`AddNodes` / `DeleteNodes` /
+`AddReferences` / `DeleteReferences`) is now implemented in the SDK
+itself. `StandardServer` provides default overrides that delegate to
+`MasterNodeManager`, which dispatches each per-item request to the
+owning NodeManager via the new optional
+`INodeManagementAsyncNodeManager` interface. NodeManagers opt in by
+returning `true` from `AllowNodeManagement` — the default for every
+`AsyncCustomNodeManager`-derived class is `false`, so existing
+behavior is preserved.
+
+```csharp
+public sealed class MyNodeManager : AsyncCustomNodeManager
+{
+    // ... existing constructors ...
+
+    // Opt in:
+    public override bool AllowNodeManagement => true;
+}
+```
+
+**Migration:** Downstream `StandardServer`-derived servers that
+previously overrode `AddNodesAsync` / `DeleteNodesAsync` /
+`AddReferencesAsync` / `DeleteReferencesAsync` to forward to a
+custom helper should remove the override and instead set
+`AllowNodeManagement => true` on the matching NodeManager. The full
+contract — request validation, per-item routing, audit events,
+cross-NodeManager reference mirroring — is provided by the SDK.
+
+See [NodeManagement Service Set](NodeManagement.md) for the full
+behavior contract, error codes, and per-item handling.
+
+### `DeleteAddressSpace` invokes `NodeState.Delete` (#3762)
+
+`CustomNodeManager.DeleteAddressSpace` and
+`AsyncCustomNodeManager.DeleteAddressSpaceAsync` now call
+`NodeState.Delete(SystemContext)` on every root node before clearing
+the predefined-node table. This means `NodeState.OnBeforeDelete` /
+`OnAfterDelete` hooks and `NodeStateChangeMasks.Deleted` state-change
+notifications fire on server shutdown, giving subscribers a chance to
+flush state.
+
+Child nodes whose parent is in the same `PredefinedNodes` snapshot
+are skipped to avoid double-firing — `NodeState.Delete` already
+recurses into children, so iterating only roots prevents the second
+notification.
+
+**Migration:** This is a behavior change for shutdown only. Custom
+`DeleteAddressSpace` / `DeleteAddressSpaceAsync` overrides should
+delegate to `base` so the new behavior is preserved; the in-tree
+sample managers (`ReferenceNodeManager`, `FileSystemNodeManager`,
+`SampleNodeManager`) already do this.
 
 ### Subscriptions and Transports
 
