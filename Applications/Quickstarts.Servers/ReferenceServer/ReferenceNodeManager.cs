@@ -5353,14 +5353,6 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Frees any resources allocated for the address space.
-        /// </summary>
-        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
-        {
-            return base.DeleteAddressSpaceAsync(cancellationToken);
-        }
-
-        /// <summary>
         /// Returns a unique handle for the node.
         /// </summary>
         protected override ValueTask<NodeHandle> GetManagerHandleAsync(

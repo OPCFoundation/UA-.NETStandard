@@ -1006,10 +1006,9 @@ namespace Opc.Ua.Server
                     return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
                 }
 
-                if (parentOwner is INodeManagementAsyncNodeManager candidate &&
-                    candidate.AllowNodeManagement)
+                if (parentOwner.AllowNodeManagement)
                 {
-                    nodeManagement = candidate;
+                    nodeManagement = parentOwner;
                 }
                 else
                 {
@@ -1054,15 +1053,14 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadNodeIdUnknown);
             }
 
-            if (owner is not INodeManagementAsyncNodeManager nodeManagement ||
-                !nodeManagement.AllowNodeManagement)
+            if (!owner.AllowNodeManagement)
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
             try
             {
-                return await nodeManagement.DeleteNodeAsync(context, item, cancellationToken)
+                return await owner.DeleteNodeAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
@@ -1104,8 +1102,7 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
             }
 
-            if (sourceOwner is not INodeManagementAsyncNodeManager sourceMgmt ||
-                !sourceMgmt.AllowNodeManagement)
+            if (!sourceOwner.AllowNodeManagement)
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
@@ -1113,7 +1110,7 @@ namespace Opc.Ua.Server
             ServiceResult sourceResult;
             try
             {
-                sourceResult = await sourceMgmt.AddReferenceAsync(context, item, cancellationToken)
+                sourceResult = await sourceOwner.AddReferenceAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
@@ -1138,8 +1135,7 @@ namespace Opc.Ua.Server
                 if (targetHandle != null &&
                     targetOwner != null &&
                     !ReferenceEquals(targetOwner, sourceOwner) &&
-                    targetOwner is INodeManagementAsyncNodeManager targetMgmt &&
-                    targetMgmt.AllowNodeManagement)
+                    targetOwner.AllowNodeManagement)
                 {
                     var inverseItem = new AddReferencesItem
                     {
@@ -1153,7 +1149,7 @@ namespace Opc.Ua.Server
 
                     try
                     {
-                        ServiceResult inverseResult = await targetMgmt.AddReferenceAsync(
+                        ServiceResult inverseResult = await targetOwner.AddReferenceAsync(
                             context, inverseItem, cancellationToken).ConfigureAwait(false);
                         if (ServiceResult.IsBad(inverseResult))
                         {
@@ -1208,8 +1204,7 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
             }
 
-            if (sourceOwner is not INodeManagementAsyncNodeManager sourceMgmt ||
-                !sourceMgmt.AllowNodeManagement)
+            if (!sourceOwner.AllowNodeManagement)
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
@@ -1217,7 +1212,7 @@ namespace Opc.Ua.Server
             ServiceResult sourceResult;
             try
             {
-                sourceResult = await sourceMgmt.DeleteReferenceAsync(context, item, cancellationToken)
+                sourceResult = await sourceOwner.DeleteReferenceAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
@@ -1248,8 +1243,7 @@ namespace Opc.Ua.Server
             if (targetHandle2 != null &&
                 targetOwner2 != null &&
                 !ReferenceEquals(targetOwner2, sourceOwner) &&
-                targetOwner2 is INodeManagementAsyncNodeManager targetMgmt2 &&
-                targetMgmt2.AllowNodeManagement)
+                targetOwner2.AllowNodeManagement)
             {
                 var inverseItem = new DeleteReferencesItem
                 {
@@ -1262,7 +1256,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    ServiceResult inverseResult = await targetMgmt2.DeleteReferenceAsync(
+                    ServiceResult inverseResult = await targetOwner2.DeleteReferenceAsync(
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(inverseResult))
                     {
@@ -1289,9 +1283,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the first <see cref="INodeManagementAsyncNodeManager"/>
-        /// registered against the given namespace index, or <c>null</c> when
-        /// no NodeManager owns the namespace.
+        /// Returns the first NodeManager registered against the given namespace
+        /// index, or <c>null</c> when no NodeManager owns the namespace. Since
+        /// <see cref="INodeManagementAsyncNodeManager"/> is aggregated into
+        /// <see cref="IAsyncNodeManager"/> every owner exposes the surface;
+        /// callers should still check <see cref="INodeManagementAsyncNodeManager.AllowNodeManagement"/>.
         /// </summary>
         private INodeManagementAsyncNodeManager? FindNodeManagementOwner(ushort namespaceIndex)
         {
@@ -1300,14 +1296,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            for (int ii = 0; ii < nodeManagers.Count; ii++)
-            {
-                if (nodeManagers[ii] is INodeManagementAsyncNodeManager candidate)
-                {
-                    return candidate;
-                }
-            }
-            return null;
+            return nodeManagers.Count > 0 ? nodeManagers[0] : null;
         }
 
         /// <summary>
@@ -1320,10 +1309,9 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < m_nodeManagers.Count; ii++)
             {
-                if (m_nodeManagers[ii] is INodeManagementAsyncNodeManager candidate &&
-                    candidate.AllowNodeManagement)
+                if (m_nodeManagers[ii].AllowNodeManagement)
                 {
-                    return candidate;
+                    return m_nodeManagers[ii];
                 }
             }
             return null;

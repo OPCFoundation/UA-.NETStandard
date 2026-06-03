@@ -684,16 +684,16 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Optional opt-in interface implemented by node managers that allow clients to
+    /// Opt-in facet implemented by node managers that allow clients to
     /// add/delete nodes and add/delete references at runtime via the OPC UA
     /// NodeManagement service set (Part 4 §5.8).
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This interface is intentionally not added to the <see cref="IAsyncNodeManager"/>
-    /// composite interface so downstream node-manager implementations remain binary
-    /// compatible. <see cref="MasterNodeManager"/> discovers an implementation via
-    /// <c>as INodeManagementAsyncNodeManager</c> when dispatching service requests.
+    /// Aggregated into the composite <see cref="IAsyncNodeManager"/> so every
+    /// async node manager exposes the surface. <see cref="MasterNodeManager"/>
+    /// short-circuits on <see cref="AllowNodeManagement"/> before invoking the
+    /// per-item methods, so node managers that opt out incur no overhead.
     /// </para>
     /// <para>
     /// Node managers must set <see cref="AllowNodeManagement"/> to <c>true</c> to opt
@@ -808,7 +808,8 @@ namespace Opc.Ua.Server
         ITransferMonitoredItemsAsyncNodeManager,
         IDeleteMonitoredItemsAsyncNodeManager,
         IModifyMonitoredItemsAsyncNodeManager,
-        ICreateMonitoredItemsAsyncNodeManager
+        ICreateMonitoredItemsAsyncNodeManager,
+        INodeManagementAsyncNodeManager
     {
         /// <summary>
         /// Resolves the effective <see cref="MethodState"/> for a call request.

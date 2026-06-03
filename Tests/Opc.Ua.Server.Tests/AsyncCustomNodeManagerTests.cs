@@ -5232,6 +5232,41 @@ namespace Opc.Ua.Server.Tests
             m_cnm2.SetNamespaceUrisPublic(uris);
         }
 
+        // INodeManagementAsyncNodeManager — delegate to m_adapter (which delegates to the wrapped CNM2 if it implements the facet)
+        public bool AllowNodeManagement => m_adapter.AllowNodeManagement;
+
+        public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.AddNodeAsync(context, item, cancellationToken);
+        }
+
+        public ValueTask<ServiceResult> DeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.DeleteNodeAsync(context, item, cancellationToken);
+        }
+
+        public ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.AddReferenceAsync(context, item, cancellationToken);
+        }
+
+        public ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_adapter.DeleteReferenceAsync(context, item, cancellationToken);
+        }
+
         public void Dispose()
         {
             m_adapter.Dispose();

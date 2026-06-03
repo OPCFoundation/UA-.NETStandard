@@ -52,7 +52,6 @@ namespace Opc.Ua.Server
     public class AsyncCustomNodeManager :
         IAsyncNodeManager,
         INodeIdFactory,
-        INodeManagementAsyncNodeManager,
         IDisposable
     {
         /// <summary>
