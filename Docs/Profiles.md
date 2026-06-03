@@ -51,24 +51,16 @@ The server implementation also provides support for:
 - **WoT Connectivity (OPC 10100-1)** - Integration with Web of Things assets and Thing Descriptions for IoT connectivity (see [WoT Connectivity documentation](WoTConnectivity.md))
 - **Model Change Tracking** - Address space change notifications and client-side cache invalidation (see [Model Change Tracking documentation](ModelChangeTracking.md))
 
-### Currently Not Supported (Server)
-
-The following server profiles/facets have limited or incomplete support:
-
-- **Alarms and Conditions** - Comprehensive implementation of core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. Some specialized event types defined in OPC UA Part 9 are not yet implemented (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
-- **Historical Access** - Comprehensive historical data access is supported with configurable retention, read/write operations, annotations, and server-side aggregates (Average, Total, Minimum, Maximum, and many more) via streaming fallback or provider push-down (see [Historical Access documentation](HistoricalAccess.md))
-- **Events** - The event notification infrastructure is fully implemented. However, event type definitions from specific companion specifications may require custom implementation or have incomplete state management
-- **Query Server Facet** - Advanced query capabilities
+These features are configured and registered using the fluent API and dependency injection patterns (see individual feature documentation for examples).
 
 ## Client Profiles
 
 The Client implementation supports:
 
 - **Standard UA Client Profile** - Full client functionality for connecting to OPC UA servers
-- **Subscription management** - Creating and managing subscriptions and monitored items
+- **Subscription management** - Creating and managing subscriptions and monitored items, including streaming subscriptions with async enumerable-based API for state-machine waits and short-lived monitoring (see [Streaming Subscriptions documentation](StreamingSubscription.md))
 - **Transfer Subscriptions** - Support for transferring subscriptions between servers (see [Transfer Subscriptions documentation](TransferSubscription.md))
 - **Reverse Connect** - Client can accept connections initiated by servers (see [Reverse Connect documentation](ReverseConnect.md))
-- **Streaming Subscriptions** - Async enumerable-based subscription API for state-machine waits and short-lived monitoring (see [Streaming Subscriptions documentation](StreamingSubscription.md))
 - **Model Change Tracking** - Track address space changes and invalidate cached nodes (see [Model Change Tracking documentation](ModelChangeTracking.md))
 - **File System Operations** - Ergonomic async API for remote OPC UA file system operations, mirroring System.IO semantics (see [FileSystemClient documentation](FileSystemClient.md))
 - **Alarms and Conditions** - Client-side support for subscribing to and processing OPC UA alarms and condition events provided by the server, with typed event records and filtering (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
@@ -127,12 +119,30 @@ The stack supports the following OPC UA security profiles for secure communicati
 
 Support for Elliptic Curve Cryptography (ECC) security policies (see [ECC Profiles documentation](EccProfiles.md)):
 
-- **[ECC_nistP256](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256)** - NIST P-256 curve
-- **[ECC_nistP384](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384)** - NIST P-384 curve
-- **[ECC_brainpoolP256r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1)** - Brainpool P-256r1 curve
-- **[ECC_brainpoolP384r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1)** - Brainpool P-384r1 curve
+#### Traditional ECC Curves
+- **[ECC_nistP256](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256)** - NIST P-256 curve with SHA-256 signatures
+- **[ECC_nistP384](http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384)** - NIST P-384 curve with SHA-384 signatures
+- **[ECC_brainpoolP256r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1)** - Brainpool P-256r1 curve with SHA-256 signatures
+- **[ECC_brainpoolP384r1](http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1)** - Brainpool P-384r1 curve with SHA-384 signatures
 
-**Platform Requirements for ECC:** ECC support is available on .NET Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Not all curves are supported by all OS platforms and .NET implementations.
+#### Modern ECC Curves (v2.0)
+- **[ECC_curve25519](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519)** - Curve25519 with ChaCha20-Poly1305
+- **[ECC_curve25519_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve25519_AesGcm)** - Curve25519 with AES-GCM
+- **[ECC_curve448](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448)** - Curve448 with ChaCha20-Poly1305
+- **[ECC_curve448_AesGcm](http://opcfoundation.org/UA/SecurityPolicy#ECC_curve448_AesGcm)** - Curve448 with AES-GCM
+
+#### AES-GCM and ChaCha20-Poly1305 Variants (v2.0)
+Modern AEAD cipher alternatives for traditional ECC curves:
+- **ECC_nistP256_AesGcm**, **ECC_nistP256_ChaChaPoly**
+- **ECC_nistP384_AesGcm**, **ECC_nistP384_ChaChaPoly**
+- **ECC_brainpoolP256r1_AesGcm**, **ECC_brainpoolP256r1_ChaChaPoly**
+- **ECC_brainpoolP384r1_AesGcm**, **ECC_brainpoolP384r1_ChaChaPoly**
+
+#### RSA Diffie-Hellman (v2.0)
+- **RSA_DH_AesGcm** - RSA Diffie-Hellman key agreement with AES-GCM
+- **RSA_DH_ChaChaPoly** - RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
+
+**Platform Requirements for ECC:** ECC support is available on .NET Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Modern curves (Curve25519, Curve448) and AEAD ciphers (AES-GCM, ChaCha20-Poly1305) require .NET 5.0 or later. Not all curves are supported by all OS platforms and .NET implementations.
 
 ### Deprecated Security Policies
 
