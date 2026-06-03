@@ -111,7 +111,9 @@ namespace Opc.Ua.Client
         /// GetEndpoints() request.</param>
         /// <param name="engineFactory">Optional subscription engine factory. When
         /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
-        /// by default.</param>
+        /// (the classic engine) by default. Pass
+        /// <see cref="DefaultSubscriptionEngineFactory.Instance"/> explicitly
+        /// to opt into the V2 engine.</param>
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
         /// session for keep-alive timers and elapsed-time calculations. When
         /// <see langword="null"/>, <see cref="TimeProvider.System"/> is used.</param>
@@ -291,7 +293,10 @@ namespace Opc.Ua.Client
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = m_timeProvider.CreateTimer(_ => m_keepAliveEvent.Set(), this, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-            // Create the subscription engine.
+            // Create the subscription engine. Session defaults to the
+            // classic engine (legacy applications + classic Subscription
+            // API). ManagedSession explicitly opts in to the V2 engine
+            // via its builder.
             SubscriptionEngineFactory = engineFactory
                 ?? (ReferenceEquals(m_timeProvider, TimeProvider.System)
                     ? ClassicSubscriptionEngineFactory.Instance

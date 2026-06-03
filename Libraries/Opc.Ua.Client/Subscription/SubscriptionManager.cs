@@ -37,6 +37,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -241,6 +242,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
             try
             {
                 await m_cts.CancelAsync().ConfigureAwait(false);
@@ -328,6 +333,232 @@ namespace Opc.Ua.Client.Subscriptions
             }
             m_publishControl.Set();
             return subscription;
+        }
+
+        /// <summary>
+        /// Restore a single subscription from a snapshot previously
+        /// produced by <see cref="Subscription.Snapshot"/>. The
+        /// returned subscription is registered with the manager via the
+        /// same path as <see cref="Add"/>.
+        /// </summary>
+        /// <param name="handler">Notification handler for the restored
+        /// subscription.</param>
+        /// <param name="state">Snapshot captured earlier on the source
+        /// session.</param>
+        /// <param name="transferSubscriptions">
+        /// When <c>true</c> the saved server-side subscription id and
+        /// per-item server ids are preserved and an OPC UA
+        /// TransferSubscriptions service call is issued so the new
+        /// session takes over the existing server-side state. If
+        /// transfer is unavailable (e.g. the server returns
+        /// <c>BadSubscriptionIdInvalid</c>), the restore falls back to
+        /// recreate.
+        /// When <c>false</c> the V2 state machine mints fresh
+        /// server-side ids — equivalent to a fresh
+        /// <see cref="Add"/> with the saved configuration.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <remarks>
+        /// Not on <see cref="ISubscriptionManager"/>: callers that want
+        /// stream-based restore should use <see cref="LoadAsync"/>;
+        /// fluent helpers and the serializer cast to the concrete
+        /// <see cref="SubscriptionManager"/> to reach this method.
+        /// </remarks>
+        internal ValueTask<ISubscription> RestoreAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+            if (transferSubscriptions && state.ServerId != 0)
+            {
+                return RestoreTransferAsync(handler, state, ct);
+            }
+            return RestoreRecreateAsync(handler, state, ct);
+        }
+
+        private ValueTask<ISubscription> RestoreRecreateAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            ISubscription subscription = Add(
+                handler,
+                new OptionsMonitor<SubscriptionOptions>(state.ToOptions()));
+            foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
+            {
+                subscription.MonitoredItems.TryAdd(
+                    item.Name,
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
+                    out _);
+            }
+            return new ValueTask<ISubscription>(subscription);
+        }
+
+        private async ValueTask<ISubscription> RestoreTransferAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            CancellationToken ct)
+        {
+            // Build the internal load-state record (decoupled from the
+            // public DTO so the engine has no DTO coupling). The reverse
+            // "items I trigger" set is reconstructed on demand from the
+            // triggering relationships per item.
+            var itemLoadStates = new List<MonitoredItemLoadState>(
+                state.MonitoredItems.Count);
+            foreach (MonitoredItemStateSnapshot item in state.MonitoredItems)
+            {
+                itemLoadStates.Add(new MonitoredItemLoadState(
+                    item.Name,
+                    new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
+                    item.ClientHandle,
+                    item.ServerId,
+                    item.TriggeringItemClientHandle));
+            }
+            var loadState = new SubscriptionLoadState(
+                state.ServerId, itemLoadStates);
+
+            SubscriptionOptions options = state.ToOptions();
+            IManagedSubscription subscription = m_session.CreateSubscription(
+                handler,
+                new OptionsMonitor<SubscriptionOptions>(options),
+                this,
+                loadState);
+            lock (m_subscriptionLock)
+            {
+                if (!m_subscriptions.Add(subscription))
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
+                        "Failed to add restored subscription.");
+                }
+                m_logger.LogInformation(
+                    "{Subscription} ADDED (transfer-pending, ServerId={ServerId}).",
+                    subscription,
+                    state.ServerId);
+            }
+
+            // Issue TransferSubscriptions for the saved server id.
+            // sendInitialValues honors SubscriptionOptions.SendInitialValuesOnTransfer
+            // (default false) — the snapshot captured the last server-
+            // emitted values, so requesting initial values is only
+            // useful when the caller wants the server to re-emit them
+            // to a fresh notification handler.
+            var ids = new uint[] { state.ServerId };
+            TransferSubscriptionsResponse response = await m_session
+                .TransferSubscriptionsAsync(
+                    null,
+                    ids.ToArrayOf(),
+                    sendInitialValues: options.SendInitialValuesOnTransfer,
+                    ct)
+                .ConfigureAwait(false);
+
+            bool transferred = false;
+            ResponseHeader responseHeader = response.ResponseHeader;
+            if (StatusCode.IsGood(responseHeader.ServiceResult))
+            {
+                ArrayOf<TransferResult> results = response.Results;
+                ClientBase.ValidateResponse(results, ids.ToArrayOf());
+                if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                {
+                    transferred = await subscription.TryCompleteTransferAsync(
+                        results[0].AvailableSequenceNumbers.IsNull
+                            ? []
+                            : [.. results[0].AvailableSequenceNumbers],
+                        ct).ConfigureAwait(false);
+                }
+                else if (results.Count > 0)
+                {
+                    m_logger.LogWarning(
+                        "{Subscription}: TransferSubscriptions per-item " +
+                        "result Bad ({Status}); falling back to recreate.",
+                        subscription,
+                        results[0].StatusCode);
+                }
+            }
+            else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+            {
+                m_logger.LogWarning(
+                    "{Subscription}: server does not support " +
+                    "TransferSubscriptions; falling back to recreate.",
+                    subscription);
+            }
+            else
+            {
+                m_logger.LogWarning(
+                    "{Subscription}: TransferSubscriptions service-level " +
+                    "result Bad ({Status}); falling back to recreate.",
+                    subscription,
+                    responseHeader.ServiceResult);
+            }
+
+            if (!transferred && subscription is Subscription loaded)
+            {
+                await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                // Await re-creation under a bounded timeout so LoadAsync
+                // only returns after the server has assigned a fresh
+                // SubscriptionId. Items still need ApplyChangesAsync to
+                // round-trip but that runs in the same state-manager
+                // iteration as CreateAsync.
+                using var timeoutCts = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+                try
+                {
+                    await loaded.WaitForCreatedAsync(timeoutCts.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    m_logger.LogWarning(
+                        "{Subscription}: re-creation did not complete " +
+                        "within 15s after failed transfer; returning anyway.",
+                        subscription);
+                }
+            }
+
+            m_publishControl.Set();
+            return subscription;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SaveAsync(
+            System.IO.Stream stream,
+            IServiceMessageContext messageContext,
+            IEnumerable<ISubscription>? subscriptions = null,
+            CancellationToken ct = default)
+        {
+            return SubscriptionManagerSerializer.SaveAsync(
+                this,
+                stream,
+                messageContext,
+                subscriptions,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IReadOnlyList<ISubscription>> LoadAsync(
+            System.IO.Stream stream,
+            IServiceMessageContext messageContext,
+            Func<string, ISubscriptionNotificationHandler> handlerFactory,
+            bool transferSubscriptions = false,
+            CancellationToken ct = default)
+        {
+            return SubscriptionManagerSerializer.LoadAsync(
+                this,
+                stream,
+                messageContext,
+                handlerFactory,
+                transferSubscriptions,
+                ct);
         }
 
         /// <summary>
@@ -1055,6 +1286,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
         private int m_activePublishRequests;
+        private int m_disposed;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();

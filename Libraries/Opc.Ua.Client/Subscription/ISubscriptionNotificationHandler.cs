@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
@@ -128,5 +129,48 @@ namespace Opc.Ua.Client.Subscriptions
         ValueTask OnKeepAliveNotificationAsync(ISubscription subscription,
             uint sequenceNumber, DateTime publishTime,
             PublishState publishStateMask);
+
+        /// <summary>
+        /// Surface a transition in the subscription's lifecycle
+        /// (<paramref name="state"/>) or publish-side status
+        /// (<paramref name="publishStateMask"/>). Fires from the V2
+        /// engine on:
+        /// <list type="bullet">
+        /// <item><description>Lifecycle transitions —
+        /// <see cref="SubscriptionState.Opened"/>,
+        /// <see cref="SubscriptionState.Created"/>,
+        /// <see cref="SubscriptionState.Modified"/>,
+        /// <see cref="SubscriptionState.Deleted"/>.</description></item>
+        /// <item><description>Publish-side transitions —
+        /// <see cref="PublishState.Republish"/> (a gap was detected and
+        /// a republish was issued), <see cref="PublishState.Recovered"/>
+        /// (a missing message arrived or publishing resumed after a
+        /// stop), <see cref="PublishState.Transferred"/> (the
+        /// subscription was taken over on a different session via
+        /// <c>TransferSubscriptions</c>).</description></item>
+        /// </list>
+        /// <para>
+        /// Handlers that need derived state (publishing stopped, last
+        /// keep-alive, republish-pending, etc.) maintain it themselves
+        /// by responding to this callback — V2 is handler-centric and
+        /// the engine deliberately does not expose those as polled
+        /// properties on <see cref="ISubscription"/>.
+        /// </para>
+        /// <para>
+        /// Per-subscription delivery ordering is guaranteed by the V2
+        /// prioritized publish-ack channel: data / event / keep-alive
+        /// callbacks for a given subscription always fire in
+        /// publish-sequence order. State-change callbacks interleave
+        /// with the notification stream at the moment the transition
+        /// is observed.
+        /// </para>
+        /// </summary>
+        /// <param name="subscription"></param>
+        /// <param name="state"></param>
+        /// <param name="publishStateMask"></param>
+        /// <param name="ct"></param>
+        ValueTask OnSubscriptionStateChangedAsync(ISubscription subscription,
+            SubscriptionState state, PublishState publishStateMask,
+            CancellationToken ct = default);
     }
 }

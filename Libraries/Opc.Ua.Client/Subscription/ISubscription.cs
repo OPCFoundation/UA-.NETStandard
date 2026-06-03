@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -100,6 +101,32 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         /// <param name="ct"></param>
         ValueTask ConditionRefreshAsync(
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Mark this subscription as durable on the server (OPC UA Part 4
+        /// §5.13.9 <c>SetSubscriptionDurable</c>). A durable subscription
+        /// retains its monitored item state and message queue across
+        /// session disconnects for the requested
+        /// <paramref name="lifetime"/>, so a later
+        /// transfer-on-load can take over without losing buffered
+        /// notifications.
+        /// </summary>
+        /// <param name="lifetime">Requested lifetime as a
+        /// <see cref="TimeSpan"/>. The server may revise downwards.
+        /// Whole hours are sent on the wire (the
+        /// <c>SetSubscriptionDurable</c> service uses an hour granularity);
+        /// sub-hour components round up to the next whole hour.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The server-revised lifetime as a
+        /// <see cref="TimeSpan"/> (whole-hour precision).</returns>
+        /// <exception cref="ServiceResultException">Raised when the
+        /// subscription is not yet created on the server, or when the
+        /// server rejects the call (e.g. it has monitored items already
+        /// — per spec <c>SetSubscriptionDurable</c> must be called
+        /// before any items are added).</exception>
+        ValueTask<TimeSpan> SetAsDurableAsync(
+            TimeSpan lifetime,
             CancellationToken ct = default);
     }
 }

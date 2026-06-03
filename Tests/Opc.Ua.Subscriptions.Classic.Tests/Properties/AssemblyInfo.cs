@@ -27,41 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Security.Certificates;
+using System;
 
-namespace Opc.Ua.Client.TestFramework
-{
-    /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
-    /// </summary>
-    public class TestableSessionFactory : DefaultSessionFactory
-    {
-        /// <summary>
-        /// Force use of the default instance.
-        /// </summary>
-        public TestableSessionFactory(ITelemetryContext telemetry)
-            : base(telemetry)
-        {
-        }
-
-        /// <inheritdoc/>
-        public override ISession Create(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            Certificate clientCertificate,
-            CertificateCollection clientCertificateChain,
-            ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
-        {
-            return new TestableSession(
-                channel,
-                configuration,
-                endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris,
-                SubscriptionEngineFactory);
-        }
-    }
-}
+[assembly: CLSCompliant(false)]
