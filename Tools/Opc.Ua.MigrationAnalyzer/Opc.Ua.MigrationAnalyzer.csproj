@@ -20,7 +20,13 @@
     <PackageId>$(PackagePrefix).Opc.Ua.MigrationAnalyzer</PackageId>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IsPackable>true</IsPackable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- GeneratePackageOnBuild is intentionally NOT enabled: this nuspec lays out
+         multi-TFM Core (shim) DLLs that include net472/net48 heads, which only
+         build on Windows. CI test jobs on Linux/macOS would otherwise fail with
+         "Could not find a part of the path .../bin/Release/net472" when the
+         implicit pack step runs after the analyzer build. The preview.yml
+         pipeline explicitly invokes `dotnet pack` on Windows to produce the
+         shippable nupkg. -->
     <NoPackageAnalysis>true</NoPackageAnalysis>
     <DevelopmentDependency>true</DevelopmentDependency>
     <!-- Nuspec-based pack can't auto-author a snupkg from project sources;
@@ -53,17 +59,19 @@
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
-  <!-- A ProjectReference is the simplest way to make NuGet restore the shim's
-       assets file. We mark it as a build-only dependency (no compile reference,
-       no transitive flow). The actual multi-TFM build happens in the target below.
-       SkipGetTargetFrameworkProperties is required because Core is multi-TFM and
-       this csproj is netstandard2.0 — on Linux without net48/472 SDKs, the TFM
-       compatibility check would otherwise fail with NETSDK1xxx. The
-       _BuildShimAllTfmsBeforePack target invokes the actual build via the
-       MSBuild task, bypassing the compatibility check entirely. -->
+  <!-- The Core (shim) project carries the multi-TFM payload that ships in the
+       nuspec; we need its package restored (for transitive metadata) and we want
+       NuGet to track it as a build dependency for ordering, but we do NOT want
+       MSBuild's regular ProjectReference resolution to trigger a multi-TFM build
+       here. Pin the negotiation to netstandard2.1: it satisfies the analyzer's
+       netstandard2.0 surface, exists on every CI agent (no .NET Framework SDK
+       required), and avoids the multi-TFM outer build that would otherwise pull
+       in net472/net48 heads on Linux/macOS. The full multi-TFM build (needed by
+       the nuspec) is performed explicitly by _BuildShimAllTfmsBeforePack during
+       pack. -->
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
-                      SkipGetTargetFrameworkProperties="true">
+                      SetTargetFramework="TargetFramework=netstandard2.1">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
