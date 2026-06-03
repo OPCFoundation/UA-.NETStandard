@@ -47,7 +47,7 @@ The server implementation also provides support for:
 - **Complex Types** - Custom structures and enumerations (see [Complex Types documentation](ComplexTypes.md))
 - **Role-Based Access Control** - WellKnownRoles and RoleBasedUserManagement (see [Role-Based User Management documentation](RoleBasedUserManagement.md))
 - **Async Server Support** - Asynchronous node managers using Task-based Asynchronous Pattern (TAP) (see [Async Server Support documentation](AsyncServerSupport.md))
-- **Alias Names (Part 17)** - Human-readable name hierarchies for address space navigation with wildcard search and non-hierarchical references (see [Alias Names documentation](ALiasNames.md))
+- **Alias Names (Part 17)** - Human-readable name hierarchies for address space navigation with wildcard search and non-hierarchical references (see [Alias Names documentation](AliasNames.md))
 - **WoT Connectivity (OPC 10100-1)** - Integration with Web of Things assets and Thing Descriptions for IoT connectivity (see [WoT Connectivity documentation](WoTConnectivity.md))
 - **Model Change Tracking** - Address space change notifications and client-side cache invalidation (see [Model Change Tracking documentation](ModelChangeTracking.md))
 
@@ -261,7 +261,7 @@ See the [Reference Server configuration file](../Applications/ConsoleReferenceSe
 - [Role-Based User Management](RoleBasedUserManagement.md) - Role-based access control
 - [PubSub](PubSub.md) - Publisher-Subscriber pattern implementation
 - [Async Server Support](AsyncServerSupport.md) - Asynchronous node manager implementation
-- [Alias Names](ALiasNames.md) - OPC UA Part 17 alias-name model and address space naming
+- [Alias Names](AliasNames.md) - OPC UA Part 17 alias-name model and address space naming
 - [Alarms and Conditions](AlarmsAndConditions.md) - OPC UA Part 9 alarms, conditions, and events
 - [Model Change Tracking](ModelChangeTracking.md) - Address space change notifications and client-side cache management
 - [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 Web of Things connectivity integration
