@@ -4,7 +4,7 @@ This document describes which [OPC UA Profiles and Facets](https://profiles.opcf
 
 ## Overview
 
-The OPC UA .NET Standard Stack v2 is a reference implementation that targets OPC UA specification version 1.05.07. It has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
+The OPC UA .NET Standard Stack v2 is a reference implementation that targets OPC UA specification version 1.05.07. The stack has been certified for compliance through an OPC Foundation Certification Test Lab and is continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
 Version 2.0 includes significant improvements and new features for address space management, security, and integration scenarios, including Alias Names (Part 17), WoT Connectivity (OPC 10100-1), Key Credential Service and Authorization Service (Part 12), Model Change Tracking, and enhanced client APIs for streaming subscriptions and file system operations.
 
@@ -55,8 +55,8 @@ The server implementation also provides support for:
 
 The following server profiles/facets have limited or incomplete support:
 
-- **Alarms and Conditions** - Full implementation of core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. However, some specialized event types defined in OPC UA Part 9 are not yet implemented (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
-- **Historical Access** - Basic historical data access is supported with configurable retention and read operations. Advanced features such as server-side aggregates (Average, Total, Minimum, Maximum, etc.) are not fully implemented (see [Historical Access documentation](HistoricalAccess.md))
+- **Alarms and Conditions** - Comprehensive implementation of core alarm and condition functionality including latched alarms, shelving, silencing, suppression, alarm groups, and condition refresh. Some specialized event types defined in OPC UA Part 9 are not yet implemented (see [Alarms and Conditions documentation](AlarmsAndConditions.md))
+- **Historical Access** - Basic historical data access is supported with configurable retention and read operations. Server-side aggregates (Average, Total, Minimum, Maximum, etc.) are not implemented (see [Historical Access documentation](HistoricalAccess.md))
 - **Events** - The event notification infrastructure is fully implemented. However, event type definitions from specific companion specifications may require custom implementation or have incomplete state management
 - **Aggregates Server Facet** - Historical data aggregation
 - **Query Server Facet** - Advanced query capabilities
