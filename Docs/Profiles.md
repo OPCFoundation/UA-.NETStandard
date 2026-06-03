@@ -50,7 +50,7 @@ The server implementation also provides support for:
 
 The following server profiles/facets are **not yet fully supported**:
 
-- **Alarms & Conditions** - Only a limited set of alarms is currently implemented (`ExclusiveLevel`, `NonExclusiveLevel`, `OffNormal`)
+- **Alarms & Conditions** - Comprehensive support for alarm types including: AlarmConditionType, DiscrepancyAlarmType, LimitAlarmType, ExclusiveLimitAlarmType, ExclusiveDeviationAlarmType, ExclusiveRateOfChangeAlarmType, NonExclusiveLimitAlarmType, NonExclusiveDeviationAlarmType, NonExclusiveRateOfChangeAlarmType, DiscreteAlarmType, SystemOffNormalAlarmType, ExclusiveLevelAlarmType, NonExclusiveLevelAlarmType, and OffNormalAlarmType
 - **Historical Access** - Limited support for historical data access
 - **Events** - Limited event support
 - **Aggregates Server Facet** - Historical data aggregation
