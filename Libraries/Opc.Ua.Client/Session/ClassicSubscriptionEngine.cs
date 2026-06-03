@@ -431,10 +431,25 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
+                // Snapshot the subscriptions list and compute the
+                // values used below in a single pass, so that any
+                // concurrent modification of the underlying list
+                // (e.g. during reconnect) cannot cause an
+                // InvalidOperationException from re-enumeration.
                 IReadOnlyList<Subscription> subscriptions =
                     m_context.Subscriptions;
+                int subscriptionCount = subscriptions.Count;
+                bool hasCreatedSubscriptions = false;
+                foreach (Subscription s in subscriptions)
+                {
+                    if (s.Created)
+                    {
+                        hasCreatedSubscriptions = true;
+                        break;
+                    }
+                }
 
-                if (subscriptions.Count == 0)
+                if (subscriptionCount == 0)
                 {
                     m_logger.LogWarning(
                         "Publish #{RequestHandle}, " +
@@ -459,7 +474,7 @@ namespace Opc.Ua.Client
                 // raise publish error even for BadNoSubscription
                 // if there are active subscriptions.
                 if (error.Code != StatusCodes.BadNoSubscription ||
-                    subscriptions.Any(s => s.Created))
+                    hasCreatedSubscriptions)
                 {
                     m_context.OnPublishError(
                         error, subscriptionId, 0);
