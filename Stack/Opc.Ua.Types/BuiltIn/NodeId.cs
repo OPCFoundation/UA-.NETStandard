@@ -1715,7 +1715,9 @@ namespace Opc.Ua
             public ushort NamespaceIdx;
             public byte Type;
 
-            /// <summary> Implicit padding </summary>
+            /// <summary>
+            /// Implicit padding
+            /// </summary>
             public byte Reserved;
         }
 

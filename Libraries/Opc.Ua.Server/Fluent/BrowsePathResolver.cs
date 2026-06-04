@@ -90,7 +90,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(rootResolver));
             }
-
             List<QualifiedName> segments = ParseSegments(browsePath, defaultNamespaceIndex);
 
             NodeState current = rootResolver(segments[0]) ??
@@ -102,16 +101,64 @@ namespace Opc.Ua.Server.Fluent
 
             for (int i = 1; i < segments.Count; i++)
             {
-                current = current.FindChild(context, segments[i]) ??
+                NodeState parent = current;
+                NodeState child = parent.FindChild(context, segments[i])
+                    ?? FindChildByLocalName(context, parent, segments[i].Name ?? string.Empty, browsePath, segments[i]);
+
+                if (child == null)
+                {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Browse path '{0}' did not resolve: segment '{1}' not found under '{2}'.",
                         browsePath,
                         segments[i],
-                        current.BrowseName);
+                        parent.BrowseName);
+                }
+                current = child;
             }
 
             return current;
+        }
+
+        // Cross-namespace name-only fallback used when a segment fails
+        // its exact-namespace FindChild lookup. Required so callers can
+        // author browse paths without sprinkling `ns=N;` prefixes on
+        // every segment that lives in an inherited / referenced model's
+        // namespace (e.g. PumpType's Operational child carries the
+        // Machinery namespace because PumpType inherits from
+        // MachineComponentType). The fallback throws
+        // BadBrowseNameDuplicated when more than one child matches by
+        // local name so callers are forced to disambiguate with an
+        // explicit prefix.
+        private static NodeState FindChildByLocalName(
+            ISystemContext context,
+            NodeState parent,
+            string localName,
+            string browsePath,
+            QualifiedName segment)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(context, children);
+
+            NodeState? match = null;
+            for (int i = 0; i < children.Count; i++)
+            {
+                BaseInstanceState child = children[i];
+                if (!string.Equals(child.BrowseName.Name, localName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (match != null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "Browse path '{0}': segment '{1}' is ambiguous under '{2}' " +
+                        "(matches multiple children by local name; supply ns=N; prefix).",
+                        browsePath, segment, parent.BrowseName);
+                }
+                match = child;
+            }
+            return match!;
         }
 
         /// <summary>

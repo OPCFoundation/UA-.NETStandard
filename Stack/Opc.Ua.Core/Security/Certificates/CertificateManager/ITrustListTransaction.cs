@@ -41,43 +41,57 @@ namespace Opc.Ua
     /// </summary>
     public interface ITrustListTransaction : IAsyncDisposable
     {
-        /// <summary>The trust-list being modified.</summary>
+        /// <summary>
+        /// The trust-list being modified.
+        /// </summary>
         TrustListIdentifier TrustList { get; }
 
-        /// <summary>Adds a certificate to the trusted store.</summary>
+        /// <summary>
+        /// Adds a certificate to the trusted store.
+        /// </summary>
         /// <param name="certificate">The certificate to add.</param>
         /// <param name="ct">Cancellation token.</param>
         Task AddTrustedCertificateAsync(
             Certificate certificate,
             CancellationToken ct = default);
 
-        /// <summary>Removes a certificate from the trusted store.</summary>
+        /// <summary>
+        /// Removes a certificate from the trusted store.
+        /// </summary>
         /// <param name="thumbprint">The thumbprint of the certificate to remove.</param>
         /// <param name="ct">Cancellation token.</param>
         Task RemoveTrustedCertificateAsync(
             string thumbprint,
             CancellationToken ct = default);
 
-        /// <summary>Adds a certificate to the issuer store.</summary>
+        /// <summary>
+        /// Adds a certificate to the issuer store.
+        /// </summary>
         /// <param name="certificate">The certificate to add.</param>
         /// <param name="ct">Cancellation token.</param>
         Task AddIssuerCertificateAsync(
             Certificate certificate,
             CancellationToken ct = default);
 
-        /// <summary>Removes a certificate from the issuer store.</summary>
+        /// <summary>
+        /// Removes a certificate from the issuer store.
+        /// </summary>
         /// <param name="thumbprint">The thumbprint of the certificate to remove.</param>
         /// <param name="ct">Cancellation token.</param>
         Task RemoveIssuerCertificateAsync(
             string thumbprint,
             CancellationToken ct = default);
 
-        /// <summary>Adds a CRL to the trust-list.</summary>
+        /// <summary>
+        /// Adds a CRL to the trust-list.
+        /// </summary>
         /// <param name="crl">The CRL to add.</param>
         /// <param name="ct">Cancellation token.</param>
         Task AddCrlAsync(X509CRL crl, CancellationToken ct = default);
 
-        /// <summary>Removes a CRL from the trust-list.</summary>
+        /// <summary>
+        /// Removes a CRL from the trust-list.
+        /// </summary>
         /// <param name="crl">The CRL to remove.</param>
         /// <param name="ct">Cancellation token.</param>
         Task RemoveCrlAsync(X509CRL crl, CancellationToken ct = default);

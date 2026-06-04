@@ -87,16 +87,24 @@ namespace Opc.Ua
     /// </summary>
     public sealed class TrustListData : IDisposable
     {
-        /// <summary>Trusted certificates.</summary>
+        /// <summary>
+        /// Trusted certificates.
+        /// </summary>
         public CertificateCollection TrustedCertificates { get; set; } = [];
 
-        /// <summary>Trusted CRLs.</summary>
+        /// <summary>
+        /// Trusted CRLs.
+        /// </summary>
         public X509CRLCollection TrustedCrls { get; set; } = [];
 
-        /// <summary>Issuer certificates.</summary>
+        /// <summary>
+        /// Issuer certificates.
+        /// </summary>
         public CertificateCollection IssuerCertificates { get; set; } = [];
 
-        /// <summary>Issuer CRLs.</summary>
+        /// <summary>
+        /// Issuer CRLs.
+        /// </summary>
         public X509CRLCollection IssuerCrls { get; set; } = [];
 
         /// <inheritdoc/>

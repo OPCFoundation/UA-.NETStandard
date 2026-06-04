@@ -66,13 +66,19 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     public interface IHistorianProviderRegistry
     {
-        /// <summary>Adds a NodeId-scoped binding.</summary>
+        /// <summary>
+        /// Adds a NodeId-scoped binding.
+        /// </summary>
         void RegisterForNode(NodeId nodeId, IHistorianProvider provider);
 
-        /// <summary>Adds a namespace-scoped binding.</summary>
+        /// <summary>
+        /// Adds a namespace-scoped binding.
+        /// </summary>
         void RegisterForNamespace(string namespaceUri, IHistorianProvider provider);
 
-        /// <summary>Sets the default fallback provider.</summary>
+        /// <summary>
+        /// Sets the default fallback provider.
+        /// </summary>
         void RegisterDefault(IHistorianProvider provider);
 
         /// <summary>

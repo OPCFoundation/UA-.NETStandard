@@ -96,27 +96,39 @@ namespace Opc.Ua
                 ServerPicoseconds);
         }
 
-        /// <summary>The Variant payload.</summary>
+        /// <summary>
+        /// The Variant payload.
+        /// </summary>
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue { get; set; }
 
-        /// <summary>The status code.</summary>
+        /// <summary>
+        /// The status code.
+        /// </summary>
         [DataMember(Order = 2, IsRequired = false)]
         public StatusCode StatusCode { get; set; }
 
-        /// <summary>The source timestamp.</summary>
+        /// <summary>
+        /// The source timestamp.
+        /// </summary>
         [DataMember(Order = 3, IsRequired = false)]
         public DateTimeUtc SourceTimestamp { get; set; }
 
-        /// <summary>Additional resolution for the source timestamp.</summary>
+        /// <summary>
+        /// Additional resolution for the source timestamp.
+        /// </summary>
         [DataMember(Order = 4, IsRequired = false)]
         public ushort SourcePicoseconds { get; set; }
 
-        /// <summary>The server timestamp.</summary>
+        /// <summary>
+        /// The server timestamp.
+        /// </summary>
         [DataMember(Order = 5, IsRequired = false)]
         public DateTimeUtc ServerTimestamp { get; set; }
 
-        /// <summary>Additional resolution for the server timestamp.</summary>
+        /// <summary>
+        /// Additional resolution for the server timestamp.
+        /// </summary>
         [DataMember(Order = 6, IsRequired = false)]
         public ushort ServerPicoseconds { get; set; }
     }
@@ -134,7 +146,9 @@ namespace Opc.Ua
     /// </remarks>
     public sealed class DataValueSurrogateProvider : ISerializationSurrogateProvider
     {
-        /// <summary>Singleton instance.</summary>
+        /// <summary>
+        /// Singleton instance.
+        /// </summary>
         public static DataValueSurrogateProvider Instance { get; } = new();
 
         private DataValueSurrogateProvider()

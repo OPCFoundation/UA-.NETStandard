@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>PumpDeviceIntegrationServer</AssemblyName>
+    <PackageId>PumpDeviceIntegrationServer</PackageId>
+    <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40223 Pumps companion specification end-to-end (full simulation via the fluent INodeManagerBuilder API) plus the OPC 10000-100 (Device Integration) software-update facet wired into a second declarative pump device.</Description>
+    <RootNamespace>Pumps</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1822</NoWarn>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <!-- Machinery + Pumps NodeSet2 XMLs are source-generated locally;
+       no library refs needed. The generator emits typed classes,
+       NodeId tables, and AddOpcUaMachinery / AddOpcUaPumps extension
+       methods in the Opc.Ua.Machinery and Opc.Ua.Pumps namespaces
+       (internal to this assembly). Cross-namespace type references
+       to DI types resolve via the [assembly: ModelDependencyAttribute]
+       carried in the Opc.Ua.Di assembly — no DI NodeSet2 XML
+       needed here.
+
+       The matching *.NodeSet2.csv files (alongside the XML) are
+       picked up by the source generator as the stable NodeId tables.
+       Without them the generator would assign synthetic NodeIds at
+       compile time, breaking byte-stable wire formats for clients
+       that cache NodeIds across builds. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.csv" />
+    <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.Pumps</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.csv" />
+  </ItemGroup>
+  <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+</Project>

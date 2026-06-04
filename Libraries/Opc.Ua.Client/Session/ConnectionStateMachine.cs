@@ -107,13 +107,19 @@ namespace Opc.Ua.Client
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
-        /// <summary>Current connection state.</summary>
+        /// <summary>
+        /// Current connection state.
+        /// </summary>
         public ConnectionState State => m_state;
 
-        /// <summary>Whether the session is connected.</summary>
+        /// <summary>
+        /// Whether the session is connected.
+        /// </summary>
         public bool IsConnected => m_state == ConnectionState.Connected;
 
-        /// <summary>Event raised when the state changes.</summary>
+        /// <summary>
+        /// Event raised when the state changes.
+        /// </summary>
         public event EventHandler<ConnectionStateChangedEventArgs>?
             StateChanged;
 

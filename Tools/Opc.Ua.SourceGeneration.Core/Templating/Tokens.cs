@@ -48,6 +48,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ValueWrite => nameof(ValueWrite);
         public static string ValueComparison => nameof(ValueComparison);
         public static string ChildName => nameof(ChildName);
+        public static string ChildBrowseName => nameof(ChildBrowseName);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
         public static string ClassFactory => nameof(ClassFactory);
@@ -185,6 +186,8 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfModelDependencies => nameof(ListOfModelDependencies);
         public static string ModelVersion => nameof(ModelVersion);
         public static string ModelPublicationDate => nameof(ModelPublicationDate);
+        public static string ModelName => nameof(ModelName);
+        public static string ModelPayload => nameof(ModelPayload);
         public static string AccessModifier => nameof(AccessModifier);
         public static string IdentifierReflection => nameof(IdentifierReflection);
         public static string ListOfNodeStateInitializers => nameof(ListOfNodeStateInitializers);

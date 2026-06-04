@@ -37,37 +37,59 @@ namespace Opc.Ua.Client.Historian
     /// </summary>
     public sealed record HistoryServerCapabilitiesInfo
     {
-        /// <summary>Whether the server supports raw/modified history reads.</summary>
+        /// <summary>
+        /// Whether the server supports raw/modified history reads.
+        /// </summary>
         public bool AccessHistoryData { get; init; }
 
-        /// <summary>Whether the server supports event-history reads.</summary>
+        /// <summary>
+        /// Whether the server supports event-history reads.
+        /// </summary>
         public bool AccessHistoryEvents { get; init; }
 
-        /// <summary>Maximum data values returned per request (0 = no limit).</summary>
+        /// <summary>
+        /// Maximum data values returned per request (0 = no limit).
+        /// </summary>
         public uint MaxReturnDataValues { get; init; }
 
-        /// <summary>Maximum events returned per request (0 = no limit).</summary>
+        /// <summary>
+        /// Maximum events returned per request (0 = no limit).
+        /// </summary>
         public uint MaxReturnEventValues { get; init; }
 
-        /// <summary>Whether the server supports inserting raw values.</summary>
+        /// <summary>
+        /// Whether the server supports inserting raw values.
+        /// </summary>
         public bool InsertData { get; init; }
 
-        /// <summary>Whether the server supports replacing raw values.</summary>
+        /// <summary>
+        /// Whether the server supports replacing raw values.
+        /// </summary>
         public bool ReplaceData { get; init; }
 
-        /// <summary>Whether the server supports upserting raw values.</summary>
+        /// <summary>
+        /// Whether the server supports upserting raw values.
+        /// </summary>
         public bool UpdateData { get; init; }
 
-        /// <summary>Whether the server supports range delete.</summary>
+        /// <summary>
+        /// Whether the server supports range delete.
+        /// </summary>
         public bool DeleteRaw { get; init; }
 
-        /// <summary>Whether the server supports point delete.</summary>
+        /// <summary>
+        /// Whether the server supports point delete.
+        /// </summary>
         public bool DeleteAtTime { get; init; }
 
-        /// <summary>Whether the server supports inserting annotations.</summary>
+        /// <summary>
+        /// Whether the server supports inserting annotations.
+        /// </summary>
         public bool InsertAnnotation { get; init; }
 
-        /// <summary>Whether the server persists ServerTimestamp on history.</summary>
+        /// <summary>
+        /// Whether the server persists ServerTimestamp on history.
+        /// </summary>
         public bool ServerTimestampSupported { get; init; }
     }
 
@@ -91,25 +113,39 @@ namespace Opc.Ua.Client.Historian
         /// <summary><c>true</c> when at least one property was resolved.</summary>
         public bool HasConfiguration { get; init; }
 
-        /// <summary>Whether the signal is stepped (per Part 11 §5.2.3).</summary>
+        /// <summary>
+        /// Whether the signal is stepped (per Part 11 §5.2.3).
+        /// </summary>
         public bool? Stepped { get; init; }
 
-        /// <summary>Free-form description of the historized signal.</summary>
+        /// <summary>
+        /// Free-form description of the historized signal.
+        /// </summary>
         public string? Definition { get; init; }
 
-        /// <summary>Maximum time between samples (milliseconds).</summary>
+        /// <summary>
+        /// Maximum time between samples (milliseconds).
+        /// </summary>
         public double? MaxTimeInterval { get; init; }
 
-        /// <summary>Minimum time between samples (milliseconds).</summary>
+        /// <summary>
+        /// Minimum time between samples (milliseconds).
+        /// </summary>
         public double? MinTimeInterval { get; init; }
 
-        /// <summary>Exception deviation value used by the historizer.</summary>
+        /// <summary>
+        /// Exception deviation value used by the historizer.
+        /// </summary>
         public double? ExceptionDeviation { get; init; }
 
-        /// <summary>Start of the archive window (oldest available).</summary>
+        /// <summary>
+        /// Start of the archive window (oldest available).
+        /// </summary>
         public DateTime? StartOfArchive { get; init; }
 
-        /// <summary>Start of the online archive window.</summary>
+        /// <summary>
+        /// Start of the online archive window.
+        /// </summary>
         public DateTime? StartOfOnlineArchive { get; init; }
     }
 }
