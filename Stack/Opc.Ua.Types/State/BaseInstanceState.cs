@@ -48,7 +48,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        protected override bool RemovePlaceholderChildrenOnCreate => true;
+        protected override bool PruneNonRuntimeInstanceChildrenOnCreate => true;
 
         /// <summary>
         /// Initializes the instance from another instance.
