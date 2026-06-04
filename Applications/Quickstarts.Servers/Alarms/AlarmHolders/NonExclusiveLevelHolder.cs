@@ -37,7 +37,7 @@ namespace Alarms
     {
         public NonExclusiveLevelHolder(
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             string name,
             SupportedAlarmConditionType alarmConditionType,

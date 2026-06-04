@@ -271,7 +271,7 @@ namespace Alarms
 
                 AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -283,7 +283,7 @@ namespace Alarms
 
                 AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -296,7 +296,7 @@ namespace Alarms
 
                 AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -307,7 +307,7 @@ namespace Alarms
 
                 AlarmHolder alarmCondition = new AlarmConditionHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -318,7 +318,7 @@ namespace Alarms
 
                 AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -330,7 +330,7 @@ namespace Alarms
 
                 AlarmHolder limitAlarm = new LimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -341,7 +341,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -352,7 +352,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -364,7 +364,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -375,7 +375,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -386,7 +386,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -398,7 +398,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -411,7 +411,7 @@ namespace Alarms
 
                 AlarmHolder discreteAlarm = new DiscreteAlarmHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -422,7 +422,7 @@ namespace Alarms
 
                 AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
