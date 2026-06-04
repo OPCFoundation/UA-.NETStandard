@@ -49,9 +49,13 @@ namespace Opc.Ua
         /// <c>[Obsolete]</c> in favour of <see cref="ITelemetryContext"/>-derived
         /// <c>ILogger</c> instances. This method exists so legacy consumers can
         /// keep wiring <see cref="TraceConfiguration"/> through their startup
-        /// path verbatim; new code should configure logging via
-        /// <c>ITelemetryContext</c> directly.
+        /// path verbatim during the 1.5.378 → 2.0 migration window; new code
+        /// should configure logging via <c>ITelemetryContext</c> directly and
+        /// drop the call entirely once the migration completes.
         /// </remarks>
+        [Obsolete("Configure logging via ITelemetryContext (e.g. telemetry.ConfigureLogging) instead. " +
+            "This trampoline keeps the legacy Utils.SetTraceLog/Mask/Output pipeline alive for the " +
+            "1.5.378 -> 2.0 migration window and is scheduled for removal in a future major version.")]
         public void ApplySettings()
         {
 #pragma warning disable CS0618 // Type or member is obsolete

@@ -30,7 +30,10 @@ ships in 6 TFMs:
 Consumers on other TFMs (`net6.0`, `net7.0`) can still install the package; the
 analyzer + source generator still run, but the runtime shim DLL won't be
 applied at compile-time — they fall back to migrating any shim-shaped patterns
-manually.
+manually. To upgrade the consumer's TFM as part of the migration, use the .NET
+[**modernize**](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.modernize)
+skill / agent from the dotnet tooling marketplace, which automates TFM bumps
+and SDK-style csproj rewrites.
 
 ## Roslyn API targeting (internal)
 
@@ -92,14 +95,6 @@ If neither line appears, either:
 
 This is why the CodeFixer DLL is split out: the `Workspaces` reference is only
 safe in Workspaces-aware hosts; csc.exe gets the smaller analyzer DLL.
-
-## Migration package version selection
-
-| Strategy | When |
-|---|---|
-| `Version="2.0.*-*"` (floating prerelease) | Default — pick up bugfixes during the migration window |
-| `Version="2.0.10-preview.gXXXXXXXX"` (pinned) | When you want bit-for-bit reproducibility (CI builds, release candidates) |
-| `Version="2.0.*"` (floating release-only) | After 2.0 stable ships (no `-preview` suffix); avoid for early-adopter work |
 
 ## What else changed across 1.5.378 → 2.0
 

@@ -1,17 +1,17 @@
 ---
 name: opcua-v20-migration
 description: |
-  Migrate OPC UA .NET Standard applications from version 1.5.378 (master378) to
-  version 2.0.x (master). Walks consumers through installing the
+  Migrate OPC UA .NET Standard applications from version 1.5.378 to
+  version 2.0.x. Walks consumers through installing the
   OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet (analyzers UA0001-UA0022,
   source-generated <Type>Collection shims, runtime compat shim), running
   `dotnet format analyzers` to apply auto-fixes, and walking the residual manual
-  patterns. Use when asked to "migrate to v20", "update from master378", "fix
+  patterns. Use when asked to "migrate to v20", "update from 1.5.378", "fix
   v20 build errors", "migrate OPC UA code to 2.0", "update to new Variant API",
   "fix ArrayOf migration", "update NodeId readonly struct", "migrate from object
   to Variant", "fix CS0246 on <Type>Collection wrappers", "fix CS0246 on
   CertificateValidator", or "address UA00xx / MIG01 warnings". Sample triggers:
-  user says "my project targets master378 and I need to update to v20"; user
+  user says "my project targets 1.5.378 and I need to update to v20"; user
   provides build errors after updating NuGet packages to 2.0; user asks "how do
   I update my custom NodeManager for v20?"; user says "fix all the CS0029
   errors after upgrading to v20".

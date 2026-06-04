@@ -1,9 +1,9 @@
 # Known gaps — patterns the migration package can't fully automate
 
 Real-world dogfood findings from migrating
-[`OPCFoundation/UA-.NETStandard-Samples`](https://github.com/OPCFoundation/UA-.NETStandard-Samples)
-(F1–F14 in the project's internal dogfood tracker). The patterns below either
-require manual action or are intentionally not auto-fixed.
+[`OPCFoundation/UA-.NETStandard-Samples`](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
+The patterns below either require manual action or are intentionally
+not auto-fixed.
 
 ## G1 — Legacy `.NET Framework` WinForms projects in pre-SDK MSBuild XML
 
@@ -33,7 +33,10 @@ existing `<ItemGroup>`:
 ```
 
 Long-term, migrate the project to the SDK-style format. The repo's reference
-samples should not regress to the legacy format.
+samples should not regress to the legacy format. The .NET
+[**modernize**](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.modernize)
+skill / agent (available on the dotnet tooling marketplace) automates the
+pre-SDK → SDK-style conversion end-to-end.
 
 ## G2 — Resource tooling MSB3822 / MSB3823 under `dotnet build` for `.Net4` projects
 
@@ -61,7 +64,10 @@ not published on 2.0.
 
 **Mitigation:** consumers must switch to a `<ProjectReference>` to
 `Applications/Quickstarts.Servers` in this repo, or to an equivalent
-first-party project of their own.
+first-party project of their own. All 2.0 packages are published to the
+OPC Foundation Azure Artifacts preview feed
+(`https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging/opcua-preview/nuget/v3/index.json`)
+until they are promoted to nuget.org.
 
 ## G4 — `Samples/Opc.Ua.Sample` has > 1000 errors from `INodeManager` interface changes
 
@@ -83,29 +89,12 @@ deep `INodeManager` interface changes require the structural migration to
 
 ## G5 — Public APIs returning `<Type>Collection` shim trip `CS0050`
 
-**Symptom:**
-
-```
-CS0050: Inconsistent accessibility: return type 'Int32Collection' is less
-accessible than method 'PublicClass.Method()'
-```
-
-**Cause:** the source generator emits `internal sealed` shims by design (so the
-shim never leaks across the consumer's public surface). A public method
-returning `Int32Collection` (which the generator made `internal`) is a
-contract violation.
-
-**Mitigation:** migrate the public API signature to `List<int>` / `ArrayOf<int>`
-first. Internal call sites continue to compile under the shim — you can
-iterate the public surface incrementally:
-
-```csharp
-// Before (public-API call site uses the legacy wrapper)
-public Int32Collection LoadIds() { … }
-
-// After (public-API uses the 2.0 shape; internal sites can still use the shim)
-public ArrayOf<int> LoadIds() { … }
-```
+The shim source generator emits `internal sealed` types by design (so
+the shim never leaks across the consumer's public surface). Internal
+call sites that consume the shim continue to compile incrementally
+while the public API migrates to `List<T>` / `ArrayOf<T>`. No further
+action required — `internal` accessibility is the intended design
+and matches the long-term migration path.
 
 ## G6 — `GlobalDiscoverySampleServer` ctor inserted `ITelemetryContext` mid-arg-list
 
@@ -185,9 +174,10 @@ System.Xml.XmlElement sysXml = opcUaXmlElement.ToXmlElement();
 **Symptom:** UA0008's auto-fix wraps every `Session.Call` argument with
 `Variant.From(...)`, which is correct but verbose for hot paths.
 
-**Mitigation:** after applying the auto-fix, walk the hottest call sites and
-either (a) cast to `Variant` directly (`(Variant)arg`) which is equivalent and
-shorter, or (b) construct the `Variant[]` once and reuse.
+**Mitigation:** keep `Variant.From(...)` — direct casts to `Variant`
+(`(Variant)arg`) are discouraged because they obscure the concrete
+source type and may go through the boxed-object overload. For genuine
+hot paths, construct the `Variant[]` once and reuse it across calls.
 
 ## G12 — Migration analyzer + central package management interaction
 
@@ -217,6 +207,10 @@ the Debug build under the same package id (configuration switches).
 see many `CS8600 Converting null literal or possible null value to non-nullable
 type` warnings from 2.0's now-nullable signatures.
 
-**Mitigation:** either opt the project into nullable (`<Nullable>enable</Nullable>`)
-and fix the residuals, or use `<NoWarn>CS8600</NoWarn>` in the migration
-window.
+**Mitigation:** prefer `<Nullable>annotations</Nullable>` in the
+consumer csproj — that opts in to the **annotations only** (consumers
+see proper `T?` / non-nullable shapes from 2.0 signatures) **without
+enabling the warnings**, so `CS8600` and friends stay silent during
+the migration window. Once the consumer is ready for full nullable
+analysis, flip to `<Nullable>enable</Nullable>` and fix the residuals.
+As a last resort, use `<NoWarn>CS8600</NoWarn>` instead.

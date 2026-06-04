@@ -291,8 +291,10 @@ namespace Opc.Ua.Configuration
                 TransportQuotas = new TransportQuotas()
             };
 
-            // Trace off
+            // Trace off — legacy Utils pipeline; kept for 1.5.378 -> 2.0 migration.
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             return new ApplicationConfigurationBuilder(this);
         }

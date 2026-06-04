@@ -503,20 +503,23 @@ await session.OpenAsync("MySession", 1000, identity,
 
 // After
 await session.OpenAsync("MySession", 1000, identity,
-    (ArrayOf<string>)["en-US"], true, true, ct);
+    ["en-US"], true, true, ct);
 ```
 
 ### `Session.Call` with `Variant`
 
 ```csharp
-// Before
+// Before — `object` boxing of every argument
 session.Call(objectId, methodId, (object)arg1, (object)arg2);
 
-// After
-session.Call(objectId, methodId, (Variant)arg1, (Variant)arg2);
+// After — `Variant.From<T>` preserves the concrete type
+session.Call(objectId, methodId, Variant.From(arg1), Variant.From(arg2));
 ```
 
-UA0008 auto-fixes this with `Variant.From(...)` wrapping.
+Prefer `Variant.From(...)` over casting (`(Variant)arg`) — casts are
+discouraged because they obscure the source type. Concrete-typed
+overloads avoid boxing entirely. UA0008 auto-fixes the legacy
+`(object)` cast pattern by rewriting to `Variant.From(...)`.
 
 ### Subscription
 
