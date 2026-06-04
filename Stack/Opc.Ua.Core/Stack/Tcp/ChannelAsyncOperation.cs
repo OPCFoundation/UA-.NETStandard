@@ -45,16 +45,35 @@ namespace Opc.Ua.Bindings
         /// Initializes the object with a callback
         /// </summary>
         public ChannelAsyncOperation(int timeout, AsyncCallback? callback, object? asyncState, ILogger logger)
+            : this(timeout, callback, asyncState, logger, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a callback using the supplied
+        /// <see cref="TimeProvider"/> for timeout scheduling.
+        /// </summary>
+        public ChannelAsyncOperation(
+            int timeout,
+            AsyncCallback? callback,
+            object? asyncState,
+            ILogger logger,
+            TimeProvider? timeProvider)
         {
             m_callback = callback;
             m_asyncState = asyncState;
             m_synchronous = false;
             m_completed = false;
             m_logger = logger;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             if (timeout is > 0 and not int.MaxValue)
             {
-                m_timer = new Timer(new TimerCallback(OnTimeout), null, timeout, Timeout.Infinite);
+                m_timer = m_timeProvider.CreateTimer(
+                    new TimerCallback(OnTimeout),
+                    null,
+                    TimeSpan.FromMilliseconds(timeout),
+                    Timeout.InfiniteTimeSpan);
             }
         }
 
@@ -250,7 +269,7 @@ namespace Opc.Ua.Bindings
                     if (timeout != int.MaxValue)
                     {
                         awaitableTask = m_tcs.Task
-                            .WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
+                            .WaitAsync(TimeSpan.FromMilliseconds(timeout), m_timeProvider, ct);
                     }
                     else if (ct != default)
                     {
@@ -439,12 +458,13 @@ namespace Opc.Ua.Bindings
         private readonly object? m_asyncState;
         private readonly bool m_synchronous;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private bool m_completed;
         private ManualResetEvent? m_event;
         private TaskCompletionSource<bool>? m_tcs;
         private T? m_response;
         private ServiceResult? m_error;
-        private Timer? m_timer;
+        private ITimer? m_timer;
         private Dictionary<string, object>? m_properties;
     }
 }

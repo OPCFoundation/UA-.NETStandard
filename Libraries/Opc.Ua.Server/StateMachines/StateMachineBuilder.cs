@@ -96,7 +96,10 @@ namespace Opc.Ua.Server.StateMachines
             m_definition = definition;
             m_deferredCreateNodeId = deferredCreateNodeId;
             m_deferredCreateBrowseName = deferredCreateBrowseName;
-            m_dispatcher = new StateMachineDispatcher<TState>(stateMachine, context);
+            TimeProvider timeProvider =
+                ((context as ServerSystemContext)?.Server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
+            m_dispatcher = new StateMachineDispatcher<TState>(stateMachine, context, timeProvider);
         }
 
         private readonly NodeId m_deferredCreateNodeId;
@@ -1139,6 +1142,7 @@ namespace Opc.Ua.Server.StateMachines
     {
         private readonly TState m_stateMachine;
         private readonly ISystemContext m_context;
+        private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_enterHandlers = [];
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_exitHandlers = [];
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
@@ -1177,9 +1181,18 @@ namespace Opc.Ua.Server.StateMachines
             m_pendingFromByThread = new();
 
         public StateMachineDispatcher(TState stateMachine, ISystemContext context)
+            : this(stateMachine, context, TimeProvider.System)
+        {
+        }
+
+        public StateMachineDispatcher(
+            TState stateMachine,
+            ISystemContext context,
+            TimeProvider timeProvider)
         {
             m_stateMachine = stateMachine;
             m_context = context;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_originalBefore = stateMachine.OnBeforeTransition;
             m_originalAfter = stateMachine.OnAfterTransition;
         }
@@ -1435,7 +1448,7 @@ namespace Opc.Ua.Server.StateMachines
         {
             var cts = new CancellationTokenSource();
             entry.Cts = cts;
-            entry.Timer = new Timer(_ =>
+            entry.Timer = m_timeProvider.CreateTimer(_ =>
             {
                 if (cts.IsCancellationRequested)
                 {
@@ -1547,7 +1560,7 @@ namespace Opc.Ua.Server.StateMachines
             public uint TransitionId { get; }
             public uint CauseId { get; }
             public CancellationTokenSource? Cts { get; set; }
-            public Timer? Timer { get; set; }
+            public ITimer? Timer { get; set; }
         }
     }
 }

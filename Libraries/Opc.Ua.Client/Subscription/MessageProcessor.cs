@@ -80,11 +80,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="services"></param>
         /// <param name="completion"></param>
         /// <param name="telemetry"></param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// for elapsed-time and timestamp calculations. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         protected MessageProcessor(
             ISubscriptionServiceSetClientMethods services,
             IMessageAckQueue completion,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             Observability = telemetry;
             AvailableInRetransmissionQueue = [];
             Logger = Observability.LoggerFactory.CreateLogger<Subscription>();
@@ -117,9 +122,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
-            LastNotificationTimestamp = TimeProvider.System.GetTimestamp();
+            LastNotificationTimestamp = m_timeProvider.GetTimestamp();
             await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                TimeProvider.System.GetUtcNow())).ConfigureAwait(false);
+                m_timeProvider.GetUtcNow())).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -589,6 +594,8 @@ namespace Opc.Ua.Client.Subscriptions
         internal long m_republishCount;
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
         internal readonly ILogger Logger;
+        protected TimeProvider TimeProvider => m_timeProvider;
+        private readonly TimeProvider m_timeProvider;
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: m_cts is disposed in DisposeAsync(bool) — suppressed because
         // the analyzer does not track IAsyncDisposable disposal paths.

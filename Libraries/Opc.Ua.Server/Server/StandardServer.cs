@@ -46,9 +46,30 @@ namespace Opc.Ua.Server
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
-            : base(telemetry)
+            : this(telemetry, null)
         {
         }
+
+        /// <summary>
+        /// Initializes a new instance of <see cref="StandardServer"/>
+        /// with an explicit <see cref="TimeProvider"/> so the server's
+        /// timers and duration calculations can be mocked in tests.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">The time provider used for all
+        /// time / duration calculations performed by the server, or
+        /// <c>null</c> to use <see cref="TimeProvider.System"/>.</param>
+        public StandardServer(ITelemetryContext telemetry, TimeProvider? timeProvider)
+            : base(telemetry)
+        {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+        }
+
+        /// <summary>
+        /// The <see cref="TimeProvider"/> used by the server for all
+        /// time / duration calculations and timer scheduling.
+        /// </summary>
+        protected TimeProvider TimeProvider => m_timeProvider;
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -831,7 +852,7 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = exception.StatusCode,
 
-                Timestamp = DateTime.UtcNow,
+                Timestamp = m_timeProvider.GetUtcNow().UtcDateTime,
                 RequestHandle = requestHeader!.RequestHandle
             };
 
@@ -2529,7 +2550,7 @@ namespace Opc.Ua.Server
 
                             var requestHeader = new RequestHeader
                             {
-                                Timestamp = DateTime.UtcNow
+                                Timestamp = m_timeProvider.GetUtcNow().UtcDateTime
                             };
 
                             // create the client.
@@ -2633,11 +2654,11 @@ namespace Opc.Ua.Server
                     {
                         if (m_maxRegistrationInterval > 0)
                         {
-                            m_registrationTimer = new Timer(
+                            m_registrationTimer = m_timeProvider.CreateTimer(
                                 OnRegisterServerAsync,
                                 this,
-                                m_maxRegistrationInterval,
-                                Timeout.Infinite);
+                                TimeSpan.FromMilliseconds(m_maxRegistrationInterval),
+                                Timeout.InfiniteTimeSpan);
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
                             m_logger.LogInformation(
@@ -2665,11 +2686,11 @@ namespace Opc.Ua.Server
                                 m_lastRegistrationInterval);
 
                             // create timer.
-                            m_registrationTimer = new Timer(
+                            m_registrationTimer = m_timeProvider.CreateTimer(
                                 OnRegisterServerAsync,
                                 this,
-                                m_lastRegistrationInterval,
-                                Timeout.Infinite);
+                                TimeSpan.FromMilliseconds(m_lastRegistrationInterval),
+                                Timeout.InfiniteTimeSpan);
                         }
                     }
                 }
@@ -3194,7 +3215,8 @@ namespace Opc.Ua.Server
                 m_serverInternal = new ServerInternalData(
                     ServerProperties!,
                     configuration,
-                    MessageContext);
+                    MessageContext,
+                    m_timeProvider);
 
                 // create the manager responsible for providing localized string resources.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
@@ -3364,11 +3386,11 @@ namespace Opc.Ua.Server
                     if (m_maxRegistrationInterval > 0)
                     {
                         m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
-                        m_registrationTimer = new Timer(
+                        m_registrationTimer = m_timeProvider.CreateTimer(
                             OnRegisterServerAsync,
                             this,
-                            m_minRegistrationInterval,
-                            Timeout.Infinite);
+                            TimeSpan.FromMilliseconds(m_minRegistrationInterval),
+                            Timeout.InfiniteTimeSpan);
                     }
                 }
             }
@@ -3929,7 +3951,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new SessionManager(server, configuration);
+            return new SessionManager(server, configuration, m_timeProvider);
         }
 
         /// <summary>
@@ -4046,7 +4068,8 @@ namespace Opc.Ua.Server
         private ConfigurationWatcher? m_configurationWatcher;
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;
-        private Timer? m_registrationTimer;
+        private ITimer? m_registrationTimer;
+        private readonly TimeProvider m_timeProvider;
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;

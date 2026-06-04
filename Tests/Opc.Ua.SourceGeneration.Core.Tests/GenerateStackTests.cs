@@ -191,7 +191,16 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Generate
             var sw = Stopwatch.StartNew();
             using var fileSystem = new VirtualFileSystem();
-            Generators.GenerateStack(generationType, fileSystem, string.Empty, telemetry);
+            // The test compilation provides Core stubs via
+            // WithOpcUaCoreStubs() but no Opc.Ua.Server reference.
+            // Suppress fluent-builder emission to keep the generated
+            // code self-contained (mirrors model-only csproj
+            // configuration in production).
+            Generators.GenerateStack(generationType, fileSystem, string.Empty, telemetry,
+                new GeneratorOptions
+                {
+                    OmitFluentApi = true
+                });
             var generatedText = fileSystem.CreatedFiles
                 .Where(c => Path.GetExtension(c) == ".cs")
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));

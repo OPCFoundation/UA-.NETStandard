@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return false;
                 }
-                TimeSpan timeSinceLastNotification = TimeProvider.System
+                TimeSpan timeSinceLastNotification = TimeProvider
                     .GetElapsedTime(lastNotificationTimestamp);
                 return timeSinceLastNotification >
                     m_keepAliveInterval + s_keepAliveTimerMargin;
@@ -129,19 +129,23 @@ namespace Opc.Ua.Client.Subscriptions
         /// The owning <see cref="SubscriptionManager.RestoreAsync"/>
         /// flow then issues TransferSubscriptions and binds runtime
         /// state via <see cref="TryCompleteTransferAsync"/>.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// for elapsed-time and timer calculations. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         protected Subscription(
             ISubscriptionContext context,
             ISubscriptionNotificationHandler handler,
             IMessageAckQueue completion,
             IOptionsMonitor<SubscriptionOptions> options,
             ITelemetryContext telemetry,
-            SubscriptionLoadState? loadState = null)
-            : base(context.SubscriptionServiceSet, completion, telemetry)
+            SubscriptionLoadState? loadState = null,
+            TimeProvider? timeProvider = null)
+            : base(context.SubscriptionServiceSet, completion, telemetry, timeProvider)
         {
             m_handler = handler;
             m_context = context;
             m_monitoredItems = new MonitoredItemManager(this, telemetry);
-            m_publishTimer = TimeProvider.System.CreateTimer(OnKeepAlive,
+            m_publishTimer = TimeProvider.CreateTimer(OnKeepAlive,
                 null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             if (loadState != null)
             {
@@ -1073,7 +1077,7 @@ namespace Opc.Ua.Client.Subscriptions
         private void StartKeepAliveTimer()
         {
             SubscriptionOptions options = Options;
-            LastNotificationTimestamp = TimeProvider.System.GetTimestamp();
+            LastNotificationTimestamp = TimeProvider.GetTimestamp();
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {

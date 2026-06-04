@@ -70,6 +70,14 @@ namespace Opc.Ua.Client
         public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
 
         /// <summary>
+        /// Optional <see cref="TimeProvider"/> forwarded to every
+        /// <see cref="Session"/> created by this factory. When
+        /// <see langword="null"/>, the session uses
+        /// <see cref="TimeProvider.System"/>.
+        /// </summary>
+        public TimeProvider? TimeProvider { get; init; }
+
+        /// <summary>
         /// Obsolete default constructor
         /// </summary>
         [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
@@ -401,7 +409,8 @@ namespace Opc.Ua.Client
                 clientCertificateChain,
                 availableEndpoints,
                 discoveryProfileUris,
-                SubscriptionEngineFactory)
+                SubscriptionEngineFactory,
+                TimeProvider)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

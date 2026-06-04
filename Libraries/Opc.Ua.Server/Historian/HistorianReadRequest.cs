@@ -59,13 +59,19 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     public sealed record HistorianRawReadRequest
     {
-        /// <summary>The historizing variable.</summary>
+        /// <summary>
+        /// The historizing variable.
+        /// </summary>
         public required NodeId NodeId { get; init; }
 
-        /// <summary>Effective start time (the earlier of start/end).</summary>
+        /// <summary>
+        /// Effective start time (the earlier of start/end).
+        /// </summary>
         public required DateTimeUtc StartTime { get; init; }
 
-        /// <summary>Effective end time (the later of start/end).</summary>
+        /// <summary>
+        /// Effective end time (the later of start/end).
+        /// </summary>
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
@@ -74,10 +80,14 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public uint MaxValues { get; init; }
 
-        /// <summary>True for forward-in-time reads, false for reverse.</summary>
+        /// <summary>
+        /// True for forward-in-time reads, false for reverse.
+        /// </summary>
         public bool IsForward { get; init; }
 
-        /// <summary>Return bounding values just outside the requested window.</summary>
+        /// <summary>
+        /// Return bounding values just outside the requested window.
+        /// </summary>
         public bool ReturnBounds { get; init; }
     }
 
@@ -87,19 +97,29 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     public sealed record HistorianModifiedReadRequest
     {
-        /// <summary>The historizing variable.</summary>
+        /// <summary>
+        /// The historizing variable.
+        /// </summary>
         public required NodeId NodeId { get; init; }
 
-        /// <summary>Effective start time.</summary>
+        /// <summary>
+        /// Effective start time.
+        /// </summary>
         public required DateTimeUtc StartTime { get; init; }
 
-        /// <summary>Effective end time.</summary>
+        /// <summary>
+        /// Effective end time.
+        /// </summary>
         public required DateTimeUtc EndTime { get; init; }
 
-        /// <summary>Maximum number of values to return. Zero = unbounded.</summary>
+        /// <summary>
+        /// Maximum number of values to return. Zero = unbounded.
+        /// </summary>
         public uint MaxValues { get; init; }
 
-        /// <summary>True for forward-in-time reads, false for reverse.</summary>
+        /// <summary>
+        /// True for forward-in-time reads, false for reverse.
+        /// </summary>
         public bool IsForward { get; init; }
     }
 
@@ -119,10 +139,14 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     public sealed record HistorianAtTimeReadRequest
     {
-        /// <summary>The historizing variable.</summary>
+        /// <summary>
+        /// The historizing variable.
+        /// </summary>
         public required NodeId NodeId { get; init; }
 
-        /// <summary>The requested timestamps, in the order the client supplied them.</summary>
+        /// <summary>
+        /// The requested timestamps, in the order the client supplied them.
+        /// </summary>
         public required IReadOnlyList<DateTimeUtc> RequestedTimes { get; init; }
 
         /// <summary>
@@ -146,22 +170,34 @@ namespace Opc.Ua.Server.Historian
     /// </remarks>
     public sealed record HistorianProcessedReadRequest
     {
-        /// <summary>The historizing variable.</summary>
+        /// <summary>
+        /// The historizing variable.
+        /// </summary>
         public required NodeId NodeId { get; init; }
 
-        /// <summary>The aggregate function identifier.</summary>
+        /// <summary>
+        /// The aggregate function identifier.
+        /// </summary>
         public required NodeId AggregateId { get; init; }
 
-        /// <summary>Start of the aggregation window.</summary>
+        /// <summary>
+        /// Start of the aggregation window.
+        /// </summary>
         public required DateTimeUtc StartTime { get; init; }
 
-        /// <summary>End of the aggregation window.</summary>
+        /// <summary>
+        /// End of the aggregation window.
+        /// </summary>
         public required DateTimeUtc EndTime { get; init; }
 
-        /// <summary>Interval length, in milliseconds, between aggregate outputs.</summary>
+        /// <summary>
+        /// Interval length, in milliseconds, between aggregate outputs.
+        /// </summary>
         public required double ProcessingInterval { get; init; }
 
-        /// <summary>Aggregate configuration overrides (Part 11 §5.2.6.4).</summary>
+        /// <summary>
+        /// Aggregate configuration overrides (Part 11 §5.2.6.4).
+        /// </summary>
         public required AggregateConfiguration Configuration { get; init; }
     }
 
@@ -171,19 +207,29 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     public sealed record HistorianAnnotationReadRequest
     {
-        /// <summary>The historizing variable (NOT the Annotations property).</summary>
+        /// <summary>
+        /// The historizing variable (NOT the Annotations property).
+        /// </summary>
         public required NodeId NodeId { get; init; }
 
-        /// <summary>Effective start time.</summary>
+        /// <summary>
+        /// Effective start time.
+        /// </summary>
         public required DateTimeUtc StartTime { get; init; }
 
-        /// <summary>Effective end time.</summary>
+        /// <summary>
+        /// Effective end time.
+        /// </summary>
         public required DateTimeUtc EndTime { get; init; }
 
-        /// <summary>Maximum number of annotations to return. Zero = unbounded.</summary>
+        /// <summary>
+        /// Maximum number of annotations to return. Zero = unbounded.
+        /// </summary>
         public uint MaxValues { get; init; }
 
-        /// <summary>True for forward-in-time reads, false for reverse.</summary>
+        /// <summary>
+        /// True for forward-in-time reads, false for reverse.
+        /// </summary>
         public bool IsForward { get; init; }
     }
 }

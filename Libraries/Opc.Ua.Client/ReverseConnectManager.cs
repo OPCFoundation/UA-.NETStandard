@@ -203,7 +203,19 @@ namespace Opc.Ua.Client
         /// Initializes the object with default values.
         /// </summary>
         public ReverseConnectManager(ITelemetryContext telemetry)
+            : this(telemetry, timeProvider: null)
         {
+        }
+
+        /// <summary>
+        /// Initializes the object with default values.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments.</param>
+        /// <param name="timeProvider">Optional time provider used for elapsed-time calculations and
+        /// async timeouts. Defaults to <see cref="TimeProvider.System"/>.</param>
+        public ReverseConnectManager(ITelemetryContext telemetry, TimeProvider? timeProvider)
+        {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ReverseConnectManager>();
             m_state = ReverseConnectManagerState.New;
@@ -700,8 +712,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs e)
         {
-            int startTime = HiResClock.TickCount;
-            int endTime = startTime + (m_configuration?.HoldTime ?? 15000);
+            long startTimestamp = m_timeProvider.GetTimestamp();
+            TimeSpan holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
 
             bool matched = MatchRegistration(sender, e);
             while (!matched)
@@ -712,10 +724,10 @@ namespace Opc.Ua.Client
                 {
                     ct = m_cts.Token;
                 }
-                int delay = endTime - HiResClock.TickCount;
-                if (delay > 0)
+                TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
+                if (delay > TimeSpan.Zero)
                 {
-                    await Task.Delay(delay, ct)
+                    await m_timeProvider.Delay(delay, ct)
                         .ContinueWith(tsk =>
                         {
                             if (tsk.IsCanceled)
@@ -727,7 +739,7 @@ namespace Opc.Ua.Client
                                         "Matched reverse connection {ServerUri} {EndpointUrl} after {Duration}ms",
                                         e.ServerUri,
                                         e.EndpointUrl,
-                                        HiResClock.TickCount - startTime);
+                                        (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
                                 }
                             }
                         },
@@ -744,7 +756,7 @@ namespace Opc.Ua.Client
                 e.Accepted ? "Accepted" : "Rejected",
                 e.ServerUri,
                 e.EndpointUrl,
-                HiResClock.TickCount - startTime);
+                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
         }
 
         /// <summary>
@@ -841,6 +853,7 @@ namespace Opc.Ua.Client
         private Type? m_configType;
 
         private readonly Lock m_lock = new();
+        private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;

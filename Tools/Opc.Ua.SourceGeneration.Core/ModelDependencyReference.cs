@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
+using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -46,13 +48,17 @@ namespace Opc.Ua.SourceGeneration
             string modelUri,
             string prefix,
             string version,
-            string publicationDate)
+            string publicationDate,
+            string name = null,
+            string payload = null)
         {
             AssemblyName = assemblyName ?? string.Empty;
             ModelUri = modelUri ?? string.Empty;
             Prefix = prefix ?? string.Empty;
             Version = version ?? string.Empty;
             PublicationDate = publicationDate ?? string.Empty;
+            Name = name ?? string.Empty;
+            Payload = payload ?? string.Empty;
         }
 
         /// <summary>
@@ -60,20 +66,68 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public bool IsValid => ModelUri.Length != 0 && Prefix.Length != 0;
 
-        /// <summary>The assembly the attribute was read from.</summary>
+        /// <summary>
+        /// The assembly the attribute was read from.
+        /// </summary>
         public string AssemblyName { get; }
 
-        /// <summary>The OPC UA model URI recorded in the attribute.</summary>
+        /// <summary>
+        /// The OPC UA model URI recorded in the attribute.
+        /// </summary>
         public string ModelUri { get; }
 
-        /// <summary>The C# namespace the assembly used for this model's generated types.</summary>
+        /// <summary>
+        /// The C# namespace the assembly used for this model's generated types.
+        /// </summary>
         public string Prefix { get; }
 
-        /// <summary>The model version string (may be empty).</summary>
+        /// <summary>
+        /// The model version string (may be empty).
+        /// </summary>
         public string Version { get; }
 
-        /// <summary>The model publication date (ISO-8601; may be empty).</summary>
+        /// <summary>
+        /// The model publication date (ISO-8601; may be empty).
+        /// </summary>
         public string PublicationDate { get; }
+
+        /// <summary>The C# identifier used for the model's name constant inside
+        /// the referenced assembly's <c>Namespaces</c> class (may be empty).</summary>
+        public string Name { get; }
+
+        /// <summary>
+        /// Base64-encoded Deflate-compressed <c>ModelDependencyV1</c>
+        /// payload. Empty on transitive-dependency entries; non-empty
+        /// only on the producing assembly's self-declaration entry.
+        /// </summary>
+        public string Payload { get; }
+
+        /// <summary>
+        /// Decodes and memoises the <see cref="Payload"/> as a
+        /// <see cref="ModelDependencyV1"/>. Returns <c>null</c> when the
+        /// payload is empty, malformed, or carries an unknown version.
+        /// </summary>
+        /// <remarks>
+        /// Memoisation is keyed on the payload string to avoid re-decoding
+        /// the same multi-kilobyte byte block when the same dependency
+        /// flows through Roslyn's incremental cache multiple times.
+        /// </remarks>
+        public ModelDependencyV1 GetDependency()
+        {
+            if (string.IsNullOrEmpty(Payload))
+            {
+                return null;
+            }
+            return s_decoded.GetValue(Payload, DecodePayload);
+        }
+
+        private static ModelDependencyV1 DecodePayload(string payload)
+        {
+            return ModelDependencyV1.FromBase64Payload(payload);
+        }
+
+        private static readonly ConditionalWeakTable<string, ModelDependencyV1> s_decoded
+            = new ConditionalWeakTable<string, ModelDependencyV1>();
 
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)
@@ -83,7 +137,9 @@ namespace Opc.Ua.SourceGeneration
                 string.Equals(ModelUri, other.ModelUri, StringComparison.Ordinal) &&
                 string.Equals(Prefix, other.Prefix, StringComparison.Ordinal) &&
                 string.Equals(Version, other.Version, StringComparison.Ordinal) &&
-                string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal);
+                string.Equals(PublicationDate, other.PublicationDate, StringComparison.Ordinal) &&
+                string.Equals(Name, other.Name, StringComparison.Ordinal) &&
+                string.Equals(Payload, other.Payload, StringComparison.Ordinal);
         }
 
         /// <inheritdoc/>
@@ -102,6 +158,8 @@ namespace Opc.Ua.SourceGeneration
                 hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Prefix);
                 hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Version);
                 hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(PublicationDate);
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Name);
+                hash = (hash * 397) ^ StringComparer.Ordinal.GetHashCode(Payload);
                 return hash;
             }
         }

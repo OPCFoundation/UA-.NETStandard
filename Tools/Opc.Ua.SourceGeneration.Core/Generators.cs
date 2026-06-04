@@ -118,6 +118,15 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
+                // Cross-namespace prefix override: when a referenced
+                // assembly publishes a model under a specific C# prefix,
+                // rewrite any matching dependency namespace in the loaded
+                // ModelDesign to use that prefix. Without this, NodeSet2
+                // inputs (which auto-generate prefixes via
+                // NodeSetToModelDesign) emit references like
+                // `global::Opc.Ua.DI.X` instead of `global::Opc.Ua.Di.X`.
+                OverrideDependencyPrefixes(modelDesign, referencedModels);
+
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
                     modelDesign,
@@ -165,6 +174,64 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Override the C# <see cref="Namespace.Prefix"/> of dependency
+        /// namespaces in <paramref name="modelDesign"/> with the prefix
+        /// published by the referenced assembly's
+        /// <c>[assembly: ModelDependencyAttribute]</c>. This guarantees
+        /// that cross-namespace type references emitted by the generator
+        /// resolve to the actual C# namespace the referenced assembly
+        /// uses (e.g. <c>Opc.Ua.Di</c>), not the auto-generated default
+        /// (e.g. <c>Opc.Ua.DI</c>) produced by
+        /// <see cref="NodeSetToModelDesign"/> when no ModelDesign XML is
+        /// available for the dependency.
+        /// </summary>
+        /// <remarks>
+        /// The target namespace (the one currently being generated) is
+        /// intentionally left untouched; otherwise the generator would
+        /// emit references into someone else's assembly.
+        /// </remarks>
+        internal static void OverrideDependencyPrefixes(
+            IModelDesign modelDesign,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
+        {
+            if (modelDesign?.Namespaces == null ||
+                referencedModels == null ||
+                referencedModels.Count == 0)
+            {
+                return;
+            }
+            string targetUri = modelDesign.TargetNamespace?.Value;
+            foreach (Namespace ns in modelDesign.Namespaces)
+            {
+                if (ns == null || string.IsNullOrEmpty(ns.Value))
+                {
+                    continue;
+                }
+                if (string.Equals(ns.Value, targetUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (!referencedModels.TryGetValue(ns.Value, out ModelDependencyReference dep) ||
+                    !dep.IsValid)
+                {
+                    continue;
+                }
+                if (!string.Equals(ns.Prefix, dep.Prefix, StringComparison.Ordinal))
+                {
+                    ns.Prefix = dep.Prefix;
+                }
+                // Also align the namespace Name with the referenced assembly's
+                // Namespaces class identifier so that cross-namespace constant
+                // references like `global::{Prefix}.Namespaces.{Name}` resolve.
+                if (!string.IsNullOrEmpty(dep.Name) &&
+                    !string.Equals(ns.Name, dep.Name, StringComparison.Ordinal))
+                {
+                    ns.Name = dep.Name;
+                }
+            }
+        }
+
+        /// <summary>
         /// Resolve the effective per-design options by overlaying any
         /// matching <c>[NodeManager]</c> attribute binding on top of the
         /// existing <see cref="DesignFileCollection.Options"/>.
@@ -182,7 +249,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return effective;
             }
-
             string uri = modelDesign?.TargetNamespace?.Value;
             string designName = model.Targets.Count == 1
                 ? System.IO.Path.GetFileNameWithoutExtension(model.Targets[0])
@@ -213,10 +279,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (match == null)
-            {
-                return effective;
-            }
 
+            {
+
+                return effective;
+
+            }
             // Detect ambiguity: multiple designs but binding has no selector.
             if (totalDesigns > 1 &&
                 string.IsNullOrEmpty(match.NamespaceUri) &&
@@ -273,6 +341,13 @@ namespace Opc.Ua.SourceGeneration
         /// Optional callback invoked for each binding-related warning or
         /// error (e.g. unmatched URI, ambiguous fallback).
         /// </param>
+        /// <param name="referencedDependencies">
+        /// Per-URI model dependency payloads recovered from referenced
+        /// assemblies via <c>ReferencedModelDependencyScanner</c>. When
+        /// present, the validator pre-imports these dependency payloads
+        /// so downstream models can resolve upstream types without an
+        /// explicit <c>AdditionalFiles</c> entry for them.
+        /// </param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
             IFileSystem fileSystem,
@@ -282,7 +357,8 @@ namespace Opc.Ua.SourceGeneration
             bool useAllowSubtypes = false,
             IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
             IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null)
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
+            IReadOnlyDictionary<string, Opc.Ua.SourceGeneration.Dependency.ModelDependencyV1> referencedDependencies = null)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -313,7 +389,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 // Override resolution: if a referenced assembly already
                 // provides this model under the same C# prefix, silently
                 // skip local generation to avoid duplicate type emission.
@@ -333,7 +408,15 @@ namespace Opc.Ua.SourceGeneration
                     model,
                     options.Exclusions,
                     telemetry,
-                    useAllowSubtypes);
+                    useAllowSubtypes,
+                    referencedDependencies);
+
+                // Cross-namespace prefix override: when a referenced
+                // assembly publishes a model under a specific C# prefix,
+                // rewrite any matching dependency namespace so that
+                // generated type references resolve against the referenced
+                // assembly's actual prefix (not the auto-generated one).
+                OverrideDependencyPrefixes(modelDesign, referencedModels);
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
@@ -354,9 +437,6 @@ namespace Opc.Ua.SourceGeneration
                 },
                 validateSchemas: false,
                 designOptions: effectiveOptions);
-                // TODO {
-                // TODO     AvailableNodeSets = nodesets.Files
-                // TODO };
             }
 
             if (usedBindings != null && nodeManagerBindings != null && reportBindingDiagnostic != null)
@@ -548,11 +628,26 @@ namespace Opc.Ua.SourceGeneration
                     OverrideClassName = designOptions.NodeManagerClassName,
                     EmitFactory = designOptions.EmitNodeManagerFactory
                 }.Emit();
+            }
 
+            // FluentBuilderGenerator emits per-ObjectType typed-accessor
+            // extension classes by default. Model-only assemblies that
+            // don't reference Opc.Ua.Server can opt out via
+            // GeneratorOptions.OmitFluentApi (or the MSBuild property
+            // ModelSourceGeneratorOmitFluentApi=true). When
+            // GenerateNodeManager=true we ALWAYS emit (any consumer
+            // that wires a node manager already references
+            // Opc.Ua.Server, so suppression is unnecessary).
+            bool emitTypedAccessors = designOptions?.GenerateNodeManager == true
+                || context.Options?.OmitFluentApi != true;
+            if (emitTypedAccessors)
+            {
                 new FluentBuilderGenerator(context)
                 {
-                    OverrideManagerNamespace = designOptions.NodeManagerNamespace,
-                    OverrideManagerClassName = designOptions.NodeManagerClassName
+                    OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
+                    OverrideManagerClassName = designOptions?.NodeManagerClassName,
+                    GenerateManagerWrappers = designOptions?.GenerateNodeManager == true,
+                    EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
             }
 
@@ -561,11 +656,16 @@ namespace Opc.Ua.SourceGeneration
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
             }
-            // Event records are emitted only in the Stack path (alongside
-            // the proxies) because they reference the EventRecord anchor
-            // in Opc.Ua.Core. Models (Core.Types) skips them.
-            var modelDependencyGenerator = new ModelDependencyGenerator(context);
-            modelDependencyGenerator.Emit();
+            if (context.Options?.OmitStateMachineIds != true)
+            {
+                var stateMachineIdsGenerator = new StateMachineIdsGenerator(context);
+                stateMachineIdsGenerator.Emit();
+            }
+            if (context.Options?.EmitDependencyMetadata != false)
+            {
+                var modelDependencyGenerator = new ModelDependencyGenerator(context);
+                modelDependencyGenerator.Emit();
+            }
         }
     }
 }

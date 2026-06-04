@@ -316,7 +316,9 @@ namespace Opc.Ua
                 }
             }
 
-            /// <summary>Invokes the callback.</summary>
+            /// <summary>
+            /// Invokes the callback.
+            /// </summary>
             private void InvokeCallback()
             {
                 Debug.Assert(!CompletedSynchronously);

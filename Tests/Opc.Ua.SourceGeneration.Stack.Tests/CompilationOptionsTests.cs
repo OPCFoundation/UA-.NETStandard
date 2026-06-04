@@ -73,12 +73,14 @@ namespace Opc.Ua.SourceGeneration.Tests
                 LanguageVersion.CSharp13,
                 "TestAssembly",
                 OptimizationLevel.Debug,
-                Platform.AnyCpu);
+                Platform.AnyCpu,
+                OutputKind.DynamicallyLinkedLibrary);
             var options2 = new CompilationOptions(
                 LanguageVersion.CSharp13,
                 "TestAssembly",
                 OptimizationLevel.Debug,
-                Platform.AnyCpu);
+                Platform.AnyCpu,
+                OutputKind.DynamicallyLinkedLibrary);
 
             Assert.That(options1, Is.EqualTo(options2));
         }
@@ -90,12 +92,14 @@ namespace Opc.Ua.SourceGeneration.Tests
                 LanguageVersion.CSharp13,
                 "Assembly1",
                 OptimizationLevel.Debug,
-                Platform.AnyCpu);
+                Platform.AnyCpu,
+                OutputKind.DynamicallyLinkedLibrary);
             var options2 = new CompilationOptions(
                 LanguageVersion.CSharp13,
                 "Assembly2",
                 OptimizationLevel.Debug,
-                Platform.AnyCpu);
+                Platform.AnyCpu,
+                OutputKind.DynamicallyLinkedLibrary);
 
             Assert.That(options1, Is.Not.EqualTo(options2));
         }
@@ -136,7 +140,8 @@ namespace Opc.Ua.SourceGeneration.Tests
                 LanguageVersion.CSharp13,
                 "MyAssembly",
                 OptimizationLevel.Release,
-                Platform.X64);
+                Platform.X64,
+                OutputKind.DynamicallyLinkedLibrary);
 
             string str = options.ToString();
 
@@ -152,12 +157,14 @@ namespace Opc.Ua.SourceGeneration.Tests
                 LanguageVersion.CSharp13,
                 "TestAssembly",
                 OptimizationLevel.Debug,
-                Platform.AnyCpu);
+                Platform.AnyCpu,
+                OutputKind.DynamicallyLinkedLibrary);
             var options2 = new CompilationOptions(
                 LanguageVersion.CSharp13,
                 "TestAssembly",
                 OptimizationLevel.Debug,
-                Platform.AnyCpu);
+                Platform.AnyCpu,
+                OutputKind.DynamicallyLinkedLibrary);
 
             Assert.That(options1.GetHashCode(), Is.EqualTo(options2.GetHashCode()));
         }

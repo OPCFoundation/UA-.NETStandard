@@ -116,7 +116,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
-
             options ??= new EventPublishOptions();
 
             ValidateOptions(options);
@@ -331,10 +330,12 @@ namespace Opc.Ua.Server.Fluent
                 }
 
                 if (ct.IsCancellationRequested)
-                {
-                    return;
-                }
 
+                {
+
+                    return;
+
+                }
                 ReconcileAll();
             }
         }
@@ -392,10 +393,12 @@ namespace Opc.Ua.Server.Fluent
             entry.WorkerTask = null;
 
             if (cts == null)
-            {
-                return;
-            }
 
+            {
+
+                return;
+
+            }
             try
             {
                 cts.Cancel();
@@ -520,14 +523,12 @@ namespace Opc.Ua.Server.Fluent
             {
                 return;
             }
-
             try
             {
                 if (!entry.Options.SkipDefaultPopulation)
                 {
                     PopulateDefaults(entry.Notifier, context, e);
                 }
-
                 entry.Notifier.ReportEvent(context, e);
             }
             catch (Exception ex)
@@ -593,10 +594,12 @@ namespace Opc.Ua.Server.Fluent
             }
 
             if (e.Time == null || e.Time.Value.IsNull)
-            {
-                e.Time = PropertyState<DateTimeUtc>.With<VariantBuilder>(e, DateTimeUtc.Now);
-            }
 
+            {
+
+                e.Time = PropertyState<DateTimeUtc>.With<VariantBuilder>(e, DateTimeUtc.Now);
+
+            }
             if (e.ReceiveTime == null || e.ReceiveTime.Value.IsNull)
             {
                 e.ReceiveTime = PropertyState<DateTimeUtc>.With<VariantBuilder>(

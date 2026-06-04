@@ -66,16 +66,16 @@ namespace Opc.Ua.Bindings
             {
                 ChannelId = Id,
                 TokenId = 0,
-                CreatedAt = DateTime.UtcNow,
-                CreatedAtTickCount = HiResClock.TickCount,
+                CreatedAt = TimeProvider.GetUtcNow().UtcDateTime,
+                CreatedAtTimestamp = TimeProvider.GetTimestamp(),
                 Lifetime = Quotas.SecurityTokenLifetime
             };
 
             m_logger.LogInformation(
-                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
+                "ChannelId {ChannelId}: New Token created. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.CreatedAt,
-                token.CreatedAtTickCount,
+                token.CreatedAtTimestamp,
                 token.Lifetime);
 
             return token;
@@ -97,11 +97,11 @@ namespace Opc.Ua.Bindings
             OnTokenActivated?.Invoke(token, PreviousToken);
 
             m_logger.LogInformation(
-                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
+                "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
                 token.CreatedAt,
-                token.CreatedAtTickCount,
+                token.CreatedAtTimestamp,
                 token.Lifetime);
         }
 
@@ -113,11 +113,11 @@ namespace Opc.Ua.Bindings
             RenewedToken?.Dispose();
             RenewedToken = token;
             m_logger.LogInformation(
-                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTickCount}. Lifetime={Lifetime}.",
+                "ChannelId {Id}: Renewed Token #{TokenId} set. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
                 Id,
                 token.TokenId,
                 token.CreatedAt,
-                token.CreatedAtTickCount,
+                token.CreatedAtTimestamp,
                 token.Lifetime);
         }
 
@@ -565,13 +565,14 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null && CurrentToken is { ActivationRequired: true } currentTokenForLog)
+            else if (RenewedToken != null && CurrentToken != null &&
+                CurrentToken.IsActivationRequired(TimeProvider))
             {
                 ActivateToken(RenewedToken);
                 m_logger.LogInformation(
                     "ChannelId {Id}: Token #{TokenId} activated forced.",
                     Id,
-                    currentTokenForLog.TokenId);
+                    CurrentToken.TokenId);
             }
 
             // check for valid token.
@@ -604,7 +605,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check if token has expired.
-            if (token.Expired)
+            if (token.IsExpired(TimeProvider))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
@@ -612,7 +613,7 @@ namespace Opc.Ua.Bindings
                     Id,
                     token.TokenId,
                     token.CreatedAt,
-                    token.CreatedAtTickCount);
+                    token.CreatedAtTimestamp);
             }
 
             int headerSize = decoder.Position;

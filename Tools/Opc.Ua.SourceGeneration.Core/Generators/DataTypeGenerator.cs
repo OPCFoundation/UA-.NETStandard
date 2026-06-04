@@ -57,7 +57,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.DataTypes.g.cs",
@@ -108,7 +107,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [fileName.AsTextFileResource(), initializers];
             }
-
             return [fileName.AsTextFileResource()];
         }
 
@@ -132,7 +130,8 @@ namespace Opc.Ua.SourceGeneration
                     : DataTypeTemplates.PooledStructureActivatorClass;
             }
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
-                datatype.IsEnumeration)
+                datatype.IsEnumeration &&
+                !datatype.IsOptionSet)
             {
                 return DataTypeTemplates.EnumerationActivatorClass;
             }
@@ -183,7 +182,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return false;
                 }
-
                 if (current.BasicDataType == BasicDataType.UserDefined &&
                     current.IsStructure &&
                     !current.IsAbstract &&
@@ -210,7 +208,8 @@ namespace Opc.Ua.SourceGeneration
                 return DataTypeTemplates.StructureActivatorRegistration;
             }
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
-                datatype.IsEnumeration)
+                datatype.IsEnumeration &&
+                !datatype.IsOptionSet)
             {
                 return DataTypeTemplates.EnumerationActivatorRegistration;
             }
@@ -258,7 +257,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
 
@@ -327,7 +325,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return fields.Count;
                     }
-
                     if (dataType.BaseTypeNode is DataTypeDesign baseType)
                     {
                         CollectStructureDefinitionFields(
@@ -405,7 +402,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             StructureType structureType = kvp.Value;
             Parameter field = kvp.Key;
 
@@ -458,7 +454,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return DataTypeTemplates.UnionClass;
                     }
-
                     if (datatype.HasFields && datatype.Fields.Any(x => x.IsOptional))
                     {
                         if (datatype.IsDerivedDataType())
@@ -490,7 +485,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return DataTypeTemplates.Enumeration;
                     }
-
                     return null;
             }
         }
@@ -501,7 +495,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(
                 Tokens.ExtraInterfaces,
                 dataType.Service == null ?
@@ -592,8 +585,11 @@ namespace Opc.Ua.SourceGeneration
                         var parameter = (Parameter)field;
 
                         if (parameter.IsOptional)
+
                         {
+
                             completeListOfFields.Add(parameter);
+
                         }
                     }
                 }
@@ -731,7 +727,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine(
                 "private {0} {1};",
                 field.DataTypeNode.GetDotNetTypeName(
@@ -750,7 +745,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             var dataType = (DataTypeDesign)field.Parent;
 
             int index = context.Index + 1;
@@ -782,7 +776,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             int index = context.Index;
             if (field.IsOptional)
             {
@@ -808,7 +801,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             var dataType = (DataTypeDesign)field.Parent;
             bool isUnion = dataType.IsUnion;
 
@@ -949,8 +941,11 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (field.ValueRank == ValueRank.Array)
+
             {
+
                 functionName += "Array";
+
             }
             else if (field.ValueRank != ValueRank.Scalar)
             {
@@ -975,7 +970,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             var dataType = (DataTypeDesign)field.Parent;
             bool isUnion = dataType.IsUnion;
             if (isUnion)
@@ -1122,7 +1116,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
@@ -1167,7 +1160,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
@@ -1212,7 +1204,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string value = field.DataTypeNode.GetValueAsCode(
                 field.ValueRank,
                 field.DefaultValue,
@@ -1283,7 +1274,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             const bool isRequired = false;
             var dataType = (DataTypeDesign)field.Parent;
             bool emitDefaultValue =
@@ -1337,8 +1327,11 @@ namespace Opc.Ua.SourceGeneration
                 field.Identifier.ToString(CultureInfo.InvariantCulture));
 
             if (field.IdentifierInName)
+
             {
+
                 context.Template.AddReplacement(Tokens.XmlIdentifier, field.Name);
+
             }
             else
             {
@@ -1402,10 +1395,12 @@ namespace Opc.Ua.SourceGeneration
             List<Parameter> fields = [];
 
             if (dataType.Fields == null)
-            {
-                return [.. fields];
-            }
 
+            {
+
+                return [.. fields];
+
+            }
             foreach (Parameter child in dataType.Fields)
             {
                 if (!m_context.ModelDesign.IsExcluded(child))

@@ -82,7 +82,9 @@ namespace Opc.Ua.Server.FileSystem
             NamespaceIndex = base.NamespaceIndex;
         }
 
-        /// <summary>The provider backing this node manager.</summary>
+        /// <summary>
+        /// The provider backing this node manager.
+        /// </summary>
         public IFileSystemProvider Provider { get; }
 
         /// <summary>

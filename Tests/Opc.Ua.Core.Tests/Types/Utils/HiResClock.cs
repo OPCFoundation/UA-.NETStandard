@@ -33,6 +33,8 @@ using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
+#pragma warning disable CS0618 // Self-test for the [Obsolete] HiResClock API.
+
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     /// <summary>

@@ -4560,31 +4560,49 @@ namespace Opc.Ua.Server.Tests
         ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken ct = default);
         T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState;
 
-        /// <summary>Marks a node as eligible to trigger ModelChangeEvents (Part 5 §9.32.2).</summary>
+        /// <summary>
+        /// Marks a node as eligible to trigger ModelChangeEvents (Part 5 §9.32.2).
+        /// </summary>
         PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null);
 
-        /// <summary>Strict NodeVersion-required gate on ModelChangeEvent emission.</summary>
+        /// <summary>
+        /// Strict NodeVersion-required gate on ModelChangeEvent emission.
+        /// </summary>
         bool RequireNodeVersionForModelChange { get; set; }
 
-        /// <summary>Optional: set nodes to be loaded by CreateAddressSpaceAsync.</summary>
+        /// <summary>
+        /// Optional: set nodes to be loaded by CreateAddressSpaceAsync.
+        /// </summary>
         NodeStateCollection? NodesToLoad { get; set; }
 
-        /// <summary>Tests whether a NodeId belongs to a managed namespace.</summary>
+        /// <summary>
+        /// Tests whether a NodeId belongs to a managed namespace.
+        /// </summary>
         bool IsNodeIdInNamespacePublic(NodeId nodeId);
 
-        /// <summary>Validates if a manager handle belongs to this node manager's namespace.</summary>
+        /// <summary>
+        /// Validates if a manager handle belongs to this node manager's namespace.
+        /// </summary>
         NodeHandle? IsHandleInNamespacePublic(object? managerHandle);
 
-        /// <summary>Adds a node to the component cache.</summary>
+        /// <summary>
+        /// Adds a node to the component cache.
+        /// </summary>
         NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node);
 
-        /// <summary>Removes a node from the component cache.</summary>
+        /// <summary>
+        /// Removes a node from the component cache.
+        /// </summary>
         void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle);
 
-        /// <summary>Looks up a node in the component cache.</summary>
+        /// <summary>
+        /// Looks up a node in the component cache.
+        /// </summary>
         NodeState? LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle);
 
-        /// <summary>Validates monitoring filter.</summary>
+        /// <summary>
+        /// Validates monitoring filter.
+        /// </summary>
         ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -4594,30 +4612,46 @@ namespace Opc.Ua.Server.Tests
             ExtensionObject filter,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Gets the root notifiers dictionary.</summary>
+        /// <summary>
+        /// Gets the root notifiers dictionary.
+        /// </summary>
         NodeIdDictionary<NodeState> RootNotifiers { get; }
 
-        /// <summary>Adds a root notifier.</summary>
+        /// <summary>
+        /// Adds a root notifier.
+        /// </summary>
         ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
 
-        /// <summary>Removes a root notifier.</summary>
+        /// <summary>
+        /// Removes a root notifier.
+        /// </summary>
         ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default);
 
-        /// <summary>Invokes the OnReportEvent handler.</summary>
+        /// <summary>
+        /// Invokes the OnReportEvent handler.
+        /// </summary>
         void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget);
 
-        /// <summary>Adds reverse references from predefined nodes to external targets.</summary>
+        /// <summary>
+        /// Adds reverse references from predefined nodes to external targets.
+        /// </summary>
         ValueTask AddReverseReferencesPublicAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Sets namespace URIs.</summary>
+        /// <summary>
+        /// Sets namespace URIs.
+        /// </summary>
         void SetNamespacesPublic(params string[] namespaceUris);
 
-        /// <summary>Sets namespace indexes.</summary>
+        /// <summary>
+        /// Sets namespace indexes.
+        /// </summary>
         void SetNamespaceIndexesPublic(ushort[] namespaceIndexes);
 
-        /// <summary>Sets namespace URIs via the property setter.</summary>
+        /// <summary>
+        /// Sets namespace URIs via the property setter.
+        /// </summary>
         void SetNamespaceUrisPublic(IEnumerable<string>? uris);
     }
 

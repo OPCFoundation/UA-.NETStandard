@@ -566,17 +566,17 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
 
-            services.TryAddSingleton(TimeProvider.System);
-
             services.TryAddSingleton<ISessionFactory>(sp =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                TimeProvider? timeProvider = sp.GetService<TimeProvider>();
                 return new DefaultSessionFactory(telemetry)
                 {
                     SubscriptionEngineFactory =
                         options.Session.SubscriptionEngineFactory
-                        ?? DefaultSubscriptionEngineFactory.Instance
+                        ?? new DefaultSubscriptionEngineFactory(timeProvider),
+                    TimeProvider = timeProvider
                 };
             });
 
@@ -721,9 +721,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
 #pragma warning restore CS0618
 
-                TimeProvider timeProvider =
-                    options.Session.TimeProvider ?? m_sp.GetRequiredService<TimeProvider>();
-                builder.WithTimeProvider(timeProvider);
+                TimeProvider? timeProvider =
+                    options.Session.TimeProvider ?? m_sp.GetService<TimeProvider>();
+                if (timeProvider != null)
+                {
+                    builder.WithTimeProvider(timeProvider);
+                }
 
                 if (options.Session.PreferredLocales is { Count: > 0 } locales)
                 {
