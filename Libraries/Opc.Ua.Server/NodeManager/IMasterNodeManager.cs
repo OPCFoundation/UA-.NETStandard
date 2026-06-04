@@ -70,6 +70,53 @@ namespace Opc.Ua.Server
         ValueTask AddReferencesAsync(NodeId sourceId, IList<IReference> references, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Dispatches AddNodes service requests (Part 4 §5.8.2) per item to the
+        /// node manager that owns the parent node.
+        /// </summary>
+        /// <remarks>
+        /// For every item, the dispatcher resolves the parent NodeId and routes
+        /// the request to the owning <see cref="INodeManagementAsyncNodeManager"/>.
+        /// When the owner has not opted into NodeManagement, the corresponding
+        /// result is <see cref="StatusCodes.BadUserAccessDenied"/>.
+        /// </remarks>
+        ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> AddNodesAsync(
+            OperationContext context,
+            ArrayOf<AddNodesItem> nodesToAdd,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Dispatches DeleteNodes service requests (Part 4 §5.8.4) per item to
+        /// the node manager that owns the node being deleted. When the item
+        /// requests target-reference removal, the dispatcher removes inverse
+        /// references in all other node managers that point at the deleted node.
+        /// </summary>
+        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> DeleteNodesAsync(
+            OperationContext context,
+            ArrayOf<DeleteNodesItem> nodesToDelete,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Dispatches AddReferences service requests (Part 4 §5.8.3) per item.
+        /// </summary>
+        /// <remarks>
+        /// Forward references are routed to the source node's owning manager.
+        /// When the target node is local, the inverse edge is also written into
+        /// the target's owning manager so Browse returns symmetric edges.
+        /// </remarks>
+        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> AddReferencesAsync(
+            OperationContext context,
+            ArrayOf<AddReferencesItem> referencesToAdd,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Dispatches DeleteReferences service requests (Part 4 §5.8.5) per item.
+        /// </summary>
+        ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> DeleteReferencesAsync(
+            OperationContext context,
+            ArrayOf<DeleteReferencesItem> referencesToDelete,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>

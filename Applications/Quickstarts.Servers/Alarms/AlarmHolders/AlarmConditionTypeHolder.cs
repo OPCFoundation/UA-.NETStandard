@@ -39,7 +39,7 @@ namespace Alarms
         protected AlarmConditionTypeHolder(
             ILogger logger,
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             string name,
             SupportedAlarmConditionType alarmConditionType,
