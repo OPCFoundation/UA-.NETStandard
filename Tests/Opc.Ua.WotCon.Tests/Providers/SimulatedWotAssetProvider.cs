@@ -65,10 +65,14 @@ namespace Opc.Ua.WotCon.Tests.Providers
 
         public ThingDescription ThingDescription { get; }
 
-        /// <summary>Snapshot of currently-known property values (test helper).</summary>
+        /// <summary>
+        /// Snapshot of currently-known property values (test helper).
+        /// </summary>
         public IReadOnlyDictionary<string, Variant> Values => m_values;
 
-        /// <summary>Forces a value change so subscribers receive a notification.</summary>
+        /// <summary>
+        /// Forces a value change so subscribers receive a notification.
+        /// </summary>
         public void SetValue(string property, Variant value)
         {
             m_values[property] = value;
@@ -157,7 +161,9 @@ namespace Opc.Ua.WotCon.Tests.Providers
             return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
-        /// <summary>Returns the list of recorded action invocations (test helper).</summary>
+        /// <summary>
+        /// Returns the list of recorded action invocations (test helper).
+        /// </summary>
         public IReadOnlyList<ActionInvocation> Invocations => [.. m_invocations];
 
         public ValueTask DisposeAsync()

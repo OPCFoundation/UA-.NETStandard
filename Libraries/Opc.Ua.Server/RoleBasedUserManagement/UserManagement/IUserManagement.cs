@@ -48,7 +48,9 @@ namespace Opc.Ua.Server.UserManagement
             UserName = userName;
         }
 
-        /// <summary>The user that was disabled or removed.</summary>
+        /// <summary>
+        /// The user that was disabled or removed.
+        /// </summary>
         public string UserName { get; }
     }
 

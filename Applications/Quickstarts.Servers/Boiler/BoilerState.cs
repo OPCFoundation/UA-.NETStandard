@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Server;
 
 namespace Boiler
 {
@@ -88,11 +89,13 @@ namespace Boiler
                     }
 
                     m_simulationContext = context;
-                    m_simulationTimer = new Timer(
+                    TimeProvider timeProvider = ((context as ServerSystemContext)?.Server
+                        as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+                    m_simulationTimer = timeProvider.CreateTimer(
                         DoSimulation,
                         null,
-                        (int)updateRate,
-                        (int)updateRate);
+                        TimeSpan.FromMilliseconds(updateRate),
+                        TimeSpan.FromMilliseconds(updateRate));
                     break;
                 case Opc.Ua.Methods.ProgramStateMachineType_Halt:
                 case Opc.Ua.Methods.ProgramStateMachineType_Suspend:
@@ -296,6 +299,6 @@ namespace Boiler
 
         private ILogger m_logger = null!;
         private ISystemContext m_simulationContext = null!;
-        private Timer? m_simulationTimer;
+        private ITimer? m_simulationTimer;
     }
 }

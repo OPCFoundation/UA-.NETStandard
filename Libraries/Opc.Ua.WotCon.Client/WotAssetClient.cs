@@ -60,19 +60,27 @@ namespace Opc.Ua.WotCon.Client
             Telemetry = telemetry;
         }
 
-        /// <summary>The OPC UA session.</summary>
+        /// <summary>
+        /// The OPC UA session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>Asset NodeId.</summary>
+        /// <summary>
+        /// Asset NodeId.
+        /// </summary>
         public NodeId AssetId { get; }
 
-        /// <summary>Asset display name (BrowseName minus namespace prefix).</summary>
+        /// <summary>
+        /// Asset display name (BrowseName minus namespace prefix).
+        /// </summary>
         public string Name { get; }
 
         /// <summary>The generated <c>WoTAssetFileType</c> proxy.</summary>
         public WoTAssetFileTypeClient File { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
         /// <summary>

@@ -221,7 +221,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             if (ExcludeNodeStateClassGeneration(node))
             {
                 return null;
@@ -245,7 +244,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             NodeDesign root = node.Design;
             context.Template.AddReplacement(Tokens.NodeClass, root.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.TypeName, root.SymbolicName.Name);
@@ -344,10 +342,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.IsNotExplicitlyDefined)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             if (instance.IsOverriddenWithSameClass(
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces))
@@ -410,7 +410,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             if (variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
                 return null;
@@ -425,7 +424,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.NodeClass, type.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.TypeName, type.SymbolicName.Name);
@@ -440,15 +438,16 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             Dictionary<string, Parameter> fields = [];
             CollectMatchingFields(variableType, fields);
 
             if (fields.Count == 0)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             return context.TemplateString;
         }
 
@@ -458,15 +457,16 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             Dictionary<string, Parameter> fields = [];
             CollectMatchingFields(type, fields);
 
             if (fields.Count == 0)
-            {
-                return false;
-            }
 
+            {
+
+                return false;
+
+            }
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
             context.Template.AddReplacement(Tokens.DataType, type.DataTypeNode.GetDotNetTypeName(
                 ValueRank.Scalar,
@@ -499,7 +499,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string name = field.Key;
             string path = field.Key;
 
@@ -605,10 +604,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (effectiveRule == ModellingRule.None)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Optional)
@@ -637,7 +638,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..];
             string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
                 field.ValueRank,
@@ -678,7 +678,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..];
             string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
                 field.ValueRank,
@@ -719,7 +718,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..];
             switch (field.DataTypeNode.BasicDataType)
             {
@@ -751,7 +749,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
@@ -799,7 +796,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
@@ -834,7 +830,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
             switch (field.DataTypeNode.BasicDataType)
             {
@@ -866,7 +861,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
             context.Out.WriteLine(
                "public {1} {0} {{ get; set; }}",
@@ -886,7 +880,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("_result = OnCall(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
@@ -921,7 +914,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             context.Out.WriteLine("_result = await OnCallAsync(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
@@ -950,10 +942,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.IsNotExplicitlyDefined)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             if (GetEffectiveModellingRule(node, instance) != ModellingRule.Optional)
             {
                 return null;
@@ -1003,10 +997,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.IsNotExplicitlyDefined)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             ModellingRule effectiveRule = GetEffectiveModellingRule(node, instance);
 
             if (effectiveRule
@@ -1018,10 +1014,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (effectiveRule == ModellingRule.None)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             if (instance is MethodDesign method &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Mandatory &&
                 GetEffectiveModellingRule(node, method) != ModellingRule.Optional)
@@ -1087,7 +1085,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             int count = 0;
             foreach (NodeToGenerate child in node.Children.Values)
             {
@@ -1095,12 +1092,13 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 if (child.IsNotExplicitlyDefined)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 ModellingRule childEffectiveRule =
                     GetEffectiveModellingRule(child, instance);
 
@@ -1113,10 +1111,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (childEffectiveRule is ModellingRule.None)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 if (childEffectiveRule is
                     ModellingRule.OptionalPlaceholder or
                     ModellingRule.MandatoryPlaceholder)
@@ -1135,10 +1135,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (count == 0)
-            {
-                return null;
-            }
 
+            {
+
+                return null;
+
+            }
             return context.TemplateString;
         }
 
@@ -1187,7 +1189,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
@@ -1203,6 +1204,15 @@ namespace Opc.Ua.SourceGeneration
                 asFactory: true));
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
+            // The runtime BrowseName.Name may differ from the symbolic name
+            // (the design's <opc:BrowseName> attribute can override it, e.g.
+            // Boiler's "InputPipe" InstanceDesign with BrowseName "PipeX001").
+            // FindChild switches on the runtime browse name, so the case
+            // label must use that string verbatim.
+            context.Template.AddReplacement(Tokens.ChildBrowseName,
+                !string.IsNullOrEmpty(instance.BrowseName)
+                    ? instance.BrowseName
+                    : instance.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.FieldName, instance.GetChildFieldName());
             context.Template.AddReplacement(Tokens.NodeClass, instance.GetNodeClassAsString());
             context.Template.AddReplacement(Tokens.BrowseName, instance.SymbolicName.Name);
@@ -1245,7 +1255,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             context.Template.AddReplacement(Tokens.SymbolicId, node.Design.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.SymbolicName, node.Design.SymbolicName.Name);
             return context.Template.Render();
@@ -1257,7 +1266,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             if (context.Token == Tokens.ListOfNodeStateInstanceFactories)
             {
                 if (node.Parent != null)
@@ -1279,7 +1287,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-
                 if (GetEffectiveModellingRule(node, instance) is
                     not ModellingRule.MandatoryPlaceholder and
                     not ModellingRule.OptionalPlaceholder)
@@ -1320,7 +1327,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             NodeDesign root = node.Design;
 
             // Common replacements for all node types
@@ -1605,25 +1611,37 @@ namespace Opc.Ua.SourceGeneration
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
-                            switch (effectiveRule)
+                            // Children whose SymbolicName ends in "_Placeholder"
+                            // come from OptionalPlaceholder/MandatoryPlaceholder
+                            // slots on the type, which emit Add*_Placeholder
+                            // methods (cardinality 0..N) instead of
+                            // CreateOrReplace*_Placeholder methods (which only
+                            // exist for fixed Mandatory/Optional slots).
+                            // Fall through to AddChild for these.
+                            bool isPlaceholderSlot = instance.SymbolicName.Name
+                                .EndsWith("_Placeholder", StringComparison.Ordinal);
+                            if (!isPlaceholderSlot)
                             {
-                                case ModellingRule.Mandatory:
-                                case ModellingRule.Optional:
-                                    context.Out.WriteLine(
-                                        "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
-                                        instance.SymbolicName.Name,
-                                        instance.SymbolicId.Name,
-                                        forInstanceVariableValue);
-                                    return null;
-                                case ModellingRule.OptionalPlaceholder:
-                                case ModellingRule.MandatoryPlaceholder:
-                                    // TODO
-                                    break;
-                                case ModellingRule.ExposesItsArray:
-                                case ModellingRule.None:
-                                case ModellingRule.CardinalityRestriction:
-                                case ModellingRule.MandatoryShared:
-                                    break;
+                                switch (effectiveRule)
+                                {
+                                    case ModellingRule.Mandatory:
+                                    case ModellingRule.Optional:
+                                        context.Out.WriteLine(
+                                            "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                                            instance.SymbolicName.Name,
+                                            instance.SymbolicId.Name,
+                                            forInstanceVariableValue);
+                                        return null;
+                                    case ModellingRule.OptionalPlaceholder:
+                                    case ModellingRule.MandatoryPlaceholder:
+                                        // TODO
+                                        break;
+                                    case ModellingRule.ExposesItsArray:
+                                    case ModellingRule.None:
+                                    case ModellingRule.CardinalityRestriction:
+                                    case ModellingRule.MandatoryShared:
+                                        break;
+                                }
                             }
                         }
                         break;
@@ -1727,7 +1745,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             return NodeStateTemplates.RolePermission;
         }
 
@@ -1737,7 +1754,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             if (!m_context.ModelDesign.TryFindNode(
                 rolePermission.Role,
                 rolePermission.Role.Name,
@@ -1769,10 +1785,12 @@ namespace Opc.Ua.SourceGeneration
             BasicDataType basicType = variableType.DataTypeNode.BasicDataType;
 
             if (variableType.SymbolicName.Name == "TwoStateDiscreteType")
-            {
-                variableType.ValueRank = ValueRank.Scalar;
-            }
 
+            {
+
+                variableType.ValueRank = ValueRank.Scalar;
+
+            }
             if (!variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
                 // Overrides a variable type that does not require a template parameter so we
@@ -2308,7 +2326,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             foreach (ReferenceToGenerate reference in references)
             {
                 if (!reference.IsInverse &&
@@ -2433,7 +2450,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 if (encoding.TypeDefinition == null ||
                     encoding.TypeDefinition.Name != "DataTypeEncodingType")
                 {
@@ -2441,10 +2457,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (encoding.NotInAddressSpace)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 if (m_context.ModelDesign.IsExcluded(encoding))
                 {
                     continue;
@@ -2466,7 +2484,6 @@ namespace Opc.Ua.SourceGeneration
                         {
                             continue;
                         }
-
                         hierarchy.References.Add(new HierarchyReference
                         {
                             SourcePath = string.Empty,
@@ -2633,10 +2650,12 @@ namespace Opc.Ua.SourceGeneration
                 ModellingRule typeDefRule = node.TypeDefinitionModellingRule.Value;
 
                 if (m_context.Options.UseTypeDefinitionModellingRules)
-                {
-                    return typeDefRule;
-                }
 
+                {
+
+                    return typeDefRule;
+
+                }
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
                 if (!IsValidPromotion(typeDefRule, instance.ModellingRule))
@@ -2665,10 +2684,12 @@ namespace Opc.Ua.SourceGeneration
                     hierarchyNode.TypeDefinitionModellingRule.Value;
 
                 if (m_context.Options.UseTypeDefinitionModellingRules)
-                {
-                    return typeDefRule;
-                }
 
+                {
+
+                    return typeDefRule;
+
+                }
                 // When not opt-in, only allow valid promotions per
                 // the OPC UA modelling rule standard.
                 if (!IsValidPromotion(typeDefRule, child.ModellingRule))
@@ -2700,7 +2721,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return true;
             }
-
             return typeDefRule switch
             {
                 ModellingRule.Optional =>
@@ -2752,10 +2772,12 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (node.Hierarchy == null)
-            {
-                return;
-            }
 
+            {
+
+                return;
+
+            }
             foreach (HierarchyNode current in node.Hierarchy.NodeList)
             {
                 string childPath = current.RelativePath;
@@ -2771,7 +2793,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
                 // relative should always end in the name of the current instance.
                 if (!childPath.EndsWith(
                     current.Instance.SymbolicName.Name,
@@ -2794,8 +2815,11 @@ namespace Opc.Ua.SourceGeneration
                     string parentPath = current.RelativePath[..idx];
 
                     if (parentPath != node.Path)
+
                     {
+
                         continue;
+
                     }
                 }
 
@@ -2810,10 +2834,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (current.Instance is not InstanceDesign child)
-                {
-                    continue;
-                }
 
+                {
+
+                    continue;
+
+                }
                 ModellingRule effectiveRule = GetEffectiveModellingRule(
                     current, child, node.RootIsTypeDefinition);
 
@@ -2941,7 +2967,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             Hierarchy hierarchy = node.Hierarchy;
             NodeDesign root = node.Design;
             HashSet<ReferenceToGenerate> references = [];
@@ -3002,8 +3027,11 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     if (!target.ExplicitlyDefined && node.RootIsTypeDefinition)
+
                     {
+
                         continue;
+
                     }
                     references.Add(new ReferenceToGenerate(
                         target.Instance,
@@ -3111,8 +3139,11 @@ namespace Opc.Ua.SourceGeneration
                         "RoleType");
 
                     if (roleNode != null)
+
                     {
+
                         rolePermissions.Add(rp);
+
                     }
                 }
             }
@@ -3211,12 +3242,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 return string.Empty;
             }
-
             if (type.BaseTypeNode == null)
-            {
-                return "<T>";
-            }
 
+            {
+
+                return "<T>";
+
+            }
             if (GetTemplateParameter(type.BaseTypeNode, out variantBuilder) != "<T>")
             {
                 return string.Empty;
@@ -3257,7 +3289,7 @@ namespace Opc.Ua.SourceGeneration
             }
             if (variableType.ValueRank == ValueRank.OneOrMoreDimensions)
             {
-                // TODO: matrixOf
+                // TODO: matrixOf;
             }
             variantBuilder = "global::Opc.Ua.VariantBuilder";
             return "<global::Opc.Ua.Variant>";
@@ -3390,10 +3422,14 @@ namespace Opc.Ua.SourceGeneration
             ModellingRule? TypeDefinitionModellingRule = null,
             bool IsUnderSingletonInstance = false)
         {
-            /// <summary> Full inherited list of children </summary>
+            /// <summary>
+            /// Full inherited list of children
+            /// </summary>
             public List<NodeToGenerate> AllChildren { get; } = [];
 
-            /// <summary> Direclty defined </summary>
+            /// <summary>
+            /// Direclty defined
+            /// </summary>
             public Dictionary<string, NodeToGenerate> Children { get; } = [];
 
             public NodeToGenerate Instance { get; set; }

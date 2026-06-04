@@ -99,7 +99,9 @@ namespace Opc.Ua.Server.AliasNames.PubSub
         /// </summary>
         public string ApplicationUri { get; }
 
-        /// <summary>The configured tunables.</summary>
+        /// <summary>
+        /// The configured tunables.
+        /// </summary>
         public AliasNamePublisherOptions Options { get; }
 
         /// <summary>

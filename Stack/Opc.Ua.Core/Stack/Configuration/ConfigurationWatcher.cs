@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -44,6 +45,18 @@ namespace Opc.Ua
         public ConfigurationWatcher(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry)
+            : this(configuration, telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates the watcher for the configuration using the supplied
+        /// <see cref="TimeProvider"/> for polling.
+        /// </summary>
+        public ConfigurationWatcher(
+            ApplicationConfiguration configuration,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
         {
             if (configuration == null)
             {
@@ -51,6 +64,7 @@ namespace Opc.Ua
             }
 
             m_logger = telemetry.CreateLogger<ConfigurationWatcher>();
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             var fileInfo = new FileInfo(configuration.SourceFilePath!);
 
@@ -63,7 +77,11 @@ namespace Opc.Ua
 
             m_configuration = configuration;
             m_lastWriteTime = fileInfo.LastWriteTimeUtc;
-            m_watcher = new System.Threading.Timer(Watcher_Changed, null, 5000, 5000);
+            m_watcher = m_timeProvider.CreateTimer(
+                Watcher_Changed,
+                null,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(5));
         }
 
         /// <summary>
@@ -133,7 +151,8 @@ namespace Opc.Ua
 
         private readonly ILogger m_logger;
         private readonly ApplicationConfiguration m_configuration;
-        private System.Threading.Timer? m_watcher;
+        private readonly TimeProvider m_timeProvider;
+        private ITimer? m_watcher;
         private DateTime m_lastWriteTime;
         private event EventHandler<ConfigurationWatcherEventArgs>? m_Changed;
     }

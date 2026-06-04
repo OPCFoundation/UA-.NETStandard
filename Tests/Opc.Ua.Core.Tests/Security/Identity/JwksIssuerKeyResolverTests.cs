@@ -36,6 +36,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Identity;
 
@@ -76,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using var handler = new QueueMessageHandler(
                 CreateJwks(CreateRsaJwk(first, "kid-1", "sig")),
                 CreateJwks(CreateRsaJwk(second, "kid-2", "sig")));
-            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using HttpClient httpClient = new HttpClient(handler, disposeHandler: false);
             using var resolver = new JwksIssuerKeyResolver(
                 "https://issuer.example.test",
                 "https://issuer.example.test/keys",
@@ -216,21 +217,6 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                     Content = new StringContent(m_responses.Dequeue(), Encoding.UTF8, "application/json")
                 };
                 return Task.FromResult(response);
-            }
-        }
-
-        private sealed class FakeTimeProvider : TimeProvider
-        {
-            private DateTimeOffset m_now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-
-            public override DateTimeOffset GetUtcNow()
-            {
-                return m_now;
-            }
-
-            public void Advance(TimeSpan interval)
-            {
-                m_now += interval;
             }
         }
     }

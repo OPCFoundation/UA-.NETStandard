@@ -34,10 +34,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Configuration.Tests
@@ -96,6 +99,35 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
                 Is.False);
+        }
+
+        [Test]
+        public async Task FindApplicationCertificateUsesAbstractApplicationCertificateAsFallbackAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate certificate = CertificateFactory
+                .CreateCertificate("CN=Abstract Application Certificate")
+                .CreateForRSA();
+            var certificateIdentifier = new CertificateIdentifier
+            {
+                RawData = certificate.RawData,
+                CertificateType = ObjectTypeIds.ApplicationCertificateType
+            };
+            var securityConfiguration = new SecurityConfiguration
+            {
+                ApplicationCertificates = [certificateIdentifier]
+            };
+
+            using Certificate result = await securityConfiguration.FindApplicationCertificateAsync(
+                SecurityPolicies.Basic256Sha256,
+                privateKey: false,
+                telemetry: telemetry).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            Assert.That(
+                certificateIdentifier.CertificateType,
+                Is.EqualTo(ObjectTypeIds.ApplicationCertificateType));
         }
 
         [Test]

@@ -52,34 +52,54 @@ namespace Opc.Ua.Security.Certificates
     public enum CRLReason
 #pragma warning restore CA1027
     {
-        /// <summary> Unspecified </summary>
+        /// <summary>
+        /// Unspecified
+        /// </summary>
         Unspecified = 0,
 
-        /// <summary> KeyCompromise </summary>
+        /// <summary>
+        /// KeyCompromise
+        /// </summary>
         KeyCompromise = 1,
 
-        /// <summary> CACompromise </summary>
+        /// <summary>
+        /// CACompromise
+        /// </summary>
         CACompromise = 2,
 
-        /// <summary> AffiliationChanged </summary>
+        /// <summary>
+        /// AffiliationChanged
+        /// </summary>
         AffiliationChanged = 3,
 
-        /// <summary> Superseded </summary>
+        /// <summary>
+        /// Superseded
+        /// </summary>
         Superseded = 4,
 
-        /// <summary> CessationOfOperation </summary>
+        /// <summary>
+        /// CessationOfOperation
+        /// </summary>
         CessationOfOperation = 5,
 
-        /// <summary> CertificateHold </summary>
+        /// <summary>
+        /// CertificateHold
+        /// </summary>
         CertificateHold = 6,
 
-        /// <summary> RemoveFromCRL </summary>
+        /// <summary>
+        /// RemoveFromCRL
+        /// </summary>
         RemoveFromCRL = 8,
 
-        /// <summary> PrivilegeWithdrawn </summary>
+        /// <summary>
+        /// PrivilegeWithdrawn
+        /// </summary>
         PrivilegeWithdrawn = 9,
 
-        /// <summary> AACompromise </summary>
+        /// <summary>
+        /// AACompromise
+        /// </summary>
         AACompromise = 10
     }
 }

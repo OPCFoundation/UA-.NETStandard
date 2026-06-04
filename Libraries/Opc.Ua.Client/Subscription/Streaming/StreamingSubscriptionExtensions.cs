@@ -107,25 +107,35 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// completes silently when the timeout expires.
         /// </summary>
         /// <typeparam name="T">The type of items in the source sequence.</typeparam>
+        /// <param name="source">The source sequence.</param>
+        /// <param name="timeout">The timeout duration.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for the timeout
+        /// scheduler; defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
         public static IAsyncEnumerable<T> WithTimeoutAsync<T>(
             this IAsyncEnumerable<T> source,
             TimeSpan timeout,
+            TimeProvider? timeProvider = null,
             CancellationToken ct = default)
         {
             if (source == null)
             {
                 throw new ArgumentNullException(nameof(source));
             }
-            return WithTimeoutImpl(source, timeout, ct);
+            return WithTimeoutImpl(source, timeout, timeProvider ?? TimeProvider.System, ct);
         }
 
         private static async IAsyncEnumerable<T> WithTimeoutImpl<T>(
             IAsyncEnumerable<T> source,
             TimeSpan timeout,
+            TimeProvider timeProvider,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(timeout);
+            using CancellationTokenSource timeoutCts = timeProvider
+                .CreateCancellationTokenSource(timeout);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
             IAsyncEnumerator<T> enumerator =
                 source.GetAsyncEnumerator(cts.Token);

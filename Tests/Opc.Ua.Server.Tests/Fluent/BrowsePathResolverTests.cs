@@ -195,5 +195,118 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
+
+        // ── Cross-namespace name-only fallback ─────────────────────
+
+        [Test]
+        public void ResolveFallsBackToLocalNameForCrossNamespaceChild()
+        {
+            // Mirrors the OPC 40223 PumpType / Machinery scenario:
+            // the pump root lives in the Pumps namespace (ns=2), but
+            // its inherited Operational child carries the Machinery
+            // namespace (ns=3). Authors should be able to write paths
+            // without sprinkling ns=N; prefixes on every cross-namespace
+            // segment.
+            SystemContext systemContext = CreateContext();
+            var operational = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("OpNode", 3),
+                BrowseName = new QualifiedName("Operational", 3),
+                DisplayName = new LocalizedText("Operational")
+            };
+            var pump = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Pump1", 2),
+                BrowseName = new QualifiedName("Pump #1", 2),
+                DisplayName = new LocalizedText("Pump #1")
+            };
+            pump.AddChild(operational);
+
+            NodeState resolved = BrowsePathResolver.Resolve(
+                systemContext,
+                "Pump #1/Operational",
+                defaultNamespaceIndex: 2,
+                rootResolver: bn => bn == pump.BrowseName ? pump : null);
+
+            Assert.That(resolved, Is.SameAs(operational));
+        }
+
+        [Test]
+        public void ResolveAmbiguousLocalNameThrowsBadBrowseNameDuplicated()
+        {
+            SystemContext systemContext = CreateContext();
+            var child2 = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("C2", 2),
+                BrowseName = new QualifiedName("Foo", 2),
+                DisplayName = new LocalizedText("Foo")
+            };
+            var child3 = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("C3", 3),
+                BrowseName = new QualifiedName("Foo", 3),
+                DisplayName = new LocalizedText("Foo")
+            };
+            var root = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("R", 2),
+                BrowseName = new QualifiedName("Root", 2),
+                DisplayName = new LocalizedText("Root")
+            };
+            root.AddChild(child2);
+            root.AddChild(child3);
+
+            // The default-namespace exact lookup matches child2 in ns=2
+            // — that case resolves cleanly even with two same-name
+            // children. Force the ambiguity by requesting an unknown
+            // namespace via explicit prefix so the fallback kicks in.
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => BrowsePathResolver.Resolve(
+                    systemContext,
+                    "Root/ns=99;Foo",
+                    defaultNamespaceIndex: 2,
+                    rootResolver: bn => bn == root.BrowseName ? root : null));
+
+            Assert.That(
+                ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        [Test]
+        public void ResolveExactNamespaceMatchSkipsFallback()
+        {
+            // When two children share a local name in different
+            // namespaces, an explicit ns= prefix picks the right one
+            // without engaging the cross-namespace fallback (so no
+            // BadBrowseNameDuplicated).
+            SystemContext systemContext = CreateContext();
+            var child2 = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("C2", 2),
+                BrowseName = new QualifiedName("Foo", 2),
+                DisplayName = new LocalizedText("Foo")
+            };
+            var child3 = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("C3", 3),
+                BrowseName = new QualifiedName("Foo", 3),
+                DisplayName = new LocalizedText("Foo")
+            };
+            var root = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("R", 2),
+                BrowseName = new QualifiedName("Root", 2),
+                DisplayName = new LocalizedText("Root")
+            };
+            root.AddChild(child2);
+            root.AddChild(child3);
+
+            NodeState resolved = BrowsePathResolver.Resolve(
+                systemContext,
+                "Root/ns=3;Foo",
+                defaultNamespaceIndex: 2,
+                rootResolver: bn => bn == root.BrowseName ? root : null);
+
+            Assert.That(resolved, Is.SameAs(child3));
+        }
     }
 }

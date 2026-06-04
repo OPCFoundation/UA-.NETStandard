@@ -56,6 +56,9 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="receiveMessageHandler">The receiver message handler</param>
         /// <param name="logger">A contextual logger to log to</param>
         /// <param name="topicFilter">The topics to which to subscribe</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used for
+        /// the reconnect delay. Defaults to <see cref="TimeProvider.System"/>
+        /// when <c>null</c>.</param>
         /// <param name="ct"></param>
         internal static async Task<IMqttClient> GetMqttClientAsync(
             int reconnectInterval,
@@ -63,8 +66,10 @@ namespace Opc.Ua.PubSub.Transport
             Func<MqttApplicationMessageReceivedEventArgs, Task> receiveMessageHandler,
             ILogger logger,
             ArrayOf<string> topicFilter = default,
+            TimeProvider? timeProvider = null,
             CancellationToken ct = default)
         {
+            timeProvider ??= TimeProvider.System;
             IMqttClient mqttClient = s_mqttClientFactory.Value.CreateMqttClient();
 
             // Hook the receiveMessageHandler in case we deal with a subscriber
@@ -121,7 +126,8 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(reconnectInterval), ct).ConfigureAwait(false);
+                    await timeProvider.Delay(TimeSpan.FromSeconds(reconnectInterval), ct)
+                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

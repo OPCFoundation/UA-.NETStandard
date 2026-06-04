@@ -105,7 +105,9 @@ namespace Opc.Ua.Identity
         /// <summary>JWK <c>kid</c> matched against the JWT header.</summary>
         public string? KeyId { get; }
 
-        /// <summary>JWS algorithm (RFC 7518).</summary>
+        /// <summary>
+        /// JWS algorithm (RFC 7518).
+        /// </summary>
         public string Algorithm { get; }
 
         /// <summary>

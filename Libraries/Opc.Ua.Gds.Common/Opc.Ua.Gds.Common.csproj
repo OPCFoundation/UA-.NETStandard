@@ -31,15 +31,23 @@
   <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <!-- Model-only assembly: opt out of typed-accessor emission since
+         the emitted code references Opc.Ua.Server.Fluent.* which this
+         project does not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
     <ModelSourceGeneratorExclude>Draft</ModelSourceGeneratorExclude>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Design\OpcUaGdsModel.csv" />
     <None Remove="Design\OpcUaGdsModel.xml" />
+    <None Remove="Design\OpcUaOnboardingModel.csv" />
+    <None Remove="Design\OpcUaOnboardingModel.xml" />
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="Design\OpcUaGdsModel.csv" />
     <AdditionalFiles Include="Design\OpcUaGdsModel.xml" />
+    <AdditionalFiles Include="Design\OpcUaOnboardingModel.csv" />
+    <AdditionalFiles Include="Design\OpcUaOnboardingModel.xml" />
   </ItemGroup>
 </Project>

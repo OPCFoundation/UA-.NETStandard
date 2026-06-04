@@ -548,7 +548,11 @@ namespace Opc.Ua.PubSub
                     .FindObjectById(e.ConnectionId) as PubSubConnectionDataType;
             if (PubSubConnectionConfiguration == pubSubConnectionDataType)
             {
-                var publisher = new UaPublisher(this, e.WriterGroupDataType, Telemetry);
+                var publisher = new UaPublisher(
+                    this,
+                    e.WriterGroupDataType,
+                    Telemetry,
+                    Application.TimeProvider);
                 m_publishers.Add(publisher);
             }
         }

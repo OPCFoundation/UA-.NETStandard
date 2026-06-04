@@ -99,11 +99,20 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a transport channel based on the uri scheme.
         /// </summary>
-        public HttpsTransportChannel(string uriScheme, ITelemetryContext telemetry)
+        /// <param name="uriScheme">The uri scheme.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// used for timeout scheduling. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public HttpsTransportChannel(
+            string uriScheme,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             UriScheme = uriScheme;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<HttpsTransportChannel>();
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -223,7 +232,8 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
             using Activity? activity = m_telemetry.StartActivity();
-            using var cts = new CancellationTokenSource(OperationTimeout);
+            using var cts = m_timeProvider.CreateCancellationTokenSource(
+                TimeSpan.FromMilliseconds(OperationTimeout));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
@@ -562,6 +572,7 @@ namespace Opc.Ua.Bindings
         private bool m_disposed;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
 
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new(
             "application/octet-stream");
