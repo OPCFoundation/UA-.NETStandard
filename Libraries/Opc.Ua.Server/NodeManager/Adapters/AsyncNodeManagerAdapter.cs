@@ -768,6 +768,69 @@ namespace Opc.Ua.Server
             return false;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The legacy synchronous <see cref="INodeManager"/> contract does not
+        /// expose NodeManagement service hooks. Adapted managers therefore
+        /// opt out by returning <c>false</c>; the master dispatcher rejects
+        /// per-item requests with <see cref="StatusCodes.BadUserAccessDenied"/>.
+        /// </remarks>
+        public bool AllowNodeManagement
+            => SyncNodeManager is INodeManagementAsyncNodeManager nm && nm.AllowNodeManagement;
+
+        /// <inheritdoc/>
+        public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is INodeManagementAsyncNodeManager nm)
+            {
+                return nm.AddNodeAsync(context, item, cancellationToken);
+            }
+            return new ValueTask<(ServiceResult, NodeId)>(
+                (new ServiceResult(StatusCodes.BadServiceUnsupported), NodeId.Null));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> DeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is INodeManagementAsyncNodeManager nm)
+            {
+                return nm.DeleteNodeAsync(context, item, cancellationToken);
+            }
+            return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadServiceUnsupported));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is INodeManagementAsyncNodeManager nm)
+            {
+                return nm.AddReferenceAsync(context, item, cancellationToken);
+            }
+            return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadServiceUnsupported));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is INodeManagementAsyncNodeManager nm)
+            {
+                return nm.DeleteReferenceAsync(context, item, cancellationToken);
+            }
+            return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadServiceUnsupported));
+        }
+
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
