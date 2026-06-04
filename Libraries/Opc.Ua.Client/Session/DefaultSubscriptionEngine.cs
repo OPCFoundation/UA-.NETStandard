@@ -55,15 +55,34 @@ namespace Opc.Ua.Client
         /// access to session state and services.</param>
         public DefaultSubscriptionEngine(
             ISubscriptionEngineContext context)
+            : this(context, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the
+        /// <see cref="DefaultSubscriptionEngine"/> class.
+        /// </summary>
+        /// <param name="context">The session context that provides
+        /// access to session state and services.</param>
+        /// <param name="timeProvider">An optional <see cref="TimeProvider"/>
+        /// used by the publish/subscribe pipeline for timer scheduling and
+        /// duration calculations. When <see langword="null"/>,
+        /// <see cref="TimeProvider.System"/> is used.</param>
+        public DefaultSubscriptionEngine(
+            ISubscriptionEngineContext context,
+            TimeProvider? timeProvider = null)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_manager = new SubscriptionManager(
-                new EngineContextAdapter(context),
+                new EngineContextAdapter(context, m_timeProvider),
                 context.Telemetry.LoggerFactory,
-                context.ReturnDiagnostics);
+                context.ReturnDiagnostics,
+                m_timeProvider);
 
             // The V2 SubscriptionManager starts paused. Resume it so
             // publish workers begin processing as soon as a
@@ -189,9 +208,12 @@ namespace Opc.Ua.Client
         /// </summary>
         private sealed class EngineContextAdapter : ISubscriptionManagerContext
         {
-            public EngineContextAdapter(ISubscriptionEngineContext context)
+            public EngineContextAdapter(
+                ISubscriptionEngineContext context,
+                TimeProvider timeProvider)
             {
                 m_context = context;
+                m_timeProvider = timeProvider;
             }
 
             /// <inheritdoc/>
@@ -205,7 +227,7 @@ namespace Opc.Ua.Client
                     new SubscriptionContextAdapter(m_context);
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
-                    options, m_context.Telemetry, loadState);
+                    options, m_context.Telemetry, loadState, m_timeProvider);
             }
 
             /// <inheritdoc/>
@@ -242,6 +264,7 @@ namespace Opc.Ua.Client
             }
 
             private readonly ISubscriptionEngineContext m_context;
+            private readonly TimeProvider m_timeProvider;
         }
 
         /// <summary>
@@ -517,9 +540,10 @@ namespace Opc.Ua.Client
                 IMessageAckQueue completion,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 ITelemetryContext telemetry,
-                Subscriptions.SubscriptionLoadState? loadState = null)
+                Subscriptions.SubscriptionLoadState? loadState = null,
+                TimeProvider? timeProvider = null)
                 : base(context, handler, completion,
-                       options, telemetry, loadState)
+                       options, telemetry, loadState, timeProvider)
             {
             }
 
@@ -558,6 +582,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly SubscriptionManager m_manager;
+        private readonly TimeProvider m_timeProvider;
         private bool m_disposed;
     }
 }

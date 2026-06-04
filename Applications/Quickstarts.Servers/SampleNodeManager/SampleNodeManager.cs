@@ -2773,11 +2773,13 @@ namespace Opc.Ua.Sample
         {
             m_sampledItems.Add(monitoredItem);
 
-            m_samplingTimer ??= new Timer(
+            TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
+            m_samplingTimer ??= timeProvider.CreateTimer(
                 DoSample,
                 null,
-                (int)m_minimumSamplingInterval,
-                (int)m_minimumSamplingInterval);
+                TimeSpan.FromMilliseconds(m_minimumSamplingInterval),
+                TimeSpan.FromMilliseconds(m_minimumSamplingInterval));
         }
 
         /// <summary>
@@ -3238,7 +3240,7 @@ namespace Opc.Ua.Sample
 
         private IList<string> m_namespaceUris = null!;
         private ushort[] m_namespaceIndexes = null!;
-        private Timer? m_samplingTimer;
+        private ITimer? m_samplingTimer;
         private readonly ILogger m_logger;
         private readonly List<DataChangeMonitoredItem> m_sampledItems = [];
         private readonly double m_minimumSamplingInterval;

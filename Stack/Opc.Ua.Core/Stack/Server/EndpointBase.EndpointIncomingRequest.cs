@@ -83,7 +83,8 @@ namespace Opc.Ua
             public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
-                    new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
+                    TimeProvider.System.CreateCancellationTokenSource(
+                        TimeSpan.FromMilliseconds((int)Request.RequestHeader.TimeoutHint)) : null;
 
                 using var requestLifetime = new RequestLifetime(
                     timeoutHintCts != null ?

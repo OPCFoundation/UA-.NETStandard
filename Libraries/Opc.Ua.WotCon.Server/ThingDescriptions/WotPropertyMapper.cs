@@ -66,7 +66,6 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
             {
                 throw new ArgumentNullException(nameof(property));
             }
-
             if (string.Equals(property.Type, "array", StringComparison.OrdinalIgnoreCase))
             {
                 valueRank = ValueRanks.OneDimension;

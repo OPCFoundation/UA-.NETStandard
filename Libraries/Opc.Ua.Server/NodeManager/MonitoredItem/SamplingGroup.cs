@@ -51,8 +51,47 @@ namespace Opc.Ua.Server
             OperationContext context,
             double samplingInterval,
             IUserIdentity? savedOwnerIdentity = null)
+            : this(
+                server,
+                nodeManager,
+                samplingRates,
+                context,
+                samplingInterval,
+                savedOwnerIdentity,
+                timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new instance of a sampling group with an explicit
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="nodeManager">The owning node manager.</param>
+        /// <param name="samplingRates">The supported sampling-rate groups.</param>
+        /// <param name="context">The operation context.</param>
+        /// <param name="samplingInterval">The requested sampling interval.</param>
+        /// <param name="savedOwnerIdentity">Owner identity for sessionless groups.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for the sampling-loop pacing
+        /// and for the wall-clock fallback timestamp emitted when a sampled
+        /// read returns no value. When <c>null</c>, the time provider exposed
+        /// by the server (via <see cref="ITimeProviderProvider"/>) is used,
+        /// falling back to <see cref="TimeProvider.System"/>.
+        /// </param>
+        public SamplingGroup(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            List<SamplingRateGroup> samplingRates,
+            OperationContext context,
+            double samplingInterval,
+            IUserIdentity? savedOwnerIdentity,
+            TimeProvider? timeProvider)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<SamplingGroup>();
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_samplingRates = samplingRates ??
@@ -387,7 +426,7 @@ namespace Opc.Ua.Server
 
                 while (m_server.IsRunning)
                 {
-                    DateTime start = HiResClock.UtcNow;
+                    long startTimestamp = m_timeProvider.GetTimestamp();
 
                     // wait till next sample.
                     if (m_shutdownEvent.WaitOne(timeToWait))
@@ -428,7 +467,7 @@ namespace Opc.Ua.Server
                     // sample the values.
                     await DoSampleAsync(items, cancellationToken).ConfigureAwait(false);
 
-                    int delay = (int)(HiResClock.UtcNow - start).TotalMilliseconds;
+                    int delay = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
                     timeToWait = sleepCycle;
 
                     if (delay > sleepCycle)
@@ -503,7 +542,7 @@ namespace Opc.Ua.Server
                         {
                             values[ii] = DataValue.FromStatusCode(
                                 StatusCodes.BadInternalError,
-                                DateTime.UtcNow);
+                                m_timeProvider.GetUtcNow().UtcDateTime);
                         }
 
                         items[ii].QueueValue(values[ii], errors[ii]);
@@ -519,6 +558,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly IAsyncNodeManager m_nodeManager;
         private ISession? m_session;
         private readonly IUserIdentity? m_effectiveIdentity;

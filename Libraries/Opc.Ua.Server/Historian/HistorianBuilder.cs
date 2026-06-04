@@ -432,7 +432,9 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     public static class HistorianBuilderExtensions
     {
-        /// <summary>Starts a fluent registration chain for the historian.</summary>
+        /// <summary>
+        /// Starts a fluent registration chain for the historian.
+        /// </summary>
         public static HistorianBuilder UseHistorian(this IServerInternal server)
         {
             return new HistorianBuilder(server);

@@ -328,9 +328,13 @@ namespace Opc.Ua
         internal static int ArrayMaxLength => 0x7FFFFFC7;
 #endif
         private byte[] m_memory;
-        /// <summary> Start of written memory </summary>
+        /// <summary>
+        /// Start of written memory
+        /// </summary>
         private int m_committedStart;
-        /// <summary> End of written memory </summary>
+        /// <summary>
+        /// End of written memory
+        /// </summary>
         private int m_committedEnd;
     }
 }

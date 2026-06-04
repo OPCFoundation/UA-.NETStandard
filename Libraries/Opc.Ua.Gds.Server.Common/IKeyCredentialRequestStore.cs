@@ -39,16 +39,24 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public enum KeyCredentialRequestState
     {
-        /// <summary>Request is new / pending approval.</summary>
+        /// <summary>
+        /// Request is new / pending approval.
+        /// </summary>
         New,
 
-        /// <summary>Request has been approved.</summary>
+        /// <summary>
+        /// Request has been approved.
+        /// </summary>
         Approved,
 
-        /// <summary>Request has been rejected.</summary>
+        /// <summary>
+        /// Request has been rejected.
+        /// </summary>
         Rejected,
 
-        /// <summary>Request has been completed.</summary>
+        /// <summary>
+        /// Request has been completed.
+        /// </summary>
         Completed
     }
 
@@ -57,40 +65,64 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public sealed class KeyCredentialRequestRecord
     {
-        /// <summary>The unique request identifier.</summary>
+        /// <summary>
+        /// The unique request identifier.
+        /// </summary>
         public NodeId RequestId { get; set; }
 
-        /// <summary>The ApplicationUri that requested the credential.</summary>
+        /// <summary>
+        /// The ApplicationUri that requested the credential.
+        /// </summary>
         public string? ApplicationUri { get; set; }
 
-        /// <summary>The public key supplied by the requester.</summary>
+        /// <summary>
+        /// The public key supplied by the requester.
+        /// </summary>
         public ByteString PublicKey { get; set; }
 
-        /// <summary>The security policy URI for the credential.</summary>
+        /// <summary>
+        /// The security policy URI for the credential.
+        /// </summary>
         public string? SecurityPolicyUri { get; set; }
 
-        /// <summary>The roles requested by the caller.</summary>
+        /// <summary>
+        /// The roles requested by the caller.
+        /// </summary>
         public ArrayOf<NodeId> RequestedRoles { get; set; }
 
-        /// <summary>Current state of the request.</summary>
+        /// <summary>
+        /// Current state of the request.
+        /// </summary>
         public KeyCredentialRequestState State { get; set; }
 
-        /// <summary>The credential identifier (populated after approval).</summary>
+        /// <summary>
+        /// The credential identifier (populated after approval).
+        /// </summary>
         public string? CredentialId { get; set; }
 
-        /// <summary>The credential secret (populated after approval).</summary>
+        /// <summary>
+        /// The credential secret (populated after approval).
+        /// </summary>
         public ByteString CredentialSecret { get; set; }
 
-        /// <summary>Thumbprint of the certificate that protects the credential.</summary>
+        /// <summary>
+        /// Thumbprint of the certificate that protects the credential.
+        /// </summary>
         public string? CertificateThumbprint { get; set; }
 
-        /// <summary>The security policy URI actually assigned.</summary>
+        /// <summary>
+        /// The security policy URI actually assigned.
+        /// </summary>
         public string? GrantedSecurityPolicyUri { get; set; }
 
-        /// <summary>The roles actually granted.</summary>
+        /// <summary>
+        /// The roles actually granted.
+        /// </summary>
         public ArrayOf<NodeId> GrantedRoles { get; set; }
 
-        /// <summary>When the request was created.</summary>
+        /// <summary>
+        /// When the request was created.
+        /// </summary>
         public DateTime CreatedAt { get; set; }
     }
 
@@ -99,7 +131,9 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public readonly record struct FinishKeyCredentialRequestResult
     {
-        /// <summary>The state of the request.</summary>
+        /// <summary>
+        /// The state of the request.
+        /// </summary>
         public KeyCredentialRequestState State { get; init; }
 
         /// <summary>The issued credential id, or <c>null</c> when cancelled.</summary>
@@ -108,13 +142,19 @@ namespace Opc.Ua.Gds.Server
         /// <summary>The issued credential secret, or <c>default</c> when cancelled.</summary>
         public ByteString CredentialSecret { get; init; }
 
-        /// <summary>The thumbprint of the protecting certificate.</summary>
+        /// <summary>
+        /// The thumbprint of the protecting certificate.
+        /// </summary>
         public string? CertificateThumbprint { get; init; }
 
-        /// <summary>The assigned security policy URI.</summary>
+        /// <summary>
+        /// The assigned security policy URI.
+        /// </summary>
         public string? SecurityPolicyUri { get; init; }
 
-        /// <summary>The granted roles.</summary>
+        /// <summary>
+        /// The granted roles.
+        /// </summary>
         public ArrayOf<NodeId> GrantedRoles { get; init; }
     }
 

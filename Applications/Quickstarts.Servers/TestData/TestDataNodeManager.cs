@@ -88,7 +88,12 @@ namespace TestData
             m_lastUsedId = m_configuration.NextUnusedId - 1;
 
             // create the object used to access the test system.
-            m_system = new TestDataSystem(this, server.NamespaceUris, server.ServerUris, server.Telemetry);
+            m_system = new TestDataSystem(
+                this,
+                server.NamespaceUris,
+                server.ServerUris,
+                server.Telemetry,
+                (server as ITimeProviderProvider)?.TimeProvider);
 
             // update the default context.
             SystemContext.SystemHandle = m_system;

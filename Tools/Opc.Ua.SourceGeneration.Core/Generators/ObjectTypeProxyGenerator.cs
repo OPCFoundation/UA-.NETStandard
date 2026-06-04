@@ -75,7 +75,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return [];
             }
-
             string outputNamespace = GetOutputNamespace();
 
             string fileName = Path.Combine(
@@ -191,7 +190,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseClass;
             }
-
             string parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
@@ -322,7 +320,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-
             string typeName = objectType.SymbolicName.Name;
             string className = CoreUtils.Format("{0}Client", typeName);
             string baseClassName = ResolveBaseClassName(objectType);
@@ -517,7 +514,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
 
@@ -537,9 +533,7 @@ namespace Opc.Ua.SourceGeneration
             bool isShadow = m_inheritedMethodNames != null &&
                 m_inheritedMethodNames.Contains(methodName + "Async");
 
-            // ----------------------------------------------------------------
             // XML doc and signature
-            // ----------------------------------------------------------------
             context.Out.WriteLine();
             context.Out.WriteLine("/// <summary>");
             context.Out.WriteLine(
@@ -579,13 +573,11 @@ namespace Opc.Ua.SourceGeneration
                 "    global::System.Threading.CancellationToken ct = default)");
             context.Out.WriteLine("{");
 
-            // ----------------------------------------------------------------
             // Argument null checks for non-nullable reference inputs.
             // String inputs are intentionally NOT null-checked here so
             // that callers can pass a null subjectName / privateKeyFormat
             // through to the server (preserving the OPC UA wire
             // semantics for optional string inputs).
-            // ----------------------------------------------------------------
             foreach (Parameter input in inputs)
             {
                 if (RequiresNullCheck(input))
@@ -596,9 +588,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            // ----------------------------------------------------------------
             // Invoke the inherited CallMethodAsync helper with boxed inputs.
-            // ----------------------------------------------------------------
             if (outputs.Length > 0)
             {
                 context.Out.WriteLine(
@@ -622,9 +612,7 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Out.WriteLine(").ConfigureAwait(false);");
 
-            // ----------------------------------------------------------------
             // Unpack the output arguments and produce the typed return value.
-            // ----------------------------------------------------------------
             EmitOutputUnpacking(
                 context,
                 outputs,
@@ -698,7 +686,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
-
             context.Out.WriteLine(
                 "    if (_outputArguments.Count < {0})",
                 outputs.Length);

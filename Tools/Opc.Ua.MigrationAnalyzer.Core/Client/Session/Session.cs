@@ -42,6 +42,19 @@ namespace Opc.Ua.Client
     /// </summary>
     public static class SessionObsolete
     {
+        extension(ISession session)
+        {
+            /// <summary>
+            /// Gets the TickCount in ms of the last keep alive based on
+            /// <see cref="ISession.LastKeepAliveTimestamp"/>.
+            /// </summary>
+            [Obsolete("Use LastKeepAliveTimestamp + TimeProvider.GetElapsedTime. " +
+                "LastKeepAliveTickCount is a 32-bit value that wraps every ~49.7 days.")]
+            public int LastKeepAliveTickCount
+                => unchecked((int)(session.LastKeepAliveTimestamp *
+                    1000L / TimeProvider.System.TimestampFrequency));
+        }
+
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>

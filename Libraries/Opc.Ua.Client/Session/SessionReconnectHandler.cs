@@ -125,22 +125,43 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
         /// <param name="maxReconnectPeriod">
-        ///     The upper limit for the reconnect period after exponential backoff.
-        ///     -1 (default) indicates that no exponential backoff should be used.
+        /// The upper limit for the reconnect period after exponential backoff.
+        /// -1 (default) indicates that no exponential backoff should be used.
         /// </param>
         public SessionReconnectHandler(
             ITelemetryContext telemetry,
             bool reconnectAbort = false,
             int maxReconnectPeriod = -1)
+            : this(telemetry, reconnectAbort, maxReconnectPeriod, timeProvider: null)
         {
+        }
+
+        /// <summary>
+        /// Create a reconnect handler.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="reconnectAbort">Set to <c>true</c> to allow reconnect abort if keep alive recovered.</param>
+        /// <param name="maxReconnectPeriod">
+        /// The upper limit for the reconnect period after exponential backoff.
+        /// -1 (default) indicates that no exponential backoff should be used.
+        /// </param>
+        /// <param name="timeProvider">Optional time provider used for timers and elapsed-time
+        /// calculations. Defaults to <see cref="TimeProvider.System"/>.</param>
+        public SessionReconnectHandler(
+            ITelemetryContext telemetry,
+            bool reconnectAbort,
+            int maxReconnectPeriod,
+            TimeProvider? timeProvider)
+        {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<SessionReconnectHandler>();
             m_reconnectAbort = reconnectAbort;
-            m_reconnectTimer = new Timer(
+            m_reconnectTimer = m_timeProvider.CreateTimer(
                 OnReconnectAsync,
                 this,
-                Timeout.Infinite,
-                Timeout.Infinite);
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
             m_updateFromServer = false;
@@ -307,8 +328,8 @@ namespace Opc.Ua.Client
                     m_callback = callback;
                     m_reverseConnectManager = reverseConnectManager;
                     m_reconnectTimer.Change(
-                        JitteredReconnectPeriod(reconnectPeriod),
-                        Timeout.Infinite);
+                        TimeSpan.FromMilliseconds(JitteredReconnectPeriod(reconnectPeriod)),
+                        Timeout.InfiniteTimeSpan);
                     m_reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod, true);
                     m_state = ReconnectState.Triggered;
                     return m_state;
@@ -319,8 +340,8 @@ namespace Opc.Ua.Client
                 {
                     m_baseReconnectPeriod = reconnectPeriod;
                     m_reconnectTimer.Change(
-                        JitteredReconnectPeriod(reconnectPeriod),
-                        Timeout.Infinite);
+                        TimeSpan.FromMilliseconds(JitteredReconnectPeriod(reconnectPeriod)),
+                        Timeout.InfiniteTimeSpan);
                     m_reconnectPeriod = CheckedReconnectPeriod(reconnectPeriod, true);
                 }
 
@@ -369,7 +390,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async void OnReconnectAsync(object? state)
         {
-            int reconnectStart = HiResClock.TickCount;
+            long reconnectStartTimestamp = m_timeProvider.GetTimestamp();
             try
             {
                 // check for exit.
@@ -438,7 +459,8 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int elapsed = HiResClock.TickCount - reconnectStart;
+                        int elapsed = (int)m_timeProvider
+                            .GetElapsedTime(reconnectStartTimestamp).TotalMilliseconds;
                         m_logger.LogInformation(
                             "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.",
                             m_reconnectPeriod,
@@ -446,7 +468,7 @@ namespace Opc.Ua.Client
                         int adjustedReconnectPeriod = CheckedReconnectPeriod(
                             m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
-                        m_reconnectTimer?.Change(adjustedReconnectPeriod, Timeout.Infinite);
+                        m_reconnectTimer?.Change(TimeSpan.FromMilliseconds(adjustedReconnectPeriod), Timeout.InfiniteTimeSpan);
                         m_logger.LogInformation(
                             "Next adjusted reconnect scheduled in {ReconnectPeriod} ms.",
                             adjustedReconnectPeriod);
@@ -513,7 +535,8 @@ namespace Opc.Ua.Client
                             // check if reactivating is still an option.
                             int timeout =
                                 Convert.ToInt32(current.SessionTimeout) -
-                                (HiResClock.TickCount - current.LastKeepAliveTickCount);
+                                (int)m_timeProvider.GetElapsedTime(
+                                    current.LastKeepAliveTimestamp).TotalMilliseconds;
                             if (timeout > 0)
                             {
                                 m_logger.LogInformation(
@@ -719,7 +742,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void EnterReadyState()
         {
-            m_reconnectTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            m_reconnectTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
             m_updateFromServer = false;
@@ -736,7 +759,8 @@ namespace Opc.Ua.Client
         private int m_reconnectPeriod;
         private int m_baseReconnectPeriod;
         private readonly int m_maxReconnectPeriod;
-        private Timer? m_reconnectTimer;
+        private ITimer? m_reconnectTimer;
+        private readonly TimeProvider m_timeProvider;
         private EventHandler? m_callback;
         private ReverseConnectManager? m_reverseConnectManager;
     }

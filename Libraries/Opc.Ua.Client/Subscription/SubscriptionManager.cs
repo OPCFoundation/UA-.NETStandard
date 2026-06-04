@@ -62,9 +62,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="session"></param>
         /// <param name="loggerFactory"></param>
         /// <param name="returnDiagnostics"></param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// used for elapsed-time and timer calculations. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public SubscriptionManager(ISubscriptionManagerContext session,
-            ILoggerFactory loggerFactory, DiagnosticsMasks returnDiagnostics)
+            ILoggerFactory loggerFactory, DiagnosticsMasks returnDiagnostics,
+            TimeProvider? timeProvider = null)
         {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_session = session;
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
@@ -503,12 +508,13 @@ namespace Opc.Ua.Client.Subscriptions
                 // SubscriptionId. Items still need ApplyChangesAsync to
                 // round-trip but that runs in the same state-manager
                 // iteration as CreateAsync.
-                using var timeoutCts = CancellationTokenSource
-                    .CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+                using CancellationTokenSource timeoutCts = m_timeProvider
+                    .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
+                using var linkedCts = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct, timeoutCts.Token);
                 try
                 {
-                    await loaded.WaitForCreatedAsync(timeoutCts.Token)
+                    await loaded.WaitForCreatedAsync(linkedCts.Token)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -921,7 +927,9 @@ namespace Opc.Ua.Client.Subscriptions
             /// <param name="ct"></param>
             private async Task PublishWorkerAsync(CancellationToken ct)
             {
-                var publishLatency = new Stopwatch();
+                long publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
+                TimeSpan publishLatency = TimeSpan.Zero;
+                bool publishLatencyRunning = false;
                 uint timeoutHint = 0u;
                 bool moreNotifications = true; // Dont wait first time we enter the loop.
                 m_logger.LogInformation("PUBLISH Worker #{Handle} - STARTED.", Index);
@@ -950,8 +958,11 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
                     }
+                    long currentLatencyMs = publishLatencyRunning
+                        ? (long)m_outer.m_timeProvider.GetElapsedTime(publishLatencyStart).TotalMilliseconds
+                        : (long)publishLatency.TotalMilliseconds;
                     int ackWaitTimeout = CalculateTimeouts(
-                        publishLatency.ElapsedMilliseconds, ref timeoutHint);
+                        currentLatencyMs, ref timeoutHint);
                     ArrayOf<SubscriptionAcknowledgement> acks = GetAcksReadyToSend();
                     uint handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
                     try
@@ -961,7 +972,8 @@ namespace Opc.Ua.Client.Subscriptions
                             // Throttle publishing as we wait for acks to arrive
                             acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
                         }
-                        publishLatency.Restart();
+                        publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
+                        publishLatencyRunning = true;
                         if (Interlocked.Increment(ref m_outer.m_activePublishRequests) == 1)
                         {
                             m_outer.m_drainSignal.Reset();
@@ -988,7 +1000,8 @@ namespace Opc.Ua.Client.Subscriptions
 
                             // Get the subscription with the provided identifier
                             IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
-                            publishLatency.Stop();
+                            publishLatency = m_outer.m_timeProvider.GetElapsedTime(publishLatencyStart);
+                            publishLatencyRunning = false;
                             if (subscription != null)
                             {
                                 // deliver to subscription
@@ -1031,7 +1044,8 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (Exception e)
                     {
                         // raise an error event.
-                        publishLatency.Stop();
+                        publishLatency = m_outer.m_timeProvider.GetElapsedTime(publishLatencyStart);
+                        publishLatencyRunning = false;
                         var error = new ServiceResult(e);
 
                         if (error.Code == StatusCodes.BadRequestInterrupted &&
@@ -1119,8 +1133,10 @@ namespace Opc.Ua.Client.Subscriptions
                 CancellationToken ct)
             {
                 Debug.Assert(maxWaitTime != 0, "Checked before entering");
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                var sw = Stopwatch.StartNew();
+                long swStart = m_outer.m_timeProvider.GetTimestamp();
+                CancellationTokenSource? timeoutCts = null;
+                CancellationTokenSource? linkedCts = null;
+                CancellationToken waitToken;
                 if (maxWaitTime != Timeout.Infinite)
                 {
 #if FALSE
@@ -1135,18 +1151,23 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Waiting max {Time}ms for acks to arrive.",
                         Index, maxWaitTime);
-                    cts.CancelAfter(maxWaitTime);
+                    timeoutCts = m_outer.m_timeProvider
+                        .CreateCancellationTokenSource(TimeSpan.FromMilliseconds(maxWaitTime));
+                    linkedCts = CancellationTokenSource
+                        .CreateLinkedTokenSource(ct, timeoutCts.Token);
+                    waitToken = linkedCts.Token;
                 }
                 else
                 {
                     m_logger.LogDebug(
                         "PUBLISH Worker #{Handle} - Waiting for acks to arrive.",
                         Index);
+                    waitToken = ct;
                 }
                 try
                 {
                     SubscriptionAcknowledgement firstAck = await m_outer.m_acks.Reader.ReadAsync(
-                        cts.Token).ConfigureAwait(false);
+                        waitToken).ConfigureAwait(false);
                     ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
@@ -1155,7 +1176,7 @@ namespace Opc.Ua.Client.Subscriptions
                         "PUBLISH Worker #{Handle} - Publish {Count} acks after pausing {Duration}.",
                         Index,
                         acks.Count,
-                        sw.Elapsed);
+                        m_outer.m_timeProvider.GetElapsedTime(swStart));
                     return acks;
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -1163,8 +1184,13 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logger.LogInformation(
                         "PUBLISH Worker #{Handle} - Publish with no acks after waiting {Duration}.",
                         Index,
-                        sw.Elapsed);
+                        m_outer.m_timeProvider.GetElapsedTime(swStart));
                     return [];
+                }
+                finally
+                {
+                    linkedCts?.Dispose();
+                    timeoutCts?.Dispose();
                 }
             }
 
@@ -1282,5 +1308,6 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly ISubscriptionManagerContext m_session;
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
     }
 }

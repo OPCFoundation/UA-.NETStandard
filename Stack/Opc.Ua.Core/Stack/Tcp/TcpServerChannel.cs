@@ -55,6 +55,31 @@ namespace Opc.Ua.Bindings
             ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
+            : this(
+                contextId,
+                listener,
+                bufferManager,
+                quotas,
+                serverCertificates,
+                endpoints,
+                telemetry,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket using the supplied
+        /// <see cref="TimeProvider"/> for activity tracking.
+        /// </summary>
+        public TcpServerChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            ICertificateRegistry serverCertificates,
+            List<EndpointDescription> endpoints,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
             : base(
                 contextId,
                 listener,
@@ -62,7 +87,8 @@ namespace Opc.Ua.Bindings
                 quotas,
                 serverCertificates,
                 endpoints,
-                telemetry)
+                telemetry,
+                timeProvider)
         {
             m_logger = telemetry.CreateLogger<TcpServerChannel>();
             m_queuedResponses = [];
@@ -1144,7 +1170,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
 
-                if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
+                if (token == CurrentToken && PreviousToken != null && !PreviousToken.IsExpired(TimeProvider))
                 {
                     m_logger.LogInformation(
                         "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.",

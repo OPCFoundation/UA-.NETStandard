@@ -92,7 +92,13 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(errors, Is.Zero);
             TestContext.Out.WriteLine($"Generate run produced {warnings} warnings");
 
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(16));
+            // 17 generated sources: 16 baseline + 1 Opc.Ua.StateMachineIds.g.cs
+            // emitted by the StateMachineIdsGenerator added in commit
+            // 0eda2ad7a for every model that declares concrete
+            // FiniteStateMachineType subtypes (the OPC UA stack model
+            // declares ProgramStateMachineType, ShelvedStateMachineType,
+            // FileTransferStateMachineType, etc.).
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(17));
             Assert.That(generatorResult.Exception, Is.Null);
         }
     }

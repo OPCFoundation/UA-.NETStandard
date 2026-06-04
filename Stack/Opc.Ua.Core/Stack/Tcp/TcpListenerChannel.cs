@@ -52,6 +52,31 @@ namespace Opc.Ua.Bindings
             ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
+            : this(
+                contextId,
+                listener,
+                bufferManager,
+                quotas,
+                serverCertificates,
+                endpoints,
+                telemetry,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket using the supplied
+        /// <see cref="TimeProvider"/> for activity tracking.
+        /// </summary>
+        public TcpListenerChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            ICertificateRegistry serverCertificates,
+            List<EndpointDescription> endpoints,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
             : base(
                 contextId,
                 bufferManager,
@@ -60,7 +85,8 @@ namespace Opc.Ua.Bindings
                 endpoints,
                 MessageSecurityMode.None,
                 SecurityPolicies.None,
-                telemetry)
+                telemetry,
+                timeProvider)
         {
             m_logger = telemetry.CreateLogger<TcpListenerChannel>();
             Listener = listener;
@@ -193,7 +219,14 @@ namespace Opc.Ua.Bindings
         /// The time in milliseconds elapsed since the channel received or sent messages
         /// or received a keep alive.
         /// </summary>
-        public int ElapsedSinceLastActiveTime => HiResClock.TickCount - LastActiveTickCount;
+        public int ElapsedSinceLastActiveTime
+        {
+            get
+            {
+                long ms = (long)GetElapsedSinceLastActive().TotalMilliseconds;
+                return (int)Math.Min(int.MaxValue, Math.Max(0, ms));
+            }
+        }
 
         /// <summary>
         /// Has the channel been used in a session

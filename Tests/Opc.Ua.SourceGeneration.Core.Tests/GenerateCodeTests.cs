@@ -216,7 +216,15 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 Options = new DesignFileOptions()
             }, fileSystem, string.Empty, telemetry, new GeneratorOptions
             {
-                UseUtf8StringLiterals = languageVersion >= LanguageVersion.CSharp11
+                UseUtf8StringLiterals = languageVersion >= LanguageVersion.CSharp11,
+                // The test compilation provides Core stubs via
+                // WithOpcUaCoreStubs() but no Opc.Ua.Server reference.
+                // Suppress fluent-builder emission to keep the generated
+                // code self-contained (mirrors model-only csproj
+                // configuration in production: Opc.Ua.Di,
+                // Opc.Ua.Gds.Common, Opc.Ua.WotCon all opt out via
+                // ModelSourceGeneratorOmitFluentApi=true).
+                OmitFluentApi = true
             });
 
             var generatedText = fileSystem.CreatedFiles

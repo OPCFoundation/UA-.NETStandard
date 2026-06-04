@@ -67,7 +67,7 @@ namespace Opc.Ua
         /// Initializes a store for a directory path.
         /// </summary>
         public DirectoryCertificateStore(ITelemetryContext telemetry)
-            : this(false, telemetry)
+            : this(false, telemetry, timeProvider: null)
         {
         }
 
@@ -75,11 +75,28 @@ namespace Opc.Ua
         /// Initializes a store with a directory path.
         /// </summary>
         public DirectoryCertificateStore(bool noSubDirs, ITelemetryContext telemetry)
+            : this(noSubDirs, telemetry, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a store with a directory path.
+        /// </summary>
+        /// <param name="noSubDirs">Whether the store uses the legacy flat layout.</param>
+        /// <param name="telemetry">Telemetry context used for logging.</param>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used for
+        /// retry delays and the in-memory directory-cache timestamps. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public DirectoryCertificateStore(
+            bool noSubDirs,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<DirectoryCertificateStore>();
             m_cache = new CertificateCache(telemetry);
             m_noSubDirs = noSubDirs;
             m_certificates = [];
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>
@@ -302,7 +319,7 @@ namespace Opc.Ua
                 // sync cache if necessary.
                 Load(thumbprint: null);
 
-                DateTime now = DateTime.UtcNow;
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 int entries = 0;
                 foreach (Certificate certificate in certificates)
                 {
@@ -380,7 +397,7 @@ namespace Opc.Ua
                     }
                 }
 
-                m_lastDirectoryCheck = reload ? DateTime.MinValue : DateTime.UtcNow;
+                m_lastDirectoryCheck = reload ? DateTime.MinValue : m_timeProvider.GetUtcNow().UtcDateTime;
             }
             finally
             {
@@ -490,7 +507,7 @@ namespace Opc.Ua
 
                 if (retry > 0)
                 {
-                    await Task.Delay(kRetryDelay, ct).ConfigureAwait(false);
+                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(kRetryDelay), ct).ConfigureAwait(false);
                 }
             } while (retry > 0);
 
@@ -894,7 +911,7 @@ namespace Opc.Ua
                     "Retry to import private key for certificate with thumbprint [{Thumbprint}] after {Duration} ms.",
                     thumbprint ?? "Unknown",
                     retryDelay);
-                await Task.Delay(retryDelay, ct).ConfigureAwait(false);
+                await m_timeProvider.Delay(TimeSpan.FromMilliseconds(retryDelay), ct).ConfigureAwait(false);
             }
 
             return null;
@@ -1122,7 +1139,7 @@ namespace Opc.Ua
         /// </summary>
         private Dictionary<string, Entry> Load(string? thumbprint)
         {
-            DateTime now = DateTime.UtcNow;
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
 
             // refresh the directories.
             DirectoryInfo? certSubdir = m_certificateSubdir;
@@ -1457,6 +1474,7 @@ namespace Opc.Ua
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ILogger m_logger;
         private readonly CertificateCache m_cache;
+        private readonly TimeProvider m_timeProvider;
 #pragma warning restore CA2213
         private readonly bool m_noSubDirs;
         private DirectoryInfo? m_certificateSubdir;

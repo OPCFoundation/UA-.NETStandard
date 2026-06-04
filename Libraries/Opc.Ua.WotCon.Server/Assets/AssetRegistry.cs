@@ -67,7 +67,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_logger = logger;
         }
 
-        /// <summary>Snapshot of currently registered asset names (test helper).</summary>
+        /// <summary>
+        /// Snapshot of currently registered asset names (test helper).
+        /// </summary>
         public IReadOnlyCollection<string> AssetNames
         {
             get
@@ -199,7 +201,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        /// <summary>Deletes the asset and removes all of its nodes.</summary>
+        /// <summary>
+        /// Deletes the asset and removes all of its nodes.
+        /// </summary>
         public async ValueTask<ServiceResult> DeleteAssetAsync(
             NodeId assetId,
             CancellationToken ct)
@@ -386,7 +390,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 throw new ArgumentNullException(nameof(td));
             }
-
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
             {
@@ -458,8 +461,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);
 
                 if (persistOnSuccess)
+
                 {
+
                     PersistTdToDisk(entry.Name, td);
+
                 }
             }
             finally
@@ -686,7 +692,6 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return StatusCodes.BadNotConnected;
             }
-
             var inputCopy = new Variant[inputArguments.Count];
             for (int i = 0; i < inputArguments.Count; i++)
             {

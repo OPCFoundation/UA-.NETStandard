@@ -175,8 +175,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
 
-            // Act - Generate stack
-            Generators.GenerateStack(StackGenerationType.All, fileSystem, string.Empty, telemetry);
+            // Act - Generate stack. The test compilation only provides
+            // Core stubs via WithOpcUaCoreStubs(), no Opc.Ua.Server
+            // reference, so suppress fluent-builder emission.
+            Generators.GenerateStack(StackGenerationType.All, fileSystem, string.Empty, telemetry,
+                new GeneratorOptions
+                {
+                    OmitFluentApi = true
+                });
 
             // Get all generated C# files
             var generatedText = fileSystem.CreatedFiles
