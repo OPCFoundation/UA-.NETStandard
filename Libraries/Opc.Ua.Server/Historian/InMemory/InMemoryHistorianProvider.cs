@@ -80,19 +80,25 @@ namespace Opc.Ua.Server.Historian.InMemory
         IHistorianEventProvider,
         IDisposable
     {
-        /// <summary>Creates a provider with default options.</summary>
+        /// <summary>
+        /// Creates a provider with default options.
+        /// </summary>
         public InMemoryHistorianProvider()
             : this(new InMemoryHistorianOptions())
         {
         }
 
-        /// <summary>Creates a provider with the supplied options.</summary>
+        /// <summary>
+        /// Creates a provider with the supplied options.
+        /// </summary>
         public InMemoryHistorianProvider(InMemoryHistorianOptions options)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        /// <summary>Disposes the provider, clearing all archived data.</summary>
+        /// <summary>
+        /// Disposes the provider, clearing all archived data.
+        /// </summary>
         public void Dispose()
         {
             lock (m_lock)

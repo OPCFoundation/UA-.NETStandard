@@ -110,6 +110,54 @@ namespace Opc.Ua.Server
             bool discardOldest,
             double sourceSamplingInterval,
             bool createDurable = false)
+            : this(
+                server,
+                nodeManager,
+                managerHandle,
+                subscriptionId,
+                id,
+                itemToMonitor,
+                diagnosticsMasks,
+                timestampsToReturn,
+                monitoringMode,
+                clientHandle,
+                originalFilter,
+                filterToUse,
+                range,
+                samplingInterval,
+                queueSize,
+                discardOldest,
+                sourceSamplingInterval,
+                createDurable,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with its node type and an explicit
+        /// <see cref="TimeProvider"/> so the monotonic sampling clock can be
+        /// mocked in tests.
+        /// </summary>
+        public MonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            uint subscriptionId,
+            uint id,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double sourceSamplingInterval,
+            bool createDurable,
+            TimeProvider? timeProvider)
         {
             if (itemToMonitor == null)
             {
@@ -117,6 +165,9 @@ namespace Opc.Ua.Server
             }
 
             m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
 
             Initialize();
 
@@ -143,7 +194,7 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
             m_sourceSamplingInterval = (int)sourceSamplingInterval;
             m_calculator = null;
-            m_nextSamplingTime = HiResClock.TickCount64;
+            m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
@@ -209,12 +260,29 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem)
+            : this(server, nodeManager, managerHandle, storedMonitoredItem, null)
+        {
+        }
+
+        /// <summary>
+        /// Restore a MonitoredItem afer a restart with an explicit
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        public MonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            IStoredMonitoredItem storedMonitoredItem,
+            TimeProvider? timeProvider)
         {
             if (storedMonitoredItem == null)
             {
                 throw new ArgumentNullException(nameof(storedMonitoredItem));
             }
             m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
 
             Initialize();
 
@@ -241,7 +309,7 @@ namespace Opc.Ua.Server
             m_discardOldest = storedMonitoredItem.DiscardOldest;
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
             m_calculator = null;
-            m_nextSamplingTime = HiResClock.TickCount64;
+            m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
             IsDurable = storedMonitoredItem.IsDurable;
@@ -369,7 +437,7 @@ namespace Opc.Ua.Server
                 if (m_sourceSamplingInterval == 0)
                 {
                     // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
-                    long now = HiResClock.TickCount64;
+                    long now = m_timeProvider.GetTimestampMilliseconds();
 
                     if (m_nextSamplingTime > now)
                     {
@@ -838,7 +906,7 @@ namespace Opc.Ua.Server
 
                 if (previousMode == MonitoringMode.Disabled)
                 {
-                    m_nextSamplingTime = HiResClock.TickCount64;
+                    m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
                     m_lastError = null;
                     m_lastValue = default;
                 }
@@ -1217,7 +1285,7 @@ namespace Opc.Ua.Server
         private void IncrementSampleTime()
         {
             // update next sample time.
-            long now = HiResClock.TickCount64;
+            long now = m_timeProvider.GetTimestampMilliseconds();
             long samplingInterval = (long)m_samplingInterval;
 
             if (m_nextSamplingTime > 0)
@@ -1588,7 +1656,7 @@ namespace Opc.Ua.Server
                         return 0;
                     }
 
-                    long now = HiResClock.TickCount64;
+                    long now = m_timeProvider.GetTimestampMilliseconds();
 
                     if (m_nextSamplingTime <= now)
                     {
@@ -1981,6 +2049,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;

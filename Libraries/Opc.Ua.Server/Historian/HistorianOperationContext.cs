@@ -75,10 +75,14 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        /// <summary>The server-wide system context.</summary>
+        /// <summary>
+        /// The server-wide system context.
+        /// </summary>
         public ServerSystemContext SystemContext { get; }
 
-        /// <summary>The operation context (session, request type, locales, etc.).</summary>
+        /// <summary>
+        /// The operation context (session, request type, locales, etc.).
+        /// </summary>
         public OperationContext OperationContext { get; }
 
         /// <summary>

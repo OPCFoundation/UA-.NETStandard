@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
         private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
         private readonly IServiceProvider m_services;
+        private readonly TimeProvider m_timeProvider;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
         // managed via the async StopAsync override which calls m_application.StopAsync.
@@ -75,7 +76,8 @@ namespace Opc.Ua.Server.Hosting
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
             IServiceProvider services,
-            ILogger<OpcUaServerHostedService> logger)
+            ILogger<OpcUaServerHostedService> logger,
+            TimeProvider? timeProvider = null)
         {
             if (options is null)
             {
@@ -93,6 +95,7 @@ namespace Opc.Ua.Server.Hosting
                 throw new ArgumentNullException(nameof(keyCredentialPushSubjects));
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -212,7 +215,7 @@ namespace Opc.Ua.Server.Hosting
                     "Application instance certificate invalid.");
             }
 
-            m_server = new StandardServer(m_telemetry);
+            m_server = new StandardServer(m_telemetry, m_timeProvider);
             foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
             {
                 if (reg.AsyncFactory is not null)

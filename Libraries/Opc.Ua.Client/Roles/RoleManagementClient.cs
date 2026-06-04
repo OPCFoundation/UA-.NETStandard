@@ -50,7 +50,9 @@ namespace Opc.Ua.Client.Roles
             Session = session ?? throw new ArgumentNullException(nameof(session));
         }
 
-        /// <summary>The session used for all service calls.</summary>
+        /// <summary>
+        /// The session used for all service calls.
+        /// </summary>
         public ISession Session { get; }
 
         private static NodeId RoleSetId => ObjectIds.Server_ServerCapabilities_RoleSet;

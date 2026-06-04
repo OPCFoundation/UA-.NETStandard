@@ -130,13 +130,19 @@ namespace Opc.Ua.Client.AliasNames
             return new AliasNameClient(session, ObjectIds.Topics, options);
         }
 
-        /// <summary>The session used for all service calls.</summary>
+        /// <summary>
+        /// The session used for all service calls.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>The category NodeId.</summary>
+        /// <summary>
+        /// The category NodeId.
+        /// </summary>
         public NodeId CategoryId { get; }
 
-        /// <summary>The (cloned, immutable) configuration.</summary>
+        /// <summary>
+        /// The (cloned, immutable) configuration.
+        /// </summary>
         public AliasNameClientOptions Options { get; }
 
         /// <summary>

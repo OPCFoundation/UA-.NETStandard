@@ -3911,8 +3911,14 @@ namespace Quickstarts.ReferenceServer
                     // reset random generator and generate boundary values
                     ResetRandomGenerator(100, 1);
 
+                    TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
+                        ?? TimeProvider.System;
                     m_simulationTimer?.Dispose();
-                    m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                    m_simulationTimer = timeProvider.CreateTimer(
+                        DoSimulation,
+                        null,
+                        TimeSpan.FromMilliseconds(m_simulationInterval),
+                        TimeSpan.FromMilliseconds(m_simulationInterval));
                 }
             }
             finally
@@ -3932,7 +3938,9 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer!.Change(100, m_simulationInterval);
+                    m_simulationTimer!.Change(
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(m_simulationInterval));
                 }
 
                 return ServiceResult.Good;
@@ -3955,11 +3963,15 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer!.Change(100, m_simulationInterval);
+                    m_simulationTimer!.Change(
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(m_simulationInterval));
                 }
                 else
                 {
-                    m_simulationTimer!.Change(100, 0);
+                    m_simulationTimer!.Change(
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.Zero);
                 }
 
                 return ServiceResult.Good;
@@ -5460,7 +5472,7 @@ namespace Quickstarts.ReferenceServer
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource = null!;
         private DataGenerator m_generator = null!;
-        private Timer? m_simulationTimer;
+        private ITimer? m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;

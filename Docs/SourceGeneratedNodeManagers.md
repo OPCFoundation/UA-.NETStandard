@@ -566,15 +566,245 @@ dotnet publish -c Release -r win-x64
 `Applications/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
 warnings** (~29 MB self-contained EXE).
 
+## Building richer node managers — the fluent extension surface
+
+The Configure callback wires read/write/method/event hooks against
+already-loaded predefined nodes, but real-world servers also need to
+materialise dynamic instances, attach engineering units to measurements,
+build alarms, run simulation loops, populate identification properties,
+and compose multiple companion-spec models into a single address space.
+The extensions below cover those workflows. All are AOT/trim safe and
+follow the same return-the-same-builder chaining contract as the core
+`INodeBuilder` API.
+
+### Engineering units & EU range
+
+`IVariableBuilder<TValue>.WithEngineeringUnits` and `.WithEURange`
+attach the standard `EngineeringUnits` and `EURange` property children
+on a `BaseAnalogState` variable. The extensions create the property
+child on demand (matching the runtime's `AddEngineeringUnits` /
+`AddEURange` helpers) and then set the Value attribute.
+
+```csharp
+builder.Variable<double>("Pumps/Pump #1/Operational/Measurements/FluidTemperature")
+       .OnRead(SimulateTemperature)
+       .WithEngineeringUnits(
+           new EUInformation("K", "Kelvin",
+               "http://www.opcfoundation.org/UA/units/un/cefact"))
+       .WithEURange(min: 233.15, max: 473.15);
+
+// Convenience: set both at once.
+builder.Variable<double>("Pumps/Pump #1/Operational/Measurements/Pressure")
+       .OnRead(SimulatePressure)
+       .WithUnits(EUInformations.Pascal, min: 0, max: 1_000_000);
+```
+
+Fail-fast behaviour: calling these on a non-`BaseAnalogState` variable
+throws `ServiceResultException` with
+`StatusCodes.BadTypeMismatch` — analog-only properties don't apply to
+plain `BaseDataVariableState` nodes.
+
+### Bulk property initialisation
+
+`INodeBuilder.WithProperty` resolves a property child by browse-name
+and writes its Value attribute. Typed overloads exist for every
+built-in OPC UA scalar (`string`, `int`, `uint`, `double`, `bool`,
+`DateTimeUtc`, `NodeId`, `LocalizedText`, `QualifiedName`, etc.) plus a
+generic `Variant` escape hatch.
+
+```csharp
+builder.Node("Pumps/Pump #1/Identification")
+       .WithProperty("Manufacturer", "SimPump Corp")
+       .WithProperty("Model", "PumpX-2000")
+       .WithProperty("SerialNumber", "SN-001")
+       .WithProperty("DeviceClass", "Pump")
+       .WithProperty("ProductInstanceUri",
+           "urn:simdevice:SimPump:PumpX-2000:SN-001");
+```
+
+Reference resolution is by browse-name only (case-sensitive,
+namespace-agnostic), matching the AOT-safe constraint of the rest of
+the fluent surface. Throws `BadNodeIdUnknown` when the property child
+is missing and `BadTypeMismatch` when the child exists but isn't a
+variable.
+
+### References & dynamic child objects
+
+`INodeBuilder.Organizes`, `.HasComponent`, `.HasProperty` and the
+generic `.AddReference(typeId, isInverse, target)` add forward /
+inverse references on the current node. They're the foundation for
+OPC UA Device Integration (DI)'s FunctionalGroup pattern — group
+unrelated variables under a shared object via `Organizes`.
+
+```csharp
+// Wire existing measurement variables into a custom FunctionalGroup.
+builder.Node("Pumps/Pump #1/Operational/MyGroup")
+       .Organizes(temperatureNodeId)
+       .Organizes(pressureNodeId)
+       .HasProperty(metadataNodeId);
+```
+
+`INodeBuilder.AddObject(browseName, typeDefinitionId)` synthesises a
+new `BaseObjectState` child under the current node and returns a typed
+builder for the new object. NodeIds follow the
+`{parentIdentifier}_{childName}` pattern used by the source generator's
+default factory.
+
+```csharp
+// Create a custom FunctionalGroup, then attach measurements.
+builder.Node("Pumps/Pump #1")
+       .AddObject(new QualifiedName("CustomMetrics", pumpsNs))
+       .Organizes(t1).Organizes(t2);
+```
+
+Newly created objects are reachable through navigation from the parent
+immediately. If you also need direct NodeId lookup (e.g. for `Read`
+service calls that target the new node by id), invoke
+`AsyncCustomNodeManager.AddPredefinedNodeAsync` on the new node from a
+deferred `OnNodeAdded` callback.
+
+### Creating instances of model types
+
+`INodeBuilder.CreateInstance<TState>(name, factory)` materialises a
+new `BaseInstanceState` subtype using a user-supplied factory delegate
+— typically a generated `Create<TypeName>` method from the source
+generator output. The returned `IInstanceBuilder<TState>` exposes
+`.Configure(builder => …)` for inline child wiring, `.AsNode()` for a
+typed `INodeBuilder<TState>` view, and `.Done()` to return to the
+parent builder.
+
+```csharp
+builder.Node("Pumps")
+       .CreateInstance(
+           new QualifiedName("Pump #2", pumpsNs),
+           pumpTypeId,
+           parent => context.CreatePumpType(parent))
+       .Configure(p2 =>
+           p2.AsNode()
+             .WithProperty("Manufacturer", "Vendor B")
+             .WithProperty("SerialNumber", "SN-002"));
+```
+
+The factory pattern keeps the API reflection-free and AOT safe — the
+generator already emits the per-type `Create<Type>` extension methods
+that the factory delegate calls into.
+
+### Alarm setup (MVP)
+
+`INodeBuilder.CreateLimitAlarm`, `.CreateExclusiveLimitAlarm` and
+`.CreateOffNormalAlarm` attach a fresh alarm condition under the
+current node and return an `IAlarmBuilder<TState>` for further
+configuration:
+
+```csharp
+builder.Node("Pumps/Pump #1/Events")
+       .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
+       .WithLimits(highHigh: 380, high: 370, low: 273, lowLow: 263)
+       .MonitorVariable(temperatureNode)
+       .OnAcknowledge((ctx, condition, eventId, comment) => ServiceResult.Good)
+       .OnConfirm((ctx, condition, eventId, comment) => ServiceResult.Good);
+```
+
+For full state access (severity tables, retain flag, branches), use
+the `.ConfigureAlarm(Action<TState>)` escape hatch:
+
+```csharp
+builder.Node("Events")
+       .CreateLimitAlarm(new QualifiedName("Custom", ns))
+       .WithLimits(high: 100)
+       .ConfigureAlarm(alarm =>
+       {
+           alarm.Retain!.Value = true;
+           // any state-class mutation goes here
+       });
+```
+
+### Boolean supervision → alarm activation (NAMUR pattern)
+
+`IVariableBuilder<bool>.OnRisingEdge` / `.OnFallingEdge` register
+callbacks that fire when the variable's value transitions. The
+`.ActivatesAlarm(alarmBuilder)` extension wires the bool variable to
+an `AlarmConditionState`'s ActiveState so it flips in lockstep with
+the supervision flag — exactly the OPC UA DI / NAMUR NE 107 pattern.
+
+```csharp
+IAlarmBuilder<NonExclusiveLimitAlarmState> cavitationAlarm =
+    builder.Node("Events").CreateLimitAlarm(name)
+        .ConfigureAlarm(a => a.Severity!.Value = (ushort)EventSeverity.Medium);
+
+builder.Variable<bool>("Pump #1/Events/Supervision/ProcessFluid/Cavitation")
+       .ActivatesAlarm(cavitationAlarm);
+```
+
+Detection is value-change based: transitions only fire when something
+else (an `OnWrite` handler, a simulation tick, a client write) actually
+mutates the variable.
+
+### Simulation timers
+
+`INodeManagerBuilder.Simulation(interval).OnTick(...)` registers a
+periodic background loop owned by the `FluentNodeManagerBase`. Each
+tick fires on a `PeriodicTimer` and is cancelled when the manager is
+disposed; exceptions inside handlers are logged and do not kill the
+loop.
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    builder.Simulation(TimeSpan.FromMilliseconds(250))
+        .OnTick((ctx, elapsed) =>
+        {
+            m_temperature = 313.15 + 5 * Math.Sin(m_t * 0.01);
+            m_pressure = 200000 + 50000 * Math.Sin(m_t * 0.03);
+            m_t++;
+        });
+}
+```
+
+Async tick handlers receive a `CancellationToken` honouring manager
+disposal — use it for any awaitable work inside the loop. Multiple
+`.OnTick` calls on the same `Simulation()` builder all fire on every
+tick.
+
+The simulation registry **requires** the manager to derive from
+`FluentNodeManagerBase` (the source generator-emitted manager already
+does); calling `.Simulation()` on a plain `CustomNodeManager2` throws
+`StatusCodes.BadConfigurationError`.
+
+### Multi-model composition
+
+The only supported mode for combining models is **source-generated
+library references**. Each companion spec is built once into its
+own model library (a `Libraries/Opc.Ua.{Spec}/` project that
+consumes the ModelDesign XML and emits an `AddOpcUa{Spec}`
+extension method); the consumer adds project references and calls
+the generated extensions directly in dependency order:
+
+```csharp
+protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+    ISystemContext context, CancellationToken ct = default)
+{
+    var nodes = new NodeStateCollection();
+    nodes.AddOpcUaDi(context);
+    nodes.AddOpcUaMachinery(context);
+    nodes.AddOpcUaPumps(context);
+    return new ValueTask<NodeStateCollection>(nodes);
+}
+```
+
+Source-generated models are AOT-friendly, deterministic, and
+produce typed `*State` / `*Client` proxies. **Every application-
+owned model must ship as source-generated content** — companion
+specs ship as project references; locally-owned NodeSet2 XMLs are
+wired through `<AdditionalFiles>` so the source generator emits
+the same typed surface inside the consuming assembly. Each
+`AddOpcUa{Spec}(context)` extension is idempotent and re-entrant,
+so direct chaining in dependency order is the recommended pattern.
+
 ## Current limitations
 
-- **Predefined-node-only wiring.** `Configure` runs after the predefined
-  tree is loaded. To inject dynamic nodes, override
-  `CreateAddressSpaceAsync` in another partial (the generator's
-  `CreateAddressSpaceAsync` is virtual).
-- **Multi-namespace requires factory subclassing.** The default factory
-  reports a single namespace; subclass `NamespacesUris` to add more.
-- **No browse-path wildcards** (`*`, `**`). Wire each path explicitly.
+- **Browse-path wildcards** (`*`, `**`) are not supported. Wire each
+  path explicitly or resolve by NodeId / TypeDefinitionId.
 - **HistoryRead/Update** integration is delegate-only in v1; deeper
   paging/queueing still requires `INodeManager2` work.
 
@@ -588,3 +818,12 @@ warnings** (~29 MB self-contained EXE).
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   end-to-end (sync `int+int → int`, async `double+double → double`,
   sync `string+string → string`).
+- `Applications/PumpDeviceIntegrationServer/` — the full OPC 40223
+  Pumps companion server. Exercises every fluent extension above
+  (engineering units, identification properties, FunctionalGroup
+  wiring, instance creation, limit alarm with NAMUR-style boolean
+  supervision, periodic simulation tick, and multi-model loader for
+  DI + Machinery + Pumps), and additionally attaches the OPC
+  10000-100 software-update facet to a second declarative pump
+  device.
+

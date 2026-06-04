@@ -43,11 +43,30 @@ namespace Opc.Ua.Server
         /// Initilizes the manager.
         /// </summary>
         public RequestManager(IServerInternal server)
+            : this(server, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with an explicit <see cref="TimeProvider"/>
+        /// so the request-expiry timer can be mocked in tests.
+        /// </summary>
+        /// <param name="server">The server context.</param>
+        /// <param name="timeProvider">The time provider used to schedule the
+        /// request-expiry timer and to evaluate request deadlines, or
+        /// <c>null</c> to use the time provider exposed by the server (or
+        /// <see cref="TimeProvider.System"/> as a fallback).</param>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/>
+        /// is <c>null</c>.</exception>
+        public RequestManager(IServerInternal server, TimeProvider? timeProvider)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<RequestManager>();
             m_requests = [];
             m_requestTimer = null;
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
         }
 
         /// <summary>
@@ -121,7 +140,11 @@ namespace Opc.Ua.Server
 
                 if (context.OperationDeadline < DateTime.MaxValue && m_requestTimer == null)
                 {
-                    m_requestTimer = new Timer(OnTimerExpired, null, 1000, 1000);
+                    m_requestTimer = m_timeProvider.CreateTimer(
+                        OnTimerExpired,
+                        null,
+                        TimeSpan.FromSeconds(1),
+                        TimeSpan.FromSeconds(1));
                 }
             }
         }
@@ -213,7 +236,7 @@ namespace Opc.Ua.Server
 
                 foreach (OperationContext request in m_requests.Values)
                 {
-                    if (request.OperationDeadline < DateTime.UtcNow)
+                    if (request.OperationDeadline < m_timeProvider.GetUtcNow().UtcDateTime)
                     {
                         request.RequestLifetime.TryCancel(StatusCodes.BadTimeout);
                         expiredRequests.Add(request.RequestId);
@@ -255,9 +278,10 @@ namespace Opc.Ua.Server
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly Lock m_requestsLock = new();
-        private Timer? m_requestTimer;
+        private ITimer? m_requestTimer;
         private event RequestCancelledEventHandler? m_RequestCancelled;
     }
 

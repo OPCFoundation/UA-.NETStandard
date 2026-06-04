@@ -55,7 +55,9 @@ namespace Opc.Ua.Server.Historian
         IReadOnlyList<T> Values,
         HistorianResumeToken NextToken = default)
     {
-        /// <summary>An empty page with no continuation token.</summary>
+        /// <summary>
+        /// An empty page with no continuation token.
+        /// </summary>
         public static HistorianPage<T> Empty { get; } = new([], default);
 
         /// <summary>Returns <c>true</c> when this page exhausts the request.</summary>

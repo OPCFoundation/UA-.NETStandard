@@ -100,7 +100,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.WriteValue,
                     NodeId = nodeId,
                     ServerHandle = 0,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = value,
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.QueueValue,
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = value,
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.FilterValue,
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = value,
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.DiscardValue,
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = value,
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.PublishValue,
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = value,
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.CreateItem,
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = default,
                     Parameters = new MonitoringParameters
                     {
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server
                     EventType = EventType.ModifyItem,
                     NodeId = nodeId,
                     ServerHandle = serverHandle,
-                    Timestamp = HiResClock.UtcNow,
+                    Timestamp = DateTime.UtcNow,
                     Value = default,
                     Parameters = new MonitoringParameters
                     {

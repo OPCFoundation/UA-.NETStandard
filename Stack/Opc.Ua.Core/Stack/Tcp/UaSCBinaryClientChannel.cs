@@ -59,6 +59,35 @@ namespace Opc.Ua.Bindings
             Certificate? serverCertificate,
             EndpointDescription? endpoint,
             ITelemetryContext telemetry)
+            : this(
+                contextId,
+                bufferManager,
+                socketFactory,
+                quotas,
+                clientCertificate,
+                clientCertificateChain,
+                serverCertificate,
+                endpoint,
+                telemetry,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a channel for a client using the supplied
+        /// <see cref="TimeProvider"/> for handshake / token timing.
+        /// </summary>
+        public UaSCUaBinaryClientChannel(
+            string contextId,
+            BufferManager bufferManager,
+            IMessageSocketFactory socketFactory,
+            ChannelQuotas quotas,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            Certificate? serverCertificate,
+            EndpointDescription? endpoint,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
             : base(
                 contextId,
                 bufferManager,
@@ -67,7 +96,8 @@ namespace Opc.Ua.Bindings
                 endpoint is not null ? [.. new EndpointDescription[] { endpoint }] : null,
                 endpoint is not null ? endpoint.SecurityMode : MessageSecurityMode.None,
                 endpoint is not null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
-                telemetry)
+                telemetry,
+                timeProvider)
         {
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryClientChannel>();
@@ -1372,11 +1402,11 @@ namespace Opc.Ua.Bindings
                     ChannelId,
                     m_waitBetweenReconnects,
                     reason.ToLongString());
-                m_handshakeTimer = new Timer(
+                m_handshakeTimer = TimeProvider.CreateTimer(
                     m_startHandshake,
                     null,
-                    m_waitBetweenReconnects,
-                    Timeout.Infinite);
+                    TimeSpan.FromMilliseconds(m_waitBetweenReconnects),
+                    Timeout.InfiniteTimeSpan);
 
                 // set next reconnect period.
                 m_waitBetweenReconnects *= 2;
@@ -1417,7 +1447,7 @@ namespace Opc.Ua.Bindings
             int timeToRenewal =
                 (int)Math.Round(token.Lifetime * TcpMessageLimits.TokenRenewalPeriod) +
                 jitter -
-                (HiResClock.TickCount - token.CreatedAtTickCount);
+                (int)TimeProvider.GetElapsedTime(token.CreatedAtTimestamp).TotalMilliseconds;
             if (timeToRenewal < 0)
             {
                 timeToRenewal = 0;
@@ -1427,10 +1457,14 @@ namespace Opc.Ua.Bindings
                 "ChannelId {ChannelId}: Token Expiry {Expiration:HH:mm:ss.fff}, renewal scheduled at {Renewal:HH:mm:ss.fff} in {Duration} ms.",
                 ChannelId,
                 token.CreatedAt.AddMilliseconds(token.Lifetime),
-                HiResClock.UtcTickCount(token.CreatedAtTickCount + timeToRenewal),
+                TimeProvider.GetUtcNow().AddMilliseconds(timeToRenewal).UtcDateTime,
                 timeToRenewal);
 
-            m_handshakeTimer = new Timer(m_startHandshake, token, timeToRenewal, Timeout.Infinite);
+            m_handshakeTimer = TimeProvider.CreateTimer(
+                m_startHandshake,
+                token,
+                TimeSpan.FromMilliseconds(timeToRenewal),
+                Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>
@@ -1444,7 +1478,7 @@ namespace Opc.Ua.Bindings
             {
                 requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
-            var operation = new WriteOperation(timeout, callback, state, m_logger)
+            var operation = new WriteOperation(timeout, callback, state, m_logger, TimeProvider)
             {
                 RequestId = requestId
             };
@@ -1766,7 +1800,7 @@ namespace Opc.Ua.Bindings
         private readonly ConcurrentDictionary<uint, WriteOperation> m_requests;
         private WriteOperation? m_handshakeOperation;
         private ChannelToken? m_requestedToken;
-        private Timer? m_handshakeTimer;
+        private ITimer? m_handshakeTimer;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly IMessageSocketFactory m_socketFactory;

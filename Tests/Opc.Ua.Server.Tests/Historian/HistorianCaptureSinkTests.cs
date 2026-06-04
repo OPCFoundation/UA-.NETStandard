@@ -422,7 +422,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        /// <summary>Wraps an inner provider and counts bulk vs per-node calls.</summary>
+        /// <summary>
+        /// Wraps an inner provider and counts bulk vs per-node calls.
+        /// </summary>
         private sealed class CountingBulkProvider :
             HistorianProviderBase,
             IHistorianDataProvider,
@@ -482,7 +484,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        /// <summary>Provider that does NOT implement IHistorianBulkInsertProvider — verifies fallback.</summary>
+        /// <summary>
+        /// Provider that does NOT implement IHistorianBulkInsertProvider — verifies fallback.
+        /// </summary>
         private sealed class NonBulkProvider :
             HistorianProviderBase,
             IHistorianDataProvider
@@ -533,7 +537,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        /// <summary>Slows down each insert; used to provoke backpressure-induced drops.</summary>
+        /// <summary>
+        /// Slows down each insert; used to provoke backpressure-induced drops.
+        /// </summary>
         private sealed class SlowProvider :
             HistorianProviderBase,
             IHistorianDataProvider,
@@ -593,7 +599,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        /// <summary>Throws the first N flush attempts then forwards to the inner provider.</summary>
+        /// <summary>
+        /// Throws the first N flush attempts then forwards to the inner provider.
+        /// </summary>
         private sealed class FlakyProvider :
             HistorianProviderBase,
             IHistorianDataProvider,

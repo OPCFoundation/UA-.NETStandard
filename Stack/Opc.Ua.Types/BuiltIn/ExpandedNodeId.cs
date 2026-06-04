@@ -1489,7 +1489,9 @@ namespace Opc.Ua
         {
             public object? NamespaceUri;
 
-            /// <summary> Padding </summary>
+            /// <summary>
+            /// Padding
+            /// </summary>
             public uint Reserved;
 
             public uint ServerIndex;

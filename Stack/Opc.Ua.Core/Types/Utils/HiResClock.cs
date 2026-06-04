@@ -44,6 +44,7 @@ namespace Opc.Ua
         /// This Utc time does not change if the system time is changed.
         /// It returns the Utc time elapsed since the application started.
         /// </remarks>
+        [Obsolete(kObsoleteMessage)]
         public static DateTime UtcNow
         {
             get
@@ -61,22 +62,26 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a monotonic increasing tick count in milliseconds.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static long TickCount64
             => (long)(s_default.m_ticksDelegate() / s_default.m_ticksPerMillisecond);
 
         /// <summary>
         /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static long Ticks => s_default.m_ticksDelegate();
 
         /// <summary>
         /// Return the frequency of the ticks.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static long Frequency => s_default.m_frequency;
 
         /// <summary>
         /// Return the number of ticks per millisecond.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static double TicksPerMillisecond => s_default.m_ticksPerMillisecond;
 
         /// <summary>
@@ -90,21 +95,26 @@ namespace Opc.Ua
         /// Use for relative time measurements which do not require a high resolution and
         /// which should be independent of the system time, which can be changed by a user.
         /// </remarks>
+        [Obsolete(kObsoleteMessage)]
         public static int TickCount => Environment.TickCount;
 
         /// <summary>
         /// Returns the Utc time with respect to the current tick count.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static DateTime UtcTickCount(int tickCount)
         {
             DateTime utcNow = DateTime.UtcNow;
+#pragma warning disable CS0618 // Internal call to obsolete TickCount.
             int delta = tickCount - TickCount;
+#pragma warning restore CS0618
             return utcNow.AddMilliseconds(delta);
         }
 
         /// <summary>
         /// Disables the hires clock.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static bool Disabled
         {
             get => s_default.m_disabled;
@@ -135,6 +145,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reset the baseline and allow a new initialization.
         /// </summary>
+        [Obsolete(kObsoleteMessage)]
         public static void Reset()
         {
             // reset baseline
@@ -189,5 +200,8 @@ namespace Opc.Ua
         private readonly decimal m_ratio;
         private readonly bool m_disabled;
         private bool m_initialized;
+
+        private const string kObsoleteMessage
+            = "Use TimeProvider for time / duration calculations. See docs/MigrationGuide.md";
     }
 }

@@ -58,10 +58,14 @@ namespace Opc.Ua.Client.Historian
             Options = options ?? new HistoryClientOptions();
         }
 
-        /// <summary>The underlying session.</summary>
+        /// <summary>
+        /// The underlying session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>Client options.</summary>
+        /// <summary>
+        /// Client options.
+        /// </summary>
         public HistoryClientOptions Options { get; }
 
         /// <summary>
@@ -134,7 +138,9 @@ namespace Opc.Ua.Client.Historian
             }
         }
 
-        /// <summary>Inserts raw values into the history archive.</summary>
+        /// <summary>
+        /// Inserts raw values into the history archive.
+        /// </summary>
         public ValueTask<IList<StatusCode>> InsertAsync(
             NodeId nodeId,
             IList<DataValue> values,
@@ -143,7 +149,9 @@ namespace Opc.Ua.Client.Historian
             return PerformUpdateAsync(nodeId, values, PerformUpdateType.Insert, cancellationToken);
         }
 
-        /// <summary>Replaces existing values in the history archive.</summary>
+        /// <summary>
+        /// Replaces existing values in the history archive.
+        /// </summary>
         public ValueTask<IList<StatusCode>> ReplaceAsync(
             NodeId nodeId,
             IList<DataValue> values,
@@ -152,7 +160,9 @@ namespace Opc.Ua.Client.Historian
             return PerformUpdateAsync(nodeId, values, PerformUpdateType.Replace, cancellationToken);
         }
 
-        /// <summary>Upserts values (insert if absent, replace if present).</summary>
+        /// <summary>
+        /// Upserts values (insert if absent, replace if present).
+        /// </summary>
         public ValueTask<IList<StatusCode>> UpdateAsync(
             NodeId nodeId,
             IList<DataValue> values,
@@ -188,7 +198,9 @@ namespace Opc.Ua.Client.Historian
             return response.Results.Count > 0 ? response.Results[0].StatusCode : StatusCodes.BadInternalError;
         }
 
-        /// <summary>Deletes values at the specified timestamps.</summary>
+        /// <summary>
+        /// Deletes values at the specified timestamps.
+        /// </summary>
         public async ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
             NodeId nodeId,
             IList<DateTime> timestamps,

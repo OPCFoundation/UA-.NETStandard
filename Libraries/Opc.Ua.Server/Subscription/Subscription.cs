@@ -56,18 +56,53 @@ namespace Opc.Ua.Server
             byte priority,
             bool publishingEnabled,
             uint maxMessageCount)
+            : this(
+                server,
+                session,
+                subscriptionId,
+                publishingInterval,
+                maxLifetimeCount,
+                maxKeepAliveCount,
+                maxNotificationsPerPublish,
+                priority,
+                publishingEnabled,
+                maxMessageCount,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the subscription with an explicit
+        /// <see cref="TimeProvider"/> so the monotonic publish-timer expiry can
+        /// be mocked in tests.
+        /// </summary>
+        public Subscription(
+            IServerInternal server,
+            ISession session,
+            uint subscriptionId,
+            double publishingInterval,
+            uint maxLifetimeCount,
+            uint maxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            byte priority,
+            bool publishingEnabled,
+            uint maxMessageCount,
+            TimeProvider? timeProvider)
         {
             Id = subscriptionId;
             Session = session ?? throw new ArgumentNullException(nameof(session));
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<Subscription>();
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_publishingInterval = publishingInterval;
             m_maxLifetimeCount = maxLifetimeCount;
             m_maxKeepAliveCount = maxKeepAliveCount;
             m_maxNotificationsPerPublish = maxNotificationsPerPublish;
             m_publishingEnabled = publishingEnabled;
             Priority = priority;
-            m_publishTimerExpiry = HiResClock.TickCount64 + (long)publishingInterval;
+            m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() + (long)publishingInterval;
             //Per OPC UA spec Part 4 Section 5.13.1.2, the server must send a message (notification or keep-alive)
             //at the end of the first publishing cycle to inform the client the subscription is operational
             //So we initialize the keep-alive counter to maxKeepAliveCount to force a message at the end of the first publish cycle
@@ -135,12 +170,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore a subscription and its monitored items after a restart from a template
         /// </summary>
-        public static async ValueTask<Subscription> RestoreAsync(
+        public static ValueTask<Subscription> RestoreAsync(
             IServerInternal server,
             IStoredSubscription storedSubscription,
             CancellationToken cancellationToken = default)
         {
-            var subscription = new Subscription(server, storedSubscription);
+            return RestoreAsync(server, storedSubscription, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Restore a subscription and its monitored items after a restart from a template
+        /// with an explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        public static async ValueTask<Subscription> RestoreAsync(
+            IServerInternal server,
+            IStoredSubscription storedSubscription,
+            TimeProvider? timeProvider,
+            CancellationToken cancellationToken = default)
+        {
+            var subscription = new Subscription(server, storedSubscription, timeProvider);
 
             await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
                 .ConfigureAwait(false);
@@ -152,6 +200,18 @@ namespace Opc.Ua.Server
         /// Initialize subscription after a restart from a template
         /// </summary>
         protected Subscription(IServerInternal server, IStoredSubscription storedSubscription)
+            : this(server, storedSubscription, null)
+        {
+        }
+
+        /// <summary>
+        /// Initialize subscription after a restart from a template with an
+        /// explicit <see cref="TimeProvider"/>.
+        /// </summary>
+        protected Subscription(
+            IServerInternal server,
+            IStoredSubscription storedSubscription,
+            TimeProvider? timeProvider)
         {
             if (server.IsRunning)
             {
@@ -161,6 +221,9 @@ namespace Opc.Ua.Server
 
             m_server = server;
             m_logger = server.Telemetry.CreateLogger<Subscription>();
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             Session = null!;
             Id = storedSubscription.Id;
             m_publishingInterval = storedSubscription.PublishingInterval;
@@ -170,7 +233,7 @@ namespace Opc.Ua.Server
             m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
             m_publishingEnabled = false;
             Priority = storedSubscription.Priority;
-            m_publishTimerExpiry = HiResClock.TickCount64 +
+            m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() +
                 (long)storedSubscription.PublishingInterval;
             m_keepAliveCounter = 0;
             m_waitingForPublish = false;
@@ -441,7 +504,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                long currentTime = HiResClock.TickCount64;
+                long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
                 // check if publish interval has elapsed.
                 if (m_publishTimerExpiry >= currentTime)
@@ -1280,7 +1343,7 @@ namespace Opc.Ua.Server
                 if (publishingInterval != m_publishingInterval)
                 {
                     m_publishingInterval = publishingInterval;
-                    m_publishTimerExpiry = HiResClock.TickCount64 + (long)publishingInterval;
+                    m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() + (long)publishingInterval;
                     ResetKeepaliveCount();
                 }
 
@@ -2744,6 +2807,7 @@ namespace Opc.Ua.Server
 
         private readonly object m_lock = new();
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;

@@ -103,7 +103,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
-
             EventSourceRegistry registry = GetRegistryOrThrow(nodeBuilder);
             TNotifier notifier = nodeBuilder.Node;
 
@@ -154,7 +153,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(source));
             }
-
             EventSourceRegistry registry = GetRegistryOrThrow(nodeBuilder);
             TNotifier notifier = nodeBuilder.Node;
 

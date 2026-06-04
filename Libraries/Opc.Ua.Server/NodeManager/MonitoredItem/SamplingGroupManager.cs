@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     public class SamplingGroupManager : IDisposable
     {
         /// <summary>
-        /// Creates a new instance of a sampling group.
+        /// Creates a new instance of a sampling group manager.
         /// </summary>
         public SamplingGroupManager(
             IServerInternal server,
@@ -47,9 +47,44 @@ namespace Opc.Ua.Server
             uint maxQueueSize,
             uint maxDurableQueueSize,
             IEnumerable<SamplingRateGroup> samplingRates)
+            : this(
+                server,
+                nodeManager,
+                maxQueueSize,
+                maxDurableQueueSize,
+                samplingRates,
+                timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new instance of a sampling group manager with an explicit
+        /// <see cref="TimeProvider"/>.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="nodeManager">The owning node manager.</param>
+        /// <param name="maxQueueSize">The maximum non-durable monitored-item queue size.</param>
+        /// <param name="maxDurableQueueSize">The maximum durable monitored-item queue size.</param>
+        /// <param name="samplingRates">The supported sampling-rate groups.</param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> propagated to the <see cref="SamplingGroup"/>
+        /// instances created by this manager. When <c>null</c>, the time provider exposed by
+        /// the server (via <see cref="ITimeProviderProvider"/>) is used, falling back to
+        /// <see cref="TimeProvider.System"/>.
+        /// </param>
+        public SamplingGroupManager(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            uint maxQueueSize,
+            uint maxDurableQueueSize,
+            IEnumerable<SamplingRateGroup> samplingRates,
+            TimeProvider? timeProvider)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_samplingGroups = [];
             m_sampledItems = [];
             m_maxQueueSize = maxQueueSize;
@@ -411,7 +446,8 @@ namespace Opc.Ua.Server
                         m_samplingRates,
                         context,
                         monitoredItem.SamplingInterval,
-                        savedOwnerIdentity);
+                        savedOwnerIdentity,
+                        m_timeProvider);
 
                     tempSamplingGroup.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
 
@@ -510,6 +546,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
+        private readonly TimeProvider m_timeProvider;
         private readonly IAsyncNodeManager m_nodeManager;
         private readonly List<SamplingGroup> m_samplingGroups;
         private readonly Dictionary<ISampledDataChangeMonitoredItem, SamplingGroup> m_sampledItems;

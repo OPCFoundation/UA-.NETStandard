@@ -53,10 +53,25 @@ namespace Opc.Ua.Bindings
         public UaSCUaBinaryTransportChannel(
             IMessageSocketFactory messageSocketFactory,
             ITelemetryContext telemetry)
+            : this(messageSocketFactory, telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Create a transport channel from a message socket factory.
+        /// </summary>
+        /// <param name="messageSocketFactory">The message socket factory.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="timeProvider">Time provider to use for timers and durations.</param>
+        public UaSCUaBinaryTransportChannel(
+            IMessageSocketFactory messageSocketFactory,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_messageSocketFactory = messageSocketFactory;
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger<UaSCUaBinaryTransportChannel>();
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>
@@ -464,7 +479,8 @@ namespace Opc.Ua.Bindings
                 m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
                 m_settings.Description,
-                telemetry);
+                telemetry,
+                m_timeProvider);
 
             // use socket for reverse connections, ignore otherwise
             if (socket != null)
@@ -502,5 +518,6 @@ namespace Opc.Ua.Bindings
         private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
         private readonly IMessageSocketFactory m_messageSocketFactory;
         private readonly ITelemetryContext m_telemetry;
+        private readonly TimeProvider m_timeProvider;
     }
 }

@@ -38,25 +38,37 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public sealed class AccessTokenResult
     {
-        /// <summary>The issued or refreshed access token (JWT or opaque).</summary>
+        /// <summary>
+        /// The issued or refreshed access token (JWT or opaque).
+        /// </summary>
         public string AccessToken { get; set; } = string.Empty;
 
-        /// <summary>The raw access-token bytes as carried by issued identity tokens.</summary>
+        /// <summary>
+        /// The raw access-token bytes as carried by issued identity tokens.
+        /// </summary>
         public byte[] AccessTokenBytes { get; set; } = [];
 
         /// <summary>The access-token type, such as <c>JWT</c>.</summary>
         public string TokenType { get; set; } = string.Empty;
 
-        /// <summary>The user token policy id associated with the issued token.</summary>
+        /// <summary>
+        /// The user token policy id associated with the issued token.
+        /// </summary>
         public string PolicyId { get; set; } = string.Empty;
 
-        /// <summary>When the access token expires (UTC).</summary>
+        /// <summary>
+        /// When the access token expires (UTC).
+        /// </summary>
         public DateTime AccessTokenExpiryTime { get; set; }
 
-        /// <summary>The refresh token (if applicable).</summary>
+        /// <summary>
+        /// The refresh token (if applicable).
+        /// </summary>
         public string? RefreshToken { get; set; }
 
-        /// <summary>When the refresh token expires (UTC).</summary>
+        /// <summary>
+        /// When the refresh token expires (UTC).
+        /// </summary>
         public DateTime RefreshTokenExpiryTime { get; set; }
     }
 

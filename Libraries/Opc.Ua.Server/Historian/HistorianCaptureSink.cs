@@ -87,15 +87,25 @@ namespace Opc.Ua.Server.Historian
         /// Buffering / batching knobs. <c>null</c> uses
         /// <see cref="HistorianCaptureOptions"/> defaults.
         /// </param>
+        /// <param name="timeProvider">
+        /// Optional <see cref="TimeProvider"/> used for timeout
+        /// scheduling. When <c>null</c>, the server-wide provider exposed
+        /// via <see cref="ITimeProviderProvider"/> is used, falling back
+        /// to <see cref="TimeProvider.System"/>.
+        /// </param>
         public HistorianCaptureSink(
             IHistorianProvider provider,
             ServerSystemContext systemContext,
-            HistorianCaptureOptions? options = null)
+            HistorianCaptureOptions? options = null,
+            TimeProvider? timeProvider = null)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             m_systemContext = systemContext ?? throw new ArgumentNullException(nameof(systemContext));
             m_options = options ?? new HistorianCaptureOptions();
             m_logger = systemContext.Server?.Telemetry?.CreateLogger<HistorianCaptureSink>();
+            m_timeProvider = timeProvider
+                ?? (systemContext.Server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
 
             var channelOptions = new BoundedChannelOptions(m_options.MaxQueuedSamples)
             {
@@ -181,7 +191,7 @@ namespace Opc.Ua.Server.Historian
                 // Bound the wait — if the consumer is stuck the host
                 // shutdown should not block forever.
                 await m_consumer
-                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .WaitAsync(TimeSpan.FromSeconds(5), m_timeProvider)
                     .ConfigureAwait(false);
             }
             catch (TimeoutException)
@@ -242,8 +252,10 @@ namespace Opc.Ua.Server.Historian
             }
 
             // Wait up to BatchWindow for additional items to pack the batch.
-            using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            windowCts.CancelAfter(m_options.BatchWindow);
+            using CancellationTokenSource windowTimeoutCts = m_timeProvider
+                .CreateCancellationTokenSource(m_options.BatchWindow);
+            using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(
+                ct, windowTimeoutCts.Token);
             try
             {
                 while (total < m_options.BatchTarget &&
@@ -349,6 +361,7 @@ namespace Opc.Ua.Server.Historian
         private readonly Channel<CaptureEvent> m_channel;
         private readonly Task m_consumer;
         private readonly CancellationTokenSource m_shutdownCts;
+        private readonly TimeProvider m_timeProvider;
         private long m_droppedSamples;
         private bool m_disposed;
     }

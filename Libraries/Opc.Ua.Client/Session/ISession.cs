@@ -265,9 +265,12 @@ namespace Opc.Ua.Client
         DateTime LastKeepAliveTime { get; }
 
         /// <summary>
-        /// Gets the TickCount in ms of the last keep alive based on <see cref="HiResClock.TickCount"/>.
+        /// Gets the monotonic timestamp (from <see cref="TimeProvider.GetTimestamp"/>) of the
+        /// last keep alive. Use together with <see cref="TimeProvider.GetElapsedTime(long)"/>
+        /// to compute the elapsed time since the last keep alive without DateTime drift or
+        /// 32-bit tick wrap.
         /// </summary>
-        int LastKeepAliveTickCount { get; }
+        long LastKeepAliveTimestamp { get; }
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.

@@ -160,7 +160,21 @@ namespace Opc.Ua.Server
         /// Creates a reverse connect server based on a StandardServer.
         /// </summary>
         public ReverseConnectServer(ITelemetryContext telemetry)
-            : base(telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a reverse connect server with an explicit
+        /// <see cref="TimeProvider"/> so the reverse-connect timer and
+        /// expiry logic can be mocked in tests.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="timeProvider">The time provider used for all
+        /// time / duration calculations, or <c>null</c> to use
+        /// <see cref="TimeProvider.System"/>.</param>
+        public ReverseConnectServer(ITelemetryContext telemetry, TimeProvider? timeProvider)
+            : base(telemetry, timeProvider)
         {
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;
@@ -292,7 +306,7 @@ namespace Opc.Ua.Server
                         if (reverseConnection.LastState == ReverseConnectState.Rejected &&
                             reverseConnection.RejectTime +
                             TimeSpan.FromMilliseconds(m_rejectTimeout) <
-                                DateTime.UtcNow)
+                                TimeProvider.GetUtcNow().UtcDateTime)
                         {
                             reverseConnection.LastState = ReverseConnectState.Closed;
                         }
@@ -364,7 +378,7 @@ namespace Opc.Ua.Server
                         if (e.ChannelStatus.Code == StatusCodes.BadTcpMessageTypeInvalid)
                         {
                             reverseConnection.LastState = ReverseConnectState.Rejected;
-                            reverseConnection.RejectTime = DateTime.UtcNow;
+                            reverseConnection.RejectTime = TimeProvider.GetUtcNow().UtcDateTime;
                             m_logger.LogWarning(
                                 "Client Rejected Connection! [{LastState}][{EndpointUrl}]",
                                 reverseConnection.LastState,
@@ -414,11 +428,11 @@ namespace Opc.Ua.Server
                     m_connections.Count > 0 &&
                     m_reverseConnectTimer == null)
                 {
-                    m_reverseConnectTimer = new Timer(
+                    m_reverseConnectTimer = TimeProvider.CreateTimer(
                         OnReverseConnect,
                         this,
-                        forceRestart ? m_connectInterval : 1000,
-                        Timeout.Infinite);
+                        TimeSpan.FromMilliseconds(forceRestart ? m_connectInterval : 1000),
+                        Timeout.InfiniteTimeSpan);
                 }
             }
         }
@@ -512,7 +526,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private Timer? m_reverseConnectTimer;
+        private ITimer? m_reverseConnectTimer;
         private int m_connectInterval;
         private int m_connectTimeout;
         private int m_rejectTimeout;

@@ -51,7 +51,7 @@ namespace Opc.Ua
             object? callbackData,
             int timeout,
             ILogger? logger = null)
-            : this(callback, callbackData, timeout, null, logger)
+            : this(callback, callbackData, timeout, null, logger, null)
         {
         }
 
@@ -69,20 +69,43 @@ namespace Opc.Ua
             int timeout,
             CancellationTokenSource? cts,
             ILogger? logger = null)
+            : this(callback, callbackData, timeout, cts, logger, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AsyncResultBase"/>
+        /// class using the supplied <see cref="TimeProvider"/> for timeout
+        /// scheduling and elapsed-time calculations.
+        /// </summary>
+        public AsyncResultBase(
+            AsyncCallback? callback,
+            object? callbackData,
+            int timeout,
+            CancellationTokenSource? cts,
+            ILogger? logger,
+            TimeProvider? timeProvider)
         {
             m_callback = callback;
             AsyncState = callbackData;
-            m_deadline = DateTime.MinValue;
+            m_timeoutMs = -1;
+            m_startTimestamp = 0;
             m_logger = logger ?? LoggerUtils.Null.Logger;
             m_cts = cts;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
 
             if (timeout > 0)
             {
-                m_deadline = DateTime.UtcNow.AddMilliseconds(timeout);
+                m_timeoutMs = timeout;
+                m_startTimestamp = m_timeProvider.GetTimestamp();
 
                 if (m_callback != null)
                 {
-                    m_timer = new Timer(OnTimeout, null, timeout, Timeout.Infinite);
+                    m_timer = m_timeProvider.CreateTimer(
+                        OnTimeout,
+                        null,
+                        TimeSpan.FromMilliseconds(timeout),
+                        Timeout.InfiniteTimeSpan);
                 }
             }
         }
@@ -188,14 +211,15 @@ namespace Opc.Ua
                             StatusCodes.BadCommunicationError);
                     }
 
-                    if (m_deadline != DateTime.MinValue)
+                    if (m_timeoutMs > 0)
                     {
-                        timeout = (int)(m_deadline - DateTime.UtcNow).TotalMilliseconds;
-
-                        if (timeout <= 0)
+                        TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_startTimestamp);
+                        long remaining = m_timeoutMs - (long)elapsed.TotalMilliseconds;
+                        if (remaining <= 0)
                         {
                             return false;
                         }
+                        timeout = (int)Math.Min(int.MaxValue, remaining);
                     }
 
                     if (IsCompleted)
@@ -396,8 +420,10 @@ namespace Opc.Ua
 
         private readonly AsyncCallback? m_callback;
         private ManualResetEvent? m_waitHandle;
-        private readonly DateTime m_deadline;
-        private Timer? m_timer;
+        private readonly TimeProvider m_timeProvider;
+        private readonly long m_startTimestamp;
+        private readonly int m_timeoutMs;
+        private ITimer? m_timer;
         private CancellationTokenSource? m_cts;
     }
 }
