@@ -112,57 +112,15 @@ namespace Quickstarts.ReferenceServer
             return node.NodeId;
         }
 
-        /// <summary>
-        /// Adds a new instance node to the address space under a parent that may
-        /// belong to a different node manager. Used by the AddNodes service
-        /// implementation in <see cref="ReferenceServer"/> to allow the test
-        /// fixture to exercise the Node Management service set.
-        /// </summary>
+        /// <inheritdoc/>
         /// <remarks>
-        /// The node is registered in this manager's namespace, an inverse
-        /// reference back to the parent is attached, and a forward reference
-        /// from the parent to the new node is added through the master node
-        /// manager so the parent's node manager records the link as well.
+        /// Enables the OPC UA NodeManagement service set (AddNodes /
+        /// DeleteNodes / AddReferences / DeleteReferences) so that conformance
+        /// tests and clients can mutate the address space at runtime. New
+        /// nodes live in this node manager's namespace; cross-NodeManager
+        /// references are written through <see cref="MasterNodeManager"/>.
         /// </remarks>
-        public async ValueTask<NodeId> AddInstanceNodeAsync(
-            ServerSystemContext context,
-            NodeId parentNodeId,
-            NodeId referenceTypeId,
-            BaseInstanceState instance,
-            CancellationToken cancellationToken = default)
-        {
-            if (instance == null)
-            {
-                throw new ArgumentNullException(nameof(instance));
-            }
-
-            ServerSystemContext contextToUse = SystemContext.Copy(context);
-
-            if (instance.NodeId.IsNull)
-            {
-                instance.NodeId = new NodeId(
-                    Guid.NewGuid().ToString(),
-                    NamespaceIndexes[0]);
-            }
-
-            instance.ReferenceTypeId = referenceTypeId;
-            instance.AddReference(referenceTypeId, true, parentNodeId);
-
-            await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken)
-                .ConfigureAwait(false);
-
-            var references = new List<IReference>
-            {
-                new NodeStateReference(referenceTypeId, false, instance.NodeId)
-            };
-
-            await Server.NodeManager.AddReferencesAsync(
-                parentNodeId,
-                references,
-                cancellationToken).ConfigureAwait(false);
-
-            return instance.NodeId;
-        }
+        public override bool AllowNodeManagement => true;
 
         private static bool IsAnalogType(BuiltInType builtInType)
         {
@@ -5404,15 +5362,6 @@ namespace Quickstarts.ReferenceServer
             {
                 Interlocked.Decrement(ref m_simulationsRunning);
             }
-        }
-
-        /// <summary>
-        /// Frees any resources allocated for the address space.
-        /// </summary>
-        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
-        {
-            // TBD
-            return new ValueTask();
         }
 
         /// <summary>

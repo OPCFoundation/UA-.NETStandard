@@ -756,10 +756,31 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
+        /// <remarks>
+        /// Iterates the predefined nodes and invokes <see cref="NodeState.Delete"/> on each
+        /// root node so the <see cref="NodeState.OnBeforeDelete"/> and
+        /// <see cref="NodeState.OnAfterDelete"/> callbacks fire and
+        /// <see cref="NodeStateChangeMasks.Deleted"/> is reported to subscribers. Nodes that
+        /// are children of another predefined node are skipped because they are deleted
+        /// recursively by their parent (avoiding duplicate callbacks).
+        /// </remarks>
         public virtual void DeleteAddressSpace()
         {
             lock (Lock)
             {
+                NodeState[] nodes = [.. PredefinedNodes.Values];
+                ISystemContext context = SystemContext;
+                foreach (NodeState node in nodes)
+                {
+                    if (node is BaseInstanceState instance &&
+                        instance.Parent != null &&
+                        !instance.Parent.NodeId.IsNull &&
+                        PredefinedNodes.ContainsKey(instance.Parent.NodeId))
+                    {
+                        continue;
+                    }
+                    node.Delete(context);
+                }
                 PredefinedNodes.Clear();
             }
         }

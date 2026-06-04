@@ -38,7 +38,7 @@ namespace Alarms
         protected NonExclusiveLimitHolder(
             ILogger logger,
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             string name,
             SupportedAlarmConditionType alarmConditionType,

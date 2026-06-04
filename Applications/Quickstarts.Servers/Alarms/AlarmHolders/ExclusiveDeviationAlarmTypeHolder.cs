@@ -36,7 +36,7 @@ namespace Alarms
     {
         public ExclusiveDeviationAlarmTypeHolder(
             AlarmNodeManager alarmNodeManager,
-            FolderState parent,
+            BaseInstanceState parent,
             SourceController trigger,
             string name,
             SupportedAlarmConditionType alarmConditionType,
