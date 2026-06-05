@@ -721,9 +721,102 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, StatusChangeNotification notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
-            // TODO - trigger recovery of subscription, etc.
+            // The base MessageProcessor does not automatically raise
+            // OnPublishStateChanged for status notifications, so do it
+            // here. This is what surfaces the Transferred / Timeout
+            // flags to user-visible publish-state handlers.
+            OnPublishStateChanged(publishStateMask);
+
+            // Recovery on unsolicited Good_SubscriptionTransferred.
+            // Per OPC UA Part 4 §5.14.7 this notification is sent to
+            // the *old* session when its subscription was transferred
+            // away — receiving it on a freshly created subscription
+            // here is a server quirk (e.g. Kepware leaking
+            // pre-restart state). Opt-in policy lets the caller ask
+            // for an in-place recreate instead of leaving the
+            // subscription dark.
+            if (notification.Status == StatusCodes.GoodSubscriptionTransferred
+                && Options.RecoveryPolicy
+                    == SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer
+                && Created
+                && !Disposed)
+            {
+                if (Interlocked.CompareExchange(
+                    ref m_recreateAfterTransferInProgress, 1, 0) == 0)
+                {
+                    _ = Task.Run(RecoverAfterUnsolicitedTransferAsync);
+                }
+            }
             return default;
         }
+
+        /// <summary>
+        /// Run an in-place recreate on the same session after an
+        /// unsolicited <c>Good_SubscriptionTransferred</c>. Drops
+        /// queued acknowledgements for the dead subscription id
+        /// before invoking <see cref="ResetToRecreateAsync"/> so the
+        /// state-manager loop sees a coherent reset and the ack
+        /// queue cannot leak <c>BadSubscriptionIdInvalid</c>s on
+        /// servers that re-use subscription identifiers. Idempotent:
+        /// concurrent dispatches collapse through
+        /// <see cref="m_recreateAfterTransferInProgress"/>.
+        /// </summary>
+        private async Task RecoverAfterUnsolicitedTransferAsync()
+        {
+            uint deadId = Id;
+            try
+            {
+                Logger.LogWarning(
+                    "{Subscription}: unsolicited Good_SubscriptionTransferred received — " +
+                    "auto-recreating on the same session " +
+                    "(RecoveryPolicy=RecreateOnUnsolicitedTransfer).",
+                    this);
+
+                if (deadId != 0)
+                {
+                    int dropped = AckQueue.DropPendingForSubscription(deadId);
+                    if (dropped > 0)
+                    {
+                        Logger.LogInformation(
+                            "{Subscription}: dropped {Count} stale acknowledgement(s) " +
+                            "before recovery recreate.",
+                            this,
+                            dropped);
+                    }
+                }
+
+                if (Disposed)
+                {
+                    return;
+                }
+
+                await ResetToRecreateAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Logger.LogInformation(
+                    "{Subscription}: recreate signalled after unsolicited " +
+                    "Good_SubscriptionTransferred (old SubscriptionId={OldId}).",
+                    this,
+                    deadId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(
+                    ex,
+                    "{Subscription}: recovery after unsolicited " +
+                    "Good_SubscriptionTransferred failed (old SubscriptionId={OldId}); " +
+                    "the subscription stays dark until the next reconnect or " +
+                    "manual recreate.",
+                    this,
+                    deadId);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref m_recreateAfterTransferInProgress, 0);
+            }
+        }
+
+        private int m_recreateAfterTransferInProgress;
 
         /// <summary>
         /// Called when the subscription state changed

@@ -107,6 +107,8 @@ namespace Opc.Ua.Client
             DefaultItem = CreateMonitoredItem(template.DefaultItem.State);
             m_lastSequenceNumberProcessed = template.m_lastSequenceNumberProcessed;
 
+            RecoveryPolicy = template.RecoveryPolicy;
+
             if (copyEventHandlers)
             {
                 m_StateChanged = template.m_StateChanged;
@@ -247,6 +249,141 @@ namespace Opc.Ua.Client
                 catch (ObjectDisposedException)
                 {
                     // already disposed.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Dispatch a <c>Good_SubscriptionTransferred</c> StatusChangeNotification
+        /// (OPC UA Part 4 §5.14.7) — either to the spec-strict shutdown
+        /// path (default <see cref="SubscriptionRecoveryPolicy.ReportOnly"/>)
+        /// or to the in-place recreate path
+        /// (<see cref="SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer"/>)
+        /// when the notification looks unsolicited.
+        /// <para>
+        /// "Unsolicited" here is decided conservatively: the subscription
+        /// is currently created on this session, and the session is not
+        /// in the middle of a reconnect/transfer cycle. Anything else —
+        /// e.g. the user explicitly initiating a transfer-away — runs
+        /// through the spec-strict path.
+        /// </para>
+        /// </summary>
+        private void HandleGoodSubscriptionTransferred()
+        {
+            ISession? session = Session;
+            bool unsolicited = session != null
+                && !session.Reconnecting
+                && Created;
+
+            if (RecoveryPolicy == SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer
+                && unsolicited)
+            {
+                m_logger.LogWarning(
+                    "SubscriptionId {SubscriptionId}: unsolicited Good_SubscriptionTransferred received — " +
+                    "auto-recreating on the same session (RecoveryPolicy=RecreateOnUnsolicitedTransfer).",
+                    Id);
+
+                TriggerUnsolicitedTransferRecovery();
+                return;
+            }
+
+            // Spec-strict default. The subscription is treated as
+            // transferred away from this session and the per-subscription
+            // publish loop is shut down. Applications can subscribe to
+            // PublishStatusChanged with the Transferred flag to react.
+            _ = ResetPublishTimerAndWorkerStateAsync(); // Do not block on ourselves but exit
+        }
+
+        /// <summary>
+        /// Run an in-place recreate on the same session after an
+        /// unsolicited <c>Good_SubscriptionTransferred</c>. Idempotent:
+        /// concurrent dispatches collapse into a single recovery using
+        /// the <see cref="m_recreateAfterTransferInProgress"/> guard.
+        /// Stale acknowledgements for the soon-to-be-dead
+        /// <see cref="Id"/> are pruned <i>before</i> the recreate so
+        /// servers that re-use subscription identifiers (e.g. Kepware
+        /// always starting at <c>1</c>) cannot conflate the dead and
+        /// new generations on the wire.
+        /// </summary>
+        private void TriggerUnsolicitedTransferRecovery()
+        {
+            if (Interlocked.CompareExchange(
+                ref m_recreateAfterTransferInProgress, 1, 0) != 0)
+            {
+                // already recovering — drop duplicate notifications.
+                return;
+            }
+
+            _ = Task.Run(RecoverAsync);
+
+            async Task RecoverAsync()
+            {
+                uint deadId = Id;
+                try
+                {
+                    ISession? session = Session;
+                    if (session == null || m_disposed)
+                    {
+                        return;
+                    }
+
+                    if (deadId != 0
+                        && session is Session classicSession
+                        && classicSession.SubscriptionEngine
+                            is ClassicSubscriptionEngine engine)
+                    {
+                        int dropped = engine.RemoveAcknowledgementsForSubscription(deadId);
+                        if (dropped > 0)
+                        {
+                            m_logger.LogInformation(
+                                "SubscriptionId {SubscriptionId}: dropped {Count} stale " +
+                                "acknowledgement(s) before recovery recreate.",
+                                deadId,
+                                dropped);
+                        }
+                    }
+
+                    // Stop the publish worker/timer that is dispatching this
+                    // recovery; we are running on a different task so this
+                    // does not deadlock on ourselves.
+                    await ResetPublishTimerAndWorkerStateAsync()
+                        .ConfigureAwait(false);
+
+                    if (m_disposed || Session == null)
+                    {
+                        return;
+                    }
+
+                    // Reset local subscription state so CreateAsync can run
+                    // (it requires Id == 0). DeleteSubscription also flips
+                    // every monitored item back to not-created so they get
+                    // re-issued by CreateItemsAsync.
+                    DeleteSubscription();
+
+                    await CreateAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+
+                    m_logger.LogInformation(
+                        "Subscription recreated on the same session after unsolicited " +
+                        "Good_SubscriptionTransferred (old SubscriptionId={OldId}, new " +
+                        "SubscriptionId={NewId}).",
+                        deadId,
+                        Id);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(
+                        ex,
+                        "SubscriptionId {DeadId}: recovery after unsolicited " +
+                        "Good_SubscriptionTransferred failed; the subscription is " +
+                        "no longer dispatching notifications until reconnect or " +
+                        "manual recreate.",
+                        deadId);
+                }
+                finally
+                {
+                    Interlocked.Exchange(
+                        ref m_recreateAfterTransferInProgress, 0);
                 }
             }
         }
@@ -496,6 +633,20 @@ namespace Opc.Ua.Client
             get => State.TransferId;
             set => State = State with { TransferId = value };
         }
+
+        /// <summary>
+        /// Controls how the subscription reacts to an unsolicited
+        /// <c>Good_SubscriptionTransferred</c> StatusChangeNotification
+        /// from the server. Defaults to
+        /// <see cref="SubscriptionRecoveryPolicy.ReportOnly"/> which
+        /// matches the spec-strict behaviour (OPC UA Part 4 §5.14.7)
+        /// and remains backwards compatible. Set to
+        /// <see cref="SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer"/>
+        /// to automatically recreate the subscription on the same
+        /// session when the notification is observed without the
+        /// client having initiated the transfer.
+        /// </summary>
+        public SubscriptionRecoveryPolicy RecoveryPolicy { get; set; }
 
         /// <summary>
         /// Gets or sets the fast data change callback.
@@ -2660,7 +2811,7 @@ namespace Opc.Ua.Client
                                         publishStateChangedMask
                                             |= PublishStateChangedMask.Transferred;
 
-                                        _ = ResetPublishTimerAndWorkerStateAsync(); // Do not block on ourselves but exit
+                                        HandleGoodSubscriptionTransferred();
                                     }
                                     else if (statusChanged.Status == StatusCodes.BadTimeout)
                                     {
@@ -3175,6 +3326,7 @@ namespace Opc.Ua.Client
         private int m_keepAliveInterval;
         private int m_publishLateCount;
         private bool m_disposed;
+        private int m_recreateAfterTransferInProgress;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private ArrayOf<uint> m_availableSequenceNumbers;

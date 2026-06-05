@@ -57,6 +57,25 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
+        /// Drops every queued acknowledgement targeting the given
+        /// <paramref name="subscriptionId"/>. Used by the
+        /// recovery-on-unsolicited-transfer path to prevent stale
+        /// acks from generating <c>BadSubscriptionIdInvalid</c>
+        /// responses after the subscription has been invalidated
+        /// and is about to be recreated. Must be invoked while the
+        /// old subscription id is still uniquely "dead" — i.e.
+        /// before recreate assigns a new id — because servers that
+        /// re-use subscription identifiers (e.g. Kepware always
+        /// starting at <c>1</c>) would otherwise collide
+        /// generations.
+        /// </summary>
+        /// <param name="subscriptionId">The subscription id whose
+        /// queued acknowledgements should be dropped.</param>
+        /// <returns>The number of queued acknowledgements that
+        /// were dropped.</returns>
+        int DropPendingForSubscription(uint subscriptionId);
+
+        /// <summary>
         /// Notify the queue/manager that the subscription's state has
         /// changed (created, modified, etc.) and the publish controller
         /// should re-evaluate worker counts and resume publishing.
