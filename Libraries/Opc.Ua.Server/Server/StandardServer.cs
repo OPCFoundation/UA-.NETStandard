@@ -735,7 +735,7 @@ namespace Opc.Ua.Server
                     ?? throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
 
                 AdditionalParametersType? parameters = ActivateSessionProcessAdditionalParameters(
-                    session!,
+                    session,
                     requestHeader.AdditionalHeader);
 
                 m_logger.LogInformation("Server - SESSION ACTIVATED.");
