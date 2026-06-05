@@ -388,6 +388,86 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a binding to use for discovering servers through a shared channel manager.
+        /// </summary>
+        /// <param name="manager">The client channel manager used to acquire the shared channel.</param>
+        /// <param name="discoveryUrl">The discovery URL.</param>
+        /// <param name="endpointConfiguration">The endpoint configuration.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="returnDiagnostics">Diagnostics to return for each request.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A discovery client bound to a managed channel lease.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/>, <paramref name="discoveryUrl"/> or <paramref name="telemetry"/> is <c>null</c>.
+        /// </exception>
+        public static Task<DiscoveryClient> CreateAsync(
+            IClientChannelManager manager,
+            Uri discoveryUrl,
+            EndpointConfiguration? endpointConfiguration,
+            ITelemetryContext telemetry,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (discoveryUrl == null)
+            {
+                throw new ArgumentNullException(nameof(discoveryUrl));
+            }
+
+            ConfiguredEndpoint endpoint = CreateDiscoveryEndpoint(discoveryUrl, endpointConfiguration);
+            return CreateAsync(manager, endpoint, telemetry, returnDiagnostics, ct);
+        }
+
+        /// <summary>
+        /// Creates a binding to use for discovering servers through a shared channel manager.
+        /// </summary>
+        /// <param name="manager">The client channel manager used to acquire the shared channel.</param>
+        /// <param name="endpoint">The configured endpoint used to acquire the shared channel.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="returnDiagnostics">Diagnostics to return for each request.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A discovery client bound to a managed channel lease.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/>, <paramref name="endpoint"/> or <paramref name="telemetry"/> is <c>null</c>.
+        /// </exception>
+        public static async Task<DiscoveryClient> CreateAsync(
+            IClientChannelManager manager,
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            var participant = new ClientChannelReconnectParticipant(
+                nameof(DiscoveryClient),
+                endpoint);
+            IManagedTransportChannel channel = await manager.GetAsync(participant, ct).ConfigureAwait(false);
+            try
+            {
+                return new DiscoveryClient(channel, telemetry)
+                {
+                    ReturnDiagnostics = returnDiagnostics
+                };
+            }
+            catch
+            {
+                channel.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
@@ -501,6 +581,26 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
 
             return (response.Servers, response.LastCounterResetTime);
+        }
+
+        private static ConfiguredEndpoint CreateDiscoveryEndpoint(
+            Uri discoveryUrl,
+            EndpointConfiguration? endpointConfiguration)
+        {
+            endpointConfiguration ??= EndpointConfiguration.Create();
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = discoveryUrl.OriginalString,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            return new ConfiguredEndpoint(null, endpoint, endpointConfiguration)
+            {
+                UpdateBeforeConnect = false
+            };
         }
 
         /// <summary>

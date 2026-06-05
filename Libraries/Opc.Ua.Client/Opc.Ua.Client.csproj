@@ -24,6 +24,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.TestFramework" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />
@@ -35,6 +36,9 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />

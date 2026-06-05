@@ -59,6 +59,10 @@ namespace Opc.Ua.Client
     /// already runs its own reconnect state machine.
     /// </para>
     /// </remarks>
+    [Obsolete("Use ManagedSession (with optional WithChannelManager) for managed " +
+        "reconnect. Channel-level reconnect is now coordinated centrally via " +
+        "IClientChannelManager. SessionReconnectHandler remains functional for " +
+        "back-compat with existing callers that drive a raw Session directly.")]
     public class SessionReconnectHandler : IDisposable
     {
         /// <summary>
@@ -506,7 +510,9 @@ namespace Opc.Ua.Client
                                 current.Endpoint.Server.ApplicationUri)
                             .ConfigureAwait(false);
 
+#pragma warning disable CS0618 // legacy reverse-connect reconnect path
                         await current.ReconnectAsync(connection).ConfigureAwait(false);
+#pragma warning restore CS0618
                     }
                     else
                     {
@@ -559,7 +565,9 @@ namespace Opc.Ua.Client
                         else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
                         {
                             transportChannel = Session.NullableTransportChannel;
+#pragma warning disable CS0618 // legacy reconnect flow still uses Detach to keep channel
                             Session.DetachChannel();
+#pragma warning restore CS0618
                         }
                         else
                         {

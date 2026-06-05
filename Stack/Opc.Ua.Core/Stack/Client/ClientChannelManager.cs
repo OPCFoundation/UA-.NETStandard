@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// Client side transport channel factory. Manages creation
     /// of transport channels for clients.
     /// </summary>
-    public sealed class ClientChannelManager : ITransportChannelManager
+    public sealed partial class ClientChannelManager : IClientChannelManager, IAsyncDisposable
     {
         /// <summary>
         /// Callback to register channel diagnostics
@@ -60,6 +60,7 @@ namespace Opc.Ua
         {
             m_configuration = configuration;
             m_channelFactory = channelFactory;
+            WireCertificateRotation();
         }
 
         /// <inheritdoc/>
@@ -71,6 +72,8 @@ namespace Opc.Ua
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             // initialize the channel which will be created with the server.
             ITransportChannel channel;
             if (connection != null)

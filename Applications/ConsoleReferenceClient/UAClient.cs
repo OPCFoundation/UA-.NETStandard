@@ -27,8 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CS0618: this sample retains SessionReconnectHandler for back-compat
+// demonstration; new code should use ManagedSession with channel manager.
+#pragma warning disable CS0618
+
 using System;
-using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -356,7 +359,9 @@ namespace Quickstarts
                     {
                         // detach the channel, so it doesn't get
                         // closed when the session is disposed.
+#pragma warning disable CS0618 // sample legacy path
                         Session.DetachChannel();
+#pragma warning restore CS0618
                     }
                     Session.Dispose();
                     // Transiently null after dispose; matches pre-NRT behavior.

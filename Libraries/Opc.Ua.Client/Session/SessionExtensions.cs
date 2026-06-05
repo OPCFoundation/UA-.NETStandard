@@ -126,8 +126,16 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reconnects to the server on a waiting connection
+        /// Reconnects to the server on a waiting connection.
         /// </summary>
+        /// <remarks>
+        /// Legacy overload that bypasses the central
+        /// <see cref="IClientChannelManager"/>. New code should
+        /// register the session with a channel manager and call
+        /// <c>ReconnectAsync(ct)</c>.
+        /// </remarks>
+        [Obsolete("Use IClientChannelManager.ReconnectAsync(IManagedTransportChannel, ct) " +
+            "for centrally managed reconnect. This overload remains functional for back-compat.")]
         public static Task ReconnectAsync(
             this ISession session,
             ITransportWaitingConnection connection,
@@ -140,6 +148,14 @@ namespace Opc.Ua.Client
         /// Reconnects to the server after a network failure
         /// using a new channel.
         /// </summary>
+        /// <remarks>
+        /// Legacy overload that bypasses the central
+        /// <see cref="IClientChannelManager"/>. New code should
+        /// register the session with a channel manager and call
+        /// <c>ReconnectAsync(ct)</c>.
+        /// </remarks>
+        [Obsolete("Use IClientChannelManager.ReconnectAsync(IManagedTransportChannel, ct) " +
+            "for centrally managed reconnect. This overload remains functional for back-compat.")]
         public static Task ReconnectAsync(
             this ISession session,
             ITransportChannel channel,

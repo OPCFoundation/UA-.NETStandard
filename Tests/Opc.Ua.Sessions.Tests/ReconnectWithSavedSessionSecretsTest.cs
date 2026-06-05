@@ -316,7 +316,9 @@ namespace Opc.Ua.Sessions.Tests
             session2.RenewUserIdentity += (_, _) => userIdentity;
 
             // activate the session from saved session secrets on the new channel
+#pragma warning disable CS0618 // Test covers the legacy saved-session reactivation path.
             await session2.ReconnectAsync(channel2).ConfigureAwait(false);
+#pragma warning restore CS0618
 
             // reactivate restored subscriptions
             bool reactivateResult = await session2

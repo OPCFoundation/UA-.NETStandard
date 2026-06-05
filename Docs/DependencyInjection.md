@@ -557,6 +557,39 @@ when the server initiates the session. The
 `ReverseConnect` configuration is also consumed by `Session` /
 `SessionReconnectHandler` for reconnect-via-reverse-hello scenarios.
 
+## Channel manager
+
+`AddClient(...)` automatically registers an `IClientChannelManager`
+singleton (`ClientChannelManager` implementation) built from
+`OpcUaClientOptions.Configuration`. The
+`Func<CancellationToken, Task<ManagedSession>>` delegate wires this
+manager into every new `ManagedSession` it creates, so multiple
+`ManagedSession` instances resolved from the same DI container will
+share underlying transport channels per
+`ConfiguredEndpoint`. Reconnect is coalesced and notified to attached
+sessions transparently. On .NET 8 and later, HTTPS transport channels
+also get the named `IHttpClientFactory` client (`Opc.Ua.Client`) and its
+standard resilience handler through `AddClient(...)`. See
+[Sessions and reconnect § 4](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
+for details on identity, retry policy, HTTPS request resilience, and the
+shared retry budget between channel-manager reconnect and
+`ManagedSession`'s outer `IReconnectPolicy`.
+
+To override the default channel manager (e.g. to inject a custom
+`IChannelReconnectPolicy`):
+
+```csharp
+services.AddOpcUa().AddClient(opt => { ... });
+services.Replace(ServiceDescriptor.Singleton<IClientChannelManager>(sp =>
+    new ClientChannelManager(
+        sp.GetRequiredService<OpcUaClientOptions>().Configuration!,
+        sp.GetRequiredService<ITelemetryContext>(),
+        reconnectPolicy: new ExponentialBackoffChannelReconnectPolicy
+        {
+            MaxAttempts = 5
+        })));
+```
+
 ## Application instance (advanced)
 
 ```csharp

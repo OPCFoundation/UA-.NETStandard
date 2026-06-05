@@ -86,6 +86,73 @@ namespace Opc.Ua.Gds.Client
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
+        /// <summary>
+        /// Creates and connects a push configuration client using a shared channel manager.
+        /// </summary>
+        /// <param name="manager">The client channel manager used to acquire the session channel.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="endpoint">The configured endpoint to connect to.</param>
+        /// <param name="options">Client options. Defaults are used when null.</param>
+        /// <param name="adminCredentials">The administrator credentials.</param>
+        /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
+        /// <param name="timeProvider">Optional time provider used for connect-retry backoff delays.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A connected push configuration client.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/>, <paramref name="configuration"/> or <paramref name="endpoint"/> is <c>null</c>.
+        /// </exception>
+        public static async Task<ServerPushConfigurationClient> CreateAsync(
+            IClientChannelManager manager,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            GdsClientOptions? options = null,
+            IUserIdentity? adminCredentials = null,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None,
+            TimeProvider? timeProvider = null,
+            CancellationToken ct = default)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            var sessionFactory = new ChannelManagerSessionFactory(
+                manager,
+                messageContext.Telemetry,
+                diagnosticsMasks,
+                timeProvider);
+            var client = new ServerPushConfigurationClient(
+                configuration,
+                options,
+                sessionFactory,
+                diagnosticsMasks,
+                timeProvider)
+            {
+                AdminCredentials = adminCredentials,
+                Endpoint = endpoint
+            };
+
+            try
+            {
+                await client.ConnectAsync(endpoint, ct).ConfigureAwait(false);
+                return client;
+            }
+            catch
+            {
+                await client.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
         public NodeId DefaultApplicationGroup { get; private set; }
         public NodeId DefaultHttpsGroup { get; private set; }
         public NodeId DefaultUserTokenGroup { get; private set; }

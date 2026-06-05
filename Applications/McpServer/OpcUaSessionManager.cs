@@ -27,6 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CS0618: legacy SessionReconnectHandler is intentionally retained in this
+// sample for now; replacing it with ManagedSession / channel manager is a
+// follow-up. Suppress at file scope.
+#pragma warning disable CS0618
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

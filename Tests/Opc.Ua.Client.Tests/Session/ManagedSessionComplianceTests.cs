@@ -234,6 +234,112 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public void ChannelStateChangedForwardsManagedChannelTransitions()
+        {
+            SessionMock innerSession = SessionMock.Create();
+            innerSession.SetConnected();
+            Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
+                out Action<ChannelStateChange> raiseStateChanged);
+            using ManagedSessionClass managedSession = CreateManagedSessionWithInner(
+                innerSession,
+                channel.Object);
+            var observedChanges = new List<ChannelStateChange>();
+            ManagedSessionClass observedSender = null;
+
+            managedSession.ChannelStateChanged += (sender, change) =>
+            {
+                observedSender = sender;
+                observedChanges.Add(change);
+            };
+
+            ChannelStateChange[] changes =
+            [
+                new(ChannelState.Disconnected, ChannelState.TransportConnecting, null, 0),
+                new(ChannelState.TransportConnecting, ChannelState.Ready, null, 0),
+                new(
+                    ChannelState.Ready,
+                    ChannelState.TransportReconnecting,
+                    new ServiceResult(StatusCodes.BadCommunicationError),
+                    1),
+                new(
+                    ChannelState.TransportReconnecting,
+                    ChannelState.TransportConnectedSessionReactivating,
+                    null,
+                    1),
+                new(
+                    ChannelState.TransportConnectedSessionReactivating,
+                    ChannelState.Ready,
+                    null,
+                    0),
+                new(
+                    ChannelState.Ready,
+                    ChannelState.Faulted,
+                    new ServiceResult(StatusCodes.BadSecureChannelClosed),
+                    2),
+                new(ChannelState.Faulted, ChannelState.Closed, null, 0)
+            ];
+
+            foreach (ChannelStateChange change in changes)
+            {
+                raiseStateChanged(change);
+            }
+
+            Assert.That(observedChanges, Is.EqualTo(changes));
+            Assert.That(observedSender, Is.SameAs(managedSession));
+        }
+
+        [Test]
+        public void ChannelStateChangedDoesNotFireWithoutManagedChannel()
+        {
+            int invocations = 0;
+            m_managedSession.ChannelStateChanged += (_, _) => invocations++;
+
+            RaiseKeepAliveOnInner(
+                m_innerSession,
+                new ServiceResult(StatusCodes.BadCommunicationError));
+
+            Assert.That(m_innerSession.ManagedChannel, Is.Null);
+            Assert.That(invocations, Is.Zero);
+        }
+
+        [Test]
+        public void ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
+        {
+            SessionMock innerSession = SessionMock.Create();
+            innerSession.SetConnected();
+            Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
+                out Action<ChannelStateChange> raiseStateChanged);
+            using ManagedSessionClass managedSession = CreateManagedSessionWithInner(
+                innerSession,
+                channel.Object);
+            ConnectionStateChangedEventArgs observedArgs = null;
+            var error = new ServiceResult(StatusCodes.BadSecureChannelClosed);
+            var channelChange = new ChannelStateChange(
+                ChannelState.Ready,
+                ChannelState.Faulted,
+                error,
+                3);
+
+            SetStateMachineState(
+                managedSession.StateMachine,
+                ConnectionState.Connected);
+            managedSession.ConnectionStateChanged += (_, e) =>
+            {
+                if (e.NewState == ConnectionState.Reconnecting)
+                {
+                    observedArgs = e;
+                }
+            };
+
+            raiseStateChanged(channelChange);
+
+            Assert.That(observedArgs, Is.Not.Null);
+            Assert.That(observedArgs.Error, Is.SameAs(error));
+            Assert.That(observedArgs.UnderlyingChannelState.HasValue, Is.True);
+            Assert.That(observedArgs.UnderlyingChannelState.Value, Is.EqualTo(channelChange));
+        }
+
+        [Test]
         public void NotificationEventForwardsToConsumer()
         {
             bool fired = false;
@@ -578,7 +684,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         /// the async factory that needs a real server.
         /// </summary>
         private static ManagedSessionClass
-            CreateManagedSessionWithInner(Session innerSession)
+            CreateManagedSessionWithInner(
+                Session innerSession,
+                IManagedTransportChannel managedChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger<ManagedSessionClass> logger = telemetry.CreateLogger<ManagedSessionClass>();
@@ -622,7 +730,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         typeof(uint),
                         typeof(bool),
                         typeof(bool),
-                        typeof(bool)
+                        typeof(bool),
+                        typeof(IClientChannelManager)
                     ],
                     null);
 
@@ -645,8 +754,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     60000u,
                     false,
                     false,
-                    false
+                    false,
+                    null
                 ]);
+
+            if (managedChannel != null)
+            {
+                var channelManager = new Mock<IClientChannelManager>();
+                innerSession.BindManagedChannel(
+                    channelManager.Object,
+                    managedChannel);
+            }
 
             // Inject the inner session.
             typeof(ManagedSessionClass)
@@ -666,7 +784,30 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return managed;
         }
 
-        private static void RaiseKeepAliveOnInner(Session session)
+        private static Mock<IManagedTransportChannel> CreateManagedChannelMock(
+            out Action<ChannelStateChange> raiseStateChanged)
+        {
+            var channel = new Mock<IManagedTransportChannel>();
+            raiseStateChanged = change => channel.Raise(
+                c => c.StateChanged += null,
+                channel.Object,
+                change);
+            return channel;
+        }
+
+        private static void SetStateMachineState(
+            ConnectionStateMachine stateMachine,
+            ConnectionState state)
+        {
+            FieldInfo field = typeof(ConnectionStateMachine).GetField(
+                "m_state",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            field.SetValue(stateMachine, state);
+        }
+
+        private static void RaiseKeepAliveOnInner(
+            Session session,
+            ServiceResult status = null)
         {
             FieldInfo field = typeof(Session).GetField(
                 "m_KeepAlive",
@@ -675,7 +816,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             handler?.Invoke(
                 session,
                 new KeepAliveEventArgs(
-                    null, ServerState.Running, DateTime.UtcNow));
+                    status, ServerState.Running, DateTime.UtcNow));
         }
 
         private static void RaiseNotificationOnInner(Session session)

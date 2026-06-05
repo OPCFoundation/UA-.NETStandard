@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CS0618: legacy SessionReconnectHandler retained for back-compat demo
+#pragma warning disable CS0618
+
 using System;
 using System.Collections.Generic;
 using System.IO;

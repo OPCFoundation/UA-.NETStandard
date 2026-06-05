@@ -28,8 +28,17 @@
  * ======================================================================*/
 
 using System;
+#if NET8_0_OR_GREATER
+using System.Net.Http;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
+#if NET8_0_OR_GREATER
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Http.Resilience;
+using Opc.Ua.Bindings;
+#endif
 using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
@@ -59,6 +68,10 @@ namespace Opc.Ua.Client
         private IReconnectPolicy? m_reconnectPolicy;
         private IServerRedundancyHandler? m_redundancyHandler;
         private ISessionFactory? m_sessionFactory;
+        private IClientChannelManager? m_channelManager;
+#if NET8_0_OR_GREATER
+        private Action<HttpStandardResilienceOptions>? m_httpsResilience;
+#endif
 
         /// <summary>
         /// Initializes a new builder.
@@ -237,6 +250,34 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Use a central <see cref="IClientChannelManager"/> so that
+        /// multiple sessions to the same endpoint share one underlying
+        /// transport channel and reconnect is coordinated centrally.
+        /// </summary>
+        /// <param name="channelManager">The channel manager.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public ManagedSessionBuilder WithChannelManager(IClientChannelManager channelManager)
+        {
+            m_channelManager = channelManager
+                ?? throw new ArgumentNullException(nameof(channelManager));
+            return this;
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Configure the standard HTTP resilience handler used by HTTPS transport channels.
+        /// </summary>
+        /// <param name="configure">The HTTP resilience configuration delegate.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithHttpsResilience(Action<HttpStandardResilienceOptions> configure)
+        {
+            m_httpsResilience = configure
+                ?? throw new ArgumentNullException(nameof(configure));
+            return this;
+        }
+#endif
+
+        /// <summary>
         /// Enable server redundancy with a default handler.
         /// </summary>
         public ManagedSessionBuilder WithServerRedundancy()
@@ -279,7 +320,7 @@ namespace Opc.Ua.Client
         /// transfer existing server-side subscriptions from the
         /// previous session to the new one on each session re-create
         /// (e.g. failover via
-        /// <see cref="Session.RecreateInPlaceAsync"/>) and falls back
+        /// <c>Session.RecreateInPlaceAsync</c>) and falls back
         /// to per-subscription recreate when transfer is not
         /// available. Disabled by default — recreate is the
         /// universal, server-agnostic fallback; transfer requires
@@ -398,6 +439,22 @@ namespace Opc.Ua.Client
                     ? new DefaultServerRedundancyHandler()
                     : null);
 
+            IClientChannelManager? channelManager = m_channelManager;
+#if NET8_0_OR_GREATER
+#pragma warning disable CA2000 // Ownership follows the managed session lifetime; TODO: model owned disposal explicitly.
+            if (channelManager == null && m_httpsResilience != null)
+            {
+                ServiceProviderHttpClientFactory httpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
+                channelManager = new ClientChannelManager(
+                    m_configuration,
+                    m_telemetry,
+                    new HttpsTransportChannelBindings(httpClientFactory),
+                    reconnectPolicy: null,
+                    timeProvider: opts.TimeProvider);
+            }
+#pragma warning restore CA2000
+#endif
+
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)
             {
@@ -429,6 +486,7 @@ namespace Opc.Ua.Client
                 opts.PoolNotifications,
                 opts.IdentityProvider,
                 opts.TimeProvider,
+                channelManager,
                 ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)
@@ -438,5 +496,50 @@ namespace Opc.Ua.Client
 
             return session;
         }
+
+#if NET8_0_OR_GREATER
+        private static ServiceProviderHttpClientFactory CreateHttpsHttpClientFactory(
+            Action<HttpStandardResilienceOptions> configure)
+        {
+            var services = new ServiceCollection();
+            services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
+                .AddStandardResilienceHandler(configure);
+            services.TryAddSingleton<IOpcUaHttpClientFactory, DefaultOpcUaHttpClientFactory>();
+
+            ServiceProvider serviceProvider = services.BuildServiceProvider();
+            try
+            {
+                return new ServiceProviderHttpClientFactory(serviceProvider);
+            }
+            catch
+            {
+                serviceProvider.Dispose();
+                throw;
+            }
+        }
+
+        private sealed class ServiceProviderHttpClientFactory : IOpcUaHttpClientFactory, IDisposable
+        {
+            public ServiceProviderHttpClientFactory(ServiceProvider serviceProvider)
+            {
+                m_serviceProvider = serviceProvider
+                    ?? throw new ArgumentNullException(nameof(serviceProvider));
+                m_httpClientFactory = serviceProvider.GetRequiredService<IOpcUaHttpClientFactory>();
+            }
+
+            public HttpClient CreateClient(string name)
+            {
+                return m_httpClientFactory.CreateClient(name);
+            }
+
+            public void Dispose()
+            {
+                m_serviceProvider.Dispose();
+            }
+
+            private readonly ServiceProvider m_serviceProvider;
+            private readonly IOpcUaHttpClientFactory m_httpClientFactory;
+        }
+#endif
     }
 }

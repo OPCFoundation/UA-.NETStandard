@@ -33,6 +33,9 @@
       </ItemGroup>
     </Otherwise>
   </Choose>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>

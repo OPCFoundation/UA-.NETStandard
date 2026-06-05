@@ -44,10 +44,38 @@ namespace Opc.Ua.Gds.Client
         public LocalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            : this(configuration, channelManager: null, diagnosticsMasks, useChannelManager: false)
+        {
+        }
+
+        /// <summary>
+        /// Create local discovery client that acquires discovery channels from a channel manager.
+        /// </summary>
+        /// <param name="configuration">Application configuration to use.</param>
+        /// <param name="channelManager">The channel manager used for discovery requests.</param>
+        /// <param name="diagnosticsMasks">The return diagnostics for all discovery requests.</param>
+        public LocalDiscoveryServerClient(
+            ApplicationConfiguration configuration,
+            IClientChannelManager channelManager,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            : this(
+                  configuration,
+                  channelManager ?? throw new ArgumentNullException(nameof(channelManager)),
+                  diagnosticsMasks,
+                  useChannelManager: true)
+        {
+        }
+
+        private LocalDiscoveryServerClient(
+            ApplicationConfiguration configuration,
+            IClientChannelManager? channelManager,
+            DiagnosticsMasks diagnosticsMasks,
+            bool useChannelManager)
         {
             ApplicationConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             DiagnosticsMasks = diagnosticsMasks;
             MessageContext = configuration.CreateMessageContext();
+            m_channelManager = useChannelManager ? channelManager : null;
 
             // set some defaults for the preferred locales.
             System.Globalization.CultureInfo culture = System.Globalization.CultureInfo
@@ -70,6 +98,33 @@ namespace Opc.Ua.Gds.Client
             PreferredLocales = [.. locales];
         }
 
+        /// <summary>
+        /// Creates a local discovery client that uses a shared channel manager for discovery requests.
+        /// </summary>
+        /// <param name="manager">The client channel manager used to acquire discovery channels.</param>
+        /// <param name="configuration">Application configuration to use.</param>
+        /// <param name="diagnosticsMasks">The return diagnostics for all discovery requests.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A local discovery server client.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/> or <paramref name="configuration"/> is <c>null</c>.
+        /// </exception>
+        public static Task<LocalDiscoveryServerClient> CreateAsync(
+            IClientChannelManager manager,
+            ApplicationConfiguration configuration,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+
+            ct.ThrowIfCancellationRequested();
+            var client = new LocalDiscoveryServerClient(configuration, manager, diagnosticsMasks);
+            return Task.FromResult(client);
+        }
+
         public ApplicationConfiguration ApplicationConfiguration { get; }
         public DiagnosticsMasks DiagnosticsMasks { get; }
         public IServiceMessageContext MessageContext { get; }
@@ -89,7 +144,7 @@ namespace Opc.Ua.Gds.Client
             string? endpointTransportProfileUri,
             CancellationToken ct = default)
         {
-            DiscoveryClient client = await CreateClientAsync(
+            using DiscoveryClient client = await CreateClientAsync(
                 endpointUrl,
                 endpointTransportProfileUri,
                 ct).ConfigureAwait(false);
@@ -114,7 +169,8 @@ namespace Opc.Ua.Gds.Client
             string? endpointTransportProfileUri,
             CancellationToken ct = default)
         {
-            DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct).ConfigureAwait(false);
+            using DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct)
+                .ConfigureAwait(false);
 
             GetEndpointsResponse response = await client.GetEndpointsAsync(
                 null,
@@ -149,7 +205,8 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilityFilters,
             CancellationToken ct = default)
         {
-            DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct).ConfigureAwait(false);
+            using DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct)
+                .ConfigureAwait(false);
 
             FindServersOnNetworkResponse response = await client.FindServersOnNetworkAsync(
                 null,
@@ -183,6 +240,17 @@ namespace Opc.Ua.Gds.Client
                 configuration.OperationTimeout = DefaultOperationTimeout;
             }
 
+            if (m_channelManager != null)
+            {
+                return DiscoveryClient.CreateAsync(
+                    m_channelManager,
+                    new Uri(endpointUrl),
+                    configuration,
+                    MessageContext.Telemetry,
+                    DiagnosticsMasks,
+                    ct);
+            }
+
             return DiscoveryClient.CreateAsync(
                 ApplicationConfiguration,
                 new Uri(endpointUrl),
@@ -211,6 +279,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         private readonly CancellationTokenSource m_disposeCts = new();
+        private readonly IClientChannelManager? m_channelManager;
         private bool m_disposed;
         private const string kDefaultUrl = "opc.tcp://localhost:4840";
     }

@@ -30,6 +30,9 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+// CS0618: legacy AttachChannel/DetachChannel paths are explicitly tested here to keep
+// back-compat behavior validated; suppression is intentional for these legacy tests.
+#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
