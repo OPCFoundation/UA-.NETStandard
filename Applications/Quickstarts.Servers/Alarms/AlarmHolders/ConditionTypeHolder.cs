@@ -81,6 +81,7 @@ namespace Alarms
             alarm.BranchId!.Value = new NodeId();
             alarm.Retain!.Value = false;
 
+            EnsureTransitionTime(alarm.EnabledState!);
             alarm.SetEnableState(SystemContext, true);
             alarm.Quality!.Value = StatusCodes.Good;
             alarm.LastSeverity!.Value = AlarmDefines.INACTIVE_SEVERITY;
@@ -338,22 +339,23 @@ namespace Alarms
 
         protected bool CanSetComment(LocalizedText comment)
         {
-            bool canSetComment = false;
+            bool emptyComment = string.IsNullOrEmpty(comment.Text);
+            bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
 
-            if (!comment.IsNullOrEmpty)
+            return !(emptyComment && emptyLocale);
+        }
+
+        protected static void EnsureTransitionTime(TwoStateVariableState state)
+        {
+            if (state.TransitionTime == null)
             {
-                canSetComment = true;
-
-                bool emptyComment = string.IsNullOrEmpty(comment.Text);
-                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
-
-                if (emptyComment && emptyLocale)
-                {
-                    canSetComment = false;
-                }
+                state.TransitionTime = PropertyState<DateTimeUtc>.With<VariantBuilder>(state);
+                state.TransitionTime.SymbolicName = BrowseNames.TransitionTime;
+                state.TransitionTime.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+                state.TransitionTime.TypeDefinitionId = VariableTypeIds.PropertyType;
+                state.TransitionTime.BrowseName = new QualifiedName(BrowseNames.TransitionTime);
+                state.TransitionTime.DisplayName = new LocalizedText(BrowseNames.TransitionTime);
             }
-
-            return canSetComment;
         }
 
         protected virtual bool GetRetainState()

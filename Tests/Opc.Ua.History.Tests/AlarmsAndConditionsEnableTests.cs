@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -141,6 +142,42 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
+        [Property("ConformanceUnit", "A and C Enable")]
+        [Property("Tag", "Test_002")]
+        public async Task DisableEnableViaTypeAndInstanceMethodNoEventsDuringDisabledAsync()
+        {
+            NodeId alarmId = RequireCttAlarm("AlarmConditionType");
+            await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
+
+            NodeId instanceDisable = await FindInstanceMethodAsync(alarmId, BrowseNames.Disable)
+                .ConfigureAwait(false);
+            NodeId instanceEnable = await FindInstanceMethodAsync(alarmId, BrowseNames.Enable)
+                .ConfigureAwait(false);
+            if (instanceDisable.IsNull || instanceEnable.IsNull)
+            {
+                Assert.Inconclusive(
+                    "The alarm instance does not expose instance-level Enable/Disable methods.");
+            }
+
+            await using AlarmEventCollector collector =
+                await AlarmEventCollector.CreateAsync(Session).ConfigureAwait(false);
+
+            await VerifyDisableEnableCycleAsync(
+                collector,
+                alarmId,
+                MethodIds.ConditionType_Disable,
+                MethodIds.ConditionType_Enable).ConfigureAwait(false);
+
+            await VerifyDisableEnableCycleAsync(
+                collector,
+                alarmId,
+                instanceDisable,
+                instanceEnable).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Property("ConformanceUnit", "A and C Enable")]
+        [Property("Tag", "N/A")]
         public async Task ErrEnableWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
@@ -202,6 +239,99 @@ namespace Opc.Ua.History.Tests
                 callResult.StatusCode == StatusCodes.BadConditionAlreadyDisabled ||
                 StatusCode.IsBad(callResult.StatusCode), Is.True,
                 $"Disable on an already-disabled condition should fail: {callResult.StatusCode}");
+        }
+
+        private async Task VerifyDisableEnableCycleAsync(
+            AlarmEventCollector collector,
+            NodeId alarmId,
+            NodeId disableMethodId,
+            NodeId enableMethodId)
+        {
+            collector.Reset();
+            DateTime disableStart = DateTime.UtcNow;
+            CallMethodResult disable = await CallMethodOnAlarmAsync(
+                alarmId,
+                disableMethodId).ConfigureAwait(false);
+            DateTime disableEnd = DateTime.UtcNow;
+            Assert.That(StatusCode.IsGood(disable.StatusCode), Is.True,
+                $"Disable should succeed: {disable.StatusCode}");
+
+            EventFieldList disableEvent = await collector.WaitForEventAsync(
+                alarmId,
+                e => AlarmEventCollector.TryGetBoolean(
+                    e,
+                    AlarmEventCollector.FieldIndex.EnabledStateId,
+                    out bool enabled) && !enabled,
+                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            AssertTransitionTimeInCallWindow(
+                disableEvent,
+                AlarmEventCollector.FieldIndex.EnabledStateTransitionTime,
+                disableStart,
+                disableEnd,
+                "Disable");
+            AssertEventRetain(disableEvent, expected: false, "Disable should clear Retain.");
+
+            collector.Reset();
+            await WriteAlarmSourceValueAsync(alarmId, new Variant(90)).ConfigureAwait(false);
+            await Task.Delay(1000).ConfigureAwait(false);
+            Assert.That(collector.HasEvents(alarmId), Is.False,
+                "No condition events should be emitted while the condition is disabled.");
+
+            DateTime enableStart = DateTime.UtcNow;
+            CallMethodResult enable = await CallMethodOnAlarmAsync(
+                alarmId,
+                enableMethodId).ConfigureAwait(false);
+            DateTime enableEnd = DateTime.UtcNow;
+            Assert.That(StatusCode.IsGood(enable.StatusCode), Is.True,
+                $"Enable should succeed: {enable.StatusCode}");
+
+            EventFieldList enableEvent = await collector.WaitForEventAsync(
+                alarmId,
+                e => AlarmEventCollector.TryGetBoolean(
+                    e,
+                    AlarmEventCollector.FieldIndex.EnabledStateId,
+                    out bool enabled) && enabled,
+                TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            AssertTransitionTimeInCallWindow(
+                enableEvent,
+                AlarmEventCollector.FieldIndex.EnabledStateTransitionTime,
+                enableStart,
+                enableEnd,
+                "Enable");
+            AssertEventRetain(enableEvent, expected: true,
+                "Enable should restore Retain when the source changed to an active alarm while disabled.");
+
+            await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
+        }
+
+        private static void AssertTransitionTimeInCallWindow(
+            EventFieldList eventFields,
+            AlarmEventCollector.FieldIndex fieldIndex,
+            DateTime start,
+            DateTime end,
+            string operation)
+        {
+            Assert.That(
+                AlarmEventCollector.TryGetDateTime(eventFields, fieldIndex, out DateTime transitionTime),
+                Is.True,
+                $"{operation} event should include TransitionTime.");
+            Assert.That(transitionTime, Is.GreaterThanOrEqualTo(start.AddSeconds(-1)));
+            Assert.That(transitionTime, Is.LessThanOrEqualTo(end.AddSeconds(1)));
+        }
+
+        private static void AssertEventRetain(
+            EventFieldList eventFields,
+            bool expected,
+            string message)
+        {
+            Assert.That(
+                AlarmEventCollector.TryGetBoolean(
+                    eventFields,
+                    AlarmEventCollector.FieldIndex.Retain,
+                    out bool retain),
+                Is.True,
+                "Event should include Retain.");
+            Assert.That(retain, Is.EqualTo(expected), message);
         }
     }
 }

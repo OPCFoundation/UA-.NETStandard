@@ -549,7 +549,7 @@ namespace Quickstarts.ReferenceServer
         }
 
         private static void ConfigurePubSubMetadataNode(
-            NodeState node,
+            NodeState? node,
             ArrayOf<RolePermissionType> rolePermissions)
         {
             if (node == null)
