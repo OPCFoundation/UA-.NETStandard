@@ -1539,18 +1539,29 @@ namespace Opc.Ua.Server
                         }
                     }
 
+                    TimeSpan gracePeriod = ApplyChangesGracePeriod;
+                    if (gracePeriod < TimeSpan.Zero)
+                    {
+                        gracePeriod = TimeSpan.Zero;
+                    }
+
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Apply Changes for application certificate scheduled in {Grace} ms...",
-                        kApplyChangesGracePeriod.TotalMilliseconds);
+                        gracePeriod.TotalMilliseconds);
 
                     // Give the client a chance to receive the
                     // ApplyChanges response before cutting its channel.
                     // OPC UA Part 12 §7.10.9 requires the response is
                     // returned first; without a transport-level
                     // "response flushed" hook this grace period is the
-                    // pragmatic compromise.
-                    await m_timeProvider.Delay(kApplyChangesGracePeriod)
+                    // pragmatic compromise. The grace period itself is
+                    // configurable via ApplyChangesGracePeriod so hosts
+                    // running over high-latency links can tune it.
+                    // TODO: implement a transport-level
+                    // "response-flushed" callback so this can be
+                    // deterministic without relying on a fixed delay.
+                    await m_timeProvider.Delay(gracePeriod)
                         .ConfigureAwait(false);
 
                     m_logger.LogInformation(
@@ -2139,7 +2150,11 @@ namespace Opc.Ua.Server
         private readonly Lock m_namespaceMetadataStatesLock = new();
         private readonly Lock m_pendingApplyChangesLock = new();
         private Task m_pendingApplyChangesTask = Task.CompletedTask;
-        private static readonly TimeSpan kApplyChangesGracePeriod = TimeSpan.FromMilliseconds(250);
+
+        /// <inheritdoc/>
+        public TimeSpan ApplyChangesGracePeriod { get; set; }
+            = TimeSpan.FromMilliseconds(250);
+
         private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
     }
 }
