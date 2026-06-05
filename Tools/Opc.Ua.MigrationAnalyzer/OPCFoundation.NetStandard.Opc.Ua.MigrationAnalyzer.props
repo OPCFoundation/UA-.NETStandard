@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Auto-imported into consumer csproj when this NuGet package is installed.
+    Performs two jobs:
+    1. Adds the analyzer DLL as an <Analyzer> item. NuGet restore does not
+       auto-register analyzers/dotnet/cs/ from hand-authored .nuspec packages
+       (the SDK-pack flow does, but we use NuspecFile mode). Injecting the
+       <Analyzer> here works around that.
+    2. (Future) Could add per-rule MSBuild flags or severity overrides.
+  -->
+  <ItemGroup>
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.Generator.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.Generator.dll')" />
+  </ItemGroup>
+</Project>

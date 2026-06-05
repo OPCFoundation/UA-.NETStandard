@@ -133,7 +133,7 @@ namespace Opc.Ua
     /// </summary>
     public static class DataValueObsolete
     {
-        extension(ExtensionObject)
+        extension(DataValue)
         {
             /// <summary>
             /// Returns true if the status code is good.
