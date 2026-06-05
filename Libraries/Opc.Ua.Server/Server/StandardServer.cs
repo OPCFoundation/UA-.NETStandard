@@ -1071,6 +1071,300 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public override async ValueTask<AddNodesResponse> AddNodesAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            ArrayOf<AddNodesItem> nodesToAdd,
+            RequestLifetime requestLifetime)
+        {
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.AddNodes,
+                requestLifetime).ConfigureAwait(false);
+
+            try
+            {
+                ValidateOperationLimits(nodesToAdd, OperationLimits.MaxNodesPerNodeManagement);
+
+                (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                    await ServerInternal.NodeManager.AddNodesAsync(
+                        context,
+                        nodesToAdd,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+
+                StatusCode auditStatus = AggregateStatusCode(results);
+                ServerInternal.ReportAuditAddNodesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    nodesToAdd,
+                    "NodeManagement/AddNodes",
+                    auditStatus,
+                    m_logger);
+
+                return new AddNodesResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditAddNodesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    nodesToAdd,
+                    "NodeManagement/AddNodes",
+                    e.StatusCode,
+                    m_logger);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask<DeleteNodesResponse> DeleteNodesAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            ArrayOf<DeleteNodesItem> nodesToDelete,
+            RequestLifetime requestLifetime)
+        {
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.DeleteNodes,
+                requestLifetime).ConfigureAwait(false);
+
+            try
+            {
+                ValidateOperationLimits(nodesToDelete, OperationLimits.MaxNodesPerNodeManagement);
+
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                    await ServerInternal.NodeManager.DeleteNodesAsync(
+                        context,
+                        nodesToDelete,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+
+                StatusCode auditStatus = AggregateStatusCode(results);
+                ServerInternal.ReportAuditDeleteNodesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    nodesToDelete,
+                    "NodeManagement/DeleteNodes",
+                    auditStatus,
+                    m_logger);
+
+                return new DeleteNodesResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditDeleteNodesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    nodesToDelete,
+                    "NodeManagement/DeleteNodes",
+                    e.StatusCode,
+                    m_logger);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask<AddReferencesResponse> AddReferencesAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            ArrayOf<AddReferencesItem> referencesToAdd,
+            RequestLifetime requestLifetime)
+        {
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.AddReferences,
+                requestLifetime).ConfigureAwait(false);
+
+            try
+            {
+                ValidateOperationLimits(referencesToAdd, OperationLimits.MaxNodesPerNodeManagement);
+
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                    await ServerInternal.NodeManager.AddReferencesAsync(
+                        context,
+                        referencesToAdd,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+
+                StatusCode auditStatus = AggregateStatusCode(results);
+                ServerInternal.ReportAuditAddReferencesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    referencesToAdd,
+                    "NodeManagement/AddReferences",
+                    auditStatus,
+                    m_logger);
+
+                return new AddReferencesResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditAddReferencesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    referencesToAdd,
+                    "NodeManagement/AddReferences",
+                    e.StatusCode,
+                    m_logger);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            ArrayOf<DeleteReferencesItem> referencesToDelete,
+            RequestLifetime requestLifetime)
+        {
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                RequestType.DeleteReferences,
+                requestLifetime).ConfigureAwait(false);
+
+            try
+            {
+                ValidateOperationLimits(referencesToDelete, OperationLimits.MaxNodesPerNodeManagement);
+
+                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                    await ServerInternal.NodeManager.DeleteReferencesAsync(
+                        context,
+                        referencesToDelete,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+
+                StatusCode auditStatus = AggregateStatusCode(results);
+                ServerInternal.ReportAuditDeleteReferencesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    referencesToDelete,
+                    "NodeManagement/DeleteReferences",
+                    auditStatus,
+                    m_logger);
+
+                return new DeleteReferencesResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditDeleteReferencesEvent(
+                    new ServerSystemContext(ServerInternal, context),
+                    referencesToDelete,
+                    "NodeManagement/DeleteReferences",
+                    e.StatusCode,
+                    m_logger);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Aggregates per-item status codes into a single audit status:
+        /// <see cref="StatusCodes.Good"/> when every item succeeded,
+        /// the first bad status otherwise.
+        /// </summary>
+        private static StatusCode AggregateStatusCode(ArrayOf<StatusCode> results)
+        {
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                StatusCode code = results[ii];
+                if (StatusCode.IsBad(code))
+                {
+                    return code;
+                }
+            }
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Aggregates AddNodes per-item statuses into a single audit status.
+        /// </summary>
+        private static StatusCode AggregateStatusCode(ArrayOf<AddNodesResult> results)
+        {
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                AddNodesResult result = results[ii];
+                if (result == null)
+                {
+                    continue;
+                }
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    return result.StatusCode;
+                }
+            }
+            return StatusCodes.Good;
+        }
+
+        /// <inheritdoc/>
         public override async ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
