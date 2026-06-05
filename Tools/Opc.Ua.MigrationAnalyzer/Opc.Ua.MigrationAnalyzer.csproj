@@ -1,0 +1,109 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer</RootNamespace>
+    <Description>OPC UA .NET Standard migration analyzers and code fixers (1.5.378 to 2.0).</Description>
+    <!-- RS1007: localizable resources not required for internal analyzer messages.
+         RS1038: shipping analyzers + code fixes in one assembly is supported - the
+                 NuGet host provides Workspaces in IDE scenarios, and the analyzer
+                 itself doesn't reference Workspaces types. -->
+    <NoWarn>$(NoWarn);RS1007;RS1038</NoWarn>
+  </PropertyGroup>
+  <!-- Package as analyzer + code-fix provider + multi-TFM shim DLLs.
+       Layout is driven by Opc.Ua.MigrationAnalyzer.nuspec so we can declare the six
+       OPC UA NuGet dependencies without polluting Directory.Packages.props
+       (those packages are outputs of this repo, not inputs at restore time). -->
+  <PropertyGroup>
+    <PackageId>$(PackagePrefix).Opc.Ua.MigrationAnalyzer</PackageId>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>true</IsPackable>
+    <!-- GeneratePackageOnBuild is intentionally NOT enabled: this nuspec lays out
+         multi-TFM Core (shim) DLLs that include net472/net48 heads, which only
+         build on Windows. CI test jobs on Linux/macOS would otherwise fail with
+         "Could not find a part of the path .../bin/Release/net472" when the
+         implicit pack step runs after the analyzer build. The preview.yml
+         pipeline explicitly invokes `dotnet pack` on Windows to produce the
+         shippable nupkg. -->
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- Nuspec-based pack can't auto-author a snupkg from project sources;
+         the analyzer is shipped as a single DLL and consumers don't need symbols. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <NuspecFile>$(MSBuildThisFileDirectory)Opc.Ua.MigrationAnalyzer.nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildThisFileDirectory)</NuspecBasePath>
+    <!-- NuspecProperties is materialized in _SetMigrationAnalyzerNuspecProperties below,
+         after Nerdbank.GitVersioning has populated $(PackageVersion). Setting it
+         here in a static PropertyGroup would capture empty version. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Analyzers must target the stable Microsoft.CodeAnalysis 4.x API surface so
+         they load in csc.exe (SDK 10 ships Roslyn 5.6 compiler, but its analyzer
+         host expects analyzers built against 4.x for forward compatibility). The
+         5.x packages in Directory.Packages.props are the *csc-host* version and
+         are NOT a stable analyzer API. Use VersionOverride to pin per-project. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The build props is referenced in the nuspec; surface it in the IDE too. -->
+    <None Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" Visible="false" Pack="false" />
+    <!-- Roslyn release tracking files. -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+  <!-- The Core (shim) project carries the multi-TFM payload that ships in the
+       nuspec; we need its package restored (for transitive metadata) and we want
+       NuGet to track it as a build dependency for ordering, but we do NOT want
+       MSBuild's regular ProjectReference resolution to trigger a multi-TFM build
+       here. Pin the negotiation to net10.0: it always exists in Core's
+       $(LibTargetFrameworks), is what every test CI matrix targets (so its
+       assets file is always populated), and SetTargetFramework bypasses NuGet's
+       NS2.0->net10.0 compatibility check entirely (safe because
+       ReferenceOutputAssembly=false means no compile reference flows through).
+       The full multi-TFM build (needed by the nuspec) is performed explicitly
+       by _BuildShimAllTfmsBeforePack during pack. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
+                      SetTargetFramework="TargetFramework=net10.0">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- Ensure the multi-TFM Core (shim) DLL AND the CodeFixer + Generator DLLs are
+       built before pack consumes them. The Core ProjectReference above only triggers
+       a build of its single closest TFM; invoking the outer build here materializes
+       every TFM under bin\$(Configuration)\<tfm>\ that the nuspec <files> entries
+       reference. CodeFixer + Generator cannot be ProjectReferences here (the former
+       back-references this analyzer for shared DiagnosticIds, which creates a NuGet
+       restore cycle; the latter has no compile dependency so a ProjectReference is
+       unneeded); we invoke their builds via MSBuild tasks instead. -->
+  <Target Name="_BuildShimAllTfmsBeforePack" BeforeTargets="GenerateNuspec">
+    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.Core\Opc.Ua.MigrationAnalyzer.Core.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
+    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.CodeFixer\Opc.Ua.MigrationAnalyzer.CodeFixer.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
+    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework" />
+  </Target>
+  <!-- Populate NuspecProperties after $(PackageVersion) is materialized (NBGV runs
+       inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
+  <Target Name="_SetMigrationAnalyzerNuspecProperties" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.dll;codeFixesDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.CodeFixer\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.CodeFixer.dll;generatorDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Generator\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.Generator.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Core\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props</NuspecProperties>
+    </PropertyGroup>
+  </Target>
+</Project>

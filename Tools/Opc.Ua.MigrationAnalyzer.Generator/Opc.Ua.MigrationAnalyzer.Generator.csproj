@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.Generator</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer.Generator</RootNamespace>
+    <Description>OPC UA .NET Standard migration source generator (1.5.378 to 2.0). Emits internal [Obsolete] shim subclasses of List&lt;T&gt; for any &lt;Type&gt;Collection name (including model-compiled user types) the consumer references but that 2.0 has removed, so the consumer code keeps compiling while UA0002 guides the eventual rewrite to List&lt;T&gt; / ArrayOf&lt;T&gt;.</Description>
+    <!-- RS1007: localizable resources not required for an internal source generator.
+         RS1038: shipping multiple Roslyn components in the same package is supported. -->
+    <NoWarn>$(NoWarn);RS1007;RS1038;RS2008</NoWarn>
+    <!-- Non-packable on its own; consumed by the parent Opc.Ua.MigrationAnalyzer nuspec by path. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Analyzers / generators must target the stable Microsoft.CodeAnalysis 4.x API
+         surface (matches the analyzer + code-fixer assemblies). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+</Project>

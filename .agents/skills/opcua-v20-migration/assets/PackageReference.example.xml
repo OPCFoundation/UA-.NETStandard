@@ -1,0 +1,16 @@
+<!--
+    Pasteable PackageReference snippet for the OPC UA 1.5.378 -> 2.0 migration.
+
+    Drop this into your consumer csproj's existing <ItemGroup> alongside the
+    OPC UA package references. The `PrivateAssets="all"` keeps the analyzer
+    out of your downstream consumers' dependency closure - it's a build-only
+    helper, not a runtime dependency.
+
+    Remove this PackageReference once your build is warning-free on the
+    UA00xx diagnostics. You'll then be on clean 2.0 with zero shim dependency.
+-->
+<ItemGroup>
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
+                    Version="2.0.*-*"
+                    PrivateAssets="all" />
+</ItemGroup>
