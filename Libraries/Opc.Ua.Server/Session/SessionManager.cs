@@ -479,7 +479,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check for create session request.
-                if (requestType is RequestType.CreateSession)
+                if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
                     return new OperationContext(requestHeader, secureChannelContext, requestType);
                 }

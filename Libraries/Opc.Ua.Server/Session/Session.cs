@@ -357,9 +357,7 @@ namespace Opc.Ua.Server
                 }
 
                 // verify that session has been activated.
-                if (!Activated &&
-                    requestType != RequestType.CloseSession &&
-                    requestType != RequestType.ActivateSession)
+                if (!Activated && requestType != RequestType.CloseSession)
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
                     throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
