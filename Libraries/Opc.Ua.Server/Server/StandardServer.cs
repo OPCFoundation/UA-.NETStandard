@@ -731,7 +731,8 @@ namespace Opc.Ua.Server
                 }
 
                 ISession? session = ServerInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken)
+                    ?? throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
 
                 AdditionalParametersType? parameters = ActivateSessionProcessAdditionalParameters(
                     session!,
