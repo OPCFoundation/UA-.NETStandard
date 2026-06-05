@@ -20,6 +20,14 @@
     -->
     <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
+    <!--
+      Microsoft.Extensions.Http.Resilience provides net462 assets for the .NET Framework builds,
+      but its buildTransitive support target warns that these TFMs are untested. TODO: remove this
+      suppression when the library matrix drops .NET Framework or the package stops warning.
+    -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
@@ -36,7 +44,7 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
   <ItemGroup>

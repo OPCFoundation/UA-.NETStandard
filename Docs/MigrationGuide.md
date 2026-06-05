@@ -1386,64 +1386,11 @@ Version 2.0 introduces `ManagedSession`, a wrapper around `Session` that automat
 
 - **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
 - **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 2.0.
-- **`SessionReconnectHandler`** is now marked **`[Obsolete]`** as of issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288). It remains functional for back-compat with existing callers that own raw `Session` instances. The type itself is not removed. Its parameterless legacy constructor remains marked `[Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]`; pass an `ITelemetryContext` to the new ctor when adopting it. It now also requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`. New code should use `ManagedSessionFactory` / `ManagedSession.CreateAsync` (which transparently uses the new `IClientChannelManager` if registered), or wire `IClientChannelManager` into a raw `Session` via `Session.CreateAsync(IClientChannelManager, ...)`.
+- **`SessionReconnectHandler`** is retained as a supported legacy entry point for callers that already manage raw `Session` instances. The type itself is not removed. Its parameterless legacy constructor remains marked `[Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]`; pass an `ITelemetryContext` to the new ctor when adopting it. It now also requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync` (which transparently uses the new `IClientChannelManager` if registered), or wire `IClientChannelManager` into a raw `Session` via `Session.CreateAsync(IClientChannelManager, ...)`.
 
 - **`IClientBase.AttachChannel(ITransportChannel)` and `DetachChannel()`** are now marked **`[Obsolete]`** as of issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288). They remain functional. New code should use `IClientChannelManager` so transport channels are reference-counted, shared across participants on the same endpoint, and reconnected transparently. See [Sessions and reconnect](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect).
 
-- **`Session.ReconnectAsync(ITransportWaitingConnection, ITransportChannel, CancellationToken)`** is the underlying instance method; it is *not* marked obsolete. The two convenience extension overloads `ReconnectAsync(connection, ct)` and `ReconnectAsync(channel, ct)` (in `SessionExtensions`) **are** now `[Obsolete]` because they bypass the central channel manager. The simple `ReconnectAsync(ct)` extension is unchanged and routes through the channel manager automatically when one is wired.
-
 For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](Sessions.md).
-
-#### Shared reconnect budget for ManagedSession and the channel manager
-
-`ManagedSession` and `IClientChannelManager` now share one retry deadline for a reconnect cycle instead of
-stacking independent session-level and channel-level budgets. See
-[Sessions and reconnect § 4](Sessions.md#shared-retry-budget-with-managedsession) for the runtime sequence and a
-worked example.
-
-- **`IRetryBudget` and `RetryBudget`** are new core types. `RetryBudget` is a thread-safe implementation backed by
-  `TimeProvider`; it starts timing on the first consumed attempt, reports the remaining time via `TryConsume`, and
-  resets after a successful reconnect so the next reconnect cycle receives a fresh budget.
-- **`IClientChannelManager.ReconnectAsync(channel, IRetryBudget, ct)`** lets the outer `ManagedSession` retry driver
-  pass its deadline into the channel manager. The existing two-argument `ReconnectAsync(channel, ct)` overload still
-  works and uses an unlimited budget for back-compat. On TFMs where the interface does not expose the new overload,
-  the built-in `ClientChannelManager` still accepts it directly; custom managers fall back to the legacy overload.
-- **`IChannelReconnectPolicy.GetDelay(int, IRetryBudget?)`** is available as a default interface method on the TFMs
-  where the stack exposes it. The default delegates to the existing `GetDelay(int)` and clamps the result to the
-  remaining budget. On `net48`, custom policies that need custom budget-aware behavior should implement
-  `IBudgetAwareChannelReconnectPolicy`; otherwise the manager calls the legacy method and applies the same budget
-  clamp around it.
-
-To opt in, set `ReconnectPolicyOptions.MaxTotalReconnectTime` to the end-to-end reconnect window. The default is five
-minutes.
-
-```csharp
-ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(endpoint)
-    .WithReconnectPolicy(p => p with
-    {
-        MaxTotalReconnectTime = TimeSpan.FromSeconds(30)
-    })
-    .ConnectAsync(ct);
-```
-
-For DI configuration, set the same option on `ManagedSessionOptions.ReconnectPolicy`:
-
-```csharp
-services.AddOpcUa()
-    .AddClient(opt =>
-    {
-        opt.Configuration = config;
-        opt.Session = opt.Session with
-        {
-            Endpoint = endpoint,
-            ReconnectPolicy = opt.Session.ReconnectPolicy with
-            {
-                MaxTotalReconnectTime = TimeSpan.FromSeconds(30)
-            }
-        };
-    });
-```
 
 **Migration**:
 

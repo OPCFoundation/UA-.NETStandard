@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-// CS0618: tests legacy SessionReconnectHandler back-compat behavior
-#pragma warning disable CS0618
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Aot.Tests

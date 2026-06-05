@@ -388,6 +388,47 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a binding to use for discovering servers with an existing channel.
+        /// </summary>
+        /// <param name="channel">The channel used for discovery requests.</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="returnDiagnostics">Diagnostics to return for each request.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A discovery client that owns the supplied channel.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="channel"/> or <paramref name="telemetry"/> is <c>null</c>.
+        /// </exception>
+        public static Task<DiscoveryClient> CreateAsync(
+            ITransportChannel channel,
+            ITelemetryContext telemetry,
+            DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (channel == null)
+            {
+                throw new ArgumentNullException(nameof(channel));
+            }
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                return Task.FromResult(new DiscoveryClient(channel, telemetry)
+                {
+                    ReturnDiagnostics = returnDiagnostics
+                });
+            }
+            catch
+            {
+                channel.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Creates a binding to use for discovering servers through a shared channel manager.
         /// </summary>
         /// <param name="manager">The client channel manager used to acquire the shared channel.</param>

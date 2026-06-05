@@ -12,9 +12,10 @@ choose between them.
 |---|---|---|---|---|
 | `Session` | itself (via constructor or `Session.Create...Async`) | none — caller drives via `Session.ReconnectAsync` / `SessionReconnectHandler` | `ClassicSubscriptionEngine` by default; pass `ISubscriptionEngineFactory` to opt in to V2 | callers that own session lifecycle and existing reconnect code |
 | `DefaultSessionFactory` | raw `Session` | none — caller drives reconnect | configurable via `SubscriptionEngineFactory` init property | drop-in `ISessionFactory` for the legacy flow |
-| `SessionReconnectHandler` _(obsolete)_ | nothing (drives an existing session) | yes, against a `Session` (only) | inherited from the wrapped `Session` | legacy callers that already own a `Session` |
+| `SessionReconnectHandler` | nothing (drives an existing session) | yes, against a `Session` (only) | inherited from the wrapped `Session` | legacy callers that already own a `Session` |
 | `ManagedSession` | itself (via `CreateAsync`) | yes — built-in `ConnectionStateMachine` + `ReconnectPolicy` | `DefaultSubscriptionEngine` (V2) by default | new code; long-lived clients that need reconnect / failover |
 | `ManagedSessionFactory` | `ManagedSession` | inherited from `ManagedSession` | inherited from `ManagedSession` | drop-in `ISessionFactory` that yields managed sessions |
+| `ChannelManagerSessionFactory` | raw `Session` | channel-level reconnect through `IClientChannelManager` | classic engine | raw sessions that share channels and coordinate transport reconnect centrally |
 | `ManagedSessionBuilder` | `ManagedSession` | inherited from `ManagedSession` | configurable via `UseSubscriptionEngine` | fluent / DI scenarios |
 | `IClientChannelManager` | `IManagedTransportChannel` leases (shared) | channel-level reconnect, coalesced and notified to participants | n/a (channel-only) | central transport-channel sharing & reconnect for sessions / discovery clients |
 
@@ -131,11 +132,10 @@ ISession managed = await new ManagedSessionFactory(telemetry).CreateAsync(...);
 handler.BeginReconnect(managed, 1000, callback);
 ```
 
-`SessionReconnectHandler` is **marked `[Obsolete]`** as of the channel-manager
-work (issue #3288). It remains a supported entry point for back-compat with
-existing callers that own raw `Session` instances; new code should prefer
-`ManagedSession` or — for raw `Session` usage — wire an `IClientChannelManager`
-(see [section 4](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
+`SessionReconnectHandler` is retained as a supported entry point for callers that
+own raw `Session` instances. New code should prefer `ManagedSession` or — for raw
+`Session` usage — wire an `IClientChannelManager` (see
+[section 4](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
 below) so that reconnect is handled transparently by the channel manager.
 
 ## 3. `ManagedSession` — the connection-state-machine facade
@@ -281,6 +281,42 @@ could not support:
    complete). Internal reactivation traffic (e.g. `ActivateSession`
    issued by a participant inside `OnReconnectAsync`) bypasses the
    gate via an `AsyncLocal` scope managed by the manager.
+
+### Session factory choices
+
+Code that accepts an `ISessionFactory` can choose the session and
+reconnect model without changing the consuming client:
+
+- **`DefaultSessionFactory`** creates a raw `Session`. It does not run a
+  reconnect state machine; the caller owns reconnect / recreate.
+- **`ManagedSessionFactory`** creates `ManagedSession`, which wraps the
+  raw session in the built-in reconnect state machine.
+- **`ChannelManagerSessionFactory`** creates a raw `Session` whose
+  transport channel comes from an `IClientChannelManager`. Multiple
+  compatible sessions share channels and channel-level reconnect is
+  coordinated centrally by the manager.
+
+```csharp
+IClientChannelManager channelManager = new ClientChannelManager(config, telemetry);
+ISessionFactory factory = new ChannelManagerSessionFactory(
+    channelManager,
+    telemetry,
+    DiagnosticsMasks.SymbolicId);
+
+ISession session = await factory.CreateAsync(
+    config,
+    endpoint,
+    updateBeforeConnect: true,
+    sessionName: "SharedChannelSession",
+    sessionTimeout: 60_000,
+    identity: null,
+    preferredLocales: default,
+    ct);
+```
+
+Use `ChannelManagerSessionFactory` when the desired surface is still a
+raw `Session`, but the transport should be shared with other sessions or
+channel-only clients such as discovery and registration clients.
 
 ### Channel identity (`ManagedChannelKey`)
 

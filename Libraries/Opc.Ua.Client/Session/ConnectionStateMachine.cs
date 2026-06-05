@@ -35,6 +35,21 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Client
 {
     /// <summary>
+    /// Callback used to execute a state-machine operation.
+    /// </summary>
+    internal delegate Task<ServiceResult> ConnectionStateOperation(CancellationToken ct);
+
+    /// <summary>
+    /// Callback used to execute a state-machine operation with a retry budget.
+    /// </summary>
+    internal delegate Task<ServiceResult> ConnectionStateBudgetOperation(IRetryBudget budget, CancellationToken ct);
+
+    /// <summary>
+    /// Callback used to close the current session.
+    /// </summary>
+    internal delegate Task ConnectionStateCloseOperation(CancellationToken ct);
+
+    /// <summary>
     /// Manages the connection lifecycle state machine for ManagedSession.
     /// Runs a background worker that handles connect, reconnect, and
     /// failover based on the configured reconnect policy.
@@ -60,47 +75,37 @@ namespace Opc.Ua.Client
         /// Returns a <see cref="ServiceResult"/> indicating success or
         /// failure.
         /// </summary>
-        internal Func<CancellationToken, Task<ServiceResult>>?
-            ConnectAsync
-        { get; set; }
+        internal ConnectionStateOperation? ConnectAsync { get; set; }
 
         /// <summary>
         /// Delegate invoked to perform a session reconnect (reactivate).
         /// Returns a <see cref="ServiceResult"/> indicating success or
         /// failure.
         /// </summary>
-        internal Func<CancellationToken, Task<ServiceResult>>?
-            ReconnectAsync
-        { get; set; }
+        internal ConnectionStateOperation? ReconnectAsync { get; set; }
 
         /// <summary>
         /// Delegate invoked to perform a session reconnect with a shared
         /// retry budget.
         /// </summary>
-        internal Func<IRetryBudget, CancellationToken, Task<ServiceResult>>?
-            ReconnectWithBudgetAsync
-        { get; set; }
+        internal ConnectionStateBudgetOperation? ReconnectWithBudgetAsync { get; set; }
 
         /// <summary>
         /// Delegate invoked to attempt failover to a redundant server.
         /// Returns a <see cref="ServiceResult"/> indicating success or
         /// failure.
         /// </summary>
-        internal Func<CancellationToken, Task<ServiceResult>>?
-            FailoverAsync
-        { get; set; }
+        internal ConnectionStateOperation? FailoverAsync { get; set; }
 
         /// <summary>
         /// Delegate invoked to attempt failover with a shared retry budget.
         /// </summary>
-        internal Func<IRetryBudget, CancellationToken, Task<ServiceResult>>?
-            FailoverWithBudgetAsync
-        { get; set; }
+        internal ConnectionStateBudgetOperation? FailoverWithBudgetAsync { get; set; }
 
         /// <summary>
         /// Delegate invoked to close the session cleanly.
         /// </summary>
-        internal Func<CancellationToken, Task>? CloseSessionAsync { get; set; }
+        internal ConnectionStateCloseOperation? CloseSessionAsync { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the
@@ -109,16 +114,16 @@ namespace Opc.Ua.Client
         /// <param name="reconnectPolicy">The reconnect policy that
         /// controls backoff and retry limits.</param>
         /// <param name="logger">Logger instance.</param>
+        /// <param name="maxTotalReconnectTime">Maximum total elapsed
+        /// time for one reconnect cycle.</param>
         /// <param name="timeProvider">Optional <see cref="System.TimeProvider"/>
         /// used for reconnect delay timing. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
-        /// <param name="maxTotalReconnectTime">Maximum total elapsed
-        /// time for one reconnect cycle.</param>
         public ConnectionStateMachine(
             IReconnectPolicy reconnectPolicy,
             ILogger logger,
-            TimeProvider? timeProvider = null,
-            TimeSpan? maxTotalReconnectTime = null)
+            TimeSpan? maxTotalReconnectTime = null,
+            TimeProvider? timeProvider = null)
         {
             m_reconnectPolicy = reconnectPolicy
                 ?? throw new ArgumentNullException(nameof(reconnectPolicy));
@@ -197,8 +202,7 @@ namespace Opc.Ua.Client
         /// Transitions to <see cref="ConnectionState.Reconnecting"/>
         /// if currently connected.
         /// </summary>
-        public void TriggerReconnect(
-            ChannelStateChange? underlyingChannelState = null)
+        public void TriggerReconnect(ChannelStateChange? underlyingChannelState = null)
         {
             lock (m_lock)
             {

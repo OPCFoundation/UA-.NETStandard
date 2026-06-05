@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -44,7 +45,7 @@ namespace Opc.Ua.Gds.Client
         public LocalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
-            : this(configuration, channelManager: null, diagnosticsMasks, useChannelManager: false)
+            : this(configuration, channelManager: null, sessionFactory: null, diagnosticsMasks)
         {
         }
 
@@ -61,21 +62,40 @@ namespace Opc.Ua.Gds.Client
             : this(
                   configuration,
                   channelManager ?? throw new ArgumentNullException(nameof(channelManager)),
-                  diagnosticsMasks,
-                  useChannelManager: true)
+                  sessionFactory: null,
+                  diagnosticsMasks)
+        {
+        }
+
+        /// <summary>
+        /// Create local discovery client that acquires discovery channels from a session factory.
+        /// </summary>
+        /// <param name="configuration">Application configuration to use.</param>
+        /// <param name="sessionFactory">The session factory used to acquire discovery channels.</param>
+        /// <param name="diagnosticsMasks">The return diagnostics for all discovery requests.</param>
+        public LocalDiscoveryServerClient(
+            ApplicationConfiguration configuration,
+            ISessionFactory sessionFactory,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
+            : this(
+                  configuration,
+                  channelManager: null,
+                  sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory)),
+                  diagnosticsMasks)
         {
         }
 
         private LocalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             IClientChannelManager? channelManager,
-            DiagnosticsMasks diagnosticsMasks,
-            bool useChannelManager)
+            ISessionFactory? sessionFactory,
+            DiagnosticsMasks diagnosticsMasks)
         {
             ApplicationConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             DiagnosticsMasks = diagnosticsMasks;
             MessageContext = configuration.CreateMessageContext();
-            m_channelManager = useChannelManager ? channelManager : null;
+            m_channelManager = channelManager;
+            m_sessionFactory = sessionFactory;
 
             // set some defaults for the preferred locales.
             System.Globalization.CultureInfo culture = System.Globalization.CultureInfo
@@ -122,6 +142,34 @@ namespace Opc.Ua.Gds.Client
 
             ct.ThrowIfCancellationRequested();
             var client = new LocalDiscoveryServerClient(configuration, manager, diagnosticsMasks);
+            return Task.FromResult(client);
+        }
+
+        /// <summary>
+        /// Creates a local discovery client that uses a session factory for discovery requests.
+        /// </summary>
+        /// <param name="sessionFactory">The session factory used to acquire discovery channels.</param>
+        /// <param name="configuration">Application configuration to use.</param>
+        /// <param name="diagnosticsMasks">The return diagnostics for all discovery requests.</param>
+        /// <param name="ct">A cancellation token to cancel the operation with.</param>
+        /// <returns>A local discovery server client.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="sessionFactory"/> or <paramref name="configuration"/> is <c>null</c>.
+        /// </exception>
+        public static Task<LocalDiscoveryServerClient> CreateAsync(
+            ISessionFactory sessionFactory,
+            ApplicationConfiguration configuration,
+            DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None,
+            CancellationToken ct = default)
+        {
+            if (sessionFactory == null)
+            {
+                throw new ArgumentNullException(nameof(sessionFactory));
+            }
+
+            ct.ThrowIfCancellationRequested();
+            sessionFactory.ReturnDiagnostics = diagnosticsMasks;
+            var client = new LocalDiscoveryServerClient(configuration, sessionFactory, diagnosticsMasks);
             return Task.FromResult(client);
         }
 
@@ -240,23 +288,70 @@ namespace Opc.Ua.Gds.Client
                 configuration.OperationTimeout = DefaultOperationTimeout;
             }
 
+            var discoveryUri = new Uri(endpointUrl);
+
             if (m_channelManager != null)
             {
                 return DiscoveryClient.CreateAsync(
                     m_channelManager,
-                    new Uri(endpointUrl),
+                    discoveryUri,
                     configuration,
                     MessageContext.Telemetry,
                     DiagnosticsMasks,
                     ct);
             }
 
+            if (m_sessionFactory != null)
+            {
+                return CreateClientAsync(m_sessionFactory, discoveryUri, configuration, ct);
+            }
+
             return DiscoveryClient.CreateAsync(
                 ApplicationConfiguration,
-                new Uri(endpointUrl),
+                discoveryUri,
                 configuration,
                 DiagnosticsMasks,
                 ct);
+        }
+
+        private async Task<DiscoveryClient> CreateClientAsync(
+            ISessionFactory sessionFactory,
+            Uri discoveryUri,
+            EndpointConfiguration endpointConfiguration,
+            CancellationToken ct)
+        {
+            var endpoint = CreateDiscoveryEndpoint(discoveryUri, endpointConfiguration);
+            ITransportChannel channel = await sessionFactory.CreateChannelAsync(
+                ApplicationConfiguration,
+                connection: null!,
+                endpoint,
+                updateBeforeConnect: false,
+                checkDomain: false,
+                ct).ConfigureAwait(false);
+            return await DiscoveryClient.CreateAsync(
+                channel,
+                MessageContext.Telemetry,
+                DiagnosticsMasks,
+                ct).ConfigureAwait(false);
+        }
+
+        private static ConfiguredEndpoint CreateDiscoveryEndpoint(
+            Uri discoveryUri,
+            EndpointConfiguration endpointConfiguration)
+        {
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = discoveryUri.OriginalString,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            return new ConfiguredEndpoint(null, endpoint, endpointConfiguration)
+            {
+                UpdateBeforeConnect = false
+            };
         }
 
         /// <inheritdoc/>
@@ -280,6 +375,7 @@ namespace Opc.Ua.Gds.Client
 
         private readonly CancellationTokenSource m_disposeCts = new();
         private readonly IClientChannelManager? m_channelManager;
+        private readonly ISessionFactory? m_sessionFactory;
         private bool m_disposed;
         private const string kDefaultUrl = "opc.tcp://localhost:4840";
     }

@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CS0618: tests legacy SessionExtensions reconnect overloads explicitly
-#pragma warning disable CS0618
-
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;

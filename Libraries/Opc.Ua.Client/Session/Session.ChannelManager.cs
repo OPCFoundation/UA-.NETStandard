@@ -65,8 +65,10 @@ namespace Opc.Ua.Client
         public IClientChannelManager? ChannelManager => m_channelManager;
 
         /// <summary>
-        /// Internal hook used by
-        /// <see cref="CreateAsync(IClientChannelManager, ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string, uint, IUserIdentity, ArrayOf{string}, ISubscriptionEngineFactory, TimeProvider, CancellationToken)"/>
+        /// Internal hook used by <see cref="CreateAsync(IClientChannelManager,
+        /// ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string,
+        /// uint, IUserIdentity, ArrayOf{string}, ISubscriptionEngineFactory,
+        /// TimeProvider, CancellationToken)"/>
         /// to bind a freshly constructed Session to its managed channel
         /// while the channel-manager participant factory is running.
         /// </summary>
@@ -117,10 +119,8 @@ namespace Opc.Ua.Client
                 // SendRequestAsync bypasses the ready-state gate while
                 // the manager is in the participant-reactivation
                 // scope, so ActivateSession can complete.
-#pragma warning disable CS0618 // routed via the legacy reactivation path
                 await ReconnectAsync(connection: null, channel: channel, ct: ct)
                     .ConfigureAwait(false);
-#pragma warning restore CS0618
                 return ParticipantReconnectResult.Reactivated;
             }
             catch (ServiceResultException sre) when (

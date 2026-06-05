@@ -109,8 +109,8 @@ namespace Opc.Ua.Client
             StateMachine = new ConnectionStateMachine(
                 reconnectPolicy,
                 logger,
-                m_timeProvider,
-                m_maxTotalReconnectTime);
+                m_maxTotalReconnectTime,
+                m_timeProvider);
 
             WireStateMachineCallbacks();
         }
@@ -858,18 +858,24 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-#pragma warning disable CS0618 // delegates to obsolete inner-session API
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void AttachChannel(ITransportChannel channel)
         {
             InnerSession.AttachChannel(channel);
         }
 
         /// <inheritdoc/>
+        [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void DetachChannel()
         {
             InnerSession.DetachChannel();
         }
-#pragma warning restore CS0618
 
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(

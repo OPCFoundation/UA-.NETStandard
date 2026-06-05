@@ -28,17 +28,13 @@
  * ======================================================================*/
 
 using System;
-#if NET8_0_OR_GREATER
 using System.Net.Http;
-#endif
 using System.Threading;
 using System.Threading.Tasks;
-#if NET8_0_OR_GREATER
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Opc.Ua.Bindings;
-#endif
 using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
@@ -69,9 +65,7 @@ namespace Opc.Ua.Client
         private IServerRedundancyHandler? m_redundancyHandler;
         private ISessionFactory? m_sessionFactory;
         private IClientChannelManager? m_channelManager;
-#if NET8_0_OR_GREATER
         private Action<HttpStandardResilienceOptions>? m_httpsResilience;
-#endif
 
         /// <summary>
         /// Initializes a new builder.
@@ -263,7 +257,6 @@ namespace Opc.Ua.Client
             return this;
         }
 
-#if NET8_0_OR_GREATER
         /// <summary>
         /// Configure the standard HTTP resilience handler used by HTTPS transport channels.
         /// </summary>
@@ -275,7 +268,6 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(configure));
             return this;
         }
-#endif
 
         /// <summary>
         /// Enable server redundancy with a default handler.
@@ -440,7 +432,6 @@ namespace Opc.Ua.Client
                     : null);
 
             IClientChannelManager? channelManager = m_channelManager;
-#if NET8_0_OR_GREATER
 #pragma warning disable CA2000 // Ownership follows the managed session lifetime; TODO: model owned disposal explicitly.
             if (channelManager == null && m_httpsResilience != null)
             {
@@ -453,7 +444,6 @@ namespace Opc.Ua.Client
                     timeProvider: opts.TimeProvider);
             }
 #pragma warning restore CA2000
-#endif
 
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)
@@ -497,7 +487,6 @@ namespace Opc.Ua.Client
             return session;
         }
 
-#if NET8_0_OR_GREATER
         private static ServiceProviderHttpClientFactory CreateHttpsHttpClientFactory(
             Action<HttpStandardResilienceOptions> configure)
         {
@@ -540,6 +529,5 @@ namespace Opc.Ua.Client
             private readonly ServiceProvider m_serviceProvider;
             private readonly IOpcUaHttpClientFactory m_httpClientFactory;
         }
-#endif
     }
 }

@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CS0618: this file tests the legacy SessionReconnectHandler behavior explicitly;
-// suppress the obsolete warning at file scope.
-#pragma warning disable CS0618
-
 using System;
 using System.Reflection;
 using System.Threading;

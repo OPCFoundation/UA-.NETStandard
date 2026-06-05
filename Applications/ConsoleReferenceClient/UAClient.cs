@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CS0618: this sample retains SessionReconnectHandler for back-compat
-// demonstration; new code should use ManagedSession with channel manager.
-#pragma warning disable CS0618
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;

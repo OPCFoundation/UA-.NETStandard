@@ -567,11 +567,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
 
-#if NET8_0_OR_GREATER
             services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
                 .AddStandardResilienceHandler();
             services.TryAddSingleton<IOpcUaHttpClientFactory, DefaultOpcUaHttpClientFactory>();
-#endif
 
             services.TryAddSingleton<IClientChannelManager>(sp =>
             {
@@ -582,14 +580,10 @@ namespace Microsoft.Extensions.DependencyInjection
                     ?? throw new InvalidOperationException(
                         "OpcUaClientOptions.Configuration is required to construct " +
                         "the IClientChannelManager.");
-#if NET8_0_OR_GREATER
                 IOpcUaHttpClientFactory? httpClientFactory = sp.GetService<IOpcUaHttpClientFactory>();
                 ITransportChannelBindings? channelBindings = httpClientFactory == null
                     ? null
                     : new HttpsTransportChannelBindings(httpClientFactory);
-#else
-                ITransportChannelBindings? channelBindings = null;
-#endif
                 return new ClientChannelManager(
                     configuration,
                     telemetry,
