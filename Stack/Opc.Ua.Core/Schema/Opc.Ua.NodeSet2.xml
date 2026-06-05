@@ -9877,6 +9877,7 @@
     <References>
       <Reference ReferenceType="HasComponent">i=2769</Reference>
       <Reference ReferenceType="HasComponent">i=2770</Reference>
+      <Reference ReferenceType="GeneratesEvent">i=2315</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -10021,6 +10022,7 @@
       <Reference ReferenceType="HasComponent">i=2773</Reference>
       <Reference ReferenceType="HasComponent">i=17635</Reference>
       <Reference ReferenceType="HasComponent">i=17636</Reference>
+      <Reference ReferenceType="GeneratesEvent">i=2315</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2299</Reference>
     </References>
   </UAObjectType>

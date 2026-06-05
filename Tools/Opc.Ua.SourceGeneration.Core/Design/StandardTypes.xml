@@ -1418,6 +1418,12 @@
       <opc:Variable SymbolicName="CurrentState" TypeDefinition="StateVariableType" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="LastTransition" TypeDefinition="TransitionVariableType" ModellingRule="Optional" />
     </opc:Children>
+    <opc:References>
+      <opc:Reference IsOneWay="true">
+        <opc:ReferenceType>GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>AuditUpdateStateEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
   </opc:ObjectType>
 
   <opc:VariableType SymbolicName="StateVariableType" DataType="ua:LocalizedText" ValueRank="Scalar" PartNo="5">
@@ -1446,6 +1452,12 @@
       <opc:Variable SymbolicName="AvailableStates" DataType="ua:NodeId" ValueRank="Array" ModellingRule="Optional" />
       <opc:Variable SymbolicName="AvailableTransitions" DataType="ua:NodeId" ValueRank="Array" ModellingRule="Optional" />
     </opc:Children>
+    <opc:References>
+      <opc:Reference IsOneWay="true">
+        <opc:ReferenceType>GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>AuditUpdateStateEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
   </opc:ObjectType>
 
   <opc:VariableType SymbolicName="FiniteStateVariableType" BaseType="StateVariableType" PartNo="5">
