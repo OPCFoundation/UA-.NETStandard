@@ -101,5 +101,21 @@ namespace Opc.Ua.Server
         /// Stops the periodic alarm evaluation.
         /// </summary>
         void StopAlarmMonitoring();
+
+        /// <summary>
+        /// Awaits completion of any pending deferred work scheduled by a
+        /// recent <c>ApplyChanges</c> call. The deferred work includes
+        /// reloading certificates from disk via
+        /// <see cref="CertificateManager.UpdateAsync"/> and forcing
+        /// affected SecureChannels to renegotiate per OPC UA Part 12
+        /// §7.10.9.
+        /// </summary>
+        /// <remarks>
+        /// Returns immediately when no deferred work is in flight. Used
+        /// by tests and tightly-coupled hosts to deterministically wait
+        /// for cert rotation to take effect after a push update.
+        /// </remarks>
+        /// <param name="cancellationToken">A token to cancel the wait.</param>
+        Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default);
     }
 }

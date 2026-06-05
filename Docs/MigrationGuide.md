@@ -1939,6 +1939,35 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 **Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
 
+#### Server-side certificate rotation via push (OPC UA Part 12 §7.10.9)
+
+**Not source-breaking.** The `ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges` push flow now properly honours the spec requirement to "force existing SecureChannels affected by the changes to renegotiate" once the `ApplyChanges` method response has been delivered. Previously the server reloaded the certificate but did not cut affected channels; clients kept using the old cert until natural rekey.
+
+Behaviour changes worth noting:
+
+- **`ApplyChanges` returns first, channels are cut afterwards.** A ~250 ms grace period elapses between the response being flushed and the per-channel teardown. Tests and hosts that need deterministic timing can `await IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)` to be notified when the deferred apply has completed (including the channel-cut fan-out).
+- **Sessions and subscriptions stay alive.** Per Part 12 §7.10.9 only the SecureChannel is closed. The client's reconnect logic (`ManagedSession` or `Session.Activate`) transfers the session over a fresh channel — no `Cl` user action is required.
+- **HTTPS listeners restart their Kestrel host.** TLS connections are bound at the listener level, so a `Stop()` + `Start()` cycle is the only practical way to renegotiate. New connections are accepted immediately on the same port.
+
+New optional capability interface for third-party transport listeners:
+
+- **`Opc.Ua.ITransportListenerCertificateRotation`** (in `Stack/Opc.Ua.Core/Stack/Transport/`) — implementing this interface lets the `ConfigurationNodeManager` drive a targeted channel cut after a rotation:
+  ```csharp
+  public sealed class MyTransportListener : ITransportListener, ITransportListenerCertificateRotation
+  {
+      public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+      {
+          // Close every channel whose negotiated server certificate
+          // matches oldCertificate.Thumbprint. Keep the listener socket
+          // bound. Return cut global channel ids for diagnostics.
+      }
+  }
+  ```
+- **`Opc.Ua.Server.ITransportListenerRegistryProvider`** is implemented by `ServerInternalData` and exposes the live transport listener list. Custom node managers can resolve it through `(server as ITransportListenerRegistryProvider)?.TransportListeners`.
+- **`IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`** awaits any in-flight deferred apply scheduled by a recent `ApplyChanges` call. Returns immediately when nothing is pending.
+
+The previous 1-second `Task.Delay` hack in `ConfigurationNodeManager.ApplyChanges` is gone, along with the explicit TODO marker. The deferred apply work is now correlated end-to-end and surfaces failures through structured logging instead of being silently swallowed by an unobserved `Task.Run`.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

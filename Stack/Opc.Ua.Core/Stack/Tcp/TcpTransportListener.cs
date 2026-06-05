@@ -253,7 +253,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the transport for a UA TCP server.
     /// </summary>
-    public class TcpTransportListener : ITransportListener, ITcpChannelListener
+    public class TcpTransportListener : ITransportListener, ITcpChannelListener, ITransportListenerCertificateRotation
     {
         /// <summary>
         /// The limit of queued connections for the listener socket..
@@ -833,6 +833,66 @@ namespace Opc.Ua.Bindings
                     }
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+        {
+            if (oldCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(oldCertificate));
+            }
+
+            string oldThumbprint = oldCertificate.Thumbprint;
+            if (string.IsNullOrEmpty(oldThumbprint))
+            {
+                return [];
+            }
+
+            // Snapshot the channel map so we can iterate without holding
+            // m_lock while invoking per-channel close paths (each channel
+            // acquires its own DataLock internally — avoid lock inversion).
+            TcpListenerChannel[] channels;
+            lock (m_lock)
+            {
+                channels = m_channels?.Values.ToArray() ?? [];
+            }
+
+            if (channels.Length == 0)
+            {
+                return [];
+            }
+
+            var closed = new List<string>(channels.Length);
+            foreach (TcpListenerChannel channel in channels)
+            {
+                try
+                {
+                    if (channel.TryCloseForCertificateRotation(oldThumbprint, out string? globalChannelId)
+                        && !string.IsNullOrEmpty(globalChannelId))
+                    {
+                        closed.Add(globalChannelId!);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort: log and continue closing remaining
+                    // channels. Failure to close one channel must not
+                    // block others from being renegotiated.
+                    m_logger.LogWarning(
+                        ex,
+                        "Failed to close channel for certificate rotation (thumbprint {Thumbprint}).",
+                        oldThumbprint);
+                }
+            }
+
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).",
+                closed.Count,
+                oldThumbprint);
+
+            return closed;
         }
 
         /// <summary>
