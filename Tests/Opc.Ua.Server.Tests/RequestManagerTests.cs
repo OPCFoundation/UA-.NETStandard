@@ -109,6 +109,29 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CancelRequestsShouldCancelActivateSessionRequestWithoutSession()
+        {
+            const uint requestHandle = 1234;
+            using var requestLifetime = new RequestLifetime();
+            var context = new OperationContext(
+                new RequestHeader { RequestHandle = requestHandle },
+                null,
+                RequestType.ActivateSession,
+                requestLifetime);
+
+            m_requestManager.RequestReceived(context);
+
+            uint cancelCount = 0;
+            Assert.DoesNotThrow(
+                () => m_requestManager.CancelRequests(requestHandle, out cancelCount));
+
+            Assert.That(cancelCount, Is.EqualTo(1));
+            Assert.That(
+                context.OperationStatus.Code,
+                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest));
+        }
+
+        [Test]
         public void RequestCompletedRemovesRequestAndCompletesLifetime()
         {
             // Arrange
