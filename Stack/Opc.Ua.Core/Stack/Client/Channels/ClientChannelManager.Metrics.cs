@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -47,6 +48,18 @@ namespace Opc.Ua
             }
 
             DisposeCertificateRotation();
+
+            Certificate? clientCertificate;
+            CertificateCollection? clientCertificateChain;
+            lock (m_certLock)
+            {
+                clientCertificate = m_clientCertificate;
+                clientCertificateChain = m_clientCertificateChain;
+                m_clientCertificate = null;
+                m_clientCertificateChain = null;
+            }
+            clientCertificate?.Dispose();
+            clientCertificateChain?.Dispose();
 
             ChannelEntry[] snapshot;
             lock (m_entries)

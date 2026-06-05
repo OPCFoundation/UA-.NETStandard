@@ -2540,15 +2540,28 @@ namespace Opc.Ua.Client
             IManagedTransportChannel? oldManagedLease = m_managedChannel;
             IManagedTransportChannel? newManagedLease = null;
             bool managedLeaseActivated = false;
+            ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
+
+            if (manager != null && channel == null)
+            {
+                await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
+                if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
+                    m_instanceCertificate != null)
+                {
+                    manager.UpdateClientCertificate(
+                        m_instanceCertificate.AddRef(),
+                        m_instanceCertificateChain?.AddRef());
+                }
+            }
 
             if (manager != null && channel == null && oldManagedLease != null)
             {
-                ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
                 ManagedChannelKey targetKey = ManagedChannelKey.FromEndpoint(
                     targetEndpoint,
                     m_instanceCertificate,
                     connection);
-                if (oldManagedLease.Key.Equals(targetKey))
+                if (oldManagedLease.Key.Equals(targetKey) &&
+                    oldManagedLease.State is not (ChannelState.Closed or ChannelState.Faulted))
                 {
                     if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
                     {
@@ -4613,61 +4626,67 @@ namespace Opc.Ua.Client
         /// Asynchronously load instance certificate
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task LoadInstanceCertificateAsync(
+        private Task LoadInstanceCertificateAsync(
             bool throwIfConfigurationChangedFromLastLoad,
             CancellationToken ct = default)
         {
-            m_endpoint.Description.SecurityPolicyUri ??= SecurityPolicies.None;
-            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+            return LoadInstanceCertificateAsync(
+                m_endpoint,
+                ct,
+                throwIfConfigurationChangedFromLastLoad);
+        }
+
+        /// <summary>
+        /// Asynchronously load the instance certificate for the supplied endpoint.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async Task LoadInstanceCertificateAsync(
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct,
+            bool throwIfConfigurationChangedFromLastLoad = false)
+        {
+            endpoint.Description.SecurityPolicyUri ??= SecurityPolicies.None;
+            if (endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
-                // No need to load instance certificates
                 return;
             }
 
             if (m_instanceCertificate != null &&
                 m_instanceCertificate.HasPrivateKey &&
-                !m_endpoint.Equals(m_effectiveEndpoint))
+                !endpoint.Equals(m_effectiveEndpoint))
             {
                 if (throwIfConfigurationChangedFromLastLoad)
                 {
-                    // Updating a live session must be prevented unless the session was
-                    // closed. Therefore we need to throw here to catch this case during any
-                    // reconnect or other activation operation
                     throw ServiceResultException.ConfigurationError(
                         "Configuration was changed for an active session.");
                 }
-                // If the configured endpoint was updated while we are closed we reload.
                 m_instanceCertificate.Dispose();
                 m_instanceCertificate = null;
             }
 
             if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
             {
-                // Dispose any previously loaded certificate that lacked a
-                // private key before overwriting it with the newly loaded one.
                 m_instanceCertificate?.Dispose();
                 m_instanceCertificate = await LoadInstanceCertificateAsync(
                     m_configuration,
-                    m_endpoint.Description.SecurityPolicyUri,
+                    endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false) ??
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                m_effectiveEndpoint = m_endpoint;
+                m_effectiveEndpoint = endpoint;
                 m_instanceCertificateChain?.Dispose();
-                m_instanceCertificateChain = null; // Reload the chain too
+                m_instanceCertificateChain = null;
             }
 
-            // check for private key.
             if (!m_instanceCertificate.HasPrivateKey)
             {
                 throw ServiceResultException.ConfigurationError(
                     "Client certificate configured for security policy {0} is missing a private key.",
-                    m_endpoint.Description.SecurityPolicyUri);
+                    endpoint.Description.SecurityPolicyUri);
             }
 
-            // load certificate chain.
             m_instanceCertificateChain ??= await LoadCertificateChainAsync(
                 m_configuration,
                 m_instanceCertificate,

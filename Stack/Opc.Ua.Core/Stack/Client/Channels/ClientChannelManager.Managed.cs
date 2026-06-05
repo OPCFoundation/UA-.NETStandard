@@ -235,12 +235,19 @@ namespace Opc.Ua
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain)
         {
+            Certificate? previousCertificate;
+            CertificateCollection? previousCertificateChain;
             lock (m_certLock)
             {
+                previousCertificate = m_clientCertificate;
+                previousCertificateChain = m_clientCertificateChain;
                 m_clientCertificate = clientCertificate;
                 m_clientCertificateChain = clientCertificateChain;
                 m_clientCertificateVersion++;
             }
+
+            previousCertificate?.Dispose();
+            previousCertificateChain?.Dispose();
         }
 
         /// <summary>
@@ -353,7 +360,8 @@ namespace Opc.Ua
             bool created = false;
             lock (m_entries)
             {
-                if (!m_entries.TryGetValue(key, out ChannelEntry? existing))
+                if (!m_entries.TryGetValue(key, out ChannelEntry? existing) ||
+                    existing.State is ChannelState.Closed or ChannelState.Faulted)
                 {
                     existing = new ChannelEntry(this, key, endpoint, reverseConnection);
                     m_entries[key] = existing;

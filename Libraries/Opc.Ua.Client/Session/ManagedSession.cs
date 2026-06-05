@@ -1046,10 +1046,26 @@ namespace Opc.Ua.Client
                     Session? session = m_session;
                     if (session != null)
                     {
-                        await session.ReconnectAsync(
-                                budget,
-                                ct)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            await session.ReconnectAsync(
+                                    budget,
+                                    ct)
+                                .ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException sre) when (
+                            sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                            session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                        {
+                            m_logger.LogInformation(
+                                sre,
+                                "ManagedSession: managed channel is faulted; recreating session in place.");
+                            await session.RecreateInPlaceAsync(
+                                    endpoint: null,
+                                    budget: budget,
+                                    ct: ct)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
 

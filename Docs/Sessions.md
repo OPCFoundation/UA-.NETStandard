@@ -562,6 +562,40 @@ ITransportWaitingConnection conn = await reverseConnectManager
 IManagedTransportChannel ch = await manager.GetAsync(participant, conn, ct);
 ```
 
+### Testing the channel manager
+
+The channel manager is covered by a layered stress and chaos test suite in
+[`Tests/Opc.Ua.Channels.Stress.Tests/`](../Tests/Opc.Ua.Channels.Stress.Tests/):
+
+- **L1 Contract** — fast deterministic fake-based tests for coalescing, participant result aggregation, retry
+  budgets, hung participants, lease lifecycle, gate + bypass, key equivalence, certificate rotation, and leak
+  accuracy. These run in every PR.
+- **L2 Integration** — live in-process server tests for server outage recovery, live certificate rotation, and
+  failover lease swap. These run in every PR.
+- **L3 ChaosTCP** — TCP proxy chaos tests for transparent reconnect under load, subscription survival,
+  accept-but-stall, and mixed drop / block-accept failures. These run nightly.
+- **L4 Soak** — long-running randomized soak, combinatorial matrix, and memory-stability runs. These are manual or
+  nightly only.
+- **L5 Gaps** — explicit known-failing tests that document production carry-forward gaps and are never selected by
+  automatic runs.
+
+```bash
+# Contract + Integration (default PR CI):
+dotnet test Tests/Opc.Ua.Channels.Stress.Tests --filter "Category=Contract|Category=Integration"
+
+# ChaosTCP (nightly):
+dotnet test Tests/Opc.Ua.Channels.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
+
+# Soak (manual):
+dotnet test Tests/Opc.Ua.Channels.Stress.Tests --filter "Category=Soak"
+```
+
+Every chaos test prints its seed at the start of the run. Failed chaos runs can be reproduced by passing the same
+seed back to the test host with `--TestRunParameters.Parameter(Seed=<n>)`.
+
+`[Explicit]` tests under `Gaps/` document the production carry-forward gaps: faulted-entry reset,
+`RequiresSessionRecreate` plumbing, and bounded participant timeout.
+
 ## 5. Subscription engines
 
 The `ISubscriptionEngine` abstraction

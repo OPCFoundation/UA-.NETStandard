@@ -130,9 +130,10 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogInformation(
                     sre,
-                    "Session {SessionId}: server-side session lost during reactivation; recreate required.",
+                    "Session {SessionId}: server-side session lost during reactivation; recreating in place.",
                     SessionId);
-                return ParticipantReconnectResult.RequiresSessionRecreate;
+                await RecreateInPlaceAsync(channel: channel, ct: ct).ConfigureAwait(false);
+                return ParticipantReconnectResult.Reactivated;
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadIdentityTokenRejected ||
