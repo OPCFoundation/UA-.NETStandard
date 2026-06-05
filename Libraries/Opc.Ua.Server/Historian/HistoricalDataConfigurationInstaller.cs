@@ -108,44 +108,37 @@ namespace Opc.Ua.Server.Historian
 
             if (!string.IsNullOrEmpty(capabilities.Definition))
             {
-                config.Definition ??= config.AddDefinition(context);
-                config.Definition!.Value = capabilities.Definition!;
+                config.AddDefinition(context).Value = capabilities.Definition!;
             }
 
             if (capabilities.MaxTimeInterval > 0)
             {
-                config.MaxTimeInterval ??= config.AddMaxTimeInterval(context);
-                config.MaxTimeInterval!.Value = capabilities.MaxTimeInterval;
+                config.AddMaxTimeInterval(context).Value = capabilities.MaxTimeInterval;
             }
 
             if (capabilities.MinTimeInterval > 0)
             {
-                config.MinTimeInterval ??= config.AddMinTimeInterval(context);
-                config.MinTimeInterval!.Value = capabilities.MinTimeInterval;
+                config.AddMinTimeInterval(context).Value = capabilities.MinTimeInterval;
             }
 
             if (capabilities.MaxTimeStoredValues > 0)
             {
-                config.MaxTimeStoredValues ??= config.AddMaxTimeStoredValues(context);
-                config.MaxTimeStoredValues!.Value = capabilities.MaxTimeStoredValues;
+                config.AddMaxTimeStoredValues(context).Value = capabilities.MaxTimeStoredValues;
             }
 
             if (capabilities.MaxCountStoredValues > 0)
             {
-                config.MaxCountStoredValues ??= config.AddMaxCountStoredValues(context);
-                config.MaxCountStoredValues!.Value = capabilities.MaxCountStoredValues;
+                config.AddMaxCountStoredValues(context).Value = capabilities.MaxCountStoredValues;
             }
 
             if (capabilities.StartOfArchive != DateTimeUtc.MinValue)
             {
-                config.StartOfArchive ??= config.AddStartOfArchive(context);
-                config.StartOfArchive!.Value = capabilities.StartOfArchive;
+                config.AddStartOfArchive(context).Value = capabilities.StartOfArchive;
             }
 
             if (capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue)
             {
-                config.StartOfOnlineArchive ??= config.AddStartOfOnlineArchive(context);
-                config.StartOfOnlineArchive!.Value = capabilities.StartOfOnlineArchive;
+                config.AddStartOfOnlineArchive(context).Value = capabilities.StartOfOnlineArchive;
             }
 
             if (config.ServerTimestampSupported == null && capabilities.ServerTimestampSupported)

@@ -496,22 +496,18 @@ namespace Opc.Ua.Server
             // singleton-instance factories that use the correct NodeIds are
             // internal to Opc.Ua.Core.Types, so we override the NodeId
             // post-construction to the well-known instance identifier.
+            // Add{Child} is idempotent (returns the existing typed child if
+            // present), so no null guards are needed.
             //
             // Standard Server methods this SDK wires (DiagnosticsNodeManager).
             // GetMonitoredItems / ResendData are wired unconditionally;
             // SetSubscriptionDurable only when durable subscriptions are
             // enabled (otherwise the existing path explicitly removes it).
-            if (serverObject.GetMonitoredItems == null)
-            {
-                serverObject.AddGetMonitoredItems(context).NodeId
-                    = MethodIds.Server_GetMonitoredItems;
-            }
-            if (serverObject.ResendData == null)
-            {
-                serverObject.AddResendData(context).NodeId
-                    = MethodIds.Server_ResendData;
-            }
-            if (m_durableSubscriptionsEnabled && serverObject.SetSubscriptionDurable == null)
+            serverObject.AddGetMonitoredItems(context).NodeId
+                = MethodIds.Server_GetMonitoredItems;
+            serverObject.AddResendData(context).NodeId
+                = MethodIds.Server_ResendData;
+            if (m_durableSubscriptionsEnabled)
             {
                 serverObject.AddSetSubscriptionDurable(context).NodeId
                     = MethodIds.Server_SetSubscriptionDurable;
@@ -521,11 +517,8 @@ namespace Opc.Ua.Server
             // register per-namespace NamespaceMetadata children; without it
             // CreateNamespaceMetadataStateAsync logs an error and namespace
             // metadata cannot be exposed.
-            if (serverObject.Namespaces == null)
-            {
-                serverObject.AddNamespaces(context).NodeId
-                    = ObjectIds.Server_Namespaces;
-            }
+            serverObject.AddNamespaces(context).NodeId
+                = ObjectIds.Server_Namespaces;
 
             // Server.UrisVersion / EstimatedReturnTime / LocalTime are Optional
             // Variables on ServerType that the SDK does not actively populate
@@ -536,21 +529,12 @@ namespace Opc.Ua.Server
             // default (UInt32 0 for UrisVersion, default DateTimeUtc for
             // EstimatedReturnTime, default TimeZoneDataType for LocalTime)
             // until a server implementation overrides them.
-            if (serverObject.UrisVersion == null)
-            {
-                serverObject.AddUrisVersion(context).NodeId
-                    = VariableIds.Server_UrisVersion;
-            }
-            if (serverObject.EstimatedReturnTime == null)
-            {
-                serverObject.AddEstimatedReturnTime(context).NodeId
-                    = VariableIds.Server_EstimatedReturnTime;
-            }
-            if (serverObject.LocalTime == null)
-            {
-                serverObject.AddLocalTime(context).NodeId
-                    = VariableIds.Server_LocalTime;
-            }
+            serverObject.AddUrisVersion(context).NodeId
+                = VariableIds.Server_UrisVersion;
+            serverObject.AddEstimatedReturnTime(context).NodeId
+                = VariableIds.Server_EstimatedReturnTime;
+            serverObject.AddLocalTime(context).NodeId
+                = VariableIds.Server_LocalTime;
 
             // The transitive generator gate (issue #3768) stops emitting
             // Optional Variable/Method descendants of Server (e.g.
@@ -566,7 +550,7 @@ namespace Opc.Ua.Server
             // such as ServerCapabilities.OperationLimits and
             // ServerCapabilities.RoleSet are intentionally exempt from the
             // gate (their subtrees rely on well-known descendant NodeIds),
-            // so the null-guards below treat the pre-existing Object as the
+            // so the dispatchers below treat the pre-existing Object as the
             // common case and only lazy-add the missing Variable/Method
             // children.
             if (serverObject.ServerCapabilities != null)
@@ -589,82 +573,38 @@ namespace Opc.Ua.Server
             // factory which assigns the type-level NodeId; patch each to the
             // well-known singleton-instance NodeId after construction (see
             // AddServerSdkOptionalChildren above for the rationale).
-            if (serverCapabilities.MaxArrayLength == null)
-            {
-                serverCapabilities.AddMaxArrayLength(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxArrayLength;
-            }
-            if (serverCapabilities.MaxStringLength == null)
-            {
-                serverCapabilities.AddMaxStringLength(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxStringLength;
-            }
-            if (serverCapabilities.MaxByteStringLength == null)
-            {
-                serverCapabilities.AddMaxByteStringLength(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxByteStringLength;
-            }
-            if (serverCapabilities.MaxSessions == null)
-            {
-                serverCapabilities.AddMaxSessions(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxSessions;
-            }
-            if (serverCapabilities.MaxSubscriptions == null)
-            {
-                serverCapabilities.AddMaxSubscriptions(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxSubscriptions;
-            }
-            if (serverCapabilities.MaxMonitoredItems == null)
-            {
-                serverCapabilities.AddMaxMonitoredItems(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxMonitoredItems;
-            }
-            if (serverCapabilities.MaxSubscriptionsPerSession == null)
-            {
-                serverCapabilities.AddMaxSubscriptionsPerSession(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession;
-            }
-            if (serverCapabilities.MaxMonitoredItemsPerSubscription == null)
-            {
-                serverCapabilities.AddMaxMonitoredItemsPerSubscription(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription;
-            }
-            if (serverCapabilities.MaxSelectClauseParameters == null)
-            {
-                serverCapabilities.AddMaxSelectClauseParameters(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters;
-            }
-            if (serverCapabilities.MaxWhereClauseParameters == null)
-            {
-                serverCapabilities.AddMaxWhereClauseParameters(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters;
-            }
-            if (serverCapabilities.MaxMonitoredItemsQueueSize == null)
-            {
-                serverCapabilities.AddMaxMonitoredItemsQueueSize(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize;
-            }
-            if (serverCapabilities.ConformanceUnits == null)
-            {
-                serverCapabilities.AddConformanceUnits(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_ConformanceUnits;
-            }
-            if (serverCapabilities.RoleSet == null)
-            {
-                serverCapabilities.AddRoleSet(context).NodeId
-                    = ObjectIds.Server_ServerCapabilities_RoleSet;
-            }
-            if (serverCapabilities.OperationLimits == null)
-            {
-                OperationLimitsState operationLimits = serverCapabilities.AddOperationLimits(context);
-                operationLimits.NodeId
-                    = ObjectIds.Server_ServerCapabilities_OperationLimits;
-                AddOperationLimitsSdkOptionalChildren(context, operationLimits);
-            }
-            else
-            {
-                AddOperationLimitsSdkOptionalChildren(context, serverCapabilities.OperationLimits);
-            }
+            // Add{Child} is idempotent (returns the existing typed child if
+            // present), so no null guards are needed.
+            serverCapabilities.AddMaxArrayLength(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxArrayLength;
+            serverCapabilities.AddMaxStringLength(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxStringLength;
+            serverCapabilities.AddMaxByteStringLength(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxByteStringLength;
+            serverCapabilities.AddMaxSessions(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxSessions;
+            serverCapabilities.AddMaxSubscriptions(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxSubscriptions;
+            serverCapabilities.AddMaxMonitoredItems(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxMonitoredItems;
+            serverCapabilities.AddMaxSubscriptionsPerSession(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession;
+            serverCapabilities.AddMaxMonitoredItemsPerSubscription(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription;
+            serverCapabilities.AddMaxSelectClauseParameters(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters;
+            serverCapabilities.AddMaxWhereClauseParameters(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters;
+            serverCapabilities.AddMaxMonitoredItemsQueueSize(context).NodeId
+                = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize;
+            serverCapabilities.AddConformanceUnits(context).NodeId
+                = VariableIds.Server_ServerCapabilities_ConformanceUnits;
+            serverCapabilities.AddRoleSet(context).NodeId
+                = ObjectIds.Server_ServerCapabilities_RoleSet;
+            OperationLimitsState operationLimits = serverCapabilities.AddOperationLimits(context);
+            operationLimits.NodeId
+                = ObjectIds.Server_ServerCapabilities_OperationLimits;
+            AddOperationLimitsSdkOptionalChildren(context, operationLimits);
         }
 
         private static void AddOperationLimitsSdkOptionalChildren(
@@ -675,68 +615,32 @@ namespace Opc.Ua.Server
             // were emitted on master with their well-known instance NodeIds.
             // The SDK assigns values to whichever children exist (see
             // ServerInternalData.CreateServerObjectAsync) - re-add every
-            // child unconditionally and patch to the well-known NodeId so
-            // the observable address-space matches master.
-            if (operationLimits.MaxNodesPerRead == null)
-            {
-                operationLimits.AddMaxNodesPerRead(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead;
-            }
-            if (operationLimits.MaxNodesPerHistoryReadData == null)
-            {
-                operationLimits.AddMaxNodesPerHistoryReadData(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData;
-            }
-            if (operationLimits.MaxNodesPerHistoryReadEvents == null)
-            {
-                operationLimits.AddMaxNodesPerHistoryReadEvents(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents;
-            }
-            if (operationLimits.MaxNodesPerWrite == null)
-            {
-                operationLimits.AddMaxNodesPerWrite(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite;
-            }
-            if (operationLimits.MaxNodesPerHistoryUpdateData == null)
-            {
-                operationLimits.AddMaxNodesPerHistoryUpdateData(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData;
-            }
-            if (operationLimits.MaxNodesPerHistoryUpdateEvents == null)
-            {
-                operationLimits.AddMaxNodesPerHistoryUpdateEvents(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents;
-            }
-            if (operationLimits.MaxNodesPerMethodCall == null)
-            {
-                operationLimits.AddMaxNodesPerMethodCall(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall;
-            }
-            if (operationLimits.MaxNodesPerBrowse == null)
-            {
-                operationLimits.AddMaxNodesPerBrowse(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse;
-            }
-            if (operationLimits.MaxNodesPerRegisterNodes == null)
-            {
-                operationLimits.AddMaxNodesPerRegisterNodes(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes;
-            }
-            if (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == null)
-            {
-                operationLimits.AddMaxNodesPerTranslateBrowsePathsToNodeIds(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds;
-            }
-            if (operationLimits.MaxNodesPerNodeManagement == null)
-            {
-                operationLimits.AddMaxNodesPerNodeManagement(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement;
-            }
-            if (operationLimits.MaxMonitoredItemsPerCall == null)
-            {
-                operationLimits.AddMaxMonitoredItemsPerCall(context).NodeId
-                    = VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall;
-            }
+            // child and patch to the well-known NodeId so the observable
+            // address-space matches master. Add{Child} is idempotent.
+            operationLimits.AddMaxNodesPerRead(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead;
+            operationLimits.AddMaxNodesPerHistoryReadData(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData;
+            operationLimits.AddMaxNodesPerHistoryReadEvents(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents;
+            operationLimits.AddMaxNodesPerWrite(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite;
+            operationLimits.AddMaxNodesPerHistoryUpdateData(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData;
+            operationLimits.AddMaxNodesPerHistoryUpdateEvents(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents;
+            operationLimits.AddMaxNodesPerMethodCall(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall;
+            operationLimits.AddMaxNodesPerBrowse(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse;
+            operationLimits.AddMaxNodesPerRegisterNodes(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes;
+            operationLimits.AddMaxNodesPerTranslateBrowsePathsToNodeIds(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds;
+            operationLimits.AddMaxNodesPerNodeManagement(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement;
+            operationLimits.AddMaxMonitoredItemsPerCall(context).NodeId
+                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall;
         }
 
         private static void AddServerRedundancySdkOptionalChildren(
@@ -750,11 +654,8 @@ namespace Opc.Ua.Server
             // RedundantServerArray, see DefaultServerRedundancyHandler in
             // Opc.Ua.Client) keep working even when no redundancy provider
             // populates it.
-            if (serverRedundancy.RedundantServerArray == null)
-            {
-                serverRedundancy.AddRedundantServerArray(context).NodeId
-                    = VariableIds.Server_ServerRedundancy_RedundantServerArray;
-            }
+            serverRedundancy.AddRedundantServerArray(context).NodeId
+                = VariableIds.Server_ServerRedundancy_RedundantServerArray;
         }
 
         private static void AddHistoryCapabilitiesSdkOptionalChildren(
@@ -766,11 +667,8 @@ namespace Opc.Ua.Server
             // rolled-up historian capabilities — without lazy-add the write
             // would NRE. See AddServerSdkOptionalChildren for the NodeId-patch
             // rationale (type-level Add* extension assigns the type NodeId).
-            if (historyCaps.ServerTimestampSupported == null)
-            {
-                historyCaps.AddServerTimestampSupported(context).NodeId
-                    = VariableIds.HistoryServerCapabilities_ServerTimestampSupported;
-            }
+            historyCaps.AddServerTimestampSupported(context).NodeId
+                = VariableIds.HistoryServerCapabilities_ServerTimestampSupported;
         }
 
         /// <summary>
@@ -794,21 +692,12 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            if (metadataState.DefaultRolePermissions == null)
-            {
-                metadataState.AddDefaultRolePermissions(context).NodeId
-                    = VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions;
-            }
-            if (metadataState.DefaultUserRolePermissions == null)
-            {
-                metadataState.AddDefaultUserRolePermissions(context).NodeId
-                    = VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions;
-            }
-            if (metadataState.DefaultAccessRestrictions == null)
-            {
-                metadataState.AddDefaultAccessRestrictions(context).NodeId
-                    = VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions;
-            }
+            metadataState.AddDefaultRolePermissions(context).NodeId
+                = VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions;
+            metadataState.AddDefaultUserRolePermissions(context).NodeId
+                = VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions;
+            metadataState.AddDefaultAccessRestrictions(context).NodeId
+                = VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions;
         }
 
         /// <summary>
@@ -836,11 +725,8 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            if (category.LastChange == null)
-            {
-                category.AddLastChange(context).NodeId
-                    = VariableIds.Aliases_LastChange;
-            }
+            category.AddLastChange(context).NodeId
+                = VariableIds.Aliases_LastChange;
         }
 
         /// <summary>
@@ -990,51 +876,19 @@ namespace Opc.Ua.Server
             // Re-add them here so RoleStateBinding finds them. Only the method
             // and property NodeIds need the singleton-instance patch; the
             // generated Add{Method} helpers populate the InputArguments
-            // child (which clients read by browse-name) for us.
-            if (role.Applications == null)
-            {
-                role.AddApplications(context).NodeId = new NodeId(applications);
-            }
-            if (role.ApplicationsExclude == null)
-            {
-                role.AddApplicationsExclude(context).NodeId = new NodeId(applicationsExclude);
-            }
-            if (role.Endpoints == null)
-            {
-                role.AddEndpoints(context).NodeId = new NodeId(endpoints);
-            }
-            if (role.EndpointsExclude == null)
-            {
-                role.AddEndpointsExclude(context).NodeId = new NodeId(endpointsExclude);
-            }
-            if (role.CustomConfiguration == null)
-            {
-                role.AddCustomConfiguration(context).NodeId = new NodeId(customConfiguration);
-            }
-            if (role.AddIdentity == null)
-            {
-                role.AddAddIdentity(context).NodeId = new NodeId(addIdentityMethod);
-            }
-            if (role.RemoveIdentity == null)
-            {
-                role.AddRemoveIdentity(context).NodeId = new NodeId(removeIdentityMethod);
-            }
-            if (role.AddApplication == null)
-            {
-                role.AddAddApplication(context).NodeId = new NodeId(addApplicationMethod);
-            }
-            if (role.RemoveApplication == null)
-            {
-                role.AddRemoveApplication(context).NodeId = new NodeId(removeApplicationMethod);
-            }
-            if (role.AddEndpoint == null)
-            {
-                role.AddAddEndpoint(context).NodeId = new NodeId(addEndpointMethod);
-            }
-            if (role.RemoveEndpoint == null)
-            {
-                role.AddRemoveEndpoint(context).NodeId = new NodeId(removeEndpointMethod);
-            }
+            // child (which clients read by browse-name) for us. Add{Child}
+            // is idempotent (no null guards needed).
+            role.AddApplications(context).NodeId = new NodeId(applications);
+            role.AddApplicationsExclude(context).NodeId = new NodeId(applicationsExclude);
+            role.AddEndpoints(context).NodeId = new NodeId(endpoints);
+            role.AddEndpointsExclude(context).NodeId = new NodeId(endpointsExclude);
+            role.AddCustomConfiguration(context).NodeId = new NodeId(customConfiguration);
+            role.AddAddIdentity(context).NodeId = new NodeId(addIdentityMethod);
+            role.AddRemoveIdentity(context).NodeId = new NodeId(removeIdentityMethod);
+            role.AddAddApplication(context).NodeId = new NodeId(addApplicationMethod);
+            role.AddRemoveApplication(context).NodeId = new NodeId(removeApplicationMethod);
+            role.AddAddEndpoint(context).NodeId = new NodeId(addEndpointMethod);
+            role.AddRemoveEndpoint(context).NodeId = new NodeId(removeEndpointMethod);
         }
 
         /// <summary>

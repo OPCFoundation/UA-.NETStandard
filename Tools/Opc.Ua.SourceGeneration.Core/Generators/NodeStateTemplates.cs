@@ -930,15 +930,13 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString OptionalMethod = TemplateString.Parse(
             $$"""
             /// <summary>
-            /// Add an optional {{Tokens.ChildName}} child
+            /// Add the optional {{Tokens.ChildName}} child. Idempotent: returns
+            /// the existing typed child if it has already been added.
             /// </summary>
             {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} Add{{Tokens.ChildName}}(
                 global::Opc.Ua.ISystemContext context)
             {
-                {{Tokens.ClassName}} state =
-                    context.Create{{Tokens.SymbolicId}}(this, true);
-                {{Tokens.ChildName}} = state;
-                return state;
+                return {{Tokens.ChildName}} ??= context.Create{{Tokens.SymbolicId}}(this, true);
             }
 
             """);
