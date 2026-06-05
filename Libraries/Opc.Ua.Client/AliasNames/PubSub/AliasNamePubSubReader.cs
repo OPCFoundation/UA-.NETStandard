@@ -46,7 +46,9 @@ namespace Opc.Ua.Client.AliasNames.PubSub
             Update = update ?? throw new ArgumentNullException(nameof(update));
         }
 
-        /// <summary>The received message.</summary>
+        /// <summary>
+        /// The received message.
+        /// </summary>
         public AliasUpdateDataType Update { get; }
     }
 
@@ -73,7 +75,9 @@ namespace Opc.Ua.Client.AliasNames.PubSub
             Options = options ?? new AliasNamePubSubReaderOptions();
         }
 
-        /// <summary>The (snapshot of) configured options.</summary>
+        /// <summary>
+        /// The (snapshot of) configured options.
+        /// </summary>
         public AliasNamePubSubReaderOptions Options { get; }
 
         /// <summary>

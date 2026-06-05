@@ -111,10 +111,14 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>The initial value (must be assignable to a <c>Variant</c>).</summary>
         public Variant? InitialValue { get; init; }
 
-        /// <summary>Optional description.</summary>
+        /// <summary>
+        /// Optional description.
+        /// </summary>
         public string? Description { get; init; }
 
-        /// <summary>Whether the parameter is writable.</summary>
+        /// <summary>
+        /// Whether the parameter is writable.
+        /// </summary>
         public bool Writable { get; init; } = true;
     }
 }

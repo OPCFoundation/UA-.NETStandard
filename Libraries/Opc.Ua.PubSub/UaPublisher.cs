@@ -55,7 +55,8 @@ namespace Opc.Ua.PubSub
         internal UaPublisher(
             IUaPubSubConnection pubSubConnection,
             WriterGroupDataType writerGroupConfiguration,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<UaPublisher>();
             PubSubConnection = pubSubConnection ??
@@ -64,13 +65,15 @@ namespace Opc.Ua.PubSub
                 writerGroupConfiguration ??
                 throw new ArgumentNullException(nameof(writerGroupConfiguration));
             m_writerGroupPublishState = new WriterGroupPublishState();
+            timeProvider ??= TimeProvider.System;
 
             m_intervalRunner = new IntervalRunner(
                 WriterGroupConfiguration.Name,
                 WriterGroupConfiguration.PublishingInterval,
                 CanPublish,
                 PublishMessagesAsync,
-                telemetry);
+                telemetry,
+                timeProvider);
         }
 
         /// <summary>

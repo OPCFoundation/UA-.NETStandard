@@ -60,7 +60,7 @@ namespace Opc.Ua.Server
         DateTime ClientLastContactTime { get; }
 
         /// <summary>
-        /// The monotonic tick count (HiResClock.TickCount64) at the last client contact.
+        /// The monotonic tick count (milliseconds) at the last client contact.
         /// Used for timeout calculations that are immune to system time changes.
         /// </summary>
         long LastContactTickCount { get; }

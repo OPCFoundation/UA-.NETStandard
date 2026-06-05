@@ -494,8 +494,14 @@ namespace MemoryBuffer
             if (m_monitoringTable == null)
             {
                 m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
+                TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
+                    ?? TimeProvider.System;
                 m_scanTimer?.Dispose();
-                m_scanTimer = new Timer(DoScan, null, 100, 100);
+                m_scanTimer = timeProvider.CreateTimer(
+                    DoScan,
+                    null,
+                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.FromMilliseconds(100));
             }
 
             int elementOffet = (int)(tag.Offset / ElementSize);
@@ -688,7 +694,7 @@ namespace MemoryBuffer
         private int m_elementSize;
         private DateTimeUtc m_lastScanTime;
         private byte[] m_buffer = null!;
-        private Timer? m_scanTimer;
+        private ITimer? m_scanTimer;
         private int m_updateCount;
         private int m_itemCount;
     }

@@ -60,7 +60,8 @@ namespace Opc.Ua.PubSub.Transport
             WriterGroupDataType writerGroup,
             DataSetWriterDataType dataSetWriter,
             double metaDataUpdateTime,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<MqttMetadataPublisher>();
             m_parentConnection = parentConnection;
@@ -71,7 +72,8 @@ namespace Opc.Ua.PubSub.Transport
                 metaDataUpdateTime,
                 CanPublish,
                 PublishMessageAsync,
-                telemetry);
+                telemetry,
+                timeProvider);
         }
 
         /// <summary>

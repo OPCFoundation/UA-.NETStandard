@@ -271,7 +271,7 @@ namespace Alarms
 
                 AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -283,7 +283,7 @@ namespace Alarms
 
                 AlarmHolder mandatoryNonExclusiveLevel = new NonExclusiveLevelHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -296,7 +296,7 @@ namespace Alarms
 
                 AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -307,7 +307,7 @@ namespace Alarms
 
                 AlarmHolder alarmCondition = new AlarmConditionHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -318,7 +318,7 @@ namespace Alarms
 
                 AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -330,7 +330,7 @@ namespace Alarms
 
                 AlarmHolder limitAlarm = new LimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -341,7 +341,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -352,7 +352,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -364,7 +364,7 @@ namespace Alarms
 
                 AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -375,7 +375,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -386,7 +386,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -398,7 +398,7 @@ namespace Alarms
 
                 AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -411,7 +411,7 @@ namespace Alarms
 
                 AlarmHolder discreteAlarm = new DiscreteAlarmHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -422,7 +422,7 @@ namespace Alarms
 
                 AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
                     this,
-                    alarmsFolder,
+                    booleanTrigger,
                     booleanSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
@@ -1190,12 +1190,14 @@ namespace Alarms
         {
             m_logger.LogInformation("Alarms: Starting simulation");
 
+            TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
             m_simulationTimer?.Dispose();
-            m_simulationTimer = new Timer(
+            m_simulationTimer = timeProvider.CreateTimer(
                 DoSimulation,
                 null,
-                kSimulationInterval,
-                kSimulationInterval);
+                TimeSpan.FromMilliseconds(kSimulationInterval),
+                TimeSpan.FromMilliseconds(kSimulationInterval));
         }
 
         /// <summary>
@@ -1234,7 +1236,7 @@ namespace Alarms
         ];
 
         private const ushort kSimulationInterval = 100;
-        private Timer? m_simulationTimer;
+        private ITimer? m_simulationTimer;
         private AlarmGroup? m_analogGroup;
         private BaseDataVariableState? m_maintenanceMode;
         private AlarmSuppressionEngine? m_suppressionEngine;

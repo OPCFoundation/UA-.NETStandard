@@ -171,7 +171,6 @@ namespace Quickstarts.ReferenceServer
                         UseSamplingGroupsInReferenceNodeManager);
 #pragma warning restore CA2000
                     asyncNodeManagers = [referenceNodeManager];
-                    m_referenceNodeManager = referenceNodeManager;
                     referenceNodeManager = null;
                 }
                 finally
@@ -767,10 +766,6 @@ namespace Quickstarts.ReferenceServer
 
         private CertificateManager? m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
-        // CA2213: ownership transferred to MasterNodeManager which disposes child node managers on shutdown.
-#pragma warning disable CA2213
-        private ReferenceNodeManager? m_referenceNodeManager;
-#pragma warning restore CA2213
         private readonly UserManagement m_userManagement;
     }
 }

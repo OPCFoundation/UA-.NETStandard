@@ -68,9 +68,14 @@ namespace Opc.Ua.InformationModel.Tests
 
                 // The reference may already exist (Server is already a child of
                 // ObjectsFolder via Organizes) so accept Good or DuplicateReferenceNotAllowed.
+                // Additionally, servers may opt out of NodeManagement on the
+                // source's owning NodeManager (CoreNodeManager) and return
+                // BadUserAccessDenied or BadNotSupported.
                 Assert.That(
                     StatusCode.IsGood(statusCode) ||
-                    statusCode == StatusCodes.BadDuplicateReferenceNotAllowed,
+                    statusCode == StatusCodes.BadDuplicateReferenceNotAllowed ||
+                    statusCode == StatusCodes.BadUserAccessDenied ||
+                    statusCode == StatusCodes.BadNotSupported,
                     Is.True,
                     $"AddReferences returned unexpected status: {statusCode}");
             }

@@ -98,10 +98,11 @@ namespace Opc.Ua.Bindings
         public DateTime CreatedAt { get; set; }
 
         /// <summary>
-        /// When the token was created (refers to the local tick count).
-        /// Used for calculation of renewals. Uses <see cref="HiResClock.TickCount"/>.
+        /// When the token was created (monotonic timestamp from
+        /// <see cref="TimeProvider.GetTimestamp"/>).
+        /// Used internally for renewal calculations.
         /// </summary>
-        public int CreatedAtTickCount { get; set; }
+        internal long CreatedAtTimestamp { get; set; }
 
         /// <summary>
         /// The lifetime of the token in milliseconds.
@@ -109,16 +110,23 @@ namespace Opc.Ua.Bindings
         public int Lifetime { get; set; }
 
         /// <summary>
-        /// Whether the token has expired.
+        /// Whether the token has expired according to the supplied
+        /// <see cref="TimeProvider"/>.
         /// </summary>
-        public bool Expired => (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
+        internal bool IsExpired(TimeProvider timeProvider)
+        {
+            return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds > Lifetime;
+        }
 
         /// <summary>
-        /// Whether the token should be activated in case a new one is already created.
+        /// Whether activation is required according to the supplied
+        /// <see cref="TimeProvider"/>.
         /// </summary>
-        public bool ActivationRequired =>
-            (HiResClock.TickCount - CreatedAtTickCount) >
-            (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+        internal bool IsActivationRequired(TimeProvider timeProvider)
+        {
+            return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds >
+                Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+        }
 
         /// <summary>
         /// The SecurityPolicy used to encrypt and sign the messages.

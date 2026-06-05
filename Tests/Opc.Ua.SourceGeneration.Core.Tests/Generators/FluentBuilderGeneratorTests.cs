@@ -371,24 +371,126 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return files.Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
         }
 
-        private static Dictionary<string, string> GenerateForTestModel(bool generateNodeManager)
+        // ============================================================
+        // FB-3 phase 3: per-ObjectType IComponentAccessor/IPropertyAccessor
+        // extensions emitted into the same FluentBuilders file.
+        // ============================================================
+
+        [Test]
+        public void EmittedFluentBuilders_HasPerObjectTypeComponentAccessorClass()
+        {
+            string fb = GetFluentBuilders();
+
+            // TestModel.RestrictedObjectType has Red (Variable), Pink
+            // (Variable), and Blue (Method) — all HasComponent. The
+            // generator must emit one static partial class containing
+            // an extension method per child on
+            // IComponentAccessor<RestrictedObjectState>.
+            Assert.That(fb, Does.Match(
+                @"public\s+static\s+partial\s+class\s+RestrictedObjectStateComponents"),
+                "Per-ObjectType component-accessor class must be emitted");
+
+            Assert.That(fb, Does.Match(
+                @"this\s+global::Opc\.Ua\.IComponentAccessor<global::[\w\.]+\.RestrictedObjectState>"),
+                "Accessor extensions must hang off Opc.Ua.IComponentAccessor<TState> (Core marker)");
+
+            Assert.That(fb, Does.Contain(
+                "new global::Opc.Ua.QualifiedName(\"Red\")"),
+                "Red child accessor must resolve via unqualified QualifiedName(\"Red\")");
+
+            Assert.That(fb, Does.Contain(
+                "new global::Opc.Ua.QualifiedName(\"Blue\")"),
+                "Blue method accessor must resolve via unqualified QualifiedName(\"Blue\")");
+        }
+
+        [Test]
+        public void EmittedFluentBuilders_AccessorMethodTypedReturnsNarrowState()
+        {
+            string fb = GetFluentBuilders();
+
+            // The Blue child is a MethodDesign with no TypeDefinition;
+            // the generator falls back to MethodState as the lowest-
+            // common-denominator return type.
+            Assert.That(fb, Does.Match(
+                @"global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.MethodState>\s+Blue\("),
+                "Method child accessor must return INodeBuilder<MethodState>");
+
+            // Variable children (Red, Pink_Placeholder) sit under
+            // HasComponent in the TestModel; the generator must emit
+            // them as IVariableBuilder<T> on IComponentAccessor.
+            Assert.That(fb, Does.Match(
+                @"global::Opc\.Ua\.Server\.Fluent\.IVariableBuilder<\w+>\s+Red\("),
+                "Variable HasComponent child accessor must return IVariableBuilder<T>");
+        }
+
+        [Test]
+        public void Emit_OmitFluentApi_SuppressesAccessorEmission()
+        {
+            // After the FB-R3-8 relocation, accessors emit by default
+            // (when GenerateNodeManager=true OR OmitFluentApi=false).
+            // Model-only consumers that don't reference Opc.Ua.Server
+            // explicitly opt OUT via the OmitFluentApi flag.
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                omitFluentApi: true);
+
+            KeyValuePair<string, string>? fb = files
+                .Where(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Cast<KeyValuePair<string, string>?>()
+                .FirstOrDefault();
+            Assert.That(fb, Is.Null,
+                "FluentBuilders file must be suppressed when OmitFluentApi=true and GenerateNodeManager=false");
+        }
+
+        [Test]
+        public void Emit_DefaultOmitFluentApiFalse_EmitsAccessorsWithoutNodeManager()
+        {
+            // Default opt-out semantics: accessors emit even without a
+            // node manager opt-in. NodeSet2-only consumers that don't
+            // override OmitFluentApi=true get the typed accessors for
+            // free (provided they reference Opc.Ua.Server).
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: false,
+                omitFluentApi: false);
+
+            KeyValuePair<string, string> fb = files
+                .Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal));
+            Assert.That(fb.Value, Does.Not.Match(
+                @"internal\s+interface\s+I\w+NodeManagerBuilder"),
+                "Manager interface must be skipped when GenerateNodeManager=false");
+            Assert.That(fb.Value, Does.Match(
+                @"public\s+static\s+partial\s+class\s+RestrictedObjectStateComponents"),
+                "Per-type accessor must be emitted by default (OmitFluentApi=false)");
+        }
+
+        private static Dictionary<string, string> GenerateForTestModel(
+            bool generateNodeManager,
+            bool omitFluentApi = true)
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
             string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
 
-            Generators.GenerateCode(new DesignFileCollection
-            {
-                Targets = [Path.Combine(resources, designFile)],
-                IdentifierFilePath = Path.Combine(
-                    resources,
-                    Path.GetFileNameWithoutExtension(designFile) + ".csv"),
-                Options = new DesignFileOptions
+            Generators.GenerateCode(
+                new DesignFileCollection
                 {
-                    GenerateNodeManager = generateNodeManager
-                }
-            }, fileSystem, string.Empty, telemetry);
+                    Targets = [Path.Combine(resources, designFile)],
+                    IdentifierFilePath = Path.Combine(
+                        resources,
+                        Path.GetFileNameWithoutExtension(designFile) + ".csv"),
+                    Options = new DesignFileOptions
+                    {
+                        GenerateNodeManager = generateNodeManager
+                    }
+                },
+                fileSystem,
+                string.Empty,
+                telemetry,
+                options: new GeneratorOptions
+                {
+                    OmitFluentApi = omitFluentApi
+                });
 
             return fileSystem.CreatedFiles
                 .Where(c => Path.GetExtension(c) == ".cs")

@@ -150,7 +150,6 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-
             if (builder.Node is not BaseVariableState variable)
             {
                 throw ServiceResultException.Create(

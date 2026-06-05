@@ -23,7 +23,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\Libraries\Opc.Ua.Gds.Common\Design\*">
+    <EmbeddedResource Include="..\..\Libraries\Opc.Ua.Gds.Common\Design\*" Exclude="..\..\Libraries\Opc.Ua.Gds.Common\Design\OpcUaOnboardingModel.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>

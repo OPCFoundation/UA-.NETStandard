@@ -205,6 +205,12 @@ namespace Quickstarts.ReferenceServer
                     // Create and add the node managers
                     server.Create(Servers.Utils.NodeManagerFactories);
 
+                    // Add async node managers
+                    foreach (var asyncFactory in Servers.Utils.AsyncNodeManagerFactories)
+                    {
+                        server.Server!.AddNodeManager(asyncFactory);
+                    }
+
                     // Add GDS node manager if configured
                     GlobalDiscoveryServerConfiguration? gdsConfig = server.Configuration
                         .ParseExtension<GlobalDiscoveryServerConfiguration>();

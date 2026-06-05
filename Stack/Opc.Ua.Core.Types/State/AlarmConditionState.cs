@@ -45,9 +45,24 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="parent"></param>
         public AlarmConditionState(ITelemetryContext telemetry, NodeState parent)
+            : this(telemetry, parent, null)
+        {
+        }
+
+        /// <summary>
+        /// Create alarm condition with an explicit time provider.
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="parent">The parent node.</param>
+        /// <param name="timeProvider">Time provider used for unshelve scheduling and durations.</param>
+        public AlarmConditionState(
+            ITelemetryContext telemetry,
+            NodeState parent,
+            TimeProvider? timeProvider = null)
             : this(parent)
         {
             m_logger = telemetry.CreateLogger<AlarmConditionState>();
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc/>
@@ -291,19 +306,19 @@ namespace Opc.Ua
                 }
 
                 shelvingState.UnshelveTime!.Value = shelveTime; // UnshelveTime is created with ShelvingState
-                UnshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
+                UnshelveTime = m_timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds((int)shelveTime);
 
-                m_updateUnshelveTimer = new Timer(
+                m_updateUnshelveTimer = m_timeProvider.CreateTimer(
                     OnUnshelveTimeUpdate,
                     context,
-                    UnshelveTimeUpdateRate,
-                    UnshelveTimeUpdateRate);
+                    TimeSpan.FromMilliseconds(UnshelveTimeUpdateRate),
+                    TimeSpan.FromMilliseconds(UnshelveTimeUpdateRate));
 
-                m_unshelveTimer = new Timer(
+                m_unshelveTimer = m_timeProvider.CreateTimer(
                     OnTimerExpired,
                     context,
-                    (int)shelveTime,
-                    Timeout.Infinite);
+                    TimeSpan.FromMilliseconds((int)shelveTime),
+                    Timeout.InfiniteTimeSpan);
                 shelvingState.CauseProcessingCompleted(context, state);
             }
 
@@ -482,7 +497,7 @@ namespace Opc.Ua
 
             if (UnshelveTime != DateTime.MinValue)
             {
-                delta = (UnshelveTime - DateTime.UtcNow).TotalMilliseconds;
+                delta = (UnshelveTime - m_timeProvider.GetUtcNow().UtcDateTime).TotalMilliseconds;
 
                 if (delta < 0)
                 {
@@ -807,9 +822,10 @@ namespace Opc.Ua
         }
 
         private readonly ILogger m_logger;
+        private readonly TimeProvider m_timeProvider = TimeProvider.System;
         private bool m_oneShot;
-        private Timer? m_unshelveTimer;
-        private Timer? m_updateUnshelveTimer;
+        private ITimer? m_unshelveTimer;
+        private ITimer? m_updateUnshelveTimer;
     }
 
     /// <summary>

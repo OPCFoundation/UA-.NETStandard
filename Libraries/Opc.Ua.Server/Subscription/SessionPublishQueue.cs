@@ -45,6 +45,18 @@ namespace Opc.Ua.Server
         /// Creates a new queue.
         /// </summary>
         public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
+            : this(server, session, maxPublishRequests, timeProvider: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new queue.
+        /// </summary>
+        public SessionPublishQueue(
+            IServerInternal server,
+            ISession session,
+            int maxPublishRequests,
+            TimeProvider? timeProvider)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
@@ -52,6 +64,9 @@ namespace Opc.Ua.Server
             m_queuedRequests = new LinkedList<QueuedPublishRequest>();
             m_queuedSubscriptions = new ConcurrentDictionary<uint, QueuedSubscription>();
             m_maxRequestCount = maxPublishRequests;
+            m_timeProvider = timeProvider
+                ?? (server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
         }
 
         /// <summary>
@@ -126,7 +141,7 @@ namespace Opc.Ua.Server
                 }
 
                 // add to queue.
-                var request = new QueuedPublishRequest(secureChannelId, operationTimeout, cancellationToken);
+                var request = new QueuedPublishRequest(secureChannelId, operationTimeout, m_timeProvider, cancellationToken);
 
                 if (requeue)
                 {
@@ -555,7 +570,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class QueuedPublishRequest : IDisposable
         {
-            public QueuedPublishRequest(string secureChannelId, DateTime operationTimeout, CancellationToken cancellationToken)
+            public QueuedPublishRequest(
+                string secureChannelId,
+                DateTime operationTimeout,
+                TimeProvider timeProvider,
+                CancellationToken cancellationToken)
             {
                 SecureChannelId = secureChannelId;
                 OperationTimeout = operationTimeout;
@@ -564,10 +583,12 @@ namespace Opc.Ua.Server
                 m_cancellationTokenRegistration = cancellationToken.Register(
                     () => Tcs.TrySetCanceled());
                 // Cancel publish request if it times out
-                TimeSpan timeOut = operationTimeout < DateTime.MaxValue ? operationTimeout.AddMilliseconds(500) - DateTime.UtcNow : TimeSpan.Zero;
+                TimeSpan timeOut = operationTimeout < DateTime.MaxValue
+                    ? operationTimeout.AddMilliseconds(500) - timeProvider.GetUtcNow().UtcDateTime
+                    : TimeSpan.Zero;
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
-                    m_cancellationTokenSource = new CancellationTokenSource(timeOut);
+                    m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
                     m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
                     () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
                 }
@@ -672,5 +693,6 @@ namespace Opc.Ua.Server
         private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;
         private readonly ConcurrentDictionary<uint, QueuedSubscription> m_queuedSubscriptions;
         private readonly int m_maxRequestCount;
+        private readonly TimeProvider m_timeProvider;
     }
 }

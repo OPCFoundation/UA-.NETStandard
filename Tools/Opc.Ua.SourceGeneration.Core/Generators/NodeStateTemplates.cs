@@ -313,7 +313,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         return base.Call(_context, _objectId, _inputArguments, _outputArguments);
                     }
-
                     global::Opc.Ua.ServiceResult? _result = null;
                     {{Tokens.ListOfInputArguments}}
                     {{Tokens.ListOfOutputDeclarations}}
@@ -992,7 +991,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-
                 global::Opc.Ua.BaseInstanceState? instance = null;
 
                 switch (browseName.Name)
@@ -1001,10 +999,12 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 if (instance != null)
-                {
-                    return instance;
-                }
 
+                {
+
+                    return instance;
+
+                }
                 return base.FindChild(context, browseName, createOrReplace, replacement);
             }
 
@@ -1019,11 +1019,19 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Find child case template
+        /// Find child case template. Uses a literal string with the
+        /// runtime browse name (which may differ from the symbolic
+        /// name when the design overrides <c>&lt;opc:BrowseName&gt;</c>,
+        /// as in <c>Boiler.InputPipe</c> → <c>"PipeX001"</c>).
+        /// Avoids depending on <c>{Namespace}.BrowseNames.{ChildName}</c>
+        /// constants so cross-namespace inherited children compile
+        /// even when the foreign namespace's generated
+        /// <c>BrowseNames</c> class doesn't carry a constant for that
+        /// name.
         /// </summary>
         public static readonly TemplateString FindChildCase = TemplateString.Parse(
             $$"""
-            case {{Tokens.BrowseNameNamespacePrefix}}.BrowseNames.{{Tokens.ChildName}}:
+            case "{{Tokens.ChildBrowseName}}":
             {
                 instance = !createOrReplace ?
                     {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);

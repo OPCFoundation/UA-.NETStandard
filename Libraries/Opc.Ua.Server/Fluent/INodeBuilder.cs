@@ -51,14 +51,14 @@ namespace Opc.Ua.Server.Fluent
     /// error and throws.
     /// </para>
     /// </remarks>
-    public interface INodeBuilder
+    public interface INodeBuilder : INodeStateBuilder
     {
         /// <summary>
         /// The resolved <see cref="NodeState"/>. Exposed so callers can
         /// reach attributes that are not surfaced by the builder (for
         /// example, setting <c>UserAccessLevel</c> programmatically).
         /// </summary>
-        NodeState Node { get; }
+        new NodeState Node { get; }
 
         /// <summary>
         /// The owning builder. Useful when you want to terminate a chain
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Fluent
         /// <exception cref="ServiceResultException">
         /// Thrown when the child cannot be found.
         /// </exception>
-        INodeBuilder Child(QualifiedName browseName);
+        new INodeBuilder Child(QualifiedName browseName);
 
         /// <summary>
         /// Strongly-typed sibling of <see cref="Child(QualifiedName)"/>.
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.Fluent
         /// CLR <see cref="NodeState"/> type the resolved child must be
         /// assignable to.
         /// </typeparam>
-        INodeBuilder<TState> Child<TState>(QualifiedName browseName)
+        new INodeBuilder<TState> Child<TState>(QualifiedName browseName)
             where TState : NodeState;
 
         /// <summary>
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Fluent
     /// The concrete <see cref="NodeState"/> derivative the resolved node
     /// is narrowed to.
     /// </typeparam>
-    public interface INodeBuilder<out TState> : INodeBuilder
+    public interface INodeBuilder<out TState> : INodeBuilder, INodeStateBuilder<TState>
         where TState : NodeState
     {
         /// <summary>

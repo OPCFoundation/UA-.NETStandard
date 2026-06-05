@@ -379,12 +379,15 @@ namespace Opc.Ua.Client
             }
 
             ISubscriptionEngineFactory engineFactory =
-                opts.SubscriptionEngineFactory ?? DefaultSubscriptionEngineFactory.Instance;
+                opts.SubscriptionEngineFactory ?? (opts.TimeProvider == null
+                    ? DefaultSubscriptionEngineFactory.Instance
+                    : new DefaultSubscriptionEngineFactory(opts.TimeProvider));
 
             ISessionFactory sessionFactory = m_sessionFactory ??
                 new DefaultSessionFactory(m_telemetry)
                 {
-                    SubscriptionEngineFactory = engineFactory
+                    SubscriptionEngineFactory = engineFactory,
+                    TimeProvider = opts.TimeProvider
                 };
 
             IReconnectPolicy reconnect =

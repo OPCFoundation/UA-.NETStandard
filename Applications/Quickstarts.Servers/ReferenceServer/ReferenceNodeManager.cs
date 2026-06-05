@@ -112,57 +112,15 @@ namespace Quickstarts.ReferenceServer
             return node.NodeId;
         }
 
-        /// <summary>
-        /// Adds a new instance node to the address space under a parent that may
-        /// belong to a different node manager. Used by the AddNodes service
-        /// implementation in <see cref="ReferenceServer"/> to allow the test
-        /// fixture to exercise the Node Management service set.
-        /// </summary>
+        /// <inheritdoc/>
         /// <remarks>
-        /// The node is registered in this manager's namespace, an inverse
-        /// reference back to the parent is attached, and a forward reference
-        /// from the parent to the new node is added through the master node
-        /// manager so the parent's node manager records the link as well.
+        /// Enables the OPC UA NodeManagement service set (AddNodes /
+        /// DeleteNodes / AddReferences / DeleteReferences) so that conformance
+        /// tests and clients can mutate the address space at runtime. New
+        /// nodes live in this node manager's namespace; cross-NodeManager
+        /// references are written through <see cref="MasterNodeManager"/>.
         /// </remarks>
-        public async ValueTask<NodeId> AddInstanceNodeAsync(
-            ServerSystemContext context,
-            NodeId parentNodeId,
-            NodeId referenceTypeId,
-            BaseInstanceState instance,
-            CancellationToken cancellationToken = default)
-        {
-            if (instance == null)
-            {
-                throw new ArgumentNullException(nameof(instance));
-            }
-
-            ServerSystemContext contextToUse = SystemContext.Copy(context);
-
-            if (instance.NodeId.IsNull)
-            {
-                instance.NodeId = new NodeId(
-                    Guid.NewGuid().ToString(),
-                    NamespaceIndexes[0]);
-            }
-
-            instance.ReferenceTypeId = referenceTypeId;
-            instance.AddReference(referenceTypeId, true, parentNodeId);
-
-            await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken)
-                .ConfigureAwait(false);
-
-            var references = new List<IReference>
-            {
-                new NodeStateReference(referenceTypeId, false, instance.NodeId)
-            };
-
-            await Server.NodeManager.AddReferencesAsync(
-                parentNodeId,
-                references,
-                cancellationToken).ConfigureAwait(false);
-
-            return instance.NodeId;
-        }
+        public override bool AllowNodeManagement => true;
 
         private static bool IsAnalogType(BuiltInType builtInType)
         {
@@ -3911,8 +3869,14 @@ namespace Quickstarts.ReferenceServer
                     // reset random generator and generate boundary values
                     ResetRandomGenerator(100, 1);
 
+                    TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
+                        ?? TimeProvider.System;
                     m_simulationTimer?.Dispose();
-                    m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
+                    m_simulationTimer = timeProvider.CreateTimer(
+                        DoSimulation,
+                        null,
+                        TimeSpan.FromMilliseconds(m_simulationInterval),
+                        TimeSpan.FromMilliseconds(m_simulationInterval));
                 }
             }
             finally
@@ -3932,7 +3896,9 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer!.Change(100, m_simulationInterval);
+                    m_simulationTimer!.Change(
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(m_simulationInterval));
                 }
 
                 return ServiceResult.Good;
@@ -3955,11 +3921,15 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer!.Change(100, m_simulationInterval);
+                    m_simulationTimer!.Change(
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(m_simulationInterval));
                 }
                 else
                 {
-                    m_simulationTimer!.Change(100, 0);
+                    m_simulationTimer!.Change(
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.Zero);
                 }
 
                 return ServiceResult.Good;
@@ -5395,15 +5365,6 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Frees any resources allocated for the address space.
-        /// </summary>
-        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
-        {
-            // TBD
-            return new ValueTask();
-        }
-
-        /// <summary>
         /// Returns a unique handle for the node.
         /// </summary>
         protected override ValueTask<NodeHandle> GetManagerHandleAsync(
@@ -5460,7 +5421,7 @@ namespace Quickstarts.ReferenceServer
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private RandomSource m_randomSource = null!;
         private DataGenerator m_generator = null!;
-        private Timer? m_simulationTimer;
+        private ITimer? m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;

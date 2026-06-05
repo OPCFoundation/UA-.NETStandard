@@ -84,10 +84,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             file.CloseAndUpdate?.OnCall = new CloseAndUpdateMethodStateMethodCallHandler(OnCloseAndUpdate);
         }
 
-        /// <summary>The currently persisted Thing Description bytes (UTF-8, JSON).</summary>
+        /// <summary>
+        /// The currently persisted Thing Description bytes (UTF-8, JSON).
+        /// </summary>
         public byte[] CurrentContent { get; private set; } = [];
 
-        /// <summary>Replaces the persisted content (called by the registry).</summary>
+        /// <summary>
+        /// Replaces the persisted content (called by the registry).
+        /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="content"/> is null.</exception>
         public void UpdatePersistedContent(byte[] content)
         {

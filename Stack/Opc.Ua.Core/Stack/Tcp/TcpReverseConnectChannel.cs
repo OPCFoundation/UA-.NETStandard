@@ -49,7 +49,23 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
-            : base(contextId, listener, bufferManager, quotas, null!, endpoints, telemetry)
+            : this(contextId, listener, bufferManager, quotas, endpoints, telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket using the supplied
+        /// <see cref="TimeProvider"/> for activity tracking.
+        /// </summary>
+        public TcpReverseConnectChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            List<EndpointDescription> endpoints,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
+            : base(contextId, listener, bufferManager, quotas, null!, endpoints, telemetry, timeProvider)
         {
             m_logger = telemetry.CreateLogger<TcpReverseConnectChannel>();
         }

@@ -73,7 +73,6 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-
             Session = session;
             Telemetry = telemetry;
             ManagementObjectId = managementObjectId;
@@ -107,7 +106,6 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentNullException(nameof(telemetry));
             }
-
             ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             BrowsePath path = new()
             {
@@ -144,16 +142,24 @@ namespace Opc.Ua.WotCon.Client
             return new WotConnectivityClient(session, managementId, telemetry);
         }
 
-        /// <summary>The OPC UA session.</summary>
+        /// <summary>
+        /// The OPC UA session.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>Telemetry context.</summary>
+        /// <summary>
+        /// Telemetry context.
+        /// </summary>
         public ITelemetryContext Telemetry { get; }
 
-        /// <summary>The management object NodeId.</summary>
+        /// <summary>
+        /// The management object NodeId.
+        /// </summary>
         public NodeId ManagementObjectId { get; }
 
-        /// <summary>The underlying generated proxy.</summary>
+        /// <summary>
+        /// The underlying generated proxy.
+        /// </summary>
         public WoTAssetConnectionManagementTypeClient Proxy { get; }
 
         /// <summary>
@@ -222,7 +228,6 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentException("Asset NodeId is required.", nameof(assetId));
             }
-
             ushort wotConNs = Session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             ArrayOf<BrowsePath> paths = new[]
             {

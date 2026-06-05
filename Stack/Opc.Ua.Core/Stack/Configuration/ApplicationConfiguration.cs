@@ -694,6 +694,7 @@ namespace Opc.Ua
             }
 
             // toggle the state of the hi-res clock.
+#pragma warning disable CS0618 // Type / member is obsolete.
             HiResClock.Disabled = DisableHiResClock;
 
             if (HiResClock.Disabled &&
@@ -702,6 +703,7 @@ namespace Opc.Ua
             {
                 ServerConfiguration.PublishingResolution = 50;
             }
+#pragma warning restore CS0618
 
             // Eagerly create a CertificateManager from the security
             // configuration so consumers (Session, ClientChannelManager,

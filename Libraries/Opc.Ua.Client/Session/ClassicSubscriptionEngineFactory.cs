@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -42,10 +44,34 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ClassicSubscriptionEngineFactory Instance { get; } = new();
 
+        /// <summary>
+        /// Initializes a new instance of the
+        /// <see cref="ClassicSubscriptionEngineFactory"/> class bound to
+        /// <see cref="TimeProvider.System"/>.
+        /// </summary>
+        public ClassicSubscriptionEngineFactory()
+            : this(null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the
+        /// <see cref="ClassicSubscriptionEngineFactory"/> class.
+        /// </summary>
+        /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
+        /// forwarded to the engines created by this factory. Defaults to
+        /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        public ClassicSubscriptionEngineFactory(TimeProvider? timeProvider = null)
+        {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+        }
+
         /// <inheritdoc/>
         public ISubscriptionEngine Create(ISubscriptionEngineContext context)
         {
-            return new ClassicSubscriptionEngine(context);
+            return new ClassicSubscriptionEngine(context, m_timeProvider);
         }
+
+        private readonly TimeProvider m_timeProvider;
     }
 }

@@ -1579,6 +1579,130 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports the AuditAddReferencesEvent.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="referencesToAdd">The references being added.</param>
+        /// <param name="customMessage">Custom message for the audit event.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditAddReferencesEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            ArrayOf<AddReferencesItem> referencesToAdd,
+            string customMessage,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            if (server?.Auditing != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var e = new AuditAddReferencesEventState(null);
+
+                var message = new TranslationInfo(
+                    "AuditAddReferencesEventState",
+                    "en-US",
+                    $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+
+                e.Initialize(
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                );
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.SourceName,
+                    "NodeManagement/AddReferences",
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.LocalTime,
+                    TimeZoneDataType.Local,
+                    false);
+
+                e.SetChildValue(systemContext, BrowseNames.ReferencesToAdd, referencesToAdd, false);
+
+                server.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error while reporting AuditAddReferencesEvent event.");
+            }
+        }
+
+        /// <summary>
+        /// Reports the AuditDeleteReferencesEvent.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="referencesToDelete">The references being deleted.</param>
+        /// <param name="customMessage">Custom message for the audit event.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditDeleteReferencesEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            ArrayOf<DeleteReferencesItem> referencesToDelete,
+            string customMessage,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            if (server?.Auditing != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var e = new AuditDeleteReferencesEventState(null);
+
+                var message = new TranslationInfo(
+                    "AuditDeleteReferencesEventState",
+                    "en-US",
+                    $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+
+                e.Initialize(
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                );
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.SourceName,
+                    "NodeManagement/DeleteReferences",
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.LocalTime,
+                    TimeZoneDataType.Local,
+                    false);
+
+                e.SetChildValue(systemContext, BrowseNames.ReferencesToDelete, referencesToDelete, false);
+
+                server.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error while reporting AuditDeleteReferencesEvent event.");
+            }
+        }
+
+        /// <summary>
         /// Report the open secure channel audit event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>

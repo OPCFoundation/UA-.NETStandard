@@ -153,7 +153,8 @@ namespace Opc.Ua.PubSub.Transport
                         m_logger);
                 }
 
-                m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(this, Telemetry);
+                m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(
+                    this, Telemetry, Application.TimeProvider);
                 await m_udpDiscoveryPublisher.StartAsync(MessageContext).ConfigureAwait(false);
             }
 
@@ -188,7 +189,10 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 // initialize the discovery channel
-                m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(this, Telemetry);
+                m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(
+                    this,
+                    Telemetry,
+                    Application.TimeProvider);
                 await m_udpDiscoverySubscriber.StartAsync(MessageContext).ConfigureAwait(false);
 
                 // add handler to metaDataReceived event
