@@ -275,7 +275,7 @@ namespace Opc.Ua.Client
                 && !session.Reconnecting
                 && Created;
 
-            if (RecoveryPolicy == SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer
+            if (RecoveryPolicy.HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer)
                 && unsolicited)
             {
                 m_logger.LogWarning(

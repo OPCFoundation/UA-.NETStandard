@@ -737,7 +737,7 @@ namespace Opc.Ua.Client.Subscriptions
             // subscription dark.
             if (notification.Status == StatusCodes.GoodSubscriptionTransferred
                 && Options.RecoveryPolicy
-                    == SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer
+                    .HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer)
                 && Created
                 && !Disposed)
             {
