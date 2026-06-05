@@ -90,7 +90,7 @@ This document outlines the breaking changes introduced from version to version. 
 
 ## Migrating from 1.5.378 to 2.0.x
 
-> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.CodeFixers` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
+> **Automate the migration.** Add the `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` analyzer package to your projects to receive analyzer warnings and one-click fixes for the patterns in this guide. Rule IDs `UA0001`-`UA0020` map directly to the sections below.
 
 Version 2.0 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
 
@@ -314,6 +314,8 @@ All generated APIs, Encoders/decoders, and the Variant type now use `ArrayOf`/`M
 Note that equality operators and methods now compare the content of the Array and Matrix, not just reference equality as with `T[]`. It supports checking for an empty array or matrix via `IsEmpty` and `IsNull` whereby the first checks whether the array is effectively a `ArrayOf.Empty<T>` amd the second is just a check against `ArrayOf<T>` initialized using `default` (since it is not a reference type anymore). `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
 
 **Change code as follows:**
+
+> ℹ **Tip — install `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`** before touching collection sites. Its source generator emits an `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shim per consumer compilation for every `<Type>Collection` the consumer references (including model-compiled `<UserType>Collection` patterns), so `CS0246: type or namespace 'XxxCollection' not found` is replaced with `[Obsolete]` warnings + `UA0002` analyzer guidance you can iterate through.
 
 - Replace any `T[]` with `ArrayOf<T>` where T is the type of the element in the array. Do this where errors are flagged, e.g. wherever casting a Variant to a `T[]` change it to `ArrayOf<T>` if it is a T array.
 - Change all use of `<Type>Collection` or `IList<Type>` to `List<Type>` (add a `using System.Collections.Generic` directive if needed). When the collection is never mutated (items added, inserted or removed), use `ArrayOf<Type>`.
