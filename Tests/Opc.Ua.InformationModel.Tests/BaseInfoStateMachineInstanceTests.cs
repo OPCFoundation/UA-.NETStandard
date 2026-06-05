@@ -44,8 +44,6 @@ namespace Opc.Ua.InformationModel.Tests
     public class BaseInfoStateMachineInstanceTests : TestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "Base Info State Machine Instance")]
-        [Property("Tag", "001")]
         public async Task StateMachineTypeHasGeneratesEventReferenceAsync()
         {
             // Issue #3720: CTT walks the StateMachineType hierarchy for a

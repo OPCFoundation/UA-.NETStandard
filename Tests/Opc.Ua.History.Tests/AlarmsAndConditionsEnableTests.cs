@@ -142,8 +142,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "Test_002")]
         public async Task DisableEnableViaTypeAndInstanceMethodNoEventsDuringDisabledAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");
@@ -176,8 +174,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Enable")]
-        [Property("Tag", "N/A")]
         public async Task ErrEnableWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(

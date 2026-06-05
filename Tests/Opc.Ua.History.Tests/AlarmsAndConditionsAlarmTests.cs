@@ -92,8 +92,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Alarm")]
-        [Property("Tag", "Test_002")]
         public async Task AlarmActiveNormalCycleWithAckAndConfirmAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");

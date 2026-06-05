@@ -87,8 +87,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Test_001")]
         public async Task ConfirmWithUniqueCommentReachesEventPayloadAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");
@@ -155,8 +153,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Test_003")]
         public async Task AcknowledgeThenConfirmWithEmptyCommentAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");
@@ -231,8 +227,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Test_002")]
         public async Task ConfirmConditionSetsConfirmedStateTrueAsync()
         {
             NodeId alarmId = RequireAlarm();
@@ -379,8 +373,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "Err_004")]
         public async Task ConfirmAlreadyConfirmedAcrossSessionsReturnsBranchAlreadyConfirmedAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");
@@ -466,8 +458,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Confirm")]
-        [Property("Tag", "N/A")]
         public async Task ErrConfirmOnDisabledConditionAsync()
         {
             NodeId alarmId = RequireAlarm();

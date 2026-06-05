@@ -120,8 +120,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Test_003")]
         public async Task AcknowledgeWithEmptyCommentAndLocalePropagatesToEventAsync()
         {
             NodeId alarmId = RequireCttAlarm("AcknowledgeableConditionType");
@@ -188,8 +186,6 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        [Property("ConformanceUnit", "A and C Acknowledge")]
-        [Property("Tag", "Err_005")]
         public async Task ErrAcknowledgeWithBadNodeIdAsync()
         {
             CallMethodResult callResult = await CallMethodOnAlarmAsync(

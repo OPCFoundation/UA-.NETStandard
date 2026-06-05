@@ -44,8 +44,6 @@ namespace Opc.Ua.History.Tests
     public class AlarmsAndConditionsNonExclusiveLimitTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        [Property("ConformanceUnit", "A and C Non-Exclusive Limit")]
-        [Property("Tag", "Test_002")]
         public async Task NonExclusiveLimitAlarmActiveNormalCycleAsync()
         {
             NodeId alarmId = RequireCttAlarm("NonExclusiveLimitAlarmType");
