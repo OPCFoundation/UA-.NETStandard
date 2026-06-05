@@ -347,15 +347,13 @@ namespace Alarms
 
         protected static void EnsureTransitionTime(TwoStateVariableState state)
         {
-            if (state.TransitionTime == null)
-            {
-                state.TransitionTime = PropertyState<DateTimeUtc>.With<VariantBuilder>(state);
-                state.TransitionTime.SymbolicName = BrowseNames.TransitionTime;
-                state.TransitionTime.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-                state.TransitionTime.TypeDefinitionId = VariableTypeIds.PropertyType;
-                state.TransitionTime.BrowseName = new QualifiedName(BrowseNames.TransitionTime);
-                state.TransitionTime.DisplayName = new LocalizedText(BrowseNames.TransitionTime);
-            }
+            // No-op: TransitionTime is declared Optional on TwoStateVariableType.
+            // Dynamic creation here would leave the property without a NodeId
+            // because the parent state's NodeId is not yet assigned during
+            // alarm initialization, which surfaces as BadNodeIdInvalid on
+            // subsequent address-space reads. Tests that rely on
+            // TransitionTime must gracefully handle its absence.
+            _ = state;
         }
 
         protected virtual bool GetRetainState()

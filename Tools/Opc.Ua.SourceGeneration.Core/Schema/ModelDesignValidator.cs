@@ -3859,9 +3859,11 @@ namespace Opc.Ua.Schema.Model
         /// design XML omits the corresponding GeneratesEvent reference, so
         /// inject it programmatically here. Idempotent: skipped when the
         /// reference (or a subtype like AlwaysGeneratesEvent) is already
-        /// declared.
+        /// declared. The injected reference is fully validated (TargetNode
+        /// resolved) so downstream NodeId emission matches the standard
+        /// reference flow.
         /// </summary>
-        private static void InjectStateMachineGeneratesEventReference(NodeDesign node)
+        private void InjectStateMachineGeneratesEventReference(NodeDesign node)
         {
             if (node is not ObjectTypeDesign objectType ||
                 objectType.SymbolicName == null)
@@ -3896,19 +3898,23 @@ namespace Opc.Ua.Schema.Model
 
             var injected = new Reference
             {
+                SourceNode = objectType,
                 ReferenceType = new XmlQualifiedName(
                     "GeneratesEvent",
                     Ua.Types.Namespaces.OpcUa),
                 IsInverse = false,
                 IsOneWay = true,
                 TargetId = new XmlQualifiedName(
-                    "AuditUpdateStateEventType",
+                    "TransitionEventType",
                     Ua.Types.Namespaces.OpcUa)
             };
+
+            ValidateReference(injected);
 
             objectType.References = objectType.References == null
                 ? [injected]
                 : [.. objectType.References, injected];
+            objectType.HasReferences = true;
         }
 
         /// <summary>
