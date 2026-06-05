@@ -503,43 +503,18 @@ namespace Opc.Ua.Server
             // enabled (otherwise the existing path explicitly removes it).
             if (serverObject.GetMonitoredItems == null)
             {
-                GetMonitoredItemsMethodState method = serverObject.AddGetMonitoredItems(context);
-                method.NodeId = MethodIds.Server_GetMonitoredItems;
-                if (method.InputArguments != null)
-                {
-                    method.InputArguments.NodeId
-                        = VariableIds.Server_GetMonitoredItems_InputArguments;
-                }
-                if (method.OutputArguments != null)
-                {
-                    method.OutputArguments.NodeId
-                        = VariableIds.Server_GetMonitoredItems_OutputArguments;
-                }
+                serverObject.AddGetMonitoredItems(context).NodeId
+                    = MethodIds.Server_GetMonitoredItems;
             }
             if (serverObject.ResendData == null)
             {
-                ResendDataMethodState method = serverObject.AddResendData(context);
-                method.NodeId = MethodIds.Server_ResendData;
-                if (method.InputArguments != null)
-                {
-                    method.InputArguments.NodeId
-                        = VariableIds.Server_ResendData_InputArguments;
-                }
+                serverObject.AddResendData(context).NodeId
+                    = MethodIds.Server_ResendData;
             }
             if (m_durableSubscriptionsEnabled && serverObject.SetSubscriptionDurable == null)
             {
-                SetSubscriptionDurableMethodState method = serverObject.AddSetSubscriptionDurable(context);
-                method.NodeId = MethodIds.Server_SetSubscriptionDurable;
-                if (method.InputArguments != null)
-                {
-                    method.InputArguments.NodeId
-                        = VariableIds.Server_SetSubscriptionDurable_InputArguments;
-                }
-                if (method.OutputArguments != null)
-                {
-                    method.OutputArguments.NodeId
-                        = VariableIds.Server_SetSubscriptionDurable_OutputArguments;
-                }
+                serverObject.AddSetSubscriptionDurable(context).NodeId
+                    = MethodIds.Server_SetSubscriptionDurable;
             }
 
             // Server.Namespaces is consumed by ConfigurationNodeManager to
@@ -908,17 +883,11 @@ namespace Opc.Ua.Server
                         endpointsExclude: Variables.WellKnownRole_Observer_EndpointsExclude,
                         customConfiguration: Variables.WellKnownRole_Observer_CustomConfiguration,
                         addIdentityMethod: Methods.WellKnownRole_Observer_AddIdentity,
-                        addIdentityArgs: Variables.WellKnownRole_Observer_AddIdentity_InputArguments,
                         removeIdentityMethod: Methods.WellKnownRole_Observer_RemoveIdentity,
-                        removeIdentityArgs: Variables.WellKnownRole_Observer_RemoveIdentity_InputArguments,
                         addApplicationMethod: Methods.WellKnownRole_Observer_AddApplication,
-                        addApplicationArgs: Variables.WellKnownRole_Observer_AddApplication_InputArguments,
                         removeApplicationMethod: Methods.WellKnownRole_Observer_RemoveApplication,
-                        removeApplicationArgs: Variables.WellKnownRole_Observer_RemoveApplication_InputArguments,
                         addEndpointMethod: Methods.WellKnownRole_Observer_AddEndpoint,
-                        addEndpointArgs: Variables.WellKnownRole_Observer_AddEndpoint_InputArguments,
-                        removeEndpointMethod: Methods.WellKnownRole_Observer_RemoveEndpoint,
-                        removeEndpointArgs: Variables.WellKnownRole_Observer_RemoveEndpoint_InputArguments);
+                        removeEndpointMethod: Methods.WellKnownRole_Observer_RemoveEndpoint);
                     break;
                 case Objects.WellKnownRole_Operator:
                     AddWellKnownRoleChildren(context, roleState,
@@ -928,17 +897,11 @@ namespace Opc.Ua.Server
                         endpointsExclude: Variables.WellKnownRole_Operator_EndpointsExclude,
                         customConfiguration: Variables.WellKnownRole_Operator_CustomConfiguration,
                         addIdentityMethod: Methods.WellKnownRole_Operator_AddIdentity,
-                        addIdentityArgs: Variables.WellKnownRole_Operator_AddIdentity_InputArguments,
                         removeIdentityMethod: Methods.WellKnownRole_Operator_RemoveIdentity,
-                        removeIdentityArgs: Variables.WellKnownRole_Operator_RemoveIdentity_InputArguments,
                         addApplicationMethod: Methods.WellKnownRole_Operator_AddApplication,
-                        addApplicationArgs: Variables.WellKnownRole_Operator_AddApplication_InputArguments,
                         removeApplicationMethod: Methods.WellKnownRole_Operator_RemoveApplication,
-                        removeApplicationArgs: Variables.WellKnownRole_Operator_RemoveApplication_InputArguments,
                         addEndpointMethod: Methods.WellKnownRole_Operator_AddEndpoint,
-                        addEndpointArgs: Variables.WellKnownRole_Operator_AddEndpoint_InputArguments,
-                        removeEndpointMethod: Methods.WellKnownRole_Operator_RemoveEndpoint,
-                        removeEndpointArgs: Variables.WellKnownRole_Operator_RemoveEndpoint_InputArguments);
+                        removeEndpointMethod: Methods.WellKnownRole_Operator_RemoveEndpoint);
                     break;
                 case Objects.WellKnownRole_Engineer:
                     AddWellKnownRoleChildren(context, roleState,
@@ -948,17 +911,11 @@ namespace Opc.Ua.Server
                         endpointsExclude: Variables.WellKnownRole_Engineer_EndpointsExclude,
                         customConfiguration: Variables.WellKnownRole_Engineer_CustomConfiguration,
                         addIdentityMethod: Methods.WellKnownRole_Engineer_AddIdentity,
-                        addIdentityArgs: Variables.WellKnownRole_Engineer_AddIdentity_InputArguments,
                         removeIdentityMethod: Methods.WellKnownRole_Engineer_RemoveIdentity,
-                        removeIdentityArgs: Variables.WellKnownRole_Engineer_RemoveIdentity_InputArguments,
                         addApplicationMethod: Methods.WellKnownRole_Engineer_AddApplication,
-                        addApplicationArgs: Variables.WellKnownRole_Engineer_AddApplication_InputArguments,
                         removeApplicationMethod: Methods.WellKnownRole_Engineer_RemoveApplication,
-                        removeApplicationArgs: Variables.WellKnownRole_Engineer_RemoveApplication_InputArguments,
                         addEndpointMethod: Methods.WellKnownRole_Engineer_AddEndpoint,
-                        addEndpointArgs: Variables.WellKnownRole_Engineer_AddEndpoint_InputArguments,
-                        removeEndpointMethod: Methods.WellKnownRole_Engineer_RemoveEndpoint,
-                        removeEndpointArgs: Variables.WellKnownRole_Engineer_RemoveEndpoint_InputArguments);
+                        removeEndpointMethod: Methods.WellKnownRole_Engineer_RemoveEndpoint);
                     break;
                 case Objects.WellKnownRole_Supervisor:
                     AddWellKnownRoleChildren(context, roleState,
@@ -968,17 +925,11 @@ namespace Opc.Ua.Server
                         endpointsExclude: Variables.WellKnownRole_Supervisor_EndpointsExclude,
                         customConfiguration: Variables.WellKnownRole_Supervisor_CustomConfiguration,
                         addIdentityMethod: Methods.WellKnownRole_Supervisor_AddIdentity,
-                        addIdentityArgs: Variables.WellKnownRole_Supervisor_AddIdentity_InputArguments,
                         removeIdentityMethod: Methods.WellKnownRole_Supervisor_RemoveIdentity,
-                        removeIdentityArgs: Variables.WellKnownRole_Supervisor_RemoveIdentity_InputArguments,
                         addApplicationMethod: Methods.WellKnownRole_Supervisor_AddApplication,
-                        addApplicationArgs: Variables.WellKnownRole_Supervisor_AddApplication_InputArguments,
                         removeApplicationMethod: Methods.WellKnownRole_Supervisor_RemoveApplication,
-                        removeApplicationArgs: Variables.WellKnownRole_Supervisor_RemoveApplication_InputArguments,
                         addEndpointMethod: Methods.WellKnownRole_Supervisor_AddEndpoint,
-                        addEndpointArgs: Variables.WellKnownRole_Supervisor_AddEndpoint_InputArguments,
-                        removeEndpointMethod: Methods.WellKnownRole_Supervisor_RemoveEndpoint,
-                        removeEndpointArgs: Variables.WellKnownRole_Supervisor_RemoveEndpoint_InputArguments);
+                        removeEndpointMethod: Methods.WellKnownRole_Supervisor_RemoveEndpoint);
                     break;
                 case Objects.WellKnownRole_ConfigureAdmin:
                     AddWellKnownRoleChildren(context, roleState,
@@ -988,17 +939,11 @@ namespace Opc.Ua.Server
                         endpointsExclude: Variables.WellKnownRole_ConfigureAdmin_EndpointsExclude,
                         customConfiguration: Variables.WellKnownRole_ConfigureAdmin_CustomConfiguration,
                         addIdentityMethod: Methods.WellKnownRole_ConfigureAdmin_AddIdentity,
-                        addIdentityArgs: Variables.WellKnownRole_ConfigureAdmin_AddIdentity_InputArguments,
                         removeIdentityMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveIdentity,
-                        removeIdentityArgs: Variables.WellKnownRole_ConfigureAdmin_RemoveIdentity_InputArguments,
                         addApplicationMethod: Methods.WellKnownRole_ConfigureAdmin_AddApplication,
-                        addApplicationArgs: Variables.WellKnownRole_ConfigureAdmin_AddApplication_InputArguments,
                         removeApplicationMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveApplication,
-                        removeApplicationArgs: Variables.WellKnownRole_ConfigureAdmin_RemoveApplication_InputArguments,
                         addEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_AddEndpoint,
-                        addEndpointArgs: Variables.WellKnownRole_ConfigureAdmin_AddEndpoint_InputArguments,
-                        removeEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveEndpoint,
-                        removeEndpointArgs: Variables.WellKnownRole_ConfigureAdmin_RemoveEndpoint_InputArguments);
+                        removeEndpointMethod: Methods.WellKnownRole_ConfigureAdmin_RemoveEndpoint);
                     break;
                 case Objects.WellKnownRole_SecurityAdmin:
                     AddWellKnownRoleChildren(context, roleState,
@@ -1008,17 +953,11 @@ namespace Opc.Ua.Server
                         endpointsExclude: Variables.WellKnownRole_SecurityAdmin_EndpointsExclude,
                         customConfiguration: Variables.WellKnownRole_SecurityAdmin_CustomConfiguration,
                         addIdentityMethod: Methods.WellKnownRole_SecurityAdmin_AddIdentity,
-                        addIdentityArgs: Variables.WellKnownRole_SecurityAdmin_AddIdentity_InputArguments,
                         removeIdentityMethod: Methods.WellKnownRole_SecurityAdmin_RemoveIdentity,
-                        removeIdentityArgs: Variables.WellKnownRole_SecurityAdmin_RemoveIdentity_InputArguments,
                         addApplicationMethod: Methods.WellKnownRole_SecurityAdmin_AddApplication,
-                        addApplicationArgs: Variables.WellKnownRole_SecurityAdmin_AddApplication_InputArguments,
                         removeApplicationMethod: Methods.WellKnownRole_SecurityAdmin_RemoveApplication,
-                        removeApplicationArgs: Variables.WellKnownRole_SecurityAdmin_RemoveApplication_InputArguments,
                         addEndpointMethod: Methods.WellKnownRole_SecurityAdmin_AddEndpoint,
-                        addEndpointArgs: Variables.WellKnownRole_SecurityAdmin_AddEndpoint_InputArguments,
-                        removeEndpointMethod: Methods.WellKnownRole_SecurityAdmin_RemoveEndpoint,
-                        removeEndpointArgs: Variables.WellKnownRole_SecurityAdmin_RemoveEndpoint_InputArguments);
+                        removeEndpointMethod: Methods.WellKnownRole_SecurityAdmin_RemoveEndpoint);
                     break;
             }
         }
@@ -1032,17 +971,11 @@ namespace Opc.Ua.Server
             uint endpointsExclude,
             uint customConfiguration,
             uint addIdentityMethod,
-            uint addIdentityArgs,
             uint removeIdentityMethod,
-            uint removeIdentityArgs,
             uint addApplicationMethod,
-            uint addApplicationArgs,
             uint removeApplicationMethod,
-            uint removeApplicationArgs,
             uint addEndpointMethod,
-            uint addEndpointArgs,
-            uint removeEndpointMethod,
-            uint removeEndpointArgs)
+            uint removeEndpointMethod)
         {
             // Identities is Mandatory@RoleType so the singleton factory always
             // emits it with the correct well-known instance NodeId; no add-back
@@ -1054,7 +987,10 @@ namespace Opc.Ua.Server
             // SecurityAdmin). The transitive gate (issue #3768) uses the
             // type-def rule rather than the singleton override, so the
             // generator now suppresses every other child under forInstance=true.
-            // Re-add them here so RoleStateBinding finds them.
+            // Re-add them here so RoleStateBinding finds them. Only the method
+            // and property NodeIds need the singleton-instance patch; the
+            // generated Add{Method} helpers populate the InputArguments
+            // child (which clients read by browse-name) for us.
             if (role.Applications == null)
             {
                 role.AddApplications(context).NodeId = new NodeId(applications);
@@ -1077,57 +1013,27 @@ namespace Opc.Ua.Server
             }
             if (role.AddIdentity == null)
             {
-                AddIdentityMethodState m = role.AddAddIdentity(context);
-                m.NodeId = new NodeId(addIdentityMethod);
-                if (m.InputArguments != null)
-                {
-                    m.InputArguments.NodeId = new NodeId(addIdentityArgs);
-                }
+                role.AddAddIdentity(context).NodeId = new NodeId(addIdentityMethod);
             }
             if (role.RemoveIdentity == null)
             {
-                RemoveIdentityMethodState m = role.AddRemoveIdentity(context);
-                m.NodeId = new NodeId(removeIdentityMethod);
-                if (m.InputArguments != null)
-                {
-                    m.InputArguments.NodeId = new NodeId(removeIdentityArgs);
-                }
+                role.AddRemoveIdentity(context).NodeId = new NodeId(removeIdentityMethod);
             }
             if (role.AddApplication == null)
             {
-                AddApplicationMethodState m = role.AddAddApplication(context);
-                m.NodeId = new NodeId(addApplicationMethod);
-                if (m.InputArguments != null)
-                {
-                    m.InputArguments.NodeId = new NodeId(addApplicationArgs);
-                }
+                role.AddAddApplication(context).NodeId = new NodeId(addApplicationMethod);
             }
             if (role.RemoveApplication == null)
             {
-                RemoveApplicationMethodState m = role.AddRemoveApplication(context);
-                m.NodeId = new NodeId(removeApplicationMethod);
-                if (m.InputArguments != null)
-                {
-                    m.InputArguments.NodeId = new NodeId(removeApplicationArgs);
-                }
+                role.AddRemoveApplication(context).NodeId = new NodeId(removeApplicationMethod);
             }
             if (role.AddEndpoint == null)
             {
-                AddEndpointMethodState m = role.AddAddEndpoint(context);
-                m.NodeId = new NodeId(addEndpointMethod);
-                if (m.InputArguments != null)
-                {
-                    m.InputArguments.NodeId = new NodeId(addEndpointArgs);
-                }
+                role.AddAddEndpoint(context).NodeId = new NodeId(addEndpointMethod);
             }
             if (role.RemoveEndpoint == null)
             {
-                RemoveEndpointMethodState m = role.AddRemoveEndpoint(context);
-                m.NodeId = new NodeId(removeEndpointMethod);
-                if (m.InputArguments != null)
-                {
-                    m.InputArguments.NodeId = new NodeId(removeEndpointArgs);
-                }
+                role.AddRemoveEndpoint(context).NodeId = new NodeId(removeEndpointMethod);
             }
         }
 

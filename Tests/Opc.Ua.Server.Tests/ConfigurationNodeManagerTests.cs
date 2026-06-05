@@ -247,10 +247,7 @@ namespace Opc.Ua.Server.Tests
                 [
                     ObjectIds.Server_Namespaces,
                     MethodIds.Server_GetMonitoredItems,
-                    VariableIds.Server_GetMonitoredItems_InputArguments,
-                    VariableIds.Server_GetMonitoredItems_OutputArguments,
                     MethodIds.Server_ResendData,
-                    VariableIds.Server_ResendData_InputArguments,
                     VariableIds.HistoryServerCapabilities_ServerTimestampSupported,
 
                     // Server Optional Variables - re-added by
