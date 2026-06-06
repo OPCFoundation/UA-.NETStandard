@@ -128,5 +128,58 @@ namespace Opc.Ua.Client.Subscriptions
         ValueTask<TimeSpan> SetAsDurableAsync(
             TimeSpan lifetime,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Configure triggering relationships between monitored items
+        /// in this subscription (OPC UA Part 4 §5.13.5 SetTriggering).
+        /// Adds and/or removes triggering links from the given
+        /// <paramref name="triggeringItem"/> to the supplied
+        /// <paramref name="linksToAdd"/> / <paramref name="linksToRemove"/>
+        /// triggered items. The call is queued into the subscription's
+        /// batched apply pipeline: multiple imperative calls and
+        /// declarative options changes that touch the same triggering
+        /// item are coalesced into a single SetTriggering RPC per
+        /// triggering item.
+        /// </summary>
+        /// <param name="triggeringItem">
+        /// The triggering item. Must belong to this subscription's
+        /// <see cref="MonitoredItems"/> collection.
+        /// </param>
+        /// <param name="linksToAdd">
+        /// Items to be linked as triggered items of
+        /// <paramref name="triggeringItem"/>. Each item must belong to
+        /// this subscription.
+        /// </param>
+        /// <param name="linksToRemove">
+        /// Items whose triggering link to
+        /// <paramref name="triggeringItem"/> should be removed.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// A <see cref="SetTriggeringResult"/> with per-link statuses
+        /// once the queued operation has been applied (the
+        /// <see cref="ValueTask"/> completes when the batched RPC
+        /// returns). Per-link entries are returned in the same order as
+        /// the input lists. Per Part 4 §5.13.5.4 the only spec-specific
+        /// per-link status code is <c>Bad_MonitoredItemIdInvalid</c>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="triggeringItem"/> or any entry of
+        /// <paramref name="linksToAdd"/> / <paramref name="linksToRemove"/>
+        /// is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="triggeringItem"/> or any entry of
+        /// <paramref name="linksToAdd"/> / <paramref name="linksToRemove"/>
+        /// is not a current member of this subscription's
+        /// <see cref="MonitoredItems"/> collection (per spec §5.13.5.1,
+        /// triggering and triggered items must belong to the same
+        /// Subscription; validation uses reference identity).
+        /// </exception>
+        ValueTask<SetTriggeringResult> SetTriggeringAsync(
+            IMonitoredItem triggeringItem,
+            IReadOnlyCollection<IMonitoredItem>? linksToAdd = null,
+            IReadOnlyCollection<IMonitoredItem>? linksToRemove = null,
+            CancellationToken ct = default);
     }
 }

@@ -46,7 +46,7 @@ Status legend:
 | `s.ResendDataAsync(ct)` | raw `session.CallAsync(null, ResendData methodId, ...)` | **Deliberately not ported** (V2 design: handler-centric, no manual resend on the public surface) |
 | `s.ConditionRefreshAsync(ct)` | `s.ConditionRefreshAsync(ct)` | Direct |
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item, no monitoredItemId arg) | **Added** (covered by `MonitoredItemConditionRefreshLiveV2Tests` against the reference server's alarm sources) |
-| `s.SetTriggeringAsync(triggering, links, removes, ct)` | **`s.SetTriggeringAsync(triggeringClientHandle, linksToAdd, linksToRemove, ct)`** | **Added** |
+| `s.SetTriggeringAsync(triggering, links, removes, ct)` | **`ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads** | **Added** (declarative `MonitoredItemOptions.TriggeredByNames` round-trips through `MonitoredItemStateSnapshot.TriggeredByNames`; N:M supported via `IMonitoredItem.TriggeringItems` plural; batched per-triggering-item RPCs; replays on recreate/reconnect — closes #3834; see `Docs/SubscriptionTriggering.md`) |
 | `s.TransferAsync(target, sendInitialValues, ct)` | `ISubscriptionManager` transfer-on-recreate via `ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)` + new `SubscriptionOptions.SendInitialValuesOnTransfer` flag (default `false`) | **Added** (covered by `SubscriptionFailoverV2Tests` + `V2FollowUpCoverageTests.SendInitialValuesOnTransferV2Async`) |
 | `s.SetSubscriptionDurableAsync(...)` | **`ISubscription.SetSubscriptionDurableAsync(uint lifetimeInHours, CancellationToken ct = default)` → revised lifetime hours** | **Added** (covered by `SubscriptionDurableV2Tests` × 5 ports in `Opc.Ua.Subscriptions.Durable.Tests`) |
 | `s.SaveMessageInCache(...)` | n/a | **Deliberately not ported** (classic internal — V2 message pipeline is channel-based, no replay cache) |
@@ -108,7 +108,7 @@ caller conventions; the V2 tests use a stable per-item `Name` string.
 | `item.DequeueValues()` / `item.LastValue` | n/a — values flow through `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync(...)` | Direct (handler-side) |
 | `item.Notification += ...` (event) | per-item dispatch through `OnDataChangeNotificationAsync` with `DataValueChange.MonitoredItem` | Direct |
 | `item.GetEventTypeAsync` / `GetFieldValue` / `GetEventTime` / `GetFieldName` | n/a on V2 `IMonitoredItem` | **Deliberately not ported** (event-field helpers are caller-side; tests carry them when needed — see `MonitoredItemConditionRefreshLiveV2Tests.RefreshEventHandler` for the in-test pattern) |
-| `item.TriggeringItemId` / `item.TriggeredItems` | V2 `IMonitoredItem.TriggeringItem` (lazy lookup via context) | **Added** (reverse "items I trigger" is on-demand via the context — no eagerly-maintained list) |
+| `item.TriggeringItemId` / `item.TriggeredItems` | V2 `IMonitoredItem.TriggeringItems` (plural, N:M) and `IMonitoredItem.TriggeredItems` (reverse "items I trigger") — both on-demand projections over the subscription's monitored items via stable names | **Added** (matches OPC UA Part 4 §5.13.5 N:M; runtime desired-state mutations from imperative `SetTriggeringAsync` are immediately visible; reverse list is on-demand — no eagerly-maintained graph) |
 
 ## 3. `Session` engine wiring
 

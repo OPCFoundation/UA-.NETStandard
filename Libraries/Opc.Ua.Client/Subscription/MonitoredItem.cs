@@ -76,28 +76,189 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <inheritdoc/>
         public uint ClientHandle { get; private set; }
 
-        /// <summary>
-        /// Client handle of the item that triggers this item, or
-        /// <c>0</c> if no triggering relationship has been set. Used
-        /// by the snapshot path and by the <see cref="TriggeringItem"/>
-        /// public projection which resolves the handle to the live
-        /// sibling via <see cref="IMonitoredItemContext"/>.
-        /// </summary>
-        internal uint TriggeringItemClientHandle { get; set; }
-
         /// <inheritdoc/>
-        public IMonitoredItem? TriggeringItem
+        public IEnumerable<IMonitoredItem> TriggeringItems
         {
             get
             {
-                uint handle = TriggeringItemClientHandle;
-                if (handle == 0)
+                IReadOnlyList<string> names = DesiredTriggeredByNames;
+                if (names.Count == 0)
                 {
-                    return null;
+                    yield break;
                 }
-                return Context.TryGetMonitoredItemByClientHandle(
-                    handle, out IMonitoredItem? item) ? item : null;
+                for (int i = 0; i < names.Count; i++)
+                {
+                    if (Context.TryGetMonitoredItemByName(
+                            names[i], out IMonitoredItem? item) &&
+                        item != null)
+                    {
+                        yield return item;
+                    }
+                }
             }
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<IMonitoredItem> TriggeredItems
+        {
+            get
+            {
+                string thisName = Name;
+                foreach (IMonitoredItem sibling in Context.Items)
+                {
+                    if (ReferenceEquals(sibling, this))
+                    {
+                        continue;
+                    }
+                    if (sibling is MonitoredItem concrete &&
+                        ContainsOrdinal(concrete.DesiredTriggeredByNames,
+                            thisName))
+                    {
+                        yield return sibling;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stable, manager-unique names of items that trigger this item
+        /// (OPC UA Part 4 §5.13.5 SetTriggering). This is the canonical
+        /// runtime "desired" state, initialized from
+        /// <see cref="MonitoredItemOptions.TriggeredByNames"/> at
+        /// construction and mutated by both the imperative
+        /// <c>SetTriggeringAsync</c> API and by subsequent options
+        /// changes that touch <c>TriggeredByNames</c>. Reads return an
+        /// immutable snapshot; the field is swapped atomically on
+        /// every mutation so readers always see a coherent list.
+        /// </summary>
+        internal IReadOnlyList<string> DesiredTriggeredByNames
+            => Volatile.Read(ref m_desiredTriggeredByNames);
+
+        /// <summary>
+        /// Add a triggering-item name to
+        /// <see cref="DesiredTriggeredByNames"/>. Idempotent: returns
+        /// <c>false</c> if the name was already present. The caller is
+        /// expected to be holding the owning manager's monitored-items
+        /// lock so that concurrent imperative calls and
+        /// options-change deltas don't race on the per-item field.
+        /// </summary>
+        internal bool AddDesiredTriggeredBy(string triggeringName)
+        {
+            if (string.IsNullOrWhiteSpace(triggeringName))
+            {
+                throw new ArgumentException(
+                    "Triggering item name must not be null/empty/whitespace.",
+                    nameof(triggeringName));
+            }
+            IReadOnlyList<string> current = m_desiredTriggeredByNames;
+            if (ContainsOrdinal(current, triggeringName))
+            {
+                return false;
+            }
+            var updated = new string[current.Count + 1];
+            for (int i = 0; i < current.Count; i++)
+            {
+                updated[i] = current[i];
+            }
+            updated[current.Count] = triggeringName;
+            Volatile.Write(ref m_desiredTriggeredByNames, updated);
+            return true;
+        }
+
+        /// <summary>
+        /// Remove a triggering-item name from
+        /// <see cref="DesiredTriggeredByNames"/>. Returns <c>true</c> if
+        /// the name was present (and removed), <c>false</c> if it was
+        /// not in the list. Caller must hold the manager lock; see
+        /// <see cref="AddDesiredTriggeredBy"/>.
+        /// </summary>
+        internal bool RemoveDesiredTriggeredBy(string triggeringName)
+        {
+            if (string.IsNullOrEmpty(triggeringName))
+            {
+                return false;
+            }
+            IReadOnlyList<string> current = m_desiredTriggeredByNames;
+            int index = -1;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (string.Equals(current[i], triggeringName,
+                    StringComparison.Ordinal))
+                {
+                    index = i;
+                    break;
+                }
+            }
+            if (index < 0)
+            {
+                return false;
+            }
+            if (current.Count == 1)
+            {
+                Volatile.Write(ref m_desiredTriggeredByNames,
+                    Array.Empty<string>());
+                return true;
+            }
+            var updated = new string[current.Count - 1];
+            int dst = 0;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (i == index)
+                {
+                    continue;
+                }
+                updated[dst++] = current[i];
+            }
+            Volatile.Write(ref m_desiredTriggeredByNames, updated);
+            return true;
+        }
+
+        /// <summary>
+        /// Replace <see cref="DesiredTriggeredByNames"/> with the
+        /// supplied set. Names are validated (reject null / empty /
+        /// whitespace via <see cref="ArgumentException"/>) and
+        /// de-duplicated with an ordinal-case-sensitive comparer;
+        /// insertion order is preserved. Caller must hold the manager
+        /// lock; see <see cref="AddDesiredTriggeredBy"/>.
+        /// </summary>
+        internal void SetDesiredTriggeredByNames(IEnumerable<string>? names)
+        {
+            if (names == null)
+            {
+                Volatile.Write(ref m_desiredTriggeredByNames,
+                    Array.Empty<string>());
+                return;
+            }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var list = new List<string>();
+            foreach (string name in names)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    throw new ArgumentException(
+                        "TriggeredByNames must not contain null/empty/whitespace entries.",
+                        nameof(names));
+                }
+                if (seen.Add(name))
+                {
+                    list.Add(name);
+                }
+            }
+            Volatile.Write(ref m_desiredTriggeredByNames,
+                list.Count == 0 ? Array.Empty<string>() : list.ToArray());
+        }
+
+        private static bool ContainsOrdinal(
+            IReadOnlyList<string> list, string value)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (string.Equals(list[i], value, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -156,7 +317,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             m_currentOptions = m_options.CurrentValue;
             ClientHandle = state.ClientHandle;
             ServerId = state.ServerId;
-            TriggeringItemClientHandle = state.TriggeringItemClientHandle;
+            // Install the saved desired triggering set as the runtime
+            // canonical state. For TransferSubscriptions this restores
+            // the local view without re-issuing SetTriggering (the
+            // server preserves links across transfer per Part 4
+            // §5.13.5); for Recreate the engine will diff this set
+            // against current=empty during Reset and enqueue
+            // triggering operations to replay.
+            SetDesiredTriggeredByNames(state.TriggeredByNames);
         }
 
         /// <summary>
@@ -199,6 +367,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             ClientHandle = Utils.IncrementIdentifier(ref GlobalClientHandleUint);
 
             m_logger = logger;
+            // Seed runtime desired-state from the initial options
+            // before we hook the options monitor; this keeps the diff
+            // logic in OnOptionsChanged consistent ("first call sees
+            // the seeded state as the previous value") and avoids
+            // emitting spurious triggering operations on the very
+            // first ApplyChangesAsync pass.
+            SetDesiredTriggeredByNames(options.CurrentValue.TriggeredByNames);
             m_options = Options = options;
             m_logger.LogDebug("{Item} CREATED.", this);
         }
@@ -221,7 +396,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_options.CurrentValue,
                 ClientHandle,
                 ServerId,
-                TriggeringItemClientHandle);
+                DesiredTriggeredByNames);
         }
 
         /// <inheritdoc/>
@@ -383,7 +558,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <summary>
         /// Reset the monitored item to its initial state for recreation
-        /// on server side.
+        /// on server side. Runtime <c>DesiredTriggeredByNames</c> is
+        /// preserved across reset so that Phase 4 of
+        /// <c>ApplyChangesAsync</c> can replay the desired triggering
+        /// topology after the item finishes re-creating; this is the
+        /// piece that closes the
+        /// "triggering links not replayed on recreate" gap
+        /// (issue #3834).
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         internal void Reset()
@@ -408,6 +589,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return;
             }
             QueuePendingChanges(options, null);
+
+            // After server-side state is cleared, every desired
+            // triggering link needs to be re-issued via SetTriggering.
+            // Enqueue one add-delta per preserved triggering name; the
+            // engine's Phase 4 will resolve and batch them once the
+            // re-created items reach Created. Preserves the canonical
+            // runtime desired state — we do NOT mutate
+            // DesiredTriggeredByNames here.
+            IReadOnlyList<string> desired = DesiredTriggeredByNames;
+            if (desired.Count > 0)
+            {
+                Context.EnqueueTriggeringDelta(
+                    this,
+                    desired,
+                    Array.Empty<string>());
+            }
         }
 
         /// <summary>
@@ -433,8 +630,99 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     StatusCodes.BadNodeIdInvalid), true, null);
                 return;
             }
+            // Compute the TriggeredByNames diff against the runtime
+            // DesiredTriggeredByNames (the canonical source of truth)
+            // and enqueue triggering deltas on the manager. This
+            // honours imperative writes that happened between the
+            // last options push and this one: if the imperative API
+            // added a name not in the new options, the diff will
+            // remove it (matching the new declared desire), not
+            // re-add it.
+            //
+            // Validation is performed inline (reject null/empty/
+            // whitespace, dedupe ordinal). We do NOT throw here on
+            // bad entries — bad entries are reported via the
+            // existing NotifyItemChangeResult path below so callers
+            // can react via the same channel as other options-level
+            // errors.
+            (List<string>? addNames, List<string>? removeNames,
+                ServiceResult? validationError) =
+                    DiffTriggeredByNames(options.TriggeredByNames);
+            if (validationError != null)
+            {
+                Context.NotifyItemChangeResult(this, 0, options,
+                    validationError, true, null);
+                return;
+            }
+            // Apply the desired-state mutation under the manager's
+            // implicit ordering guarantees: the field is volatile and
+            // exclusively owned by this item. (The manager lock is
+            // taken downstream when EnqueueTriggeringDelta resolves
+            // names.)
+            if (addNames != null || removeNames != null)
+            {
+                SetDesiredTriggeredByNames(options.TriggeredByNames);
+                Context.EnqueueTriggeringDelta(
+                    this,
+                    (IReadOnlyList<string>?)addNames ?? Array.Empty<string>(),
+                    (IReadOnlyList<string>?)removeNames ?? Array.Empty<string>());
+            }
+
             m_currentOptions = options;
             m_pendingChanges.Enqueue(new Change(this, options, currentOptions));
+        }
+
+        /// <summary>
+        /// Compute the diff between the current
+        /// <see cref="DesiredTriggeredByNames"/> and the supplied
+        /// (validated) list. Returns the names to add and the names to
+        /// remove as side-by-side lists, or a non-null
+        /// <see cref="ServiceResult"/> describing a validation error
+        /// (reject null/empty/whitespace entries; dedupe ordinal).
+        /// </summary>
+        private (List<string>? Add, List<string>? Remove, ServiceResult? Error)
+            DiffTriggeredByNames(IReadOnlyList<string> proposed)
+        {
+            // Validate + dedupe the proposed set.
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var normalized = new List<string>(proposed.Count);
+            for (int i = 0; i < proposed.Count; i++)
+            {
+                string name = proposed[i];
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return (null, null, ServiceResult.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "TriggeredByNames must not contain null/empty/" +
+                        "whitespace entries."));
+                }
+                if (seen.Add(name))
+                {
+                    normalized.Add(name);
+                }
+            }
+            IReadOnlyList<string> current = DesiredTriggeredByNames;
+            // Compute added (in normalized, not in current).
+            List<string>? addList = null;
+            for (int i = 0; i < normalized.Count; i++)
+            {
+                if (!ContainsOrdinal(current, normalized[i]))
+                {
+                    addList ??= [];
+                    addList.Add(normalized[i]);
+                }
+            }
+            // Compute removed (in current, not in normalized).
+            List<string>? removeList = null;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (!seen.Contains(current[i]))
+                {
+                    removeList ??= [];
+                    removeList.Add(current[i]);
+                }
+            }
+            return (addList, removeList, null);
         }
 
         /// <summary>
@@ -847,5 +1135,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         private readonly ILogger m_logger;
         internal static uint GlobalClientHandleUint;
         private IOptionsMonitor<MonitoredItemOptions> m_options;
+        private IReadOnlyList<string> m_desiredTriggeredByNames
+            = Array.Empty<string>();
     }
 }

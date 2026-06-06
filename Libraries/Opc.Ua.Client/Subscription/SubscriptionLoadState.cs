@@ -51,10 +51,21 @@ namespace Opc.Ua.Client.Subscriptions
     /// <summary>
     /// Per-item version of <see cref="SubscriptionLoadState"/>.
     /// </summary>
+    /// <param name="Name">Stable, manager-unique monitored item name.</param>
+    /// <param name="Options">Saved item options.</param>
+    /// <param name="ClientHandle">Client-assigned handle at snapshot time.</param>
+    /// <param name="ServerId">Server-assigned monitored item id.</param>
+    /// <param name="TriggeredByNames">
+    /// Saved desired triggering set (OPC UA Part 4 §5.13.5). Each entry
+    /// is the stable name of a triggering item that should report this
+    /// item; the engine restores this into the runtime
+    /// <c>DesiredTriggeredByNames</c> on the recreated
+    /// <see cref="MonitoredItems.MonitoredItem"/>.
+    /// </param>
     internal sealed record MonitoredItemLoadState(
         string Name,
         IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options,
         uint ClientHandle,
         uint ServerId,
-        uint TriggeringItemClientHandle);
+        IReadOnlyList<string> TriggeredByNames);
 }

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -102,6 +103,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool TryAdd(string name, IOptionsMonitor<MonitoredItemOptions> options,
             out IMonitoredItem? monitoredItem)
         {
+            IReadOnlyList<string>? initialTriggers = null;
             lock (m_monitoredItemsLock)
             {
                 if (m_monitoredItemsByName.TryGetValue(name, out MonitoredItem? item))
@@ -113,6 +115,28 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_monitoredItems.Add(item.ClientHandle, item);
                 m_monitoredItemsByName.Add(name, item);
                 monitoredItem = item;
+                // Enqueue an initial triggering delta for any
+                // TriggeredByNames declared in the options at add
+                // time. The MonitoredItem ctor seeds the runtime
+                // DesiredTriggeredByNames from options but does NOT
+                // enqueue a delta (so AddLoaded — which OVERWRITES
+                // the runtime state from the snapshot — never
+                // accidentally enqueues redundant SetTriggering RPCs
+                // for links the server already has after transfer).
+                // TryAdd is the one path where the engine should
+                // actively reconcile the initial declaration with the
+                // server.
+                IReadOnlyList<string> triggers =
+                    options.CurrentValue.TriggeredByNames;
+                if (triggers.Count > 0)
+                {
+                    initialTriggers = triggers;
+                }
+            }
+            if (initialTriggers != null && monitoredItem != null)
+            {
+                EnqueueTriggeringDelta(monitoredItem, initialTriggers,
+                    Array.Empty<string>());
             }
             m_context.Update();
             return true;
@@ -196,6 +220,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             string Name, IOptionsMonitor<MonitoredItemOptions> Options)> state)
         {
             var monitoredItems = new List<IMonitoredItem>(state.Count);
+            // Track initial triggering deltas for newly created items
+            // — we enqueue them outside the lock to keep the manager
+            // lock acquisition short and consistent (the Enqueue path
+            // re-acquires under a separate code-path).
+            List<(IMonitoredItem Item, IReadOnlyList<string> Triggers)>? initialTriggers = null;
             lock (m_monitoredItemsLock)
             {
                 // Capture current state
@@ -210,6 +239,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         item = m_context.CreateMonitoredItem(name, options, this);
                         m_monitoredItems.Add(item.ClientHandle, item);
                         m_monitoredItemsByName.Add(name, item);
+                        IReadOnlyList<string> triggers =
+                            options.CurrentValue.TriggeredByNames;
+                        if (triggers.Count > 0)
+                        {
+                            initialTriggers ??= [];
+                            initialTriggers.Add((item, triggers));
+                        }
                     }
                     else
                     {
@@ -227,6 +263,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         m_monitoredItemsByName.Remove(monitoredItem.Name);
                         m_deletedItems.Add(monitoredItem);
                     }
+                }
+            }
+            if (initialTriggers != null)
+            {
+                foreach ((IMonitoredItem item, IReadOnlyList<string> triggers) in
+                    initialTriggers)
+                {
+                    EnqueueTriggeringDelta(item, triggers, Array.Empty<string>());
                 }
             }
             m_context.Update();
@@ -358,6 +402,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     break;
                 }
+            }
+            // Phase 4: drain the triggering-operations queue. Runs
+            // after Create/Modify/SetMonitoringMode so that the items
+            // referenced by triggering links have valid server ids by
+            // the time the RPC fires. Pending operations whose
+            // referenced items are not yet Created get re-queued (with
+            // a bounded retry budget) for the next ApplyChangesAsync
+            // pass.
+            if (!ct.IsCancellationRequested &&
+                await ApplyTriggeringOperationsAsync(ct).ConfigureAwait(false))
+            {
+                modified = true;
             }
             return modified;
         }
@@ -749,6 +805,582 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return new MonitoredItemsHandles(false, []);
             }
         }
+
+        /// <summary>
+        /// A pending triggering operation queued for batched apply in
+        /// Phase 4 of <see cref="ApplyMonitoredItemChangesAsync"/>.
+        /// Operations are produced by both the imperative
+        /// <c>Subscription.SetTriggeringAsync(IMonitoredItem, …)</c>
+        /// API and by options-change diffs that touch
+        /// <see cref="MonitoredItemOptions.TriggeredByNames"/>.
+        /// </summary>
+        /// <param name="TriggeringItem">
+        /// The triggering item. Must be a current member of this
+        /// subscription (verified by reference identity).
+        /// </param>
+        /// <param name="Add">Triggered items to be linked.</param>
+        /// <param name="Remove">Triggered items whose link should be removed.</param>
+        /// <param name="Completion">
+        /// Optional completion source signaled when the operation has
+        /// been applied (success or final error). The imperative API
+        /// supplies one; declarative options-driven enqueues do not.
+        /// </param>
+        internal sealed record TriggeringOperation(
+            IMonitoredItem TriggeringItem,
+            IReadOnlyList<IMonitoredItem> Add,
+            IReadOnlyList<IMonitoredItem> Remove,
+            TaskCompletionSource<SetTriggeringResult>? Completion = null)
+        {
+            internal int RetryCount;
+        }
+
+        /// <summary>
+        /// Eager validation under the manager lock that the supplied
+        /// triggering and triggered items all belong to this
+        /// subscription (per Part 4 §5.13.5.1). Validation uses
+        /// reference identity against the current items dictionary;
+        /// items removed before this call is made are rejected. When
+        /// successful, the runtime <c>DesiredTriggeredByNames</c> of
+        /// each affected triggered item is updated immediately so that
+        /// <see cref="IMonitoredItem.TriggeringItems"/>,
+        /// <see cref="IMonitoredItem.TriggeredItems"/>, and
+        /// <see cref="MonitoredItem.Snapshot"/> reflect the requested
+        /// intent before Phase 4 of <c>ApplyChangesAsync</c> runs.
+        /// </summary>
+        internal void ValidateBelongsAndUpdateDesired(
+            IMonitoredItem triggeringItem,
+            IReadOnlyList<IMonitoredItem> add,
+            IReadOnlyList<IMonitoredItem> remove)
+        {
+            if (triggeringItem == null)
+            {
+                throw new ArgumentNullException(nameof(triggeringItem));
+            }
+            if (string.IsNullOrEmpty(triggeringItem.Name))
+            {
+                throw new ArgumentException(
+                    "Triggering item must have a name.",
+                    nameof(triggeringItem));
+            }
+            string trigName = triggeringItem.Name;
+            lock (m_monitoredItemsLock)
+            {
+                if (!m_monitoredItems.TryGetValue(triggeringItem.ClientHandle,
+                        out MonitoredItem? trigInThisSub) ||
+                    !ReferenceEquals(trigInThisSub, triggeringItem))
+                {
+                    throw new ArgumentException(
+                        $"Triggering item '{triggeringItem.Name}' is not a " +
+                        "current member of this subscription.",
+                        nameof(triggeringItem));
+                }
+                for (int i = 0; i < add.Count; i++)
+                {
+                    IMonitoredItem target = add[i] ??
+                        throw new ArgumentNullException(nameof(add),
+                            $"linksToAdd[{i}] is null.");
+                    if (!m_monitoredItems.TryGetValue(target.ClientHandle,
+                            out MonitoredItem? inSub) ||
+                        !ReferenceEquals(inSub, target))
+                    {
+                        throw new ArgumentException(
+                            $"Triggered item '{target.Name}' is not a " +
+                            "current member of this subscription.",
+                            nameof(add));
+                    }
+                }
+                for (int i = 0; i < remove.Count; i++)
+                {
+                    IMonitoredItem target = remove[i] ??
+                        throw new ArgumentNullException(nameof(remove),
+                            $"linksToRemove[{i}] is null.");
+                    if (!m_monitoredItems.TryGetValue(target.ClientHandle,
+                            out MonitoredItem? inSub) ||
+                        !ReferenceEquals(inSub, target))
+                    {
+                        throw new ArgumentException(
+                            $"Triggered item '{target.Name}' is not a " +
+                            "current member of this subscription.",
+                            nameof(remove));
+                    }
+                }
+
+                // Mutate runtime desired state under the same lock so
+                // that snapshot/navigation observe the intent
+                // immediately, while options.TriggeredByNames remains
+                // the *initial* declarative input (never mutated).
+                for (int i = 0; i < add.Count; i++)
+                {
+                    if (add[i] is MonitoredItem mi)
+                    {
+                        mi.AddDesiredTriggeredBy(trigName);
+                    }
+                }
+                for (int i = 0; i < remove.Count; i++)
+                {
+                    if (remove[i] is MonitoredItem mi)
+                    {
+                        mi.RemoveDesiredTriggeredBy(trigName);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enqueue a triggering operation for batched apply during
+        /// Phase 4 of <see cref="ApplyMonitoredItemChangesAsync"/>.
+        /// </summary>
+        internal void EnqueueTriggeringOperation(TriggeringOperation op)
+        {
+            m_triggeringOps.Enqueue(op ?? throw new ArgumentNullException(nameof(op)));
+        }
+
+        /// <inheritdoc/>
+        public void EnqueueTriggeringDelta(
+            IMonitoredItem triggeredItem,
+            IReadOnlyList<string> addedTriggeringNames,
+            IReadOnlyList<string> removedTriggeringNames)
+        {
+            if (triggeredItem == null)
+            {
+                throw new ArgumentNullException(nameof(triggeredItem));
+            }
+            if (addedTriggeringNames == null)
+            {
+                throw new ArgumentNullException(nameof(addedTriggeringNames));
+            }
+            if (removedTriggeringNames == null)
+            {
+                throw new ArgumentNullException(nameof(removedTriggeringNames));
+            }
+            if (addedTriggeringNames.Count == 0 &&
+                removedTriggeringNames.Count == 0)
+            {
+                return;
+            }
+            // Resolve each name to an IMonitoredItem and enqueue one
+            // operation per (triggering item, single triggered item)
+            // pair. Phase 4 merges per-triggering-item across
+            // operations so we never make the queue lopsided just by
+            // calling the helper many times.
+            //
+            // Names that don't currently resolve produce a placeholder
+            // operation keyed by a name-only "pending triggering"
+            // sentinel; Phase 4 re-resolves on each pass within a
+            // bounded retry budget. We model this by allocating a
+            // lightweight placeholder item — but to avoid muddying the
+            // operation queue with placeholders, we simply log a
+            // debug message here and silently drop unresolved names.
+            // Callers needing eager validation use the imperative
+            // SetTriggeringAsync(IMonitoredItem, ...) overload, which
+            // takes references.
+            lock (m_monitoredItemsLock)
+            {
+                for (int i = 0; i < removedTriggeringNames.Count; i++)
+                {
+                    if (m_monitoredItemsByName.TryGetValue(
+                            removedTriggeringNames[i],
+                            out MonitoredItem? trig) &&
+                        trig != null)
+                    {
+                        m_triggeringOps.Enqueue(new TriggeringOperation(
+                            trig,
+                            Array.Empty<IMonitoredItem>(),
+                            new IMonitoredItem[] { triggeredItem },
+                            null));
+                    }
+                    else
+                    {
+                        m_logger.LogDebug(
+                            "Triggering item '{Name}' not found in this " +
+                            "subscription when enqueueing remove delta for " +
+                            "triggered item '{Triggered}'; the link (if any) " +
+                            "is left to the server's auto-cleanup on item " +
+                            "deletion (Part 4 §5.13.1.6).",
+                            removedTriggeringNames[i], triggeredItem.Name);
+                    }
+                }
+                for (int i = 0; i < addedTriggeringNames.Count; i++)
+                {
+                    if (m_monitoredItemsByName.TryGetValue(
+                            addedTriggeringNames[i],
+                            out MonitoredItem? trig) &&
+                        trig != null)
+                    {
+                        m_triggeringOps.Enqueue(new TriggeringOperation(
+                            trig,
+                            new IMonitoredItem[] { triggeredItem },
+                            Array.Empty<IMonitoredItem>(),
+                            null));
+                    }
+                    else
+                    {
+                        m_logger.LogDebug(
+                            "Triggering item '{Name}' not found in this " +
+                            "subscription when enqueueing add delta for " +
+                            "triggered item '{Triggered}'; Phase 4 will " +
+                            "skip this delta and rely on the next " +
+                            "options-change push or imperative call to " +
+                            "supply a valid reference.",
+                            addedTriggeringNames[i], triggeredItem.Name);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Phase 4 of <see cref="ApplyMonitoredItemChangesAsync"/> —
+        /// drain the triggering operations queue, group by triggering
+        /// item, fold per-edge (last-intent wins) so that an "add A"
+        /// followed by a "remove A" in the same batch resolves to a
+        /// single net-zero per-edge no-op, and issue one
+        /// <c>SetTriggering</c> RPC per triggering item carrying both
+        /// the merged add and remove lists (per Part 4 §5.13.5.2 the
+        /// server processes <c>linksToRemove</c> before
+        /// <c>linksToAdd</c>, which is the canonical order for this
+        /// batch shape).
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when any RPCs were issued (caller may want to
+        /// invoke another ApplyChangesAsync iteration).
+        /// </returns>
+        internal async ValueTask<bool> ApplyTriggeringOperationsAsync(
+            CancellationToken ct)
+        {
+            var drained = new List<TriggeringOperation>();
+            while (m_triggeringOps.TryDequeue(out TriggeringOperation? op))
+            {
+                drained.Add(op);
+            }
+            if (drained.Count == 0)
+            {
+                return false;
+            }
+
+            var toRequeue = new List<TriggeringOperation>();
+            bool anyApplied = false;
+
+            // Group operations by triggering item (reference identity).
+            // Each group becomes at most one SetTriggering RPC.
+            foreach (IGrouping<IMonitoredItem, TriggeringOperation> group in
+                drained.GroupBy(o => o.TriggeringItem))
+            {
+                IMonitoredItem trig = group.Key;
+                List<TriggeringOperation> ops = [.. group];
+
+                // The triggering item must be Created on the server
+                // before SetTriggering can reference it. If not yet
+                // created — and not terminally failed — re-queue and
+                // wait for the next pass. We bound retries to avoid an
+                // infinite loop when create has permanently failed
+                // (e.g. BadFilterNotAllowed).
+                if (!trig.Created)
+                {
+                    foreach (TriggeringOperation o in ops)
+                    {
+                        o.RetryCount++;
+                        if (o.RetryCount > MaxTriggeringRetryCount)
+                        {
+                            // Terminal failure: propagate the
+                            // triggering item's Error if available;
+                            // otherwise default to
+                            // BadMonitoredItemIdInvalid.
+                            StatusCode propagated = trig.Error == null ||
+                                trig.Error.StatusCode.Code == StatusCodes.Good
+                                    ? StatusCodes.BadMonitoredItemIdInvalid
+                                    : trig.Error.StatusCode;
+                            FailOperation(o, trig, propagated);
+                        }
+                        else
+                        {
+                            toRequeue.Add(o);
+                        }
+                    }
+                    continue;
+                }
+
+                // Fold per-edge: each triggered item contributes its
+                // last-recorded intent (add or remove). Operations are
+                // applied in enqueue order — later wins.
+                var perEdge = new Dictionary<IMonitoredItem, bool>(); // true=add
+                foreach (TriggeringOperation o in ops)
+                {
+                    foreach (IMonitoredItem item in o.Remove)
+                    {
+                        perEdge[item] = false;
+                    }
+                    foreach (IMonitoredItem item in o.Add)
+                    {
+                        perEdge[item] = true;
+                    }
+                }
+
+                // Build per-edge applied-status map; we'll fill it
+                // after the RPC returns. Items not yet Created get
+                // pre-failed with Bad_MonitoredItemIdInvalid (no RPC
+                // entry).
+                var edgeApplied =
+                    new Dictionary<IMonitoredItem, StatusCode>();
+                var addList = new List<IMonitoredItem>();
+                var removeList = new List<IMonitoredItem>();
+                foreach (KeyValuePair<IMonitoredItem, bool> kv in perEdge)
+                {
+                    if (kv.Value)
+                    {
+                        if (!kv.Key.Created)
+                        {
+                            edgeApplied[kv.Key] = StatusCodes
+                                .BadMonitoredItemIdInvalid;
+                        }
+                        else
+                        {
+                            addList.Add(kv.Key);
+                        }
+                    }
+                    else
+                    {
+                        if (!kv.Key.Created)
+                        {
+                            // Server auto-removed the link when the
+                            // item was deleted (§5.13.1.6) — model as
+                            // Good no-op on the client side.
+                            edgeApplied[kv.Key] = StatusCodes.Good;
+                        }
+                        else
+                        {
+                            removeList.Add(kv.Key);
+                        }
+                    }
+                }
+
+                StatusCode serviceResult = StatusCodes.Good;
+                if (addList.Count == 0 && removeList.Count == 0)
+                {
+                    // Nothing to send (everything pre-resolved); fall
+                    // through to per-op completion.
+                }
+                else
+                {
+                    try
+                    {
+                        var addIds = new uint[addList.Count];
+                        for (int i = 0; i < addList.Count; i++)
+                        {
+                            addIds[i] = addList[i].ServerId;
+                        }
+                        var removeIds = new uint[removeList.Count];
+                        for (int i = 0; i < removeList.Count; i++)
+                        {
+                            removeIds[i] = removeList[i].ServerId;
+                        }
+
+                        SetTriggeringResponse response = await m_context
+                            .MonitoredItemServiceSet
+                            .SetTriggeringAsync(
+                                null,
+                                m_context.Id,
+                                trig.ServerId,
+                                addIds.ToArrayOf(),
+                                removeIds.ToArrayOf(),
+                                ct).ConfigureAwait(false);
+                        anyApplied = true;
+
+                        if (response.ResponseHeader != null)
+                        {
+                            serviceResult = response.ResponseHeader
+                                .ServiceResult;
+                        }
+
+                        if (!StatusCode.IsBad(serviceResult))
+                        {
+                            ArrayOf<StatusCode> addResults =
+                                response.AddResults;
+                            for (int i = 0; i < addList.Count; i++)
+                            {
+                                StatusCode s = addResults.Count > i
+                                    ? addResults[i]
+                                    : StatusCodes.Bad;
+                                edgeApplied[addList[i]] = s;
+                                // Roll back the desired-state on
+                                // per-link failure so the caller's
+                                // intent matches the server's reality.
+                                if (StatusCode.IsBad(s) &&
+                                    addList[i] is MonitoredItem mi)
+                                {
+                                    mi.RemoveDesiredTriggeredBy(trig.Name);
+                                }
+                            }
+                            ArrayOf<StatusCode> remResults =
+                                response.RemoveResults;
+                            for (int i = 0; i < removeList.Count; i++)
+                            {
+                                StatusCode s = remResults.Count > i
+                                    ? remResults[i]
+                                    : StatusCodes.Bad;
+                                edgeApplied[removeList[i]] = s;
+                                // A failed remove means the server
+                                // still has the link; preserve the
+                                // desired state to match (don't undo
+                                // the optimistic remove we did during
+                                // validation).
+                                if (StatusCode.IsBad(s) &&
+                                    removeList[i] is MonitoredItem mi)
+                                {
+                                    mi.AddDesiredTriggeredBy(trig.Name);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Service-level error: roll back the
+                            // optimistic desired-state changes for
+                            // every affected item.
+                            RollbackDesired(addList, removeList, trig.Name);
+                            // Bad_SubscriptionIdInvalid is recoverable
+                            // via subscription recreate; re-queue
+                            // rather than fail terminally.
+                            if (serviceResult.Code ==
+                                StatusCodes.BadSubscriptionIdInvalid)
+                            {
+                                foreach (TriggeringOperation o in ops)
+                                {
+                                    toRequeue.Add(o);
+                                }
+                                continue;
+                            }
+                            foreach (IMonitoredItem item in addList)
+                            {
+                                edgeApplied[item] = serviceResult;
+                            }
+                            foreach (IMonitoredItem item in removeList)
+                            {
+                                edgeApplied[item] = serviceResult;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        RollbackDesired(addList, removeList, trig.Name);
+                        m_logger.LogError(ex,
+                            "{Subscription}: SetTriggering for " +
+                            "triggering item {Name} failed.",
+                            this, trig.Name);
+                        StatusCode failStatus = ex is ServiceResultException sre
+                            ? sre.StatusCode
+                            : StatusCodes.BadCommunicationError;
+                        if (failStatus.Code ==
+                            StatusCodes.BadSubscriptionIdInvalid)
+                        {
+                            foreach (TriggeringOperation o in ops)
+                            {
+                                toRequeue.Add(o);
+                            }
+                            continue;
+                        }
+                        foreach (IMonitoredItem item in addList)
+                        {
+                            edgeApplied[item] = failStatus;
+                        }
+                        foreach (IMonitoredItem item in removeList)
+                        {
+                            edgeApplied[item] = failStatus;
+                        }
+                        serviceResult = failStatus;
+                    }
+                }
+
+                // Complete every contributing operation's TCS with the
+                // per-link statuses for its own inputs (looked up by
+                // reference identity in the edgeApplied map).
+                foreach (TriggeringOperation o in ops)
+                {
+                    if (o.Completion == null)
+                    {
+                        continue;
+                    }
+                    var addResultsOut =
+                        new (IMonitoredItem Item, StatusCode Status)[o.Add.Count];
+                    for (int i = 0; i < o.Add.Count; i++)
+                    {
+                        addResultsOut[i] = (o.Add[i],
+                            edgeApplied.TryGetValue(o.Add[i], out StatusCode s)
+                                ? s
+                                : StatusCodes.Good);
+                    }
+                    var removeResultsOut =
+                        new (IMonitoredItem Item, StatusCode Status)[o.Remove.Count];
+                    for (int i = 0; i < o.Remove.Count; i++)
+                    {
+                        removeResultsOut[i] = (o.Remove[i],
+                            edgeApplied.TryGetValue(o.Remove[i], out StatusCode s)
+                                ? s
+                                : StatusCodes.Good);
+                    }
+                    o.Completion.TrySetResult(new SetTriggeringResult(
+                        trig, addResultsOut, removeResultsOut, serviceResult));
+                }
+            }
+
+            foreach (TriggeringOperation o in toRequeue)
+            {
+                m_triggeringOps.Enqueue(o);
+            }
+            return anyApplied;
+        }
+
+        private static void FailOperation(
+            TriggeringOperation op, IMonitoredItem trig, StatusCode status)
+        {
+            if (op.Completion == null)
+            {
+                return;
+            }
+            var addOut = new (IMonitoredItem Item, StatusCode Status)[op.Add.Count];
+            for (int i = 0; i < op.Add.Count; i++)
+            {
+                addOut[i] = (op.Add[i], status);
+            }
+            var remOut = new (IMonitoredItem Item, StatusCode Status)[op.Remove.Count];
+            for (int i = 0; i < op.Remove.Count; i++)
+            {
+                remOut[i] = (op.Remove[i], status);
+            }
+            op.Completion.TrySetResult(new SetTriggeringResult(
+                trig, addOut, remOut, status));
+        }
+
+        private static void RollbackDesired(
+            List<IMonitoredItem> add,
+            List<IMonitoredItem> remove,
+            string trigName)
+        {
+            for (int i = 0; i < add.Count; i++)
+            {
+                if (add[i] is MonitoredItem mi)
+                {
+                    mi.RemoveDesiredTriggeredBy(trigName);
+                }
+            }
+            for (int i = 0; i < remove.Count; i++)
+            {
+                if (remove[i] is MonitoredItem mi)
+                {
+                    mi.AddDesiredTriggeredBy(trigName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Hard cap on Phase-4 re-queues so a permanently failed
+        /// triggering or triggered item cannot starve the queue
+        /// indefinitely. Operations that exceed this budget are
+        /// completed with the triggering item's last error (or
+        /// <c>Bad_MonitoredItemIdInvalid</c> as a fallback).
+        /// </summary>
+        private const int MaxTriggeringRetryCount = 10;
+
+        private readonly ConcurrentQueue<TriggeringOperation> m_triggeringOps
+            = new();
 
         private readonly IMonitoredItemManagerContext m_context;
         private readonly List<MonitoredItem> m_deletedItems = [];
