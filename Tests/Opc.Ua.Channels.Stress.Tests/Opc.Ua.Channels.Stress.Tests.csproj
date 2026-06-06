@@ -5,11 +5,13 @@
       Stress/chaos tests rely on modern primitives (Task.Delay TimeProvider
       overloads, RandomNumberGenerator.GetInt32, Math.Clamp,
       ValueTask.CompletedTask, IClientChannelManager.ReconnectAsync(budget))
-      that do not exist on net48/net472. Restrict TFMs to the supported set
-      so CodeQL and other whole-solution builds do not try to compile this
-      project against the legacy frameworks.
+      that do not exist on net48/net472. When CustomTestTarget is unset
+      (e.g. CodeQL whole-solution build) restrict to the supported TFMs.
+      When CustomTestTarget is set the standard TestsTargetFrameworks
+      pipeline takes over so the matrix can still drive a single TFM.
     -->
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Channels.Stress.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>annotations</Nullable>
