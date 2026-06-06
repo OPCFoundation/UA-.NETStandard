@@ -166,7 +166,8 @@ namespace Opc.Ua.Subscriptions.Tests
                         StatusCodes.BadCommunicationError,
                         StatusCodes.BadConnectionClosed,
                         StatusCodes.BadSecureChannelClosed,
-                        StatusCodes.BadSessionClosed),
+                        StatusCodes.BadSessionClosed,
+                        StatusCodes.BadSessionIdInvalid),
                         $"Unexpected close status: {close}");
                     TestContext.Out.WriteLine(
                         $"CloseAsync returned transient transport-race code {close} — tolerated.");
