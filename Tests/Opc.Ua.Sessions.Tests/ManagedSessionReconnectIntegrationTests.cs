@@ -455,6 +455,7 @@ namespace Opc.Ua.Sessions.Tests
             // machine exhausts its retries and falls through to the
             // Failover state. Without this, the channel is restored on
             // the same alive server and reconnect succeeds on attempt 0.
+            session.StateMachine.ReconnectWithBudgetAsync = null;
             session.StateMachine.ReconnectAsync = _ =>
                 Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -564,6 +565,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // Force reconnect attempts to fail so the state machine
             // proceeds to Failover.
+            session.StateMachine.ReconnectWithBudgetAsync = null;
             session.StateMachine.ReconnectAsync = _ =>
                 Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -839,6 +841,7 @@ namespace Opc.Ua.Sessions.Tests
                 // proceeds to Failover, which now drives
                 // Session.RecreateInPlaceAsync against the failover
                 // endpoint and rotates the server-side session id.
+                session.StateMachine.ReconnectWithBudgetAsync = null;
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -1176,6 +1179,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 // Force a failover via the same fake-reconnect technique
                 // as SubscriptionRecoversAfterFailover.
+                session.StateMachine.ReconnectWithBudgetAsync = null;
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(
                         new ServiceResult(StatusCodes.BadNotConnected));
