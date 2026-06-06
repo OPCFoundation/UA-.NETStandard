@@ -68,7 +68,7 @@ Console.WriteLine($"Last transition: {snap.LastTransition} ({snap.LastTransition
 ### Stream transitions
 
 Pair the proxy with the session's
-[streaming subscription](StreamingSubscription.md):
+[streaming subscription](Subscriptions.md#streaming-subscriptions):
 
 ```csharp
 ManagedSession session = ...;
@@ -548,7 +548,7 @@ with the spec; this is tracked but deliberately deferred.
 
 ## See also
 
-- [Streaming subscription](StreamingSubscription.md) — the
+- [Subscriptions and Monitored Items](Subscriptions.md#streaming-subscriptions) — the
   `IStreamingSubscription` surface the observation methods consume.
 - [Alarms and conditions](AlarmsAndConditions.md) — Part 9 alarm
   client that exposes the shelving-state-machine helpers.

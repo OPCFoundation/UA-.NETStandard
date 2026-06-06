@@ -559,10 +559,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <summary>
         /// Reset the monitored item to its initial state for recreation
         /// on server side. Runtime <c>DesiredTriggeredByNames</c> is
-        /// preserved across reset so that Phase 4 of
-        /// <c>ApplyChangesAsync</c> can replay the desired triggering
-        /// topology after the item finishes re-creating; this is the
-        /// piece that closes the
+        /// preserved across reset so that the batched apply pass can
+        /// replay the desired triggering topology after the item
+        /// finishes re-creating; this is the piece that closes the
         /// "triggering links not replayed on recreate" gap
         /// (issue #3834).
         /// </summary>
@@ -593,10 +592,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // After server-side state is cleared, every desired
             // triggering link needs to be re-issued via SetTriggering.
             // Enqueue one add-delta per preserved triggering name; the
-            // engine's Phase 4 will resolve and batch them once the
-            // re-created items reach Created. Preserves the canonical
-            // runtime desired state — we do NOT mutate
-            // DesiredTriggeredByNames here.
+            // engine resolves and batches them once the re-created
+            // items reach Created. Preserves the canonical runtime
+            // desired state — we do NOT mutate DesiredTriggeredByNames
+            // here.
             IReadOnlyList<string> desired = DesiredTriggeredByNames;
             if (desired.Count > 0)
             {
@@ -645,13 +644,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // existing NotifyItemChangeResult path below so callers
             // can react via the same channel as other options-level
             // errors.
-            (List<string>? addNames, List<string>? removeNames,
-                ServiceResult? validationError) =
-                    DiffTriggeredByNames(options.TriggeredByNames);
-            if (validationError != null)
+            TriggeredByNamesDiff diff = DiffTriggeredByNames(
+                options.TriggeredByNames);
+            if (diff.Error != null)
             {
                 Context.NotifyItemChangeResult(this, 0, options,
-                    validationError, true, null);
+                    diff.Error, true, null);
                 return;
             }
             // Apply the desired-state mutation under the manager's
@@ -659,18 +657,29 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // exclusively owned by this item. (The manager lock is
             // taken downstream when EnqueueTriggeringDelta resolves
             // names.)
-            if (addNames != null || removeNames != null)
+            if (diff.Add != null || diff.Remove != null)
             {
                 SetDesiredTriggeredByNames(options.TriggeredByNames);
                 Context.EnqueueTriggeringDelta(
                     this,
-                    (IReadOnlyList<string>?)addNames ?? Array.Empty<string>(),
-                    (IReadOnlyList<string>?)removeNames ?? Array.Empty<string>());
+                    (IReadOnlyList<string>?)diff.Add ?? Array.Empty<string>(),
+                    (IReadOnlyList<string>?)diff.Remove ?? Array.Empty<string>());
             }
 
             m_currentOptions = options;
             m_pendingChanges.Enqueue(new Change(this, options, currentOptions));
         }
+
+        /// <summary>
+        /// Carrier for the diff produced by
+        /// <see cref="DiffTriggeredByNames"/>: the set of names to add
+        /// to and remove from <see cref="DesiredTriggeredByNames"/>,
+        /// plus an optional validation error.
+        /// </summary>
+        private readonly record struct TriggeredByNamesDiff(
+            List<string>? Add,
+            List<string>? Remove,
+            ServiceResult? Error);
 
         /// <summary>
         /// Compute the diff between the current
@@ -680,8 +689,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <see cref="ServiceResult"/> describing a validation error
         /// (reject null/empty/whitespace entries; dedupe ordinal).
         /// </summary>
-        private (List<string>? Add, List<string>? Remove, ServiceResult? Error)
-            DiffTriggeredByNames(IReadOnlyList<string> proposed)
+        private TriggeredByNamesDiff DiffTriggeredByNames(
+            IReadOnlyList<string> proposed)
         {
             // Validate + dedupe the proposed set.
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -691,10 +700,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 string name = proposed[i];
                 if (string.IsNullOrWhiteSpace(name))
                 {
-                    return (null, null, ServiceResult.Create(
-                        StatusCodes.BadInvalidArgument,
-                        "TriggeredByNames must not contain null/empty/" +
-                        "whitespace entries."));
+                    return new TriggeredByNamesDiff(null, null,
+                        ServiceResult.Create(
+                            StatusCodes.BadInvalidArgument,
+                            "TriggeredByNames must not contain null/empty/" +
+                            "whitespace entries."));
                 }
                 if (seen.Add(name))
                 {
@@ -722,7 +732,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     removeList.Add(current[i]);
                 }
             }
-            return (addList, removeList, null);
+            return new TriggeredByNamesDiff(addList, removeList, null);
         }
 
         /// <summary>

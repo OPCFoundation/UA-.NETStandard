@@ -126,8 +126,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // TryAdd is the one path where the engine should
                 // actively reconcile the initial declaration with the
                 // server.
-                IReadOnlyList<string> triggers =
-                    options.CurrentValue.TriggeredByNames;
+                IReadOnlyList<string> triggers = options.CurrentValue.TriggeredByNames;
                 if (triggers.Count > 0)
                 {
                     initialTriggers = triggers;
@@ -239,8 +238,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         item = m_context.CreateMonitoredItem(name, options, this);
                         m_monitoredItems.Add(item.ClientHandle, item);
                         m_monitoredItemsByName.Add(name, item);
-                        IReadOnlyList<string> triggers =
-                            options.CurrentValue.TriggeredByNames;
+                        IReadOnlyList<string> triggers = options.CurrentValue.TriggeredByNames;
                         if (triggers.Count > 0)
                         {
                             initialTriggers ??= [];
@@ -267,8 +265,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             if (initialTriggers != null)
             {
-                foreach ((IMonitoredItem item, IReadOnlyList<string> triggers) in
-                    initialTriggers)
+                foreach ((IMonitoredItem item, IReadOnlyList<string> triggers) in initialTriggers)
                 {
                     EnqueueTriggeringDelta(item, triggers, Array.Empty<string>());
                 }
@@ -403,8 +400,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     break;
                 }
             }
-            // Phase 4: drain the triggering-operations queue. Runs
-            // after Create/Modify/SetMonitoringMode so that the items
+            // Drain the triggering-operations queue. Runs after
+            // Create/Modify/SetMonitoringMode so that the items
             // referenced by triggering links have valid server ids by
             // the time the RPC fires. Pending operations whose
             // referenced items are not yet Created get re-queued (with
@@ -808,7 +805,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <summary>
         /// A pending triggering operation queued for batched apply in
-        /// Phase 4 of <see cref="ApplyMonitoredItemChangesAsync"/>.
+        /// <see cref="ApplyMonitoredItemChangesAsync"/>.
         /// Operations are produced by both the imperative
         /// <c>Subscription.SetTriggeringAsync(IMonitoredItem, …)</c>
         /// API and by options-change diffs that touch
@@ -845,7 +842,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <see cref="IMonitoredItem.TriggeringItems"/>,
         /// <see cref="IMonitoredItem.TriggeredItems"/>, and
         /// <see cref="MonitoredItem.Snapshot"/> reflect the requested
-        /// intent before Phase 4 of <c>ApplyChangesAsync</c> runs.
+        /// intent before the batched apply pass runs.
         /// </summary>
         internal void ValidateBelongsAndUpdateDesired(
             IMonitoredItem triggeringItem,
@@ -928,7 +925,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <summary>
         /// Enqueue a triggering operation for batched apply during
-        /// Phase 4 of <see cref="ApplyMonitoredItemChangesAsync"/>.
+        /// <see cref="ApplyMonitoredItemChangesAsync"/>.
         /// </summary>
         internal void EnqueueTriggeringOperation(TriggeringOperation op)
         {
@@ -960,20 +957,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             // Resolve each name to an IMonitoredItem and enqueue one
             // operation per (triggering item, single triggered item)
-            // pair. Phase 4 merges per-triggering-item across
+            // pair. The batched apply merges per-triggering-item across
             // operations so we never make the queue lopsided just by
             // calling the helper many times.
             //
             // Names that don't currently resolve produce a placeholder
             // operation keyed by a name-only "pending triggering"
-            // sentinel; Phase 4 re-resolves on each pass within a
-            // bounded retry budget. We model this by allocating a
-            // lightweight placeholder item — but to avoid muddying the
-            // operation queue with placeholders, we simply log a
-            // debug message here and silently drop unresolved names.
-            // Callers needing eager validation use the imperative
-            // SetTriggeringAsync(IMonitoredItem, ...) overload, which
-            // takes references.
+            // sentinel; the batched apply re-resolves on each pass
+            // within a bounded retry budget. We model this by
+            // allocating a lightweight placeholder item — but to
+            // avoid muddying the operation queue with placeholders,
+            // we simply log a debug message here and silently drop
+            // unresolved names. Callers needing eager validation use
+            // the imperative SetTriggeringAsync(IMonitoredItem, ...)
+            // overload, which takes references.
             lock (m_monitoredItemsLock)
             {
                 for (int i = 0; i < removedTriggeringNames.Count; i++)
@@ -1018,10 +1015,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         m_logger.LogDebug(
                             "Triggering item '{Name}' not found in this " +
                             "subscription when enqueueing add delta for " +
-                            "triggered item '{Triggered}'; Phase 4 will " +
-                            "skip this delta and rely on the next " +
-                            "options-change push or imperative call to " +
-                            "supply a valid reference.",
+                            "triggered item '{Triggered}'; the batched " +
+                            "apply will skip this delta and rely on the " +
+                            "next options-change push or imperative " +
+                            "call to supply a valid reference.",
                             addedTriggeringNames[i], triggeredItem.Name);
                     }
                 }
@@ -1029,7 +1026,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
-        /// Phase 4 of <see cref="ApplyMonitoredItemChangesAsync"/> —
+        /// Batched apply step of
+        /// <see cref="ApplyMonitoredItemChangesAsync"/> —
         /// drain the triggering operations queue, group by triggering
         /// item, fold per-edge (last-intent wins) so that an "add A"
         /// followed by a "remove A" in the same batch resolves to a
@@ -1371,16 +1369,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
-        /// Hard cap on Phase-4 re-queues so a permanently failed
+        /// Hard cap on triggering re-queues so a permanently failed
         /// triggering or triggered item cannot starve the queue
         /// indefinitely. Operations that exceed this budget are
         /// completed with the triggering item's last error (or
         /// <c>Bad_MonitoredItemIdInvalid</c> as a fallback).
         /// </summary>
         private const int MaxTriggeringRetryCount = 10;
-
-        private readonly ConcurrentQueue<TriggeringOperation> m_triggeringOps
-            = new();
+        private readonly ConcurrentQueue<TriggeringOperation> m_triggeringOps = new();
 
         private readonly IMonitoredItemManagerContext m_context;
         private readonly List<MonitoredItem> m_deletedItems = [];

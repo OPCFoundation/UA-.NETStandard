@@ -253,8 +253,8 @@ namespace Opc.Ua.Client.Subscriptions
             m_monitoredItems.ValidateBelongsAndUpdateDesired(
                 triggeringItem, add, remove);
 
-            // Enqueue a single operation that Phase 4 of
-            // ApplyMonitoredItemChangesAsync will pick up, merge with
+            // Enqueue a single operation that the batched
+            // ApplyMonitoredItemChangesAsync pass will pick up, merge with
             // other operations targeting the same triggering item, and
             // turn into one SetTriggering RPC.
             var tcs = new TaskCompletionSource<SetTriggeringResult>(

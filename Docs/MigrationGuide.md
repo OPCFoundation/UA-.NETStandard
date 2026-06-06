@@ -1933,20 +1933,6 @@ TimeSpan elapsed = m_timeProvider.GetElapsedTime(startTimestamp);
 
 Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscriptions;` import alongside the existing `using Opc.Ua.Client;`. Because the V2 records share their type names with the classic records, namespace aliases are required when both are visible in the same file - see [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection) for the canonical alias snippet.
 
-#### V2 SetTriggering (issue #3834)
-
-**V2-only surface change.** The V2 subscription engine ships a new triggering API (see [SubscriptionTriggering.md](SubscriptionTriggering.md) for the full developer guide). Callers that were using the V2-internal `Subscription.SetTriggeringAsync(uint, IReadOnlyList<uint>, IReadOnlyList<uint>, CancellationToken)` or the `IMonitoredItem.TriggeringItem` (singular) property must migrate:
-
-| Before (V2-internal, removed) | After (V2 public) |
-|---|---|
-| `((Subscription)sub).SetTriggeringAsync(triggering.ClientHandle, [...], [...], ct)` | `sub.SetTriggeringAsync(triggering, [...], [...], ct)` returning `SetTriggeringResult` |
-| `triggered.TriggeringItem` (1:1) | `triggered.TriggeringItems` (plural, N:M) |
-| `MonitoredItemStateSnapshot.TriggeringItemClientHandle` | `MonitoredItemStateSnapshot.TriggeredByNames` (`ArrayOf<string>`) |
-
-The new API supports N:M triggering (a triggered item may be linked to multiple triggering items, matching Part 4 §5.13.5) and a declarative option (`MonitoredItemOptions.TriggeredByNames`) that round-trips through snapshot/save/load. SetTriggering replays automatically on recreate, reconnect, and `RecreateAsync` — closing the gap from [#3834](https://github.com/OPCFoundation/UA-.NETStandard/issues/3834).
-
-The classic `Opc.Ua.Client.Subscription.SetTriggeringAsync(MonitoredItem, ArrayOf<MonitoredItem>, ArrayOf<MonitoredItem>, CancellationToken)` and `MonitoredItem.TriggeringItemId` / `TriggeredItems` are unchanged.
-
 #### PubSub
 
 **Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -92,7 +93,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// item with that handle is currently registered.</param>
         bool TryGetMonitoredItemByClientHandle(
             uint clientHandle,
-            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IMonitoredItem? item);
+            [MaybeNullWhen(false)] out IMonitoredItem? item);
 
         /// <summary>
         /// Resolve a sibling monitored item by stable name. Used by
@@ -108,7 +109,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// item with that name is currently registered.</param>
         bool TryGetMonitoredItemByName(
             string name,
-            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IMonitoredItem? item);
+            [MaybeNullWhen(false)] out IMonitoredItem? item);
 
         /// <summary>
         /// Enumerate every monitored item currently registered with
@@ -127,10 +128,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// replay the entire desired set after a recreate). The
         /// triggering items are resolved by name against the owning
         /// subscription's collection; entries that don't currently
-        /// resolve are still enqueued and Phase 4 of
-        /// <c>ApplyChangesAsync</c> retries them on subsequent passes
-        /// (with a bounded retry budget) until the named item appears
-        /// or the budget is exhausted.
+        /// resolve are still enqueued and the batched apply pass
+        /// retries them on subsequent runs (with a bounded retry
+        /// budget) until the named item appears or the budget is
+        /// exhausted.
         /// </summary>
         /// <param name="triggeredItem">The triggered item.</param>
         /// <param name="addedTriggeringNames">

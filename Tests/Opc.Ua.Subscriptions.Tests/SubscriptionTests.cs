@@ -90,9 +90,6 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             return base.TearDownAsync();
         }
-
-        // ===== 1. AddSubscription =====
-
         [Test]
         [Order(100)]
         [CancelAfter(60_000)]
@@ -180,9 +177,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 2. Save / Load =====
-
         [Test]
         [Order(200)]
         [CancelAfter(60_000)]
@@ -296,9 +290,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
-
-        // ===== 3. SequentialPublishing (always sequential on V2) =====
-
         [Test]
         [Order(300)]
         [CancelAfter(60_000)]
@@ -433,9 +424,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
             }
         }
-
-        // ===== 4. PublishRequestCount scales =====
-
         [Test]
         [Order(400)]
         [CancelAfter(60_000)]
@@ -499,9 +487,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 5. FastKeepAliveCallback (handler-based on V2) + ResendData =====
-
         [Test]
         [Order(500)]
         [CancelAfter(60_000)]
@@ -577,9 +562,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 6. SetTriggering tracking =====
-
         [Test]
         [Order(600)]
         [CancelAfter(60_000)]
@@ -662,9 +644,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 6b. Declarative triggering via MonitoredItemOptions.TriggeredByNames =====
-
         [Test]
         [Order(601)]
         [CancelAfter(60_000)]
@@ -723,9 +702,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 6c. N:M triggering (a triggered item linked to two triggering items) =====
-
         [Test]
         [Order(602)]
         [CancelAfter(60_000)]
@@ -799,9 +775,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== 7. Concurrent monitored-item adds (no duplicates) =====
-
         [Test]
         [Order(700)]
         [CancelAfter(60_000)]
@@ -890,9 +863,6 @@ namespace Opc.Ua.Subscriptions.Tests
                 await session.DisposeAsync().ConfigureAwait(false);
             }
         }
-
-        // ===== helpers =====
-
         private async Task<ManagedSession> ConnectV2Async(
             string sessionName, CancellationToken ct)
         {
