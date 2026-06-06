@@ -43,15 +43,16 @@ namespace Opc.Ua.Client
     /// and reacts to the three scenarios called out in issue #3160:
     /// own client-certificate renewal, trust-list add/remove, and CRL
     /// add/remove. When
-    /// <see cref="ManagedSession.AutoReconnectOnCertificateChange"/> is
-    /// <c>true</c> the manager triggers a reconnect so the new state
+    /// <see cref="ManagedSession.DisableAutoReconnectOnCertificateChange"/> is
+    /// <c>false</c> (the default) the manager triggers a reconnect so the new state
     /// takes effect immediately instead of waiting for the next
     /// SecurityToken renewal.
     /// </summary>
     public partial class ManagedSession
     {
         /// <summary>
-        /// When <c>true</c>, the managed session automatically calls
+        /// When <c>false</c> (the default), the managed session
+        /// automatically calls
         /// <see cref="ISession.ReloadInstanceCertificateAsync(CancellationToken)"/>
         /// and triggers a reconnect when the application's
         /// <see cref="CertificateManager"/> publishes an
@@ -60,14 +61,15 @@ namespace Opc.Ua.Client
         /// <see cref="CertificateChangeKind.CrlUpdated"/> event so the
         /// new state takes effect within milliseconds rather than at the
         /// next SecurityToken renewal (OPC UA Part 4 §5.5.2).
-        /// Default <c>false</c> for backwards compatibility — users who
-        /// explicitly want manual control (auditing, idempotency) can
-        /// leave it disabled and call
+        /// Set to <c>true</c> when an application requires manual
+        /// control (auditing, idempotency) and prefers to call
         /// <see cref="ISession.ReloadInstanceCertificateAsync(CancellationToken)"/>
         /// + <see cref="ISession.ReconnectAsync(ITransportWaitingConnection, ITransportChannel, CancellationToken)"/>
-        /// themselves.
+        /// itself. The
+        /// <see cref="ApplicationCertificateChanged"/> event still
+        /// fires for diagnostics regardless of this setting.
         /// </summary>
-        public bool AutoReconnectOnCertificateChange { get; set; }
+        public bool DisableAutoReconnectOnCertificateChange { get; set; }
 
         /// <summary>
         /// Subscribes to
@@ -129,7 +131,7 @@ namespace Opc.Ua.Client
 
             ApplicationCertificateChanged?.Invoke(this, evt);
 
-            if (!AutoReconnectOnCertificateChange)
+            if (DisableAutoReconnectOnCertificateChange)
             {
                 return;
             }
@@ -182,7 +184,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised on every observed
         /// <see cref="CertificateChangeEvent"/> regardless of
-        /// <see cref="AutoReconnectOnCertificateChange"/>. Subscribers
+        /// <see cref="DisableAutoReconnectOnCertificateChange"/>. Subscribers
         /// can use this for diagnostics or to implement custom
         /// rotation policies.
         /// </summary>

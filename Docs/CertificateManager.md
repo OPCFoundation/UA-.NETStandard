@@ -157,7 +157,7 @@ public sealed class MyTransportListener : ITransportListener, ITransportListener
 
 Server-base subclasses that want to observe rotation in custom ways can still subscribe to `ICertificateManager.CertificateChanges` and react to `ApplicationCertificateUpdated` events — but should not drive channel teardown from that hook (the event fires twice during a push update: once when the new cert is staged, once when `ApplyChanges` reloads, and only `ApplyChanges` has the real old-cert reference).
 
-#### Client-Side Auto-Detection of Certificate Changes (issue #3160)
+#### Client-Side Auto-Detection of Certificate Changes
 
 `ManagedSession` automatically subscribes to
 `CertificateManager.CertificateChanges` and reacts to the three
@@ -170,8 +170,9 @@ certificate management:
 
 Each event is forwarded to subscribers of
 `ManagedSession.ApplicationCertificateChanged` for diagnostics regardless
-of policy. When `ManagedSession.AutoReconnectOnCertificateChange` is set
-to `true`, the managed session ALSO:
+of policy. By default
+(`ManagedSession.DisableAutoReconnectOnCertificateChange` is `false`),
+the managed session ALSO:
 
 - Calls `Session.ReloadInstanceCertificateAsync` on
   `ApplicationCertificateUpdated` (so the next ActivateSession is signed
@@ -183,7 +184,8 @@ to `true`, the managed session ALSO:
 ```csharp
 using var managed = await ManagedSession.CreateAsync(
     configuration, endpoint, sessionFactory);
-managed.AutoReconnectOnCertificateChange = true;
+// Auto-reconnect on certificate changes is on by default.
+// Opt out by setting DisableAutoReconnectOnCertificateChange = true.
 
 managed.ApplicationCertificateChanged += (sender, e) =>
 {
@@ -191,10 +193,13 @@ managed.ApplicationCertificateChanged += (sender, e) =>
 };
 ```
 
-The default for `AutoReconnectOnCertificateChange` is `false` for
-backwards compatibility — applications that need manual control
-(auditing, idempotency) can leave it off and continue calling
-`Session.ReloadInstanceCertificateAsync` + their own reconnect logic.
+Auto-reconnect is on by default so the session honours certificate /
+trust-list / CRL changes immediately. Applications that need manual
+control (auditing, idempotency) can opt out by setting
+`ManagedSession.DisableAutoReconnectOnCertificateChange = true` and
+continue calling `Session.ReloadInstanceCertificateAsync` + their own
+reconnect logic. The `ApplicationCertificateChanged` event still fires
+either way.
 
 Trust-list / CRL changes never require a per-session cert reload — the
 validation cores are shared via the `CertificateManager` and are
