@@ -454,13 +454,17 @@ namespace Opc.Ua.Bindings
 
         private bool CanUseHttpClientFactory()
         {
-            if (!ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared))
-            {
-                return true;
-            }
-
-            return m_settings?.ClientCertificate == null &&
-                m_settings?.CertificateValidator == null;
+            // The factory path is opt-in: only callers that explicitly
+            // supplied a non-default IOpcUaHttpClientFactory get the
+            // shared HttpClient pipeline (with its standard resilience
+            // handler). The DefaultOpcUaHttpClientFactory.Shared
+            // instance is a fallback that does NOT have custom OPC UA
+            // TLS server-certificate validation wired in, so for direct
+            // (non-DI) consumers we always fall back to
+            // CreateDirectHttpClient which configures the
+            // ServerCertificateCustomValidationCallback against the
+            // ICertificateValidatorEx supplied via TransportChannelSettings.
+            return !ReferenceEquals(m_httpClientFactory, DefaultOpcUaHttpClientFactory.Shared);
         }
 
         private HttpClient CreateDirectHttpClient()
