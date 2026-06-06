@@ -272,6 +272,119 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task WriteTrustListAsyncNotifiesTrustListUpdatedAsync()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var data = new TrustListData
+            {
+                TrustedCertificates = [cert]
+            };
+
+            await manager.WriteTrustListAsync(
+                TrustListIdentifier.Peers,
+                data,
+                TrustListMasks.TrustedCertificates).ConfigureAwait(false);
+
+            Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
+                evt => evt.Kind == CertificateChangeKind.TrustListUpdated
+                    && evt.TrustList == TrustListIdentifier.Peers));
+            Assert.That(received, Has.None.Matches<CertificateChangeEvent>(
+                evt => evt.Kind == CertificateChangeKind.CrlUpdated));
+        }
+
+        [Test]
+        public async Task WriteTrustListAsyncDoesNotNotifyWhenMaskExcludesEverythingAsync()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+
+            using var data = new TrustListData();
+            await manager.WriteTrustListAsync(
+                TrustListIdentifier.Peers,
+                data,
+                TrustListMasks.None).ConfigureAwait(false);
+
+            Assert.That(received, Is.Empty);
+        }
+
+        [Test]
+        public async Task TrustListTransactionCommitNotifiesAsync()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=TxTrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ITrustListTransaction tx = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers)
+                .ConfigureAwait(false);
+            try
+            {
+                await tx.AddTrustedCertificateAsync(cert).ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await tx.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
+                evt => evt.Kind == CertificateChangeKind.TrustListUpdated
+                    && evt.TrustList == TrustListIdentifier.Peers));
+        }
+
+        [Test]
+        public async Task TrustListTransactionAbandonedDoesNotNotifyAsync()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            var received = new List<CertificateChangeEvent>();
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(
+                new TestObserver<CertificateChangeEvent>(received.Add));
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=Abandoned")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ITrustListTransaction tx = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers)
+                .ConfigureAwait(false);
+            await tx.AddTrustedCertificateAsync(cert).ConfigureAwait(false);
+            // Disposing without committing must NOT emit a change event.
+            await tx.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(received, Is.Empty);
+        }
+
+        [Test]
         public Task RejectCertificateAsyncEnqueuesSuccessfully()
         {
             string rejectedPath = CreateTempDir();

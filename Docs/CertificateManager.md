@@ -157,6 +157,51 @@ public sealed class MyTransportListener : ITransportListener, ITransportListener
 
 Server-base subclasses that want to observe rotation in custom ways can still subscribe to `ICertificateManager.CertificateChanges` and react to `ApplicationCertificateUpdated` events — but should not drive channel teardown from that hook (the event fires twice during a push update: once when the new cert is staged, once when `ApplyChanges` reloads, and only `ApplyChanges` has the real old-cert reference).
 
+#### Client-Side Auto-Detection of Certificate Changes (issue #3160)
+
+`ManagedSession` automatically subscribes to
+`CertificateManager.CertificateChanges` and reacts to the three
+scenarios called out in OPC UA spec discussions around client-side
+certificate management:
+
+1. **Own (client) certificate renewal** — `ApplicationCertificateUpdated` fires from `UpdateApplicationCertificateAsync` / `ReloadApplicationCertificatesAsync`.
+2. **Trust-list add/remove** — `TrustListUpdated` fires from `WriteTrustListAsync` and from a successful `TrustListTransaction.CommitAsync` whenever certificates were added or removed.
+3. **CRL add/remove** — `CrlUpdated` fires from the same paths whenever CRLs were modified.
+
+Each event is forwarded to subscribers of
+`ManagedSession.ApplicationCertificateChanged` for diagnostics regardless
+of policy. When `ManagedSession.AutoReconnectOnCertificateChange` is set
+to `true`, the managed session ALSO:
+
+- Calls `Session.ReloadInstanceCertificateAsync` on
+  `ApplicationCertificateUpdated` (so the next ActivateSession is signed
+  with the rotated client cert).
+- Triggers a reconnect via the state machine, so the new state takes
+  effect within milliseconds rather than at the next
+  `SecurityTokenLifetime` rekey (Part 4 §5.5.2).
+
+```csharp
+using var managed = await ManagedSession.CreateAsync(
+    configuration, endpoint, sessionFactory);
+managed.AutoReconnectOnCertificateChange = true;
+
+managed.ApplicationCertificateChanged += (sender, e) =>
+{
+    Console.WriteLine($"observed {e.Kind} on {e.TrustList}");
+};
+```
+
+The default for `AutoReconnectOnCertificateChange` is `false` for
+backwards compatibility — applications that need manual control
+(auditing, idempotency) can leave it off and continue calling
+`Session.ReloadInstanceCertificateAsync` + their own reconnect logic.
+
+Trust-list / CRL changes never require a per-session cert reload — the
+validation cores are shared via the `CertificateManager` and are
+invalidated by `NotifyTrustListChanged`. The reconnect is still useful
+because it re-validates the server certificate against the new trust
+state on a fresh channel.
+
 #### Working with Trust-Lists
 
 ```csharp
