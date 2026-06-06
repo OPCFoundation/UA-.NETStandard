@@ -29,10 +29,6 @@
 
 #nullable enable
 
-// CA2000: ownership of the rotated certificate copy is transferred to CertificateManager.
-// CA2016: outage reconnects intentionally mirror CertificateManager's uncancelled reconnect path.
-#pragma warning disable CA2000, CA2007, CA2016
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,6 +40,10 @@ using Opc.Ua.Channels.Stress.Tests.Helpers;
 using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+
+// CA2000: ownership of the rotated certificate copy is transferred to CertificateManager.
+// CA2016: outage reconnects intentionally mirror CertificateManager's uncancelled reconnect path.
+#pragma warning disable CA2000, CA2007, CA2016
 
 namespace Opc.Ua.Channels.Stress.Tests.Integration
 {

@@ -29,13 +29,13 @@
 
 #nullable enable
 
-// CA2000: gap-test factories return disposables to callers that release them in each test.
-#pragma warning disable CA2000
-
 using System;
 using System.Threading.Tasks;
 using Opc.Ua.Channels.Stress.Tests.Fakes;
 using Opc.Ua.Tests;
+
+// CA2000: gap-test factories return disposables to callers that release them in each test.
+#pragma warning disable CA2000
 
 namespace Opc.Ua.Channels.Stress.Tests.Gaps
 {

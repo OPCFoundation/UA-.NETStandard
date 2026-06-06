@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
-// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
-// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
-#pragma warning disable CA2016
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -46,6 +41,11 @@ using IServerRedundancyHandler = Opc.Ua.Client.IServerRedundancyHandler;
 using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
+
+// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
+// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
+// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
+#pragma warning disable CA2016
 
 namespace Opc.Ua.Sessions.Tests
 {

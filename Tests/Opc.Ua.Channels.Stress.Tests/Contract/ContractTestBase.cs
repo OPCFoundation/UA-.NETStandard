@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2000: contract-test disposables are transferred to the environment or released by cleanup paths.
-// CA2007: NUnit invokes test code without requiring ConfigureAwait on framework calls.
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-#pragma warning disable CA2000, CA2007, CA2016
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,6 +40,11 @@ using NUnit.Framework;
 using Opc.Ua.Channels.Stress.Tests.Fakes;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+
+// CA2000: contract-test disposables are transferred to the environment or released by cleanup paths.
+// CA2007: NUnit invokes test code without requiring ConfigureAwait on framework calls.
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+#pragma warning disable CA2000, CA2007, CA2016
 
 namespace Opc.Ua.Channels.Stress.Tests.Contract
 {

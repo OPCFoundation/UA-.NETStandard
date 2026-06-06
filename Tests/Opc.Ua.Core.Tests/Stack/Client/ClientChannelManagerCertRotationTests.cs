@@ -30,9 +30,6 @@
 
 #nullable enable
 
-// CA2000: test code; disposables are released by test cleanup paths.
-#pragma warning disable CA2000
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -43,6 +40,9 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+
+// CA2000: test code; disposables are released by test cleanup paths.
+#pragma warning disable CA2000
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {

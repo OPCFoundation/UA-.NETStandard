@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2000: integration-test disposables are returned to callers or released by helper cleanup paths.
-// CA2007: NUnit lifecycle methods are invoked by the framework.
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-#pragma warning disable CA2000, CA2007, CA2016
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,6 +39,11 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+
+// CA2000: integration-test disposables are returned to callers or released by helper cleanup paths.
+// CA2007: NUnit lifecycle methods are invoked by the framework.
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+#pragma warning disable CA2000, CA2007, CA2016
 
 namespace Opc.Ua.Channels.Stress.Tests.Integration
 {

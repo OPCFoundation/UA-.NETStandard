@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -67,7 +66,7 @@ namespace Quickstarts
 
         public ClientSamples(
             ITelemetryContext telemetry,
-            Action<IList, IList>? validateResponse,
+            Action<Array, Array>? validateResponse,
             ManualResetEvent? quitEvent = null,
             bool verbose = false)
         {
@@ -1816,7 +1815,7 @@ namespace Quickstarts
             }
         }
 
-        private readonly Action<IList, IList>? m_validate;
+        private readonly Action<Array, Array>? m_validate;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly ManualResetEvent? m_quitEvent;

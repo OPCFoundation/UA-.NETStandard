@@ -143,7 +143,7 @@ namespace Opc.Ua.Channels.Stress.Tests.Helpers
             return WaitForDiagnosticsAsync(
                 manager,
                 diagnostics => TryFindDiagnostic(diagnostics, key, out ManagedChannelDiagnostic? diagnostic) &&
-                    diagnostic.Refcount == expectedRefcount,
+                    diagnostic!.Refcount == expectedRefcount,
                 timeout,
                 ct);
         }

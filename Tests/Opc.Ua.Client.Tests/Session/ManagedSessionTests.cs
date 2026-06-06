@@ -29,7 +29,6 @@
 
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -40,6 +39,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
+
+#pragma warning disable CA2000
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {

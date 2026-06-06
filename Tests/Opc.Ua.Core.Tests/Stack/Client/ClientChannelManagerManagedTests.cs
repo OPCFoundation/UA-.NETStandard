@@ -30,9 +30,6 @@
 
 #nullable enable
 
-// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived.
-#pragma warning disable CA2000
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -50,6 +47,9 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived.
+#pragma warning disable CA2000
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {

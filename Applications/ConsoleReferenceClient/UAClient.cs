@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -50,7 +49,7 @@ namespace Quickstarts
         public UAClient(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry,
-            Action<IList, IList>? validateResponse)
+            Action<Array, Array>? validateResponse)
             : this(
                 configuration,
                 null,
@@ -66,7 +65,7 @@ namespace Quickstarts
             ApplicationConfiguration configuration,
             ReverseConnectManager? reverseConnectManager,
             ITelemetryContext telemetry,
-            Action<IList, IList>? validateResponse)
+            Action<Array, Array>? validateResponse)
         {
             ValidateResponse = validateResponse;
             m_logger = telemetry.CreateLogger<UAClient>();
@@ -107,7 +106,7 @@ namespace Quickstarts
         /// <summary>
         /// Action used
         /// </summary>
-        internal Action<IList, IList>? ValidateResponse { get; }
+        internal Action<Array, Array>? ValidateResponse { get; }
 
         /// <summary>
         /// Gets the client session.

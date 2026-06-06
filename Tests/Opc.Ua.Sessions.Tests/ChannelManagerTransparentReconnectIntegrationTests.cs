@@ -29,10 +29,6 @@
 
 #nullable enable
 
-// CA2000: integration-test disposables are released by helper cleanup paths.
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-#pragma warning disable CA2000, CA2007, CA2016
-
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -41,6 +37,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+
+// CA2000: integration-test disposables are released by helper cleanup paths.
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+#pragma warning disable CA2000, CA2007, CA2016
 
 namespace Opc.Ua.Sessions.Tests
 {

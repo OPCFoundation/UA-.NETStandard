@@ -29,9 +29,6 @@
 
 #nullable enable
 
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-#pragma warning disable CA2016
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -49,6 +46,9 @@ using ISubscription = Opc.Ua.Client.Subscriptions.ISubscription;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using V2SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
+
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+#pragma warning disable CA2016
 
 namespace Opc.Ua.Channels.Stress.Tests.Chaos
 {

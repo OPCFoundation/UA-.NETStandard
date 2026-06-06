@@ -27,12 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
-// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
-#pragma warning disable CA2000
-// CS0618: legacy AttachChannel/DetachChannel paths are explicitly tested here to keep
-// back-compat behavior validated; suppression is intentional for these legacy tests.
-#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -57,6 +51,13 @@ using Opc.Ua.Tests;
 using ISession = Opc.Ua.Client.ISession;
 using Subscription = Opc.Ua.Client.Subscription;
 using TraceableRequestHeaderClientSession = Opc.Ua.Client.TraceableRequestHeaderClientSession;
+
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+// CS0618: legacy AttachChannel/DetachChannel paths are explicitly tested here to keep
+// back-compat behavior validated; suppression is intentional for these legacy tests.
+#pragma warning disable CS0618
 
 namespace Opc.Ua.Sessions.Tests
 {

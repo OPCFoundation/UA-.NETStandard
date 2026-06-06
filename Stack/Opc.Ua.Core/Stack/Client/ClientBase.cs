@@ -209,7 +209,6 @@ namespace Opc.Ua
         public int DefaultTimeoutHint { get; set; }
 
         /// <inheritdoc/>
-#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
             "Use Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
             "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
@@ -226,7 +225,6 @@ namespace Opc.Ua
         {
             Interlocked.Exchange(ref m_channel, null);
         }
-#pragma warning restore CS0809
 
         /// <inheritdoc/>
         public virtual async Task<StatusCode> CloseAsync(CancellationToken ct = default)

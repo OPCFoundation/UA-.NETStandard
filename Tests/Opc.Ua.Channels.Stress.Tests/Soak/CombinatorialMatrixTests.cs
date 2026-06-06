@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2000: test subscription and monitored-item disposables are owned by MatrixSubscription cleanup.
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-// TODO: replace these suppressions with analyzer-recognized ownership helpers when available.
-#pragma warning disable CA2000, CA2016
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -56,6 +51,11 @@ using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.Monito
 using V2PublishState = Opc.Ua.Client.Subscriptions.PublishState;
 using V2SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 using V2SubscriptionState = Opc.Ua.Client.Subscriptions.SubscriptionState;
+
+// CA2000: test subscription and monitored-item disposables are owned by MatrixSubscription cleanup.
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+// TODO: replace these suppressions with analyzer-recognized ownership helpers when available.
+#pragma warning disable CA2000, CA2016
 
 namespace Opc.Ua.Channels.Stress.Tests.Soak
 {

@@ -29,9 +29,6 @@
 
 #nullable enable
 
-// CA2007: NUnit invokes test code without requiring ConfigureAwait on framework disposal.
-#pragma warning disable CA2007
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,6 +38,9 @@ using NUnit.Framework;
 using Opc.Ua.Channels.Stress.Tests.Fakes;
 using Opc.Ua.Channels.Stress.Tests.Helpers;
 using Opc.Ua.Security.Certificates;
+
+// CA2007: NUnit invokes test code without requiring ConfigureAwait on framework disposal.
+#pragma warning disable CA2007
 
 namespace Opc.Ua.Channels.Stress.Tests.Contract
 {

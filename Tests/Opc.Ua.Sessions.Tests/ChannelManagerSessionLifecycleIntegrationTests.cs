@@ -29,10 +29,6 @@
 
 #nullable enable
 
-// CA2000: integration-test disposables are released by helper cleanup paths.
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-#pragma warning disable CA2000, CA2007, CA2016
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +40,10 @@ using IServerRedundancyHandler = Opc.Ua.Client.IServerRedundancyHandler;
 using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
+
+// CA2000: integration-test disposables are released by helper cleanup paths.
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+#pragma warning disable CA2000, CA2007, CA2016
 
 namespace Opc.Ua.Sessions.Tests
 {

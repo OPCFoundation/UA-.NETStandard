@@ -29,10 +29,6 @@
 
 #nullable enable
 
-// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
-// TODO: remove this suppression when cleanup paths accept a separate non-test cancellation budget.
-#pragma warning disable CA2016
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -45,6 +41,10 @@ using Opc.Ua.Channels.Stress.Tests.Helpers;
 using Opc.Ua.Channels.Stress.Tests.Integration;
 using Opc.Ua.Client;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+
+// CA2016: cleanup intentionally ignores the test cancellation token so it can run after timeouts.
+// TODO: remove this suppression when cleanup paths accept a separate non-test cancellation budget.
+#pragma warning disable CA2016
 
 namespace Opc.Ua.Channels.Stress.Tests.Soak
 {
