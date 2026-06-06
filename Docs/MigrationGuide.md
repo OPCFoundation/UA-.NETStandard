@@ -1928,10 +1928,6 @@ TimeSpan elapsed = m_timeProvider.GetElapsedTime(startTimestamp);
 
 ### Subscriptions and Transports
 
-#### Packet capture diagnostics hooks
-
-**Not source-breaking.** Packet-capture diagnostics add the `Opc.Ua.Bindings.IFrameCaptureSink` interface and the opt-in `UaSCUaBinaryChannel.FrameCaptureSink` property for observing raw wire-level chunks. `TcpListenerChannel.OnTokenActivated` is a new public server-side event that mirrors the existing client-side `ISecureChannel.OnTokenActivated` event. Both additions are purely additive; existing code does not need to change.
-
 #### Durable subscriptions and reshaped Subscription tree
 
 **Source-breaking.** Durable subscription support reshapes the subscription tree on both the client and the server. On the client side, the new public surface in `Libraries/Opc.Ua.Client/Subscription/` includes `ISubscription`, `ISubscriptionManager`, `SubscriptionOptions`, and `MonitoredItemOptions` - these are the V2 options-based shapes; the classic `Opc.Ua.Client.Subscription` continues to ship alongside them. On the server side, the new public surface in `Libraries/Opc.Ua.Server/Subscription/...` includes `DataChangeMonitoredItemQueue`, `EventMonitoredItemQueue`, `IDataChangeMonitoredItemQueue`, `IMonitoredItemQueueFactory`, `ISubscriptionStore`, `IStoredSubscription`, `StoredSubscription`, and `StoredMonitoredItem`.

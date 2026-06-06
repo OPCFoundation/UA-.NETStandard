@@ -4,7 +4,7 @@
     <AssemblyName>$(AssemblyPrefix).Diagnostics.Pcap</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Diagnostics.Pcap</PackageId>
     <RootNamespace>Opc.Ua.Diagnostics.Pcap</RootNamespace>
-    <Description>OPC UA packet capture, dissection and replay engine. Reuses the stack's UaSCUaBinaryChannel decoder to support every security profile the stack supports. Includes libpcap I/O, SharpPcap NIC capture, in-process taps, key-log writers, mock-server / mock-client replay and pcap/pcapng/json/csv/text/service-timeline formatters.</Description>
+    <Description>OPC UA packet capture, dissection and replay engine.</Description>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>

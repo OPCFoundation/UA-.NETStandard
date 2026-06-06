@@ -27,6 +27,39 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+namespace Opc.Ua.Diagnostics.Pcap.Models
+{
+    /// <summary>
+    /// Identifies a kind of capture source the
+    /// <c>CaptureSessionManager</c> can create.
+    /// </summary>
+    public enum CaptureSourceKind
+    {
+        /// <summary>
+        /// Live capture from a network interface via SharpPcap (requires
+        /// libpcap / Npcap and usually elevated privileges).
+        /// </summary>
+        Nic = 0,
 
-[assembly: CLSCompliant(false)]
+        /// <summary>
+        /// Passive in-process tap that hooks the channel
+        /// <see cref="Opc.Ua.Bindings.IFrameCaptureSink"/> on each new
+        /// <see cref="Opc.Ua.ITransportChannel"/> created by an OPC UA
+        /// client.
+        /// </summary>
+        InProcessClient = 1,
+
+        /// <summary>
+        /// Passive in-process tap that hooks every server-side
+        /// <see cref="Opc.Ua.Bindings.TcpServerChannel"/> created by a
+        /// hosted OPC UA server.
+        /// </summary>
+        InProcessServer = 2,
+
+        /// <summary>
+        /// Replay-only source that re-reads an existing pcap file plus
+        /// optional keylog from disk.
+        /// </summary>
+        Replay = 3
+    }
+}

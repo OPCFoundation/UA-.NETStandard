@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -196,21 +197,33 @@ namespace Opc.Ua.Diagnostics.Pcap.Capture.Sources
     /// Shared base class for the two in-process capture sources. Manages
     /// the pcap + keylog file writers and the IFrameCaptureSink observer.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Captured frames and key-material snapshots are forwarded through a
+    /// bounded <see cref="System.Threading.Channels.Channel{T}"/> to a
+    /// single background writer task so the event handlers (which run on
+    /// the OPC UA send / receive path) never block on I/O. Overflow uses
+    /// <see cref="System.Threading.Channels.BoundedChannelFullMode.DropOldest"/>
+    /// so we degrade gracefully under sustained load.
+    /// </para>
+    /// </remarks>
     public abstract class InProcessCaptureSourceBase : ICaptureSource
     {
         private const string kPcapFileName = "capture.pcap";
         private const string kKeyLogJsonFileName = "keys.uakeys.json";
         private const string kKeyLogTextFileName = "keys.uakeys.txt";
+        private const int kQueueCapacity = 4096;
 
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ConcurrentBag<Action> m_disposeActions = [];
-        private readonly Lock m_lock = new();
 
         private PcapFileWriter? m_pcapWriter;
         private UaKeyLogJsonWriter? m_jsonKeyWriter;
         private UaKeyLogTextWriter? m_textKeyWriter;
         private string? m_sessionFolder;
         private CaptureFrameSinkObserver? m_sink;
+        private Channel<CaptureWorkItem>? m_queue;
+        private Task? m_workerTask;
         private long m_frameCount;
         private long m_byteCount;
         private long m_maxBytes;
@@ -284,6 +297,17 @@ namespace Opc.Ua.Diagnostics.Pcap.Capture.Sources
             m_textKeyWriter = new UaKeyLogTextWriter(textPath);
             m_sink = new CaptureFrameSinkObserver(this);
 
+            m_queue = Channel.CreateBounded<CaptureWorkItem>(
+                new BoundedChannelOptions(kQueueCapacity)
+                {
+                    SingleReader = true,
+                    SingleWriter = false,
+                    FullMode = BoundedChannelFullMode.DropOldest
+                });
+            m_workerTask = Task.Run(
+                () => RunQueueWorkerAsync(m_queue.Reader),
+                CancellationToken.None);
+
             ct.ThrowIfCancellationRequested();
             return ValueTask.CompletedTask;
         }
@@ -302,6 +326,21 @@ namespace Opc.Ua.Diagnostics.Pcap.Capture.Sources
                 try { action(); } catch { /* best effort */ }
             }
             m_disposeActions.Clear();
+
+            // Signal the worker to drain and exit.
+            m_queue?.Writer.TryComplete();
+            if (m_workerTask is not null)
+            {
+                try
+                {
+                    await m_workerTask.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // best effort drain
+                }
+                m_workerTask = null;
+            }
 
             if (m_pcapWriter is not null)
             {
@@ -410,25 +449,19 @@ namespace Opc.Ua.Diagnostics.Pcap.Capture.Sources
 
         /// <summary>
         /// Called by the derived in-process source whenever a token is
-        /// activated on one of its tracked channels.
+        /// activated on one of its tracked channels. The snapshot is
+        /// enqueued for asynchronous persistence; this method never
+        /// blocks on I/O.
         /// </summary>
         protected void OnTokenObserved(ChannelKeyMaterial material)
         {
-            UaKeyLogJsonWriter? jsonWriter = m_jsonKeyWriter;
-            UaKeyLogTextWriter? textWriter = m_textKeyWriter;
-            if (jsonWriter is null || textWriter is null)
+            ArgumentNullException.ThrowIfNull(material);
+            Channel<CaptureWorkItem>? queue = m_queue;
+            if (queue is null)
             {
                 return;
             }
-            try
-            {
-                jsonWriter.AppendAsync(material, CancellationToken.None).AsTask().GetAwaiter().GetResult();
-                textWriter.AppendAsync(material, CancellationToken.None).AsTask().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Failed to persist key material snapshot.");
-            }
+            queue.Writer.TryWrite(CaptureWorkItem.ForKey(material));
         }
 
         /// <summary>
@@ -476,8 +509,8 @@ namespace Opc.Ua.Diagnostics.Pcap.Capture.Sources
 
         private void OnFrameCaptured(uint channelId, ReadOnlySpan<byte> chunk, bool sent)
         {
-            PcapFileWriter? writer = m_pcapWriter;
-            if (writer is null || chunk.IsEmpty)
+            Channel<CaptureWorkItem>? queue = m_queue;
+            if (queue is null || chunk.IsEmpty)
             {
                 return;
             }
@@ -491,24 +524,99 @@ namespace Opc.Ua.Diagnostics.Pcap.Capture.Sources
                 Interlocked.CompareExchange(ref m_state, StateStopped, StateRunning);
                 return;
             }
+            // Copy the chunk bytes; the underlying buffer is pooled and
+            // only valid for the duration of this call.
             byte[] packet = LoopbackFrameBuilder.Build(
                 fromClient: sent,
                 channelId: channelId,
                 chunkBytes: chunk);
-            DateTimeOffset now = DateTimeOffset.UtcNow;
+            queue.Writer.TryWrite(CaptureWorkItem.ForFrame(DateTimeOffset.UtcNow, packet));
+        }
+
+        private async Task RunQueueWorkerAsync(ChannelReader<CaptureWorkItem> reader)
+        {
             try
             {
-                lock (m_lock)
+                while (await reader.WaitToReadAsync().ConfigureAwait(false))
                 {
-                    writer.WriteAsync(now, packet, CancellationToken.None)
-                        .AsTask()
-                        .GetAwaiter()
-                        .GetResult();
+                    while (reader.TryRead(out CaptureWorkItem item))
+                    {
+                        await ProcessWorkItemAsync(item).ConfigureAwait(false);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(ex, "Failed to write captured frame to pcap.");
+                Logger.LogError(ex, "In-process capture queue worker terminated unexpectedly.");
+            }
+        }
+
+        private async Task ProcessWorkItemAsync(CaptureWorkItem item)
+        {
+            if (item.Packet is not null)
+            {
+                PcapFileWriter? writer = m_pcapWriter;
+                if (writer is null)
+                {
+                    return;
+                }
+                try
+                {
+                    await writer.WriteAsync(item.Timestamp, item.Packet, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Failed to write captured frame to pcap.");
+                }
+                return;
+            }
+            if (item.KeyMaterial is not null)
+            {
+                UaKeyLogJsonWriter? jsonWriter = m_jsonKeyWriter;
+                UaKeyLogTextWriter? textWriter = m_textKeyWriter;
+                if (jsonWriter is null || textWriter is null)
+                {
+                    return;
+                }
+                try
+                {
+                    await jsonWriter.AppendAsync(item.KeyMaterial, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    await textWriter.AppendAsync(item.KeyMaterial, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Failed to persist key material snapshot.");
+                }
+            }
+        }
+
+        private readonly struct CaptureWorkItem
+        {
+            private CaptureWorkItem(
+                DateTimeOffset timestamp,
+                byte[]? packet,
+                ChannelKeyMaterial? keyMaterial)
+            {
+                Timestamp = timestamp;
+                Packet = packet;
+                KeyMaterial = keyMaterial;
+            }
+
+            public DateTimeOffset Timestamp { get; }
+            public byte[]? Packet { get; }
+            public ChannelKeyMaterial? KeyMaterial { get; }
+
+            public static CaptureWorkItem ForFrame(DateTimeOffset timestamp, byte[] packet)
+            {
+                return new CaptureWorkItem(timestamp, packet, keyMaterial: null);
+            }
+
+            public static CaptureWorkItem ForKey(ChannelKeyMaterial material)
+            {
+                return new CaptureWorkItem(DateTimeOffset.UtcNow, packet: null, material);
             }
         }
 

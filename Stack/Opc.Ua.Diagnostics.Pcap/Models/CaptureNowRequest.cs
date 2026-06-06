@@ -27,6 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+namespace Opc.Ua.Diagnostics.Pcap.Models
+{
+    /// <summary>
+    /// Convenience request for <c>capture_now</c>.
+    /// </summary>
+    public sealed class CaptureNowRequest
+    {
+        /// <summary>
+        /// The underlying capture parameters.
+        /// </summary>
+        public StartCaptureRequest Start { get; init; } = new();
 
-[assembly: CLSCompliant(false)]
+        /// <summary>
+        /// How long to capture for before returning. Capped at 60 s.
+        /// </summary>
+        public int DurationSeconds { get; init; } = 10;
+
+        /// <summary>
+        /// Format to return the captured data in.
+        /// </summary>
+        public FormatKind Format { get; init; } = FormatKind.ServiceTimeline;
+    }
+}
