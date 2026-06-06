@@ -44,7 +44,16 @@ pools, when to pick which) see
   - [Composing streams](#composing-streams)
   - [Lifecycle, cancellation, disposal](#lifecycle-cancellation-disposal)
   - [Pairing with `AlarmClient`](#pairing-with-alarmclient)
-- [API comparison summary](#api-comparison-summary)
+- [Classic → V2 surface mapping](#classic--v2-surface-mapping)
+  - [Subscription lifecycle](#subscription-lifecycle)
+  - [Notifications and callbacks](#notifications-and-callbacks)
+  - [Subscription-level service operations](#subscription-level-service-operations)
+  - [Monitored-item management](#monitored-item-management)
+  - [Per-item runtime](#per-item-runtime)
+  - [Persistence (save / load)](#persistence-save--load)
+  - [Tuning knobs](#tuning-knobs)
+  - [Engine wiring](#engine-wiring)
+- [Three-API summary](#three-api-summary)
 
 ## Quick reference
 
@@ -482,7 +491,122 @@ await foreach (ConditionTypeRecord rec in streaming
 See [AlarmsAndConditions.md](AlarmsAndConditions.md) for the typed
 record hierarchy.
 
-## API comparison summary
+## Classic → V2 surface mapping
+
+This section is the working reference for porting classic
+(`Opc.Ua.Client.Subscription` / `Opc.Ua.Client.MonitoredItem`) code to
+the V2 surface (`Opc.Ua.Client.Subscriptions.ISubscription` /
+`Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem`). The
+tables describe today's APIs side-by-side; "not on V2" rows record
+behaviour the V2 engine replaces by design (handler-centric,
+channel-based pipeline, snapshot/restore, options-monitor-driven
+reconciliation, etc.) along with the recommended V2 alternative.
+
+### Subscription lifecycle
+
+| Classic | V2 |
+|---|---|
+| `new Subscription(template)` + `Session.AddSubscription(s)` + `s.CreateAsync()` | `ISubscriptionManager.Add(handler, IOptionsMonitor<SubscriptionOptions>)` — V2 creates the subscription on the server asynchronously; callers poll `subscription.Created` (or attach an `OnSubscriptionStateChangedAsync` handler). |
+| `Session.RemoveSubscriptionAsync(s)` | `await subscription.DisposeAsync()` — V2 removal is dispose-on-subscription. |
+| `s.CreateAsync(ct)` / `s.ModifyAsync(ct)` / `s.DeleteAsync(silent, ct)` | Implicit via `Add` / options push / `DisposeAsync`. No explicit V2 calls — behaviour is driven by options + lifecycle. |
+| `s.SetPublishingModeAsync(bool, ct)` | Push `SubscriptionOptions { PublishingEnabled = ... }` via the `IOptionsMonitor<SubscriptionOptions>`. The V2 manager picks up the change automatically. |
+| `s.ChangesPending` / `s.ChangesCompleted()` | Not on V2 (the engine is fully push-driven; no "pending changes" concept). Callers wait on the side-effect (e.g. `IMonitoredItem.Created`, options-monitor change tokens). |
+
+### Notifications and callbacks
+
+| Classic | V2 |
+|---|---|
+| `s.FastDataChangeCallback` (delegate) | `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync(...)` |
+| `s.FastKeepAliveCallback` (delegate) | `ISubscriptionNotificationHandler.OnKeepAliveNotificationAsync(...)` |
+| `s.FastEventCallback` | `ISubscriptionNotificationHandler.OnEventDataNotificationAsync(...)` |
+| `item.Notification += handler` (per-item event) | Per-item dispatch through the handler with `DataValueChange.MonitoredItem` to identify the source. |
+| `s.PublishStatusChanged` / `s.StateChanged` events | Unified into a single callback `ISubscriptionNotificationHandler.OnSubscriptionStateChangedAsync(ISubscription, SubscriptionState, PublishState, CancellationToken)` that surfaces lifecycle (Opened / Created / Modified / Deleted) and publish-state (Republish / Recovered / Transferred) transitions. |
+| `item.DequeueValues()` (client-side cache) | Not on V2 — values stream into the handler. The handler is the cache; callers retain whatever they need. |
+| `s.LastNotification` / `s.Notifications` / `s.LastNotificationTime` | Not on `ISubscription`. The manager exposes `MissingMessageCount` / `RepublishMessageCount`; handlers maintain their own derived state (e.g. via the `publishTime` arg on each callback). |
+| `s.PublishingStopped` | Not exposed as a property. Handlers derive it from `OnSubscriptionStateChangedAsync` (the `PublishState` mask flips between `Republish` / `Recovered` / `Transferred`). |
+
+### Subscription-level service operations
+
+| Classic | V2 |
+|---|---|
+| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
+| `s.ResendDataAsync(ct)` | Not on V2. Callers needing raw access call `session.CallAsync(null, ResendData methodId, ...)`. |
+| `s.ConditionRefreshAsync(ct)` | `s.ConditionRefreshAsync(ct)` — same shape. |
+| `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |
+| `s.SetTriggeringAsync(triggering, links, removes, ct)` returning `SetTriggeringResponse` | `ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads; plus the declarative `MonitoredItemOptions.TriggeredByNames` option (see [Triggering](#triggering-settriggering)). Supports N:M via `IMonitoredItem.TriggeringItems` plural; batches per-triggering-item RPCs; replays automatically on recreate/reconnect. |
+| `s.TransferAsync(target, sendInitialValues, ct)` | Configure transfer-on-recreate via `ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)`. The per-call `sendInitialValues` toggle lives on `SubscriptionOptions.SendInitialValuesOnTransfer` (default `false`). |
+| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours. |
+| `s.SaveMessageInCache(...)` | Not on V2 (classic internal). The V2 message pipeline is channel-based with no replay cache. |
+
+### Monitored-item management
+
+| Classic | V2 |
+|---|---|
+| `s.AddItem(item)` / `s.AddItems(IEnumerable)` | `s.MonitoredItems.TryAdd(name, IOptionsMonitor<MonitoredItemOptions>, out IMonitoredItem)` — V2 keys items by a caller-supplied stable string `name`. Fluent helper: `s.TryAddMonitoredItem(name, nodeId, configure, out _)`. |
+| `s.RemoveItem(item)` / `s.RemoveItems(...)` | `s.MonitoredItems.TryRemove(clientHandle)`. |
+| `s.ApplyChangesAsync(ct)` | Not needed — V2 batches automatically via the options monitor. |
+| `s.CreateItemsAsync(ct)` / `s.ModifyItemsAsync(ct)` / `s.DeleteItemsAsync(...)` | Implicit via `TryAdd` / options push / `TryRemove`. |
+| `s.SetMonitoringModeAsync(mode, ids, ct)` | Push `MonitoredItemOptions { MonitoringMode = ... }` per item. |
+| `s.ResolveItemNodeIdsAsync(ct)` | Not on V2 — callers resolve `RelativePath` to `NodeId` ahead of time via `Browse` / `TranslateBrowsePathsToNodeIds`. |
+| `s.MonitoredItems` / `s.MonitoredItemCount` | `s.MonitoredItems.Items` / `s.MonitoredItems.Count`. |
+
+### Per-item runtime
+
+| Classic | V2 |
+|---|---|
+| `item.ClientHandle` | `IMonitoredItem.ClientHandle`. |
+| `item.ServerId` | `IMonitoredItem.ServerId`. |
+| `item.Status.Error` / `item.Status.Created` / `item.Status.Id` | `IMonitoredItem.Error` / `Created` / `ServerId`. |
+| `item.AttributesModified` | Not on V2 — reconciliation is driven by `IOptionsMonitor<MonitoredItemOptions>` change tokens; there is no "modified" flag to query. |
+| `item.Filter` round-trip | `IMonitoredItem.FilterResult`. |
+| `item.DequeueValues()` / `item.LastValue` | Not on V2 — values flow through `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync(...)`; the handler decides what to retain. |
+| `item.Notification += ...` (event) | Per-item dispatch through `OnDataChangeNotificationAsync` with `DataValueChange.MonitoredItem`. |
+| `item.GetEventTypeAsync` / `GetFieldValue` / `GetEventTime` / `GetFieldName` | Not on V2 `IMonitoredItem` — event-field helpers are caller-side. For typed Part 9 alarm records use [`AlarmStreamExtensions.SubscribeAlarmsAsync`](AlarmsAndConditions.md). |
+| `item.TriggeringItemId` / `item.TriggeredItems` (1:1) | `IMonitoredItem.TriggeringItems` (plural, N:M) and `IMonitoredItem.TriggeredItems` (reverse "items I trigger") — both on-demand projections by stable name. Matches OPC UA Part 4 §5.13.5 N:M; runtime desired-state mutations from imperative `SetTriggeringAsync` are immediately visible. |
+
+### Persistence (save / load)
+
+| Classic | V2 |
+|---|---|
+| `session.Save(Stream, IEnumerable<Subscription>)` (BinaryEncoder + `SubscriptionState.Encode`) | `ISubscriptionManager.SaveAsync(Stream, IServiceMessageContext, IEnumerable<ISubscription>?, CancellationToken)`, with fluent `ManagedSession.SaveSubscriptionsAsync(stream)` extension. |
+| `session.Load(Stream, bool transferSubscriptions)` | `ISubscriptionManager.LoadAsync(Stream, IServiceMessageContext, handlerFactory, transferSubscriptions, CancellationToken)`, with fluent `ManagedSession.LoadSubscriptionsAsync(stream, factory, transfer, ct)`. Recreate (`false`) and transfer (`true` via TransferSubscriptions; falls back to recreate on `Bad_SubscriptionIdInvalid` / `Bad_ServiceUnsupported`) both work end-to-end. |
+| `s.Snapshot(out SubscriptionState)` / `s.Restore(SubscriptionState)` | `ISubscription.Snapshot()` → `SubscriptionStateSnapshot`; `ISubscriptionManager.RestoreAsync(handler, state, transfer, ct)`; per-item `IMonitoredItem.Snapshot()` → `MonitoredItemStateSnapshot`. Fluent: `ManagedSession.SnapshotSubscriptions()` / `RestoreSubscriptionsAsync(states, factory, transfer, ct)`. |
+| Triggering survives save/load | Classic: `MonitoredItemState.TriggeredItems` (server-id based, 1:1). V2: `MonitoredItemStateSnapshot.TriggeredByNames` (name based, N:M; round-trips through the binary encoder; replays automatically on recreate, see [Save / load / restore behavior](#save--load--restore-behavior)). |
+
+### Tuning knobs
+
+| Classic | V2 |
+|---|---|
+| `s.MaxMessageCount` | Not on V2 — the channel-based pipeline uses an unbounded queue with backpressure. |
+| `s.MinLifetimeInterval` (property) | `SubscriptionOptions.MinLifetimeInterval`. |
+| `s.DisableMonitoredItemCache` | Not on V2 — there is no per-item cache to disable (the handler is the cache). |
+| `s.SequentialPublishing` | Always-on. The V2 prioritized publish-ack channel guarantees per-subscription in-order delivery; documented on `ISubscriptionNotificationHandler`. |
+| `s.RepublishAfterTransfer` | Implicit via `MessageProcessor.TryRepublishAsync` (always-on gap fill); no opt-out. |
+| `s.OutstandingMessageWorkers` (per-subscription) | Manager-wide `PublishWorkerCount`. |
+| `s.Id` / `s.TransferId` | `ISubscription.ServerId` (`uint`). |
+| `s.Handle` (caller bookkeeping) | Not on `ISubscription`. Callers keep a side dictionary keyed by the item `Name`. |
+
+### Engine wiring
+
+| Classic | V2 |
+|---|---|
+| `Session.SubscriptionEngineFactory` defaulted to `ClassicSubscriptionEngineFactory.Instance` | Defaulted to `DefaultSubscriptionEngineFactory.Instance` on `ManagedSession`. Raw `Session` constructed with `DefaultSessionFactory` defaults to classic for backwards compatibility; opt in by passing `SubscriptionEngineFactory = DefaultSubscriptionEngineFactory.Instance`. |
+| `Session.AddSubscription(Subscription)` (classic-typed) | Unchanged — classic subscriptions are still added via this API on classic-engine sessions. On a V2-engine `ManagedSession`, classic subscriptions are bridged onto the V2 publish pipeline by an internal `SubscriptionBridge`. |
+| `ManagedSession.SubscriptionManager` (V2) | Available alongside `ManagedSession.Subscriptions` (classic API), so both surfaces coexist on the same session. |
+
+### Per-item options mapping
+
+Every classic configurable property maps directly to a field on
+`MonitoredItemOptions`: `StartNodeId`, `AttributeId`, `IndexRange`,
+`Encoding`, `MonitoringMode`, `SamplingInterval`, `Filter`,
+`QueueSize`, `DiscardOldest`, `TimestampsToReturn`. The `Order`
+and `Name` keys are V2-only (the latter is the dictionary key
+used by `IMonitoredItemCollection`). `item.RelativePath` /
+`item.ResolveItemNodeIdsAsync` / `item.DisplayName` are classic
+caller conventions with no V2 equivalent — V2 uses a stable
+per-item `Name` string instead.
+
+## Three-API summary
 
 | Aspect | Classic `Subscription` | V2 `ISubscriptionManager` | `IStreamingSubscription` |
 |---|---|---|---|
@@ -497,8 +621,8 @@ record hierarchy.
 | Backpressure | Custom logic | Custom logic | Bounded channel internally |
 | Best for | Legacy callers | Long-lived, multi-item subscriptions | Short-lived / wait-for-X scenarios |
 
-There is **no migration cost** — all three APIs can coexist on the
-same session. Pick the one that matches the use case.
+All three APIs can coexist on the same session — pick the one that
+matches the use case.
 
 ## Reference
 

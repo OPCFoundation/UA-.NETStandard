@@ -65,9 +65,9 @@ namespace Opc.Ua.Subscriptions.Tests
     /// into a positive assertion.
     /// </para>
     /// <para>
-    /// See <c>plans/26-v2-subscription-parity.md</c> §6 "Bridge wiring
-    /// TODO" and the inline doc on
-    /// <see cref="Opc.Ua.Client.Subscriptions.Engine.SubscriptionBridge"/>.
+    /// See the inline doc on
+    /// <see cref="Opc.Ua.Client.Subscriptions.Engine.SubscriptionBridge"/>
+    /// for the bridge wiring TODO.
     /// </para>
     /// </remarks>
     [TestFixture]
