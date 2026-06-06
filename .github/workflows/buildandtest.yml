@@ -78,7 +78,7 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Build
-      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }} /p:UseSharedCompilation=false
+      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }} /p:UseSharedCompilation=false -maxcpucount:1
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds

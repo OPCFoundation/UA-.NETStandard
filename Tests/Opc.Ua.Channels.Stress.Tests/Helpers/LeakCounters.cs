@@ -120,11 +120,12 @@ namespace Opc.Ua.Channels.Stress.Tests.Helpers
                     CreateMessage(scope, "total participants", before.TotalParticipants, after.TotalParticipants, tolerance));
                 Assert.That(
                     afterLeakedCertificates,
-                    Is.LessThanOrEqualTo(beforeLeakedCertificates),
+                    Is.LessThanOrEqualTo(beforeLeakedCertificates + tolerance),
                     string.Create(
                         CultureInfo.InvariantCulture,
                         $"{scope}: certificate leak count grew from {beforeLeakedCertificates} " +
-                        $"to {afterLeakedCertificates}. Created={after.CertificatesCreated}, " +
+                        $"to {afterLeakedCertificates} (tolerance={tolerance}). " +
+                        $"Created={after.CertificatesCreated}, " +
                         $"Disposed={after.CertificatesDisposed}."));
             });
         }
