@@ -835,13 +835,13 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 new("DefaultApplicationGroup", client.DefaultApplicationGroup,
                     client.ApplicationCertificateType, "Application")
             };
-            if (!NodeId.IsNull(client.DefaultHttpsGroup))
+            if (!client.DefaultHttpsGroup.IsNull)
             {
                 groups.Add(new CertificateGroupChoice(
                     "DefaultHttpsGroup", client.DefaultHttpsGroup,
                     client.ApplicationCertificateType, "HTTPS"));
             }
-            if (!NodeId.IsNull(client.DefaultUserTokenGroup))
+            if (!client.DefaultUserTokenGroup.IsNull)
             {
                 groups.Add(new CertificateGroupChoice(
                     "DefaultUserTokenGroup", client.DefaultUserTokenGroup,

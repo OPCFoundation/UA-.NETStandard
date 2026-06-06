@@ -114,13 +114,19 @@
   </Folder>
   <Folder Name="/Solution Items/Skills/">
     <File Path=".github/agents/coverage-test-generator.agent.md" />
-    <File Path=".github/agents/opcua-v20-migration.agent.md" />
   </Folder>
   <Folder Name="/SourceGeneration/">
     <Project Path="Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration.Tester/Opc.Ua.SourceGeneration.Tester.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
+  </Folder>
+  <Folder Name="/MigrationAnalyzer/">
+    <Project Path="Tests/Opc.Ua.MigrationAnalyzer.Core.Tests/Opc.Ua.MigrationAnalyzer.Core.Tests.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer.CodeFixer/Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer.Core/Opc.Ua.MigrationAnalyzer.Core.csproj" />
+    <Project Path="Tools/Opc.Ua.MigrationAnalyzer.Generator/Opc.Ua.MigrationAnalyzer.Generator.csproj" />
   </Folder>
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
@@ -153,6 +159,7 @@
     <Project Path="Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.MigrationAnalyzer.Tests/Opc.Ua.MigrationAnalyzer.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
   </Folder>

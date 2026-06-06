@@ -1006,7 +1006,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
     {
         NodeId trustListId = await client.GetTrustListAsync(
             applicationId, NodeId.Null, ct).ConfigureAwait(true);
-        if (NodeId.IsNull(trustListId))
+        if (trustListId.IsNull)
         {
             throw new ServiceResultException(
                 StatusCodes.BadNotFound,
