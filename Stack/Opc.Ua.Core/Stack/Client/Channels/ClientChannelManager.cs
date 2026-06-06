@@ -34,6 +34,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
+using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -41,7 +47,7 @@ namespace Opc.Ua
     /// Client side transport channel factory. Manages creation
     /// of transport channels for clients.
     /// </summary>
-    public sealed partial class ClientChannelManager : IClientChannelManager, IAsyncDisposable
+    public sealed class ClientChannelManager : IClientChannelManager, IAsyncDisposable, IChannelEntryHost, IChannelCertRotationHost
     {
         /// <summary>
         /// Callback to register channel diagnostics
@@ -60,6 +66,7 @@ namespace Opc.Ua
         {
             m_configuration = configuration;
             m_channelFactory = channelFactory;
+            m_certRotation = new ClientChannelManagerCertRotation(this);
             WireCertificateRotation();
         }
 
@@ -384,77 +391,658 @@ namespace Opc.Ua
             return -1;
         }
 
+
         /// <summary>
-        /// Client channel wrapper
+        /// Initializes a managed client channel factory.
         /// </summary>
-        private sealed class ClientChannel : ITransportChannel
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="telemetry">Telemetry context for logger creation.</param>
+        /// <param name="channelFactory">Optional channel binding registry;
+        /// defaults to the static <see cref="Opc.Ua.Bindings.TransportBindings.Channels"/>.</param>
+        /// <param name="reconnectPolicy">Optional channel-level retry
+        /// policy. Defaults to
+        /// <see cref="ExponentialBackoffChannelReconnectPolicy"/> with
+        /// historical 500&#160;ms → 30&#160;s backoff.</param>
+        /// <param name="timeProvider">Optional time provider for backoff
+        /// timing. Defaults to <see cref="TimeProvider.System"/>.</param>
+        public ClientChannelManager(
+            ApplicationConfiguration configuration,
+            ITelemetryContext telemetry,
+            Bindings.ITransportChannelBindings? channelFactory = null,
+            IChannelReconnectPolicy? reconnectPolicy = null,
+            TimeProvider? timeProvider = null)
+            : this(configuration, channelFactory)
         {
-            /// <inheritdoc/>
-            public TransportChannelFeatures SupportedFeatures => m_channel.SupportedFeatures;
+            m_logger = telemetry?.CreateLogger<ClientChannelManager>();
+            m_meter = telemetry?.CreateMeter();
+            m_metrics = m_meter != null
+                ? new ClientChannelManagerMetrics(this, m_meter)
+                : null;
+            m_reconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+        }
 
-            /// <inheritdoc/>
-            public EndpointDescription EndpointDescription => m_channel.EndpointDescription;
-
-            /// <inheritdoc/>
-            public EndpointConfiguration EndpointConfiguration => m_channel.EndpointConfiguration;
-
-            /// <inheritdoc/>
-            public IServiceMessageContext MessageContext => m_channel.MessageContext;
-
-            /// <inheritdoc/>
-            public byte[] ChannelThumbprint => m_channel?.ChannelThumbprint ?? [];
-
-            /// <inheritdoc/>
-            public byte[] ClientChannelCertificate => m_channel?.ClientChannelCertificate ?? [];
-
-            /// <inheritdoc/>
-            public byte[] ServerChannelCertificate => m_channel?.ServerChannelCertificate ?? [];
-
-            /// <inheritdoc/>
-            public int OperationTimeout
+        /// <inheritdoc/>
+        public ValueTask<IManagedTransportChannel> GetAsync(
+            IReconnectParticipant participant,
+            CancellationToken ct = default)
+        {
+            if (participant == null)
             {
-                get => m_channel.OperationTimeout;
-                set => m_channel.OperationTimeout = value;
+                throw new ArgumentNullException(nameof(participant));
             }
 
-            public ClientChannel(ClientChannelManager factory, ITransportChannel channel)
+            ConfiguredEndpoint endpoint = participant.Endpoint
+                ?? throw new ArgumentException(
+                    "Participant.Endpoint is null.", nameof(participant));
+            return GetCoreAsync(endpoint, _ => participant, reverseConnection: null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IManagedTransportChannel> GetAsync(
+            IReconnectParticipant participant,
+            ITransportWaitingConnection reverseConnection,
+            CancellationToken ct = default)
+        {
+            if (participant == null)
             {
-                m_channel = channel;
-                m_factory = factory;
+                throw new ArgumentNullException(nameof(participant));
+            }
+            if (reverseConnection == null)
+            {
+                throw new ArgumentNullException(nameof(reverseConnection));
             }
 
-            /// <inheritdoc/>
-            public ValueTask ReconnectAsync(
-                ITransportWaitingConnection? connection,
-                CancellationToken ct = default)
+            ConfiguredEndpoint endpoint = participant.Endpoint
+                ?? throw new ArgumentException(
+                    "Participant.Endpoint is null.", nameof(participant));
+            return GetCoreAsync(endpoint, _ => participant, reverseConnection, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IManagedTransportChannel> GetAsync(
+            ConfiguredEndpoint endpoint,
+            Func<IManagedTransportChannel, IReconnectParticipant> participantFactory,
+            ITransportWaitingConnection? reverseConnection,
+            CancellationToken ct = default)
+        {
+            if (endpoint == null)
             {
-                return m_channel.ReconnectAsync(connection, ct);
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+            if (participantFactory == null)
+            {
+                throw new ArgumentNullException(nameof(participantFactory));
             }
 
-            /// <inheritdoc/>
-            public ValueTask<IServiceResponse> SendRequestAsync(
-                IServiceRequest request,
-                CancellationToken ct = default)
+            return GetCoreAsync(endpoint, participantFactory, reverseConnection, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReconnectAsync(
+            IManagedTransportChannel channel,
+            CancellationToken ct = default)
+        {
+            if (channel == null)
             {
-                return m_channel.SendRequestAsync(request, ct);
+                throw new ArgumentNullException(nameof(channel));
+            }
+            if (channel is not ManagedTransportChannelLease lease)
+            {
+                throw new ArgumentException(
+                    "Channel was not produced by this manager.", nameof(channel));
             }
 
-            /// <inheritdoc/>
-            public ValueTask CloseAsync(CancellationToken ct = default)
+            var budget = new RetryBudget(Timeout.InfiniteTimeSpan, m_timeProvider);
+            return new ValueTask(lease.Entry.RequestReconnectAsync(budget, ct));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReconnectAsync(
+            IManagedTransportChannel channel,
+            IRetryBudget budget,
+            CancellationToken ct = default)
+        {
+            if (channel == null)
             {
-                return m_channel.CloseAsync(ct);
+                throw new ArgumentNullException(nameof(channel));
+            }
+            if (budget == null)
+            {
+                throw new ArgumentNullException(nameof(budget));
+            }
+            if (channel is not ManagedTransportChannelLease lease)
+            {
+                throw new ArgumentException(
+                    "Channel was not produced by this manager.", nameof(channel));
             }
 
+            return AwaitReconnectResultAsync(
+                lease.Entry.RequestReconnectAsync(budget, ct));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReconnectAllAsync(CancellationToken ct = default)
+        {
+            return m_certRotation.ReconnectAllAsync(ct);
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<ManagedChannelDiagnostic> GetChannelDiagnostics()
+        {
+            return m_diagnostics.GetDiagnostics(SnapshotEntries());
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Use GetAsync(ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>, " +
+            "ITransportWaitingConnection?, CancellationToken) to bind a participant atomically.")]
+        public void RebindParticipant(
+            IManagedTransportChannel channel,
+            IReconnectParticipant participant)
+        {
+            if (channel == null)
+            {
+                throw new ArgumentNullException(nameof(channel));
+            }
+            if (participant == null)
+            {
+                throw new ArgumentNullException(nameof(participant));
+            }
+            if (channel is not ManagedTransportChannelLease lease)
+            {
+                throw new ArgumentException(
+                    "Channel was not produced by this manager.", nameof(channel));
+            }
+            lease.SwapParticipant(participant);
+        }
+
+        /// <inheritdoc/>
+        public void UpdateClientCertificate(
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain)
+        {
+            m_certRotation.UpdateClientCertificate(clientCertificate, clientCertificateChain);
+        }
+
+        /// <summary>
+        /// Returns the current client certificate, if any.
+        /// </summary>
+        internal Certificate? CurrentClientCertificate
+        {
+            get
+            {
+                lock (m_certLock)
+                {
+                    return m_clientCertificate;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the current client certificate chain, if any.
+        /// </summary>
+        internal CertificateCollection? CurrentClientCertificateChain
+        {
+            get
+            {
+                lock (m_certLock)
+                {
+                    return m_clientCertificateChain;
+                }
+            }
+        }
+
+        internal ApplicationConfiguration Configuration => m_configuration;
+
+        internal Bindings.ITransportChannelBindings? ChannelBindings => m_channelFactory;
+
+        internal IChannelReconnectPolicy ReconnectPolicy => m_reconnectPolicy;
+
+        internal TimeProvider TimeProvider => m_timeProvider;
+
+        internal ILogger? Logger => m_logger;
+
+        internal (Certificate? Certificate, CertificateCollection? Chain, long Version) CurrentClientCertificateSnapshot
+        {
+            get
+            {
+                lock (m_certLock)
+                {
+                    return (m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
+                }
+            }
+        }
+
+        /// <summary>
+        /// AsyncLocal flag set by the manager around participant
+        /// reactivation calls. When non-zero, the channel wrapper's
+        /// <see cref="ITransportChannel.SendRequestAsync"/> bypasses the
+        /// ready-state gate so that session-service requests
+        /// (ActivateSession, CreateSession, etc.) can complete while the
+        /// channel is in
+        /// <see cref="ChannelState.TransportConnectedSessionReactivating"/>.
+        /// </summary>
+        internal static readonly AsyncLocal<int> s_reactivationDepth = new();
+
+        internal static bool IsReactivationInProgress => s_reactivationDepth.Value > 0;
+
+        internal static IDisposable EnterReactivationScope()
+        {
+            s_reactivationDepth.Value++;
+            return new ReactivationScope();
+        }
+
+        private sealed class ReactivationScope : IDisposable
+        {
             public void Dispose()
             {
-                m_factory.CloseChannel(m_channel);
+                s_reactivationDepth.Value--;
+            }
+        }
+
+        private static async ValueTask AwaitReconnectResultAsync(
+            Task<bool> reconnectTask)
+        {
+            if (!await reconnectTask.ConfigureAwait(false))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel reconnect did not complete successfully.");
+            }
+        }
+
+        private async ValueTask<IManagedTransportChannel> GetCoreAsync(
+            ConfiguredEndpoint endpoint,
+            Func<IManagedTransportChannel, IReconnectParticipant> participantFactory,
+            ITransportWaitingConnection? reverseConnection,
+            CancellationToken ct)
+        {
+            ThrowIfDisposed();
+
+            Certificate? clientCert;
+            CertificateCollection? clientChain;
+            long clientCertificateVersion;
+            lock (m_certLock)
+            {
+                clientCert = m_clientCertificate;
+                clientChain = m_clientCertificateChain;
+                clientCertificateVersion = m_clientCertificateVersion;
             }
 
-            private readonly ITransportChannel m_channel;
-            private readonly ClientChannelManager m_factory;
+            ManagedChannelKey key = ManagedChannelKey.FromEndpoint(
+                endpoint, clientCert, reverseConnection);
+
+            ChannelEntry entry;
+            bool created = false;
+            lock (m_entries)
+            {
+                if (!m_entries.TryGetValue(key, out ChannelEntry? existing) ||
+                    existing.State is ChannelState.Closed or ChannelState.Faulted)
+                {
+                    existing = new ChannelEntry(this, key, endpoint, reverseConnection);
+                    m_entries[key] = existing;
+                    created = true;
+                }
+                entry = existing;
+            }
+
+            ManagedTransportChannelLease lease;
+            try
+            {
+                if (created)
+                {
+                    await entry.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                        .ConfigureAwait(false);
+                }
+                lease = entry.AcquireLease(participantFactory);
+            }
+            catch
+            {
+                if (created)
+                {
+                    lock (m_entries)
+                    {
+                        m_entries.Remove(key);
+                    }
+                    await entry.DisposeAsync().ConfigureAwait(false);
+                }
+                throw;
+            }
+
+            return lease;
+        }
+
+        internal void RemoveEntryIfPresent(ManagedChannelKey key, ChannelEntry entry)
+        {
+            lock (m_entries)
+            {
+                if (m_entries.TryGetValue(key, out ChannelEntry? existing) &&
+                    ReferenceEquals(existing, entry))
+                {
+                    m_entries.Remove(key);
+                }
+            }
+        }
+
+        // Per-instance state for the managed (sharing/refcount) path.
+        // Legacy single-shot CreateChannelAsync path uses the existing
+        // ClientChannel wrapper and is independent of this state.
+        private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
+        private readonly Lock m_certLock = new();
+        private Certificate? m_clientCertificate;
+        private CertificateCollection? m_clientCertificateChain;
+        private long m_clientCertificateVersion;
+        private readonly IChannelReconnectPolicy m_reconnectPolicy
+            = new ExponentialBackoffChannelReconnectPolicy();
+        private readonly TimeProvider m_timeProvider = TimeProvider.System;
+        private readonly ILogger? m_logger;
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            DisposeCertificateRotation();
+
+            Certificate? clientCertificate;
+            CertificateCollection? clientCertificateChain;
+            lock (m_certLock)
+            {
+                clientCertificate = m_clientCertificate;
+                clientCertificateChain = m_clientCertificateChain;
+                m_clientCertificate = null;
+                m_clientCertificateChain = null;
+            }
+            clientCertificate?.Dispose();
+            clientCertificateChain?.Dispose();
+
+            ChannelEntry[] snapshot;
+            lock (m_entries)
+            {
+                snapshot = [.. m_entries.Values];
+                m_entries.Clear();
+            }
+
+            foreach (ChannelEntry entry in snapshot)
+            {
+                await entry.DisposeAsync(ChannelCloseReason.ManagerDisposed)
+                    .ConfigureAwait(false);
+            }
+
+            m_meter?.Dispose();
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(ClientChannelManager));
+            }
+        }
+
+        private void RecordChannelOpen(ChannelEntry entry)
+        {
+            m_metrics?.RecordChannelOpen(entry);
+        }
+
+        private void RecordChannelClosed(ChannelEntry entry, ChannelCloseReason reason)
+        {
+            m_metrics?.RecordChannelClosed(entry, reason);
+        }
+
+        private void RecordChannelActiveChanged(ChannelEntry entry, long delta)
+        {
+            m_metrics?.RecordChannelActiveChanged(entry, delta);
+        }
+
+        private void RecordReconnectAttempt(ChannelEntry entry, string outcome)
+        {
+            m_metrics?.RecordReconnectAttempt(entry, outcome);
+        }
+
+        private void RecordReconnectDuration(ChannelEntry entry, TimeSpan duration, string outcome)
+        {
+            m_metrics?.RecordReconnectDuration(entry, duration, outcome);
+        }
+
+        private void RecordGateWait(ChannelEntry entry, TimeSpan duration)
+        {
+            m_metrics?.RecordGateWait(entry, duration);
+        }
+
+        internal ChannelEntry[] GetMetricEntriesSnapshot()
+        {
+            lock (m_entries)
+            {
+                return [.. m_entries.Values];
+            }
+        }
+
+        internal enum ChannelCloseReason
+        {
+            LeaseReleased,
+            ManagerDisposed,
+            Faulted
+        }
+
+
+        private readonly Meter? m_meter;
+        private readonly ClientChannelManagerMetrics? m_metrics;
+        private int m_disposed;
+
+        private void WireCertificateRotation()
+        {
+            m_certRotation.WireCertificateRotation();
+        }
+
+        private void DisposeCertificateRotation()
+        {
+            m_certRotation.DisposeCertificateRotation();
+        }
+
+        ApplicationConfiguration IChannelCertRotationHost.Configuration => m_configuration;
+
+        ILogger? IChannelCertRotationHost.Logger => m_logger;
+
+        bool IChannelCertRotationHost.IsDisposed => Volatile.Read(ref m_disposed) != 0;
+
+        internal ChannelEntry[] SnapshotEntries()
+        {
+            lock (m_entries)
+            {
+                return [.. m_entries.Values];
+            }
+        }
+
+        ChannelEntry[] IChannelCertRotationHost.SnapshotEntries()
+        {
+            return SnapshotEntries();
+        }
+
+        void IChannelCertRotationHost.ReplaceClientCertificate(
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain)
+        {
+            Certificate? previousCertificate;
+            CertificateCollection? previousCertificateChain;
+            lock (m_certLock)
+            {
+                previousCertificate = m_clientCertificate;
+                previousCertificateChain = m_clientCertificateChain;
+                m_clientCertificate = clientCertificate;
+                m_clientCertificateChain = clientCertificateChain;
+                m_clientCertificateVersion++;
+            }
+
+            previousCertificate?.Dispose();
+            previousCertificateChain?.Dispose();
+        }
+
+        void IChannelCertRotationHost.SetCertificateRotationTask(Task? task)
+        {
+            m_certificateRotationTask = task;
+        }
+
+        private readonly ClientChannelManagerCertRotation m_certRotation;
+        private Task? m_certificateRotationTask;
+
+        ILogger? IChannelEntryHost.Logger => m_logger;
+
+        TimeProvider IChannelEntryHost.TimeProvider => m_timeProvider;
+
+        IChannelReconnectPolicy IChannelEntryHost.ReconnectPolicy => m_reconnectPolicy;
+
+        Bindings.ITransportChannelBindings? IChannelEntryHost.ChannelFactory => m_channelFactory;
+
+        ApplicationConfiguration IChannelEntryHost.Configuration => m_configuration;
+
+        void IChannelEntryHost.OnEntryStateChanged(ChannelEntry entry, ChannelStateChange change)
+        {
+            m_diagnostics.EmitStateChanged(entry, change);
+        }
+
+        void IChannelEntryHost.OnEntryClosed(ChannelEntry entry, ChannelCloseReason reason)
+        {
+            RecordChannelClosed(entry, reason);
+            m_diagnostics.EmitChannelClosed(entry, reason);
+        }
+
+        (Certificate? Certificate, CertificateCollection? Chain, long Version)
+            IChannelEntryHost.SnapshotClientCertificate()
+        {
+            return CurrentClientCertificateSnapshot;
+        }
+
+        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
+            ConfiguredEndpoint endpoint,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            ITransportWaitingConnection? reverseConnection,
+            CancellationToken ct)
+        {
+            IServiceMessageContext context = m_configuration.CreateMessageContext();
+            return CreateChannelAsync(
+                endpoint,
+                context,
+                clientCertificate,
+                clientCertificateChain,
+                reverseConnection,
+                ct);
+        }
+
+        Activity? IChannelEntryHost.StartReconnectActivity(ChannelEntry entry)
+        {
+            return m_diagnostics.StartReconnectActivity(entry);
+        }
+
+        void IChannelEntryHost.CompleteReconnectActivity(
+            Activity? activity,
+            ChannelEntry entry,
+            int attemptCount,
+            string outcome,
+            ServiceResult? error)
+        {
+            m_diagnostics.CompleteReconnectActivity(activity, entry, attemptCount, outcome, error);
+        }
+
+        void IChannelEntryHost.OnEntryReconnectFailed(
+            ChannelEntry entry,
+            int attempt,
+            string outcome,
+            ServiceResult? error)
+        {
+            m_diagnostics.EmitReconnectFailed(entry, attempt, outcome, error);
+            RecordReconnectAttempt(entry, outcome);
+        }
+
+        void IChannelEntryHost.OnEntryOpened(ChannelEntry entry)
+        {
+            RecordChannelOpen(entry);
+            m_diagnostics.EmitChannelOpened(entry);
+        }
+
+        void IChannelEntryHost.OnEntryParticipantAttached(
+            ChannelEntry entry,
+            string participantId,
+            int refCount,
+            int participantCount)
+        {
+            m_diagnostics.EmitParticipantAttached(entry, participantId, refCount, participantCount);
+        }
+
+        void IChannelEntryHost.OnEntryParticipantDetached(
+            ChannelEntry entry,
+            string participantId,
+            int refCount,
+            int participantCount)
+        {
+            m_diagnostics.EmitParticipantDetached(entry, participantId, refCount, participantCount);
+        }
+
+        void IChannelEntryHost.RecordChannelOpen(ChannelEntry entry)
+        {
+            RecordChannelOpen(entry);
+        }
+
+        void IChannelEntryHost.RecordChannelActiveChanged(ChannelEntry entry, long delta)
+        {
+            RecordChannelActiveChanged(entry, delta);
+        }
+
+        void IChannelEntryHost.RecordReconnectAttempt(ChannelEntry entry, string outcome)
+        {
+            RecordReconnectAttempt(entry, outcome);
+        }
+
+        void IChannelEntryHost.RecordReconnectDuration(
+            ChannelEntry entry,
+            TimeSpan duration,
+            string outcome)
+        {
+            RecordReconnectDuration(entry, duration, outcome);
+        }
+
+        void IChannelEntryHost.RecordGateWait(ChannelEntry entry, TimeSpan duration)
+        {
+            RecordGateWait(entry, duration);
+        }
+
+        void IChannelEntryHost.RemoveEntryIfPresent(ManagedChannelKey key, ChannelEntry entry)
+        {
+            RemoveEntryIfPresent(key, entry);
+        }
+
+        void IChannelEntryHost.CloseChannel(ITransportChannel channel)
+        {
+            CloseChannel(channel);
         }
 
         private readonly ApplicationConfiguration m_configuration;
+        private readonly ClientChannelManagerDiagnostics m_diagnostics = new();
         private readonly ITransportChannelBindings? m_channelFactory;
     }
+
+    /// <summary>
+    /// Point-in-time diagnostics for a managed client channel.
+    /// </summary>
+    /// <param name="Key">The managed channel identity.</param>
+    /// <param name="State">The current lifecycle state.</param>
+    /// <param name="Refcount">The current lease reference count.</param>
+    /// <param name="ParticipantCount">The number of active participants.</param>
+    /// <param name="OpenedAt">The timestamp when the current transport was opened.</param>
+    /// <param name="LastStateChange">The timestamp of the last state transition.</param>
+    /// <param name="LastReconnectAttempt">The last reconnect attempt associated with the state.</param>
+    /// <param name="LastError">The last error associated with the state, if any.</param>
+    public sealed record ManagedChannelDiagnostic(
+        ManagedChannelKey Key,
+        ChannelState State,
+        int Refcount,
+        int ParticipantCount,
+        DateTimeOffset OpenedAt,
+        DateTimeOffset LastStateChange,
+        int LastReconnectAttempt,
+        ServiceResult? LastError);
 }

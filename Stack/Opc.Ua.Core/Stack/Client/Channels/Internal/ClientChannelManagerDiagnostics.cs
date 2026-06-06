@@ -27,18 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using ChannelCloseReason = Opc.Ua.ClientChannelManager.ChannelCloseReason;
 
 namespace Opc.Ua
 {
-    public sealed partial class ClientChannelManager
+    internal sealed class ClientChannelManagerDiagnostics
     {
+        public IReadOnlyList<ManagedChannelDiagnostic> GetDiagnostics(ChannelEntry[] snapshot)
+        {
+            var diagnostics = new ManagedChannelDiagnostic[snapshot.Length];
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                diagnostics[i] = snapshot[i].GetDiagnosticSnapshot();
+            }
+
+            return diagnostics;
+        }
+
+        private const string kReconnectOutcomeSuccess = "success";
         private const string kChannelManagerDiagnosticsName = "Opc.Ua.ChannelManager";
         private const string kReconnectActivityName = "OpcUaChannelReconnect";
 
-        private static Activity? StartReconnectActivity(ChannelEntry entry)
+        public Activity? StartReconnectActivity(ChannelEntry entry)
         {
             Activity? activity = s_activitySource.StartActivity(
                 kReconnectActivityName,
@@ -49,7 +63,7 @@ namespace Opc.Ua
             return activity;
         }
 
-        private static void CompleteReconnectActivity(
+        public void CompleteReconnectActivity(
             Activity? activity,
             ChannelEntry entry,
             int attemptCount,
@@ -79,7 +93,7 @@ namespace Opc.Ua
                 GetErrorMessage(error));
         }
 
-        private static void EmitReconnectFailed(
+        public void EmitReconnectFailed(
             ChannelEntry entry,
             int attempt,
             string outcome,
@@ -93,7 +107,7 @@ namespace Opc.Ua
                 GetErrorMessage(error));
         }
 
-        private static void EmitStateChanged(ChannelEntry entry, ChannelStateChange change)
+        public void EmitStateChanged(ChannelEntry entry, ChannelStateChange change)
         {
             s_eventSource.StateChanged(
                 entry.EndpointUrl,
@@ -104,7 +118,7 @@ namespace Opc.Ua
                 GetErrorMessage(change.Error));
         }
 
-        private static void EmitChannelOpened(ChannelEntry entry)
+        public void EmitChannelOpened(ChannelEntry entry)
         {
             s_eventSource.ChannelOpened(
                 entry.EndpointUrl,
@@ -113,7 +127,7 @@ namespace Opc.Ua
                 entry.ParticipantCount);
         }
 
-        private static void EmitChannelClosed(ChannelEntry entry, ChannelCloseReason reason)
+        public void EmitChannelClosed(ChannelEntry entry, ChannelCloseReason reason)
         {
             s_eventSource.ChannelClosed(
                 entry.EndpointUrl,
@@ -122,7 +136,7 @@ namespace Opc.Ua
                 entry.ParticipantCount);
         }
 
-        private static void EmitParticipantAttached(
+        public void EmitParticipantAttached(
             ChannelEntry entry,
             string participantId,
             int refCount,
@@ -135,7 +149,7 @@ namespace Opc.Ua
                 participantCount);
         }
 
-        private static void EmitParticipantDetached(
+        public void EmitParticipantDetached(
             ChannelEntry entry,
             string participantId,
             int refCount,
@@ -301,25 +315,4 @@ namespace Opc.Ua
         private static readonly ActivitySource s_activitySource = new(kChannelManagerDiagnosticsName);
         private static readonly ChannelManagerEventSource s_eventSource = new();
     }
-
-    /// <summary>
-    /// Point-in-time diagnostics for a managed client channel.
-    /// </summary>
-    /// <param name="Key">The managed channel identity.</param>
-    /// <param name="State">The current lifecycle state.</param>
-    /// <param name="Refcount">The current lease reference count.</param>
-    /// <param name="ParticipantCount">The number of active participants.</param>
-    /// <param name="OpenedAt">The timestamp when the current transport was opened.</param>
-    /// <param name="LastStateChange">The timestamp of the last state transition.</param>
-    /// <param name="LastReconnectAttempt">The last reconnect attempt associated with the state.</param>
-    /// <param name="LastError">The last error associated with the state, if any.</param>
-    public sealed record ManagedChannelDiagnostic(
-        ManagedChannelKey Key,
-        ChannelState State,
-        int Refcount,
-        int ParticipantCount,
-        DateTimeOffset OpenedAt,
-        DateTimeOffset LastStateChange,
-        int LastReconnectAttempt,
-        ServiceResult? LastError);
 }

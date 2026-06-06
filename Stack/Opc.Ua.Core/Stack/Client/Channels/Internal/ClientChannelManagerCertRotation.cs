@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,11 +38,36 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-    public sealed partial class ClientChannelManager
+    internal sealed class ClientChannelManagerCertRotation
     {
-        private void WireCertificateRotation()
+        public ClientChannelManagerCertRotation(IChannelCertRotationHost host)
         {
-            ICertificateManager? certificateManager = m_configuration?.CertificateManager;
+            m_host = host;
+        }
+
+        public void UpdateClientCertificate(
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain)
+        {
+            m_host.ReplaceClientCertificate(clientCertificate, clientCertificateChain);
+        }
+
+        public async ValueTask ReconnectAllAsync(CancellationToken ct = default)
+        {
+            ChannelEntry[] snapshot = m_host.SnapshotEntries();
+            if (snapshot.Length == 0)
+            {
+                return;
+            }
+
+            await Task.WhenAll(
+                snapshot.Select(e => e.RequestReconnectAsync(ct)))
+                .ConfigureAwait(false);
+        }
+
+        public void WireCertificateRotation()
+        {
+            ICertificateManager? certificateManager = m_host.Configuration?.CertificateManager;
             if (certificateManager == null)
             {
                 return;
@@ -51,7 +77,7 @@ namespace Opc.Ua
                 new CertificateChangeObserver(this));
         }
 
-        private void DisposeCertificateRotation()
+        public void DisposeCertificateRotation()
         {
             IDisposable? subscription = Interlocked.Exchange(
                 ref m_certificateChangeSubscription,
@@ -67,7 +93,7 @@ namespace Opc.Ua
         private void OnCertificateChanged(CertificateChangeEvent evt)
         {
             if (!IsApplicationCertificateUpdate(evt) ||
-                Volatile.Read(ref m_disposed) != 0)
+                m_host.IsDisposed)
             {
                 return;
             }
@@ -80,7 +106,9 @@ namespace Opc.Ua
                     return;
                 }
 
-                m_certificateRotationTask = Task.Run(ProcessCertificateChangesAsync, CancellationToken.None);
+                Task task = Task.Run(ProcessCertificateChangesAsync, CancellationToken.None);
+                m_certificateRotationTask = task;
+                m_host.SetCertificateRotationTask(task);
             }
         }
 
@@ -96,11 +124,12 @@ namespace Opc.Ua
                     if (evt == null)
                     {
                         m_certificateRotationTask = null;
+                        m_host.SetCertificateRotationTask(null);
                         return;
                     }
                 }
 
-                if (Volatile.Read(ref m_disposed) != 0)
+                if (m_host.IsDisposed)
                 {
                     continue;
                 }
@@ -116,7 +145,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (Volatile.Read(ref m_disposed) != 0)
+                    if (m_host.IsDisposed)
                     {
                         certificate.Dispose();
                         chain?.Dispose();
@@ -128,7 +157,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_logger?.LogWarning(
+                    m_host.Logger?.LogWarning(
                         ex,
                         "ClientChannelManager: application certificate rotation reconnect failed.");
                 }
@@ -149,7 +178,7 @@ namespace Opc.Ua
 
             if (certificate == null)
             {
-                ITelemetryContext telemetry = m_configuration.CreateMessageContext().Telemetry;
+                ITelemetryContext telemetry = m_host.Configuration.CreateMessageContext().Telemetry;
                 certificate = await TryLoadConfiguredApplicationCertificateAsync(evt, telemetry, ct)
                     .ConfigureAwait(false);
             }
@@ -177,7 +206,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    Certificate? certificate = await m_configuration.SecurityConfiguration
+                    Certificate? certificate = await m_host.Configuration.SecurityConfiguration
                         .FindApplicationCertificateAsync(securityPolicy, privateKey: true, telemetry, ct)
                         .ConfigureAwait(false);
                     if (certificate != null)
@@ -187,7 +216,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_logger?.LogDebug(
+                    m_host.Logger?.LogDebug(
                         ex,
                         "ClientChannelManager: application certificate reload for {SecurityPolicy} failed.",
                         securityPolicy);
@@ -201,7 +230,7 @@ namespace Opc.Ua
             Certificate clientCertificate,
             CancellationToken ct)
         {
-            if (!m_configuration.SecurityConfiguration.SendCertificateChain)
+            if (!m_host.Configuration.SecurityConfiguration.SendCertificateChain)
             {
                 return null;
             }
@@ -210,7 +239,7 @@ namespace Opc.Ua
             var issuers = new List<CertificateIssuerReference>();
             try
             {
-                ICertificateManager? certificateManager = m_configuration.CertificateManager;
+                ICertificateManager? certificateManager = m_host.Configuration.CertificateManager;
                 if (certificateManager != null)
                 {
                     await certificateManager.GetIssuersAsync(clientCertificate, issuers, ct)
@@ -241,7 +270,7 @@ namespace Opc.Ua
         private IEnumerable<string> GetCandidateSecurityPolicies(NodeId? certificateType)
         {
             ArrayOf<string> supportedSecurityPolicies =
-                m_configuration.SecurityConfiguration.SupportedSecurityPolicies;
+                m_host.Configuration.SecurityConfiguration.SupportedSecurityPolicies;
             for (int i = 0; i < supportedSecurityPolicies.Count; i++)
             {
                 string securityPolicy = supportedSecurityPolicies[i];
@@ -273,7 +302,7 @@ namespace Opc.Ua
             }
 
             CertificateIdentifier? applicationCertificate =
-                m_configuration.SecurityConfiguration.ApplicationCertificate;
+                m_host.Configuration.SecurityConfiguration.ApplicationCertificate;
             if (applicationCertificate == null ||
                 !CertificateTypesMatch(applicationCertificate.CertificateType, evt.CertificateType))
             {
@@ -339,7 +368,7 @@ namespace Opc.Ua
 
         private sealed class CertificateChangeObserver : IObserver<CertificateChangeEvent>
         {
-            public CertificateChangeObserver(ClientChannelManager owner)
+            public CertificateChangeObserver(ClientChannelManagerCertRotation owner)
             {
                 m_owner = owner;
             }
@@ -357,17 +386,19 @@ namespace Opc.Ua
                 m_owner.OnCertificateChanged(value);
             }
 
-            private readonly ClientChannelManager m_owner;
+            private readonly ClientChannelManagerCertRotation m_owner;
         }
 
         private readonly Lock m_certificateRotationLock = new();
         [SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
-            Justification = "Disposed by DisposeCertificateRotation from DisposeAsync; " +
+            Justification = "Disposed by DisposeCertificateRotation; " +
                 "TODO: inline if CA2213 learns Interlocked.Exchange disposal tracking.")]
         private IDisposable? m_certificateChangeSubscription;
         private CertificateChangeEvent? m_pendingCertificateChange;
         private Task? m_certificateRotationTask;
+
+        private readonly IChannelCertRotationHost m_host;
     }
 }
