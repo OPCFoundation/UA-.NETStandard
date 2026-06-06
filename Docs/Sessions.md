@@ -565,7 +565,7 @@ IManagedTransportChannel ch = await manager.GetAsync(participant, conn, ct);
 ### Testing the channel manager
 
 The channel manager is covered by a layered stress and chaos test suite in
-[`Tests/Opc.Ua.Channels.Stress.Tests/`](../Tests/Opc.Ua.Channels.Stress.Tests/):
+[`Tests/Opc.Ua.Stress.Tests/`](../Tests/Opc.Ua.Stress.Tests/):
 
 - **L1 Contract** — fast deterministic fake-based tests for coalescing, participant result aggregation, retry
   budgets, hung participants, lease lifecycle, gate + bypass, key equivalence, certificate rotation, and leak
@@ -581,13 +581,13 @@ The channel manager is covered by a layered stress and chaos test suite in
 
 ```bash
 # Contract + Integration (default PR CI):
-dotnet test Tests/Opc.Ua.Channels.Stress.Tests --filter "Category=Contract|Category=Integration"
+dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
 
 # ChaosTCP (nightly):
-dotnet test Tests/Opc.Ua.Channels.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
+dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=ChaosTCP" --TestRunParameters.Parameter(Seed=<n>)
 
 # Soak (manual):
-dotnet test Tests/Opc.Ua.Channels.Stress.Tests --filter "Category=Soak"
+dotnet test Tests/Opc.Ua.Stress.Tests --filter "Category=Soak"
 ```
 
 Every chaos test prints its seed at the start of the run. Failed chaos runs can be reproduced by passing the same

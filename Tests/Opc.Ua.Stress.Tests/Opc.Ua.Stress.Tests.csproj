@@ -1,10 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <!--
+      Stress/chaos tests rely on modern primitives (Task.Delay TimeProvider
+      overloads, RandomNumberGenerator.GetInt32, Math.Clamp,
+      ValueTask.CompletedTask, IClientChannelManager.ReconnectAsync(budget))
+      that do not exist on net48/net472. When CustomTestTarget is unset
+      (e.g. CodeQL whole-solution build) restrict to the supported TFMs.
+      When CustomTestTarget is set the standard TestsTargetFrameworks
+      pipeline takes over so the matrix can still drive a single TFM.
+    -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Stress.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>annotations</Nullable>
+    <Nullable>enable</Nullable>
+    <!--
+      Common test-project suppression list (matches the rest of Tests/*/*.csproj).
+      Test code is allowed to be noisier on these analyzer rules.
+    -->
     <NoWarn>$(NoWarn);RCS0056;RCS1166;RCS1174;RCS1229;RCS1047;RCS1077;NUnit2023;NUnit2010;NUnit2045</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
@@ -22,6 +36,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.Bcl.TimeProvider" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" PrivateAssets="all" />
     <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
