@@ -115,11 +115,79 @@ namespace Opc.Ua.Sessions.Tests
 
         [Test]
         [Order(200)]
-        [Ignore("Depends on channel-manager reset support after a Faulted entry. " +
-            "The current manager keeps a faulted leased entry and subsequent outer retries " +
-            "cannot acquire a fresh cycle without additional production plumbing.")]
-        public void ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns()
+        [CancelAfter(120_000)]
+        public async Task ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns(
+            CancellationToken ct)
         {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 1
+                });
+            ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
+                .ConfigureAwait(false);
+            ManagedSessionType? session = null;
+            int serverPort = ServerFixture.Port;
+            bool serverStopped = false;
+
+            try
+            {
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns),
+                    ct).ConfigureAwait(false);
+
+                session.KeepAliveInterval = 60_000;
+                IManagedTransportChannel channel = GetManagedChannel(session);
+                var channelStates = new ConcurrentQueue<ChannelState>();
+                session.ChannelStateChanged += (_, e) => channelStates.Enqueue(e.NewState);
+
+                await ServerFixture.StopAsync().ConfigureAwait(false);
+                serverStopped = true;
+
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => channelStates.Contains(ChannelState.Faulted),
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The exhausted reconnect cycle should transition the entry to Faulted.");
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(GetDiagnostic(manager, channel.Key).State, Is.EqualTo(ChannelState.Faulted));
+
+                ReferenceServer = await ServerFixture.StartAsync(PkiRoot, serverPort).ConfigureAwait(false);
+                ReferenceServer.TokenValidator = TokenValidator;
+                serverStopped = false;
+
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => channelStates.Contains(ChannelState.Ready),
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The swapped entry should recover to Ready after the server returns.");
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(GetDiagnostic(manager, channel.Key).State, Is.EqualTo(ChannelState.Ready));
+
+                await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (serverStopped)
+                {
+                    ReferenceServer = await ServerFixture.StartAsync(PkiRoot, serverPort).ConfigureAwait(false);
+                    ReferenceServer.TokenValidator = TokenValidator;
+                }
+
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
         }
     }
 }

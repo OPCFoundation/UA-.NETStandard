@@ -38,13 +38,21 @@ namespace Opc.Ua
         internal ManagedTransportChannelLease(
             ChannelEntry entry, IReconnectParticipant participant)
         {
+            if (entry == null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
             if (participant == null)
             {
                 throw new ArgumentNullException(nameof(participant));
             }
 
-            Entry = entry;
+            m_entry = entry;
+            Key = entry.Key;
+            Endpoint = entry.Endpoint;
+            ReverseConnection = entry.ReverseConnection;
             m_participant = participant;
+            m_participantFactory = _ => Participant;
             m_active = 1;
         }
 
@@ -52,18 +60,34 @@ namespace Opc.Ua
             ChannelEntry entry,
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory)
         {
+            if (entry == null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
             if (participantFactory == null)
             {
                 throw new ArgumentNullException(nameof(participantFactory));
             }
 
-            Entry = entry;
+            m_entry = entry;
+            Key = entry.Key;
+            Endpoint = entry.Endpoint;
+            ReverseConnection = entry.ReverseConnection;
             m_active = 1;
             m_participant = participantFactory(this)
                 ?? throw new InvalidOperationException("Participant factory returned null.");
+            m_participantFactory = _ => Participant;
         }
 
-        internal ChannelEntry Entry { get; }
+        internal ChannelEntry Entry => Volatile.Read(ref m_entry);
+
+        internal ConfiguredEndpoint Endpoint { get; }
+
+        internal ITransportWaitingConnection? ReverseConnection { get; }
+
+        internal Func<IManagedTransportChannel, IReconnectParticipant> ParticipantFactory => m_participantFactory;
+
+        internal int SwapCount => Volatile.Read(ref m_swapCount);
 
         internal IReconnectParticipant Participant
         {
@@ -73,6 +97,34 @@ namespace Opc.Ua
                 {
                     return m_participant;
                 }
+            }
+        }
+
+        internal void RecordSwap()
+        {
+            Interlocked.Increment(ref m_swapCount);
+        }
+
+        internal void SwapEntry(ChannelEntry fresh)
+        {
+            if (fresh == null)
+            {
+                throw new ArgumentNullException(nameof(fresh));
+            }
+
+            Interlocked.Exchange(ref m_entry, fresh);
+        }
+
+        internal void SwapParticipantForEntry(IReconnectParticipant participant)
+        {
+            if (participant == null)
+            {
+                throw new ArgumentNullException(nameof(participant));
+            }
+
+            lock (m_participantLock)
+            {
+                m_participant = participant;
             }
         }
 
@@ -89,6 +141,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(participant));
             }
 
+            ChannelEntry entry = Entry;
             string previousId;
             lock (m_participantLock)
             {
@@ -96,16 +149,16 @@ namespace Opc.Ua
                 m_participant = participant;
             }
 
-            int refCount = Entry.RefCount;
-            int participantCount = Entry.ParticipantCount;
-            Entry.OwnerManager.OnEntryParticipantDetached(Entry, previousId, refCount, participantCount);
-            Entry.OwnerManager.OnEntryParticipantAttached(Entry, participant.Id, refCount, participantCount);
+            int refCount = entry.RefCount;
+            int participantCount = entry.ParticipantCount;
+            entry.OwnerManager.OnEntryParticipantDetached(entry, previousId, refCount, participantCount);
+            entry.OwnerManager.OnEntryParticipantAttached(entry, participant.Id, refCount, participantCount);
         }
 
         internal bool IsActive => Interlocked.CompareExchange(ref m_active, 0, 0) == 1;
 
         /// <inheritdoc/>
-        public ManagedChannelKey Key => Entry.Key;
+        public ManagedChannelKey Key { get; }
 
         /// <inheritdoc/>
         public ChannelState State => Entry.State;
@@ -232,8 +285,11 @@ namespace Opc.Ua
             await Entry.ReleaseLeaseAsync(this).ConfigureAwait(false);
         }
 
+        private ChannelEntry m_entry;
         private int m_active;
+        private int m_swapCount;
         private readonly Lock m_participantLock = new();
+        private readonly Func<IManagedTransportChannel, IReconnectParticipant> m_participantFactory;
         private IReconnectParticipant m_participant;
     }
 }

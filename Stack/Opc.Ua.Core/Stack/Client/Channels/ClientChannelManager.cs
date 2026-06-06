@@ -479,7 +479,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask ReconnectAsync(
+        public async ValueTask ReconnectAsync(
             IManagedTransportChannel channel,
             CancellationToken ct = default)
         {
@@ -494,11 +494,12 @@ namespace Opc.Ua
             }
 
             var budget = new RetryBudget(Timeout.InfiniteTimeSpan, m_timeProvider);
-            return new ValueTask(lease.Entry.RequestReconnectAsync(budget, ct));
+            await ReconnectLeaseAsync(lease, budget, throwOnReconnectFailure: false, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public ValueTask ReconnectAsync(
+        public async ValueTask ReconnectAsync(
             IManagedTransportChannel channel,
             IRetryBudget budget,
             CancellationToken ct = default)
@@ -517,8 +518,8 @@ namespace Opc.Ua
                     "Channel was not produced by this manager.", nameof(channel));
             }
 
-            return AwaitReconnectResultAsync(
-                lease.Entry.RequestReconnectAsync(budget, ct));
+            await ReconnectLeaseAsync(lease, budget, throwOnReconnectFailure: true, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -649,6 +650,139 @@ namespace Opc.Ua
                     StatusCodes.BadSecureChannelClosed,
                     "Channel reconnect did not complete successfully.");
             }
+        }
+
+        private async ValueTask ReconnectLeaseAsync(
+            ManagedTransportChannelLease lease,
+            IRetryBudget budget,
+            bool throwOnReconnectFailure,
+            CancellationToken ct)
+        {
+            ChannelEntry entry = lease.Entry;
+            if (entry.State is ChannelState.Closed or ChannelState.Faulted)
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+            }
+
+            Task<bool> reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            if (throwOnReconnectFailure)
+            {
+                await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                return;
+            }
+
+            _ = await reconnectTask.ConfigureAwait(false);
+        }
+
+        private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
+            ManagedTransportChannelLease lease,
+            CancellationToken ct)
+        {
+            ThrowIfDisposed();
+
+            ChannelEntry original = lease.Entry;
+            if (original.State is not (ChannelState.Closed or ChannelState.Faulted))
+            {
+                return original;
+            }
+
+            TimeSpan delay = GetSwapDelay(lease.SwapCount);
+
+            await DelaySwapAsync(delay, ct).ConfigureAwait(false);
+
+            original = lease.Entry;
+            if (original.State is not (ChannelState.Closed or ChannelState.Faulted))
+            {
+                return original;
+            }
+
+            (Certificate? clientCert, CertificateCollection? clientChain, long clientCertificateVersion) =
+                CurrentClientCertificateSnapshot;
+
+            ChannelEntry fresh;
+            bool created = false;
+            lock (m_entries)
+            {
+                if (m_entries.TryGetValue(lease.Key, out ChannelEntry? existing) &&
+                    existing.State is not (ChannelState.Closed or ChannelState.Faulted))
+                {
+                    fresh = existing;
+                }
+                else
+                {
+                    fresh = new ChannelEntry(this, lease.Key, lease.Endpoint, lease.ReverseConnection);
+                    m_entries[lease.Key] = fresh;
+                    created = true;
+                }
+            }
+
+            if (created)
+            {
+                try
+                {
+                    await fresh.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    lock (m_entries)
+                    {
+                        if (m_entries.TryGetValue(lease.Key, out ChannelEntry? existing) &&
+                            ReferenceEquals(existing, fresh))
+                        {
+                            m_entries.Remove(lease.Key);
+                        }
+                    }
+                    await fresh.DisposeAsync(ChannelCloseReason.Faulted).ConfigureAwait(false);
+                    throw;
+                }
+            }
+
+            fresh.ReattachParticipant(lease, lease.ParticipantFactory);
+            if (!ReferenceEquals(original, fresh))
+            {
+                await original.DetachLeaseForSwapAsync(lease).ConfigureAwait(false);
+                lease.RecordSwap();
+            }
+            return fresh;
+        }
+
+        private TimeSpan GetSwapDelay(int swapAttempt)
+        {
+            TimeSpan delay = GetReconnectPolicyDelay(swapAttempt);
+            while (delay < TimeSpan.Zero && swapAttempt > 0)
+            {
+                swapAttempt--;
+                delay = GetReconnectPolicyDelay(swapAttempt);
+            }
+
+            return delay < TimeSpan.Zero ? TimeSpan.Zero : delay;
+        }
+
+        private TimeSpan GetReconnectPolicyDelay(int attempt)
+        {
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+            return m_reconnectPolicy.GetDelay(attempt, budget: null);
+#else
+            return ChannelReconnectPolicyBudget.GetDelay(
+                m_reconnectPolicy,
+                attempt,
+                budget: null);
+#endif
+        }
+
+        private Task DelaySwapAsync(TimeSpan delay, CancellationToken ct)
+        {
+            if (delay <= TimeSpan.Zero)
+            {
+                return Task.CompletedTask;
+            }
+
+#if NET8_0_OR_GREATER
+            return Task.Delay(delay, m_timeProvider, ct);
+#else
+            return Task.Delay(delay, ct);
+#endif
         }
 
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(

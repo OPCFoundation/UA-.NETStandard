@@ -203,6 +203,99 @@ namespace Opc.Ua
             return lease;
         }
 
+        internal void ReattachParticipant(
+            ManagedTransportChannelLease lease,
+            Func<IManagedTransportChannel, IReconnectParticipant> participantFactory)
+        {
+            if (lease == null)
+            {
+                throw new ArgumentNullException(nameof(lease));
+            }
+            if (participantFactory == null)
+            {
+                throw new ArgumentNullException(nameof(participantFactory));
+            }
+
+            IReconnectParticipant participant = participantFactory(lease)
+                ?? throw new InvalidOperationException("Participant factory returned null.");
+            int refCount = 0;
+            int participantCount = 0;
+            bool attached = false;
+            lock (m_lock)
+            {
+                if (m_state is ChannelState.Closed or ChannelState.Faulted)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Cannot attach to a {0} channel.",
+                        m_state);
+                }
+                if (!lease.IsActive)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Cannot attach a released channel lease.");
+                }
+
+                if (!m_leases.Contains(lease))
+                {
+                    m_leases.Add(lease);
+                    m_refcount++;
+                    attached = true;
+                }
+                lease.SwapParticipantForEntry(participant);
+                lease.SwapEntry(this);
+                refCount = m_refcount;
+                participantCount = m_leases.Count(l => l.IsActive);
+            }
+
+            if (attached)
+            {
+                m_host.OnEntryParticipantAttached(this, participant.Id, refCount, participantCount);
+            }
+        }
+
+        internal async ValueTask DetachLeaseForSwapAsync(ManagedTransportChannelLease lease)
+        {
+            if (lease == null)
+            {
+                throw new ArgumentNullException(nameof(lease));
+            }
+
+            bool detached = false;
+            bool teardown = false;
+            ChannelCloseReason reason = ChannelCloseReason.LeaseReleased;
+            int refCount = 0;
+            int participantCount = 0;
+            string participantId = lease.Participant.Id;
+            lock (m_lock)
+            {
+                if (m_leases.Remove(lease))
+                {
+                    m_refcount--;
+                    refCount = m_refcount;
+                    participantCount = m_leases.Count(l => l.IsActive);
+                    detached = true;
+                    teardown = m_refcount == 0 && m_operationRef == 0 && m_state != ChannelState.Closed;
+                    if (teardown && m_state == ChannelState.Faulted)
+                    {
+                        reason = ChannelCloseReason.Faulted;
+                    }
+                }
+            }
+
+            if (!detached)
+            {
+                return;
+            }
+
+            m_host.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
+            if (teardown)
+            {
+                await TearDownAsync(reason).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Release a lease. When refcount drops to zero and no
         /// reconnect operation is in progress, the underlying

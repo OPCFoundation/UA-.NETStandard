@@ -37,6 +37,7 @@ using System.Diagnostics.Metrics;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -942,6 +943,66 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         }
 
         [Test]
+        public async Task ReconnectAsyncSwapsFaultedLeaseEntryAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.FromMilliseconds(100),
+                MaxDelay = TimeSpan.FromMilliseconds(100),
+                MaxAttempts = 3
+            };
+            (ClientChannelManager sut, Certificate serverCert, _) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+                object originalEntry = GetLeaseEntry(ch);
+                var exhaustedBudget = new RetryBudget(TimeSpan.Zero, timeProvider);
+
+                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await sut.ReconnectAsync(ch, exhaustedBudget, default).AsTask().ConfigureAwait(false));
+
+                Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
+
+                Task reconnectTask = sut.ReconnectAsync(ch, default).AsTask();
+                await Task.Delay(10).ConfigureAwait(false);
+
+                Assert.That(reconnectTask.IsCompleted, Is.False, "Swap back-off should delay the reset.");
+
+                for (int i = 0; i < 4 && !reconnectTask.IsCompleted; i++)
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+
+                await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                object freshEntry = GetLeaseEntry(ch);
+                ManagedChannelDiagnostic diagnostic = sut.GetChannelDiagnostics()
+                    .Single(d => d.Key.Equals(ch.Key));
+                Assert.That(freshEntry, Is.Not.SameAs(originalEntry));
+                Assert.That(GetEntryState(freshEntry), Is.EqualTo(ChannelState.Ready));
+                Assert.That(GetInternalIntProperty(freshEntry, "RefCount"), Is.EqualTo(1));
+                Assert.That(GetInternalIntProperty(freshEntry, "ParticipantCount"), Is.EqualTo(1));
+                Assert.That(GetInternalIntProperty(originalEntry, "RefCount"), Is.Zero);
+                Assert.That(GetInternalIntProperty(ch, "SwapCount"), Is.EqualTo(1));
+                Assert.That(diagnostic.Refcount, Is.EqualTo(1));
+                Assert.That(diagnostic.ParticipantCount, Is.EqualTo(1));
+                Assert.That(participant.NotificationCount, Is.GreaterThanOrEqualTo(2));
+
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task ReconnectAsyncWithBudgetShrinksDelayToFitRemainingAsync()
         {
             var timeProvider = new FakeTimeProvider();
@@ -1108,6 +1169,31 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         {
             reconnectEntered.TrySetResult(true);
             await allowReconnect.Task.ConfigureAwait(false);
+        }
+
+        private static object GetLeaseEntry(IManagedTransportChannel channel)
+        {
+            return GetInternalPropertyValue(channel, "Entry");
+        }
+
+        private static ChannelState GetEntryState(object entry)
+        {
+            return (ChannelState)GetInternalPropertyValue(entry, "State");
+        }
+
+        private static int GetInternalIntProperty(object target, string propertyName)
+        {
+            return (int)GetInternalPropertyValue(target, propertyName);
+        }
+
+        private static object GetInternalPropertyValue(object target, string propertyName)
+        {
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            PropertyInfo? property = target.GetType().GetProperty(propertyName, flags);
+            Assert.That(property, Is.Not.Null, $"Expected property {propertyName} on {target.GetType()}.");
+            object? value = property!.GetValue(target);
+            Assert.That(value, Is.Not.Null, $"Expected property {propertyName} to return a value.");
+            return value!;
         }
 
         private static void AssertChannelDiagnostic(
