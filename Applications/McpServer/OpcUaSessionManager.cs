@@ -96,6 +96,17 @@ namespace Opc.Ua.Mcp
         public ApplicationConfiguration? Configuration => m_configuration;
 
         /// <summary>
+        /// Gets the active transport channels for connected sessions.
+        /// </summary>
+        public IReadOnlyList<ITransportChannel> GetActiveTransportChannels()
+        {
+            return [.. m_sessions.Values
+                .Where(static info => info.IsConnected)
+                .Select(static info => info.Session.TransportChannel)
+                .OfType<ITransportChannel>()];
+        }
+
+        /// <summary>
         /// Ensures the application configuration is loaded, loading it if necessary.
         /// </summary>
         public async Task<ApplicationConfiguration> EnsureConfigurationAsync(CancellationToken ct = default)

@@ -23,6 +23,8 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 
 All OPC UA types (NodeId, DataValue, Variant, StatusCode, etc.) are represented as JSON for LLM-friendly interaction.
 
+The MCP server also includes an OPC UA packet-capture diagnostics category for capture, offline decode, service-call summaries, and replay. See [Packet Capture](PacketCapture.md) for the capture sources, keylog formats, and `list_interfaces` / `start_capture` / `decode_pcap_with_keys` / `replay_pcap` tool flow.
+
 ## Resources
 
 The MCP server exposes connected sessions as **MCP resources**, enabling the LLM to discover, inspect, and subscribe to session state.

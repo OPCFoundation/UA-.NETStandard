@@ -70,6 +70,7 @@
       - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
     - [Time and Timer abstraction (`TimeProvider`)](#time-and-timer-abstraction-timeprovider)
     - [Subscriptions and Transports](#subscriptions-and-transports)
+      - [Packet capture diagnostics hooks](#packet-capture-diagnostics-hooks)
       - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
       - [PubSub](#pubsub)
       - [Reverse connect](#reverse-connect)
@@ -1926,6 +1927,10 @@ TimeSpan elapsed = m_timeProvider.GetElapsedTime(startTimestamp);
 ```
 
 ### Subscriptions and Transports
+
+#### Packet capture diagnostics hooks
+
+**Not source-breaking.** Packet-capture diagnostics add the `Opc.Ua.Bindings.IFrameCaptureSink` interface and the opt-in `UaSCUaBinaryChannel.FrameCaptureSink` property for observing raw wire-level chunks. `TcpListenerChannel.OnTokenActivated` is a new public server-side event that mirrors the existing client-side `ISecureChannel.OnTokenActivated` event. Both additions are purely additive; existing code does not need to change.
 
 #### Durable subscriptions and reshaped Subscription tree
 
