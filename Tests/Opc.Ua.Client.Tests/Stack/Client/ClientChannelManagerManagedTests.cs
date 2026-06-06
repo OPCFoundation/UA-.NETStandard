@@ -51,7 +51,7 @@ using Opc.Ua.Tests;
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived.
 #pragma warning disable CA2000
 
-namespace Opc.Ua.Core.Tests.Stack.Client
+namespace Opc.Ua.Client.Tests.Stack.Client
 {
     /// <summary>
     /// Unit tests for the managed (sharing, refcount, coalesced
