@@ -1,7 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <!--
+      Stress/chaos tests rely on modern primitives (Task.Delay TimeProvider
+      overloads, RandomNumberGenerator.GetInt32, Math.Clamp,
+      ValueTask.CompletedTask, IClientChannelManager.ReconnectAsync(budget))
+      that do not exist on net48/net472. Restrict TFMs to the supported set
+      so CodeQL and other whole-solution builds do not try to compile this
+      project against the legacy frameworks.
+    -->
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <RootNamespace>Opc.Ua.Channels.Stress.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>annotations</Nullable>

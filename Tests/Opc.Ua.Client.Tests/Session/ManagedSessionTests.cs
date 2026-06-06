@@ -212,6 +212,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task ManagedSessionPropagatesBudgetToChannelManagerAsync()
         {
+#if !NETSTANDARD2_1 && !NET8_0_OR_GREATER
+            Assert.Ignore(
+                "IClientChannelManager.ReconnectAsync(channel, budget, ct) is only available on net8.0+/netstandard2.1.");
+#else
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
             ConfiguredEndpoint endpoint = CreateEndpoint();
@@ -251,6 +255,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(capturedBudget, Is.SameAs(budget));
+#endif
         }
 
         [Test]
