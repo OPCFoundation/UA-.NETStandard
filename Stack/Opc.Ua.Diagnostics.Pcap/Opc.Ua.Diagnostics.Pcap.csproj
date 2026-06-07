@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).Diagnostics.Pcap</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Diagnostics.Pcap</PackageId>
     <RootNamespace>Opc.Ua.Diagnostics.Pcap</RootNamespace>
