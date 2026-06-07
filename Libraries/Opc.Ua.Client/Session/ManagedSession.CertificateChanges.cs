@@ -40,13 +40,19 @@ namespace Opc.Ua.Client
     /// <see cref="ManagedSession"/>. Subscribes to the application's
     /// <see cref="ICertificateLifecycle.CertificateChanges"/> stream
     /// (resolved via <see cref="ApplicationConfiguration.CertificateManager"/>)
-    /// and reacts to the three scenarios called out in issue #3160:
-    /// own client-certificate renewal, trust-list add/remove, and CRL
-    /// add/remove. When
+    /// and surfaces every observed change through the
+    /// <see cref="ApplicationCertificateChanged"/> event so applications
+    /// can implement custom rotation policies. When
     /// <see cref="ManagedSession.DisableAutoReconnectOnCertificateChange"/> is
-    /// <c>false</c> (the default) the manager triggers a reconnect so the new state
-    /// takes effect immediately instead of waiting for the next
-    /// SecurityToken renewal.
+    /// <c>false</c> (the default) the manager additionally reloads the
+    /// instance certificate and triggers a reconnect on
+    /// <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>
+    /// so the new client cert takes effect immediately instead of
+    /// waiting for the next SecurityToken renewal.
+    /// <see cref="CertificateChangeKind.TrustListUpdated"/> and
+    /// <see cref="CertificateChangeKind.CrlUpdated"/> intentionally
+    /// do NOT trigger an automatic reconnect — see
+    /// <see cref="OnCertificateChange"/> for the rationale.
     /// </summary>
     public partial class ManagedSession
     {
@@ -56,18 +62,20 @@ namespace Opc.Ua.Client
         /// <see cref="ISession.ReloadInstanceCertificateAsync(CancellationToken)"/>
         /// and triggers a reconnect when the application's
         /// <see cref="CertificateManager"/> publishes an
-        /// <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>,
-        /// <see cref="CertificateChangeKind.TrustListUpdated"/> or
-        /// <see cref="CertificateChangeKind.CrlUpdated"/> event so the
-        /// new state takes effect within milliseconds rather than at the
-        /// next SecurityToken renewal (OPC UA Part 4 §5.5.2).
-        /// Set to <c>true</c> when an application requires manual
-        /// control (auditing, idempotency) and prefers to call
+        /// <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>
+        /// event, so the new client cert takes effect within milliseconds
+        /// rather than at the next SecurityToken renewal (OPC UA Part 4
+        /// §5.5.2). Trust-list and CRL changes do NOT trigger an
+        /// automatic reconnect — applications that want to honour them
+        /// immediately should subscribe to
+        /// <see cref="ApplicationCertificateChanged"/> and call
         /// <see cref="ISession.ReloadInstanceCertificateAsync(CancellationToken)"/>
         /// + <see cref="ISession.ReconnectAsync(ITransportWaitingConnection, ITransportChannel, CancellationToken)"/>
-        /// itself. The
-        /// <see cref="ApplicationCertificateChanged"/> event still
-        /// fires for diagnostics regardless of this setting.
+        /// themselves after evaluating whether the server certificate
+        /// is still valid against the new trust state. Set this property
+        /// to <c>true</c> to opt out of all automatic reconnects. The
+        /// <see cref="ApplicationCertificateChanged"/> event still fires
+        /// for diagnostics regardless of this setting.
         /// </summary>
         public bool DisableAutoReconnectOnCertificateChange { get; set; }
 
@@ -136,15 +144,26 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            // TODO: For TrustListUpdated / CrlUpdated we currently
-            // trigger a full reconnect which re-validates the server
-            // certificate against the new trust state on the next
-            // channel open. A cheaper alternative is to re-run
-            // CertificateValidator.ValidateAsync against the cached
-            // remote server cert and ONLY reconnect when the result
-            // changes. Defer to the event-driven certificate
-            // validation workitem (also needed for the "support 500
-            // sessions" use case) so this PR stays minimal.
+            // Auto-reconnect is scoped to ApplicationCertificateUpdated
+            // only. Triggering a reconnect on every TrustListUpdated /
+            // CrlUpdated is too aggressive in real deployments: a new
+            // server onboarded into a shared client/server fleet, or a
+            // batch trust-list refresh, would force every session in
+            // the process to reconnect even when the server certificate
+            // is still valid against the updated trust state.
+            //
+            // TODO: cheap re-validation of the cached remote server
+            // cert against the new trust state (and reconnect ONLY when
+            // the result actually changes) is tracked under the
+            // event-driven certificate validation workitem also needed
+            // for the "support 500 sessions" use case. Applications
+            // that want immediate re-validation today can subscribe to
+            // ApplicationCertificateChanged and call ReconnectAsync
+            // themselves.
+            if (evt.Kind != CertificateChangeKind.ApplicationCertificateUpdated)
+            {
+                return;
+            }
 
             // Fire and forget — the reconnect serialiser owns its own
             // synchronisation; we just need to kick it off without
@@ -175,18 +194,12 @@ namespace Opc.Ua.Client
                 // racy ApplicationCertificateUpdated event, which is
                 // benign — the next attempt picks up the new cert.
                 //
-                // For own-certificate rotations, the inner session must
-                // re-load its private key from the registry BEFORE the
-                // reconnect so the new ActivateSession is signed with
-                // the rotated certificate. Trust-list / CRL changes do
-                // not require a per-session reload — the validation
-                // cores are shared via the certificate manager and
-                // already invalidated by NotifyTrustListChanged.
-                if (evt.Kind == CertificateChangeKind.ApplicationCertificateUpdated)
-                {
-                    await session.ReloadInstanceCertificateAsync()
-                        .ConfigureAwait(false);
-                }
+                // The inner session must re-load its private key from
+                // the registry BEFORE the reconnect so the new
+                // ActivateSession is signed with the rotated
+                // certificate.
+                await session.ReloadInstanceCertificateAsync()
+                    .ConfigureAwait(false);
 
                 StateMachine.TriggerReconnect();
 

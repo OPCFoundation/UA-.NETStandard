@@ -160,31 +160,44 @@ Server-base subclasses that want to observe rotation in custom ways can still su
 #### Client-Side Auto-Detection of Certificate Changes
 
 `ManagedSession` automatically subscribes to
-`CertificateManager.CertificateChanges` and reacts to the three
-scenarios called out in OPC UA spec discussions around client-side
-certificate management:
+`CertificateManager.CertificateChanges` and surfaces the three
+scenarios discussed in client-side certificate management:
 
 1. **Own (client) certificate renewal** — `ApplicationCertificateUpdated` fires from `UpdateApplicationCertificateAsync` / `ReloadApplicationCertificatesAsync`.
 2. **Trust-list add/remove** — `TrustListUpdated` fires from `WriteTrustListAsync` and from a successful `TrustListTransaction.CommitAsync` whenever certificates were added or removed.
 3. **CRL add/remove** — `CrlUpdated` fires from the same paths whenever CRLs were modified.
 
 Each event is forwarded to subscribers of
-`ManagedSession.ApplicationCertificateChanged` for diagnostics regardless
-of policy. By default
-(`ManagedSession.DisableAutoReconnectOnCertificateChange` is `false`),
-the managed session ALSO:
+`ManagedSession.ApplicationCertificateChanged` for diagnostics and for
+applications that want to implement custom rotation policies.
 
-- Calls `Session.ReloadInstanceCertificateAsync` on
-  `ApplicationCertificateUpdated` (so the next ActivateSession is signed
-  with the rotated client cert).
-- Triggers a reconnect via the state machine, so the new state takes
-  effect within milliseconds rather than at the next
+By default
+(`ManagedSession.DisableAutoReconnectOnCertificateChange` is `false`),
+the managed session ALSO automatically reconnects on
+`ApplicationCertificateUpdated`:
+
+- Calls `Session.ReloadInstanceCertificateAsync` (so the next
+  ActivateSession is signed with the rotated client cert).
+- Triggers a reconnect via the state machine, so the new client cert
+  takes effect within milliseconds rather than at the next
   `SecurityTokenLifetime` rekey (Part 4 §5.5.2).
+
+**`TrustListUpdated` and `CrlUpdated` do NOT trigger an automatic
+reconnect.** Reconnecting every session in the process whenever a new
+server is onboarded into a shared client/server fleet, or whenever a
+batch trust-list refresh runs, is too aggressive — the server
+certificate may still be perfectly valid against the new trust state.
+Applications that want to honour trust / CRL changes immediately
+should subscribe to `ApplicationCertificateChanged` and call
+`ISession.ReconnectAsync` themselves after evaluating whether the
+cached server certificate still validates. (Event-driven server-cert
+revalidation that automates this safely is tracked as a follow-up,
+also needed for the "support 500 sessions" use case.)
 
 ```csharp
 using var managed = await ManagedSession.CreateAsync(
     configuration, endpoint, sessionFactory);
-// Auto-reconnect on certificate changes is on by default.
+// Auto-reconnect on own-cert rotation is on by default.
 // Opt out by setting DisableAutoReconnectOnCertificateChange = true.
 
 managed.ApplicationCertificateChanged += (sender, e) =>
@@ -193,19 +206,12 @@ managed.ApplicationCertificateChanged += (sender, e) =>
 };
 ```
 
-Auto-reconnect is on by default so the session honours certificate /
-trust-list / CRL changes immediately. Applications that need manual
-control (auditing, idempotency) can opt out by setting
+Applications that need manual control (auditing, idempotency) can opt
+out of auto-reconnect by setting
 `ManagedSession.DisableAutoReconnectOnCertificateChange = true` and
 continue calling `Session.ReloadInstanceCertificateAsync` + their own
 reconnect logic. The `ApplicationCertificateChanged` event still fires
 either way.
-
-Trust-list / CRL changes never require a per-session cert reload — the
-validation cores are shared via the `CertificateManager` and are
-invalidated by `NotifyTrustListChanged`. The reconnect is still useful
-because it re-validates the server certificate against the new trust
-state on a fresh channel.
 
 #### Working with Trust-Lists
 
