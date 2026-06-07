@@ -296,5 +296,60 @@ namespace Opc.Ua.Client.Tests
                 Is.GreaterThanOrEqualTo(
                     engine.MinPublishRequestCount));
         }
+
+        /// <summary>
+        /// Regression coverage for the V1 ack-pruning helper added by
+        /// #3540. <see cref="ClassicSubscriptionEngine.RemoveAcknowledgementsForSubscription"/>
+        /// drops every queued acknowledgement targeting the given
+        /// subscription id while leaving acks for other subscriptions
+        /// untouched. The recovery path relies on this before recreating
+        /// a subscription so stale acks for the dead id cannot produce
+        /// <c>BadSubscriptionIdInvalid</c> responses on servers that
+        /// re-use subscription identifiers (e.g. Kepware always
+        /// starting at <c>1</c>).
+        /// </summary>
+        [Test]
+        public void RemoveAcknowledgementsForSubscriptionDropsOnlyMatchingAcks()
+        {
+            using var engine =
+                new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            engine.AddPendingAcknowledgement(1u, 10u);
+            engine.AddPendingAcknowledgement(2u, 11u);
+            engine.AddPendingAcknowledgement(1u, 12u);
+            engine.AddPendingAcknowledgement(1u, 13u);
+            engine.AddPendingAcknowledgement(3u, 14u);
+
+            int dropped = engine.RemoveAcknowledgementsForSubscription(1u);
+
+            Assert.That(dropped, Is.EqualTo(3),
+                "All queued acks for the dead subscription id must be dropped.");
+
+            int droppedAgain = engine.RemoveAcknowledgementsForSubscription(1u);
+            Assert.That(droppedAgain, Is.Zero,
+                "Second call must drop nothing (idempotent).");
+
+            int droppedSecond = engine.RemoveAcknowledgementsForSubscription(2u);
+            Assert.That(droppedSecond, Is.EqualTo(1),
+                "Survivors must still be in the queue and drainable per-id.");
+
+            int droppedThird = engine.RemoveAcknowledgementsForSubscription(3u);
+            Assert.That(droppedThird, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Calling
+        /// <see cref="ClassicSubscriptionEngine.RemoveAcknowledgementsForSubscription"/>
+        /// on an empty pending-ack list is a no-op and must not throw.
+        /// </summary>
+        [Test]
+        public void RemoveAcknowledgementsForSubscriptionOnEmptyQueueReturnsZero()
+        {
+            using var engine =
+                new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            int dropped = engine.RemoveAcknowledgementsForSubscription(42u);
+            Assert.That(dropped, Is.Zero);
+        }
     }
 }
