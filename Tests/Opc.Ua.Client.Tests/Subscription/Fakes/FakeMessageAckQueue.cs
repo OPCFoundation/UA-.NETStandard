@@ -73,6 +73,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnCompleteAsync?.Invoke(subscriptionId, ct) ?? default;
         }
 
+        /// <summary>
+        /// Records the subscription ids dropped via
+        /// <see cref="DropPendingForSubscription"/> so tests can assert
+        /// stale-ack pruning happened during recovery.
+        /// </summary>
+        public List<uint> DroppedSubscriptions { get; } = [];
+
+        public int DropPendingForSubscription(uint subscriptionId)
+        {
+            DroppedSubscriptions.Add(subscriptionId);
+            int dropped = QueuedAcks.RemoveAll(
+                ack => ack.SubscriptionId == subscriptionId);
+            return dropped;
+        }
+
         public void Update()
         {
             UpdateCalls++;

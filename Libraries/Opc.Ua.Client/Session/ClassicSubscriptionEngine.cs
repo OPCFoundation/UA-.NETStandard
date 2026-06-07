@@ -949,6 +949,37 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Drops every queued acknowledgement targeting the given
+        /// <paramref name="subscriptionId"/>. Used by the
+        /// recovery-on-unsolicited-transfer path to prevent
+        /// <c>BadSubscriptionIdInvalid</c> ack responses from
+        /// reaching the server after the local subscription has
+        /// been invalidated and is about to be recreated. Servers
+        /// that re-use subscription identifiers across generations
+        /// (e.g. Kepware always starting at <c>1</c>) require this
+        /// to run while the old id is still "uniquely dead" — i.e.
+        /// before a recreate assigns a new id.
+        /// </summary>
+        /// <param name="subscriptionId">The subscription id whose
+        /// queued acknowledgements should be dropped.</param>
+        /// <returns>The number of queued acknowledgements that
+        /// were dropped.</returns>
+        internal int RemoveAcknowledgementsForSubscription(uint subscriptionId)
+        {
+            lock (m_acknowledgementsToSendLock)
+            {
+                int before = m_acknowledgementsToSend.Count;
+                if (before == 0)
+                {
+                    return 0;
+                }
+                m_acknowledgementsToSend.RemoveAll(
+                    ack => ack.SubscriptionId == subscriptionId);
+                return before - m_acknowledgementsToSend.Count;
+            }
+        }
+
+        /// <summary>
         /// Helper to update the latest sequence number to send.
         /// Handles wrap around of sequence numbers.
         /// </summary>
