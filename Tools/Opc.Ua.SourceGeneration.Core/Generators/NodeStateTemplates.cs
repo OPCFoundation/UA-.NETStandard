@@ -930,13 +930,63 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString OptionalMethod = TemplateString.Parse(
             $$"""
             /// <summary>
-            /// Add the optional {{Tokens.ChildName}} child. Idempotent: returns
-            /// the existing typed child if it has already been added.
+            /// Adds the optional {{Tokens.ChildName}} child and returns this
+            /// instance so calls can be chained, e.g.
+            /// <c>parent.Add{{Tokens.ChildName}}().Add{{Tokens.ChildName}}Other()...</c>.
+            /// Idempotent: if {{Tokens.ChildName}} already exists the existing
+            /// child is kept and only its NodeId is overwritten (when a
+            /// non-null <paramref name="nodeId"/> is supplied).
             /// </summary>
-            {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} Add{{Tokens.ChildName}}(
-                global::Opc.Ua.ISystemContext context)
+            /// <param name="context">The system context.</param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child. When <c>null</c>, the
+            /// child keeps the type-level NodeId assigned by the generated
+            /// factory unless <paramref name="context"/>'s
+            /// <see cref="global::Opc.Ua.ISystemContext.NodeIdFactory"/> is
+            /// non-null, in which case a fresh NodeId is minted via the
+            /// factory.
+            /// </param>
+            {{Tokens.AccessorSymbol}} {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                global::Opc.Ua.NodeId? nodeId = default)
             {
-                return {{Tokens.ChildName}} ??= context.Create{{Tokens.SymbolicId}}(this, true);
+                if ({{Tokens.ChildName}} == null)
+                {
+                    {{Tokens.ClassName}} state = context.Create{{Tokens.SymbolicId}}(this, true);
+                    if (nodeId is { IsNull: false } nonNullId)
+                    {
+                        state.NodeId = nonNullId;
+                    }
+                    else if (context.NodeIdFactory != null)
+                    {
+                        state.NodeId = context.NodeIdFactory.New(context, state);
+                    }
+                    {{Tokens.ChildName}} = state;
+                }
+                else if (nodeId is { IsNull: false } overrideId)
+                {
+                    {{Tokens.ChildName}}.NodeId = overrideId;
+                }
+                return this;
+            }
+
+            /// <summary>
+            /// Adds the optional {{Tokens.ChildName}} child and returns it so
+            /// the caller can configure the new child immediately, e.g.
+            /// <c>parent.AddAndGet{{Tokens.ChildName}}(context).Value = ...</c>.
+            /// Idempotent: returns the existing typed child if already present.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child. See
+            /// <see cref="Add{{Tokens.ChildName}}"/> for the default behaviour.
+            /// </param>
+            {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} AddAndGet{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                global::Opc.Ua.NodeId? nodeId = default)
+            {
+                Add{{Tokens.ChildName}}(context, nodeId);
+                return {{Tokens.ChildName}}!;
             }
 
             """);

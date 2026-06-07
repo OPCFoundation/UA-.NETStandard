@@ -454,8 +454,8 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 if (!string.IsNullOrEmpty(td.Base))
                 {
-                    entry.Asset.AssetEndpoint ??= entry.Asset.AddAssetEndpoint(m_manager.SystemContext);
-                    entry.Asset.AssetEndpoint.Value = td.Base!;
+                    entry.Asset.AddAssetEndpoint(m_manager.SystemContext);
+                    entry.Asset.AssetEndpoint!.Value = td.Base!;
                 }
 
                 entry.Asset.ClearChangeMasks(m_manager.SystemContext, includeChildren: true);

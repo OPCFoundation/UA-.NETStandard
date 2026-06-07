@@ -108,42 +108,42 @@ namespace Opc.Ua.Server.Historian
 
             if (!string.IsNullOrEmpty(capabilities.Definition))
             {
-                config.AddDefinition(context).Value = capabilities.Definition!;
+                config.AddAndGetDefinition(context).Value = capabilities.Definition!;
             }
 
             if (capabilities.MaxTimeInterval > 0)
             {
-                config.AddMaxTimeInterval(context).Value = capabilities.MaxTimeInterval;
+                config.AddAndGetMaxTimeInterval(context).Value = capabilities.MaxTimeInterval;
             }
 
             if (capabilities.MinTimeInterval > 0)
             {
-                config.AddMinTimeInterval(context).Value = capabilities.MinTimeInterval;
+                config.AddAndGetMinTimeInterval(context).Value = capabilities.MinTimeInterval;
             }
 
             if (capabilities.MaxTimeStoredValues > 0)
             {
-                config.AddMaxTimeStoredValues(context).Value = capabilities.MaxTimeStoredValues;
+                config.AddAndGetMaxTimeStoredValues(context).Value = capabilities.MaxTimeStoredValues;
             }
 
             if (capabilities.MaxCountStoredValues > 0)
             {
-                config.AddMaxCountStoredValues(context).Value = capabilities.MaxCountStoredValues;
+                config.AddAndGetMaxCountStoredValues(context).Value = capabilities.MaxCountStoredValues;
             }
 
             if (capabilities.StartOfArchive != DateTimeUtc.MinValue)
             {
-                config.AddStartOfArchive(context).Value = capabilities.StartOfArchive;
+                config.AddAndGetStartOfArchive(context).Value = capabilities.StartOfArchive;
             }
 
             if (capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue)
             {
-                config.AddStartOfOnlineArchive(context).Value = capabilities.StartOfOnlineArchive;
+                config.AddAndGetStartOfOnlineArchive(context).Value = capabilities.StartOfOnlineArchive;
             }
 
             if (config.ServerTimestampSupported == null && capabilities.ServerTimestampSupported)
             {
-                _ = config.AddServerTimestampSupported(context);
+                config.AddServerTimestampSupported(context);
             }
             config.ServerTimestampSupported?.Value = capabilities.ServerTimestampSupported;
         }

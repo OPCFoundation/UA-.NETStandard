@@ -503,38 +503,25 @@ namespace Opc.Ua.Server
             // GetMonitoredItems / ResendData are wired unconditionally;
             // SetSubscriptionDurable only when durable subscriptions are
             // enabled (otherwise the existing path explicitly removes it).
-            serverObject.AddGetMonitoredItems(context).NodeId
-                = MethodIds.Server_GetMonitoredItems;
-            serverObject.AddResendData(context).NodeId
-                = MethodIds.Server_ResendData;
-            if (m_durableSubscriptionsEnabled)
-            {
-                serverObject.AddSetSubscriptionDurable(context).NodeId
-                    = MethodIds.Server_SetSubscriptionDurable;
-            }
-
             // Server.Namespaces is consumed by ConfigurationNodeManager to
-            // register per-namespace NamespaceMetadata children; without it
-            // CreateNamespaceMetadataStateAsync logs an error and namespace
-            // metadata cannot be exposed.
-            serverObject.AddNamespaces(context).NodeId
-                = ObjectIds.Server_Namespaces;
-
-            // Server.UrisVersion / EstimatedReturnTime / LocalTime are Optional
+            // register per-namespace NamespaceMetadata children.
+            // UrisVersion / EstimatedReturnTime / LocalTime are Optional
             // Variables on ServerType that the SDK does not actively populate
             // but were emitted on master at the well-known instance NodeIds.
-            // Re-add at startup so clients that browse the standard browse
-            // paths keep working (e.g. InformationModel.BaseInfoServerTests.
-            // ReadEstimatedReturnTimeValueAsync). Values stay at the typed
-            // default (UInt32 0 for UrisVersion, default DateTimeUtc for
-            // EstimatedReturnTime, default TimeZoneDataType for LocalTime)
-            // until a server implementation overrides them.
-            serverObject.AddUrisVersion(context).NodeId
-                = VariableIds.Server_UrisVersion;
-            serverObject.AddEstimatedReturnTime(context).NodeId
-                = VariableIds.Server_EstimatedReturnTime;
-            serverObject.AddLocalTime(context).NodeId
-                = VariableIds.Server_LocalTime;
+            // The chained Add{Child}(context, nodeId) helpers return `this`
+            // for the fluent style.
+            serverObject
+                .AddGetMonitoredItems(context, MethodIds.Server_GetMonitoredItems)
+                .AddResendData(context, MethodIds.Server_ResendData)
+                .AddNamespaces(context, ObjectIds.Server_Namespaces)
+                .AddUrisVersion(context, VariableIds.Server_UrisVersion)
+                .AddEstimatedReturnTime(context, VariableIds.Server_EstimatedReturnTime)
+                .AddLocalTime(context, VariableIds.Server_LocalTime);
+            if (m_durableSubscriptionsEnabled)
+            {
+                serverObject.AddSetSubscriptionDurable(
+                    context, MethodIds.Server_SetSubscriptionDurable);
+            }
 
             // The transitive generator gate (issue #3768) stops emitting
             // Optional Variable/Method descendants of Server (e.g.
@@ -569,41 +556,30 @@ namespace Opc.Ua.Server
             ISystemContext context,
             ServerCapabilitiesState serverCapabilities)
         {
-            // Add{Child} extension methods build the child via the TYPE-level
-            // factory which assigns the type-level NodeId; patch each to the
-            // well-known singleton-instance NodeId after construction (see
-            // AddServerSdkOptionalChildren above for the rationale).
-            // Add{Child} is idempotent (returns the existing typed child if
-            // present), so no null guards are needed.
-            serverCapabilities.AddMaxArrayLength(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxArrayLength;
-            serverCapabilities.AddMaxStringLength(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxStringLength;
-            serverCapabilities.AddMaxByteStringLength(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxByteStringLength;
-            serverCapabilities.AddMaxSessions(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxSessions;
-            serverCapabilities.AddMaxSubscriptions(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxSubscriptions;
-            serverCapabilities.AddMaxMonitoredItems(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxMonitoredItems;
-            serverCapabilities.AddMaxSubscriptionsPerSession(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession;
-            serverCapabilities.AddMaxMonitoredItemsPerSubscription(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription;
-            serverCapabilities.AddMaxSelectClauseParameters(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters;
-            serverCapabilities.AddMaxWhereClauseParameters(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters;
-            serverCapabilities.AddMaxMonitoredItemsQueueSize(context).NodeId
-                = VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize;
-            serverCapabilities.AddConformanceUnits(context).NodeId
-                = VariableIds.Server_ServerCapabilities_ConformanceUnits;
-            serverCapabilities.AddRoleSet(context).NodeId
-                = ObjectIds.Server_ServerCapabilities_RoleSet;
-            OperationLimitsState operationLimits = serverCapabilities.AddOperationLimits(context);
-            operationLimits.NodeId
-                = ObjectIds.Server_ServerCapabilities_OperationLimits;
+            // The generated Add{Child}(context, nodeId) helpers are idempotent
+            // and now return `this` for chaining (see
+            // NodeStateTemplates.OptionalMethod). Each call patches the
+            // well-known singleton-instance NodeId so the address-space
+            // matches master (see AddServerSdkOptionalChildren for the
+            // rationale). The OperationLimits child needs its sub-tree
+            // populated, so retrieve it via AddAndGetOperationLimits to
+            // continue with AddOperationLimitsSdkOptionalChildren.
+            serverCapabilities
+                .AddMaxArrayLength(context, VariableIds.Server_ServerCapabilities_MaxArrayLength)
+                .AddMaxStringLength(context, VariableIds.Server_ServerCapabilities_MaxStringLength)
+                .AddMaxByteStringLength(context, VariableIds.Server_ServerCapabilities_MaxByteStringLength)
+                .AddMaxSessions(context, VariableIds.Server_ServerCapabilities_MaxSessions)
+                .AddMaxSubscriptions(context, VariableIds.Server_ServerCapabilities_MaxSubscriptions)
+                .AddMaxMonitoredItems(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItems)
+                .AddMaxSubscriptionsPerSession(context, VariableIds.Server_ServerCapabilities_MaxSubscriptionsPerSession)
+                .AddMaxMonitoredItemsPerSubscription(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItemsPerSubscription)
+                .AddMaxSelectClauseParameters(context, VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters)
+                .AddMaxWhereClauseParameters(context, VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters)
+                .AddMaxMonitoredItemsQueueSize(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize)
+                .AddConformanceUnits(context, VariableIds.Server_ServerCapabilities_ConformanceUnits)
+                .AddRoleSet(context, ObjectIds.Server_ServerCapabilities_RoleSet);
+            OperationLimitsState operationLimits = serverCapabilities.AddAndGetOperationLimits(
+                context, ObjectIds.Server_ServerCapabilities_OperationLimits);
             AddOperationLimitsSdkOptionalChildren(context, operationLimits);
         }
 
@@ -616,31 +592,23 @@ namespace Opc.Ua.Server
             // The SDK assigns values to whichever children exist (see
             // ServerInternalData.CreateServerObjectAsync) - re-add every
             // child and patch to the well-known NodeId so the observable
-            // address-space matches master. Add{Child} is idempotent.
-            operationLimits.AddMaxNodesPerRead(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead;
-            operationLimits.AddMaxNodesPerHistoryReadData(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData;
-            operationLimits.AddMaxNodesPerHistoryReadEvents(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents;
-            operationLimits.AddMaxNodesPerWrite(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite;
-            operationLimits.AddMaxNodesPerHistoryUpdateData(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData;
-            operationLimits.AddMaxNodesPerHistoryUpdateEvents(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents;
-            operationLimits.AddMaxNodesPerMethodCall(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall;
-            operationLimits.AddMaxNodesPerBrowse(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse;
-            operationLimits.AddMaxNodesPerRegisterNodes(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes;
-            operationLimits.AddMaxNodesPerTranslateBrowsePathsToNodeIds(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds;
-            operationLimits.AddMaxNodesPerNodeManagement(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement;
-            operationLimits.AddMaxMonitoredItemsPerCall(context).NodeId
-                = VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall;
+            // address-space matches master. Add{Child} is idempotent and
+            // returns `this` for chaining.
+            operationLimits
+                .AddMaxNodesPerRead(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead)
+                .AddMaxNodesPerHistoryReadData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData)
+                .AddMaxNodesPerHistoryReadEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents)
+                .AddMaxNodesPerWrite(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite)
+                .AddMaxNodesPerHistoryUpdateData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData)
+                .AddMaxNodesPerHistoryUpdateEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents)
+                .AddMaxNodesPerMethodCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
+                .AddMaxNodesPerBrowse(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse)
+                .AddMaxNodesPerRegisterNodes(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes)
+                .AddMaxNodesPerTranslateBrowsePathsToNodeIds(
+                    context,
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds)
+                .AddMaxNodesPerNodeManagement(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement)
+                .AddMaxMonitoredItemsPerCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall);
         }
 
         private static void AddServerRedundancySdkOptionalChildren(
@@ -654,8 +622,8 @@ namespace Opc.Ua.Server
             // RedundantServerArray, see DefaultServerRedundancyHandler in
             // Opc.Ua.Client) keep working even when no redundancy provider
             // populates it.
-            serverRedundancy.AddRedundantServerArray(context).NodeId
-                = VariableIds.Server_ServerRedundancy_RedundantServerArray;
+            serverRedundancy.AddRedundantServerArray(
+                context, VariableIds.Server_ServerRedundancy_RedundantServerArray);
         }
 
         private static void AddHistoryCapabilitiesSdkOptionalChildren(
@@ -667,8 +635,8 @@ namespace Opc.Ua.Server
             // rolled-up historian capabilities — without lazy-add the write
             // would NRE. See AddServerSdkOptionalChildren for the NodeId-patch
             // rationale (type-level Add* extension assigns the type NodeId).
-            historyCaps.AddServerTimestampSupported(context).NodeId
-                = VariableIds.HistoryServerCapabilities_ServerTimestampSupported;
+            historyCaps.AddServerTimestampSupported(
+                context, VariableIds.HistoryServerCapabilities_ServerTimestampSupported);
         }
 
         /// <summary>
@@ -692,12 +660,10 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            metadataState.AddDefaultRolePermissions(context).NodeId
-                = VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions;
-            metadataState.AddDefaultUserRolePermissions(context).NodeId
-                = VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions;
-            metadataState.AddDefaultAccessRestrictions(context).NodeId
-                = VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions;
+            metadataState
+                .AddDefaultRolePermissions(context, VariableIds.OPCUANamespaceMetadata_DefaultRolePermissions)
+                .AddDefaultUserRolePermissions(context, VariableIds.OPCUANamespaceMetadata_DefaultUserRolePermissions)
+                .AddDefaultAccessRestrictions(context, VariableIds.OPCUANamespaceMetadata_DefaultAccessRestrictions);
         }
 
         /// <summary>
@@ -725,8 +691,7 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            category.AddLastChange(context).NodeId
-                = VariableIds.Aliases_LastChange;
+            category.AddLastChange(context, VariableIds.Aliases_LastChange);
         }
 
         /// <summary>
@@ -877,18 +842,19 @@ namespace Opc.Ua.Server
             // and property NodeIds need the singleton-instance patch; the
             // generated Add{Method} helpers populate the InputArguments
             // child (which clients read by browse-name) for us. Add{Child}
-            // is idempotent (no null guards needed).
-            role.AddApplications(context).NodeId = new NodeId(applications);
-            role.AddApplicationsExclude(context).NodeId = new NodeId(applicationsExclude);
-            role.AddEndpoints(context).NodeId = new NodeId(endpoints);
-            role.AddEndpointsExclude(context).NodeId = new NodeId(endpointsExclude);
-            role.AddCustomConfiguration(context).NodeId = new NodeId(customConfiguration);
-            role.AddAddIdentity(context).NodeId = new NodeId(addIdentityMethod);
-            role.AddRemoveIdentity(context).NodeId = new NodeId(removeIdentityMethod);
-            role.AddAddApplication(context).NodeId = new NodeId(addApplicationMethod);
-            role.AddRemoveApplication(context).NodeId = new NodeId(removeApplicationMethod);
-            role.AddAddEndpoint(context).NodeId = new NodeId(addEndpointMethod);
-            role.AddRemoveEndpoint(context).NodeId = new NodeId(removeEndpointMethod);
+            // is idempotent and returns `this` for chaining.
+            role
+                .AddApplications(context, new NodeId(applications))
+                .AddApplicationsExclude(context, new NodeId(applicationsExclude))
+                .AddEndpoints(context, new NodeId(endpoints))
+                .AddEndpointsExclude(context, new NodeId(endpointsExclude))
+                .AddCustomConfiguration(context, new NodeId(customConfiguration))
+                .AddAddIdentity(context, new NodeId(addIdentityMethod))
+                .AddRemoveIdentity(context, new NodeId(removeIdentityMethod))
+                .AddAddApplication(context, new NodeId(addApplicationMethod))
+                .AddRemoveApplication(context, new NodeId(removeApplicationMethod))
+                .AddAddEndpoint(context, new NodeId(addEndpointMethod))
+                .AddRemoveEndpoint(context, new NodeId(removeEndpointMethod));
         }
 
         /// <summary>

@@ -207,9 +207,12 @@ namespace Opc.Ua.Server
                             // slot is initialised with the type-level
                             // factory (BrowseName, InputArguments, etc.)
                             // before Create() copies the loaded passive
-                            // node into the active subtree.
-                            activeNode.AddGetCertificates(context);
-                            activeNode.AddCreateSelfSignedCertificate(context);
+                            // node into the active subtree. The new
+                            // Add{Method}(context, nodeId?) chains via the
+                            // owner state for fluent usage.
+                            activeNode
+                                .AddGetCertificates(context)
+                                .AddCreateSelfSignedCertificate(context);
 
                             activeNode.Create(context, passiveNode);
 

@@ -1939,6 +1939,11 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.TargetNamespace.Value,
                     []));
             context.Template.AddReplacement(
+                Tokens.OwnerClassName,
+                method.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    []));
+            context.Template.AddReplacement(
                 Tokens.ListOfInputArguments,
                 method.InputArguments,
                 LoadTemplate_ListOfInputArguments);
@@ -1981,6 +1986,19 @@ namespace Opc.Ua.SourceGeneration
             TypeDesign type)
         {
             context.Template.AddReplacement(Tokens.ClassName, type.ClassName);
+            // OwnerClassName mirrors ClassName at the type scope so per-child
+            // sub-templates (e.g. NodeStateTemplates.OptionalMethod) can refer
+            // to the parent (owner) class when generating Add{Child} methods
+            // that return `this` for chaining. The per-child WriteTemplate
+            // overrides Tokens.ClassName but leaves OwnerClassName untouched,
+            // and the template engine cascades to this outer template when
+            // OwnerClassName is not found locally. The class declaration
+            // template appends "State" to ClassName (see
+            // NodeStateClassObjectType / NodeStateClassVariableType), so do
+            // the same here so the return type matches the declared class.
+            context.Template.AddReplacement(
+                Tokens.OwnerClassName,
+                type.ClassName + "State");
             context.Template.AddReplacement(
                 Tokens.BaseClassName,
                 type.BaseTypeNode.GetClassName(m_context.ModelDesign.Namespaces));
