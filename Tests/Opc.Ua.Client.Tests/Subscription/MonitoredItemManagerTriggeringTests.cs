@@ -524,10 +524,472 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 ApplyTransferState(ClientHandle, serverId);
             }
 
-            internal void AddDesiredTriggeredByForTest(string name)
+            internal bool AddDesiredTriggeredByForTest(string name)
             {
-                AddDesiredTriggeredBy(name);
+                return AddDesiredTriggeredBy(name);
             }
+
+            internal bool RemoveDesiredTriggeredByForTest(string name)
+            {
+                return RemoveDesiredTriggeredBy(name);
+            }
+
+            internal void SetDesiredTriggeredByNamesForTest(IEnumerable<string>? names)
+            {
+                SetDesiredTriggeredByNames(names);
+            }
+
+            internal void ResetForTest() => Reset();
+        }
+
+        // ----- ValidateBelongsAndUpdateDesired (imperative-API entry validation) -----
+
+        [Test]
+        public void ValidateBelongsThrowsOnNullTriggeringItem()
+        {
+            Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
+                null!,
+                Array.Empty<IMonitoredItem>(),
+                Array.Empty<IMonitoredItem>()),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ValidateBelongsThrowsWhenTriggeringItemNotInSubscription()
+        {
+            TestMonitoredItem real = AddCreatedItem("here", 100);
+            // Construct a stray item with the same name but a
+            // different reference and a different context.
+            var strayContext = new FakeMonitoredItemContext();
+            var stray = new TestMonitoredItem(strayContext, "here",
+                OptionsFactory.Create(new MonitoredItemOptions
+                {
+                    StartNodeId = new NodeId("here", 0)
+                }),
+                m_telemetry.CreateLogger("stray"));
+
+            Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
+                stray, Array.Empty<IMonitoredItem>(),
+                Array.Empty<IMonitoredItem>()),
+                Throws.ArgumentException);
+            // Sanity: the real item is unaffected.
+            Assert.That(real.DesiredTriggeredByNames, Is.Empty);
+        }
+
+        [Test]
+        public void ValidateBelongsThrowsOnNullAddEntry()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
+                trig,
+                new IMonitoredItem[] { null! },
+                Array.Empty<IMonitoredItem>()),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ValidateBelongsThrowsOnNullRemoveEntry()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
+                trig,
+                Array.Empty<IMonitoredItem>(),
+                new IMonitoredItem[] { null! }),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ValidateBelongsThrowsWhenAddEntryNotInSubscription()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            var strayContext = new FakeMonitoredItemContext();
+            var stray = new TestMonitoredItem(strayContext, "stray",
+                OptionsFactory.Create(new MonitoredItemOptions
+                {
+                    StartNodeId = new NodeId("stray", 0)
+                }),
+                m_telemetry.CreateLogger("stray"));
+
+            Assert.That(() => m_sut.ValidateBelongsAndUpdateDesired(
+                trig,
+                new IMonitoredItem[] { stray },
+                Array.Empty<IMonitoredItem>()),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void ValidateBelongsMutatesDesiredImmediately()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+
+            m_sut.ValidateBelongsAndUpdateDesired(
+                trig,
+                new IMonitoredItem[] { tgt },
+                Array.Empty<IMonitoredItem>());
+
+            // Imperative-write semantics: the desired state mutates
+            // synchronously under the manager lock, before the
+            // SetTriggering RPC fires.
+            Assert.That(tgt.DesiredTriggeredByNames, Is.EqualTo(new[] { "trig" }));
+        }
+
+        [Test]
+        public void ValidateBelongsRemoveMutatesDesiredImmediately()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            tgt.AddDesiredTriggeredByForTest("trig");
+
+            m_sut.ValidateBelongsAndUpdateDesired(
+                trig,
+                Array.Empty<IMonitoredItem>(),
+                new IMonitoredItem[] { tgt });
+
+            Assert.That(tgt.DesiredTriggeredByNames, Is.Empty);
+        }
+
+        // ----- EnqueueTriggeringDelta (declarative-path entry) -----
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaWithUnresolvedNameIsSkippedAsync()
+        {
+            // Only the triggered item exists in this subscription;
+            // the triggering name "ghost" does not resolve. The
+            // engine logs and silently drops it.
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+
+            m_sut.EnqueueTriggeringDelta(tgt,
+                addedTriggeringNames: new[] { "ghost" },
+                removedTriggeringNames: Array.Empty<string>());
+
+            await m_sut.ApplyTriggeringOperationsAsync(default);
+
+            m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public void EnqueueTriggeringDeltaEmptyListsIsNoOp()
+        {
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            m_sut.EnqueueTriggeringDelta(tgt, Array.Empty<string>(),
+                Array.Empty<string>());
+            // No assertion needed — call must not throw.
+        }
+
+        [Test]
+        public void EnqueueTriggeringDeltaThrowsOnNullTriggeredItem()
+        {
+            Assert.That(() => m_sut.EnqueueTriggeringDelta(
+                null!, Array.Empty<string>(), Array.Empty<string>()),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void EnqueueTriggeringDeltaThrowsOnNullLists()
+        {
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            Assert.That(() => m_sut.EnqueueTriggeringDelta(tgt, null!,
+                Array.Empty<string>()), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => m_sut.EnqueueTriggeringDelta(tgt,
+                Array.Empty<string>(), null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public async Task EnqueueTriggeringDeltaResolvesAddAndRemoveAsync()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt1 = AddCreatedItem("tgt1", 101);
+            TestMonitoredItem tgt2 = AddCreatedItem("tgt2", 102);
+            // Pre-existing link to remove
+            tgt2.AddDesiredTriggeredByForTest("trig");
+
+            m_sut.EnqueueTriggeringDelta(tgt1,
+                addedTriggeringNames: new[] { "trig" },
+                removedTriggeringNames: Array.Empty<string>());
+            m_sut.EnqueueTriggeringDelta(tgt2,
+                addedTriggeringNames: Array.Empty<string>(),
+                removedTriggeringNames: new[] { "trig" });
+
+            HashSet<uint>? capturedAdd = null;
+            HashSet<uint>? capturedRemove = null;
+            m_monitoredItemServices.Setup(s => s.SetTriggeringAsync(
+                    It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<uint>>(), It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader?, uint, uint, ArrayOf<uint>, ArrayOf<uint>,
+                    CancellationToken>(
+                    (h, subId, trigId, adds, rems, ct) =>
+                    {
+                        capturedAdd = [.. adds.ToArray() ?? []];
+                        capturedRemove = [.. rems.ToArray() ?? []];
+                    })
+                .ReturnsAsync((RequestHeader? h, uint subId, uint trigId,
+                    ArrayOf<uint> adds, ArrayOf<uint> rems, CancellationToken ct) =>
+                    new SetTriggeringResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        AddResults = Enumerable.Repeat(
+                            (StatusCode)StatusCodes.Good, adds.Count).ToArrayOf(),
+                        RemoveResults = Enumerable.Repeat(
+                            (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
+                    });
+
+            await m_sut.ApplyTriggeringOperationsAsync(default);
+
+            Assert.That(capturedAdd, Is.EquivalentTo(new[] { tgt1.ServerId }));
+            Assert.That(capturedRemove, Is.EquivalentTo(new[] { tgt2.ServerId }));
+        }
+
+        // ----- DesiredTriggeredByNames runtime mutations -----
+
+        [Test]
+        public void AddDesiredTriggeredByIdempotent()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            Assert.That(item.AddDesiredTriggeredByForTest("a"), Is.True);
+            Assert.That(item.AddDesiredTriggeredByForTest("a"), Is.False);
+            Assert.That(item.DesiredTriggeredByNames, Is.EqualTo(new[] { "a" }));
+        }
+
+        [Test]
+        public void AddDesiredTriggeredByThrowsOnNullOrWhitespace()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            Assert.That(() => item.AddDesiredTriggeredByForTest(null!),
+                Throws.ArgumentException);
+            Assert.That(() => item.AddDesiredTriggeredByForTest(""),
+                Throws.ArgumentException);
+            Assert.That(() => item.AddDesiredTriggeredByForTest("   "),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void AddDesiredTriggeredByPreservesInsertionOrder()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            item.AddDesiredTriggeredByForTest("z");
+            item.AddDesiredTriggeredByForTest("a");
+            item.AddDesiredTriggeredByForTest("m");
+            Assert.That(item.DesiredTriggeredByNames,
+                Is.EqualTo(new[] { "z", "a", "m" }));
+        }
+
+        [Test]
+        public void RemoveDesiredTriggeredByReturnsBoolean()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            item.AddDesiredTriggeredByForTest("a");
+            item.AddDesiredTriggeredByForTest("b");
+
+            Assert.That(item.RemoveDesiredTriggeredByForTest("a"), Is.True);
+            Assert.That(item.RemoveDesiredTriggeredByForTest("a"), Is.False);
+            Assert.That(item.RemoveDesiredTriggeredByForTest("missing"), Is.False);
+            Assert.That(item.DesiredTriggeredByNames, Is.EqualTo(new[] { "b" }));
+
+            // Removing the last element drops to empty.
+            Assert.That(item.RemoveDesiredTriggeredByForTest("b"), Is.True);
+            Assert.That(item.DesiredTriggeredByNames, Is.Empty);
+        }
+
+        [Test]
+        public void RemoveDesiredTriggeredByNullOrEmptyReturnsFalse()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            Assert.That(item.RemoveDesiredTriggeredByForTest(null!), Is.False);
+            Assert.That(item.RemoveDesiredTriggeredByForTest(""), Is.False);
+        }
+
+        [Test]
+        public void SetDesiredTriggeredByNamesDeduplicatesPreservesOrder()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            item.SetDesiredTriggeredByNamesForTest(new[] { "x", "y", "x", "z", "y" });
+            Assert.That(item.DesiredTriggeredByNames,
+                Is.EqualTo(new[] { "x", "y", "z" }));
+        }
+
+        [Test]
+        public void SetDesiredTriggeredByNamesNullClearsTheList()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            item.AddDesiredTriggeredByForTest("a");
+            item.SetDesiredTriggeredByNamesForTest(null);
+            Assert.That(item.DesiredTriggeredByNames, Is.Empty);
+        }
+
+        [Test]
+        public void SetDesiredTriggeredByNamesThrowsOnWhitespace()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            Assert.That(() =>
+                item.SetDesiredTriggeredByNamesForTest(new[] { "valid", "  " }),
+                Throws.ArgumentException);
+        }
+
+        // ----- Navigation: TriggeringItems / TriggeredItems -----
+
+        [Test]
+        public void TriggeringItemsResolvesFromDesiredState()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            tgt.AddDesiredTriggeredByForTest("trig");
+
+            List<IMonitoredItem> resolved = [.. tgt.TriggeringItems];
+            Assert.That(resolved, Has.Count.EqualTo(1));
+            Assert.That(resolved[0], Is.SameAs(trig));
+        }
+
+        [Test]
+        public void TriggeringItemsSkipsUnresolvedNames()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            tgt.AddDesiredTriggeredByForTest("trig");
+            tgt.AddDesiredTriggeredByForTest("ghost"); // not in subscription
+
+            List<IMonitoredItem> resolved = [.. tgt.TriggeringItems];
+            Assert.That(resolved, Has.Count.EqualTo(1));
+            Assert.That(resolved[0], Is.SameAs(trig));
+        }
+
+        [Test]
+        public void TriggeredItemsEnumeratesSiblings()
+        {
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt1 = AddCreatedItem("tgt1", 101);
+            TestMonitoredItem tgt2 = AddCreatedItem("tgt2", 102);
+            TestMonitoredItem unrelated = AddCreatedItem("none", 103);
+            tgt1.AddDesiredTriggeredByForTest("trig");
+            tgt2.AddDesiredTriggeredByForTest("trig");
+
+            HashSet<IMonitoredItem> downstream = [.. trig.TriggeredItems];
+            Assert.That(downstream, Is.EquivalentTo(new[] { tgt1, tgt2 }));
+            Assert.That(downstream, Does.Not.Contain(unrelated));
+            Assert.That(downstream, Does.Not.Contain(trig));
+        }
+
+        [Test]
+        public void TriggeringItemsEmptyWhenNoDesiredState()
+        {
+            TestMonitoredItem item = AddCreatedItem("item", 100);
+            Assert.That(item.TriggeringItems, Is.Empty);
+            Assert.That(item.TriggeredItems, Is.Empty);
+        }
+
+        // ----- Reset replay -----
+
+        [Test]
+        public async Task ResetEnqueuesReplayForDesiredTriggersAsync()
+        {
+            // Arrange: a triggered item with a desired triggering link
+            // already established; classes simulate recreate by
+            // resetting the item.
+            TestMonitoredItem trig = AddCreatedItem("trig", 100);
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            tgt.AddDesiredTriggeredByForTest("trig");
+
+            // Act
+            tgt.ResetForTest();
+
+            // The reset clears the server id on the item; restore it
+            // before setting the mock expectation so the captured
+            // server id matches the actual RPC parameters.
+            tgt.SetServerIdForTest(101);
+            ExpectSetTriggering(trig.ServerId,
+                new uint[] { tgt.ServerId },
+                Array.Empty<uint>(),
+                addResults: new[] { (StatusCode)StatusCodes.Good },
+                removeResults: Array.Empty<StatusCode>());
+
+            await m_sut.ApplyTriggeringOperationsAsync(default);
+
+            m_monitoredItemServices.VerifyAll();
+        }
+
+        // ----- Snapshot round-trip with TriggeredByNames -----
+
+        [Test]
+        public void SnapshotCapturesDesiredTriggeredByNames()
+        {
+            TestMonitoredItem tgt = AddCreatedItem("tgt", 101);
+            tgt.AddDesiredTriggeredByForTest("trigA");
+            tgt.AddDesiredTriggeredByForTest("trigB");
+
+            MonitoredItemStateSnapshot snap = tgt.Snapshot();
+            Assert.That(snap.TriggeredByNames.IsNull, Is.False);
+            Assert.That(snap.TriggeredByNames.Count, Is.EqualTo(2));
+            Assert.That(snap.TriggeredByNames.ToArray(),
+                Is.EqualTo(new[] { "trigA", "trigB" }));
+        }
+
+        [Test]
+        public void SnapshotAsOptionsNullTriggeredByNamesProducesEmptyArray()
+        {
+            MonitoredItemStateSnapshot snap = MonitoredItemStateSnapshot.AsOptions(
+                "name",
+                new MonitoredItemOptions { StartNodeId = new NodeId("x", 0) },
+                clientHandle: 1,
+                serverId: 2,
+                triggeredByNames: null);
+            Assert.That(snap.TriggeredByNames.IsNull, Is.False);
+            Assert.That(snap.TriggeredByNames.Count, Is.Zero);
+        }
+
+        [Test]
+        public void SnapshotToOptionsRoundTripsTriggeredByNames()
+        {
+            MonitoredItemStateSnapshot snap = MonitoredItemStateSnapshot.AsOptions(
+                "name",
+                new MonitoredItemOptions
+                {
+                    StartNodeId = new NodeId("x", 0),
+                    TriggeredByNames = ["a", "b"]
+                },
+                clientHandle: 1,
+                serverId: 2,
+                triggeredByNames: ["a", "b"]);
+
+            MonitoredItemOptions options = snap.ToOptions();
+            Assert.That(options.TriggeredByNames,
+                Is.EqualTo(new[] { "a", "b" }));
+        }
+
+        // ----- TryAdd / Update initial-triggering enqueue -----
+
+        [Test]
+        public async Task TryAddInitialTriggeringIsEnqueuedAsync()
+        {
+            // Triggering item: add first.
+            m_sut.TryAdd("trig", OptionsFactory.Create(
+                new MonitoredItemOptions { StartNodeId = new NodeId("trig", 0) }),
+                out IMonitoredItem? trig);
+            ((TestMonitoredItem)trig!).SetServerIdForTest(100);
+
+            // Triggered item: declare TriggeredByNames in initial
+            // options — TryAdd should enqueue an add-delta.
+            m_sut.TryAdd("tgt", OptionsFactory.Create(
+                new MonitoredItemOptions
+                {
+                    StartNodeId = new NodeId("tgt", 0),
+                    TriggeredByNames = ["trig"]
+                }),
+                out IMonitoredItem? tgt);
+            ((TestMonitoredItem)tgt!).SetServerIdForTest(101);
+
+            ExpectSetTriggering(100,
+                new uint[] { 101 },
+                Array.Empty<uint>(),
+                addResults: new[] { (StatusCode)StatusCodes.Good },
+                removeResults: Array.Empty<StatusCode>());
+
+            await m_sut.ApplyTriggeringOperationsAsync(default);
+            m_monitoredItemServices.VerifyAll();
         }
 
         private ITelemetryContext m_telemetry = null!;

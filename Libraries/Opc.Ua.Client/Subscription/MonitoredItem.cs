@@ -629,41 +629,58 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     StatusCodes.BadNodeIdInvalid), true, null);
                 return;
             }
-            // Compute the TriggeredByNames diff against the runtime
-            // DesiredTriggeredByNames (the canonical source of truth)
-            // and enqueue triggering deltas on the manager. This
-            // honours imperative writes that happened between the
-            // last options push and this one: if the imperative API
-            // added a name not in the new options, the diff will
-            // remove it (matching the new declared desire), not
-            // re-add it.
+            // When this is an options-change event (currentOptions is
+            // non-null) compute the diff between the previous and new
+            // options' TriggeredByNames and apply only that delta to
+            // the runtime DesiredTriggeredByNames. Diffing against the
+            // runtime would erase any imperative writes that happened
+            // between the two options pushes; diffing against the
+            // previous options keeps them.
+            //
+            // Initial construction (Options setter wired in ctor) and
+            // Reset (recreate path) both call this with
+            // currentOptions=null. Those paths intentionally skip the
+            // diff: TryAdd enqueues the initial triggering set
+            // explicitly after construction, and Reset replays from
+            // the preserved runtime DesiredTriggeredByNames in its own
+            // block.
             //
             // Validation is performed inline (reject null/empty/
             // whitespace, dedupe ordinal). We do NOT throw here on
             // bad entries — bad entries are reported via the
-            // existing NotifyItemChangeResult path below so callers
-            // can react via the same channel as other options-level
-            // errors.
-            TriggeredByNamesDiff diff = DiffTriggeredByNames(
-                options.TriggeredByNames);
-            if (diff.Error != null)
+            // existing NotifyItemChangeResult path.
+            if (currentOptions != null)
             {
-                Context.NotifyItemChangeResult(this, 0, options,
-                    diff.Error, true, null);
-                return;
-            }
-            // Apply the desired-state mutation under the manager's
-            // implicit ordering guarantees: the field is volatile and
-            // exclusively owned by this item. (The manager lock is
-            // taken downstream when EnqueueTriggeringDelta resolves
-            // names.)
-            if (diff.Add != null || diff.Remove != null)
-            {
-                SetDesiredTriggeredByNames(options.TriggeredByNames);
-                Context.EnqueueTriggeringDelta(
-                    this,
-                    (IReadOnlyList<string>?)diff.Add ?? Array.Empty<string>(),
-                    (IReadOnlyList<string>?)diff.Remove ?? Array.Empty<string>());
+                TriggeredByNamesDiff diff = DiffTriggeredByNames(
+                    options.TriggeredByNames,
+                    currentOptions.TriggeredByNames);
+                if (diff.Error != null)
+                {
+                    Context.NotifyItemChangeResult(this, 0, options,
+                        diff.Error, true, null);
+                    return;
+                }
+                if (diff.Add != null)
+                {
+                    foreach (string name in diff.Add)
+                    {
+                        AddDesiredTriggeredBy(name);
+                    }
+                }
+                if (diff.Remove != null)
+                {
+                    foreach (string name in diff.Remove)
+                    {
+                        RemoveDesiredTriggeredBy(name);
+                    }
+                }
+                if (diff.Add != null || diff.Remove != null)
+                {
+                    Context.EnqueueTriggeringDelta(
+                        this,
+                        (IReadOnlyList<string>?)diff.Add ?? Array.Empty<string>(),
+                        (IReadOnlyList<string>?)diff.Remove ?? Array.Empty<string>());
+                }
             }
 
             m_currentOptions = options;
@@ -682,18 +699,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             ServiceResult? Error);
 
         /// <summary>
-        /// Compute the diff between the current
-        /// <see cref="DesiredTriggeredByNames"/> and the supplied
-        /// (validated) list. Returns the names to add and the names to
-        /// remove as side-by-side lists, or a non-null
-        /// <see cref="ServiceResult"/> describing a validation error
-        /// (reject null/empty/whitespace entries; dedupe ordinal).
+        /// Compute the diff between the previous options'
+        /// <c>TriggeredByNames</c> and the new options'
+        /// <c>TriggeredByNames</c> (both validated against null/empty/
+        /// whitespace and dedup'd ordinal). Returns the names added in
+        /// the new options and removed in the new options as
+        /// side-by-side lists, or a non-null <see cref="ServiceResult"/>
+        /// describing a validation error.
         /// </summary>
-        private TriggeredByNamesDiff DiffTriggeredByNames(
-            IReadOnlyList<string> proposed)
+        private static TriggeredByNamesDiff DiffTriggeredByNames(
+            IReadOnlyList<string> proposed,
+            IReadOnlyList<string> current)
         {
             // Validate + dedupe the proposed set.
-            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var proposedSet = new HashSet<string>(StringComparer.Ordinal);
             var normalized = new List<string>(proposed.Count);
             for (int i = 0; i < proposed.Count; i++)
             {
@@ -706,12 +725,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             "TriggeredByNames must not contain null/empty/" +
                             "whitespace entries."));
                 }
-                if (seen.Add(name))
+                if (proposedSet.Add(name))
                 {
                     normalized.Add(name);
                 }
             }
-            IReadOnlyList<string> current = DesiredTriggeredByNames;
             // Compute added (in normalized, not in current).
             List<string>? addList = null;
             for (int i = 0; i < normalized.Count; i++)
@@ -726,7 +744,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             List<string>? removeList = null;
             for (int i = 0; i < current.Count; i++)
             {
-                if (!seen.Contains(current[i]))
+                if (!proposedSet.Contains(current[i]))
                 {
                     removeList ??= [];
                     removeList.Add(current[i]);
