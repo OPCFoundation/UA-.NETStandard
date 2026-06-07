@@ -136,6 +136,16 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            // TODO: For TrustListUpdated / CrlUpdated we currently
+            // trigger a full reconnect which re-validates the server
+            // certificate against the new trust state on the next
+            // channel open. A cheaper alternative is to re-run
+            // CertificateValidator.ValidateAsync against the cached
+            // remote server cert and ONLY reconnect when the result
+            // changes. Defer to the event-driven certificate
+            // validation workitem (also needed for the "support 500
+            // sessions" use case) so this PR stays minimal.
+
             // Fire and forget — the reconnect serialiser owns its own
             // synchronisation; we just need to kick it off without
             // blocking the certificate-manager dispatcher.
@@ -152,6 +162,19 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                // Concurrency note:
+                //   * Session.ReloadInstanceCertificateAsync takes the
+                //     same m_reconnectLock used by ReconnectAsync, so
+                //     it serialises behind any in-flight reconnect /
+                //     activate and the reload completes before the next
+                //     reconnect starts.
+                //   * StateMachine.TriggerReconnect locks the state-
+                //     machine lock and is idempotent if the connection
+                //     is already in the Reconnecting state.
+                // The worst case is one extra reconnect attempt after a
+                // racy ApplicationCertificateUpdated event, which is
+                // benign — the next attempt picks up the new cert.
+                //
                 // For own-certificate rotations, the inner session must
                 // re-load its private key from the registry BEFORE the
                 // reconnect so the new ActivateSession is signed with
