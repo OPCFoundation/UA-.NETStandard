@@ -283,7 +283,7 @@ namespace Alarms
 
                 AlarmHolder acknowledgeableCondition = new AcknowledgeableConditionHolder(
                     this,
-                    alarmsFolder,
+                    analogTrigger,
                     analogSourceController,
                     intervalString,
                     GetSupportedAlarmConditionType(ref conditionTypeIndex),
