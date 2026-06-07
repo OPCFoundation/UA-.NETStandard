@@ -430,5 +430,210 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(await keepAliveCompleted.Task.ConfigureAwait(false), Is.EqualTo(testData.ExpectedPublishState));
         }
+
+        /// <summary>
+        /// Regression coverage for OPCFoundation/UA-.NETStandard#3540. When
+        /// <see cref="SubscriptionRecoveryPolicy.ReportOnly"/> is in effect
+        /// (default) and an unsolicited <c>Good_SubscriptionTransferred</c>
+        /// arrives, the subscription must remain on its original server-side
+        /// identifier — no recreate is attempted — preserving the
+        /// spec-strict, backwards-compatible behaviour. The
+        /// <c>Transferred</c> publish-state flag is raised so listeners
+        /// can still react.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task ReportOnlyPolicyDoesNotRecreateOnUnsolicitedTransferAsync(CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(2);
+            using SubscriptionContainer container = await BuildSubscriptionAsync(
+                messages, sequentialPublishing: false, ct).ConfigureAwait(false);
+            Subscription subscription = container.Subscription;
+            uint originalId = subscription.Id;
+
+            Assert.That(originalId, Is.GreaterThan(0u));
+            Assert.That(subscription.RecoveryPolicy,
+                Is.EqualTo(SubscriptionRecoveryPolicy.ReportOnly),
+                "ReportOnly must be the spec-strict default to preserve backwards compatibility.");
+
+            PublishStateChangedMask observedMask = PublishStateChangedMask.None;
+            var observed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            subscription.PublishStatusChanged += (_, args) =>
+            {
+                if ((args.Status & PublishStateChangedMask.Transferred) != 0)
+                {
+                    observedMask = args.Status;
+                    observed.TrySetResult(true);
+                }
+            };
+
+            subscription.SaveMessageInCache(default, BuildStatusChangeMessage(
+                sequenceNumber: 1, StatusCodes.GoodSubscriptionTransferred));
+
+            await Task.WhenAny(observed.Task, Task.Delay(2000, ct)).ConfigureAwait(false);
+
+            Assert.That(observed.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion),
+                "Transferred publish-state flag was never raised.");
+            Assert.That(observedMask & PublishStateChangedMask.Transferred,
+                Is.EqualTo(PublishStateChangedMask.Transferred));
+            Assert.That(subscription.Id, Is.EqualTo(originalId),
+                "ReportOnly must not recreate the subscription on the server.");
+        }
+
+        /// <summary>
+        /// Regression coverage for OPCFoundation/UA-.NETStandard#3540. With
+        /// <see cref="SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer"/>
+        /// enabled, an unsolicited <c>Good_SubscriptionTransferred</c> must
+        /// drive an in-place recreate against the same session and the
+        /// subscription must end up with a fresh server-side identifier.
+        /// This is the "I just want my data back" path that fixes the
+        /// Kepware-after-reinitialise symptom reported in the issue.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task RecreatePolicyRecreatesSubscriptionOnUnsolicitedTransferAsync(CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(2);
+            using SubscriptionContainer container = await BuildSubscriptionAsync(
+                messages, sequentialPublishing: false, ct).ConfigureAwait(false);
+            Subscription subscription = container.Subscription;
+            uint originalId = subscription.Id;
+
+            Assert.That(originalId, Is.GreaterThan(0u));
+
+            subscription.RecoveryPolicy = SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer;
+
+            subscription.SaveMessageInCache(default, BuildStatusChangeMessage(
+                sequenceNumber: 1, StatusCodes.GoodSubscriptionTransferred));
+
+            // Recovery runs on a background Task — poll for Id change.
+            await WaitForAsync(
+                () => subscription.Id != 0 && subscription.Id != originalId,
+                TimeSpan.FromSeconds(3),
+                ct).ConfigureAwait(false);
+
+            Assert.That(subscription.Id, Is.Not.EqualTo(originalId),
+                "Recovery must assign a fresh server-side subscription id.");
+            Assert.That(subscription.Id, Is.Not.Zero,
+                "Subscription must end up Created after recovery.");
+        }
+
+        /// <summary>
+        /// Multiple unsolicited Good_SubscriptionTransferred dispatches must
+        /// collapse into a single recovery attempt — guarded by the
+        /// <c>m_recreateAfterTransferInProgress</c> flag.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task RecreatePolicyCollapsesConcurrentNotificationsAsync(CancellationToken ct)
+        {
+            NotificationMessage[] messages = BuildMessages(2);
+            using SubscriptionContainer container = await BuildSubscriptionAsync(
+                messages, sequentialPublishing: false, ct).ConfigureAwait(false);
+            Subscription subscription = container.Subscription;
+            uint originalId = subscription.Id;
+
+            subscription.RecoveryPolicy = SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer;
+
+            // Stack multiple status notifications back-to-back. Only the
+            // first should drive a recreate; the rest hit the idempotency
+            // guard and become no-ops.
+            for (uint i = 1; i <= 3; i++)
+            {
+                subscription.SaveMessageInCache(default, BuildStatusChangeMessage(
+                    sequenceNumber: i, StatusCodes.GoodSubscriptionTransferred));
+            }
+
+            await WaitForAsync(
+                () => subscription.Id != 0 && subscription.Id != originalId,
+                TimeSpan.FromSeconds(3),
+                ct).ConfigureAwait(false);
+
+            uint afterFirstRecovery = subscription.Id;
+
+            // Give late recovery tasks a chance to run; assert nothing
+            // else triggered.
+            await Task.Delay(300, ct).ConfigureAwait(false);
+
+            Assert.That(subscription.Id, Is.EqualTo(afterFirstRecovery),
+                "Idempotency guard must prevent duplicate recreates from the burst.");
+        }
+
+        /// <summary>
+        /// When the owning session reports itself as reconnecting the
+        /// discriminator must classify the notification as solicited and
+        /// fall back to the spec-strict ReportOnly path even if the
+        /// caller asked for auto-recreate. Avoids fighting the reconnect
+        /// pipeline that may itself be running TransferSubscriptions.
+        /// </summary>
+        [Test]
+        [CancelAfter(5000)]
+        public async Task RecreatePolicyDoesNotRecreateWhileSessionReconnectingAsync(CancellationToken ct)
+        {
+            uint subscriptionIdSeed = 0;
+            var session = new Mock<ISession>();
+            session.Setup(x => x.Connected).Returns(true);
+            session.Setup(x => x.Reconnecting).Returns(true);
+            session
+                .Setup(x => x.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new CreateSubscriptionResponse
+                {
+                    SubscriptionId = ++subscriptionIdSeed
+                });
+
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = false, MaxMessageCount = 4 })
+            {
+                Session = session.Object,
+                RecoveryPolicy = SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            uint originalId = subscription.Id;
+            Assert.That(originalId, Is.GreaterThan(0u));
+
+            subscription.SaveMessageInCache(default, BuildStatusChangeMessage(
+                sequenceNumber: 1, StatusCodes.GoodSubscriptionTransferred));
+
+            // Allow the dispatch loop to observe the notification.
+            await Task.Delay(500, ct).ConfigureAwait(false);
+
+            Assert.That(subscription.Id, Is.EqualTo(originalId),
+                "Reconnecting session must keep the spec-strict path.");
+        }
+
+        private static NotificationMessage BuildStatusChangeMessage(
+            uint sequenceNumber, StatusCode status)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData =
+                [
+                    new ExtensionObject(new StatusChangeNotification
+                    {
+                        Status = status
+                    })
+                ]
+            };
+        }
+
+        private static async Task WaitForAsync(
+            Func<bool> predicate, TimeSpan timeout, CancellationToken ct)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (!predicate() && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(25, ct).ConfigureAwait(false);
+            }
+        }
     }
 }

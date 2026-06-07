@@ -91,5 +91,20 @@ namespace Opc.Ua.Client.Subscriptions
         /// expects for failover-on-recreate.
         /// </summary>
         public bool SendInitialValuesOnTransfer { get; init; }
+
+        /// <summary>
+        /// Controls how the client reacts to an unsolicited
+        /// <c>Good_SubscriptionTransferred</c> StatusChangeNotification
+        /// from the server. Defaults to
+        /// <see cref="SubscriptionRecoveryPolicy.ReportOnly"/> which
+        /// matches the spec-strict behaviour (OPC UA Part 4 §5.14.7).
+        /// Set to
+        /// <see cref="SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer"/>
+        /// to automatically recreate the subscription on the same
+        /// session when the notification arrives without the client
+        /// having initiated a TransferSubscriptions request — this
+        /// addresses server quirks that leave subscriptions stuck.
+        /// </summary>
+        public SubscriptionRecoveryPolicy RecoveryPolicy { get; init; }
     }
 }
