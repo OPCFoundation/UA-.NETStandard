@@ -38,10 +38,10 @@ using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua;
-using Opc.Ua.Diagnostics.Pcap.Capture;
-using Opc.Ua.Diagnostics.Pcap.Capture.Sources;
-using Opc.Ua.Diagnostics.Pcap.Formats;
-using Opc.Ua.Diagnostics.Pcap.Models;
+using Opc.Ua.Bindings.Pcap.Capture;
+using Opc.Ua.Bindings.Pcap.Capture.Sources;
+using Opc.Ua.Bindings.Pcap.Formats;
+using Opc.Ua.Bindings.Pcap.Models;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -90,16 +90,11 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentNullException.ThrowIfNull(sessions);
             ArgumentNullException.ThrowIfNull(request);
 
+            // Every ITransportChannel created via ClientChannelManager is
+            // already capture-enabled by the Opc.Ua.Bindings.Pcap binding,
+            // so starting the session here is the only step needed to flip
+            // recording on for both existing and future channels.
             CaptureSession session = await manager.StartAsync(request, ct).ConfigureAwait(false);
-            if (request.Source == CaptureSourceKind.InProcessClient &&
-                session.Source is InProcessClientCaptureSource source)
-            {
-                foreach (ITransportChannel channel in sessions.GetActiveTransportChannels())
-                {
-                    source.AttachClientChannel(channel);
-                }
-            }
-
             return session.ToInfo();
         }
 
@@ -191,15 +186,10 @@ namespace Opc.Ua.Mcp.Tools
             CaptureSession? session = null;
             try
             {
+                // The decorator binding takes care of wrapping every
+                // channel; we just need to start the session to publish
+                // ourselves as the active observer.
                 session = await manager.StartAsync(request.Start, ct).ConfigureAwait(false);
-                if (request.Start.Source == CaptureSourceKind.InProcessClient &&
-                    session.Source is InProcessClientCaptureSource source)
-                {
-                    foreach (ITransportChannel channel in sessions.GetActiveTransportChannels())
-                    {
-                        source.AttachClientChannel(channel);
-                    }
-                }
 
                 int durationSeconds = Math.Clamp(request.DurationSeconds, 0, 60);
                 await Task.Delay(TimeSpan.FromSeconds(durationSeconds), ct).ConfigureAwait(false);

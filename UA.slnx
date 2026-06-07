@@ -131,7 +131,7 @@
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
-    <Project Path="Stack/Opc.Ua.Diagnostics.Pcap/Opc.Ua.Diagnostics.Pcap.csproj" />
+    <Project Path="Stack/Opc.Ua.Bindings.Pcap/Opc.Ua.Bindings.Pcap.csproj" />
     <Project Path="Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
@@ -143,7 +143,7 @@
     <Project Path="Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
-    <Project Path="Tests/Opc.Ua.Diagnostics.Pcap.Tests/Opc.Ua.Diagnostics.Pcap.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Bindings.Pcap.Tests/Opc.Ua.Bindings.Pcap.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />

@@ -41,12 +41,12 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua;
 using Opc.Ua.Bindings;
-using Opc.Ua.Diagnostics.Pcap.Capture;
-using Opc.Ua.Diagnostics.Pcap.Capture.Sources;
-using Opc.Ua.Diagnostics.Pcap.Dissection;
-using Opc.Ua.Diagnostics.Pcap.Formats;
-using Opc.Ua.Diagnostics.Pcap.KeyLog;
-using Opc.Ua.Diagnostics.Pcap.Models;
+using Opc.Ua.Bindings.Pcap.Capture;
+using Opc.Ua.Bindings.Pcap.Capture.Sources;
+using Opc.Ua.Bindings.Pcap.Dissection;
+using Opc.Ua.Bindings.Pcap.Formats;
+using Opc.Ua.Bindings.Pcap.KeyLog;
+using Opc.Ua.Bindings.Pcap.Models;
 
 namespace Opc.Ua.Mcp.Tools
 {

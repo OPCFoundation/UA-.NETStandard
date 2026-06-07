@@ -325,35 +325,6 @@ namespace Opc.Ua.Bindings
         public byte[]? ServerChannelCertificate { get; protected set; }
 
         /// <summary>
-        /// Opt-in tap that receives the raw wire-level chunks the channel
-        /// sends and receives.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Defaults to <c>null</c> and stays out of the hot path until set.
-        /// When non-null, the channel calls
-        /// <see cref="IFrameCaptureSink.OnFrameSent"/> exactly once per
-        /// outgoing chunk just before it is handed to the socket and
-        /// <see cref="IFrameCaptureSink.OnFrameReceived"/> exactly once per
-        /// incoming chunk just before it is dispatched to the message
-        /// handler. Exceptions thrown by the sink are caught and logged so
-        /// a misbehaving observer cannot break the channel.
-        /// </para>
-        /// <para>
-        /// The bytes passed to the sink are exactly the bytes that travel
-        /// on the wire (after any asymmetric or symmetric encryption /
-        /// signing performed by this channel). Combined with the
-        /// <see cref="ChannelToken"/> snapshots delivered through
-        /// <see cref="ISecureChannel.OnTokenActivated"/> (client) or
-        /// <see cref="TcpListenerChannel.OnTokenActivated"/> (server) the
-        /// bytes are sufficient to drive an offline reader through
-        /// <see cref="ReadSymmetricMessage"/> /
-        /// <see cref="ReadAsymmetricMessage"/>.
-        /// </para>
-        /// </remarks>
-        public IFrameCaptureSink? FrameCaptureSink { get; set; }
-
-        /// <summary>
         /// Raised when the state of the channel changes.
         /// </summary>
         public void SetStateChangedCallback(TcpChannelStateEventHandler callback)
@@ -567,8 +538,6 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                NotifyFrameCaptureSink(direction: FrameCaptureDirection.Inbound, message);
-
                 uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
                 if (!HandleIncomingMessage(messageType, message))
@@ -693,8 +662,6 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadConnectionClosed,
                     "The socket was closed by the remote application.");
 
-            NotifyFrameCaptureSink(direction: FrameCaptureDirection.Outbound, buffer);
-
             try
             {
                 Interlocked.Increment(ref m_activeWriteRequests);
@@ -742,8 +709,6 @@ namespace Opc.Ua.Bindings
             try
             {
                 // m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
-
-                NotifyFrameCaptureSink(direction: FrameCaptureDirection.Outbound, buffers);
 
                 Interlocked.Increment(ref m_activeWriteRequests);
                 args.BufferList = buffers;
@@ -904,69 +869,6 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageSize & 0x0000FF00) >> 8);
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
             buffer[offset] = (byte)((messageSize & 0xFF000000) >> 24);
-        }
-
-        /// <summary>
-        /// Forwards a single wire-level chunk to the configured
-        /// <see cref="FrameCaptureSink"/>, swallowing observer exceptions
-        /// so a misbehaving sink cannot break the channel.
-        /// </summary>
-        private void NotifyFrameCaptureSink(
-            FrameCaptureDirection direction,
-            ArraySegment<byte> chunk)
-        {
-            IFrameCaptureSink? sink = FrameCaptureSink;
-            if (sink is null || chunk.Count == 0)
-            {
-                return;
-            }
-
-            byte[]? array = chunk.Array;
-            if (array is null)
-            {
-                return;
-            }
-
-            try
-            {
-                var span = new ReadOnlySpan<byte>(array, chunk.Offset, chunk.Count);
-                if (direction == FrameCaptureDirection.Outbound)
-                {
-                    sink.OnFrameSent(Id, span);
-                }
-                else
-                {
-                    sink.OnFrameReceived(Id, span);
-                }
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogWarning(
-                    ex,
-                    "ChannelId {ChannelId}: FrameCaptureSink threw on {Direction} chunk.",
-                    Id,
-                    direction);
-            }
-        }
-
-        /// <summary>
-        /// Forwards each chunk in a <see cref="BufferCollection"/> to the
-        /// configured <see cref="FrameCaptureSink"/>.
-        /// </summary>
-        private void NotifyFrameCaptureSink(
-            FrameCaptureDirection direction,
-            BufferCollection chunks)
-        {
-            IFrameCaptureSink? sink = FrameCaptureSink;
-            if (sink is null || chunks.Count == 0)
-            {
-                return;
-            }
-
-            for (int i = 0; i < chunks.Count; i++)
-            {
-                NotifyFrameCaptureSink(direction, chunks[i]);
-            }
         }
 
         /// <summary>

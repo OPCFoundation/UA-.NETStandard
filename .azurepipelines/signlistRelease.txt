@@ -114,5 +114,5 @@ Libraries\Opc.Ua.Di.Server\bin\Release\net48\Opc.Ua.Di.Server.dll
 Libraries\Opc.Ua.Di.Server\bin\Release\net8.0\Opc.Ua.Di.Server.dll
 Libraries\Opc.Ua.Di.Server\bin\Release\net9.0\Opc.Ua.Di.Server.dll
 Libraries\Opc.Ua.Di.Server\bin\Release\net10.0\Opc.Ua.Di.Server.dll
-Stack\Opc.Ua.Diagnostics.Pcap\bin\Release\net10.0\Opc.Ua.Diagnostics.Pcap.dll
+Stack\Opc.Ua.Bindings.Pcap\bin\Release\net10.0\Opc.Ua.Bindings.Pcap.dll
 Applications\McpServer\bin\Release\net10.0\Opc.Ua.Mcp.dll

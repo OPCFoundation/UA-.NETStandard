@@ -35,9 +35,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
-using Opc.Ua.Diagnostics.Pcap.Capture;
-using Opc.Ua.Diagnostics.Pcap.Models;
-using Opc.Ua.Diagnostics.Pcap.Replay;
+using Opc.Ua.Bindings.Pcap.Capture;
+using Opc.Ua.Bindings.Pcap.Models;
+using Opc.Ua.Bindings.Pcap.Replay;
 
 namespace Opc.Ua.Mcp.Tools
 {

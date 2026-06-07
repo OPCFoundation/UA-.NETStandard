@@ -1,6 +1,6 @@
 # OPC UA Packet Capture, Dissection, and Replay
 
-The OPC UA packet-capture feature records UA traffic, stores the secure-channel keys needed for offline decoding, reconstructs service calls, and replays captured conversations. The reusable engine ships as `OPCFoundation.NetStandard.Opc.Ua.Diagnostics.Pcap`; the OPC UA MCP server exposes it as capture, decode, and replay tools. Decoding follows OPC UA Part 6 secure conversation framing and reuses the stack `UaSCUaBinaryChannel` path instead of reimplementing cryptography.
+The OPC UA packet-capture feature records UA traffic, stores the secure-channel keys needed for offline decoding, reconstructs service calls, and replays captured conversations. The reusable engine ships as `OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap`; the OPC UA MCP server exposes it as capture, decode, and replay tools. Decoding follows OPC UA Part 6 secure conversation framing and reuses the stack `UaSCUaBinaryChannel` path instead of reimplementing cryptography.
 
 ## When to use it
 
@@ -36,7 +36,7 @@ graph TD
 ## Quick start: in-process client capture
 
 ```csharp
-services.AddOpcUaDiagnosticsPcap();
+services.AddOpcUaBindingsPcap();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -60,7 +60,7 @@ var bytes = await manager.GetCaptureAsync(
 ## Quick start: replay and decode an existing pcap
 
 ```csharp
-services.AddOpcUaDiagnosticsPcap();
+services.AddOpcUaBindingsPcap();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 
@@ -81,7 +81,7 @@ var timeline = await manager.GetCaptureAsync(
 ## Quick start: mock-server replay
 
 ```csharp
-services.AddOpcUaDiagnosticsPcap();
+services.AddOpcUaBindingsPcap();
 
 CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
 

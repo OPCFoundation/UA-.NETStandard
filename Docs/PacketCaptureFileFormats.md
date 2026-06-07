@@ -1,6 +1,6 @@
 # OPC UA Packet Capture File Formats
 
-This document defines the keylog and pcap conventions used by `OPCFoundation.NetStandard.Opc.Ua.Diagnostics.Pcap`.
+This document defines the keylog and pcap conventions used by `OPCFoundation.NetStandard.Opc.Ua.Bindings.Pcap`.
 
 ## `.uakeys.json` format
 
