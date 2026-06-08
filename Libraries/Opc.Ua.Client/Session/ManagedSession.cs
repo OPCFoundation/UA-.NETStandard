@@ -1482,6 +1482,7 @@ namespace Opc.Ua.Client
 
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
             UnsubscribeCertificateChanges();
+            await StopRevalidationLoopAsync().ConfigureAwait(false);
 
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work

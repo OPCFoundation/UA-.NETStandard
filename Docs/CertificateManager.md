@@ -173,31 +173,48 @@ applications that want to implement custom rotation policies.
 
 By default
 (`ManagedSession.DisableAutoReconnectOnCertificateChange` is `false`),
-the managed session ALSO automatically reconnects on
-`ApplicationCertificateUpdated`:
+the managed session ALSO automatically reacts:
 
-- Calls `Session.ReloadInstanceCertificateAsync` (so the next
-  ActivateSession is signed with the rotated client cert).
-- Triggers a reconnect via the state machine, so the new client cert
-  takes effect within milliseconds rather than at the next
-  `SecurityTokenLifetime` rekey (Part 4 §5.5.2).
+- **`ApplicationCertificateUpdated`** — calls
+  `Session.ReloadInstanceCertificateAsync` (so the next ActivateSession
+  is signed with the rotated client cert) and triggers a reconnect via
+  the state machine. The new client cert takes effect within
+  milliseconds rather than at the next `SecurityTokenLifetime` rekey
+  (Part 4 §5.5.2).
+- **`TrustListUpdated` / `CrlUpdated`** — wakes a long-lived
+  per-session revalidation loop that:
+  1. Debounces a burst of events (250 ms window) on the injected
+     `TimeProvider`. A batch trust-list refresh or a fleet onboarding
+     that publishes dozens of events in a few milliseconds collapses
+     to a single validation on the final state.
+  2. Re-runs
+     `ICertificateValidatorEx.ValidateAsync(serverCert)` against the
+     server certificate currently cached on the configured endpoint.
+     There is exactly **one** validation in flight per session — the
+     loop's single-reader semantics serialise the work and signals
+     that arrive during a validation re-arm the next iteration so the
+     final trust state is always honoured exactly once after the burst
+     settles.
+  3. Calls `StateMachine.TriggerReconnect()` **only when the result
+     flips from valid to invalid** — sessions whose server cert is
+     still trusted under the new state stay connected. This keeps a
+     new server being onboarded into a shared client/server fleet
+     from forcing every session in the process to reconnect.
 
-**`TrustListUpdated` and `CrlUpdated` do NOT trigger an automatic
-reconnect.** Reconnecting every session in the process whenever a new
-server is onboarded into a shared client/server fleet, or whenever a
-batch trust-list refresh runs, is too aggressive — the server
-certificate may still be perfectly valid against the new trust state.
-Applications that want to honour trust / CRL changes immediately
-should subscribe to `ApplicationCertificateChanged` and call
-`ISession.ReconnectAsync` themselves after evaluating whether the
-cached server certificate still validates. (Event-driven server-cert
-revalidation that automates this safely is tracked as a follow-up,
-also needed for the "support 500 sessions" use case.)
+The revalidation loop is implemented in
+`Libraries/Opc.Ua.Client/Session/ManagedSession.CertificateChanges.cs`.
+It uses a bounded `Channel<int>` of capacity 1 with
+`BoundedChannelFullMode.DropWrite` so the notifier thread never
+allocates a `Task` or `CancellationTokenSource` per event — duplicate
+signals collapse into the pending one. The loop pattern mirrors
+`RunIdentityRefreshLoopAsync` in `ManagedSession.cs` (single Task per
+session, started in `SubscribeCertificateChanges`, cancelled +
+awaited in `StopRevalidationLoopAsync` from `DisposeAsync`).
 
 ```csharp
 using var managed = await ManagedSession.CreateAsync(
     configuration, endpoint, sessionFactory);
-// Auto-reconnect on own-cert rotation is on by default.
+// Auto-reconnect on cert/trust/CRL changes is on by default.
 // Opt out by setting DisableAutoReconnectOnCertificateChange = true.
 
 managed.ApplicationCertificateChanged += (sender, e) =>
