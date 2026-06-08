@@ -215,25 +215,39 @@ namespace Opc.Ua.Bindings.Pcap.Frame
             Data = data;
         }
 
-        /// <summary>Chunk timestamp.</summary>
+        /// <summary>
+        /// Chunk timestamp.
+        /// </summary>
         public DateTimeOffset Timestamp { get; }
 
-        /// <summary>TCP flow key.</summary>
+        /// <summary>
+        /// TCP flow key.
+        /// </summary>
         public string FlowKey { get; }
 
-        /// <summary>Source endpoint.</summary>
+        /// <summary>
+        /// Source endpoint.
+        /// </summary>
         public string SourceEndpoint { get; }
 
-        /// <summary>Destination endpoint.</summary>
+        /// <summary>
+        /// Destination endpoint.
+        /// </summary>
         public string DestinationEndpoint { get; }
 
-        /// <summary>OPC UA TCP message type.</summary>
+        /// <summary>
+        /// OPC UA TCP message type.
+        /// </summary>
         public uint MessageType { get; }
 
-        /// <summary>Whether this chunk appears to flow from client to server.</summary>
+        /// <summary>
+        /// Whether this chunk appears to flow from client to server.
+        /// </summary>
         public bool IsClientToServer { get; }
 
-        /// <summary>Full chunk bytes including the 8-byte UA-SC header.</summary>
+        /// <summary>
+        /// Full chunk bytes including the 8-byte UA-SC header.
+        /// </summary>
         public ReadOnlyMemory<byte> Data { get; }
 
         /// <inheritdoc/>

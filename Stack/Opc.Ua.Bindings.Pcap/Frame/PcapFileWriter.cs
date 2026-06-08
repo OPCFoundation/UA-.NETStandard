@@ -41,16 +41,24 @@ namespace Opc.Ua.Bindings.Pcap.Frame
     /// </summary>
     public sealed class PcapFileWriter : IAsyncDisposable
     {
-        /// <summary>BSD loopback link type.</summary>
+        /// <summary>
+        /// BSD loopback link type.
+        /// </summary>
         public const uint LinkTypeNull = 0;
 
-        /// <summary>Ethernet link type.</summary>
+        /// <summary>
+        /// Ethernet link type.
+        /// </summary>
         public const uint LinkTypeEthernet = 1;
 
-        /// <summary>Raw IPv4 link type.</summary>
+        /// <summary>
+        /// Raw IPv4 link type.
+        /// </summary>
         public const uint LinkTypeRaw = 101;
 
-        /// <summary>IPv4 link type.</summary>
+        /// <summary>
+        /// IPv4 link type.
+        /// </summary>
         public const uint LinkTypeIPv4 = 228;
 
         /// <summary>

@@ -264,28 +264,44 @@ namespace Opc.Ua.Bindings.Pcap.Frame
             IsSyn = isSyn;
         }
 
-        /// <summary>Unidirectional flow key.</summary>
+        /// <summary>
+        /// Unidirectional flow key.
+        /// </summary>
         public string FlowKey { get; }
 
-        /// <summary>Source endpoint.</summary>
+        /// <summary>
+        /// Source endpoint.
+        /// </summary>
         public string SourceEndpoint { get; }
 
-        /// <summary>Destination endpoint.</summary>
+        /// <summary>
+        /// Destination endpoint.
+        /// </summary>
         public string DestinationEndpoint { get; }
 
-        /// <summary>TCP sequence number.</summary>
+        /// <summary>
+        /// TCP sequence number.
+        /// </summary>
         public uint SequenceNumber { get; }
 
-        /// <summary>Segment timestamp.</summary>
+        /// <summary>
+        /// Segment timestamp.
+        /// </summary>
         public DateTimeOffset Timestamp { get; }
 
-        /// <summary>TCP payload bytes.</summary>
+        /// <summary>
+        /// TCP payload bytes.
+        /// </summary>
         public ReadOnlyMemory<byte> Data { get; }
 
-        /// <summary>Whether FIN was set.</summary>
+        /// <summary>
+        /// Whether FIN was set.
+        /// </summary>
         public bool IsFin { get; }
 
-        /// <summary>Whether SYN was set.</summary>
+        /// <summary>
+        /// Whether SYN was set.
+        /// </summary>
         public bool IsSyn { get; }
 
         /// <inheritdoc/>

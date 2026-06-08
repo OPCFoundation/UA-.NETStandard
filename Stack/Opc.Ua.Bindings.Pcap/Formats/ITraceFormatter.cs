@@ -72,16 +72,24 @@ namespace Opc.Ua.Bindings.Pcap.Formats
     /// </summary>
     public sealed class FormatResult
     {
-        /// <summary>The format produced.</summary>
+        /// <summary>
+        /// The format produced.
+        /// </summary>
         public required FormatKind Kind { get; init; }
 
-        /// <summary>The MIME type.</summary>
+        /// <summary>
+        /// The MIME type.
+        /// </summary>
         public required string MimeType { get; init; }
 
-        /// <summary>The output bytes.</summary>
+        /// <summary>
+        /// The output bytes.
+        /// </summary>
         public required byte[] Bytes { get; init; }
 
-        /// <summary>Number of frames included in the output.</summary>
+        /// <summary>
+        /// Number of frames included in the output.
+        /// </summary>
         public long FramesFormatted { get; init; }
     }
 

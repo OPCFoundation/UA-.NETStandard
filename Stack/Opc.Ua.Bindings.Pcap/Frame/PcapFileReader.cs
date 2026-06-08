@@ -54,16 +54,24 @@ namespace Opc.Ua.Bindings.Pcap.Frame
             Data = data;
         }
 
-        /// <summary>Packet timestamp.</summary>
+        /// <summary>
+        /// Packet timestamp.
+        /// </summary>
         public DateTimeOffset Timestamp { get; }
 
-        /// <summary>Link type from the global header.</summary>
+        /// <summary>
+        /// Link type from the global header.
+        /// </summary>
         public uint LinkType { get; }
 
-        /// <summary>Original packet length.</summary>
+        /// <summary>
+        /// Original packet length.
+        /// </summary>
         public int OriginalLength { get; }
 
-        /// <summary>Captured packet bytes.</summary>
+        /// <summary>
+        /// Captured packet bytes.
+        /// </summary>
         public ReadOnlyMemory<byte> Data { get; }
 
         /// <inheritdoc/>

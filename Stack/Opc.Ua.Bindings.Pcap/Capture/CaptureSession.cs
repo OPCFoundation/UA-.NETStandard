@@ -79,31 +79,49 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             m_logger = logger ?? NullLogger.Instance;
         }
 
-        /// <summary>Session id (unique within a session manager).</summary>
+        /// <summary>
+        /// Session id (unique within a session manager).
+        /// </summary>
         public string Id { get; }
 
-        /// <summary>The kind of source.</summary>
+        /// <summary>
+        /// The kind of source.
+        /// </summary>
         public CaptureSourceKind SourceKind { get; }
 
-        /// <summary>The underlying capture source.</summary>
+        /// <summary>
+        /// The underlying capture source.
+        /// </summary>
         public ICaptureSource Source { get; }
 
-        /// <summary>The folder under which session artifacts are written.</summary>
+        /// <summary>
+        /// The folder under which session artifacts are written.
+        /// </summary>
         public string SessionFolder { get; }
 
-        /// <summary>The request that started this session.</summary>
+        /// <summary>
+        /// The request that started this session.
+        /// </summary>
         public StartCaptureRequest Request { get; }
 
-        /// <summary>Current state. Mutated only by Start/Stop/Dispose.</summary>
+        /// <summary>
+        /// Current state. Mutated only by Start/Stop/Dispose.
+        /// </summary>
         public CaptureSessionState State { get; private set; } = CaptureSessionState.Starting;
 
-        /// <summary>UTC timestamp the session entered Running.</summary>
+        /// <summary>
+        /// UTC timestamp the session entered Running.
+        /// </summary>
         public DateTimeOffset? StartedAt { get; private set; }
 
-        /// <summary>UTC timestamp the session stopped.</summary>
+        /// <summary>
+        /// UTC timestamp the session stopped.
+        /// </summary>
         public DateTimeOffset? StoppedAt { get; private set; }
 
-        /// <summary>Failure message (if state is Failed).</summary>
+        /// <summary>
+        /// Failure message (if state is Failed).
+        /// </summary>
         public string? Error { get; private set; }
 
         /// <summary>
