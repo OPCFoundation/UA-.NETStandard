@@ -34,7 +34,8 @@ using Opc.Ua;
 
 namespace Alarms
 {
-    // Ignore all Optionals for Confirm, as it should be supported.  For this object, that means remove all Optional conditions
+    // Ignore all optionals for Confirm, as it should be supported.
+    // For this object, that means remove all optional conditions.
 
     public abstract class AcknowledgeableConditionTypeHolder : ConditionTypeHolder
     {
@@ -78,10 +79,19 @@ namespace Alarms
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name);
 
+            EnsureTransitionTime(alarm.AckedState!);
+            if (alarm.ConfirmedState != null)
+            {
+                EnsureTransitionTime(alarm.ConfirmedState);
+            }
+
             alarm.SetAcknowledgedState(SystemContext, acknowledged: true);
 
-            alarm.SetConfirmedState(SystemContext, confirmed: true);
-            alarm.OnConfirm = OnConfirm;
+            if (alarm.ConfirmedState != null)
+            {
+                alarm.SetConfirmedState(SystemContext, confirmed: true);
+                alarm.OnConfirm = OnConfirm;
+            }
 
             alarm.Retain!.Value = GetRetainState();
             alarm.AutoReportStateChanges = true;
@@ -91,10 +101,11 @@ namespace Alarms
         {
             alarm.OnAcknowledge = OnAcknowledge;
 
-            // Create any optional
-            alarm.ConfirmedState ??= new TwoStateVariableState(alarm);
-
-            alarm.Confirm = new AddCommentMethodState(alarm);
+            if (Optional)
+            {
+                alarm.ConfirmedState ??= new TwoStateVariableState(alarm);
+                alarm.Confirm = new AddCommentMethodState(alarm);
+            }
         }
 
         public override void SetValue(string message = "")
@@ -109,6 +120,10 @@ namespace Alarms
                 {
                     Log("AcknowledgeableConditionTypeHolder", "Setting Acked State to false");
                     alarm.SetAcknowledgedState(SystemContext, acknowledged: false);
+                    if (alarm.SupportsConfirm())
+                    {
+                        alarm.SetConfirmedState(SystemContext, confirmed: false);
+                    }
                     alarm.Retain!.Value = true;
                 }
                 else
@@ -128,7 +143,8 @@ namespace Alarms
             AcknowledgeableConditionState alarm = GetAlarm();
 
             bool retainState = true;
-            if (alarm.AckedState!.Id!.Value && alarm.ConfirmedState!.Id!.Value)
+            if (alarm.AckedState!.Id!.Value &&
+                (!alarm.SupportsConfirm() || alarm.ConfirmedState!.Id!.Value))
             {
                 retainState = false;
             }
@@ -197,6 +213,11 @@ namespace Alarms
                 alarm.SetConfirmedState(SystemContext, confirmed: false);
             }
 
+            if (CanSetComment(comment))
+            {
+                alarm.SetComment(SystemContext, comment, context?.UserId ?? string.Empty);
+            }
+
             m_alarmController.OnAcknowledge();
 
             // TODO This will need to go away
@@ -235,6 +256,11 @@ namespace Alarms
             m_confirmed.Add(eventIdString);
 
             alarm.Message!.Value = LocalizedText.From("User Confirmed Event " + DateTime.Now.ToShortTimeString());
+
+            if (CanSetComment(comment))
+            {
+                alarm.SetComment(SystemContext, comment, context?.UserId ?? string.Empty);
+            }
 
             m_alarmController.OnAcknowledge();
 
