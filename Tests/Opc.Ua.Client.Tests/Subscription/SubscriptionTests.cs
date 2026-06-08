@@ -40,8 +40,6 @@ using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Tests;
 
-#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
-
 namespace Opc.Ua.Client.Subscriptions
 {
     [TestFixture]

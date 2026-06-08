@@ -64,11 +64,6 @@ namespace Opc.Ua.Subscriptions.Tests
     /// flip <c>[Explicit]</c> off and rewrite each <c>Assert.Inconclusive</c>
     /// into a positive assertion.
     /// </para>
-    /// <para>
-    /// See the inline doc on
-    /// <see cref="Opc.Ua.Client.Subscriptions.Engine.SubscriptionBridge"/>
-    /// for the bridge wiring TODO.
-    /// </para>
     /// </remarks>
     [TestFixture]
     [Category("Client")]

@@ -97,7 +97,7 @@ The V2 engine exposes triggering through a **hybrid API**:
 
 Both paths flow through the same batched apply pipeline: multiple
 operations targeting the same triggering item collapse into a single
-`SetTriggering` RPC carrying both the merged `linksToAdd` and
+`SetTriggering` request carrying both the merged `linksToAdd` and
 `linksToRemove` lists. Per Part 4 §5.13.5.2 the server processes
 `linksToRemove` before `linksToAdd`, which matches the engine's
 last-intent-wins conflict resolution.
@@ -106,7 +106,7 @@ The V2 engine models the topology as a per-item **desired state**:
 each monitored item carries a list of stable triggering-item names
 (`DesiredTriggeredByNames`) that reflects what the caller wants. The
 engine reconciles desired state against the server via `SetTriggering`
-RPCs whenever:
+requests whenever:
 
 - An options change pushes a different `TriggeredByNames` value.
 - The imperative API mutates the desired set.
@@ -152,14 +152,14 @@ sub.TryAddMonitoredItem("sensor",
 ```
 
 The engine batches the underlying `CreateMonitoredItems` /
-`SetTriggering` RPCs and applies them on the next subscription
+`SetTriggering` requests and applies them on the next subscription
 apply pass. There is no need to explicitly call any method to
 "finish" the triggering setup — once both items are `Created`, the
 engine issues the `SetTriggering` call automatically.
 
 Order of `TryAddMonitoredItem` calls does not matter; the engine
 will keep the triggering operation queued until both items are
-created on the server, then issue the RPC.
+created on the server, then issue the request.
 
 ### Imperative triggering
 
@@ -230,7 +230,7 @@ Assert.That(trigB.TriggeredItems, Has.Member(shared));
 `TriggeringItems` and `TriggeredItems` are read-only projections
 resolved on demand against the subscription's monitored-item
 collection. They reflect the *desired* topology (intent) — so they
-work immediately on `TryAdd` before any RPC fires, and survive
+work immediately on `TryAdd` before any request fires, and survive
 restore-from-snapshot without depending on server state.
 
 ### Save / load / restore behavior
@@ -247,7 +247,7 @@ On load, the engine takes one of three paths:
 
 | Scenario | Behavior |
 |---|---|
-| **TransferSubscriptions success** | Local desired state is restored from the snapshot. NO `SetTriggering` RPC is issued — per Part 4 §5.13.5 conformant servers preserve server-side triggering relationships across a session transfer. |
+| **TransferSubscriptions success** | Local desired state is restored from the snapshot. NO `SetTriggering` request is issued — per Part 4 §5.13.5 conformant servers preserve server-side triggering relationships across a session transfer. |
 | **Recreate-fallback** (transfer rejected or unsupported) | Items reset to "not created"; the saved `DesiredTriggeredByNames` is preserved on each item; the batched apply pass replays `SetTriggering` after items finish re-creating. |
 | **In-session `RecreateAsync`** (forced recreate) | Same as recreate-fallback — desired state preserved through reset, replayed after re-creation. |
 
@@ -533,7 +533,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `s.ResendDataAsync(ct)` | Not on V2. Callers needing raw access call `session.CallAsync(null, ResendData methodId, ...)`. |
 | `s.ConditionRefreshAsync(ct)` | `s.ConditionRefreshAsync(ct)` — same shape. |
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |
-| `s.SetTriggeringAsync(triggering, links, removes, ct)` returning `SetTriggeringResponse` | `ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads; plus the declarative `MonitoredItemOptions.TriggeredByNames` option (see [Triggering](#triggering-settriggering)). Supports N:M via `IMonitoredItem.TriggeringItems` plural; batches per-triggering-item RPCs; replays automatically on recreate/reconnect. |
+| `s.SetTriggeringAsync(triggering, links, removes, ct)` returning `SetTriggeringResponse` | `ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads; plus the declarative `MonitoredItemOptions.TriggeredByNames` option (see [Triggering](#triggering-settriggering)). Supports N:M via `IMonitoredItem.TriggeringItems` plural; batches per-triggering-item requests; replays automatically on recreate/reconnect. |
 | `s.TransferAsync(target, sendInitialValues, ct)` | Configure transfer-on-recreate via `ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)`. The per-call `sendInitialValues` toggle lives on `SubscriptionOptions.SendInitialValuesOnTransfer` (default `false`). |
 | `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours. |
 | `s.SaveMessageInCache(...)` | Not on V2 (classic internal). The V2 message pipeline is channel-based with no replay cache. |

@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
-// adds noise without a behavioural benefit. Disabled file-level for the suite.
-#pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,7 +43,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     /// <summary>
     /// Engine-level unit tests for the V2 triggering (SetTriggering)
-    /// pipeline: operations queue, Phase 4 batched apply, conflict
+    /// pipeline: operations queue, batched apply, conflict
     /// resolution, error handling, snapshot round-trip, and restore
     /// behaviour. Tests against fakes / mocks — no live server.
     /// </summary>
@@ -75,14 +72,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [TearDown]
         public async Task TearDown()
         {
-            await m_sut.DisposeAsync();
+            await m_sut.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
         public async Task ApplyTriggeringOperationsNoQueueReturnsFalseAsync()
         {
             // Act
-            bool any = await m_sut.ApplyTriggeringOperationsAsync(default);
+            bool any = await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert
             Assert.That(any, Is.False);
@@ -110,12 +107,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     Array.Empty<IMonitoredItem>(), tcs));
 
             // Act
-            bool any = await m_sut.ApplyTriggeringOperationsAsync(default);
+            bool any = await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert
             Assert.That(any, Is.True);
             m_monitoredItemServices.VerifyAll();
-            SetTriggeringResult res = await tcs.Task;
+            SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(res.ServiceResult), Is.True);
             Assert.That(res.AddResults, Has.Count.EqualTo(1));
             Assert.That(res.AddResults[0].Item, Is.SameAs(tgt));
@@ -172,7 +169,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     Array.Empty<IMonitoredItem>(), tcs2));
 
             // Act
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: exactly one RPC, with merged add list.
             Assert.That(callCount, Is.EqualTo(1));
@@ -181,10 +178,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(capturedRemove, Is.Empty);
 
             // Each TCS gets per-link results scoped to its own inputs.
-            SetTriggeringResult r1 = await tcs1.Task;
+            SetTriggeringResult r1 = await tcs1.Task.ConfigureAwait(false);
             Assert.That(r1.AddResults, Has.Count.EqualTo(1));
             Assert.That(r1.AddResults[0].Item, Is.SameAs(a));
-            SetTriggeringResult r2 = await tcs2.Task;
+            SetTriggeringResult r2 = await tcs2.Task.ConfigureAwait(false);
             Assert.That(r2.AddResults, Has.Count.EqualTo(1));
             Assert.That(r2.AddResults[0].Item, Is.SameAs(b));
         }
@@ -225,7 +222,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     null));
 
             // Act
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: 2 separate RPCs (one per triggering item).
             Assert.That(callCount, Is.EqualTo(2));
@@ -245,7 +242,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     tcs));
 
             // Act: first pass — trig not Created, op re-queued.
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: no RPC, TCS not yet completed.
             m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
@@ -262,9 +259,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 addResults: new[] { (StatusCode)StatusCodes.Good },
                 removeResults: Array.Empty<StatusCode>());
 
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             Assert.That(tcs.Task.IsCompleted, Is.True);
-            SetTriggeringResult res = await tcs.Task;
+            SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(res.AddResults[0].Status), Is.True);
         }
 
@@ -292,11 +289,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     Array.Empty<IMonitoredItem>(), tcs));
 
             // Act
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: per-link Bad status surfaced and desired state
             // rolled back so it matches reality.
-            SetTriggeringResult res = await tcs.Task;
+            SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
             Assert.That(res.AddResults[0].Status.Code,
                 Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
             Assert.That(tgt.DesiredTriggeredByNames, Is.Empty);
@@ -329,10 +326,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Act: first pass — BadSubscriptionIdInvalid → re-queue,
             // TCS NOT completed. Second pass — succeeds.
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             Assert.That(tcs.Task.IsCompleted, Is.False);
 
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             Assert.That(tcs.Task.IsCompleted, Is.True);
         }
 
@@ -372,11 +369,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 });
 
             // Act
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: add → BadMonitoredItemIdInvalid; remove → Good
             // (auto-cleanup).
-            SetTriggeringResult res = await tcs.Task;
+            SetTriggeringResult res = await tcs.Task.ConfigureAwait(false);
             Assert.That(res.AddResults, Has.Count.EqualTo(1));
             Assert.That(res.AddResults[0].Status.Code,
                 Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
@@ -430,7 +427,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     new IMonitoredItem[] { x }, null));
 
             // Act
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             // Assert: only "remove" sent to the server (last wins).
             Assert.That(capturedAdd, Is.Empty);
@@ -663,7 +660,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 addedTriggeringNames: new[] { "ghost" },
                 removedTriggeringNames: Array.Empty<string>());
 
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             m_monitoredItemServices.Verify(s => s.SetTriggeringAsync(
                 It.IsAny<RequestHeader?>(), It.IsAny<uint>(), It.IsAny<uint>(),
@@ -739,7 +736,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             (StatusCode)StatusCodes.Good, rems.Count).ToArrayOf()
                     });
 
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             Assert.That(capturedAdd, Is.EquivalentTo(new[] { tgt1.ServerId }));
             Assert.That(capturedRemove, Is.EquivalentTo(new[] { tgt2.ServerId }));
@@ -907,7 +904,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 addResults: new[] { (StatusCode)StatusCodes.Good },
                 removeResults: Array.Empty<StatusCode>());
 
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
 
             m_monitoredItemServices.VerifyAll();
         }
@@ -988,7 +985,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 addResults: new[] { (StatusCode)StatusCodes.Good },
                 removeResults: Array.Empty<StatusCode>());
 
-            await m_sut.ApplyTriggeringOperationsAsync(default);
+            await m_sut.ApplyTriggeringOperationsAsync(default).ConfigureAwait(false);
             m_monitoredItemServices.VerifyAll();
         }
 

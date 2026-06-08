@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
-// adds noise without a behavioural benefit. Disabled file-level for the suite.
-#pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -79,8 +76,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [TearDown]
         public async Task TearDown()
         {
-            await m_subscription.DisposeAsync();
-            await m_collection.DisposeAsync();
+            await m_subscription.DisposeAsync().ConfigureAwait(false);
+            await m_collection.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]
@@ -108,7 +105,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 };
 
             // Act
-            await m_subscription.SetTriggeringAsync("trig", "tgt1", "tgt2");
+            await m_subscription.SetTriggeringAsync("trig", "tgt1", "tgt2").ConfigureAwait(false);
 
             // Assert: helper resolved names, forwarded references.
             Assert.That(capturedTrig?.Name, Is.EqualTo("trig"));
@@ -141,7 +138,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             await m_subscription.SetTriggeringAsync("trig",
                 add: new[] { "tgt1" },
-                remove: new[] { "tgt2" });
+                remove: new[] { "tgt2" }).ConfigureAwait(false);
 
             Assert.That(capturedAdd, Has.Count.EqualTo(1));
             Assert.That(capturedRemove, Has.Count.EqualTo(1));
@@ -214,7 +211,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 };
 
             await m_subscription.SetTriggeringAsync("trig",
-                add: null, remove: null);
+                add: null, remove: null).ConfigureAwait(false);
 
             Assert.That(seenNullAdd, Is.True);
             Assert.That(seenNullRemove, Is.True);
