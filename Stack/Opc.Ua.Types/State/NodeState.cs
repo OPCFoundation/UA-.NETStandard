@@ -3634,7 +3634,6 @@ namespace Opc.Ua
             DateTimeUtc sourceTimestamp = value.SourceTimestamp;
             ushort sourcePicoseconds = value.SourcePicoseconds;
 
-
             ServiceResult result;
             // read value attribute.
             if (attributeId == Attributes.Value)
