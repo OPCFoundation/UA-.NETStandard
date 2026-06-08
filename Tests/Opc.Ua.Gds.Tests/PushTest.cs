@@ -1094,6 +1094,102 @@ namespace Opc.Ua.Gds.Tests
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Regression for OPC Foundation/UA-.NETStandard issue #3562.
+        /// After a successful <c>UpdateCertificate</c> + <c>ApplyChanges</c>
+        /// the server MUST force existing SecureChannels that were
+        /// negotiated against the rotated certificate to renegotiate per
+        /// OPC UA Part 12 §7.10.9 — the response is returned first, then
+        /// the channel is cut so the next service call over the stale
+        /// channel fails and the client's reconnect logic transfers the
+        /// session over a fresh SecureChannel.
+        /// </summary>
+        [Test]
+        [Order(701)]
+        public async Task ApplyChangesForcesChannelRenegotiateAsync()
+        {
+            if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                Assert.Ignore("Test only supported for RSA");
+            }
+
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            using var serverCert = Certificate.FromRawData(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
+            {
+                Assert.Ignore("Server has no self signed cert in use.");
+            }
+
+            bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
+                default,
+                m_certificateType,
+                serverCert.RawData.ToByteString(),
+                null,
+                default,
+                default).ConfigureAwait(false);
+            if (!success)
+            {
+                Assert.Ignore("UpdateCertificate refused — nothing to assert.");
+            }
+
+            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+
+            // Wait for the server-side deferred apply (250 ms grace +
+            // generous safety margin for CI) to complete its channel
+            // teardown. The fix for #3562 schedules this fan-out via
+            // ConfigurationNodeManager.ScheduleDeferredApplyChanges.
+            await Task.Delay(TimeSpan.FromMilliseconds(1500)).ConfigureAwait(false);
+
+            // The stale session is bound to a SecureChannel whose
+            // ServerCertificate matches the rotated cert. The next
+            // service call MUST surface a channel-invalidation error
+            // (BadSecureChannelIdInvalid / BadSecureChannelClosed /
+            // BadServerHalted / BadCertificateInvalid). A clean response
+            // would indicate the server failed to renegotiate.
+            ServiceResultException expected = null;
+            try
+            {
+                _ = await m_pushClient.PushClient.GetRejectedListAsync(default)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+            {
+                expected = sre;
+            }
+            catch (AggregateException agg) when (agg.InnerException is ServiceResultException sre)
+            {
+                expected = sre;
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine(
+                    $"Unexpected exception on stale channel: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            Assert.That(expected, Is.Not.Null,
+                "Service call on the stale channel was expected to fail after ApplyChanges.");
+
+            uint status = expected.StatusCode.Code;
+            Assert.That(
+                status == StatusCodes.BadSecureChannelIdInvalid ||
+                status == StatusCodes.BadSecureChannelClosed ||
+                status == StatusCodes.BadServerHalted ||
+                status == StatusCodes.BadCertificateInvalid ||
+                status == StatusCodes.BadCommunicationError ||
+                status == StatusCodes.BadConnectionClosed ||
+                status == StatusCodes.BadNotConnected ||
+                status == StatusCodes.BadRequestInterrupted ||
+                status == StatusCodes.BadRequestTimeout ||
+                status == StatusCodes.BadNoCommunication,
+                $"Unexpected status {expected.StatusCode} from stale channel after ApplyChanges.");
+
+            // A fresh connect to the same endpoint must succeed —
+            // listener socket stays bound, only the channel is cut.
+            await VerifyNewPushServerCertAsync(serverCert.RawData.ToByteString())
+                .ConfigureAwait(false);
+        }
+
         [Test]
         [Order(800)]
         public async Task VerifyNoUserAccessAsync()
@@ -1233,12 +1329,22 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
-        /// Calls ApplyChanges on the push client and ignores
-        /// transport-level errors that happen when the server tears down
-        /// the secure channel as part of the certificate update. The
-        /// caller is expected to verify the new certificate via
-        /// <see cref="VerifyNewPushServerCertAsync"/>, which retries the
-        /// connection with the new cert.
+        /// Calls ApplyChanges on the push client. After the fix for
+        /// issue #3562 the server schedules channel teardown to run
+        /// AFTER the method response has been flushed (see
+        /// <c>ConfigurationNodeManager.ScheduleDeferredApplyChanges</c>),
+        /// so the happy path is for this call to return cleanly. Any
+        /// transport-level failure is still tolerated for resilience
+        /// because:
+        /// <list type="bullet">
+        ///   <item>HTTPS rebinds the Kestrel listener and may interrupt
+        ///   the response under load.</item>
+        ///   <item>The TCP grace period (~250 ms) is not a hard guarantee
+        ///   on slow CI runners.</item>
+        /// </list>
+        /// The caller's verification step
+        /// (<see cref="VerifyNewPushServerCertAsync"/>) asserts the new
+        /// certificate is actually in effect on a fresh connection.
         /// </summary>
         private async Task ApplyChangesIgnoreChannelTearDownAsync()
         {
@@ -1246,21 +1352,24 @@ namespace Opc.Ua.Gds.Tests
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 await m_pushClient.PushClient.ApplyChangesAsync(cts.Token).ConfigureAwait(false);
+
+                // Per OPC UA Part 12 §7.10.9 the server defers the
+                // SecureChannel renegotiation until the ApplyChanges
+                // response has been delivered. Wait long enough for the
+                // server-side deferred apply (250 ms grace + safety
+                // margin) so the next reconnect attempt does not race
+                // it.
+                await Task.Delay(TimeSpan.FromMilliseconds(1500)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                // ApplyChangesAsync races with the server's deferred
-                // certificate update task that disposes the active
-                // application certificates. Any of the following can be
-                // observed: a ServiceResultException with one of several
-                // transport status codes (BadRequestTimeout,
-                // BadRequestInterrupted, BadSecureChannelClosed, ...),
-                // an OperationCanceledException from the bounded CTS, or
-                // a wrapping AggregateException. All are expected — the
-                // caller's verification step retries the connection with
-                // the new server certificate and asserts on identity.
+                // Tolerated transport failures (see XML doc above):
+                //   ServiceResultException with BadRequestTimeout,
+                //   BadRequestInterrupted, BadSecureChannelClosed, ...
+                //   OperationCanceledException from the bounded CTS,
+                //   wrapping AggregateException.
                 TestContext.Out.WriteLine(
-                    $"ApplyChangesAsync expected channel teardown: {ex.GetType().Name}: {ex.Message}");
+                    $"ApplyChangesAsync tolerated teardown: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
