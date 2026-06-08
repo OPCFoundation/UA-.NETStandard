@@ -243,8 +243,8 @@ namespace Quickstarts.ReferenceServer
 
         private static readonly NodeId[] s_optionalPubSubFolders =
         [
-            new(15443),
-            new(25440)
+            ObjectIds.SecurityGroups,
+            ObjectIds.KeyPushTargets
         ];
     }
 }

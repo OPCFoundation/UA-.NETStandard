@@ -8,6 +8,7 @@
     <Project Path="Applications/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
     <Project Path="Applications/McpServer/Opc.Ua.Mcp.csproj" />
+    <Project Path="Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
     <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
   </Folder>
   <Folder Name="/Fuzzing/">
@@ -42,6 +43,9 @@
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
+    <Project Path="Libraries/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
+    <Project Path="Libraries/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
+    <Project Path="Libraries/Opc.Ua.Di/Opc.Ua.Di.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
@@ -142,6 +146,7 @@
     <Project Path="Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
@@ -168,9 +173,4 @@
     <Project Path="Tests/Opc.Ua.Client.TestFramework/Opc.Ua.Client.TestFramework.csproj" />
     <Project Path="Tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
-  <Project Path="Applications/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
-  <Project Path="Libraries/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
-  <Project Path="Libraries/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
-  <Project Path="Libraries/Opc.Ua.Di/Opc.Ua.Di.csproj" />
-  <Project Path="Tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
 </Solution>
