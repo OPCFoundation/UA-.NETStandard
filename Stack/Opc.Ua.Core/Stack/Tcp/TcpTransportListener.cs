@@ -887,42 +887,48 @@ namespace Opc.Ua.Bindings
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;
 
-                        // Remove oldest channel that does not have a session attached to it
-                        // before reaching m_maxChannelCount
-                        if (MaxChannelCount > 0 && MaxChannelCount == channelCount)
+                        // Remove oldest channels that do not have a session attached to them
+                        // before reaching m_maxChannelCount.
+                        while (MaxChannelCount > 0 && channelCount >= MaxChannelCount)
                         {
                             KeyValuePair<uint, TcpListenerChannel>[] snapshot = [.. channels];
+                            bool foundIdleChannel = false;
+                            KeyValuePair<uint, TcpListenerChannel> oldestIdChannel = default;
 
-                            // Identify channels without established sessions
-                            KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels =
-                            [
-                                .. snapshot.Where(ch => !ch.Value.UsedBySession)
-                            ];
-
-                            if (nonSessionChannels.Length != 0)
+                            foreach (KeyValuePair<uint, TcpListenerChannel> current in snapshot)
                             {
-                                KeyValuePair<uint, TcpListenerChannel> oldestIdChannel
-                                    = nonSessionChannels.Aggregate(
-                                    (max, current) =>
-                                        current.Value.ElapsedSinceLastActiveTime > max.Value
-                                            .ElapsedSinceLastActiveTime
-                                            ? current
-                                            : max);
+                                if (current.Value.UsedBySession)
+                                {
+                                    continue;
+                                }
 
-                                m_logger.LogInformation(
-                                    "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.",
-                                    oldestIdChannel.Value.Id);
-                                oldestIdChannel.Value.IdleCleanup();
-                                m_logger.LogInformation(
-                                    "TCPLISTENER: Channel Id {Id} finished IdleCleanup - Oldest without established session.",
-                                    oldestIdChannel.Value.Id);
-
-                                channelCount--;
+                                int elapsedSinceLastActiveTime = current.Value.ElapsedSinceLastActiveTime;
+                                if (!foundIdleChannel ||
+                                    elapsedSinceLastActiveTime > oldestIdChannel.Value.ElapsedSinceLastActiveTime)
+                                {
+                                    oldestIdChannel = current;
+                                    foundIdleChannel = true;
+                                }
                             }
+
+                            if (!foundIdleChannel)
+                            {
+                                break;
+                            }
+
+                            m_logger.LogInformation(
+                                "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.",
+                                oldestIdChannel.Value.Id);
+                            oldestIdChannel.Value.IdleCleanup();
+                            m_logger.LogInformation(
+                                "TCPLISTENER: Channel Id {Id} finished IdleCleanup - Oldest without established session.",
+                                oldestIdChannel.Value.Id);
+
+                            channelCount--;
                         }
 
                         bool serveChannel = !(MaxChannelCount > 0 &&
-                            MaxChannelCount < channelCount);
+                            MaxChannelCount <= channelCount);
                         if (!serveChannel)
                         {
                             m_logger.LogError(

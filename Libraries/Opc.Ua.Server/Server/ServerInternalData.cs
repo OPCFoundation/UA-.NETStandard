@@ -734,6 +734,14 @@ namespace Opc.Ua.Server
             [
                 .. m_configuration.ServerConfiguration!.ServerProfileArray
             ];
+
+            BaseVariableState conformanceUnits = DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits);
+            if (conformanceUnits != null)
+            {
+                conformanceUnits.Value = Variant.From(Array.Empty<QualifiedName>().ToArrayOf());
+            }
+
             serverCapabilities.MinSupportedSampleRate!.Value = 0;
             serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;

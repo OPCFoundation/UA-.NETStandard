@@ -104,6 +104,7 @@ namespace Alarms
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name);
 
+            EnsureTransitionTime(alarm.ActiveState!);
             alarm.SetActiveState(SystemContext, active: false);
             alarm.InputNode!.Value = m_trigger.NodeId;
 
