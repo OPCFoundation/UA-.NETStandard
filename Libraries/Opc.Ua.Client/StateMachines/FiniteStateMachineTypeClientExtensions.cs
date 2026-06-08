@@ -700,9 +700,8 @@ namespace Opc.Ua.Client.StateMachines
                     {
                         // Filter out cancellation noise; surface any
                         // other pump fault.
-                        Exception? real = t.Exception.Flatten().InnerExceptions
+                        fault = t.Exception.Flatten().InnerExceptions
                             .FirstOrDefault(e => e is not OperationCanceledException);
-                        fault = real;
                     }
                     channel.Writer.TryComplete(fault);
                 },

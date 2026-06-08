@@ -414,9 +414,11 @@ namespace Opc.Ua
 
             public QualifiedName[][] StandardFields { get; }
             public Func<IReadOnlyList<Variant>, EventRecord?> Decode { get; }
-            // Composed-layout → local-layout remap cache. Rebuilt when
-            // RemapVersion differs from the composed-fields snapshot's
-            // identity hash.
+            /// <summary>
+            /// Composed-layout → local-layout remap cache. Rebuilt when
+            /// RemapVersion differs from the composed-fields snapshot's
+            /// identity hash.
+            /// </summary>
             public int[]? RemapTo { get; set; }
             public int RemapVersion { get; set; } = -1;
         }

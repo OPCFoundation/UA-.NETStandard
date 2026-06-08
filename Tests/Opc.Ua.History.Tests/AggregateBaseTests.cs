@@ -47,10 +47,18 @@ namespace Opc.Ua.History.Tests
     [NonParallelizable]
     public class AggregateBaseTests : TestFixture
     {
-        // Standard processing intervals used by the aggregate base scenarios.
+        /// <summary>
+        /// Standard processing intervals used by the aggregate base scenarios.
+        /// </summary>
         private const double IntervalDefault = 0;          // server default
-        private const double IntervalShort = 60_000;       // 1 minute
-        private const double IntervalLong = 1_800_000;     // 30 minutes
+        /// <summary>
+        /// 1 minute
+        /// </summary>
+        private const double IntervalShort = 60_000;
+        /// <summary>
+        /// 30 minutes
+        /// </summary>
+        private const double IntervalLong = 1_800_000;
 
         // ------------------------------------------------------------------
         // 001-XX  Single node, default config, varying time arrangements

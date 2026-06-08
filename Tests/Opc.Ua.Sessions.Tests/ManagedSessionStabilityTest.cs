@@ -203,8 +203,8 @@ namespace Opc.Ua.Sessions.Tests
             int? faultInjectionIntervalSeconds)
         {
             int testDurationSeconds = testDurationMinutes * 60;
-            int writerIntervalMs = 250;
-            int publishingIntervalMs = 500;
+            const int writerIntervalMs = 250;
+            const int publishingIntervalMs = 500;
 
             TestContext.Out.WriteLine(
                 $"V2 ManagedSession stability test: duration={testDurationMinutes}min, " +
@@ -591,9 +591,11 @@ namespace Opc.Ua.Sessions.Tests
         {
             private long m_receivedCount;
             private long m_errorCount;
-            // Stored as long so Interlocked.Exchange / Volatile.Read have
-            // overloads on net4x (the typed uint overload is .NET 5+).
-            // Value range stays within uint at runtime.
+            /// <summary>
+            /// Stored as long so Interlocked.Exchange / Volatile.Read have
+            /// overloads on net4x (the typed uint overload is .NET 5+).
+            /// Value range stays within uint at runtime.
+            /// </summary>
             private long m_lastValue;
             private readonly ConcurrentQueue<string> m_monotonicityErrors = new();
             private readonly ConcurrentQueue<string> m_errors = new();

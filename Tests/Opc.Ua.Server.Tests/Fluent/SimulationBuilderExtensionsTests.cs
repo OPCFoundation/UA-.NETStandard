@@ -177,8 +177,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "Both handlers fire on the same tick — counts should be in lockstep.");
         }
 
-        // Test harness — a FluentNodeManagerBase subclass + a NodeManagerBuilder
-        // attached via AttachToBuilder.
+        /// <summary>
+        /// Test harness — a FluentNodeManagerBase subclass + a NodeManagerBuilder
+        /// attached via AttachToBuilder.
+        /// </summary>
         private sealed class SimulationHarness : IDisposable
         {
             internal NodeManagerBuilder Builder { get; private set; } = null!;

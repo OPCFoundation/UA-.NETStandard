@@ -4667,9 +4667,14 @@ namespace Opc.Ua.Server.Tests
         {
         }
 
-        // Provide deterministic auto-assignment so tests can call
-        // CreateNode without pre-setting a NodeId (mirrors the
-        // behaviour of AsyncCustomNodeManager.New).
+        /// <summary>
+        /// Provide deterministic auto-assignment so tests can call
+        /// CreateNode without pre-setting a NodeId (mirrors the
+        /// behaviour of AsyncCustomNodeManager.New).
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public override NodeId New(ISystemContext context, NodeState node)
         {
             if (node.NodeId.IsNull)
@@ -4809,7 +4814,9 @@ namespace Opc.Ua.Server.Tests
             m_adapter = adapter;
         }
 
-        // ITestNodeManager state properties — delegate to m_cnm2
+        /// <summary>
+        /// ITestNodeManager state properties — delegate to m_cnm2
+        /// </summary>
         public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_cnm2.MonitoredNodes;
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_cnm2.MonitoredItems;
@@ -4929,7 +4936,9 @@ namespace Opc.Ua.Server.Tests
             return default;
         }
 
-        // IAsyncNodeManager — delegate to m_adapter
+        /// <summary>
+        /// IAsyncNodeManager — delegate to m_adapter
+        /// </summary>
         public IEnumerable<string> NamespaceUris => m_adapter.NamespaceUris;
         public INodeManager SyncNodeManager => m_adapter.SyncNodeManager;
 
@@ -5267,7 +5276,9 @@ namespace Opc.Ua.Server.Tests
             m_cnm2.SetNamespaceUrisPublic(uris);
         }
 
-        // INodeManagementAsyncNodeManager — delegate to m_adapter (which delegates to the wrapped CNM2 if it implements the facet)
+        /// <summary>
+        /// INodeManagementAsyncNodeManager — delegate to m_adapter (which delegates to the wrapped CNM2 if it implements the facet)
+        /// </summary>
         public bool AllowNodeManagement => m_adapter.AllowNodeManagement;
 
         public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(

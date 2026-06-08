@@ -1153,13 +1153,15 @@ namespace Opc.Ua.Server.StateMachines
         private readonly List<Action<ISystemContext, TState, uint, uint>> m_transitionObservers = [];
         private readonly List<Func<ISystemContext, TState, uint, uint, ServiceResult>> m_guards = [];
         private readonly Dictionary<uint, TimedTransitionEntry> m_timedTransitions = [];
-        // Async observer counterparts. Scheduled fire-and-forget from
-        // the sync transition path (which itself remains sync since
-        // FiniteStateMachineState.DoTransition is sync). Each invocation
-        // runs on the thread pool with ConfigureAwait(false), so no
-        // sync-over-async wait occurs anywhere; exceptions are
-        // captured and logged via Debug.WriteLine in line with the
-        // existing SafeInvoke pattern.
+        /// <summary>
+        /// Async observer counterparts. Scheduled fire-and-forget from
+        /// the sync transition path (which itself remains sync since
+        /// FiniteStateMachineState.DoTransition is sync). Each invocation
+        /// runs on the thread pool with ConfigureAwait(false), so no
+        /// sync-over-async wait occurs anywhere; exceptions are
+        /// captured and logged via Debug.WriteLine in line with the
+        /// existing SafeInvoke pattern.
+        /// </summary>
         private readonly Dictionary<uint,
             List<Func<ISystemContext, TState, CancellationToken, System.Threading.Tasks.ValueTask>>>
                 m_enterHandlersAsync = [];

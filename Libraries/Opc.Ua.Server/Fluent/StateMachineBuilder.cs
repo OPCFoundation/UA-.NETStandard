@@ -330,8 +330,7 @@ namespace Opc.Ua.Server.Fluent
             // arming state.
             if (m_timedTransitions.Count > 0)
             {
-                long now = Stopwatch.GetTimestamp();
-                m_currentStateEnteredAt = now;
+                m_currentStateEnteredAt = Stopwatch.GetTimestamp();
                 m_currentStateForTimer = toStateId;
             }
 

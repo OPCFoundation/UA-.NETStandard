@@ -32,8 +32,10 @@ using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-    // Part 9 alarm method handlers: Silence, Suppress/Unsuppress, OutOfService,
-    // PlaceInService/RemoveFromService, Reset, GetGroupMemberships
+    /// <summary>
+    /// Part 9 alarm method handlers: Silence, Suppress/Unsuppress, OutOfService,
+    /// PlaceInService/RemoveFromService, Reset, GetGroupMemberships
+    /// </summary>
     public partial class AlarmConditionState
     {
         /// <summary>
