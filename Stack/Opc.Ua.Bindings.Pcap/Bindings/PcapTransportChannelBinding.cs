@@ -87,10 +87,7 @@ namespace Opc.Ua.Bindings.Pcap.Bindings
             // offline decoder receives the derived key material alongside
             // the wire bytes. Subscribing here once per channel is
             // cheaper than subscribing at every send/receive site.
-            if (channel is ISecureChannel secureChannel)
-            {
-                secureChannel.OnTokenActivated += OnChannelTokenActivated;
-            }
+            ((ISecureChannel)channel).OnTokenActivated += OnChannelTokenActivated;
             return channel;
         }
 
