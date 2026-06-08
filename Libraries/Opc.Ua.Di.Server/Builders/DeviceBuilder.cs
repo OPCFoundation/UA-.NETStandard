@@ -230,7 +230,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 if (useIdentificationSlot && topology.Identification == null)
                 {
-                    group = topology.AddIdentification(Context);
+                    topology.AddIdentification(Context);
+                    group = topology.Identification!;
                 }
                 else
                 {
