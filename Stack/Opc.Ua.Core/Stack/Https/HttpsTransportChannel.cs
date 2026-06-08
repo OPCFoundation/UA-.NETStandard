@@ -232,7 +232,7 @@ namespace Opc.Ua.Bindings
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
             using Activity? activity = m_telemetry.StartActivity();
-            using var cts = m_timeProvider.CreateCancellationTokenSource(
+            using CancellationTokenSource cts = m_timeProvider.CreateCancellationTokenSource(
                 TimeSpan.FromMilliseconds(OperationTimeout));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try

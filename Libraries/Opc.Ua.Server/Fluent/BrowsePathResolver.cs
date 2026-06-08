@@ -104,17 +104,12 @@ namespace Opc.Ua.Server.Fluent
                 NodeState parent = current;
                 NodeState child = parent.FindChild(context, segments[i])
                     ?? FindChildByLocalName(context, parent, segments[i].Name ?? string.Empty, browsePath, segments[i]);
-
-                if (child == null)
-                {
-                    throw ServiceResultException.Create(
+                current = child ?? throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Browse path '{0}' did not resolve: segment '{1}' not found under '{2}'.",
                         browsePath,
                         segments[i],
                         parent.BrowseName);
-                }
-                current = child;
             }
 
             return current;

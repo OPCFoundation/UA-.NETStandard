@@ -277,12 +277,12 @@ namespace Opc.Ua.Client.Subscriptions
             // post-call local update. Skipping items not in the
             // subscription would silently lose links — instead we throw
             // so the caller can fix the call site.
-            var addServerIds = new uint[linksToAdd.Count];
+            uint[] addServerIds = new uint[linksToAdd.Count];
             for (int i = 0; i < linksToAdd.Count; i++)
             {
                 addServerIds[i] = ResolveServerId(linksToAdd[i], nameof(linksToAdd));
             }
-            var removeServerIds = new uint[linksToRemove.Count];
+            uint[] removeServerIds = new uint[linksToRemove.Count];
             for (int i = 0; i < linksToRemove.Count; i++)
             {
                 removeServerIds[i] = ResolveServerId(linksToRemove[i], nameof(linksToRemove));

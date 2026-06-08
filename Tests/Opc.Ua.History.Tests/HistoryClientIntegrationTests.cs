@@ -125,7 +125,7 @@ namespace Opc.Ua.History.Tests
                 serverTimestamp: ts);
 
             IList<StatusCode> insertStatuses = await client.InsertAsync(
-                m_doubleNodeId, new[] { insertValue }).ConfigureAwait(false);
+                m_doubleNodeId, [insertValue]).ConfigureAwait(false);
             Assert.That(insertStatuses, Has.Count.EqualTo(1));
             Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True,
                 $"Insert failed with status 0x{insertStatuses[0].Code:X8}");
@@ -149,7 +149,7 @@ namespace Opc.Ua.History.Tests
                 sourceTimestamp: ts,
                 serverTimestamp: ts);
             IList<StatusCode> replaceStatuses = await client.ReplaceAsync(
-                m_doubleNodeId, new[] { replaceValue }).ConfigureAwait(false);
+                m_doubleNodeId, [replaceValue]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
 
             roundTrip.Clear();
@@ -317,12 +317,12 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime baseTs = DateTime.UtcNow.AddYears(-10).AddSeconds(301);
-            DateTime[] timestamps = new[]
-            {
+            DateTime[] timestamps =
+            [
                 baseTs,
                 baseTs.AddSeconds(1),
                 baseTs.AddSeconds(2)
-            };
+            ];
 
             var insertValues = new DataValue[3];
             for (int i = 0; i < 3; i++)
@@ -376,7 +376,7 @@ namespace Opc.Ua.History.Tests
             await client.InsertAsync(m_doubleNodeId, insertValues).ConfigureAwait(false);
 
             IList<StatusCode> deleteStatuses = await client.DeleteAtTimeAsync(
-                m_doubleNodeId, new[] { ts0, ts2 }).ConfigureAwait(false);
+                m_doubleNodeId, [ts0, ts2]).ConfigureAwait(false);
             Assert.That(deleteStatuses, Has.Count.EqualTo(2));
 
             var remaining = new List<DataValue>();

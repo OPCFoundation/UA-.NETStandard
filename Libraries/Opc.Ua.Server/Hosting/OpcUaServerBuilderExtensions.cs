@@ -264,7 +264,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton<TAuth>();
             builder.Services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(
-                (sp, _) => new IUserTokenAuthenticator[] { sp.GetRequiredService<TAuth>() }));
+                (sp, _) => [sp.GetRequiredService<TAuth>()]));
             return builder;
         }
 
@@ -548,7 +548,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     {
                         if (sp.GetService<OpcUaServerDefaultIdentityAuthenticatorsMarker>() != null)
                         {
-                            return Array.Empty<IUserTokenAuthenticator>();
+                            return [];
                         }
 
                         OpcUaServerOptions options = sp.GetRequiredService<IOptions<OpcUaServerOptions>>().Value;

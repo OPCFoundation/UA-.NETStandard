@@ -346,15 +346,11 @@ namespace Opc.Ua.Server.Fluent
 
             public INodeBuilder Child(QualifiedName browseName)
             {
-                NodeState? c = Node.FindChild(Builder.Context, browseName);
-                if (c == null)
-                {
-                    throw ServiceResultException.Create(
+                NodeState? c = Node.FindChild(Builder.Context, browseName) ?? throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Child '{0}' not found on '{1}'.",
                         browseName,
                         Node.BrowseName);
-                }
                 return new AdHocNodeBuilder<NodeState>(Builder, c);
             }
 

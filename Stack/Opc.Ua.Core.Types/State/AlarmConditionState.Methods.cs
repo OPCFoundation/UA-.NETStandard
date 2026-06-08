@@ -576,7 +576,7 @@ namespace Opc.Ua
                 if (reference.ReferenceTypeId == ReferenceTypeIds.AlarmGroupMember &&
                     reference.IsInverse)
                 {
-                    NodeId targetId = ExpandedNodeId.ToNodeId(
+                    var targetId = ExpandedNodeId.ToNodeId(
                         reference.TargetId, context.NamespaceUris);
                     if (!targetId.IsNull)
                     {

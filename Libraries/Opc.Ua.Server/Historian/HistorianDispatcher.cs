@@ -376,8 +376,9 @@ namespace Opc.Ua.Server.Historian
             HistorianContinuationState? cont = TryRestoreContinuation(
                 systemContext, nodeToRead, HistorianReadKind.Processed);
 
+
             // Resume from buffered output if a continuation already exists.
-            if (cont?.BufferedProcessedOutputs is { } buffered)
+            if (cont?.BufferedProcessedOutputs is { })
             {
                 EmitProcessedPage(cont, result, nodeToRead, timestampsToReturn, systemContext);
                 return ServiceResult.Good;

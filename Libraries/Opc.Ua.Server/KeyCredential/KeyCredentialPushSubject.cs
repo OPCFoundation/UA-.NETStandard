@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
                         credentialId,
                         credentialId,
                         KeyCredentialBridgeOptions.DefaultProfileUri,
-                        Array.Empty<string>());
+                        []);
                     state.CredentialId!.Value = credentialId;
                     await AddNodeAsync(state, ct).ConfigureAwait(false);
                 }
@@ -228,7 +228,7 @@ namespace Opc.Ua.Server
                 credentialSecret.ToArray(),
                 DateTime.MaxValue,
                 subject,
-                Array.Empty<string>());
+                []);
 
             await m_store.UpdateAsync(credentialId, credential, ct).ConfigureAwait(false);
 

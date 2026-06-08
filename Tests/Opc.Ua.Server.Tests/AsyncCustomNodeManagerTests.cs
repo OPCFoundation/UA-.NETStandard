@@ -39,7 +39,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -365,7 +364,7 @@ namespace Opc.Ua.Server.Tests
             int beforeReportCount = m_mockServer.Invocations.Count(i => i.Method.Name == "ReportEvent");
 
             // Simulate an external write
-            Variant newValue = new Variant("42");
+            var newValue = new Variant("42");
             StatusCode statusCode = StatusCodes.Good;
             DateTimeUtc timestamp = DateTime.UtcNow;
             ServiceResult result = nodeVersion.OnWriteValue!(
@@ -4903,7 +4902,9 @@ namespace Opc.Ua.Server.Tests
         }
 
         public PropertyState<string> EnableModelChangeTrackingFor(NodeState node, ushort? namespaceIndex = null)
-            => m_cnm2.EnableModelChangeTrackingFor(node, namespaceIndex);
+        {
+            return m_cnm2.EnableModelChangeTrackingFor(node, namespaceIndex);
+        }
 
         public bool RequireNodeVersionForModelChange
         {

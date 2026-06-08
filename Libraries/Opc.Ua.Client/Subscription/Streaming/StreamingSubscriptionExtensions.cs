@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         /// list and returns it.
         /// </summary>
         /// <typeparam name="T">The type of items in the source sequence.</typeparam>
-        public static async System.Threading.Tasks.ValueTask<IReadOnlyList<T>> BufferedAsync<T>(
+        public static async ValueTask<IReadOnlyList<T>> BufferedAsync<T>(
             this IAsyncEnumerable<T> source,
             int count,
             CancellationToken ct = default)

@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
-            return SubscribeDataChangesImpl(new[] { nodeId }, options, ct);
+            return SubscribeDataChangesImpl([nodeId], options, ct);
         }
 
         /// <inheritdoc/>
@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 ISubscription subscription,
                 SubscriptionState state,
                 PublishState publishStateMask,
-                System.Threading.CancellationToken ct = default)
+                CancellationToken ct = default)
             {
                 // Streaming subscription only cares about data/event
                 // notification streams; lifecycle transitions are
@@ -484,9 +484,15 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
             public T CurrentValue { get; }
 
-            public T Get(string? name) => CurrentValue;
+            public T Get(string? name)
+            {
+                return CurrentValue;
+            }
 
-            public IDisposable? OnChange(Action<T, string?> listener) => null;
+            public IDisposable? OnChange(Action<T, string?> listener)
+            {
+                return null;
+            }
         }
 
     }

@@ -99,7 +99,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var originHandler = new RecordingSubscriptionHandler();
                 ISubscription origin = originSession.AddSubscription(
-                    originHandler, new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    originHandler, new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -115,11 +115,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(origin.TryAddMonitoredItem("Time",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(250) },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? timeItem), Is.True);
+                    out IMonitoredItem? timeItem), Is.True);
                 Assert.That(origin.TryAddMonitoredItem("State",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(500) },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? stateItem), Is.True);
+                    out IMonitoredItem? stateItem), Is.True);
                 bool allCreated = await WaitForAsync(
                     () => timeItem!.Created && stateItem!.Created,
                     TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
@@ -224,7 +224,7 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 var handler = new RecordingSubscriptionHandler();
                 ISubscription sub = session.AddSubscription(handler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(500),
                         KeepAliveCount = 10,
@@ -238,20 +238,20 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(sub.TryAddMonitoredItem("Trigger",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { MonitoringMode = MonitoringMode.Reporting },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggering), Is.True);
+                    out IMonitoredItem? triggering), Is.True);
                 Assert.That(sub.TryAddMonitoredItem("Triggered",
                     VariableIds.Server_ServerStatus_State,
                     o => o with { MonitoringMode = MonitoringMode.Sampling },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? triggered), Is.True);
+                    out IMonitoredItem? triggered), Is.True);
                 bool both = await WaitForAsync(
                     () => triggering!.Created && triggered!.Created,
                     TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 Assert.That(both, Is.True);
 
-                await ((Opc.Ua.Client.Subscriptions.Subscription)sub).SetTriggeringAsync(triggering!.ClientHandle,
+                await ((Client.Subscriptions.Subscription)sub).SetTriggeringAsync(triggering!.ClientHandle,
                     [triggered!.ClientHandle], [], ct).ConfigureAwait(false);
 
-                SubscriptionStateSnapshot snap = ((Opc.Ua.Client.Subscriptions.Subscription)sub).Snapshot();
+                SubscriptionStateSnapshot snap = ((Client.Subscriptions.Subscription)sub).Snapshot();
                 MonitoredItemStateSnapshot? triggerSnap = null;
                 MonitoredItemStateSnapshot? triggeredSnap = null;
                 foreach (MonitoredItemStateSnapshot it in snap.MonitoredItems)

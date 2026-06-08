@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static SystemContext CreateContext()
         {
             var ns = new NamespaceTable();
-            ns.Append(global::Opc.Ua.Namespaces.OpcUa);
+            ns.Append(Ua.Namespaces.OpcUa);
             return new SystemContext(telemetry: null!)
             {
                 NamespaceUris = ns
@@ -65,10 +65,12 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             SystemContext ctx = CreateContext();
 
-            var machine = new ProgramStateMachineState(parent: null);
-            machine.NodeId = new NodeId("Machine", kNs);
-            machine.BrowseName = new QualifiedName("Machine", kNs);
-            machine.DisplayName = new LocalizedText("Machine");
+            var machine = new ProgramStateMachineState(parent: null)
+            {
+                NodeId = new NodeId("Machine", kNs),
+                BrowseName = new QualifiedName("Machine", kNs),
+                DisplayName = new LocalizedText("Machine")
+            };
             machine.Create(
                 ctx, machine.NodeId, machine.BrowseName,
                 displayName: machine.DisplayName,
@@ -147,7 +149,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Objects.ProgramStateMachineType_ReadyToRunning,
                 causeId: 0,
                 inputArguments: default,
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(ServiceResult.IsGood(result), $"Transition failed: {result}");
             Assert.That(observed, Is.SameAs(m));
@@ -169,7 +171,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Objects.ProgramStateMachineType_ReadyToRunning,
                 causeId: 0,
                 inputArguments: default,
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(exitFires, Is.EqualTo(1));
         }
@@ -194,7 +196,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Objects.ProgramStateMachineType_ReadyToRunning,
                 causeId: 0,
                 inputArguments: default,
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(observedFrom, Is.EqualTo(Objects.ProgramStateMachineType_Ready));
             Assert.That(observedTo, Is.EqualTo(Objects.ProgramStateMachineType_Running));
@@ -215,7 +217,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Objects.ProgramStateMachineType_ReadyToRunning,
                 causeId: 0,
                 inputArguments: default,
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(ServiceResult.IsBad(result));
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -249,7 +251,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Objects.ProgramStateMachineType_ReadyToRunning,
                 causeId: 0,
                 inputArguments: default,
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(existingCalls, Is.EqualTo(1),
                 "Pre-existing OnBeforeTransition handler must still run.");
@@ -275,7 +277,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 start,
                 objectId: m.NodeId,
                 inputArguments: default,
-                outputArguments: new List<Variant>());
+                outputArguments: []);
 
             Assert.That(ServiceResult.IsGood(result),
                 $"DoCause via wired method must succeed: {result}");

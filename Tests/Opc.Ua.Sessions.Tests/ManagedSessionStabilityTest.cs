@@ -214,7 +214,7 @@ namespace Opc.Ua.Sessions.Tests
             // Pick a single writable scalar from the reference server's
             // mass test set. Scalar_Static_Mass_UInt32_UInt32_00 is exposed
             // by the reference node manager and accepts client writes.
-            NodeId counterNode = ExpandedNodeId.ToNodeId(
+            var counterNode = ExpandedNodeId.ToNodeId(
                 new ExpandedNodeId(
                     "Scalar_Static_Mass_UInt32_UInt32_00",
                     Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -275,7 +275,7 @@ namespace Opc.Ua.Sessions.Tests
                 var monotonicityHandler = new MonotonicCounterHandler();
                 ISubscription subscription = subscriber.AddSubscription(
                     monotonicityHandler,
-                    new Opc.Ua.Client.Subscriptions.SubscriptionOptions
+                    new Client.Subscriptions.SubscriptionOptions
                     {
                         PublishingInterval = TimeSpan.FromMilliseconds(publishingIntervalMs),
                         KeepAliveCount = 10,
@@ -298,7 +298,7 @@ namespace Opc.Ua.Sessions.Tests
                         DiscardOldest = false,
                         MonitoringMode = MonitoringMode.Reporting
                     },
-                    out Opc.Ua.Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
                 Assert.That(item, Is.Not.Null);
 
                 bool itemCreated = await WaitForAsync(() => item!.Created,
@@ -316,7 +316,7 @@ namespace Opc.Ua.Sessions.Tests
                 long writeCount = 0;
                 using var writerCts = CancellationTokenSource
                     .CreateLinkedTokenSource(ct);
-                Task writerTask = Task.Run(async () =>
+                var writerTask = Task.Run(async () =>
                 {
                     while (!writerCts.IsCancellationRequested)
                     {
@@ -404,7 +404,7 @@ namespace Opc.Ua.Sessions.Tests
                 // Status reporting
                 using var statusCts = CancellationTokenSource
                     .CreateLinkedTokenSource(ct);
-                Task statusTask = Task.Run(async () =>
+                var statusTask = Task.Run(async () =>
                 {
                     int reportNum = 0;
                     while (!statusCts.IsCancellationRequested)
@@ -602,8 +602,8 @@ namespace Opc.Ua.Sessions.Tests
             public long ErrorCount => Volatile.Read(ref m_errorCount);
             public uint LastValue => (uint)Volatile.Read(ref m_lastValue);
             public IReadOnlyList<string> MonotonicityErrors
-                => m_monotonicityErrors.ToArray();
-            public IReadOnlyList<string> Errors => m_errors.ToArray();
+                => [.. m_monotonicityErrors];
+            public IReadOnlyList<string> Errors => [.. m_errors];
 
             public void RecordError(string error)
             {
@@ -684,7 +684,7 @@ namespace Opc.Ua.Sessions.Tests
 
             public ValueTask OnSubscriptionStateChangedAsync(
                 ISubscription subscription,
-                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                Client.Subscriptions.SubscriptionState state,
                 PublishState publishStateMask,
                 CancellationToken ct = default)
             {

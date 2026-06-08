@@ -306,9 +306,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             // Try exact-namespace match first.
-            BaseInstanceState? child =
-                Node.FindChild(m_parent.Context, browseName) as BaseInstanceState;
-            if (child != null)
+            if (Node.FindChild(m_parent.Context, browseName) is BaseInstanceState child)
             {
                 return child;
             }
@@ -330,7 +328,7 @@ namespace Opc.Ua.Server.Fluent
                 BaseInstanceState sibling = siblings[i];
                 if (sibling.BrowseName.IsNull || !string.Equals(
                         sibling.BrowseName.Name, browseName.Name,
-                        System.StringComparison.Ordinal))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }

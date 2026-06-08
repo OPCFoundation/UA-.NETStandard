@@ -116,11 +116,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(browseName));
             }
-            NodeState? child = builder.Node.FindChild(builder.Builder.Context, browseName);
-            if (child == null)
-            {
-                throw NotFound(browseName.ToString(), builder.Node.BrowseName);
-            }
+            NodeState? child = builder.Node.FindChild(builder.Builder.Context, browseName) ?? throw NotFound(browseName.ToString(), builder.Node.BrowseName);
             if (child is not BaseVariableState variable)
             {
                 throw NotVariable(browseName.ToString(), builder.Node.BrowseName, child.GetType().Name);

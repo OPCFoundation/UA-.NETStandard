@@ -1201,7 +1201,7 @@ namespace Opc.Ua.Client
             var cts = new CancellationTokenSource();
             Task task = RunIdentityRefreshLoopAsync(m_identityProvider, cts.Token);
 
-            CancellationTokenSource? previousCts = null;
+            CancellationTokenSource? previousCts;
             lock (m_identityRefreshLock)
             {
                 previousCts = m_identityRefreshCancellation;
