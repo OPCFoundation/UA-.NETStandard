@@ -971,22 +971,123 @@ namespace Opc.Ua.SourceGeneration
             }
 
             /// <summary>
-            /// Adds the optional {{Tokens.ChildName}} child and returns it so
-            /// the caller can configure the new child immediately, e.g.
-            /// <c>parent.AddAndGet{{Tokens.ChildName}}(context).Value = ...</c>.
-            /// Idempotent: returns the existing typed child if already present.
+            /// Adds the optional {{Tokens.ChildName}} child and invokes
+            /// <paramref name="configure"/> on the (just-added or pre-existing)
+            /// typed child. Returns this instance for fluent chaining.
             /// </summary>
             /// <param name="context">The system context.</param>
-            /// <param name="nodeId">
-            /// Optional NodeId for the newly-added child. See
-            /// <see cref="Add{{Tokens.ChildName}}"/> for the default behaviour.
+            /// <param name="configure">
+            /// Mutates the typed child in-place. Invoked after the child slot
+            /// is materialised so the callback can rely on the typed child
+            /// being non-null.
             /// </param>
-            {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} AddAndGet{{Tokens.ChildName}}(
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child. See the
+            /// <see cref="Add{{Tokens.ChildName}}(global::Opc.Ua.ISystemContext, global::Opc.Ua.NodeId?)"/>
+            /// overload for the default behaviour.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
                 global::Opc.Ua.ISystemContext context,
+                global::System.Action<{{Tokens.ClassName}}> configure,
                 global::Opc.Ua.NodeId? nodeId = default)
             {
                 Add{{Tokens.ChildName}}(context, nodeId);
-                return {{Tokens.ChildName}}!;
+                configure({{Tokens.ChildName}}!);
+                return this;
+            }
+
+            /// <summary>
+            /// Conditionally adds the optional {{Tokens.ChildName}} child
+            /// and invokes <paramref name="configure"/> on the typed child.
+            /// When <paramref name="condition"/> is <c>false</c> the child
+            /// is not materialised and the callback is not invoked.
+            /// Returns this instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="condition">
+            /// Whether to add and configure the child. When <c>false</c>,
+            /// the call is a no-op.
+            /// </param>
+            /// <param name="configure">
+            /// Mutates the typed child in-place. Only invoked when
+            /// <paramref name="condition"/> is <c>true</c>.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                bool condition,
+                global::System.Action<{{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId? nodeId = default)
+            {
+                if (!condition)
+                {
+                    return this;
+                }
+                Add{{Tokens.ChildName}}(context, nodeId);
+                configure({{Tokens.ChildName}}!);
+                return this;
+            }
+
+            /// <summary>
+            /// Adds the optional {{Tokens.ChildName}} child and invokes the
+            /// transform <paramref name="configure"/> on the typed child; the
+            /// callback's return value replaces the typed slot (so the
+            /// caller can wrap or substitute the child). Returns this
+            /// instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="configure">
+            /// Transforms the typed child. The returned instance is stored
+            /// in the typed slot; pass back the same instance to keep it
+            /// unchanged or a new instance to replace it.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                global::System.Func<{{Tokens.ClassName}}, {{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId? nodeId = default)
+            {
+                Add{{Tokens.ChildName}}(context, nodeId);
+                {{Tokens.ChildName}} = configure({{Tokens.ChildName}}!);
+                return this;
+            }
+
+            /// <summary>
+            /// Conditionally adds the optional {{Tokens.ChildName}} child and
+            /// invokes the transform <paramref name="configure"/> on the
+            /// typed child. When <paramref name="condition"/> is <c>false</c>
+            /// the child is not materialised and the callback is not invoked.
+            /// Returns this instance for fluent chaining.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="condition">
+            /// Whether to add and configure the child. When <c>false</c>,
+            /// the call is a no-op.
+            /// </param>
+            /// <param name="configure">
+            /// Transforms the typed child. Only invoked when
+            /// <paramref name="condition"/> is <c>true</c>.
+            /// </param>
+            /// <param name="nodeId">
+            /// Optional NodeId for the newly-added child.
+            /// </param>
+            public {{Tokens.OwnerClassName}} Add{{Tokens.ChildName}}(
+                global::Opc.Ua.ISystemContext context,
+                bool condition,
+                global::System.Func<{{Tokens.ClassName}}, {{Tokens.ClassName}}> configure,
+                global::Opc.Ua.NodeId? nodeId = default)
+            {
+                if (!condition)
+                {
+                    return this;
+                }
+                Add{{Tokens.ChildName}}(context, nodeId);
+                {{Tokens.ChildName}} = configure({{Tokens.ChildName}}!);
+                return this;
             }
 
             """);

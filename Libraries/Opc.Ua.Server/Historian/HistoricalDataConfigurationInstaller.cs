@@ -105,46 +105,35 @@ namespace Opc.Ua.Server.Historian
             HistorianNodeCapabilities capabilities)
         {
             config.Stepped?.Value = capabilities.Stepped;
-
-            if (!string.IsNullOrEmpty(capabilities.Definition))
-            {
-                config.AddAndGetDefinition(context).Value = capabilities.Definition!;
-            }
-
-            if (capabilities.MaxTimeInterval > 0)
-            {
-                config.AddAndGetMaxTimeInterval(context).Value = capabilities.MaxTimeInterval;
-            }
-
-            if (capabilities.MinTimeInterval > 0)
-            {
-                config.AddAndGetMinTimeInterval(context).Value = capabilities.MinTimeInterval;
-            }
-
-            if (capabilities.MaxTimeStoredValues > 0)
-            {
-                config.AddAndGetMaxTimeStoredValues(context).Value = capabilities.MaxTimeStoredValues;
-            }
-
-            if (capabilities.MaxCountStoredValues > 0)
-            {
-                config.AddAndGetMaxCountStoredValues(context).Value = capabilities.MaxCountStoredValues;
-            }
-
-            if (capabilities.StartOfArchive != DateTimeUtc.MinValue)
-            {
-                config.AddAndGetStartOfArchive(context).Value = capabilities.StartOfArchive;
-            }
-
-            if (capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue)
-            {
-                config.AddAndGetStartOfOnlineArchive(context).Value = capabilities.StartOfOnlineArchive;
-            }
-
-            if (config.ServerTimestampSupported == null && capabilities.ServerTimestampSupported)
-            {
-                config.AddServerTimestampSupported(context);
-            }
+            config
+                .AddDefinition(context,
+                    !string.IsNullOrEmpty(capabilities.Definition),
+                    c => c.Value = capabilities.Definition!)
+                .AddMaxTimeInterval(context,
+                    capabilities.MaxTimeInterval > 0,
+                    c => c.Value = capabilities.MaxTimeInterval)
+                .AddMinTimeInterval(context,
+                    capabilities.MinTimeInterval > 0,
+                    c => c.Value = capabilities.MinTimeInterval)
+                .AddMaxTimeStoredValues(context,
+                    capabilities.MaxTimeStoredValues > 0,
+                    c => c.Value = capabilities.MaxTimeStoredValues)
+                .AddMaxCountStoredValues(context,
+                    capabilities.MaxCountStoredValues > 0,
+                    c => c.Value = capabilities.MaxCountStoredValues)
+                .AddStartOfArchive(context,
+                    capabilities.StartOfArchive != DateTimeUtc.MinValue,
+                    c => c.Value = capabilities.StartOfArchive)
+                .AddStartOfOnlineArchive(context,
+                    capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue,
+                    c => c.Value = capabilities.StartOfOnlineArchive)
+                // ServerTimestampSupported: only materialise the slot when the
+                // capability is true; sync the value to a pre-existing slot
+                // afterwards so disabled capabilities also propagate (matches
+                // the v1 semantics).
+                .AddServerTimestampSupported(context,
+                    capabilities.ServerTimestampSupported,
+                    _ => { });
             config.ServerTimestampSupported?.Value = capabilities.ServerTimestampSupported;
         }
 

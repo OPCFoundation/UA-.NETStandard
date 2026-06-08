@@ -502,26 +502,27 @@ namespace Opc.Ua.Server
             // Standard Server methods this SDK wires (DiagnosticsNodeManager).
             // GetMonitoredItems / ResendData are wired unconditionally;
             // SetSubscriptionDurable only when durable subscriptions are
-            // enabled (otherwise the existing path explicitly removes it).
+            // enabled (the conditional Add overload skips the call when
+            // m_durableSubscriptionsEnabled is false, so the existing path
+            // that explicitly removes the slot is preserved).
             // Server.Namespaces is consumed by ConfigurationNodeManager to
             // register per-namespace NamespaceMetadata children.
             // UrisVersion / EstimatedReturnTime / LocalTime are Optional
             // Variables on ServerType that the SDK does not actively populate
             // but were emitted on master at the well-known instance NodeIds.
-            // The chained Add{Child}(context, nodeId) helpers return `this`
+            // The chained Add{Child}(context, ...) helpers return `this`
             // for the fluent style.
             serverObject
                 .AddGetMonitoredItems(context, MethodIds.Server_GetMonitoredItems)
                 .AddResendData(context, MethodIds.Server_ResendData)
+                .AddSetSubscriptionDurable(context,
+                    m_durableSubscriptionsEnabled,
+                    _ => { },
+                    MethodIds.Server_SetSubscriptionDurable)
                 .AddNamespaces(context, ObjectIds.Server_Namespaces)
                 .AddUrisVersion(context, VariableIds.Server_UrisVersion)
                 .AddEstimatedReturnTime(context, VariableIds.Server_EstimatedReturnTime)
                 .AddLocalTime(context, VariableIds.Server_LocalTime);
-            if (m_durableSubscriptionsEnabled)
-            {
-                serverObject.AddSetSubscriptionDurable(
-                    context, MethodIds.Server_SetSubscriptionDurable);
-            }
 
             // The transitive generator gate (issue #3768) stops emitting
             // Optional Variable/Method descendants of Server (e.g.
@@ -577,38 +578,24 @@ namespace Opc.Ua.Server
                 .AddMaxWhereClauseParameters(context, VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters)
                 .AddMaxMonitoredItemsQueueSize(context, VariableIds.Server_ServerCapabilities_MaxMonitoredItemsQueueSize)
                 .AddConformanceUnits(context, VariableIds.Server_ServerCapabilities_ConformanceUnits)
-                .AddRoleSet(context, ObjectIds.Server_ServerCapabilities_RoleSet);
-            OperationLimitsState operationLimits = serverCapabilities.AddAndGetOperationLimits(
-                context, ObjectIds.Server_ServerCapabilities_OperationLimits);
-            AddOperationLimitsSdkOptionalChildren(context, operationLimits);
-        }
-
-        private static void AddOperationLimitsSdkOptionalChildren(
-            ISystemContext context,
-            OperationLimitsState operationLimits)
-        {
-            // All OperationLimits children are Optional per Part 5 §6.3.4 and
-            // were emitted on master with their well-known instance NodeIds.
-            // The SDK assigns values to whichever children exist (see
-            // ServerInternalData.CreateServerObjectAsync) - re-add every
-            // child and patch to the well-known NodeId so the observable
-            // address-space matches master. Add{Child} is idempotent and
-            // returns `this` for chaining.
-            operationLimits
-                .AddMaxNodesPerRead(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead)
-                .AddMaxNodesPerHistoryReadData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData)
-                .AddMaxNodesPerHistoryReadEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents)
-                .AddMaxNodesPerWrite(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite)
-                .AddMaxNodesPerHistoryUpdateData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData)
-                .AddMaxNodesPerHistoryUpdateEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents)
-                .AddMaxNodesPerMethodCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
-                .AddMaxNodesPerBrowse(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse)
-                .AddMaxNodesPerRegisterNodes(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes)
-                .AddMaxNodesPerTranslateBrowsePathsToNodeIds(
-                    context,
-                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds)
-                .AddMaxNodesPerNodeManagement(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement)
-                .AddMaxMonitoredItemsPerCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall);
+                .AddRoleSet(context, ObjectIds.Server_ServerCapabilities_RoleSet)
+                .AddOperationLimits(context,
+                    ObjectIds.Server_ServerCapabilities_OperationLimits)
+                .OperationLimits!
+                    .AddMaxNodesPerRead(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead)
+                    .AddMaxNodesPerHistoryReadData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData)
+                    .AddMaxNodesPerHistoryReadEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents)
+                    .AddMaxNodesPerWrite(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite)
+                    .AddMaxNodesPerHistoryUpdateData(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData)
+                    .AddMaxNodesPerHistoryUpdateEvents(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents)
+                    .AddMaxNodesPerMethodCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
+                    .AddMaxNodesPerBrowse(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse)
+                    .AddMaxNodesPerRegisterNodes(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes)
+                    .AddMaxNodesPerTranslateBrowsePathsToNodeIds(
+                        context,
+                        VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds)
+                    .AddMaxNodesPerNodeManagement(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement)
+                    .AddMaxMonitoredItemsPerCall(context, VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall);
         }
 
         private static void AddServerRedundancySdkOptionalChildren(

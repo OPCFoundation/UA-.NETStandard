@@ -398,16 +398,7 @@ namespace Opc.Ua.WotCon.Server
         {
             management.CreateAsset?.OnCallAsync = OnCreateAssetAsync;
             management.DeleteAsset?.OnCallAsync = OnDeleteAssetAsync;
-            management.AddDiscoverAssets(SystemContext);
-            management.DiscoverAssets!.OnCallAsync = OnDiscoverAssetsAsync;
 
-            management.AddCreateAssetForEndpoint(SystemContext);
-            management.CreateAssetForEndpoint!.OnCallAsync = OnCreateAssetForEndpointAsync;
-
-            management.AddConnectionTest(SystemContext);
-            management.ConnectionTest!.OnCallAsync = OnConnectionTestAsync;
-
-            management.AddSupportedWoTBindings(SystemContext);
             var bindings = new List<string>();
             foreach (IWotAssetProviderFactory factory in m_options.Bindings)
             {
@@ -419,7 +410,12 @@ namespace Opc.Ua.WotCon.Server
                     }
                 }
             }
-            management.SupportedWoTBindings!.Value = new ArrayOf<string>(bindings.ToArray());
+
+            management
+                .AddDiscoverAssets(SystemContext, c => c.OnCallAsync = OnDiscoverAssetsAsync)
+                .AddCreateAssetForEndpoint(SystemContext, c => c.OnCallAsync = OnCreateAssetForEndpointAsync)
+                .AddConnectionTest(SystemContext, c => c.OnCallAsync = OnConnectionTestAsync)
+                .AddSupportedWoTBindings(SystemContext, c => c.Value = new ArrayOf<string>(bindings.ToArray()));
         }
 
         private void ApplyConfiguration(ISystemContext context, WoTAssetConnectionManagementState management)
@@ -428,13 +424,12 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
-            WoTAssetConfigurationState configuration = management.AddAndGetConfiguration(context);
+            management.AddConfiguration(context);
+            WoTAssetConfigurationState configuration = management.Configuration!;
 
-            if (!string.IsNullOrEmpty(m_options.License))
-            {
-                configuration.AddLicense(context);
-                configuration.License!.Value = m_options.License!;
-            }
+            configuration.AddLicense(context,
+                !string.IsNullOrEmpty(m_options.License),
+                c => c.Value = m_options.License!);
 
             foreach (KeyValuePair<string, WotConfigurationParameter> kv in m_options.Configuration)
             {
