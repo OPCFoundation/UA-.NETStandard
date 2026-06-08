@@ -132,7 +132,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
-    public class HttpsTransportListener : ITransportListener
+    public class HttpsTransportListener : ITransportListener, ITransportListenerCertificateRotation
     {
         private const string kHttpsContentType = "text/plain";
         private const string kApplicationContentType = "application/octet-stream";
@@ -557,14 +557,16 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Called when a UpdateCertificate event occured.
+        /// Called when an UpdateCertificate event occurred. Performs the
+        /// soft fan-out (refresh validator, registry, and per-endpoint
+        /// blobs); see <see cref="CloseChannelsForCertificate"/> for the
+        /// post-ApplyChanges connection teardown that actually rebinds
+        /// the Kestrel TLS certificate.
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidatorEx validator,
             ICertificateRegistry serverCertificates)
         {
-            Stop();
-
             m_quotas.CertificateValidator = validator;
             m_serverCertProvider = serverCertificates;
 
@@ -575,8 +577,39 @@ namespace Opc.Ua.Bindings
                     serverCertificates,
                     false);
             }
+        }
 
+        /// <inheritdoc/>
+        public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+        {
+            if (oldCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(oldCertificate));
+            }
+
+            // Nothing to do if the listener was never opened. This keeps
+            // the call safe to invoke unconditionally from the
+            // ConfigurationNodeManager fan-out.
+            if (m_descriptions == null)
+            {
+                return [];
+            }
+
+            // HTTPS owns the server certificate at the Kestrel / HTTP.sys
+            // listener level, so we can't surgically close individual TLS
+            // connections without restarting the host. Per OPC UA Part 12
+            // §7.10.9 a Stop()/Start() cycle satisfies the "force
+            // renegotiate" requirement; existing Sessions remain valid
+            // and the client's reconnect logic re-binds them over the
+            // freshly-issued TLS endpoint.
+            Stop();
             Start();
+
+            // The HTTPS listener does not track per-channel ids that map
+            // to OPC UA SecureChannels (the binding is request-scoped via
+            // HTTP), so there is nothing meaningful to return for
+            // diagnostics here.
+            return [];
         }
 
         /// <summary>

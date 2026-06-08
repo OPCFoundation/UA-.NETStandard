@@ -312,6 +312,16 @@ namespace Opc.Ua.InformationModel.Tests
                 dataType.WrappedValue.GetNodeId(),
                 Is.EqualTo(DataTypeIds.QualifiedName),
                 "ConformanceUnits DataType must be QualifiedName per Part 5 §6.3.36.");
+
+            DataValue value = await ReadNodeValueAsync(new NodeId(24101)).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(value.StatusCode), Is.True,
+                "ConformanceUnits Value should be readable.");
+
+            TypeInfo valueTypeInfo = value.WrappedValue.TypeInfo;
+            Assert.That(valueTypeInfo.BuiltInType, Is.EqualTo(BuiltInType.QualifiedName),
+                "ConformanceUnits Value Variant must be encoded as QualifiedName[].");
+            Assert.That(valueTypeInfo.ValueRank, Is.EqualTo(ValueRanks.OneDimension),
+                "ConformanceUnits Value Variant must be a one-dimensional array.");
         }
 
         [Test]

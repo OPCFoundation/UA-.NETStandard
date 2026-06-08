@@ -3848,6 +3848,73 @@ namespace Opc.Ua.Schema.Model
                     }
                 }
             }
+
+            InjectStateMachineGeneratesEventReference(node);
+        }
+
+        /// <summary>
+        /// Issue #3720 — Per OPC UA Part 16 §4.4.5 / Part 5 §6.4.2, instances
+        /// of StateMachineType and FiniteStateMachineType emit
+        /// AuditUpdateStateEventType events on state changes. The standard
+        /// design XML omits the corresponding GeneratesEvent reference, so
+        /// inject it programmatically here. Idempotent: skipped when the
+        /// reference (or a subtype like AlwaysGeneratesEvent) is already
+        /// declared. The injected reference is fully validated (TargetNode
+        /// resolved) so downstream NodeId emission matches the standard
+        /// reference flow.
+        /// </summary>
+        private void InjectStateMachineGeneratesEventReference(NodeDesign node)
+        {
+            if (node is not ObjectTypeDesign objectType ||
+                objectType.SymbolicName == null)
+            {
+                return;
+            }
+
+            string name = objectType.SymbolicName.Name;
+            if (!string.Equals(name, "StateMachineType", StringComparison.Ordinal) &&
+                !string.Equals(name, "FiniteStateMachineType", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (objectType.References != null)
+            {
+                foreach (Reference existing in objectType.References)
+                {
+                    if (existing.IsInverse ||
+                        existing.ReferenceType == null)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(existing.ReferenceType.Name, "GeneratesEvent", StringComparison.Ordinal) ||
+                        string.Equals(existing.ReferenceType.Name, "AlwaysGeneratesEvent", StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            var injected = new Reference
+            {
+                SourceNode = objectType,
+                ReferenceType = new XmlQualifiedName(
+                    "GeneratesEvent",
+                    Ua.Types.Namespaces.OpcUa),
+                IsInverse = false,
+                IsOneWay = true,
+                TargetId = new XmlQualifiedName(
+                    "TransitionEventType",
+                    Ua.Types.Namespaces.OpcUa)
+            };
+
+            ValidateReference(injected);
+
+            objectType.References = objectType.References == null
+                ? [injected]
+                : [.. objectType.References, injected];
+            objectType.HasReferences = true;
         }
 
         /// <summary>

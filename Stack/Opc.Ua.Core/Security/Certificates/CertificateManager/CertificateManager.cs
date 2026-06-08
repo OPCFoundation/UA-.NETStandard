@@ -194,7 +194,7 @@ namespace Opc.Ua
                     $"Trust list '{trustList}' is not registered.");
             }
 
-            ITrustListTransaction transaction = new TrustListTransaction(this, trustList);
+            ITrustListTransaction transaction = new TrustListTransaction(this, trustList, this);
             return Task.FromResult(transaction);
         }
 
@@ -999,6 +999,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(data));
             }
 
+            bool trustChanged = false;
+            bool crlChanged = false;
+
             if (((int)masks &
                 ((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)) != 0)
             {
@@ -1014,6 +1017,8 @@ namespace Opc.Ua
                         await store.AddAsync(cert, ct: ct)
                             .ConfigureAwait(false);
                     }
+
+                    trustChanged = true;
                 }
 
                 if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
@@ -1026,6 +1031,8 @@ namespace Opc.Ua
                         await store.AddCRLAsync(crl, ct)
                             .ConfigureAwait(false);
                     }
+
+                    crlChanged = true;
                 }
             }
 
@@ -1047,6 +1054,8 @@ namespace Opc.Ua
                                 await issuerStore.AddAsync(cert, ct: ct)
                                     .ConfigureAwait(false);
                             }
+
+                            trustChanged = true;
                         }
 
                         if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
@@ -1060,9 +1069,75 @@ namespace Opc.Ua
                                 await issuerStore.AddCRLAsync(crl, ct)
                                     .ConfigureAwait(false);
                             }
+
+                            crlChanged = true;
                         }
                     }
                 }
+            }
+
+            NotifyTrustListChanged(trustList, trustChanged, crlChanged);
+        }
+
+        /// <summary>
+        /// Invalidates cached validation cores for the affected trust
+        /// list and dispatches <see cref="CertificateChangeKind.TrustListUpdated"/>
+        /// and/or <see cref="CertificateChangeKind.CrlUpdated"/> events.
+        /// Called by <see cref="WriteTrustListAsync"/> and by
+        /// <see cref="TrustListTransaction.CommitAsync"/> after a
+        /// successful apply. No-op when no change kind is set.
+        /// </summary>
+        internal void NotifyTrustListChanged(
+            TrustListIdentifier trustList,
+            bool trustChanged,
+            bool crlChanged)
+        {
+            if (!trustChanged && !crlChanged)
+            {
+                return;
+            }
+
+            // Drop cached validation cores so the next ValidateAsync
+            // pick up the fresh trust list / CRL state. We invalidate
+            // all three roles defensively — trust list changes can
+            // affect peer, user and HTTPS validators alike.
+            CertificateValidationCore? oldPeer;
+            CertificateValidationCore? oldUser;
+            CertificateValidationCore? oldHttps;
+            lock (m_certificatesLock)
+            {
+                oldPeer = m_peerCore;
+                m_peerCore = null;
+                oldUser = m_userCore;
+                m_userCore = null;
+                oldHttps = m_httpsCore;
+                m_httpsCore = null;
+            }
+
+            oldPeer?.Dispose();
+            oldUser?.Dispose();
+            oldHttps?.Dispose();
+
+            if (trustChanged)
+            {
+                m_changeSubject.Notify(new CertificateChangeEvent(
+                    CertificateChangeKind.TrustListUpdated,
+                    trustList,
+                    CertificateType: null,
+                    OldCertificate: null,
+                    NewCertificate: null,
+                    IssuerChain: null));
+            }
+
+            if (crlChanged)
+            {
+                m_changeSubject.Notify(new CertificateChangeEvent(
+                    CertificateChangeKind.CrlUpdated,
+                    trustList,
+                    CertificateType: null,
+                    OldCertificate: null,
+                    NewCertificate: null,
+                    IssuerChain: null));
             }
         }
 
