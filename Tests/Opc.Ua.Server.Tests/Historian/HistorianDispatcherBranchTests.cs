@@ -274,6 +274,108 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         [Test]
+        public async Task DispatchProcessedReadAnnotationCountCountsAnnotationsPerIntervalAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            var nodeId = new NodeId($"anncount-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+
+            HistorianOperationContext context = HarnessFixture.CreateContext(h.SystemContext);
+
+            // Raw samples that AnnotationCount must ignore (one per second for 30 s).
+            var samples = new List<DataValue>();
+            for (int i = 0; i < 30; i++)
+            {
+                DateTime ts = HarnessFixture.BaseTime.AddSeconds(i);
+                samples.Add(new DataValue(new Variant((double)i), StatusCodes.Good, ts, ts));
+            }
+            await h.Provider.InsertAsync(context, nodeId, samples, CancellationToken.None);
+
+            // Annotations: 3 in [0,10) s, 1 in [10,20) s, 0 in [20,30) s.
+            var annotations = new List<Annotation>
+            {
+                new() { Message = "a", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(2) },
+                new() { Message = "b", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(5) },
+                new() { Message = "c", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(8) },
+                new() { Message = "d", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(15) }
+            };
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None);
+
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddSeconds(30),
+                ProcessingInterval = 10000
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, details,
+                ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
+                result, CancellationToken.None);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
+            DataValue[]? values = hd!.DataValues.ToArray();
+            Assert.That(values, Is.Not.Null.And.Length.EqualTo(3));
+
+            int[] expected = [3, 1, 0];
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.That(values![i].WrappedValue.TryGetValue(out int count), Is.True);
+                Assert.That(count, Is.EqualTo(expected[i]), $"annotation count for interval {i}");
+                Assert.That(
+                    values[i].SourceTimestamp.ToDateTime(),
+                    Is.EqualTo(HarnessFixture.BaseTime.AddSeconds(i * 10)));
+                Assert.That(StatusCode.IsGood(values[i].StatusCode), Is.True);
+                Assert.That(values[i].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            }
+        }
+
+        [Test]
+        public async Task DispatchProcessedReadAnnotationCountWithoutAnnotationProviderReturnsBadAggregateNotSupportedAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"anncount-noann-{Guid.NewGuid():N}", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            // A provider that implements neither IHistorianProcessedProvider nor
+            // IHistorianAnnotationProvider must report AnnotationCount as unsupported.
+            var bareProvider = new Mock<IHistorianProvider>();
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddSeconds(30),
+                ProcessingInterval = 10000,
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    PercentDataBad = 100,
+                    PercentDataGood = 100
+                }
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, bareProvider.Object, node, nodeToRead, details,
+                ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
+                result, CancellationToken.None);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
+        }
+
+        [Test]
         public async Task DispatchAtTimeReadInterpolatesBetweenSamplesAsync()
         {
             HarnessFixture h = CreateHarness();

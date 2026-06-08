@@ -654,5 +654,25 @@ namespace Opc.Ua.Server.Tests
             Assert.That(sampleVariance, Is.GreaterThanOrEqualTo(populationVariance),
                 "Sample variance should be greater than or equal to population variance");
         }
+
+        [Test]
+        public void InterpolativeReturnsValueAtIntervalStart()
+        {
+            // Part 13 §5.4.3.4: Interpolative returns the (interpolated) bounding value at the start
+            // of each interval. With a raw value exactly at the interval start, that raw value is
+            // returned.
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(6000);
+            double[] values = [10, 20, 30];
+            List<DataValue> dataValues = CreateDataValues(startTime, values, 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Interpolative,
+                dataValues, startTime, endTime, 6000);
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(10.0).Within(0.0001));
+        }
     }
 }
