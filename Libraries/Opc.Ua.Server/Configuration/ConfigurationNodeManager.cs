@@ -319,6 +319,11 @@ namespace Opc.Ua.Server
                 m_userManagementBinding?.Dispose();
                 m_userManagementBinding = null;
 
+                foreach (ServerCertificateGroup certificateGroup in m_certificateGroups)
+                {
+                    DisposePendingRotationState(certificateGroup);
+                }
+
                 StopAlarmMonitoring();
             }
 
@@ -657,10 +662,10 @@ namespace Opc.Ua.Server
                         $"The private key format {privateKeyFormat} is not supported.");
                 }
 
-                ServerCertificateGroup? certificateGroup = VerifyGroupAndTypeId(
+                ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(
                     certificateGroupId,
-                    certificateTypeId);
-                certificateGroup!.UpdateCertificate = null!;
+                    certificateTypeId)!;
+                ResetPendingUpdateCertificate(certificateGroup);
 
                 try
                 {
@@ -1059,6 +1064,25 @@ namespace Opc.Ua.Server
                             .GetApplicationCertificate(existingCertIdentifier.CertificateType);
                         thumbprintToDelete = currentEntry?.Certificate.Thumbprint
                             ?? existingCertIdentifier.Thumbprint;
+
+                        // Capture the pre-transaction certificate exactly
+                        // once, even if UpdateCertificate is called multiple
+                        // times before ApplyChanges. Per OPC UA Part 12
+                        // §7.10.2 a transaction groups multiple changes; the
+                        // channel-cut in ApplyChanges must match every
+                        // SecureChannel still negotiated against the cert
+                        // that was active when the transaction started —
+                        // including connections that arrived between the
+                        // first and last staged UpdateCertificate. The
+                        // captured cert is owned by the group and disposed
+                        // by ApplyChanges after consumption (or by
+                        // DisposePendingRotationState on teardown).
+                        if (certificateGroup.OriginalCertificate == null && currentEntry != null)
+                        {
+                            certificateGroup.OriginalCertificate = currentEntry.Certificate.AddRef();
+                            certificateGroup.OriginalCertificateType =
+                                existingCertIdentifier.CertificateType;
+                        }
                     }
                     else
                     {
@@ -1423,84 +1447,261 @@ namespace Opc.Ua.Server
         {
             HasApplicationSecureAdminAccess(context);
 
-            bool disconnectSessions = false;
+            // Capture the per-group rotation payload (original cert +
+            // type, captured at the first staged UpdateCertificate) and
+            // clear the staging slot so the post-response channel-cut
+            // can target the correct SecureChannels by thumbprint per
+            // OPC UA Part 12 §7.10.9.
+            var pendingRotations = new List<PendingCertificateRotation>();
 
             foreach (ServerCertificateGroup certificateGroup in m_certificateGroups)
             {
+                UpdateCertificateData? updateCertificate = certificateGroup.UpdateCertificate;
+                if (updateCertificate == null)
+                {
+                    // No staged update for this group — but a previous
+                    // failed staging may have left an OriginalCertificate
+                    // behind. Discard it so it does not leak.
+                    DisposePendingRotationState(certificateGroup);
+                    continue;
+                }
+
+                m_logger.LogInformation(
+                    Utils.TraceMasks.Security,
+                    "Apply Changes for certificate {Certificate}",
+                    updateCertificate.CertificateWithPrivateKey);
+
+                // Hand off ownership of OriginalCertificate to the
+                // deferred task. The reference on the group is then
+                // cleared so DisposePendingRotationState cannot
+                // double-dispose it.
+                pendingRotations.Add(new PendingCertificateRotation
+                {
+                    OldCertificate = certificateGroup.OriginalCertificate,
+                    CertificateType = certificateGroup.OriginalCertificateType
+                });
+                certificateGroup.OriginalCertificate = null;
+                certificateGroup.OriginalCertificateType = NodeId.Null;
+                certificateGroup.UpdateCertificate = null!;
+            }
+
+            if (pendingRotations.Count == 0)
+            {
+                return StatusCodes.Good;
+            }
+
+            // Schedule the deferred apply: wait a short grace period for
+            // the method response to be flushed, then re-sync the
+            // certificate manager from disk and force-close every
+            // SecureChannel that was negotiated against the rotated
+            // certificate(s). The completion handle is exposed via
+            // DrainPendingApplyChangesAsync so tests and hosts can
+            // deterministically await rotation rather than racing the
+            // delay.
+            ScheduleDeferredApplyChanges(pendingRotations);
+
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Schedules the post-response cert-rotation fan-out. Chains
+        /// onto any already-running deferred apply so concurrent calls
+        /// to <see cref="ApplyChanges"/> run sequentially.
+        /// </summary>
+        private void ScheduleDeferredApplyChanges(List<PendingCertificateRotation> rotations)
+        {
+            var completion = new TaskCompletionSource<object?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Task previous;
+            lock (m_pendingApplyChangesLock)
+            {
+                previous = m_pendingApplyChangesTask;
+                m_pendingApplyChangesTask = completion.Task;
+            }
+
+            _ = Task.Run(async () =>
+            {
                 try
                 {
-                    UpdateCertificateData? updateCertificate = certificateGroup.UpdateCertificate;
-                    if (updateCertificate != null)
+                    // Wait for any earlier deferred apply to finish to
+                    // preserve ordering.
+                    if (previous != null)
                     {
-                        disconnectSessions = true;
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "Apply Changes for certificate {Certificate}",
-                            updateCertificate.CertificateWithPrivateKey);
+                        try
+                        {
+                            await previous.ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Errors on the previous task are already
+                            // logged; do not propagate to the new one.
+                        }
                     }
+
+                    TimeSpan gracePeriod = ApplyChangesGracePeriod;
+                    if (gracePeriod < TimeSpan.Zero)
+                    {
+                        gracePeriod = TimeSpan.Zero;
+                    }
+
+                    m_logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Apply Changes for application certificate scheduled in {Grace} ms...",
+                        gracePeriod.TotalMilliseconds);
+
+                    // Give the client a chance to receive the
+                    // ApplyChanges response before cutting its channel.
+                    // OPC UA Part 12 §7.10.9 requires the response is
+                    // returned first; without a transport-level
+                    // "response flushed" hook this grace period is the
+                    // pragmatic compromise. The grace period itself is
+                    // configurable via ApplyChangesGracePeriod so hosts
+                    // running over high-latency links can tune it.
+                    // TODO: implement a transport-level
+                    // "response-flushed" callback so this can be
+                    // deterministic without relying on a fixed delay.
+                    await m_timeProvider.Delay(gracePeriod)
+                        .ConfigureAwait(false);
+
+                    m_logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Apply Changes for application certificate running...");
+
+                    if (m_configuration.CertificateManager != null)
+                    {
+                        await m_configuration.CertificateManager.UpdateAsync(
+                                m_configuration.SecurityConfiguration,
+                                m_configuration.ApplicationUri)
+                            .ConfigureAwait(false);
+                    }
+
+                    // Force-close affected SecureChannels on every
+                    // transport listener that opted into
+                    // ITransportListenerCertificateRotation.
+                    IReadOnlyList<ITransportListener> listeners
+                        = (Server as ITransportListenerRegistryProvider)?.TransportListeners
+                          ?? [];
+
+                    int totalCut = 0;
+                    foreach (PendingCertificateRotation rotation in rotations)
+                    {
+                        if (rotation.OldCertificate == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (ITransportListener listener in listeners)
+                        {
+                            if (listener is not ITransportListenerCertificateRotation rotator)
+                            {
+                                continue;
+                            }
+
+                            try
+                            {
+                                IReadOnlyList<string> closed
+                                    = rotator.CloseChannelsForCertificate(rotation.OldCertificate);
+                                totalCut += closed.Count;
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.LogWarning(
+                                    ex,
+                                    "Listener {Listener} failed to close channels for {CertType}.",
+                                    listener.ListenerId,
+                                    rotation.CertificateType);
+                            }
+                        }
+                    }
+
+                    m_logger.LogInformation(
+                        Utils.TraceMasks.Security,
+                        "Apply Changes for application certificate completed: {Count} SecureChannel(s) cut.",
+                        totalCut);
+
+                    completion.TrySetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogCritical(
+                        ex,
+                        "Apply Changes for application certificate update failed. " +
+                        "Server could be in a faulted state.");
+                    completion.TrySetException(ex);
                 }
                 finally
                 {
-                    certificateGroup.UpdateCertificate = null!;
+                    foreach (PendingCertificateRotation rotation in rotations)
+                    {
+                        rotation.OldCertificate?.Dispose();
+                    }
                 }
-            }
+            });
+        }
 
-            if (disconnectSessions)
+        /// <inheritdoc/>
+        public Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default)
+        {
+            Task pending;
+            lock (m_pendingApplyChangesLock)
             {
-                // When a Server Certificate or TrustList changes active SecureChannels
-                // are not immediately affected. This ensures the caller of ApplyChanges
-                // can get a response to the Method call. Once the Method response is
-                // returned the Server shall force existing SecureChannels affected by
-                // the changes to renegotiate and use the new Server Certificate
-                // and/or TrustLists.
-
-                // TODO: This needs fixing, the 1 second might or might not work to give
-                // Time to the client to receive the response.  Also, this needs to cut
-                // all channels and reevaluate sessions, this needs to be implemented in
-                // Transport side presumably.
-
-                _ = Task.Run(async () =>
-                {
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "----- Apply Changes of application certificate starts in 1 second...");
-
-                    // give the client some time to receive the response
-                    // before the certificate update may disconnect all sessions
-                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(1000)).ConfigureAwait(false);
-
-                    try
-                    {
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "----- Apply Changes for application certificate update running...");
-
-                        if (m_configuration.CertificateManager != null)
-                        {
-                            await m_configuration.CertificateManager.UpdateAsync(
-                                    m_configuration.SecurityConfiguration,
-                                    m_configuration.ApplicationUri)
-                                .ConfigureAwait(false);
-                        }
-
-                        m_logger.LogInformation(
-                            Utils.TraceMasks.Security,
-                            "----- Apply Changes for application certificate update completed.");
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.LogCritical(
-                            ex,
-                            "----- Apply Changes for application certificate update failed: " +
-                            "Error updating application instance certificates. " +
-                            "Server could be in faulted state.");
-
-                        // Throws to nowhere since no one is listening ... // throw;
-                    }
-                });
+                pending = m_pendingApplyChangesTask;
             }
 
-            return StatusCodes.Good;
+            if (pending == null || pending.IsCompleted)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (!cancellationToken.CanBeCanceled)
+            {
+                return pending;
+            }
+
+            return pending.WaitAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Clears the staging slot for a new <c>UpdateCertificate</c>
+        /// call. The pre-transaction
+        /// <see cref="ServerCertificateGroup.OriginalCertificate"/> is
+        /// <i>preserved</i> across consecutive stagings so a multi-step
+        /// transaction (Part 12 §7.10.2) still cuts every SecureChannel
+        /// established before the first staged update. Use
+        /// <see cref="DisposePendingRotationState"/> to release the
+        /// captured certificate on full teardown.
+        /// </summary>
+        private static void ResetPendingUpdateCertificate(ServerCertificateGroup certificateGroup)
+        {
+            certificateGroup.UpdateCertificate = null!;
+        }
+
+        /// <summary>
+        /// Releases the pre-transaction certificate captured during
+        /// <c>UpdateCertificate</c> staging and clears the staging slot.
+        /// Called by <see cref="ApplyChanges"/> when a group has no
+        /// pending update (stale capture from a failed transaction) and
+        /// by the manager's <see cref="Dispose"/>.
+        /// </summary>
+        private static void DisposePendingRotationState(ServerCertificateGroup certificateGroup)
+        {
+            certificateGroup.OriginalCertificate?.Dispose();
+            certificateGroup.OriginalCertificate = null;
+            certificateGroup.OriginalCertificateType = NodeId.Null;
+            certificateGroup.UpdateCertificate = null!;
+        }
+
+        /// <summary>
+        /// Captured payload for a single certificate-group rotation
+        /// scheduled by <see cref="ApplyChanges"/>. The deferred apply
+        /// task owns the contained <see cref="Certificate"/> reference
+        /// and disposes it once the channel-cut completes.
+        /// </summary>
+        private sealed class PendingCertificateRotation
+        {
+            public Certificate? OldCertificate { get; set; }
+            public NodeId CertificateType { get; set; }
         }
 
         private ServiceResult GetRejectedList(
@@ -1909,6 +2110,30 @@ namespace Opc.Ua.Server
             public CertificateStoreIdentifier TrustedStore { get; set; } = null!;
             public UpdateCertificateData UpdateCertificate { get; set; } = null!;
             public Certificate TemporaryApplicationCertificate { get; set; } = null!;
+
+            /// <summary>
+            /// The application certificate that was active in the
+            /// registry BEFORE the first <c>UpdateCertificate</c> call
+            /// of the current transaction. Captured on the first staging
+            /// in <c>UpdateCertificateInternalAsync</c> and preserved
+            /// across subsequent staging calls (per OPC UA Part 12
+            /// §7.10.2 transaction lifecycle) so that the channel-cut
+            /// in <c>ApplyChanges</c> matches every SecureChannel still
+            /// negotiated against the pre-transaction certificate —
+            /// including connections established between the first and
+            /// last staged <c>UpdateCertificate</c>. Owned by the group;
+            /// disposed only by <c>ApplyChanges</c> after consumption
+            /// or by <c>DisposePendingRotationState</c> on
+            /// teardown.
+            /// </summary>
+            public Certificate? OriginalCertificate { get; set; }
+
+            /// <summary>
+            /// The certificate type that <see cref="OriginalCertificate"/>
+            /// belongs to. <see cref="NodeId.Null"/> when no original
+            /// has been captured.
+            /// </summary>
+            public NodeId OriginalCertificateType { get; set; }
         }
 
 #pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
@@ -1923,6 +2148,13 @@ namespace Opc.Ua.Server
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();
+        private readonly Lock m_pendingApplyChangesLock = new();
+        private Task m_pendingApplyChangesTask = Task.CompletedTask;
+
+        /// <inheritdoc/>
+        public TimeSpan ApplyChangesGracePeriod { get; set; }
+            = TimeSpan.FromMilliseconds(250);
+
         private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
     }
 }
