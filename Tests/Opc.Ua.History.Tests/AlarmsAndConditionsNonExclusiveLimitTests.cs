@@ -28,73 +28,25 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.History.Tests
 {
     /// <summary>
-    /// compliance tests for the A and C Alarm conformance unit.
-    /// Verifies that AlarmConditionType, AlarmGroupType, and
-    /// AlarmSuppressionGroupType exist and have the correct hierarchy.
+    /// Event-driven parity tests for the A and C Non-Exclusive Limit
+    /// conformance unit.
     /// </summary>
     [NonParallelizable]
     [TestFixture]
     [Category("Conformance")]
     [Category("AlarmsAndConditions")]
-    public class AlarmsAndConditionsAlarmTests : AlarmsAndConditionsTestFixture
+    public class AlarmsAndConditionsNonExclusiveLimitTests : AlarmsAndConditionsTestFixture
     {
         [Test]
-        public async Task AlarmConditionTypeExistsAsync()
+        public async Task NonExclusiveLimitAlarmActiveNormalCycleAsync()
         {
-            DataValue dv = await ReadBrowseNameAsync(
-                ObjectTypeIds.AlarmConditionType).ConfigureAwait(false);
-            Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
-                "AlarmConditionType should exist in the address space.");
-        }
-
-        [Test]
-        public async Task AlarmConditionIsSubtypeOfAcknowledgeableAsync()
-        {
-            await VerifySubtypeOfAsync(
-                ObjectTypeIds.AlarmConditionType,
-                ObjectTypeIds.AcknowledgeableConditionType)
-                .ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task AlarmGroupTypeExistsAsync()
-        {
-            DataValue dv = await ReadBrowseNameAsync(
-                ObjectTypeIds.AlarmGroupType).ConfigureAwait(false);
-            Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
-                "AlarmGroupType should exist in the address space.");
-        }
-
-        [Test]
-        public async Task AlarmGroupTypeIsSubtypeOfFolderTypeAsync()
-        {
-            await VerifySubtypeOfAsync(
-                ObjectTypeIds.AlarmGroupType,
-                ObjectTypeIds.FolderType).ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task AlarmSuppressionGroupTypeExistsAsync()
-        {
-            DataValue dv = await ReadBrowseNameAsync(
-                ObjectTypeIds.AlarmSuppressionGroupType)
-                .ConfigureAwait(false);
-            Assert.That(StatusCode.IsGood(dv.StatusCode), Is.True,
-                "AlarmSuppressionGroupType should exist.");
-        }
-
-        [Test]
-        public async Task AlarmActiveNormalCycleWithAckAndConfirmAsync()
-        {
-            NodeId alarmId = RequireCttAlarm("AlarmConditionType");
+            NodeId alarmId = RequireCttAlarm("NonExclusiveLimitAlarmType");
             await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
 
             await using AlarmEventCollector collector =
@@ -134,7 +86,7 @@ namespace Opc.Ua.History.Tests
                 alarmId,
                 MethodIds.AcknowledgeableConditionType_Acknowledge,
                 new Variant(normalEventId),
-                new Variant(new LocalizedText("en", "alarm cycle ack"))).ConfigureAwait(false);
+                new Variant(new LocalizedText("en", "non-exclusive ack"))).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(acknowledge.StatusCode), Is.True,
                 $"Acknowledge should succeed: {acknowledge.StatusCode}");
 
@@ -152,7 +104,7 @@ namespace Opc.Ua.History.Tests
                 alarmId,
                 MethodIds.AcknowledgeableConditionType_Confirm,
                 new Variant(confirmEventId),
-                new Variant(new LocalizedText("en", "alarm cycle confirm"))).ConfigureAwait(false);
+                new Variant(new LocalizedText("en", "non-exclusive confirm"))).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(confirm.StatusCode), Is.True,
                 $"Confirm should succeed: {confirm.StatusCode}");
 
@@ -163,7 +115,6 @@ namespace Opc.Ua.History.Tests
                     AlarmEventCollector.FieldIndex.ConfirmedStateId,
                     out bool confirmed) && confirmed,
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-
             Assert.That(
                 AlarmEventCollector.TryGetBoolean(
                     confirmEvent,
@@ -172,58 +123,7 @@ namespace Opc.Ua.History.Tests
                 Is.True,
                 "Confirm event should include ActiveState/Id.");
             Assert.That(finalActive, Is.False,
-                "Alarm should remain normal after Acknowledge and Confirm.");
-        }
-
-        private async Task<DataValue> ReadBrowseNameAsync(NodeId nodeId)
-        {
-            ReadResponse response = await Session.ReadAsync(
-                null, 0, TimestampsToReturn.Both,
-                new ReadValueId[]
-                {
-                    new() {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.BrowseName
-                    }
-                }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
-
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            return response.Results[0];
-        }
-
-        private async Task VerifySubtypeOfAsync(
-            NodeId typeId, NodeId expectedParent)
-        {
-            BrowseResponse response = await Session.BrowseAsync(
-                null, null, 0,
-                new BrowseDescription[]
-                {
-                    new() {
-                        NodeId = typeId,
-                        BrowseDirection = BrowseDirection.Inverse,
-                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
-                        IncludeSubtypes = false,
-                        NodeClassMask = 0,
-                        ResultMask = (uint)BrowseResultMask.All
-                    }
-                }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
-
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            bool found = false;
-            foreach (ReferenceDescription r in response.Results[0].References)
-            {
-                NodeId parentId = ToNodeId(r.NodeId);
-                if (parentId == expectedParent)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            Assert.That(found, Is.True,
-                $"Type {typeId} should be a subtype of {expectedParent}.");
+                "NonExclusiveLimitAlarm should remain normal after Acknowledge and Confirm.");
         }
 
         private static ByteString GetEventIdOrInconclusive(EventFieldList eventFields)
