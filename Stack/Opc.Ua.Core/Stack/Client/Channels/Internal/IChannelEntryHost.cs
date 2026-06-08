@@ -41,6 +41,7 @@ namespace Opc.Ua
         ILogger? Logger { get; }
         TimeProvider TimeProvider { get; }
         IChannelReconnectPolicy ReconnectPolicy { get; }
+        CancellationToken ShutdownToken { get; }
         Bindings.ITransportChannelBindings? ChannelFactory { get; }
         ApplicationConfiguration Configuration { get; }
 
@@ -90,6 +91,8 @@ namespace Opc.Ua
             TimeSpan duration,
             string outcome);
         void RecordGateWait(ChannelEntry entry, TimeSpan duration);
+        void RecordParticipantTimeout(ChannelEntry entry, string participantId);
+        void RecordParticipantRecreate(ChannelEntry entry, string participantId, bool success);
         void RemoveEntryIfPresent(ManagedChannelKey key, ChannelEntry entry);
         void CloseChannel(ITransportChannel channel);
     }

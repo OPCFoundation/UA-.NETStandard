@@ -879,6 +879,7 @@ namespace Opc.Ua
                 return;
             }
 
+            m_shutdownCts.Cancel();
             DisposeCertificateRotation();
 
             Certificate? clientCertificate;
@@ -907,6 +908,7 @@ namespace Opc.Ua
             }
 
             m_meter?.Dispose();
+            m_shutdownCts.Dispose();
         }
 
         private void ThrowIfDisposed()
@@ -947,6 +949,16 @@ namespace Opc.Ua
             m_metrics?.RecordGateWait(entry, duration);
         }
 
+        private void RecordParticipantTimeout(ChannelEntry entry, string participantId)
+        {
+            m_metrics?.RecordParticipantTimeout(entry, participantId);
+        }
+
+        private void RecordParticipantRecreate(ChannelEntry entry, string participantId, bool success)
+        {
+            m_metrics?.RecordParticipantRecreate(entry, participantId, success);
+        }
+
         internal ChannelEntry[] GetMetricEntriesSnapshot()
         {
             lock (m_entries)
@@ -965,6 +977,7 @@ namespace Opc.Ua
 
         private readonly Meter? m_meter;
         private readonly ClientChannelManagerMetrics? m_metrics;
+        private readonly CancellationTokenSource m_shutdownCts = new();
         private int m_disposed;
 
         private void WireCertificateRotation()
@@ -1028,6 +1041,8 @@ namespace Opc.Ua
         TimeProvider IChannelEntryHost.TimeProvider => m_timeProvider;
 
         IChannelReconnectPolicy IChannelEntryHost.ReconnectPolicy => m_reconnectPolicy;
+
+        CancellationToken IChannelEntryHost.ShutdownToken => m_shutdownCts.Token;
 
         Bindings.ITransportChannelBindings? IChannelEntryHost.ChannelFactory => m_channelFactory;
 
@@ -1142,6 +1157,16 @@ namespace Opc.Ua
         void IChannelEntryHost.RecordGateWait(ChannelEntry entry, TimeSpan duration)
         {
             RecordGateWait(entry, duration);
+        }
+
+        void IChannelEntryHost.RecordParticipantTimeout(ChannelEntry entry, string participantId)
+        {
+            RecordParticipantTimeout(entry, participantId);
+        }
+
+        void IChannelEntryHost.RecordParticipantRecreate(ChannelEntry entry, string participantId, bool success)
+        {
+            RecordParticipantRecreate(entry, participantId, success);
         }
 
         void IChannelEntryHost.RemoveEntryIfPresent(ManagedChannelKey key, ChannelEntry entry)

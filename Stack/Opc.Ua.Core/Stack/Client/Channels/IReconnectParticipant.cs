@@ -84,5 +84,48 @@ namespace Opc.Ua
             IManagedTransportChannel channel,
             int reconnectAttempt,
             CancellationToken ct);
+
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        /// <summary>
+        /// Invoked fire-and-forget by the manager after the participant returned
+        /// <see cref="ParticipantReconnectResult.RequiresSessionRecreate"/> from
+        /// <see cref="OnReconnectAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// The participant performs its own session recreation here. The manager does not block
+        /// its transition to <see cref="ChannelState.Ready"/> on this call.
+        /// </remarks>
+        /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
+        /// <returns>The asynchronous recreation work.</returns>
+        public ValueTask RecreateAsync(CancellationToken ct = default)
+        {
+            _ = ct;
+            return new ValueTask();
+        }
+#endif
+    }
+
+    /// <summary>
+    /// Optional interface for reconnect participants that provide a recreate callback on TFMs
+    /// without default interface method support.
+    /// </summary>
+    public interface IRecreateAwareReconnectParticipant : IReconnectParticipant
+    {
+        /// <summary>
+        /// Invoked fire-and-forget by the manager after the participant returned
+        /// <see cref="ParticipantReconnectResult.RequiresSessionRecreate"/> from
+        /// <see cref="IReconnectParticipant.OnReconnectAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// The participant performs its own session recreation here. The manager does not block
+        /// its transition to <see cref="ChannelState.Ready"/> on this call.
+        /// </remarks>
+        /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
+        /// <returns>The asynchronous recreation work.</returns>
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        new ValueTask RecreateAsync(CancellationToken ct = default);
+#else
+        ValueTask RecreateAsync(CancellationToken ct = default);
+#endif
     }
 }

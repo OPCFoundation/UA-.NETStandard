@@ -61,6 +61,12 @@ namespace Opc.Ua
                 "opcua.channel.gate.wait",
                 unit: "ms",
                 description: "Time spent waiting for an OPC UA client channel ready gate.");
+            m_participantTimeout = meter.CreateCounter<long>(
+                "opcua.channel.participant.timeout.count",
+                description: "Number of OPC UA client reconnect participant callbacks that timed out.");
+            m_participantRecreate = meter.CreateCounter<long>(
+                "opcua.channel.participant.recreate.count",
+                description: "Number of OPC UA client reconnect participant recreate callbacks.");
             m_refCountGauge = meter.CreateObservableGauge<long>(
                 "opcua.channel.refcount",
                 ObserveRefCounts,
@@ -101,6 +107,16 @@ namespace Opc.Ua
         public void RecordGateWait(ChannelEntry entry, TimeSpan duration)
         {
             m_gateWait.Record(duration.TotalMilliseconds, CreateEndpointTags(entry));
+        }
+
+        public void RecordParticipantTimeout(ChannelEntry entry, string participantId)
+        {
+            m_participantTimeout.Add(1, CreateEndpointParticipantTags(entry, participantId));
+        }
+
+        public void RecordParticipantRecreate(ChannelEntry entry, string participantId, bool success)
+        {
+            m_participantRecreate.Add(1, CreateEndpointParticipantSuccessTags(entry, participantId, success));
         }
 
         private IEnumerable<Measurement<long>> ObserveRefCounts()
@@ -148,6 +164,24 @@ namespace Opc.Ua
                 new KeyValuePair<string, object?>("outcome", outcome));
         }
 
+        private static TagList CreateEndpointParticipantTags(ChannelEntry entry, string participantId)
+        {
+            return new TagList(
+                new KeyValuePair<string, object?>("endpoint", entry.EndpointUrl),
+                new KeyValuePair<string, object?>("participant", participantId));
+        }
+
+        private static TagList CreateEndpointParticipantSuccessTags(
+            ChannelEntry entry,
+            string participantId,
+            bool success)
+        {
+            return new TagList(
+                new KeyValuePair<string, object?>("endpoint", entry.EndpointUrl),
+                new KeyValuePair<string, object?>("participant", participantId),
+                new KeyValuePair<string, object?>("success", success));
+        }
+
         private static KeyValuePair<string, object?>[] CreateEndpointTagsArray(ChannelEntry entry)
         {
             return [new KeyValuePair<string, object?>("endpoint", entry.EndpointUrl)];
@@ -171,6 +205,8 @@ namespace Opc.Ua
         private readonly Counter<long> m_reconnectAttempts;
         private readonly Histogram<double> m_reconnectDuration;
         private readonly Histogram<double> m_gateWait;
+        private readonly Counter<long> m_participantTimeout;
+        private readonly Counter<long> m_participantRecreate;
         private readonly ObservableGauge<long> m_refCountGauge;
         private readonly ObservableGauge<long> m_participantGauge;
     }

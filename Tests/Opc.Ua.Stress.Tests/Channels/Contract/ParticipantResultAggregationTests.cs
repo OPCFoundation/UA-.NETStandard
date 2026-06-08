@@ -152,9 +152,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         }
 
         [Test]
-        [Explicit("Documents production gap: RequiresSessionRecreate plumbing not wired through to Session.RecreateAsync.")]
         [CancelAfter(30_000)]
-        public async Task AllParticipantsRequireRecreateDoesNotTriggerRecreateAsync(CancellationToken ct)
+        public async Task AllParticipantsRequireRecreateKeepChannelReadyAsync(CancellationToken ct)
         {
             ContractHarness harness = CreateHarness();
             await using (harness.ConfigureAwait(false))

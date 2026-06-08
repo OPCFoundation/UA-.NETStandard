@@ -35,7 +35,7 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
-    public partial class Session : IReconnectParticipant
+    public partial class Session : IReconnectParticipant, IRecreateAwareReconnectParticipant
     {
         /// <summary>
         /// Stable participant identifier used by
@@ -130,10 +130,9 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogInformation(
                     sre,
-                    "Session {SessionId}: server-side session lost during reactivation; recreating in place.",
+                    "Session {SessionId}: server-side session lost during reactivation; scheduling recreate.",
                     SessionId);
-                await RecreateInPlaceAsync(channel: channel, ct: ct).ConfigureAwait(false);
-                return ParticipantReconnectResult.Reactivated;
+                return ParticipantReconnectResult.RequiresSessionRecreate;
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadIdentityTokenRejected ||
@@ -162,6 +161,18 @@ namespace Opc.Ua.Client
                     SessionId);
                 return ParticipantReconnectResult.TransientFailure;
             }
+        }
+
+        async ValueTask IRecreateAwareReconnectParticipant.RecreateAsync(CancellationToken ct)
+        {
+            IManagedTransportChannel? channel = m_managedChannel;
+            if (channel != null)
+            {
+                await RecreateInPlaceAsync(channel: channel, ct: ct).ConfigureAwait(false);
+                return;
+            }
+
+            await RecreateInPlaceAsync(ct: ct).ConfigureAwait(false);
         }
 
         private static ValueTask ReconnectManagedChannelAsync(
