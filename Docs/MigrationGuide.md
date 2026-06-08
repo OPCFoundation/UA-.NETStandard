@@ -70,7 +70,6 @@
       - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
     - [Time and Timer abstraction (`TimeProvider`)](#time-and-timer-abstraction-timeprovider)
     - [Subscriptions and Transports](#subscriptions-and-transports)
-      - [Packet capture diagnostics hooks](#packet-capture-diagnostics-hooks)
       - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
       - [PubSub](#pubsub)
       - [Reverse connect](#reverse-connect)
