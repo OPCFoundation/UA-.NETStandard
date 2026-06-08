@@ -35,6 +35,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings.Pcap.DependencyInjection;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
@@ -128,6 +129,9 @@ static void ConfigureServices(IServiceCollection services)
 {
     services.AddOpcUa().AddClient(options => { });
     services.AddSingleton<OpcUaSessionManager>();
+    services.AddOpcUaBindingsPcap();
+    services.AddOpcUaBindingsPcapFormatters();
+    services.AddOpcUaBindingsPcapReplay();
 }
 
 static void ConfigureLogging(ILoggingBuilder logging)

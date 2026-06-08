@@ -66,6 +66,18 @@ namespace Opc.Ua.Bindings
         int BytesTransferred { get; }
 
         /// <summary>
+        /// The offset, in bytes, into <see cref="Buffer"/> where the
+        /// asynchronous socket operation starts.
+        /// </summary>
+        int Offset { get; }
+
+        /// <summary>
+        /// The maximum amount of data, in bytes, to send or receive in
+        /// <see cref="Buffer"/> starting at <see cref="Offset"/>.
+        /// </summary>
+        int Count { get; }
+
+        /// <summary>
         /// Gets the result of the asynchronous socket operation.
         /// </summary>
         /// <returns>true if error, false if ok</returns>
@@ -300,6 +312,12 @@ namespace Opc.Ua.Bindings
 
             /// <inheritdoc/>
             public int BytesTransferred => 0;
+
+            /// <inheritdoc/>
+            public int Offset => 0;
+
+            /// <inheritdoc/>
+            public int Count => 0;
 
             /// <inheritdoc/>
             /// <remarks>Not implemented here.</remarks>

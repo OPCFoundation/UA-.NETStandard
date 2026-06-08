@@ -53,9 +53,53 @@ namespace Opc.Ua.Bindings
         protected internal ChannelToken? RenewedToken { get; private set; }
 
         /// <summary>
-        /// Called when the token changes
+        /// Replaces the current and previous tokens without re-deriving any
+        /// key material. Used exclusively by the offline diagnostic
+        /// decoder (Opc.Ua.Diagnostics.Pcap) which reconstitutes
+        /// <see cref="ChannelToken"/> instances directly from a keylog and
+        /// must NOT trigger the live token-activation pipeline.
         /// </summary>
-        protected internal Action<ChannelToken?, ChannelToken?>? OnTokenActivated { get; set; }
+        /// <remarks>
+        /// This entry point is intentionally <see langword="internal"/>;
+        /// production code paths must continue to go through
+        /// <see cref="ActivateToken"/>.
+        /// </remarks>
+        internal void OfflineLoadTokens(ChannelToken? current, ChannelToken? previous)
+        {
+            PreviousToken?.Dispose();
+            PreviousToken = previous;
+            CurrentToken = current;
+            RenewedToken = null;
+        }
+
+        /// <summary>
+        /// Resets the offline decoder's per-direction sequence-number
+        /// tracking so that subsequent calls to
+        /// <see cref="ReadSymmetricMessage"/> start from a known baseline.
+        /// </summary>
+        /// <remarks>
+        /// Intended for the offline diagnostic decoder. The live channels
+        /// manage <c>m_remoteSequenceNumber</c> through
+        /// <see cref="VerifySequenceNumber"/>.
+        /// </remarks>
+        internal void OfflineResetRemoteSequenceNumber(uint sequenceNumber)
+        {
+            ResetSequenceNumber(sequenceNumber);
+        }
+
+        /// <summary>
+        /// Called when the token changes.
+        /// </summary>
+        /// <remarks>
+        /// The base channel exposes this as an in-process callback rather
+        /// than a multicast event so derived channels and transports can
+        /// project token transitions to their own preferred event shape.
+        /// <see cref="UaSCUaBinaryTransportChannel"/> bridges it to the
+        /// public <see cref="ISecureChannel.OnTokenActivated"/> event on
+        /// the client side; <see cref="TcpListenerChannel"/> bridges it to
+        /// the public <c>OnTokenActivated</c> event on the server side.
+        /// </remarks>
+        protected internal Action<ChannelToken?, ChannelToken?>? TokenActivatedCallback { get; set; }
 
         /// <summary>
         /// Creates a new token.
@@ -94,7 +138,7 @@ namespace Opc.Ua.Bindings
             CurrentToken = token;
             RenewedToken = null;
 
-            OnTokenActivated?.Invoke(token, PreviousToken);
+            TokenActivatedCallback?.Invoke(token, PreviousToken);
 
             m_logger.LogInformation(
                 "ChannelId {Id}: Token #{TokenId} activated. CreatedAt={CreatedAt:HH:mm:ss.fff}-{CreatedAtTimestamp}. Lifetime={Lifetime}.",
@@ -133,7 +177,7 @@ namespace Opc.Ua.Bindings
             RenewedToken?.Dispose();
             RenewedToken = null;
 
-            OnTokenActivated?.Invoke(null, null);
+            TokenActivatedCallback?.Invoke(null, null);
         }
 
         /// <summary>
