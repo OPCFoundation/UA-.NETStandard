@@ -76,6 +76,7 @@ namespace Opc.Ua.Bindings.Pcap.Formats
         /// <summary>
         /// Gets the formatter for the requested format kind.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public ITraceFormatter Get(FormatKind kind)
         {
             if (m_formatters.TryGetValue(kind, out ITraceFormatter? formatter))

@@ -95,7 +95,7 @@ namespace Opc.Ua.Bindings.Pcap.Formats
         /// the canonical lower-case names: <c>pcap</c>, <c>pcapng</c>,
         /// <c>json</c>, <c>csv</c>, <c>text</c>, <c>service-timeline</c>.
         /// </summary>
-        public static bool TryParse(string? value, out FormatKind kind)
+        public static bool TryParse(this string? value, out FormatKind kind)
         {
             switch (value?.Trim().ToLowerInvariant())
             {

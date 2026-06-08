@@ -36,11 +36,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
-using Opc.Ua.Client;
 using Opc.Ua.Bindings.Pcap.Capture;
 using Opc.Ua.Bindings.Pcap.Dissection;
 using Opc.Ua.Bindings.Pcap.Frame;
 using Opc.Ua.Bindings.Pcap.KeyLog;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Bindings.Pcap.Replay
 {
@@ -82,6 +82,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         /// <summary>
         /// Runs the replay and returns summary statistics.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public async ValueTask<MockReplayResult> RunAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();

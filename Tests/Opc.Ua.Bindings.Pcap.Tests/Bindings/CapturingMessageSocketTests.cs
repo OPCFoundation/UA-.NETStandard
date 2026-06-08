@@ -52,12 +52,13 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
         public void SendForwardsToInnerAndTapsBytesWhenObserverIsRegistered()
         {
             var registry = new ChannelCaptureRegistry();
-            var inner = new RecordingMessageSocket();
+            using var inner = new RecordingMessageSocket();
             var sink = new RecordingFrameCaptureSink();
+            using var originalSink = new TestSink(channelId: 0x4242);
             using var socket = new CapturingMessageSocket(
                 inner,
                 registry,
-                new TestSink(channelId: 0x4242));
+                originalSink);
 
             using var args = new StubAsyncEventArgs(new byte[] { 1, 2, 3, 4 });
 
@@ -80,9 +81,9 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
         public void IncomingChunksFromInnerAreTappedThroughWrappedSink()
         {
             var registry = new ChannelCaptureRegistry();
-            var inner = new RecordingMessageSocket();
+            using var inner = new RecordingMessageSocket();
             var sink = new RecordingFrameCaptureSink();
-            var originalSink = new TestSink(channelId: 0x99);
+            using var originalSink = new TestSink(channelId: 0x99);
             using var socket = new CapturingMessageSocket(inner, registry, originalSink);
             registry.SetObserver(sink);
 
@@ -102,12 +103,13 @@ namespace Opc.Ua.Bindings.Pcap.Tests.Bindings
         public void ObserverExceptionsDoNotBreakSendOrReceive()
         {
             var registry = new ChannelCaptureRegistry();
-            var inner = new RecordingMessageSocket();
+            using var inner = new RecordingMessageSocket();
             var sink = new ThrowingFrameCaptureSink();
+            using var originalSink = new TestSink(channelId: 1);
             using var socket = new CapturingMessageSocket(
                 inner,
                 registry,
-                new TestSink(channelId: 1));
+                originalSink);
             registry.SetObserver(sink);
 
             Assert.DoesNotThrow(() =>

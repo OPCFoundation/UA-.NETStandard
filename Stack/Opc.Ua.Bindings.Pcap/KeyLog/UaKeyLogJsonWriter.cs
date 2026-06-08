@@ -123,9 +123,7 @@ namespace Opc.Ua.Bindings.Pcap.KeyLog
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         GenerationMode = JsonSourceGenerationMode.Metadata)]
     [JsonSerializable(typeof(KeyLogRecord))]
-    internal sealed partial class UaKeyLogJsonContext : JsonSerializerContext
-    {
-    }
+    internal sealed partial class UaKeyLogJsonContext : JsonSerializerContext;
 
     internal sealed class KeyLogRecord
     {

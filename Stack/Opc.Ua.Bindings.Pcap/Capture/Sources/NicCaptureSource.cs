@@ -53,6 +53,7 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
     public sealed class NicCaptureSource : ICaptureSource
     {
         private const string kPcapFileName = "capture.pcap";
+
         private const string kSharpPcapDynamicLoadingMessage =
             "SharpPcap requires dynamic native libpcap/Npcap loading and is not NativeAOT/trimming safe.";
 
@@ -310,8 +311,9 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
                 }
             }
 
-            return selected ?? throw new PcapDiagnosticsException(
-                $"Interface '{interfaceName}' was not found. Use list_interfaces to discover available interfaces.");
+            return selected ??
+                throw new PcapDiagnosticsException(
+                    $"Interface '{interfaceName}' was not found. Use list_interfaces to discover available interfaces.");
         }
 
         private void OpenDevice(LibPcapLiveDevice selected, bool promiscuous)

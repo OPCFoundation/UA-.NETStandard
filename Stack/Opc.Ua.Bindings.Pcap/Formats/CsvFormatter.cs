@@ -88,15 +88,15 @@ namespace Opc.Ua.Bindings.Pcap.Formats
                 AppendCsv(builder, frame.ClientEndpoint);
                 builder.Append(',');
                 AppendCsv(builder, frame.ServerEndpoint);
-                builder.Append(',');
-                builder.Append(frame.Data.Length.ToString(CultureInfo.InvariantCulture));
-                builder.Append(',');
+                builder.Append(',')
+                    .Append(frame.Data.Length.ToString(CultureInfo.InvariantCulture))
+                    .Append(',');
                 AppendCsv(builder, FrameFormatHelpers.GetMessageType(data) ?? string.Empty);
-                builder.Append(',');
-                builder.Append(FrameFormatHelpers.GetChannelId(data)?.ToString(CultureInfo.InvariantCulture));
-                builder.Append(',');
-                builder.Append(FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture));
-                builder.AppendLine();
+                builder.Append(',')
+                    .Append(FrameFormatHelpers.GetChannelId(data)?.ToString(CultureInfo.InvariantCulture))
+                    .Append(',')
+                    .Append(FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture))
+                    .AppendLine();
                 count++;
             }
 

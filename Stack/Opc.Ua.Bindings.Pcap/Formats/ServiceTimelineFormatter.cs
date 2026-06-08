@@ -139,15 +139,15 @@ namespace Opc.Ua.Bindings.Pcap.Formats
                 "Status        Latency    Summary");
             foreach (TimelineRow row in rows)
             {
-                builder.Append(FrameFormatHelpers.FormatTimestamp(row.Timestamp).PadRight(30));
-                builder.Append(row.Channel.PadRight(9));
-                builder.Append(row.Token.PadRight(7));
-                builder.Append(row.Request.PadRight(10));
-                builder.Append(row.Service.PadRight(30));
-                builder.Append(row.Status.PadRight(14));
-                builder.Append(row.Latency.PadRight(11));
-                builder.Append(row.Summary);
-                builder.AppendLine();
+                builder.Append(FrameFormatHelpers.FormatTimestamp(row.Timestamp).PadRight(30))
+                    .Append(row.Channel.PadRight(9))
+                    .Append(row.Token.PadRight(7))
+                    .Append(row.Request.PadRight(10))
+                    .Append(row.Service.PadRight(30))
+                    .Append(row.Status.PadRight(14))
+                    .Append(row.Latency.PadRight(11))
+                    .Append(row.Summary)
+                    .AppendLine();
             }
 
             return builder.ToString();

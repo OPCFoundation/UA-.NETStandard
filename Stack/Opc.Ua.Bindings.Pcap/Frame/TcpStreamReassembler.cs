@@ -52,7 +52,7 @@ namespace Opc.Ua.Bindings.Pcap.Frame
 
             string sourceEndpoint = FormatEndpoint(parsed.SourceAddress, parsed.SourcePort);
             string destinationEndpoint = FormatEndpoint(parsed.DestinationAddress, parsed.DestinationPort);
-            string flowKey = string.Concat(sourceEndpoint, "->", destinationEndpoint);
+            string flowKey = $"{sourceEndpoint}->{destinationEndpoint}";
             if (!m_flows.TryGetValue(flowKey, out FlowState? state))
             {
                 state = new FlowState();
@@ -291,14 +291,14 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         /// <inheritdoc/>
         public bool Equals(TcpFlowSegment other)
         {
-            return string.Equals(FlowKey, other.FlowKey, StringComparison.Ordinal)
-                && string.Equals(SourceEndpoint, other.SourceEndpoint, StringComparison.Ordinal)
-                && string.Equals(DestinationEndpoint, other.DestinationEndpoint, StringComparison.Ordinal)
-                && SequenceNumber == other.SequenceNumber
-                && Timestamp.Equals(other.Timestamp)
-                && Data.Span.SequenceEqual(other.Data.Span)
-                && IsFin == other.IsFin
-                && IsSyn == other.IsSyn;
+            return string.Equals(FlowKey, other.FlowKey, StringComparison.Ordinal) &&
+                string.Equals(SourceEndpoint, other.SourceEndpoint, StringComparison.Ordinal) &&
+                string.Equals(DestinationEndpoint, other.DestinationEndpoint, StringComparison.Ordinal) &&
+                SequenceNumber == other.SequenceNumber &&
+                Timestamp.Equals(other.Timestamp) &&
+                Data.Span.SequenceEqual(other.Data.Span) &&
+                IsFin == other.IsFin &&
+                IsSyn == other.IsSyn;
         }
 
         /// <inheritdoc/>

@@ -154,5 +154,15 @@ namespace Opc.Ua.Bindings.Pcap.Capture
             : base(message, innerException)
         {
         }
+
+        /// <summary>
+        /// Constructs a new diagnostics exception with the supplied
+        /// message and HRESULT.
+        /// </summary>
+        /// <param name="message">The diagnostic message; may be <c>null</c>.</param>
+        /// <param name="hresult">The HRESULT to associate with the exception.</param>
+        public PcapDiagnosticsException(string? message, int hresult) : base(message, hresult)
+        {
+        }
     }
 }

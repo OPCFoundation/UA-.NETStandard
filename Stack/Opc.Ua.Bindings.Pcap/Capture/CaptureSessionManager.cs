@@ -69,6 +69,7 @@ namespace Opc.Ua.Bindings.Pcap.Capture
 
         private readonly ConcurrentDictionary<string, CaptureSession> m_sessions = new(
             StringComparer.OrdinalIgnoreCase);
+
         private readonly ICaptureSourceFactory m_sourceFactory;
         private readonly ILoggerFactory m_loggerFactory;
         private readonly ILogger m_logger;

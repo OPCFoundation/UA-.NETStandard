@@ -94,6 +94,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         /// <summary>
         /// Looks up a replay session by id.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public ReplaySession Get(string id)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(id);

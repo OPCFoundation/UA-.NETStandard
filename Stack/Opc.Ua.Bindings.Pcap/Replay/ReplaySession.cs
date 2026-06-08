@@ -133,6 +133,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         /// <summary>
         /// Starts the wrapped replay.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public async ValueTask StartAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -192,6 +193,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
 
             GC.SuppressFinalize(this);
         }
+
         private readonly MockServerReplay? m_mockServer;
         private readonly MockClientReplay? m_mockClient;
         private readonly string m_listenScheme = "opc.tcp";

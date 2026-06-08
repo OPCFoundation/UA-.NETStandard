@@ -239,13 +239,13 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         /// <inheritdoc/>
         public bool Equals(OpcUaChunk other)
         {
-            return Timestamp.Equals(other.Timestamp)
-                && string.Equals(FlowKey, other.FlowKey, StringComparison.Ordinal)
-                && string.Equals(SourceEndpoint, other.SourceEndpoint, StringComparison.Ordinal)
-                && string.Equals(DestinationEndpoint, other.DestinationEndpoint, StringComparison.Ordinal)
-                && MessageType == other.MessageType
-                && IsClientToServer == other.IsClientToServer
-                && Data.Span.SequenceEqual(other.Data.Span);
+            return Timestamp.Equals(other.Timestamp) &&
+                string.Equals(FlowKey, other.FlowKey, StringComparison.Ordinal) &&
+                string.Equals(SourceEndpoint, other.SourceEndpoint, StringComparison.Ordinal) &&
+                string.Equals(DestinationEndpoint, other.DestinationEndpoint, StringComparison.Ordinal) &&
+                MessageType == other.MessageType &&
+                IsClientToServer == other.IsClientToServer &&
+                Data.Span.SequenceEqual(other.Data.Span);
         }
 
         /// <inheritdoc/>

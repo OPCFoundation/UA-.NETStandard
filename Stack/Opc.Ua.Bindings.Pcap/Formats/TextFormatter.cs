@@ -83,18 +83,18 @@ namespace Opc.Ua.Bindings.Pcap.Formats
                 string channelId = FrameFormatHelpers.GetChannelId(data)?.ToString(CultureInfo.InvariantCulture) ?? "-";
                 string tokenId = FrameFormatHelpers.GetTokenId(data)?.ToString(CultureInfo.InvariantCulture) ?? "-";
 
-                builder.Append(FrameFormatHelpers.FormatTimestamp(frame.Timestamp));
-                builder.Append(' ');
-                builder.Append(FrameFormatHelpers.FormatDirection(frame.Direction));
-                builder.Append(' ');
-                builder.Append(frame.Data.Length.ToString(CultureInfo.InvariantCulture));
-                builder.Append("B ");
-                builder.Append(messageType);
-                builder.Append(" channel=");
-                builder.Append(channelId);
-                builder.Append(" token=");
-                builder.Append(tokenId);
-                builder.AppendLine();
+                builder.Append(FrameFormatHelpers.FormatTimestamp(frame.Timestamp))
+                    .Append(' ')
+                    .Append(FrameFormatHelpers.FormatDirection(frame.Direction))
+                    .Append(' ')
+                    .Append(frame.Data.Length.ToString(CultureInfo.InvariantCulture))
+                    .Append("B ")
+                    .Append(messageType)
+                    .Append(" channel=")
+                    .Append(channelId)
+                    .Append(" token=")
+                    .Append(tokenId)
+                    .AppendLine();
                 count++;
             }
 

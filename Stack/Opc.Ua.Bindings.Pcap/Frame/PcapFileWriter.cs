@@ -74,6 +74,7 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         /// <summary>
         /// Writes one packet record.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public async ValueTask WriteAsync(
             DateTimeOffset timestamp,
             ReadOnlyMemory<byte> packetData,

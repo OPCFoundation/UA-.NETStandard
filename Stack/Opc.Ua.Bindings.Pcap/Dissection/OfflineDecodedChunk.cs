@@ -104,14 +104,14 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
         /// <inheritdoc/>
         public bool Equals(OfflineDecodedChunk other)
         {
-            return MessageType == other.MessageType
-                && ChannelId == other.ChannelId
-                && TokenId == other.TokenId
-                && SequenceNumber == other.SequenceNumber
-                && RequestId == other.RequestId
-                && IsFinal == other.IsFinal
-                && IsAbort == other.IsAbort
-                && Body.Span.SequenceEqual(other.Body.Span);
+            return MessageType == other.MessageType &&
+                ChannelId == other.ChannelId &&
+                TokenId == other.TokenId &&
+                SequenceNumber == other.SequenceNumber &&
+                RequestId == other.RequestId &&
+                IsFinal == other.IsFinal &&
+                IsAbort == other.IsAbort &&
+                Body.Span.SequenceEqual(other.Body.Span);
         }
 
         /// <inheritdoc/>

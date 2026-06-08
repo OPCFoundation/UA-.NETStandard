@@ -67,7 +67,7 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
         private readonly ChannelDecoderShim m_serverToClient;
         private readonly Dictionary<uint, ChannelKeyMaterial> m_tokens;
         private readonly ILogger m_logger;
-        private uint m_channelId;
+        private readonly uint m_channelId;
         private uint m_currentTokenId;
 
         /// <summary>
@@ -377,7 +377,9 @@ namespace Opc.Ua.Bindings.Pcap.Dissection
             private static readonly System.Diagnostics.ActivitySource s_activitySource
                 = new("Opc.Ua.Bindings.Pcap.OfflineSecureChannel");
 
-            private NoopTelemetryContext() { }
+            private NoopTelemetryContext()
+            {
+            }
 
             public ILoggerFactory LoggerFactory => NullLoggerFactory.Instance;
 

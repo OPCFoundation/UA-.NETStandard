@@ -127,11 +127,11 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         /// <inheritdoc/>
         public bool Equals(CaptureFrame other)
         {
-            return Timestamp.Equals(other.Timestamp)
-                && Direction == other.Direction
-                && string.Equals(ClientEndpoint, other.ClientEndpoint, StringComparison.Ordinal)
-                && string.Equals(ServerEndpoint, other.ServerEndpoint, StringComparison.Ordinal)
-                && Data.Span.SequenceEqual(other.Data.Span);
+            return Timestamp.Equals(other.Timestamp) &&
+                Direction == other.Direction &&
+                string.Equals(ClientEndpoint, other.ClientEndpoint, StringComparison.Ordinal) &&
+                string.Equals(ServerEndpoint, other.ServerEndpoint, StringComparison.Ordinal) &&
+                Data.Span.SequenceEqual(other.Data.Span);
         }
 
         /// <inheritdoc/>

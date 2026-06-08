@@ -79,6 +79,7 @@ namespace Opc.Ua.Bindings.Pcap.Replay
         /// <summary>
         /// Starts listening on loopback and accepts replay clients.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public async ValueTask StartAsync(string listenScheme, int? port, CancellationToken ct)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(listenScheme);

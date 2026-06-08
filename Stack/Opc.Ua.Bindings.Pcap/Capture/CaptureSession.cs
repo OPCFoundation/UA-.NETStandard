@@ -119,6 +119,7 @@ namespace Opc.Ua.Bindings.Pcap.Capture
         /// <summary>
         /// Starts the session. Idempotent if already running.
         /// </summary>
+        /// <exception cref="PcapDiagnosticsException"></exception>
         public async ValueTask StartAsync(CancellationToken ct)
         {
             IAsyncDisposable sessionLock = await AcquireAsync(ct).ConfigureAwait(false);

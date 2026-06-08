@@ -232,8 +232,8 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
         /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct)
         {
-            if (Interlocked.CompareExchange(ref m_state, StateStopped, StateRunning)
-                != StateRunning)
+            if (Interlocked.CompareExchange(ref m_state, StateStopped, StateRunning) !=
+                StateRunning)
             {
                 return;
             }
@@ -406,13 +406,14 @@ namespace Opc.Ua.Bindings.Pcap.Capture.Sources
             }
             long bytes = Interlocked.Add(ref m_byteCount, chunk.Length);
             long frames = Interlocked.Increment(ref m_frameCount);
-            if (bytes > m_maxBytes || frames > m_maxFrames ||
+            if (bytes > m_maxBytes ||
+                frames > m_maxFrames ||
                 DateTimeOffset.UtcNow - m_startedAt > m_maxDuration)
             {
                 // Stop accepting more frames but keep the writers open
                 // so already-buffered work flushes properly.
-                if (Interlocked.CompareExchange(ref m_state, StateStopped, StateRunning)
-                    == StateRunning)
+                if (Interlocked.CompareExchange(ref m_state, StateStopped, StateRunning) ==
+                    StateRunning)
                 {
                     m_registry.TryClearObserver(this);
                 }

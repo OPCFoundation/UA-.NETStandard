@@ -120,7 +120,5 @@ namespace Opc.Ua.Bindings.Pcap.Formats
     }
 
     [JsonSerializable(typeof(List<FrameJsonDto>))]
-    internal sealed partial class FrameJsonSerializerContext : JsonSerializerContext
-    {
-    }
+    internal sealed partial class FrameJsonSerializerContext : JsonSerializerContext;
 }

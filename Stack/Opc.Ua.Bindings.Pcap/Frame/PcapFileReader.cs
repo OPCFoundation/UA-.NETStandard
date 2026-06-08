@@ -69,10 +69,10 @@ namespace Opc.Ua.Bindings.Pcap.Frame
         /// <inheritdoc/>
         public bool Equals(PcapRecord other)
         {
-            return Timestamp.Equals(other.Timestamp)
-                && LinkType == other.LinkType
-                && OriginalLength == other.OriginalLength
-                && Data.Span.SequenceEqual(other.Data.Span);
+            return Timestamp.Equals(other.Timestamp) &&
+                LinkType == other.LinkType &&
+                OriginalLength == other.OriginalLength &&
+                Data.Span.SequenceEqual(other.Data.Span);
         }
 
         /// <inheritdoc/>
