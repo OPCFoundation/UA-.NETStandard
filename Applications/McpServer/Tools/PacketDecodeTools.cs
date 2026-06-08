@@ -184,10 +184,10 @@ namespace Opc.Ua.Mcp.Tools
             return new ActiveChannelInfo
             {
                 SessionName = info.Name,
-                EndpointUrl = endpoint.EndpointUrl,
+                EndpointUrl = endpoint.EndpointUrl ?? string.Empty,
                 ChannelId = token?.ChannelId ?? 0,
                 TokenId = token?.TokenId ?? 0,
-                SecurityPolicyUri = endpoint.SecurityPolicyUri,
+                SecurityPolicyUri = endpoint.SecurityPolicyUri ?? string.Empty,
                 SecurityMode = endpoint.SecurityMode.ToString()
             };
         }

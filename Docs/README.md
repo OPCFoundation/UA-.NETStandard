@@ -12,7 +12,6 @@ Here is a list of available documentation for different topics:
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * [Observability](Observability.md) support in the stack.
-* Packet capture, dissection, and replay diagnostics are documented in [Packet Capture](PacketCapture.md); the companion [Packet Capture File Formats](PacketCaptureFileFormats.md) page defines the `.uakeys.json`, `.uakeys.txt`, and pcap conventions.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
